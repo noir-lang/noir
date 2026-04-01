@@ -100,16 +100,26 @@ impl Function {
     fn mem2reg_simple(&mut self, max_variables: Option<u32>, max_block_span: Option<usize>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        // Use as_slice() to get blocks without consuming post_order (needed for dom_tree later)
+        let blocks: Vec<BasicBlockId> = post_order.as_slice().iter().copied().rev().collect();
         let mut inserter = FunctionInserter::new(self);
-
-        let blocks = post_order.into_vec_reverse();
 
         // Note that `variables` and `entry_values` in variable_states are all keyed by the original
         // ValueId of the `allocate` instruction result. These are all iterated over at some point
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
+
+        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
+        if let Some(max) = max_variables {
+            variables = variables.into_iter().take(max as usize).collect();
+        }
+        if variables.is_empty() {
+            return;
+        }
+
+        // Defer dom_tree construction until we know there are eligible variables.
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         // Filter out variables whose declaration dominates too many blocks.
         // Each promoted variable adds a block parameter to every dominated block, and the
@@ -135,11 +145,6 @@ impl Function {
             }
             variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
         }
-
-        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        if let Some(max) = max_variables {
-            variables = variables.into_iter().take(max as usize).collect();
-        }
         if variables.is_empty() {
             return;
         }
@@ -151,6 +156,7 @@ impl Function {
             &mut dom_tree,
             &mut inserter,
             &mut block_states,
+            &cfg,
         );
         add_terminator_arguments(&blocks, &variables, &mut inserter, &block_states, &cfg);
         remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
@@ -179,31 +185,77 @@ struct BlockState {
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// This will add a block parameter for every variable in `variables` that
-/// is alive in each block. This parameter will always be the entry state
-/// of that variable, while the exit state will be empty (variable was not changed)
-/// or filled with the most recent Store value to the variable in the block.
+/// For blocks with multiple predecessors, this adds a block parameter for every
+/// visible variable. For blocks with a single predecessor, no block parameters
+/// are added — the entry state is inherited directly from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &mut DominatorTree,
     inserter: &mut FunctionInserter,
     variable_states: &mut BlockStates,
+    cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        // All variables visible at the start of the current block
-        let entry_state = add_visible_variables_as_block_parameters(
-            variables,
-            dom_tree,
-            block,
-            &mut inserter.function.dfg,
-        );
+        let predecessor_count = cfg.predecessors(block).len();
+
+        let entry_state = if predecessor_count <= 1 {
+            // Entry block (0 predecessors) or single-predecessor block:
+            // no block parameters needed for variables. Single-predecessor blocks
+            // inherit the predecessor's exit values directly since the predecessor
+            // is always already processed (it dominates this block, so it has a
+            // lower RPO index).
+            inherit_from_single_predecessor(variables, block, variable_states, cfg)
+        } else {
+            // Multiple predecessors: add block parameters for all visible variables
+            add_visible_variables_as_block_parameters(
+                variables,
+                dom_tree,
+                block,
+                &mut inserter.function.dfg,
+            )
+        };
+
         let exit_state = abstract_interpret_block(inserter, block, &entry_state);
         variable_states.blocks.insert(block, BlockState { entry_state, exit_state });
     }
 }
 
+/// For blocks with 0 or 1 predecessors, build the entry state by inheriting the
+/// predecessor's exit values directly. No block parameters are created.
+///
+/// - Entry block (0 predecessors): only variables declared in this block are visible.
+/// - Single-predecessor: all variables visible at the predecessor are inherited,
+///   plus any variables declared in this block.
+fn inherit_from_single_predecessor(
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    block: BasicBlockId,
+    variable_states: &BlockStates,
+    cfg: &ControlFlowGraph,
+) -> StateVec {
+    let mut entry_state = StateVec::new();
+
+    if let Some(predecessor) = cfg.predecessors(block).next() {
+        let pred_state = &variable_states.blocks[&predecessor];
+        // Inherit all visible variables with the predecessor's exit values
+        for var in pred_state.entry_state.keys() {
+            entry_state.insert(*var, pred_state.get_exit_value(*var));
+        }
+    }
+
+    // Add variables declared in this block (use allocate result directly)
+    for (var, decl_block) in variables {
+        if *decl_block == block {
+            entry_state.insert(*var, *var);
+        }
+    }
+
+    entry_state
+}
+
 /// Link entry & exit states by adding terminator arguments for every variable stored to.
+/// Only processes blocks with multiple predecessors, since single-predecessor blocks
+/// inherit values directly and have no variable block parameters to fill.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
@@ -212,6 +264,12 @@ fn add_terminator_arguments(
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
+        // Single-predecessor blocks (and the entry block) don't have variable
+        // block parameters, so there are no terminator arguments to add.
+        if cfg.predecessors(block).len() <= 1 {
+            continue;
+        }
+
         let block_state = &variable_states.blocks[&block];
 
         for predecessor in cfg.predecessors(block) {
@@ -537,6 +595,40 @@ fn commit(
         let mut terminator = inserter.function.dfg[block].take_terminator();
         terminator.map_values_mut(|value| inserter.resolve(value));
         inserter.function.dfg[block].set_terminator(terminator);
+    }
+}
+
+#[cfg(test)]
+impl Ssa {
+    /// Like `mem2reg_simple` but skips the cleanup pass that removes redundant block
+    /// parameters. This reveals whether the single-predecessor escape correctly
+    /// avoids creating block parameters in the first place (rather than relying on
+    /// cleanup to remove them after the fact).
+    fn mem2reg_simple_without_cleanup(mut self) -> Ssa {
+        for function in self.functions.values_mut() {
+            let cfg = ControlFlowGraph::with_function(function);
+            let post_order = PostOrder::with_cfg(&cfg);
+            let blocks: Vec<BasicBlockId> = post_order.as_slice().iter().copied().rev().collect();
+            let mut inserter = FunctionInserter::new(function);
+            let variables = collect_all_eligible_variables(inserter.function, &blocks);
+            if variables.is_empty() {
+                continue;
+            }
+            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+            let mut block_states = BlockStates::default();
+            add_block_params_and_find_exit_states(
+                &blocks,
+                &variables,
+                &mut dom_tree,
+                &mut inserter,
+                &mut block_states,
+                &cfg,
+            );
+            add_terminator_arguments(&blocks, &variables, &mut inserter, &block_states, &cfg);
+            // Deliberately skip remove_params_from_blocks_with_identical_terminator_args
+            commit(&mut inserter, &variables, blocks);
+        }
+        self
     }
 }
 
@@ -1362,5 +1454,81 @@ brillig(inline) fn main f0 {
             jmp b4(v9)
         }
         ");
+    }
+
+    /// The single-predecessor escape avoids creating block parameters on blocks
+    /// with only one predecessor. Without this optimization, every dominated block
+    /// gets block parameters that the cleanup pass then has to remove.
+    ///
+    /// This test uses `mem2reg_simple_without_cleanup` to show the difference:
+    /// with the escape, single-pred blocks (b1, b2, b4, b5) have NO extra block
+    /// parameters. Without it, they would each have a `v_: Field` parameter that
+    /// cleanup would need to remove.
+    #[test]
+    fn single_predecessor_escape_avoids_unnecessary_block_params() {
+        // b0 → b1 → b2 is a single-pred chain, then b2/b3 merge at b4 (multi-pred),
+        // and b4 → b5 is another single-pred link.
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmpif v0 then: b1(), else: b3()
+              b1():
+                store Field 1 at v1
+                jmp b2()
+              b2():
+                jmp b4()
+              b3():
+                store Field 2 at v1
+                jmp b4()
+              b4():
+                jmp b5()
+              b5():
+                v2 = load v1 -> Field
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Run without the cleanup pass that removes redundant block parameters.
+        // This reveals that the single-predecessor escape prevents b1, b2, and b5
+        // from ever getting block parameters in the first place — only b4 (which has
+        // two predecessors) gets one.
+        let ssa = ssa.mem2reg_simple_without_cleanup();
+        // b1, b2, b5 have no block parameters — the single-predecessor escape
+        // inherits values directly from the predecessor's exit state.
+        // Only b4 (two predecessors: b2 and b3) gets a block parameter.
+        //
+        // Without the single-predecessor escape, every dominated block would get
+        // a block parameter for the variable (which the cleanup pass would then remove):
+        //
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1(Field 0), else: b3(Field 0)
+        //   b1(v7: Field):
+        //     jmp b2(Field 1)
+        //   b2(v8: Field):
+        //     jmp b4(v8)
+        //   b3(v6: Field):
+        //     jmp b4(Field 2)
+        //   b4(v9: Field):
+        //     jmp b5(v9)
+        //   b5(v10: Field):
+        //     return v10
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b3()
+              b1():
+                jmp b2()
+              b2():
+                jmp b4(Field 1)
+              b3():
+                jmp b4(Field 2)
+              b4(v1: Field):
+                jmp b5()
+              b5():
+                return v1
+            }
+            ");
     }
 }
