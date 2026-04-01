@@ -115,7 +115,7 @@ impl ValueSet {
         self.0.set(value.to_u32().try_into().unwrap(), true);
     }
 
-    fn extend(&mut self, values: &[ValueId]) {
+    fn extend<'a>(&mut self, values: impl IntoIterator<Item = &'a ValueId>) {
         for value in values {
             self.insert(*value);
         }
@@ -199,11 +199,14 @@ impl TaintedDescendants {
 
     /// Try to constrain some of the outputs if:
     /// * one of the constrained values is a descendant of the output, and
-    /// * another constrained value shares an ancestor with an input, and it is not tainted
+    /// * another constrained value shares an ancestor with an input,
+    ///   and it is not tainted, or it has been already constrained
     ///
     /// Exceptions to this rule are:
     /// * if there are no input arguments (they were all numeric constants, or there were no args)
     /// * if there is only one constrained value (an output against a constant)
+    ///
+    /// Any constrained output is added to the `all_constrained` set.
     ///
     /// Return `true` if all outputs have been constrained.
     fn try_constrain(
@@ -212,6 +215,7 @@ impl TaintedDescendants {
         parents: &HashMap<ValueId, Vec<ValueId>>,
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
     ) -> bool {
         // Make sure this constraint has something to do with the outputs.
         if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
@@ -225,7 +229,13 @@ impl TaintedDescendants {
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(constrained_values, parents, equivalences, all_tainted)
+            && !self.arguments_intersect(
+                constrained_values,
+                parents,
+                equivalences,
+                all_tainted,
+                all_constrained,
+            )
         {
             return false;
         }
@@ -234,7 +244,12 @@ impl TaintedDescendants {
         self.single_outputs.retain(|output| {
             let constrained = constrained_values
                 .iter()
-                .any(|value| any_ancestor_is(*value, *output, parents, equivalences));
+                .any(|value| any_ancestor(*value, |a| a == *output, parents, equivalences));
+
+            if constrained {
+                all_constrained.insert(*output);
+            }
+
             !constrained
         });
 
@@ -242,7 +257,7 @@ impl TaintedDescendants {
             // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
             let can_constrain = constrained_values
                 .iter()
-                .any(|value| any_ancestor_is(*value, *array, parents, equivalences));
+                .any(|value| any_ancestor(*value, |a| a == *array, parents, equivalences));
 
             if !can_constrain {
                 return true;
@@ -255,9 +270,14 @@ impl TaintedDescendants {
                 if descendants.is_empty() {
                     return true;
                 }
-                let constrained = constrained_values
-                    .iter()
-                    .any(|value| any_ancestor_in(*value, descendants, parents, equivalences));
+                let constrained = constrained_values.iter().any(|value| {
+                    any_ancestor(*value, |a| descendants.contains(&a), parents, equivalences)
+                });
+
+                if constrained {
+                    all_constrained.extend(descendants.iter());
+                }
+
                 !constrained
             });
 
@@ -270,24 +290,29 @@ impl TaintedDescendants {
 
     /// Whether one of the constrained values:
     /// * shares an ancestor with a call argument (checked via pre-computed `arg_ancestors`), and
-    /// * is not tainted
+    /// * is not tainted, unless it's been already constrained
     fn arguments_intersect(
         &self,
         constrained_values: &[ValueId],
         parents: &HashMap<ValueId, Vec<ValueId>>,
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
+        all_constrained: &ValueSet,
     ) -> bool {
         for &cv in constrained_values {
-            if all_tainted.contains(&cv) {
-                // Allowing these would mean we could constrain the output of one call
-                // with the output of another Brillig call, and also that outputs of
-                // the call would trivially connect to the inputs.
+            // We want to avoid using tainted inputs to constrain Brillig outputs.
+            // Allowing them would mean we could constrain the output of one call
+            // with the output of another Brillig call, and also that outputs of
+            // the call would trivially connect to the inputs.
+            // However if a tainted input has been constrained already, it's as good as any other.
+            if all_tainted.contains(&cv)
+                && !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences)
+            {
                 continue;
             }
             // arg_ancestors contains the arguments themselves and all their transitive ancestors.
             // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
-            if any_ancestor_in(cv, &self.arg_ancestors, parents, equivalences) {
+            if any_ancestor(cv, |a| self.arg_ancestors.contains(&a), parents, equivalences) {
                 return true;
             }
         }
@@ -626,6 +651,8 @@ impl Context {
     ) -> Self {
         // Constraints on tainted output cannot be used to connect output to input.
         let mut all_tainted = ValueSet::new(&func.dfg);
+        // Unless such output has already been shown to be constrained.
+        let mut all_constrained = ValueSet::new(&func.dfg);
         // Skip checks until we encounter the tainted instruction.
         let mut active_tainted = HashSet::new();
 
@@ -669,6 +696,7 @@ impl Context {
                             parents,
                             equivalences,
                             &all_tainted,
+                            &mut all_constrained,
                         );
 
                         if constrained {
@@ -854,40 +882,19 @@ fn bfs_ancestors(
 }
 
 /// Returns `true` if `start` itself, or any value reachable from `start` by following
-/// `parents` (and `equivalences` from intermediate nodes), equals `target`.
+/// `parents` (and `equivalences` from intermediate nodes), satisfies a `predicate`.
 ///
 /// Equivalences are not followed directly from `start` — only from nodes reached via
 /// parent edges. See [`bfs_ancestors`] for the rationale.
-fn any_ancestor_is(
+fn any_ancestor(
     start: ValueId,
-    target: ValueId,
+    predicate: impl Fn(ValueId) -> bool,
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> bool {
     let mut found = false;
     bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
-        if a == target {
-            found = true;
-        }
-        !found && d <= MAX_ANCESTOR_DISTANCE
-    });
-    found
-}
-
-/// Returns `true` if `start` itself, or any value reachable from `start` by following
-/// `parents` (and `equivalences` from intermediate nodes), is contained in `target_set`.
-///
-/// Equivalences are not followed directly from `start` — only from nodes reached via
-/// parent edges. See [`bfs_ancestors`] for the rationale.
-fn any_ancestor_in(
-    start: ValueId,
-    target_set: &HashSet<ValueId>,
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-) -> bool {
-    let mut found = false;
-    bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
-        if target_set.contains(&a) {
+        if predicate(a) {
             found = true;
         }
         !found && d <= MAX_ANCESTOR_DISTANCE
@@ -1365,14 +1372,14 @@ mod tests {
     /// then we feed it into a second call, and constrain the second call output
     /// against its tainted input. But because the tainted input is constrained,
     /// the second call should be constrained as well.
-    fn test_chained_brillig_calls_constrained_against_const() {
+    fn test_chained_brillig_calls_constrained_against_const_then_tainted_input() {
         let program = r#"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
             v3 = mul v0, v1
             v4 = call f1(v1, v2) -> Field
-            v5 = call f1(v4, v4) -> Field
             constrain v4 == Field 10
+            v5 = call f1(v4, v4) -> Field
             v6 = mul v4, Field 2
             constrain v5 == v6
             return
@@ -1387,7 +1394,7 @@ mod tests {
 
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
-        assert_eq!(ssa_level_warnings.len(), 1);
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 
     #[test]
