@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775061102336,
+  "lastUpdate": 1775061135972,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23065,48 +23065,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "25293b5b18bca33377a8dcf34a6525423a30f28f",
-          "message": "chore(brillig): Use ConditionalMove in a few more places (#11992)",
-          "timestamp": "2026-03-25T11:34:27Z",
-          "tree_id": "f0617f3296fc65b4ac9156ff91ac5a15fd2de30d",
-          "url": "https://github.com/noir-lang/noir/commit/25293b5b18bca33377a8dcf34a6525423a30f28f"
-        },
-        "date": 1774440109779,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168345,
-            "range": "± 521",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137125,
-            "range": "± 3502",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642472,
-            "range": "± 1640",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "81ddeeb7200859ff39dd942f6698200e1127f2db",
           "message": "chore(brillig): do-while loop for generic iteration (#11990)",
@@ -25149,6 +25107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643972,
             "range": "± 3359",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4e1fb408b390e8be6eb3dd451c1d920b9c380248",
+          "message": "fix(lsp): autocomplete in type generics (#12080)",
+          "timestamp": "2026-04-01T16:06:44Z",
+          "tree_id": "59508c22439087e3a08e0d0548d3c73f5e5cd644",
+          "url": "https://github.com/noir-lang/noir/commit/4e1fb408b390e8be6eb3dd451c1d920b9c380248"
+        },
+        "date": 1775061077278,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 162030,
+            "range": "± 440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 133346,
+            "range": "± 1342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2118349,
+            "range": "± 1016",
             "unit": "ns/iter"
           }
         ]
