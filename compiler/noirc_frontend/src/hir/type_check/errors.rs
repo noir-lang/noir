@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::elaborator::types::SimilarlyNamedType;
 use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
@@ -66,7 +67,7 @@ pub enum TypeCheckError {
         expected_typ: String,
         expr_typ: String,
         expr_location: Location,
-        similar_types: Vec<(String, String)>,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
     },
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource {
@@ -74,7 +75,7 @@ pub enum TypeCheckError {
         actual: String,
         location: Location,
         source: Source,
-        similar_types: Vec<(String, String)>,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
     },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
@@ -437,14 +438,25 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *location,
             ),
-            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location, similar_types } => {
+            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location, similarly_named_types: similar_types } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     *expr_location,
                 );
                 for (type1, type2) in similar_types {
-                    diagnostic.add_secondary(format!("Note: `{type1}` and `{type2}` have similar names, but are actually distinct types"), *expr_location);
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *expr_location);
+
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
                 }
                 diagnostic
             }
@@ -644,7 +656,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source, similar_types } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source, similarly_named_types: similar_types } => {
                 let message = match source {
                     Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
@@ -671,7 +683,18 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 let mut diagnostic = Diagnostic::simple_error(message, String::new(), *location);
                 for (type1, type2) in similar_types {
-                    diagnostic.add_secondary(format!("Note: `{type1}` and `{type2}` have similar names, but are actually distinct types"), *location);
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *location);
+
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
                 }
                 diagnostic
 

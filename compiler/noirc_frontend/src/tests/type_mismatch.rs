@@ -5,12 +5,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_struct_case() {
     let src = r#"
     mod moo {
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: Foo) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {
@@ -31,12 +33,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_generic_case() {
         use super::Gen;
 
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: Gen<Foo>) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {
@@ -53,12 +57,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_tuple_case() {
     let src = r#"
     mod moo {
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: (Foo, i32)) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {
@@ -75,12 +81,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_array_case() {
     let src = r#"
     mod moo {
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: [Foo; 1]) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {
@@ -97,12 +105,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_vector_case() {
     let src = r#"
     mod moo {
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: [Foo]) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {
@@ -119,12 +129,14 @@ fn type_mismatch_same_name_different_fully_qualified_name_reference_case() {
     let src = r#"
     mod moo {
         pub struct Foo {}
+                   ~~~ Note: `moo::Foo` is defined in the current crate
 
         pub fn foo(_: &mut Foo) {}
     }
 
     mod moo2 {
         pub struct Foo {}
+                   ~~~ Note: `moo2::Foo` is defined in the current crate
     }
 
     fn main() {

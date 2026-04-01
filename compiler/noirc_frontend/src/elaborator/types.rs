@@ -1,5 +1,5 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
-mod similar_types;
+mod similarly_named_types;
 
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
@@ -9,6 +9,8 @@ use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
+
+pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
     BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
@@ -1669,7 +1671,7 @@ impl Elaborator<'_> {
             expected_typ: expected.to_string(),
             expr_typ: actual.to_string(),
             expr_location: location,
-            similar_types: self.compute_similar_types(actual, expected),
+            similarly_named_types: self.compute_similarly_named_types(actual, expected),
         }
     }
 
@@ -1685,7 +1687,7 @@ impl Elaborator<'_> {
             actual: actual.to_string(),
             source,
             location,
-            similar_types: self.compute_similar_types(actual, expected),
+            similarly_named_types: self.compute_similarly_named_types(actual, expected),
         }
     }
 
