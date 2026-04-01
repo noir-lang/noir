@@ -304,9 +304,19 @@ impl TaintedDescendants {
             // Allowing them would mean we could constrain the output of one call
             // with the output of another Brillig call, and also that outputs of
             // the call would trivially connect to the inputs.
-            // However if a tainted input has been constrained already, it's as good as any other.
+            // However if a tainted input has been constrained already, we can use it.
             if all_tainted.contains(&cv)
-                && !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences)
+                && (
+                    // Tainted and hasn't been constrained.
+                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences)
+                    // Tainted because it's the output of this call itself.
+                    || any_ancestor(
+                        cv,
+                        |a| self.single_outputs.contains(&a) || self.array_outputs.contains_key(&a),
+                        parents,
+                        equivalences,
+                    )
+                )
             {
                 continue;
             }
@@ -956,10 +966,10 @@ mod tests {
             v17 = or v14, v16
             store v17 at v9
             v18 = load v9 -> u1
-            constrain v18 == u1 1
+            constrain v18 == u1 1    // This constrains v8
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
-            constrain v6 == v20
+            constrain v6 == v20      // v6 is not connected to the inputs, and even though v8 is constrained, it's tainted.
             return
         }
 
