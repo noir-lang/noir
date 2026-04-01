@@ -515,29 +515,51 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         let hash = self.hash(key);
         let mut should_break = false;
+        let mut candidate_index: u32 = 0;
+        let mut has_candidate = false;
 
         for attempt in 0..N {
             if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u32);
                 let mut slot = self._table[index];
-                let mut insert = false;
 
-                // Either marked as deleted or has unset key-value.
-                if slot.is_available() {
-                    insert = true;
-                    self._len += 1;
-                } else {
+                if slot.is_valid() {
                     if slot._key == key {
-                        insert = true;
+                        // Key exists: update in place without changing length.
+                        slot.set(key, value);
+                        self._table[index] = slot;
+                        has_candidate = false;
+                        should_break = true;
                     }
-                }
-
-                if insert {
-                    slot.set(key, value);
-                    self._table[index] = slot;
+                } else if slot._is_deleted {
+                    // Deleted slot: remember as candidate but keep probing for existing key.
+                    if !has_candidate {
+                        candidate_index = index;
+                        has_candidate = true;
+                    }
+                } else {
+                    // Empty slot: key cannot exist beyond this point.
+                    let insert_at = if has_candidate {
+                        candidate_index
+                    } else {
+                        index
+                    };
+                    let mut s = self._table[insert_at];
+                    s.set(key, value);
+                    self._table[insert_at] = s;
+                    self._len += 1;
+                    has_candidate = false;
                     should_break = true;
                 }
             }
+        }
+
+        // Exhausted all slots without finding key or empty slot (table is full of deleted entries).
+        if has_candidate {
+            let mut s = self._table[candidate_index];
+            s.set(key, value);
+            self._table[candidate_index] = s;
+            self._len += 1;
         }
     }
 
@@ -696,13 +718,14 @@ where
 }
 
 mod test {
+    use crate::collections::bounded_vec::BoundedVec;
     use crate::default::Default;
     use crate::hash::BuildHasherDefault;
     use crate::hash::poseidon2::Poseidon2Hasher;
     use super::HashMap;
 
     #[test]
-    pub fn test_quadratic_probe_function() {
+    fn test_quadratic_probe_function() {
         let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> =
             HashMap::default();
 
@@ -712,5 +735,18 @@ mod test {
         let result: u32 = map.quadratic_probe(hash1, attempt1);
         // Ensure no overflow occurs when calculating the result
         assert(result == 123, "Result should be within table bounds");
+    }
+
+    #[test]
+    fn test_no_duplicate_keys_after_deletion_and_insertion() {
+        // The capacity and keys used here, with the Poseidon2Hasher, have the keys 4 and 8 end up in slot 0.
+        let mut map = HashMap::<Field, Field, 4, BuildHasherDefault<Poseidon2Hasher>>::default();
+        map.insert(4, 4);
+        map.insert(8, 8);
+        map.remove(4);
+        map.insert(8, 9);
+
+        assert_eq(map.entries(), BoundedVec::from_array([(8, 9)]));
+        assert_eq(map.keys(), BoundedVec::from_array([8]));
     }
 }
