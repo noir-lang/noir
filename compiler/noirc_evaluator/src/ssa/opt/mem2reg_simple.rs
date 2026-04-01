@@ -47,12 +47,12 @@ const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 /// while avoiding regressions in deeply unrolled code (like `to_bytes_integration`).
 const MAX_BLOCK_SPAN_PRE_FLATTENING: usize = 100;
 
-/// Maximum number of instructions a function can have before we skip
-/// mem2reg_simple in the pre-flattening pass. The infrastructure cost of
-/// building CFG/dominator trees and scanning variables on very large functions
-/// (100k+ instructions from aggressive inlining/unrolling) dominates even
-/// when no variables are ultimately promoted.
-const MAX_INSTRUCTIONS_PRE_FLATTENING: usize = 50_000;
+// /// Maximum number of instructions a function can have before we skip
+// /// mem2reg_simple in the pre-flattening pass. The infrastructure cost of
+// /// building CFG/dominator trees and scanning variables on very large functions
+// /// (100k+ instructions from aggressive inlining/unrolling) dominates even
+// /// when no variables are ultimately promoted.
+// const MAX_INSTRUCTIONS_PRE_FLATTENING: usize = 50_000;
 
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
