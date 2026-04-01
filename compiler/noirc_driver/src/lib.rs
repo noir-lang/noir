@@ -12,7 +12,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::{CustomDiagnostic, DiagnosticKind};
+use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
@@ -504,7 +504,7 @@ pub fn check_crate(
         .map(CustomDiagnostic::from)
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
-            !options.silence_warnings || diagnostic.kind != DiagnosticKind::Warning
+            !options.silence_warnings || !diagnostic.is_warning()
         })
         .filter(|error| {
             // Only keep warnings from the crate we are checking
@@ -557,12 +557,17 @@ pub fn compile_main(
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    if !options.silence_warnings {
-        warnings.extend(compilation_warnings);
-    }
+
+    // Make sure we don't hide bugs, only warnings can be silenced.
+    warnings.extend(
+        compilation_warnings
+            .into_iter()
+            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
+    );
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
