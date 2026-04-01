@@ -1796,4 +1796,28 @@ mod tests {
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 0);
     }
+
+    #[test]
+    #[traced_test]
+    fn test_brillig_output_constrained_against_ancestor_of_input() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = add v0, u32 10
+            v2 = sub v1, u32 10
+            v3 = call f1(v2) -> u32
+            constrain v3 == v0
+            return
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: u32):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
 }
