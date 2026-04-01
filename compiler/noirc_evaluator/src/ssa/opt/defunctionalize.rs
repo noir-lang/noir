@@ -491,7 +491,12 @@ fn create_apply_functions(
             })
             .collect();
 
-        let dispatches_to_multiple_functions = variants.len() > 1;
+        // If runtime filtering removed some variants but left at least one, we must
+        // still create an apply function so the function ID is constrained. Without
+        // this, a single remaining variant would be called directly and any mismatched
+        // function ID would be silently dropped.
+        let filtered_variants = pre_runtime_filter_len > variants.len();
+        let dispatches_to_multiple_functions = variants.len() > 1 || filtered_variants;
 
         // This will be the same signature but with each function type replaced with
         // a Field type.
@@ -510,11 +515,13 @@ fn create_apply_functions(
         }
 
         let id = if dispatches_to_multiple_functions {
-            // If we have multiple variants for this signature and runtime type group
-            // we need to generate an apply function.
+            // If we have multiple variants for this signature and runtime type group,
+            // or if runtime filtering removed some variants, we need to generate an
+            // apply function that constrains the function ID.
             create_apply_function(ssa, defunctionalized_signature, caller_runtime, variants)
         } else if !variants.is_empty() {
-            // If there is only variant, we can use it directly rather than creating a new apply function.
+            // If there is only one variant and no filtering occurred,
+            // we can use it directly rather than creating a new apply function.
             variants[0].0
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
@@ -578,8 +585,8 @@ fn create_apply_function(
     function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
     assert!(
-        function_ids.len() > 1,
-        "create_apply_function is expected to be called with two or more FunctionIds"
+        !function_ids.is_empty(),
+        "create_apply_function is expected to be called with at least one FunctionId"
     );
     // Clone the user-defined globals and the function purities mapping,
     // which are shared across all functions.
@@ -1925,7 +1932,8 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         // The `apply` method skips calling the acir function f3.
-        // As there is only one other variant, we just call f1 directly.
+        // As there is only one other Brillig variant, the apply function dispatches
+        // only to f1 but still constrains the function ID.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
@@ -1941,7 +1949,7 @@ mod tests {
           b3(v3: Field):
             v9 = load v4 -> Field
             v11 = call f3(v9) -> Field
-            v13 = call f1(v11) -> Field
+            v13 = call f4(v3, v11) -> Field
             return
         }
         brillig(inline) fn foo1 f1 {
@@ -1958,6 +1966,12 @@ mod tests {
           b0(v0: Field):
             v1 = mul v0, v0
             return v1
+        }
+        brillig(inline_always) fn apply f4 {
+          b0(v0: Field, v1: Field):
+            constrain v0 == Field 1
+            v4 = call f1(v1) -> Field
+            return v4
         }
         ");
     }
@@ -2493,6 +2507,82 @@ mod tests {
             jmp b3(v6, v7)
           b3(v1: u32, v2: [Field]):
             return v1, v2
+        }
+        ");
+    }
+
+    /// When an ACIR caller has mixed-runtime variants that get filtered down
+    /// to a single variant (because the Brillig variant has an invalid cross-
+    /// boundary return type), the apply function should still constrain the
+    /// function ID rather than calling the variant directly.
+    #[test]
+    fn single_variant_after_runtime_filter_still_constrains_id() {
+        // `wrapper` is ACIR and calls `v0()` -> &mut Field.
+        // f2 (ACIR) and f3 (Brillig) are both used as values with the same signature.
+        // The Brillig variant is filtered out because &mut Field is not valid
+        // across runtime boundaries, leaving only the ACIR variant.
+        // The apply function must still constrain the ID.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1(f2) -> &mut Field
+            v3 = call f1(f3) -> &mut Field
+            return
+        }
+        acir(inline) fn wrapper f1 {
+          b0(v0: function):
+            v1 = call v0() -> &mut Field
+            return v1
+        }
+        acir(inline) fn alloc_a f2 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 2 at v0
+            return v0
+        }
+        brillig(inline) fn alloc_b f3 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 3 at v0
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // The apply function constrains `v0 == Field 2` (f2's ID), so passing
+        // f3's ID (Field 3) would cause a constraint failure instead of silently
+        // calling the wrong function.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(Field 2) -> &mut Field
+            v4 = call f1(Field 3) -> &mut Field
+            return
+        }
+        acir(inline) fn wrapper f1 {
+          b0(v0: Field):
+            v2 = call f4(v0) -> &mut Field
+            return v2
+        }
+        acir(inline) fn alloc_a f2 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 2 at v0
+            return v0
+        }
+        brillig(inline) fn alloc_b f3 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 3 at v0
+            return v0
+        }
+        acir(inline_always) fn apply f4 {
+          b0(v0: Field):
+            constrain v0 == Field 2
+            v3 = call f2() -> &mut Field
+            return v3
         }
         ");
     }
