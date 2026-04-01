@@ -362,3 +362,73 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
 
     loop_uninitialized_dap(server).map_err(CliError::DapError)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Cursor, Write};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct SharedBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for SharedBuffer {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn dap_request(seq: i64, command: &str, arguments: &str) -> String {
+        let body = format!(
+            "{{\"seq\":{seq},\"type\":\"request\",\"command\":\"{command}\",\"arguments\":{arguments}}}"
+        );
+        format!("Content-Length: {}\r\n\r\n{body}", body.len())
+    }
+
+    fn parse_request(command: &str, arguments: &str) -> Command {
+        let input = dap_request(1, command, arguments);
+        let mut input = Cursor::new(input.into_bytes());
+        let output = SharedBuffer::default();
+        let mut server = Server::new(BufReader::new(&mut input), BufWriter::new(output));
+        server.poll_request().unwrap().unwrap().command
+    }
+
+    #[test]
+    fn initialize_advertises_configuration_done_support() {
+        let input = format!(
+            "{}{}",
+            dap_request(
+                1,
+                "initialize",
+                "{\"adapterID\":\"zed\",\"clientName\":\"Zed\"}"
+            ),
+            dap_request(2, "disconnect", "{}")
+        );
+
+        let mut input = Cursor::new(input.into_bytes());
+        let output = SharedBuffer::default();
+        let server = Server::new(BufReader::new(&mut input), BufWriter::new(output.clone()));
+
+        loop_uninitialized_dap(server).unwrap();
+
+        let output = String::from_utf8(output.0.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("\"supportsConfigurationDoneRequest\":true"));
+    }
+
+    #[test]
+    fn parser_accepts_configuration_done_with_empty_arguments() {
+        let command = parse_request("configurationDone", "{}");
+        assert!(matches!(command, Command::ConfigurationDone(_)));
+    }
+
+    #[test]
+    fn parser_accepts_threads_with_empty_arguments() {
+        let command = parse_request("threads", "{}");
+        assert!(matches!(command, Command::Threads(_)));
+    }
+}
