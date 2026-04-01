@@ -524,19 +524,22 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                     if slot._key == key {
                         // Key exists: update in place without changing length.
                         insert_index = index;
+                        increment_length = false;
                         should_break = true;
                     }
                 } else if slot._is_deleted {
                     // Deleted slot: remember as candidate but keep probing for existing key.
-                    insert_index = index;
-                    found_deleted_candidate = true;
+                    if !found_deleted_candidate {
+                        insert_index = index;
+                        found_deleted_candidate = true;
+                    }
                 } else {
                     // Empty slot: key cannot exist beyond this point.
                     // Insert at a deleted slot, if we found one previously, or at the current slot.
                     if !found_deleted_candidate {
                         insert_index = index;
-                        increment_length = true;
                     }
+                    increment_length = true;
                     should_break = true;
                 }
             }
