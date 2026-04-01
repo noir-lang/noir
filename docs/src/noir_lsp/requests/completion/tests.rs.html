@@ -3619,4 +3619,50 @@
 <a href=#3619 id=3619 data-nosnippet>3619</a>        )
 <a href=#3620 id=3620 data-nosnippet>3620</a>        .<span class="kw">await</span>;
 <a href=#3621 id=3621 data-nosnippet>3621</a>    }
-<a href=#3622 id=3622 data-nosnippet>3622</a>}</code></pre></div></section></main></body></html>
+<a href=#3622 id=3622 data-nosnippet>3622</a>
+<a href=#3623 id=3623 data-nosnippet>3623</a>    <span class="attr">#[test]
+<a href=#3624 id=3624 data-nosnippet>3624</a>    </span><span class="kw">async fn </span>autocompletes_type_in_generic_call() {
+<a href=#3625 id=3625 data-nosnippet>3625</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#3626 id=3626 data-nosnippet>3626</a>        pub struct FooBar {}
+<a href=#3627 id=3627 data-nosnippet>3627</a>
+<a href=#3628 id=3628 data-nosnippet>3628</a>        pub struct Generic&lt;T&gt; {}
+<a href=#3629 id=3629 data-nosnippet>3629</a>
+<a href=#3630 id=3630 data-nosnippet>3630</a>        fn main() {
+<a href=#3631 id=3631 data-nosnippet>3631</a>            Generic::&lt;FooB&gt;|&lt;&gt;::new()
+<a href=#3632 id=3632 data-nosnippet>3632</a>        }
+<a href=#3633 id=3633 data-nosnippet>3633</a>        "#</span>;
+<a href=#3634 id=3634 data-nosnippet>3634</a>
+<a href=#3635 id=3635 data-nosnippet>3635</a>        assert_completion(
+<a href=#3636 id=3636 data-nosnippet>3636</a>            src,
+<a href=#3637 id=3637 data-nosnippet>3637</a>            <span class="macro">vec!</span>[simple_completion_item(
+<a href=#3638 id=3638 data-nosnippet>3638</a>                <span class="string">"FooBar"</span>,
+<a href=#3639 id=3639 data-nosnippet>3639</a>                CompletionItemKind::STRUCT,
+<a href=#3640 id=3640 data-nosnippet>3640</a>                <span class="prelude-val">Some</span>(<span class="string">"FooBar"</span>.to_string()),
+<a href=#3641 id=3641 data-nosnippet>3641</a>            )],
+<a href=#3642 id=3642 data-nosnippet>3642</a>        )
+<a href=#3643 id=3643 data-nosnippet>3643</a>        .<span class="kw">await</span>;
+<a href=#3644 id=3644 data-nosnippet>3644</a>    }
+<a href=#3645 id=3645 data-nosnippet>3645</a>
+<a href=#3646 id=3646 data-nosnippet>3646</a>    <span class="attr">#[test]
+<a href=#3647 id=3647 data-nosnippet>3647</a>    </span><span class="kw">async fn </span>autocompletes_type_in_generic_constructor() {
+<a href=#3648 id=3648 data-nosnippet>3648</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#3649 id=3649 data-nosnippet>3649</a>        pub struct FooBar {}
+<a href=#3650 id=3650 data-nosnippet>3650</a>
+<a href=#3651 id=3651 data-nosnippet>3651</a>        pub struct Generic&lt;T&gt; {}
+<a href=#3652 id=3652 data-nosnippet>3652</a>
+<a href=#3653 id=3653 data-nosnippet>3653</a>        fn main() {
+<a href=#3654 id=3654 data-nosnippet>3654</a>            Generic::&lt; FooB&gt;|&lt; &gt; {}
+<a href=#3655 id=3655 data-nosnippet>3655</a>        }
+<a href=#3656 id=3656 data-nosnippet>3656</a>        "#</span>;
+<a href=#3657 id=3657 data-nosnippet>3657</a>
+<a href=#3658 id=3658 data-nosnippet>3658</a>        assert_completion(
+<a href=#3659 id=3659 data-nosnippet>3659</a>            src,
+<a href=#3660 id=3660 data-nosnippet>3660</a>            <span class="macro">vec!</span>[simple_completion_item(
+<a href=#3661 id=3661 data-nosnippet>3661</a>                <span class="string">"FooBar"</span>,
+<a href=#3662 id=3662 data-nosnippet>3662</a>                CompletionItemKind::STRUCT,
+<a href=#3663 id=3663 data-nosnippet>3663</a>                <span class="prelude-val">Some</span>(<span class="string">"FooBar"</span>.to_string()),
+<a href=#3664 id=3664 data-nosnippet>3664</a>            )],
+<a href=#3665 id=3665 data-nosnippet>3665</a>        )
+<a href=#3666 id=3666 data-nosnippet>3666</a>        .<span class="kw">await</span>;
+<a href=#3667 id=3667 data-nosnippet>3667</a>    }
+<a href=#3668 id=3668 data-nosnippet>3668</a>}</code></pre></div></section></main></body></html>
