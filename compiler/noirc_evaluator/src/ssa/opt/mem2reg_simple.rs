@@ -100,7 +100,7 @@ impl Ssa {
                 function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
             } else {
                 function.mem2reg_simple(
-                    Some(MAX_VARIABLES_OPTIMIZED),
+                    None,
                     Some(MAX_BLOCK_SPAN_PRE_FLATTENING),
                 );
             }
