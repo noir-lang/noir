@@ -27,8 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
     "chai": "^6.2.2",
     "cspell": "^9.7.0",
     "eslint": "^10.1.0",
@@ -43,5 +43,5 @@
     "@types/estree": "1.0.6",
     "@types/mocha": "10.0.10"
   },
-  "packageManager": "yarn@4.10.3"
+  "packageManager": "yarn@4.13.0"
 }
