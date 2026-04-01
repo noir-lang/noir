@@ -170,11 +170,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// This method generates one `store` instruction per array element, writing each
     /// value from the SSA into consecutive memory addresses starting at `pointer`.
-    /// It emits a memcpy instruction if the array values are in consecutive registers.
     ///
-    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime],
-    /// when the values are not in consecutive registers, this does not use loops and
-    /// emits one instruction per write, which can increase bytecode size
+    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime], this
+    /// does not use loops and emits one instruction per write, which can increase bytecode size
     /// but provides fine-grained control.
     fn initialize_constant_array_comptime(
         &mut self,
@@ -182,24 +180,44 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {
-        // Collect all element registers upfront.
-        let registers: Vec<MemoryAddress> =
-            data.iter().map(|id| self.convert_ssa_value(*id, dfg).extract_register()).collect();
+        use crate::brillig::brillig_gen::memcpy_optimizations::MIN_MEMCPY_ELEMENTS;
+        use crate::brillig::brillig_ir::registers::MAX_STACK_FRAME_SIZE;
 
-        // If all elements are in consecutive stack-relative registers,
-        // emit a memcpy instead of individual stores.
-        if self.try_memcpy_to_dest_from_consecutive_registers(&registers, pointer) {
+        // For arrays within a safe size range, collect all element registers upfront
+        // and check if they're consecutive — if so, emit a single memcpy.
+        // collecting all registers upfront causes excessive register pressure
+        // for large arrays.
+        if data.len() >= MIN_MEMCPY_ELEMENTS && data.len() <= MAX_STACK_FRAME_SIZE / 2 {
+            let registers: Vec<MemoryAddress> =
+                data.iter().map(|id| self.convert_ssa_value(*id, dfg).extract_register()).collect();
+
+            if self.try_memcpy_to_dest_from_consecutive_registers(&registers, pointer) {
+                return;
+            }
+
+            // Not consecutive — fall through to individual stores using the collected registers.
+            let write_pointer_register = self.brillig_context.allocate_register();
+            self.brillig_context.mov_instruction(*write_pointer_register, pointer);
+
+            for (element_idx, register) in registers.iter().enumerate() {
+                self.brillig_context.store_instruction(*write_pointer_register, *register);
+                if element_idx != registers.len() - 1 {
+                    self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
+                }
+            }
             return;
         }
 
-        // Fallback: individual stores with pointer increment.
+        // Small or large array: convert and store one element at a time.
         let write_pointer_register = self.brillig_context.allocate_register();
         self.brillig_context.mov_instruction(*write_pointer_register, pointer);
 
-        for (element_idx, register) in registers.iter().enumerate() {
-            self.brillig_context.store_instruction(*write_pointer_register, *register);
+        for (element_idx, element_id) in data.iter().enumerate() {
+            let element_variable = self.convert_ssa_value(*element_id, dfg);
+            self.brillig_context
+                .store_instruction(*write_pointer_register, element_variable.extract_register());
 
-            if element_idx != registers.len() - 1 {
+            if element_idx != data.len() - 1 {
                 self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
             }
         }
@@ -443,15 +461,21 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let base_index_id = info.base_index;
             let length = info.length;
 
+            // When the base index is a constant, use the raw array pointer.
+            // When dynamic, compute the items pointer.
+            let has_offset = dfg.get_numeric_constant(base_index_id).is_some();
             let src_variable = self.convert_ssa_value(source_array, dfg);
-            let src_items =
-                self.brillig_context.codegen_make_array_or_vector_items_pointer(src_variable);
+            let src_items = if has_offset {
+                src_variable.extract_register()
+            } else {
+                *self.brillig_context.codegen_make_array_or_vector_items_pointer(src_variable)
+            };
 
             // src_start = src_items + base_index
             let base_index = self.convert_ssa_single_addr_value(base_index_id, dfg);
             let src_start = self.brillig_context.allocate_register();
             self.brillig_context.memory_op_instruction(
-                *src_items,
+                src_items,
                 base_index.address,
                 *src_start,
                 BrilligBinaryOp::Add,

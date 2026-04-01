@@ -49,7 +49,7 @@ use crate::{
 
 /// Minimum number of elements in a `MakeArray` to consider for memcpy optimization.
 /// Small arrays don't benefit enough from the memcpy loop overhead.
-const MIN_MEMCPY_ELEMENTS: usize = 4;
+pub(super) const MIN_MEMCPY_ELEMENTS: usize = 4;
 
 /// Per-function analysis identifying instructions that can use `mem_copy`
 /// and instructions whose codegen should be skipped.
@@ -124,16 +124,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// Called from `convert_ssa_instruction` when the current instruction is the
     /// first `ArrayGet` of a load group (detected by `from_function()`).
-    pub(super) fn codegen_load_group(&mut self, info: &LoadGroupInfo, dfg: &DataFlowGraph) {
+    /// Returns `true` if the memcpy was emitted, `false` if there wasn't enough
+    /// consecutive register space (caller must fall back to individual codegen).
+    pub(super) fn codegen_load_group(&mut self, info: &LoadGroupInfo, dfg: &DataFlowGraph) -> bool {
         let n = info.array_get_ids.len();
 
-        // Allocate N consecutive destination registers.
-        // ensure_register_capacity spills if needed to make room.
-        self.ensure_register_capacity(n + 4);
-        let dest_registers = self
-            .brillig_context
-            .allocate_consecutive_registers(n)
-            .expect("ICE: not enough register space for load group after spilling");
+        // Try to allocate N consecutive destination registers.
+        // Don't spill — if there's not enough space, fall back to individual codegen.
+        let Some(dest_registers) = self.brillig_context.allocate_consecutive_registers(n) else {
+            return false;
+        };
 
         // Compute source pointer: array_base + base_index.
         let has_offset = dfg.get_numeric_constant(info.base_index).is_some();
@@ -184,6 +184,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 sm.touch(result_id);
             }
         }
+        true
     }
 }
 

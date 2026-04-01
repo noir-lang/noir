@@ -674,7 +674,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         if let Some(info) =
             self.function_context.memcpy_opts.load_groups.get(&instruction_id).cloned()
         {
-            self.codegen_load_group(&info, dfg);
+            if !self.codegen_load_group(&info, dfg) {
+                // Not enough consecutive register space — undo the skip so elements
+                // are codegen'd individually.
+                for &id in &info.array_get_ids {
+                    self.function_context.memcpy_opts.skip_instructions.remove(&id);
+                }
+                // Codegen element 0 normally (it was going to be skipped by the load_group branch).
+                self.codegen_instruction(instruction_id, instruction, dfg);
+            }
         } else if !self.function_context.memcpy_opts.skip_instructions.contains(&instruction_id) {
             // Skip codegen for instructions eliminated by memcpy optimization
             // (dead ArrayGets and their single-use index computations).
@@ -719,9 +727,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     if self.variables.is_allocated(dead_variable) {
                         self.variables.mark_unavailable(dead_variable);
                     }
-                } else if !self.variables.is_allocated(dead_variable) {
-                    // Variable was never made available (e.g., a dead skipped instruction
-                    // whose codegen was elided). Nothing to clean up.
                 } else if self
                     .function_context
                     .coalescing
@@ -731,7 +736,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // still alive. We must not deallocate the register yet; it will
                     // be freed when the partner dies (or at block boundary cleanup).
                     self.variables.remove_variable_without_dealloc(dead_variable);
-                } else {
+                } else if self.variables.is_allocated(dead_variable) {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,
