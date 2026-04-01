@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774987303872,
+  "lastUpdate": 1775036450457,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23056,48 +23056,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "94e13233e54cceb3cd1e7093964f272d79a41ff1",
-          "message": "chore: remove stale Vec type documentation (#11985)",
-          "timestamp": "2026-03-24T16:07:15Z",
-          "tree_id": "ddd0ca8cf21463fb877f632de5e81682276d4700",
-          "url": "https://github.com/noir-lang/noir/commit/94e13233e54cceb3cd1e7093964f272d79a41ff1"
-        },
-        "date": 1774370067266,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168319,
-            "range": "± 290",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137381,
-            "range": "± 251",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642069,
-            "range": "± 2081",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25149,6 +25107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647435,
             "range": "± 3050",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4ce63e61340731da5ee710371f2f048a82dab3f1",
+          "message": "chore(deps): bump node-forge from 1.3.3 to 1.4.0 in /docs (#12032)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-04-01T09:16:56Z",
+          "tree_id": "04d8e0a0f43e3ec4b72967ac43dcf83c05e85959",
+          "url": "https://github.com/noir-lang/noir/commit/4ce63e61340731da5ee710371f2f048a82dab3f1"
+        },
+        "date": 1775036389189,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 161662,
+            "range": "± 418",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 132601,
+            "range": "± 2650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2119867,
+            "range": "± 2188",
             "unit": "ns/iter"
           }
         ]
