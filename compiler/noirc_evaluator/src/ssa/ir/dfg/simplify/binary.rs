@@ -380,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_unsigned_integer_or_max_with_itself() {
+    fn simplifies_unsigned_integer_or_max_with_max() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u8):
@@ -400,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_simplify_signed_integer_or_max_with_itself() {
+    fn does_not_simplify_signed_integer_or_max() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: i8):
