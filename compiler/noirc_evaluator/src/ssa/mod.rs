@@ -248,6 +248,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new_with_options(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg_simple on all functions after flattening to handle cross-block promotion
