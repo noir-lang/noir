@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775163067846,
+  "lastUpdate": 1775163068975,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "667dd9badae81836d9cc90bc7a124f237e01acc0",
-          "message": "chore(ssa): Separate the two underconstrained checks (#12008)",
-          "timestamp": "2026-03-26T11:31:07Z",
-          "tree_id": "d59a0a292b0a40b2587bb3d19789e2f3d5f0d726",
-          "url": "https://github.com/noir-lang/noir/commit/667dd9badae81836d9cc90bc7a124f237e01acc0"
-        },
-        "date": 1774526945914,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.516,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.188,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.534,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.786,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.73,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.77,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.864,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 302,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 306,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.776,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 18.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 110.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.7,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.087,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.781,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -9891,6 +9792,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.5,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c53b58d92c6e062ccb846bf45377737b13c23bd",
+          "message": "feat: Allow immrefs to go from acir to brillig (#12035)",
+          "timestamp": "2026-04-02T20:08:28Z",
+          "tree_id": "83e8a9359fbe8821d3e4ee78bae622002f146f57",
+          "url": "https://github.com/noir-lang/noir/commit/6c53b58d92c6e062ccb846bf45377737b13c23bd"
+        },
+        "date": 1775163013857,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.76,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.15,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.756,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.892,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 287,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 300,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.808,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 21.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 108.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.736,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.091,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.417,
             "unit": "s"
           }
         ]
