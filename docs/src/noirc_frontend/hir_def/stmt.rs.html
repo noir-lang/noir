@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/hir_def/stmt.rs`."><title>stmt.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/hir_def/</div>stmt.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span><span class="kw">super</span>::expr::HirIdent;
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span><span class="kw">crate</span>::Type;
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span><span class="kw">crate</span>::ast::Ident;
-<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, StmtId};
+<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, NodeInterner, StmtId};
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>noirc_errors::{Location, Span};
 <a href=#7 id=7 data-nosnippet>7</a>
@@ -128,48 +128,57 @@
 <a href=#128 id=128 data-nosnippet>128</a>            | HirPattern::Struct(<span class="kw">_</span>, <span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
 <a href=#129 id=129 data-nosnippet>129</a>        }
 <a href=#130 id=130 data-nosnippet>130</a>    }
-<a href=#131 id=131 data-nosnippet>131</a>}
-<a href=#132 id=132 data-nosnippet>132</a>
-<a href=#133 id=133 data-nosnippet>133</a><span class="doccomment">/// Represents an Ast form that can be assigned to. These
-<a href=#134 id=134 data-nosnippet>134</a>/// can be found on the left hand side of an assignment `=`.
-<a href=#135 id=135 data-nosnippet>135</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
-<a href=#136 id=136 data-nosnippet>136</a></span><span class="kw">pub enum </span>HirLValue {
-<a href=#137 id=137 data-nosnippet>137</a>    Ident(HirIdent, Type),
-<a href=#138 id=138 data-nosnippet>138</a>    MemberAccess {
-<a href=#139 id=139 data-nosnippet>139</a>        object: Box&lt;HirLValue&gt;,
-<a href=#140 id=140 data-nosnippet>140</a>        field_name: Ident,
-<a href=#141 id=141 data-nosnippet>141</a>        field_index: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-<a href=#142 id=142 data-nosnippet>142</a>        typ: Type,
-<a href=#143 id=143 data-nosnippet>143</a>        location: Location,
-<a href=#144 id=144 data-nosnippet>144</a>    },
-<a href=#145 id=145 data-nosnippet>145</a>    Index {
-<a href=#146 id=146 data-nosnippet>146</a>        array: Box&lt;HirLValue&gt;,
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="doccomment">/// `index` is required to be an identifier to simplify sequencing of side-effects.
-<a href=#148 id=148 data-nosnippet>148</a>        /// However we also store types and locations on ExprIds which makes these necessary
-<a href=#149 id=149 data-nosnippet>149</a>        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
-<a href=#150 id=150 data-nosnippet>150</a>        </span>index: ExprId,
+<a href=#131 id=131 data-nosnippet>131</a>
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="doccomment">/// Returns `true` if this pattern is or contains a `self` identifier, `false` otherwise
+<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">pub fn </span>is_self(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; bool {
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#135 id=135 data-nosnippet>135</a>            HirPattern::Identifier(ident) =&gt; interner.definition(ident.id).name == <span class="string">"self"</span>,
+<a href=#136 id=136 data-nosnippet>136</a>            HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; pattern.is_self(interner),
+<a href=#137 id=137 data-nosnippet>137</a>            HirPattern::Tuple(..) | HirPattern::Struct(..) =&gt; <span class="bool-val">false</span>,
+<a href=#138 id=138 data-nosnippet>138</a>        }
+<a href=#139 id=139 data-nosnippet>139</a>    }
+<a href=#140 id=140 data-nosnippet>140</a>}
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a><span class="doccomment">/// Represents an Ast form that can be assigned to. These
+<a href=#143 id=143 data-nosnippet>143</a>/// can be found on the left hand side of an assignment `=`.
+<a href=#144 id=144 data-nosnippet>144</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">pub enum </span>HirLValue {
+<a href=#146 id=146 data-nosnippet>146</a>    Ident(HirIdent, Type),
+<a href=#147 id=147 data-nosnippet>147</a>    MemberAccess {
+<a href=#148 id=148 data-nosnippet>148</a>        object: Box&lt;HirLValue&gt;,
+<a href=#149 id=149 data-nosnippet>149</a>        field_name: Ident,
+<a href=#150 id=150 data-nosnippet>150</a>        field_index: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 <a href=#151 id=151 data-nosnippet>151</a>        typ: Type,
 <a href=#152 id=152 data-nosnippet>152</a>        location: Location,
 <a href=#153 id=153 data-nosnippet>153</a>    },
-<a href=#154 id=154 data-nosnippet>154</a>    Dereference {
-<a href=#155 id=155 data-nosnippet>155</a>        lvalue: Box&lt;HirLValue&gt;,
-<a href=#156 id=156 data-nosnippet>156</a>        element_type: Type,
-<a href=#157 id=157 data-nosnippet>157</a>        implicitly_added: bool,
-<a href=#158 id=158 data-nosnippet>158</a>        location: Location,
-<a href=#159 id=159 data-nosnippet>159</a>    },
-<a href=#160 id=160 data-nosnippet>160</a>    Error {
+<a href=#154 id=154 data-nosnippet>154</a>    Index {
+<a href=#155 id=155 data-nosnippet>155</a>        array: Box&lt;HirLValue&gt;,
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="doccomment">/// `index` is required to be an identifier to simplify sequencing of side-effects.
+<a href=#157 id=157 data-nosnippet>157</a>        /// However we also store types and locations on ExprIds which makes these necessary
+<a href=#158 id=158 data-nosnippet>158</a>        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
+<a href=#159 id=159 data-nosnippet>159</a>        </span>index: ExprId,
+<a href=#160 id=160 data-nosnippet>160</a>        typ: Type,
 <a href=#161 id=161 data-nosnippet>161</a>        location: Location,
 <a href=#162 id=162 data-nosnippet>162</a>    },
-<a href=#163 id=163 data-nosnippet>163</a>}
-<a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a><span class="kw">impl </span>HirLValue {
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
-<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#168 id=168 data-nosnippet>168</a>            HirLValue::Ident(ident, <span class="kw">_</span>) =&gt; ident.location,
-<a href=#169 id=169 data-nosnippet>169</a>            HirLValue::MemberAccess { location, .. }
-<a href=#170 id=170 data-nosnippet>170</a>            | HirLValue::Index { location, .. }
-<a href=#171 id=171 data-nosnippet>171</a>            | HirLValue::Dereference { location, .. }
-<a href=#172 id=172 data-nosnippet>172</a>            | HirLValue::Error { location } =&gt; <span class="kw-2">*</span>location,
-<a href=#173 id=173 data-nosnippet>173</a>        }
-<a href=#174 id=174 data-nosnippet>174</a>    }
-<a href=#175 id=175 data-nosnippet>175</a>}</code></pre></div></section></main></body></html>
+<a href=#163 id=163 data-nosnippet>163</a>    Dereference {
+<a href=#164 id=164 data-nosnippet>164</a>        lvalue: Box&lt;HirLValue&gt;,
+<a href=#165 id=165 data-nosnippet>165</a>        element_type: Type,
+<a href=#166 id=166 data-nosnippet>166</a>        implicitly_added: bool,
+<a href=#167 id=167 data-nosnippet>167</a>        location: Location,
+<a href=#168 id=168 data-nosnippet>168</a>    },
+<a href=#169 id=169 data-nosnippet>169</a>    Error {
+<a href=#170 id=170 data-nosnippet>170</a>        location: Location,
+<a href=#171 id=171 data-nosnippet>171</a>    },
+<a href=#172 id=172 data-nosnippet>172</a>}
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a><span class="kw">impl </span>HirLValue {
+<a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
+<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#177 id=177 data-nosnippet>177</a>            HirLValue::Ident(ident, <span class="kw">_</span>) =&gt; ident.location,
+<a href=#178 id=178 data-nosnippet>178</a>            HirLValue::MemberAccess { location, .. }
+<a href=#179 id=179 data-nosnippet>179</a>            | HirLValue::Index { location, .. }
+<a href=#180 id=180 data-nosnippet>180</a>            | HirLValue::Dereference { location, .. }
+<a href=#181 id=181 data-nosnippet>181</a>            | HirLValue::Error { location } =&gt; <span class="kw-2">*</span>location,
+<a href=#182 id=182 data-nosnippet>182</a>        }
+<a href=#183 id=183 data-nosnippet>183</a>    }
+<a href=#184 id=184 data-nosnippet>184</a>}</code></pre></div></section></main></body></html>
