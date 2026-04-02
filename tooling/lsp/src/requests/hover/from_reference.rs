@@ -497,8 +497,12 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let is_self = pattern_is_self(pattern, args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
+        if is_self && let Type::Reference(_, mutable) = typ {
+            if *mutable {
+                string.push_str("&mut ");
+            } else {
+                string.push('&');
+            }
         }
 
         if enum_variant.is_some() {
