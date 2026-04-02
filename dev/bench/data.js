@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775090742692,
+  "lastUpdate": 1775091035899,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14851,95 +14851,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "a61b8b4d7472e5e46e5d965f2179446f87ae8e47",
-          "message": "fix(fuzz): Make the distance metric symmetric (#11995)",
-          "timestamp": "2026-03-25T14:06:27Z",
-          "tree_id": "a2473b8e7750a18a52e9e31864ccd4cb1a819232",
-          "url": "https://github.com/noir-lang/noir/commit/a61b8b4d7472e5e46e5d965f2179446f87ae8e47"
-        },
-        "date": 1774450183383,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 287.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 324.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 278.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 356.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 538.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 473.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.49,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 78.94,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 76.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "24911f52bc529d8a13ecf41c4091ff8f61fc0ac3",
           "message": "fix(brillig): Differentiate LHS and RHS bit size in SHL and SHR (#11997)",
@@ -19285,6 +19196,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 76.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "590aa9a2067d0f7865499aff1e14c802068e0bb6",
+          "message": "chore: Remove HashMap (#12088)",
+          "timestamp": "2026-04-02T00:05:43Z",
+          "tree_id": "83efe8b41b71cf8712c50cbc716588af011834e1",
+          "url": "https://github.com/noir-lang/noir/commit/590aa9a2067d0f7865499aff1e14c802068e0bb6"
+        },
+        "date": 1775090984661,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 286.46,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 323.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 278.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 355.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 353.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 354.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 537.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 472.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 353.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 78.12,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 75.5,
             "unit": "MB"
           }
         ]
