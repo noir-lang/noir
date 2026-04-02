@@ -313,7 +313,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
-            let index = self.linear_probe(hash, attempt as u32);
+            let index = self.linear_probe(hash, attempt);
             let slot = self._table[index];
 
             if slot.is_valid() {
