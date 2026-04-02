@@ -500,19 +500,9 @@ mod tests {
         gen_brillig_for(func, arguments, &brillig, &BrilligOptions::default()).unwrap()
     }
 
-    /// Count the number of `Call` instructions in the bytecode (memcpy procedure calls).
-    fn count_calls(generated: &GeneratedBrillig<acvm::FieldElement>) -> usize {
-        generated.byte_code.iter().filter(|op| matches!(op, BrilligOpcode::Call { .. })).count()
-    }
-
     /// Count the number of `Store` instructions in the bytecode.
     fn count_stores(generated: &GeneratedBrillig<acvm::FieldElement>) -> usize {
         generated.byte_code.iter().filter(|op| matches!(op, BrilligOpcode::Store { .. })).count()
-    }
-
-    /// Count `Load` instructions (each individual array_get emits one).
-    fn count_loads(generated: &GeneratedBrillig<acvm::FieldElement>) -> usize {
-        generated.byte_code.iter().filter(|op| matches!(op, BrilligOpcode::Load { .. })).count()
     }
 
     #[test]
