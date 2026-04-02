@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775072244620,
+  "lastUpdate": 1775089851257,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23150,48 +23150,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "a61b8b4d7472e5e46e5d965f2179446f87ae8e47",
-          "message": "fix(fuzz): Make the distance metric symmetric (#11995)",
-          "timestamp": "2026-03-25T14:06:27Z",
-          "tree_id": "a2473b8e7750a18a52e9e31864ccd4cb1a819232",
-          "url": "https://github.com/noir-lang/noir/commit/a61b8b4d7472e5e46e5d965f2179446f87ae8e47"
-        },
-        "date": 1774448987830,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171626,
-            "range": "± 798",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141841,
-            "range": "± 4777",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645818,
-            "range": "± 2634",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "24911f52bc529d8a13ecf41c4091ff8f61fc0ac3",
           "message": "fix(brillig): Differentiate LHS and RHS bit size in SHL and SHR (#11997)",
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042990,
             "range": "± 47695",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "590aa9a2067d0f7865499aff1e14c802068e0bb6",
+          "message": "chore: Remove HashMap (#12088)",
+          "timestamp": "2026-04-02T00:05:43Z",
+          "tree_id": "83efe8b41b71cf8712c50cbc716588af011834e1",
+          "url": "https://github.com/noir-lang/noir/commit/590aa9a2067d0f7865499aff1e14c802068e0bb6"
+        },
+        "date": 1775089800271,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168676,
+            "range": "± 303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141075,
+            "range": "± 4051",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646322,
+            "range": "± 1738",
             "unit": "ns/iter"
           }
         ]
