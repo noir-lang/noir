@@ -84,7 +84,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     where
         B: BuildHasher,
     {
-        // docs:end:with_hasher
         let mut _table = [].as_vector();
         for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
