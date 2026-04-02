@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775148587762,
+  "lastUpdate": 1775149610469,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6655a1f80f197ff85091872cb83427c676c1a271",
-          "message": "chore(ssa): Disjoint set data structure in Brillig underconstrained check (#11945)",
-          "timestamp": "2026-03-25T15:43:56Z",
-          "tree_id": "22b35a9c13a9625c447a41b3dead080d0c6fe0ac",
-          "url": "https://github.com/noir-lang/noir/commit/6655a1f80f197ff85091872cb83427c676c1a271"
-        },
-        "date": 1774454742620,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168568,
-            "range": "± 768",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137379,
-            "range": "± 1384",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643345,
-            "range": "± 2113",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647019,
             "range": "± 4718",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49c7691e5fc97906d0feb83998035f81d24c5762",
+          "message": "fix: don't simplify `x | MAX` if x is signed (#12100)",
+          "timestamp": "2026-04-02T15:43:27Z",
+          "tree_id": "4121e25ac1ee243313746726443fc55fe96ee30e",
+          "url": "https://github.com/noir-lang/noir/commit/49c7691e5fc97906d0feb83998035f81d24c5762"
+        },
+        "date": 1775149558429,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167720,
+            "range": "± 968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139734,
+            "range": "± 351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646381,
+            "range": "± 1532",
             "unit": "ns/iter"
           }
         ]
