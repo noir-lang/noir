@@ -266,20 +266,10 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            Reference(element, mutable) => {
-                if !mutable {
-                    self.use_unstable_feature(UnstableFeature::Ownership, location);
-                }
-                Type::Reference(
-                    Box::new(self.resolve_type_with_kind_inner(
-                        *element,
-                        kind,
-                        mode,
-                        wildcard_allowed,
-                    )),
-                    mutable,
-                )
-            }
+            Reference(element, mutable) => Type::Reference(
+                Box::new(self.resolve_type_with_kind_inner(*element, kind, mode, wildcard_allowed)),
+                mutable,
+            ),
             Parenthesized(typ) => {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
