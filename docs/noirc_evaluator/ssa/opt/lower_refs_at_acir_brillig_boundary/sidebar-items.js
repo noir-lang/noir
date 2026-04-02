@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_wrapper","collect_transformations_for","insert_loads_for_ref_args","try_collect_transformation"],"struct":["Transformation"]};
