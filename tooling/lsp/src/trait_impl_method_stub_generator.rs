@@ -72,7 +72,20 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             if index > 0 {
                 self.string.push_str(", ");
             }
-            if self.append_pattern(pattern) {
+
+            let is_self = pattern.is_self(self.interner);
+            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.string.push_str("&mut ");
+                } else {
+                    self.string.push('&');
+                }
+            }
+
+            self.append_pattern(pattern);
+
+            if !is_self {
                 self.string.push_str(": ");
                 self.append_type(typ);
             }
@@ -113,17 +126,15 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         std::mem::take(&mut self.string)
     }
 
-    /// Appends a pattern and returns true if this was not the self type
-    fn append_pattern(&mut self, pattern: &HirPattern) -> bool {
+    fn append_pattern(&mut self, pattern: &HirPattern) {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
                 let definition = self.interner.definition(hir_ident.id);
                 self.string.push_str(&definition.name);
-                &definition.name != "self"
             }
             HirPattern::Mutable(pattern, _) => {
                 self.string.push_str("mut ");
-                self.append_pattern(pattern)
+                self.append_pattern(pattern);
             }
             HirPattern::Tuple(patterns, _) => {
                 self.string.push('(');
@@ -134,7 +145,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_pattern(pattern);
                 }
                 self.string.push(')');
-                true
             }
             HirPattern::Struct(typ, patterns, _) => {
                 self.append_type(typ);
@@ -146,7 +156,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
-                true
             }
         }
     }

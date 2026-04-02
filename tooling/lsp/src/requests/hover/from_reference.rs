@@ -494,11 +494,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        let is_self = pattern_is_self(pattern, args.interner);
+        let is_self = pattern.is_self(args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
+        if is_self && let Type::Reference(_, mutable) = typ {
+            if *mutable {
+                string.push_str("&mut ");
+            } else {
+                string.push('&');
+            }
         }
 
         if enum_variant.is_some() {
@@ -709,17 +713,6 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
         HirPattern::Tuple(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
 

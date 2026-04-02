@@ -586,7 +586,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('(');
         let parameters = &func_meta.parameters;
         for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-            let is_self = self.pattern_is_self(pattern);
+            let is_self = pattern.is_self(self.interner);
 
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
             if is_self && matches!(typ, Type::Reference(..)) {
@@ -1259,24 +1259,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str("}");
     }
 
-    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
-        match pattern {
-            HirPattern::Identifier(ident) => {
-                let definition = self.interner.definition(ident.id);
-                definition.name == "self"
-            }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
-        }
-    }
-
     fn pattern_is_self_or_underscore_self(&self, pattern: &HirPattern) -> bool {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
                 definition.name == "self" || definition.name == "_self"
             }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
+            HirPattern::Mutable(pattern, _) => pattern.is_self(self.interner),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
