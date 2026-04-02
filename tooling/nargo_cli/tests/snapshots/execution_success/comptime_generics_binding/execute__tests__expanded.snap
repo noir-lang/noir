@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn gen_func<let N: u32>() -> u32 {
+    N
+}
+
+fn factory<let M: u32>(callback: fn() -> u32) -> (fn() -> u32, u32) {
+    let new_fn: fn() -> u32 = gen_func::<M>;
+    let cb_result: u32 = callback();
+    (new_fn, cb_result)
+}
+
+fn dummy() -> u32 {
+    0_u32
+}
+
+fn main() {
+    let runtime_val: u32 = {
+        let (f, _): (fn() -> u32, u32) = factory::<5>(dummy);
+        let (_, val): (fn() -> u32, u32) = factory::<99>(f);
+        val
+    };
+    assert(runtime_val == 5_u32);
+    let comptime_val: u32 = { 5_u32 };
+    assert(comptime_val == 5_u32);
+}

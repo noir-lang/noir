@@ -164,9 +164,13 @@
 //!     which is trivially solved by finding the corresponding impl.
 //!   - If a single impl candidate is found, it is used. Otherwise, an error is issued.
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
@@ -188,7 +192,7 @@ use crate::{
     },
     hir_def::{
         function::FuncMeta,
-        traits::{ResolvedTraitBound, TraitConstraint, TraitFunction},
+        traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
     node_interner::{
         DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
@@ -207,6 +211,7 @@ struct TraitScopeState {
 impl Elaborator<'_> {
     /// Sets up the elaborator scope for processing a trait.
     /// Returns state that must be passed to `exit_trait_scope` to restore the previous state.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn enter_trait_scope(
         &mut self,
         trait_id: TraitId,
@@ -229,6 +234,7 @@ impl Elaborator<'_> {
     }
 
     /// Restores the elaborator state after processing a trait.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn exit_trait_scope(&mut self, state: TraitScopeState) {
         self.exit_generics_scope(state.generics);
         self.current_trait = state.current_trait;
@@ -243,6 +249,7 @@ impl Elaborator<'_> {
     /// 2. Resolves the trait's where clause.
     /// 3. Resolves any bounds on associated types
     /// 4. Resolves the trait's bounds (its listed super traits).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
@@ -305,6 +312,7 @@ impl Elaborator<'_> {
     ///
     /// This mostly consists of resolving each parameter and any trait constraints. The trait
     /// method bodies are not elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
@@ -333,6 +341,7 @@ impl Elaborator<'_> {
     /// elided by the user. See [Self::add_missing_named_generics] for more detail.
     ///
     /// Returns all newly created generics to be added to this function/trait/impl.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
@@ -357,6 +366,7 @@ impl Elaborator<'_> {
     ///
     /// with a vector of `<A, B>` returned so that the caller can then modify the function to:
     /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
+    #[tracing::instrument(level = "trace", skip_all)]
     fn add_missing_named_generics(
         &mut self,
         object: &UnresolvedType,
@@ -431,6 +441,7 @@ impl Elaborator<'_> {
     /// into
     /// `fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar`
     /// although the fresh type variable is not named internally.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn desugar_impl_trait_arg(
         &mut self,
         trait_path: Path,
@@ -456,22 +467,26 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a slice of trait bounds, filtering out any that fail to resolve.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bounds(&mut self, bounds: &[TraitBound]) -> Vec<ResolvedTraitBound> {
         bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
     /// Resolves a trait bound, marking the trait as referenced.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
     }
 
     /// Resolves a trait bound, marking the trait as used.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
     /// Resolve the given TraitBound, pushing error(s) if the path or any
     /// types used failed to resolve.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
@@ -500,18 +515,14 @@ impl Elaborator<'_> {
     /// Since there is no global/local scope distinction for trait constraints,
     /// care should be taken to manually remove these from scope (via
     /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_constraints_to_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
         location: Location,
     ) {
         for constraint in constraints {
-            self.add_trait_bound_to_scope(
-                location,
-                &constraint.typ,
-                &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
-            );
+            self.add_trait_bound_to_scope(location, &constraint.typ, &constraint.trait_bound);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -521,12 +532,7 @@ impl Elaborator<'_> {
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
 
-            self.add_trait_bound_to_scope(
-                location,
-                &self_type,
-                &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
-            );
+            self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
         }
     }
 
@@ -534,6 +540,7 @@ impl Elaborator<'_> {
     ///
     /// This will only remove assumed trait impls from scope, but this
     /// is always what is desired since true trait impls are permanent.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn remove_trait_constraints_from_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
@@ -558,6 +565,7 @@ impl Elaborator<'_> {
     ///
     /// If these constraints are unwanted afterward they should be manually
     /// removed from the interner.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_constraints_and_add_to_scope(
         &mut self,
         where_clause: &[UnresolvedTraitConstraint],
@@ -572,6 +580,7 @@ impl Elaborator<'_> {
     /// This second step is necessary to resolve subsequent constraints such
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
@@ -581,7 +590,7 @@ impl Elaborator<'_> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
 
-        self.add_trait_bound_to_scope(location, &typ, &trait_bound, trait_bound.trait_id);
+        self.add_trait_bound_to_scope(location, &typ, &trait_bound);
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
@@ -589,19 +598,158 @@ impl Elaborator<'_> {
         Some(constraint)
     }
 
+    /// For each resolved trait constraint, add constraints for parent traits that have
+    /// associated types. This creates fresh type variables for the parent associated types
+    /// so that `M::Key` syntax can be resolved via `self.trait_bounds`.
+    ///
+    /// The parent trait bounds are obtained from `Trait.trait_bounds` (already resolved
+    /// during `collect_traits` with associated type variables) and instantiated via
+    /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
+    /// named (associated) types are then replaced with fresh per-function type variables
+    /// so they can be wrapped in `Type::Forall` and freshened at each call site.
+    ///
+    /// Returns (new_generics, new_constraints) to be added to the function's generics
+    /// and trait constraints respectively.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn add_parent_associated_type_constraints(
+        &mut self,
+        constraints: &[TraitConstraint],
+    ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
+        let mut new_generics = Vec::new();
+        let mut new_constraints = Vec::new();
+        let mut visited = rustc_hash::FxHashSet::default();
+
+        for constraint in constraints {
+            self.collect_parent_associated_types(
+                &constraint.typ,
+                &constraint.trait_bound,
+                &mut new_generics,
+                &mut new_constraints,
+                &mut visited,
+            );
+            visited.clear();
+        }
+
+        (new_generics, new_constraints)
+    }
+
+    /// Recursively walk parent trait hierarchies and create fresh type variables
+    /// for any associated types found on parent traits. The new constraints are
+    /// pushed to `self.trait_bounds` and returned via the output parameters.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_parent_associated_types(
+        &mut self,
+        object_type: &Type,
+        trait_bound: &ResolvedTraitBound,
+        new_generics: &mut Vec<TypeVariable>,
+        new_constraints: &mut Vec<TraitConstraint>,
+        visited: &mut rustc_hash::FxHashSet<TraitId>,
+    ) {
+        let trait_id = trait_bound.trait_id;
+        if !visited.insert(trait_id) {
+            return;
+        }
+
+        let parent_bounds: Vec<_> = self
+            .interner
+            .try_get_trait(trait_id)
+            .map(|t| t.trait_bounds.clone())
+            .unwrap_or_default();
+
+        for parent_bound in &parent_bounds {
+            // Substitute the child trait's bindings into the parent bound.
+            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+
+            // Skip if there are no associated types on this parent trait,
+            // or if we already have a constraint for this type + parent trait.
+            let has_named = !instantiated.trait_generics.named.is_empty();
+            let already_has = self
+                .trait_bounds
+                .iter()
+                .any(|c| c.trait_bound.trait_id == instantiated.trait_id && c.typ == *object_type);
+
+            if has_named && !already_has {
+                // Replace the named (associated) type variables with fresh per-function
+                // ones so they can be included in Type::Forall and freshened at call sites.
+                let parent_trait = self.interner.get_trait(instantiated.trait_id);
+                let parent_trait_name = parent_trait.name.to_string();
+                let object_name = object_type.to_string();
+
+                let named = vecmap(&instantiated.trait_generics.named, |named_type| {
+                    let fresh_id = self.interner.next_type_variable_id();
+                    let kind = named_type.typ.kind();
+                    let type_var = TypeVariable::unbound(fresh_id, kind);
+
+                    let assoc_type_id = parent_trait
+                        .associated_types
+                        .iter()
+                        .find(|a| a.name.as_ref() == named_type.name.as_str())
+                        .expect("ICE - cannot find associated type")
+                        .type_var
+                        .id();
+
+                    let fresh_type = type_var.clone().into_implicit_named_generic(
+                        &Rc::new(named_type.name.to_string()),
+                        Some((object_name.as_str(), parent_trait_name.as_str())),
+                        assoc_type_id,
+                    );
+
+                    new_generics.push(type_var);
+                    NamedType {
+                        name: Ident::new(named_type.name.to_string(), instantiated.location),
+                        typ: fresh_type,
+                    }
+                });
+
+                let trait_generics =
+                    TraitGenerics { ordered: instantiated.trait_generics.ordered.clone(), named };
+                let parent_constraint = TraitConstraint {
+                    typ: object_type.clone(),
+                    trait_bound: ResolvedTraitBound {
+                        trait_id: instantiated.trait_id,
+                        trait_generics,
+                        location: instantiated.location,
+                    },
+                };
+                self.trait_bounds.push(parent_constraint.clone());
+                new_constraints.push(parent_constraint);
+            }
+
+            // Recurse for grandparent traits
+            self.collect_parent_associated_types(
+                object_type,
+                &instantiated,
+                new_generics,
+                new_constraints,
+                visited,
+            );
+        }
+    }
+
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
-    /// This also recursively adds assumed implementations for any parent traits.
-    /// The `starting_trait_id` parameter is used to detect cycles in the trait hierarchy
-    /// and prevent infinite recursion.
+    /// This also recursively adds assumed implementations for any parent traits,
+    /// with cycle detection to prevent infinite recursion.
     ///
     /// If the trait bound is already satisfied, an `UnneededTraitConstraint` error is pushed.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_bound_to_scope(
         &mut self,
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
+    ) {
+        let mut visited = BTreeSet::from([trait_bound.trait_id]);
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, &mut visited);
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn add_trait_bound_to_scope_inner(
+        &mut self,
+        location: Location,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+        visited: &mut BTreeSet<TraitId>,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
@@ -652,24 +800,20 @@ impl Elaborator<'_> {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
+                if !visited.insert(parent_trait_bound.trait_id) {
                     continue;
                 }
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope(
-                    location,
-                    object,
-                    &parent_trait_bound,
-                    starting_trait_id,
-                );
+                self.add_trait_bound_to_scope_inner(location, object, &parent_trait_bound, visited);
             }
         }
     }
 
     /// Resolves a trait's methods, but does not elaborate their bodies.
     /// Sets the FuncMeta for each trait method.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_methods(
         &mut self,
         trait_id: TraitId,
@@ -786,6 +930,7 @@ impl Elaborator<'_> {
     /// Defines the FuncMeta for this trait function.
     ///
     /// The bodies of each function (if they exist) are not elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_function(
         &mut self,
         trait_id: TraitId,
@@ -900,6 +1045,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
             ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (error pushed above).
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
@@ -984,7 +1131,7 @@ fn check_function_type_matches_expected_type(
         }
 
         if params_a.len() == params_b.len() {
-            for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
+            for (i, (a, b)) in params_a.iter().zip_eq(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
                     let parameter_location = noir_function.def.parameters.get(i);
                     let parameter_location = parameter_location.map(|param| param.typ.location);

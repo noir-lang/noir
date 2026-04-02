@@ -5,6 +5,7 @@ use std::{
 };
 
 use acvm::acir::circuit::ErrorSelector;
+use itertools::Itertools;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
@@ -366,7 +367,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
                     self.define_variable(target, value_id)?;
                 }
             }

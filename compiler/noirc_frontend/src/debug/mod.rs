@@ -1,7 +1,6 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
-use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
@@ -810,13 +809,11 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let value = SignedField::positive(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), None));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let value = SignedField::from_signed(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), None));
     ast::Expression { kind, location }
 }

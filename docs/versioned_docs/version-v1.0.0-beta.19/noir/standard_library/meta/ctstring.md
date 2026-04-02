@@ -17,7 +17,13 @@ afterward.
 
 ### AsCtString
 
-#include_code as-ctstring noir_stdlib/src/meta/ctstring.nr rust
+```rust title="as-ctstring" showLineNumbers 
+pub trait AsCtString {
+    comptime fn as_ctstring(self) -> CtString;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L44-L48" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L44-L48</a></sub></sup>
+
 
 Converts an object into a compile-time string.
 
@@ -32,25 +38,41 @@ impl<let N: u32, T> AsCtString for fmtstr<N, T> { ... }
 
 ### new
 
-#include_code new noir_stdlib/src/meta/ctstring.nr rust
+```rust title="new" showLineNumbers 
+pub comptime fn new() -> Self {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L4-L6" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L4-L6</a></sub></sup>
+
 
 Creates an empty `CtString`.
 
 ### append_str
 
-#include_code append_str noir_stdlib/src/meta/ctstring.nr rust
+```rust title="append_str" showLineNumbers 
+pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L12-L14" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L12-L14</a></sub></sup>
+
 
 Returns a new CtString with the given str appended onto the end.
 
 ### append_fmtstr
 
-#include_code append_fmtstr noir_stdlib/src/meta/ctstring.nr rust
+```rust title="append_fmtstr" showLineNumbers 
+pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L18-L20</a></sub></sup>
+
 
 Returns a new CtString with the given fmtstr appended onto the end.
 
 ### as_quoted_str
 
-#include_code as_quoted_str noir_stdlib/src/meta/ctstring.nr rust
+```rust title="as_quoted_str" showLineNumbers 
+pub comptime fn as_quoted_str(self) -> Quoted {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L27-L29" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L27-L29</a></sub></sup>
+
 
 Returns a quoted string literal from this string's contents.
 
@@ -61,7 +83,14 @@ literal at this function's call site.
 
 Example:
 
-#include_code as_quoted_str_example noir_stdlib/src/meta/ctstring.nr rust
+```rust title="as_quoted_str_example" showLineNumbers 
+let my_ctstring = "foo bar".as_ctstring();
+            let my_str: str<7> = my_ctstring.as_quoted_str!();
+
+            assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/ctstring.nr#L95-L100" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/ctstring.nr#L95-L100</a></sub></sup>
+
 
 ## Trait Implementations
 

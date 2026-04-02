@@ -80,6 +80,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::fuzzing::BranchToFeatureMap;
+use itertools::Itertools;
 
 use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
@@ -770,7 +771,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             });
         }
 
-        for (output_witness, result_value) in outputs.iter().zip(result_values) {
+        for (output_witness, result_value) in outputs.iter().zip_eq(result_values) {
             insert_value(output_witness, *result_value, &mut self.witness_map)?;
         }
 
@@ -831,6 +832,9 @@ pub fn get_value<F: AcirField>(
     expr: &Expression<F>,
     initial_witness: &WitnessMap<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
+    if let Some(&c) = expr.to_const() {
+        return Ok(c);
+    }
     let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
         Some(value) => Ok(*value),

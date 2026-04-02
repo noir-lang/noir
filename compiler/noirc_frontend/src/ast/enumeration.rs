@@ -14,6 +14,7 @@ pub struct NoirEnumeration {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub generics: UnresolvedGenerics,
     pub variants: Vec<Documented<EnumVariant>>,
     pub location: Location,

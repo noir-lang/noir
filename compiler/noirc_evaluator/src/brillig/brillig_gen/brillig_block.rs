@@ -16,6 +16,7 @@ use crate::ssa::ir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::brillig::MemoryAddress};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -241,9 +242,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
         // Reuse the permanent spill slot if one exists (the data is already there
-        // since SSA values are immutable), otherwise allocate a fresh slot.
-        let offset =
-            sm.get_permanent_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        // since SSA values are immutable), or the transient one if it has just been
+        // unmarked, but still available; otherwise allocate a fresh slot.
+        let offset = sm.get_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
 
         let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
         let victim_reg = victim_var.extract_register();
@@ -252,6 +253,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
+        self.variables.mark_unavailable(&victim_id);
 
         // Record the spill
         let sm = self.function_context.spill_manager.as_mut().unwrap();
@@ -508,8 +510,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let destination_block = &dfg[destination];
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
-        assert_eq!(arguments.len(), destination_block.parameters().len());
-        for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
             let arg_var = self.convert_ssa_value(*arg, dfg);
             let arg_reg = arg_var.extract_register();
 
@@ -814,14 +815,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
     ///
     /// This method also first checks whether the SSA value is a hoisted global constant.
-    /// If it has already been initialized in the global space, we return the already existing variable.
+    /// If the value has already been initialized in the global space, we return the already existing variable.
+    ///
     /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
-    /// otherwise the method panics.
+    /// otherwise the method panics. All globals should already have been allocated at this point, we just need to
+    /// look them up in [BrilligBlock::globals].
     pub(crate) fn convert_ssa_value(
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
+        // Get the value; note that if the value is global, the DFG resolves it from its globals map.
         let value = &dfg[value_id];
 
         if let Some(variable) = self.get_hoisted_global(dfg, value_id) {
@@ -830,14 +834,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         match value {
             Value::Global(_) => {
-                unreachable!("Expected global value to be resolve to its inner value");
+                // We should not see the `Global` wrapper any more, because the DFG indexing resolves to the underlying `Value`
+                // in the globals graph. We shouldn't have to convert the `Value`, just look up the `BrilligVariable` by its
+                // `ValueId` in the `globals` mapping.
+                unreachable!("Expected global value to be resolve to its inner value by the DFG");
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
                 if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value not found in cache {value_id}")
+                        panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
                 } else {
                     // Check if spilled, reload if needed
@@ -868,7 +875,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     var
                 } else if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value not found in cache {value_id}")
+                        panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
                 } else {
                     let new_variable = self.define_variable(value_id, dfg);
@@ -1027,6 +1034,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 BrilligVariable::BrilligArray(then_array),
                 BrilligVariable::BrilligArray(else_array),
             ) => {
+                debug_assert_eq!(
+                    then_array.size, else_array.size,
+                    "ICE: then and else arrays in if-else must have the same size, but got {} and {}",
+                    then_array.size, else_array.size
+                );
                 // Pointer to the array which result from the if-else
                 let pointer = self.brillig_context.allocate_register();
                 self.brillig_context.conditional_move_instruction(

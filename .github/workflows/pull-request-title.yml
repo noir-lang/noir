@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Check title
         if: github.event_name == 'pull_request_target'
-        uses: amannn/action-semantic-pull-request@v6
+        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Post comment on force pushes
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3
         with:
           message: |
             Thank you for your contribution to the Noir language.

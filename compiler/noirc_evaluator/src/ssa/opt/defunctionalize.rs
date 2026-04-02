@@ -37,6 +37,7 @@ use std::{
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
@@ -855,7 +856,7 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
     } else {
         Some(
             reps.into_iter()
-                .zip(types)
+                .zip_eq(types)
                 .map(|(rep, typ)| rep.unwrap_or_else(|| typ.clone()))
                 .collect(),
         )

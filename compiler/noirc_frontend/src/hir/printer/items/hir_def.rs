@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use itertools::Itertools;
+
 use crate::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
@@ -310,7 +312,7 @@ impl ItemPrinter<'_, '_> {
                         if let Some(fields) = get_type_fields(&typ) {
                             self.push('{');
                             self.show_separated_by_comma(
-                                &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
+                                &case.arguments.into_iter().zip_eq(fields).collect::<Vec<_>>(),
                                 |this, (argument, (name, _, _))| {
                                     this.push_str(name);
                                     this.push_str(": ");
@@ -468,6 +470,11 @@ impl ItemPrinter<'_, '_> {
         self.show_hir_expression_id_maybe_inside_parens(first_argument);
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
+
+        if hir_call_expression.is_macro_call {
+            self.push('!');
+        }
+
         if let Some(generics) = generics {
             let use_colons = true;
             self.show_generic_types(&generics, use_colons);

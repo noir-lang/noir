@@ -176,10 +176,11 @@ impl Context<'_, '_, '_> {
         let rhs_is_negative = self.insert_binary(rhs_unsigned, BinaryOp::Div, min_negative_value);
 
         // Here we compute the absolute values of lhs and rhs using their 2-complement
+        // If lhs_unsigned is 0, then lhs_is_negative is also 0, so 2-complement cannot overflow
         let lhs_absolute =
-            self.two_complement(lhs_unsigned, lhs_is_negative, unsigned_typ, bit_size);
+            self.two_complement(lhs_unsigned, lhs_is_negative, unsigned_typ, bit_size, false);
         let rhs_absolute =
-            self.two_complement(rhs_unsigned, rhs_is_negative, unsigned_typ, bit_size);
+            self.two_complement(rhs_unsigned, rhs_is_negative, unsigned_typ, bit_size, false);
 
         // We then perform the division (or modulo) using the absolute values
         let operator = if is_division { BinaryOp::Div } else { BinaryOp::Mod };
@@ -201,26 +202,7 @@ impl Context<'_, '_, '_> {
         // We return the 2-complement again if lhs and rhs have different signs, with the
         // intention of making the result be negative.
         let result_unsigned =
-            self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size);
-
-        // If we divide, for example 4 i8 by -5, the absolute division will give 0.
-        // Because the signs are different, if we do the two complement of 0 we'll get 256, which
-        // is out of range. Here we take this case into account: if absolute_div is zero the result
-        // should be zero, otherwise it should be that result.
-        // Then, we need to multiply result_unsigned by `absolute_div != 0`.
-        //
-        // The same is true for modulo: -4 i8 mod 4 is 0, but taking its two-complement would give 256.
-        let zero = self.numeric_constant(0_u128, unsigned_typ);
-        let absolute_result_is_zero = self.insert_binary(absolute_result, BinaryOp::Eq, zero);
-        let absolute_result_is_not_zero = self.insert_not(absolute_result_is_zero);
-        let absolute_result_is_not_zero =
-            self.insert_cast(absolute_result_is_not_zero, unsigned_typ);
-
-        let result_unsigned = self.insert_binary(
-            result_unsigned,
-            BinaryOp::Mul { unchecked: true },
-            absolute_result_is_not_zero,
-        );
+            self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size, true);
 
         // Make sure we return the signed type
         self.insert_cast(result_unsigned, NumericType::signed(bit_size))
@@ -254,16 +236,37 @@ impl Context<'_, '_, '_> {
         value_is_negative: ValueId,
         unsigned_type: NumericType,
         bit_size: u32,
+        overflow_check: bool,
     ) -> ValueId {
-        let max_power_of_two = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_type);
-
+        let max_power_of_two = self.numeric_constant(
+            1_u128.checked_shl(bit_size - 1).expect("should not overflow"),
+            NumericType::NativeField,
+        );
+        let value_as_field = self.insert_cast(value, NumericType::NativeField);
         let intermediate =
-            self.insert_binary(max_power_of_two, BinaryOp::Sub { unchecked: true }, value);
+            self.insert_binary(max_power_of_two, BinaryOp::Sub { unchecked: true }, value_as_field);
+        let value_is_negative = self.insert_cast(value_is_negative, NumericType::NativeField);
         let intermediate =
             self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, value_is_negative);
-        let two = self.numeric_constant(2_u128, unsigned_type);
+        let two = self.numeric_constant(2_u128, NumericType::NativeField);
         let intermediate = self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, two);
-        self.insert_binary(value, BinaryOp::Add { unchecked: true }, intermediate)
+
+        let mut result =
+            self.insert_binary(value_as_field, BinaryOp::Add { unchecked: true }, intermediate);
+
+        if overflow_check {
+            // result can overflow only when value is 0 and value_is_negative is 1:
+            // result = 2*((2^(bit_size - 1))*value_is_negative = 2^(bit_size)
+            // In that case we multiply it with 'value_is_not_zero', which wraps the result.
+            let zero = self.numeric_constant(0_u128, NumericType::NativeField);
+            let value_is_zero = self.insert_binary(value_as_field, BinaryOp::Eq, zero);
+            let value_is_not_zero = self.insert_not(value_is_zero);
+            let value_is_not_zero = self.insert_cast(value_is_not_zero, NumericType::NativeField);
+            result =
+                self.insert_binary(result, BinaryOp::Mul { unchecked: true }, value_is_not_zero);
+        }
+
+        self.insert_cast(result, unsigned_type)
     }
 
     /// Insert a numeric constant into the current function
@@ -415,29 +418,38 @@ mod tests {
             constrain v8 == u1 0, "Attempt to divide with overflow"
             v10 = div v2, u8 128
             v11 = div v3, u8 128
-            v12 = unchecked_sub u8 128, v2
-            v13 = unchecked_mul v12, v10
-            v15 = unchecked_mul v13, u8 2
-            v16 = unchecked_add v2, v15
-            v17 = unchecked_sub u8 128, v3
-            v18 = unchecked_mul v17, v11
-            v19 = unchecked_mul v18, u8 2
-            v20 = unchecked_add v3, v19
-            v21 = div v16, v20
-            v22 = cast v10 as u1
-            v23 = cast v11 as u1
-            v24 = xor v22, v23
-            v25 = cast v24 as u8
-            v26 = unchecked_sub u8 128, v21
-            v27 = unchecked_mul v26, v25
-            v28 = unchecked_mul v27, u8 2
-            v29 = unchecked_add v21, v28
-            v31 = eq v21, u8 0
-            v32 = not v31
-            v33 = cast v32 as u8
-            v34 = unchecked_mul v29, v33
-            v35 = cast v34 as i8
-            return v35
+            v12 = cast v0 as Field
+            v14 = sub Field 128, v12
+            v15 = cast v10 as Field
+            v16 = mul v14, v15
+            v18 = mul v16, Field 2
+            v19 = add v12, v18
+            v20 = cast v19 as u8
+            v21 = cast v1 as Field
+            v22 = sub Field 128, v21
+            v23 = cast v11 as Field
+            v24 = mul v22, v23
+            v25 = mul v24, Field 2
+            v26 = add v21, v25
+            v27 = cast v26 as u8
+            v28 = div v20, v27
+            v29 = cast v10 as u1
+            v30 = cast v11 as u1
+            v31 = xor v29, v30
+            v32 = cast v31 as u8
+            v33 = cast v28 as Field
+            v34 = sub Field 128, v33
+            v35 = cast v31 as Field
+            v36 = mul v34, v35
+            v37 = mul v36, Field 2
+            v38 = add v33, v37
+            v40 = eq v33, Field 0
+            v41 = not v40
+            v42 = cast v41 as Field
+            v43 = mul v38, v42
+            v44 = cast v43 as u8
+            v45 = cast v43 as i8
+            return v45
         }
         "#);
     }
@@ -485,26 +497,35 @@ mod tests {
             constrain v8 == u1 0, "Attempt to calculate the remainder with overflow"
             v10 = div v2, u8 128
             v11 = div v3, u8 128
-            v12 = unchecked_sub u8 128, v2
-            v13 = unchecked_mul v12, v10
-            v15 = unchecked_mul v13, u8 2
-            v16 = unchecked_add v2, v15
-            v17 = unchecked_sub u8 128, v3
-            v18 = unchecked_mul v17, v11
-            v19 = unchecked_mul v18, u8 2
-            v20 = unchecked_add v3, v19
-            v21 = mod v16, v20
-            v22 = cast v10 as u1
-            v23 = unchecked_sub u8 128, v21
-            v24 = unchecked_mul v23, v10
-            v25 = unchecked_mul v24, u8 2
-            v26 = unchecked_add v21, v25
-            v28 = eq v21, u8 0
-            v29 = not v28
-            v30 = cast v29 as u8
-            v31 = unchecked_mul v26, v30
-            v32 = cast v31 as i8
-            return v32
+            v12 = cast v0 as Field
+            v14 = sub Field 128, v12
+            v15 = cast v10 as Field
+            v16 = mul v14, v15
+            v18 = mul v16, Field 2
+            v19 = add v12, v18
+            v20 = cast v19 as u8
+            v21 = cast v1 as Field
+            v22 = sub Field 128, v21
+            v23 = cast v11 as Field
+            v24 = mul v22, v23
+            v25 = mul v24, Field 2
+            v26 = add v21, v25
+            v27 = cast v26 as u8
+            v28 = mod v20, v27
+            v29 = cast v10 as u1
+            v30 = cast v28 as Field
+            v31 = sub Field 128, v30
+            v32 = cast v10 as Field
+            v33 = mul v31, v32
+            v34 = mul v33, Field 2
+            v35 = add v30, v34
+            v37 = eq v30, Field 0
+            v38 = not v37
+            v39 = cast v38 as Field
+            v40 = mul v35, v39
+            v41 = cast v40 as u8
+            v42 = cast v40 as i8
+            return v42
         }
         "#);
     }

@@ -169,29 +169,70 @@ This returns a new vector and leaves both input vectors unchanged.</p>
 </div>
 </div><code id="as_array" class="code-header">pub fn <a href="#as_array"><span class="fn">as_array</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
 
-<code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
+<div class="padded-description"><div class="comments">
+<p>Converts this vector into an array of length N.
+Panics if the length of this vector is not N.</p>
+</div>
+</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
 
-<code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector, returning a new vector
+containing the mapped elements.</p>
+</div>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
 
-<code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector with its index, returning a
+new vector containing the mapped elements.</p>
+</div>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
-<code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector</p>
+</div>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
-<code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector with its index</p>
+</div>
+</div><code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
 
-<code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector and an accumulator value,
+returning the final accumulated value. This function is also sometimes
+called <code>foldl</code>, <code>fold_left</code>, <code>reduce</code>, or <code>inject</code>.</p>
+</div>
+</div><code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
 
-<code id="filter" class="code-header">pub fn <a href="#filter"><span class="fn">filter</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Apply a function to each element of the vector and an accumulator value,
+returning the final accumulated value. Unlike fold, reduce uses the first
+element of the given vector as its starting accumulator value.</p>
+</div>
+</div><code id="filter" class="code-header">pub fn <a href="#filter"><span class="fn">filter</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
 
-<code id="join" class="code-header">pub fn <a href="#join"><span class="fn">join</span></a>(self, separator: T) -> T
+<div class="padded-description"><div class="comments">
+<p>Returns a new vector containing only elements for which the given predicate
+returns true.</p>
+</div>
+</div><code id="join" class="code-header">pub fn <a href="#join"><span class="fn">join</span></a>(self, separator: T) -> T
 <div class="where-clause">where
     T: <a href="../std/append/trait.Append.html" class="trait">Append</a></div></code>
 
-<code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Flatten each element in the vector into one value, separated by <code>separator</code>.</p>
+</div>
+</div><code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns true if all elements in the vector satisfy the predicate</p>
+</div>
+</div><code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div></main>
+<div class="padded-description"><div class="comments">
+<p>Returns true if any element in the vector satisfies the predicate</p>
+</div>
+</div></div></main>
 </span>
 </body>
 </html>

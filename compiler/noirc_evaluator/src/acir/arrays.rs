@@ -124,6 +124,7 @@ use acvm::acir::brillig::lengths::{
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 
 use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
@@ -511,7 +512,7 @@ impl Context<'_> {
                     dummy_values.len(),
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, dummy_val)?);
                 }
 
@@ -537,7 +538,7 @@ impl Context<'_> {
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
                 let mut elements = im::Vector::new();
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
 
@@ -954,7 +955,7 @@ impl Context<'_> {
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         let flattened_len = flattened_value_size(&array_acir_value);
-        match array_acir_value {
+        let result = match array_acir_value {
             AcirValue::Array(_) => {
                 self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
             }
@@ -990,7 +991,16 @@ impl Context<'_> {
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into()),
+        }?;
+
+        // Remap this array_id to point at the reused block. This ensures subsequent lookups via
+        // type_sizes_block_id(array_id) find the initialized block.
+        // But not for growth operations (Increase/Decrease) which do not match with the base mapping.
+        if result != element_type_sizes && matches!(shift, ElementTypeSizesArrayShift::None) {
+            self.element_type_sizes_blocks.insert(array_id, result);
         }
+
+        Ok(result)
     }
 
     /// Helper to calculate and initialize `element_type_sizes` array from a flattened length.

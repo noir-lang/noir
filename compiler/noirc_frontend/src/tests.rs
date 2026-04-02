@@ -7,6 +7,7 @@ mod assignment;
 mod bound_checks;
 mod cast;
 mod control_flow;
+mod deeply_nested;
 mod enums;
 mod expressions;
 mod functions;
@@ -32,11 +33,11 @@ mod visibility;
 use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
-use crate::hir::comptime::InterpreterError;
+use crate::error_reporting::{self};
 use crate::hir::printer::display_crate;
 use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
-use noirc_errors::reporter::report_all;
+use noirc_errors::reporter::ReportedErrors;
 use noirc_errors::{CustomDiagnostic, Span};
 
 use crate::hir::Context;
@@ -64,11 +65,18 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program_with_options(src, Default::default()).2
 }
 
-pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
-    let (_, context, errors) = get_program(src);
+pub(crate) fn assert_no_errors(src: &str) -> Context<'static, 'static> {
+    assert_no_errors_using_features(src, FrontendOptions::test_default().enabled_unstable_features)
+}
+
+pub(crate) fn assert_no_errors_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> Context<'static, 'static> {
+    let (_, context, errors) = get_program_using_features(src, features);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        report_all(&context, &errors, false, false);
         panic!("Expected no errors");
     }
     context
@@ -230,7 +238,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if !options.allow_elaborator_errors && !errors.is_empty() {
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        report_all(&context, &errors, false, false);
         panic!("Expected no elaborator errors");
     }
 
@@ -268,12 +276,12 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
 
         let Some(expected_primaries) = primary_spans_with_errors.get(&span) else {
             if let Some(secondaries) = secondary_spans_with_errors.get(&span) {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                report_all(&context, &errors, false, false);
                 panic!(
                     "Error at {span:?} with message(s) {secondaries:?} is annotated as secondary but should be primary: {primary_message:?}"
                 );
             } else {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                report_all(&context, &errors, false, false);
                 panic!(
                     "Couldn't find primary error at {span:?} with message {primary_message:?}.\nAll errors: {errors:?}\nExpected primaries: {primary_spans_with_errors:?}\nExpected secondaries: {secondary_spans_with_errors:?}"
                 );
@@ -281,7 +289,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
         };
 
         if !expected_primaries.contains(primary_message) {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
+            report_all(&context, &errors, false, false);
             panic!(
                 "Primary error at {span:?} has unexpected message: {primary_message:?};\nShould be one of {expected_primaries:?}"
             );
@@ -297,7 +305,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
 
             let span = secondary.location.span;
             let Some(expected_secondaries) = secondary_spans_with_errors.get(&span) else {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                report_all(&context, &errors, false, false);
                 if let Some(primaries) = primary_spans_with_errors.get(&span) {
                     panic!(
                         "Error at {span:?} with message(s) {primaries:?} is annotated as primary but should be secondary: {secondary_message:?}"
@@ -310,7 +318,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
             };
 
             if !expected_secondaries.contains(secondary_message) {
-                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                report_all(&context, &errors, false, false);
                 panic!(
                     "Secondary error at {span:?} has unexpected message: {secondary_message:?};\nShould be one of {expected_secondaries:?}"
                 );
@@ -321,12 +329,12 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
     }
 
     if !all_primaries.is_empty() {
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        report_all(&context, &errors, false, false);
         panic!("These primary errors didn't happen: {all_primaries:?}");
     }
 
     if !all_secondaries.is_empty() {
-        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        report_all(&context, &errors, false, false);
         panic!("These secondary errors didn't happen: {all_secondaries:?}");
     }
 }
@@ -350,6 +358,21 @@ fn get_error_line_span_and_message(
     let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
     let error = line.trim().trim_start_matches(char).trim().to_string();
     Some((span, error))
+}
+
+fn report_all(
+    context: &Context,
+    diagnostics: &[CustomDiagnostic],
+    deny_warnings: bool,
+    silence_warnings: bool,
+) -> ReportedErrors {
+    error_reporting::report_all(
+        &context.file_manager,
+        &context.parsed_files,
+        diagnostics,
+        deny_warnings,
+        silence_warnings,
+    )
 }
 
 #[test]
@@ -424,82 +447,4 @@ fn regression_10554() {
     }
     "#;
     check_monomorphization_error(src);
-}
-
-#[test]
-fn deeply_nested_expression_overflow() {
-    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
-    // This tests the interpreter's evaluation depth limit.
-    // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
-    // We use fewer nesting levels (50) combined with recursive function calls
-    // to trigger the interpreter's EvaluationDepthOverflow error.
-    fn make_nested_expr(stem: &str) -> String {
-        let mut expr = String::from(stem);
-        for i in 2..=50 {
-            expr = format!("({expr} + {i})");
-        }
-        expr
-    }
-
-    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
-
-    let src = format!(
-        "
-      fn foo(max_depth: u32) -> u32 {{
-        {expr}
-      }}
-      fn main() {{
-          comptime {{
-              let _ = foo(5);
-          }}
-      }}
-      "
-    );
-
-    let errors = get_program_errors(&src);
-
-    for error in errors {
-        if matches!(
-            error,
-            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
-        ) {
-            return;
-        }
-    }
-
-    panic!("should have got a EvaluationDepthOverflow error");
-}
-
-#[test]
-fn deeply_nested_expression_parser_overflow() {
-    use crate::parser::ParserErrorReason;
-
-    // Build expression: (((1 + 2) + 3) + 4) ... + 200
-    // This should hit the parser's maximum recursion depth limit
-    let mut expr = String::from("1");
-    for i in 2..=200 {
-        expr = format!("({expr} + {i})");
-    }
-
-    let src = format!(
-        "
-      fn main() {{
-          comptime {{
-              let _ = {expr};
-          }}
-      }}
-      "
-    );
-
-    let errors = get_program_errors(&src);
-
-    // We should get exactly one MaximumRecursionDepthExceeded error
-    assert_eq!(errors.len(), 1, "Expected exactly one error");
-
-    let has_depth_error = matches!(
-        &errors[0],
-        CompilationError::ParseError(parser_error)
-            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
-    );
-    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
 }

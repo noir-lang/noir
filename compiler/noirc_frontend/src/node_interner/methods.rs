@@ -189,13 +189,13 @@ impl Methods {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
                     if let Some(object) = args.first() {
-                        if object.unify(typ).is_ok() {
+                        if object.try_unify_with_default_bindings(typ).is_ok() {
                             return true;
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
                         if let Type::Reference(object, _mutable) = object
-                            && object.unify(typ).is_ok()
+                            && object.try_unify_with_default_bindings(typ).is_ok()
                         {
                             return true;
                         }
@@ -207,13 +207,13 @@ impl Methods {
                         method_type.clone()
                     };
 
-                    if method_type.unify(typ).is_ok() {
+                    if method_type.try_unify_with_default_bindings(typ).is_ok() {
                         return true;
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
                     if let Type::Reference(method_type, _mutable) = method_type
-                        && method_type.unify(typ).is_ok()
+                        && method_type.try_unify_with_default_bindings(typ).is_ok()
                     {
                         return true;
                     }

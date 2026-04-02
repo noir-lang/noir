@@ -102,8 +102,12 @@ test.describe('Noir Web App', () => {
     await page.fill('#age', '25');
     await page.click('#submit');
 
+    // Wait for backend creation (this can take some time)
+    await expect(page.locator('#logs')).toContainText('Creating Barretenberg... ⏳');
+    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 20000});
+
     // Wait for witness generation
-    await expect(page.locator('#logs')).toContainText('Generating witness... ⏳');
+    await expect(page.locator('#logs')).toContainText('Generating witness... ⏳', {timeout: 10000});
     await expect(page.locator('#logs')).toContainText('Generated witness... ✅');
 
     // Wait for proof generation (this can take longer)
@@ -134,6 +138,6 @@ test.describe('Noir Web App', () => {
     await page.click('#submit');
 
     // Should show error
-    await expect(page.locator('#logs')).toContainText('Oh 💔');
+    await expect(page.locator('#logs')).toContainText('Oh 💔', { timeout: 30000 });
   });
 });

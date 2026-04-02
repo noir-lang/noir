@@ -7,7 +7,20 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum_macros::EnumCount;
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize, EnumCount)]
+#[derive(
+    Arbitrary,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Copy,
+    Serialize,
+    Deserialize,
+    EnumCount,
+)]
 pub enum NumericType {
     Field,
     Boolean,
@@ -59,7 +72,9 @@ impl From<NumericType> for SsaNumericType {
     }
 }
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
+#[derive(
+    Arbitrary, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumCount,
+)]
 pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>),
@@ -101,6 +116,27 @@ impl Type {
             Type::Vector(element_types) => {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn contains_vector_element(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Vector(_) => true,
+            Type::Reference(element) => element.contains_vector_element(),
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn is_nested_vector(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Reference(element) => element.is_nested_vector(),
             Type::Numeric(_) => false,
         }
     }

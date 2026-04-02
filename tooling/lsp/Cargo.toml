@@ -33,7 +33,7 @@ fm.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
-convert_case = "0.7"
+convert_case = "0.11"
 num-bigint.workspace = true
 fuzzy-matcher = "0.3.7"
 

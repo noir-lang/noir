@@ -495,6 +495,10 @@ impl Instruction {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                         // which uses the side effects predicate.
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
+                        // The heterogeneous vector path in ACIR lowering uses
+                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+                        // to guard the element-type-sizes memory lookup.
+                        Intrinsic::VectorPushBack => true,
                         // Technically these don't use the side effects predicate, but they fail on empty vectors,
                         // and by pretending that they require the predicate, we can preserve any current side
                         // effect variable in the SSA and use it to optimize out memory operations that we know

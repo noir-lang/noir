@@ -9,7 +9,9 @@ error: Expected x to equal 10, but got 0x05
   │            ------- Assertion failed
   │
   = Call stack:
-    1. src/main.nr:1:4
-    2. src/main.nr:3:26
+    1: ?
+            at src/main.nr:1:4
+    2: main
+            at src/main.nr:3:26
 
 Error interpreting main function

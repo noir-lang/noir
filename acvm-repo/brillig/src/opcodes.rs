@@ -3,6 +3,7 @@ use crate::{
     lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
 };
 use acir_field::AcirField;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 /// Represents a program location (instruction index) used as a jump target.
@@ -80,7 +81,7 @@ impl MemoryAddress {
     pub fn offset(&self, amount: u32) -> Self {
         // We disallow offsetting relatively addresses as this is not expected to be meaningful.
         let address = self.unwrap_direct();
-        MemoryAddress::direct(address + amount)
+        MemoryAddress::direct(address.checked_add(amount).expect("memory offset overflow"))
     }
 }
 
@@ -397,8 +398,8 @@ pub enum BrilligOpcode<F> {
     JumpIf { condition: MemoryAddress, location: Label },
     /// Sets the program counter to the value of `location`.
     Jump { location: Label },
-    /// Copies calldata after the `offset_address` with length indicated by `size_address`
-    /// to the specified `destination_address`.
+    /// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
+    /// to the specified `destination_address` in the memory.
     CalldataCopy {
         destination_address: MemoryAddress,
         size_address: MemoryAddress,
@@ -514,11 +515,9 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
                 inputs,
                 input_value_types,
             } => {
-                assert_eq!(destinations.len(), destination_value_types.len());
-
                 if !destinations.is_empty() {
                     for (index, (destination, destination_value_type)) in
-                        destinations.iter().zip(destination_value_types).enumerate()
+                        destinations.iter().zip_eq(destination_value_types).enumerate()
                     {
                         if index > 0 {
                             write!(f, ", ")?;
@@ -530,9 +529,8 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 
                 write!(f, "foreign call {function}(")?;
 
-                assert_eq!(inputs.len(), input_value_types.len());
                 for (index, (input, input_value_type)) in
-                    inputs.iter().zip(input_value_types).enumerate()
+                    inputs.iter().zip_eq(input_value_types).enumerate()
                 {
                     if index > 0 {
                         write!(f, ", ")?;
@@ -653,6 +651,8 @@ impl std::fmt::Display for BinaryIntOp {
 
 #[cfg(test)]
 mod tests {
+    use crate::MemoryAddress;
+
     use super::{BitSize, IntegerBitSize};
     use acir_field::FieldElement;
 
@@ -773,6 +773,13 @@ mod tests {
         assert!(BitSize::try_from_u32::<FieldElement>(7).is_err());
         assert!(BitSize::try_from_u32::<FieldElement>(0).is_err());
         assert!(BitSize::try_from_u32::<FieldElement>(256).is_err());
+    }
+
+    #[test]
+    #[should_panic = "memory offset overflow"]
+    fn memory_offset_overflow() {
+        let addr = MemoryAddress::direct(u32::MAX);
+        let _ = addr.offset(1);
     }
 }
 

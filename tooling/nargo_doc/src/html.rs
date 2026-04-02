@@ -776,7 +776,8 @@ impl HTMLCreator {
 
     fn render_struct_code(&mut self, struct_: &Struct) {
         self.output.push_str("<pre><code>");
-        self.output.push_str(&format!("pub struct {}", struct_.name));
+        let comptime = if struct_.comptime { "comptime " } else { "" };
+        self.output.push_str(&format!("pub {}struct {}", comptime, struct_.name));
         self.render_generics(&struct_.generics);
         if struct_.fields.is_empty() {
             if struct_.has_private_fields {
@@ -990,7 +991,8 @@ impl HTMLCreator {
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
         self.output.push_str("<pre><code>");
-        self.output.push_str(&format!("pub type {}", alias.name));
+        let comptime = if alias.comptime { "comptime " } else { "" };
+        self.output.push_str(&format!("pub {}type {}", comptime, alias.name));
         self.render_generics(&alias.generics);
         self.output.push_str(" = ");
         self.render_type(&alias.r#type);

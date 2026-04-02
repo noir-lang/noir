@@ -170,7 +170,7 @@ pub(super) fn evaluate_infix(
         },
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
-                field: if rhs.absolute_value().is_zero() {
+                field: if rhs.is_zero() {
                    return Err( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: "/" });
                 } else {
                     lhs / rhs

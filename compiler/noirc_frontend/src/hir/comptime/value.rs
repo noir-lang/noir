@@ -2,6 +2,7 @@
 //! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
+use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -11,8 +12,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, Ident, LValue, LetStatement, Path, PathKind, PathSegment, Pattern,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ExpressionKind, Ident, LValue, LetStatement, MethodCallExpression, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -27,8 +28,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    signed_field::SignedField,
-    token::{FmtStrFragment, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -124,7 +124,7 @@ macro_rules! int_constructor {
 }
 
 impl Value {
-    pub fn field(x: SignedField) -> Self {
+    pub fn field(x: FieldElement) -> Self {
         Value::Integer(Integer::Field(x))
     }
 
@@ -170,7 +170,7 @@ impl Value {
                     .len()
                     .try_into()
                     .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
-                Type::String(Box::new(length.into()))
+                Type::String(Box::new(Type::constant_u32(length)))
             }
             Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
@@ -217,14 +217,12 @@ impl Value {
         location: Location,
     ) -> IResult<Expression> {
         use crate::ast::Literal::*;
+        use ExpressionKind::Literal;
         let kind = match self {
-            Value::Unit => ExpressionKind::Literal(Unit),
-            Value::Bool(value) => ExpressionKind::Literal(Bool(value)),
+            Value::Unit => Literal(Unit),
+            Value::Bool(value) => Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
-            Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                ExpressionKind::Literal(Str(string.to_string()))
-            }
+            Value::String(bytes) => Self::string_bytes_into_expression(&bytes, location),
             Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
@@ -252,9 +250,8 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let string = String::from_utf8_lossy(&bytes);
-                let kind = ExpressionKind::Literal(Str(string.into_owned()));
-                let contents = Expression { kind, location };
+                let string = Self::string_bytes_into_expression(&bytes, location);
+                let contents = Expression { kind: string, location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -304,7 +301,7 @@ impl Value {
                     };
                     new_fragments.push(new_fragment);
                 }
-                let fmtstr = ExpressionKind::Literal(FmtStr(new_fragments, length));
+                let fmtstr = Literal(FmtStr(new_fragments, length));
                 if has_values {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
@@ -333,24 +330,31 @@ impl Value {
                 })?;
                 ExpressionKind::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let typ = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(data_type, generics) => {
-                        Type::DataType(data_type.clone(), generics.clone())
-                    }
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
+
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+                let typ = Type::DataType(data_type, generics);
 
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
                 let typ = UnresolvedType { typ, location };
-                ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    typ,
+                    fields: ordered_fields,
+                }))
             }
             value @ Value::Enum(..) => {
                 let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
@@ -359,12 +363,12 @@ impl Value {
             Value::Array(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Array(ArrayLiteral::Standard(elements)))
+                Literal(Array(ArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Vector(ArrayLiteral::Standard(elements)))
+                Literal(Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -441,6 +445,31 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
+    fn string_bytes_into_expression(bytes: &[u8], location: Location) -> ExpressionKind {
+        use crate::ast::Literal::*;
+        use ExpressionKind::Literal;
+
+        match str::from_utf8(bytes) {
+            Ok(string) => Literal(Str(string.to_string())),
+            Err(_) => {
+                // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                let bytes = vecmap(bytes.iter(), |byte| Expression {
+                    kind: Literal(Integer((*byte).into(), Some(IntegerTypeSuffix::U8))),
+                    location,
+                });
+                let bytes = Literal(Array(ArrayLiteral::Standard(bytes)));
+                let bytes = Expression { kind: bytes, location };
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: bytes,
+                    method_name: Ident::new("as_str_unchecked".to_string(), location),
+                    generics: None,
+                    arguments: vec![],
+                    is_macro_call: false,
+                }))
+            }
+        }
+    }
+
     /// Lowers this compile-time value into a HIR expression to be used at runtime.
     /// This means that comptime-only types will panic.
     /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
@@ -493,21 +522,27 @@ impl Value {
                 })?;
                 HirExpression::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let Type::DataType(r#type, struct_generics) = typ.follow_bindings() else {
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
                     return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
 
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+
                 HirExpression::Constructor(HirConstructorExpression {
-                    r#type,
-                    struct_generics,
-                    fields,
+                    r#type: data_type,
+                    struct_generics: generics,
+                    fields: ordered_fields,
                 })
             }
             Value::Enum(variant_index, args, typ) => {
@@ -611,8 +646,30 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::String(bytes) | Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                vec![Token::Str(string.to_string())]
+                match str::from_utf8(&bytes) {
+                    Ok(string) => {
+                        vec![Token::Str(string.to_string())]
+                    }
+                    Err(_) => {
+                        // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                        let mut tokens = Vec::new();
+                        tokens.push(Token::LeftBracket);
+
+                        for (i, byte) in bytes.iter().enumerate() {
+                            if i > 0 {
+                                tokens.push(Token::Comma);
+                            }
+                            tokens.push(Token::Int((*byte).into(), Some(IntegerTypeSuffix::U8)));
+                        }
+
+                        tokens.push(Token::RightBracket);
+                        tokens.push(Token::Dot);
+                        tokens.push(Token::Ident("as_str_unchecked".to_string()));
+                        tokens.push(Token::LeftParen);
+                        tokens.push(Token::RightParen);
+                        tokens
+                    }
+                }
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
@@ -625,11 +682,6 @@ impl Value {
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
-    }
-
-    /// Returns false for non-integral `Value`s.
-    pub(crate) fn is_integral(&self) -> bool {
-        matches!(self, Value::Integer(_))
     }
 
     pub(crate) fn is_zero(&self) -> bool {
@@ -681,20 +733,9 @@ impl Value {
         }
     }
 
-    /// Converts any non-negative integer `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s and negative numbers.
-    pub(crate) fn as_non_negative_signed_field(&self) -> Option<SignedField> {
+    pub(crate) fn as_integer(&self) -> Option<&Integer> {
         match self {
-            Value::Integer(int) => int.as_non_negative_field().map(SignedField::positive),
-            _ => None,
-        }
-    }
-
-    /// Converts any integral `Value` into a `SignedField`.
-    #[cfg(test)]
-    pub(crate) fn as_signed_field(&self) -> Option<SignedField> {
-        match self {
-            Value::Integer(int) => Some(int.as_signed_field()),
+            Value::Integer(int) => Some(int),
             _ => None,
         }
     }

@@ -321,9 +321,22 @@ impl Value {
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }
-            Type::Vector(element_types) => Self::vector(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
+    }
+
+    /// Create an uninitialized (zeroed) vector of the given size.
+    /// Each element slot is filled with `Value::uninitialized` of the appropriate element type.
+    pub(crate) fn uninitialized_vector(element_types: &[Type], size: usize, id: ValueId) -> Value {
+        let element_count = element_types.len();
+        let elements = (0..size)
+            .map(|i| {
+                let element_type = &element_types[i % element_count.max(1)];
+                Self::uninitialized(element_type, id)
+            })
+            .collect();
+        Self::vector(elements, Arc::new(element_types.to_vec()))
     }
 
     pub(crate) fn as_string(&self) -> Option<String> {

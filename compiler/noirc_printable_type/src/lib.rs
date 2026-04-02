@@ -6,6 +6,7 @@ use std::{collections::BTreeMap, str};
 use acvm::{AcirField, acir::brillig::ForeignCallParam};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -236,7 +237,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 panic!("Expected type to be a Tuple for FmtString");
             };
             let template = template.clone();
-            let args = values.iter().cloned().zip(types.iter().cloned()).collect::<Vec<_>>();
+            let args = values.iter().cloned().zip_eq(types.iter().cloned()).collect::<Vec<_>>();
             output.push_str(&PrintableValueDisplay::FmtString(template, args).to_string());
         }
         PrintableType::Struct { name, fields, .. } => {
@@ -264,7 +265,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
                 return None;
             };
             output.push('(');
-            let mut elements = array_elements.iter().zip(types).peekable();
+            let mut elements = array_elements.iter().zip_eq(types).peekable();
             while let Some((value, typ)) = elements.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
@@ -291,7 +292,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             if has_fields {
                 output.push('(');
             }
-            let mut elements = elements.iter().zip(types).peekable();
+            let mut elements = elements.iter().zip_eq(types).peekable();
             while let Some((value, typ)) = elements.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),

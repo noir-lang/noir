@@ -18,6 +18,7 @@ use crate::ssa::{
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::Shared;
 use num_traits::{CheckedShl, CheckedShr};
 use rustc_hash::FxHashMap as HashMap;
@@ -318,7 +319,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }));
             }
 
-            for (parameter, argument) in block.parameters().iter().zip(arguments) {
+            for (parameter, argument) in block.parameters().iter().zip_eq(arguments) {
                 self.define(*parameter, argument)?;
             }
 
@@ -772,10 +773,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
+        // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
             matches!(
                 self.dfg()[instruction],
-                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: false }, .. })
             )
         } else {
             false
@@ -967,10 +970,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
-            vecmap(results, |result| {
-                let typ = self.dfg().type_of_value(*result);
-                Value::uninitialized(&typ, *result)
-            })
+            self.uninitialized_call_results(&function, argument_ids, results)?
         };
 
         if new_results.len() != results.len() {
@@ -983,10 +983,69 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }));
         }
 
-        for (result, new_result) in results.iter().zip(new_results) {
+        for (result, new_result) in results.iter().zip_eq(new_results) {
             self.define(*result, new_result)?;
         }
         Ok(())
+    }
+
+    /// Create uninitialized results for a call that was skipped due to disabled side effects.
+    ///
+    /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
+    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+    /// merge the vector from a 'side effect disabled' branch.
+    fn uninitialized_call_results(
+        &self,
+        function: &Value,
+        argument_ids: &[ValueId],
+        results: &[ValueId],
+    ) -> IResult<Vec<Value>> {
+        use crate::ssa::ir::instruction::Intrinsic;
+        // Get the length of the vector
+        if let Value::Intrinsic(intrinsic) = function {
+            let input_vector_info = match intrinsic {
+                Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorRemove => {
+                    let vec = self.lookup_array_or_vector(
+                        argument_ids[1],
+                        "uninitialized vector intrinsic",
+                    )?;
+                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
+                }
+                _ => None,
+            };
+
+            if let Some((input_len, element_types)) = input_vector_info {
+                let element_count = element_types.len();
+                let output_len = match intrinsic {
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorInsert => input_len + element_count,
+                    Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
+                    _ => unreachable!(),
+                };
+
+                return Ok(vecmap(results, |result| {
+                    let typ = self.dfg().type_of_value(*result);
+                    if matches!(typ, Type::Vector(_)) {
+                        Value::uninitialized_vector(&element_types, output_len, *result)
+                    } else {
+                        Value::uninitialized(&typ, *result)
+                    }
+                }));
+            }
+        }
+
+        Ok(vecmap(results, |result| {
+            let typ = self.dfg().type_of_value(*result);
+            Value::uninitialized(&typ, *result)
+        }))
     }
 
     /// Try to get a function's name or approximate it if it is not known
@@ -1615,7 +1674,13 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
@@ -1826,11 +1891,11 @@ fn interpret_u1_binary_op(
             }
         }
         BinaryOp::Sub { unchecked: true } => {
-            // (0, 0) -> 0
-            // (0, 1) -> 1  (underflow)
-            // (1, 0) -> 1
-            // (1, 1) -> 0
-            lhs ^ rhs
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
+            }
         }
         BinaryOp::Sub { unchecked: false } => {
             if !lhs && rhs {

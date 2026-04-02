@@ -18,7 +18,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent},
+        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
@@ -30,10 +30,12 @@ use crate::{
 use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value_with_target_type(
         &mut self,
         statement: Statement,
@@ -74,10 +76,12 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         self.elaborate_statement_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement_with_target_type(
         &mut self,
         statement: Statement,
@@ -93,6 +97,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_inner(
         &mut self,
         statement: Statement,
@@ -105,6 +110,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let (let_statement, typ) = self.elaborate_let(let_stmt, None);
         (HirStatement::Let(let_statement), typ)
@@ -114,6 +120,7 @@ impl Elaborator<'_> {
     /// If this is a global let, the DefinitionId of the global is specified so that
     /// elaborate_pattern can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
         &mut self,
         let_stmt: LetStatement,
@@ -136,7 +143,13 @@ impl Elaborator<'_> {
             WildcardAllowed::Yes
         };
 
+        let previous_impl_trait_context = if global_id.is_some() {
+            self.impl_trait_is_disallowed.replace(super::types::ImplTraitDisallowedContext::Global)
+        } else {
+            self.impl_trait_is_disallowed
+        };
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
 
         // After resolving the type we'll elaborate the global's value. The value is interpreted
         // at compile time, so we need to switch to a comptime context. For example using `Quoted`
@@ -221,18 +234,17 @@ impl Elaborator<'_> {
         (let_, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
 
         self.mark_lvalue_variables_as_mutated(&lvalue);
 
         if !mutable {
-            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
-            self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
         } else {
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
             if let Some(id) = id {
@@ -263,6 +275,48 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn push_assign_to_immutable_lvalue_error(
+        &mut self,
+        lvalue: &HirLValue,
+        main_lvalue: &HirLValue,
+    ) {
+        match lvalue {
+            HirLValue::Ident(ident, _) => {
+                let definition = self.interner.definition(ident.id);
+                let name = definition.name.clone();
+                let location = ident.location;
+                self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+            }
+
+            HirLValue::MemberAccess { object, .. } => {
+                self.push_assign_to_immutable_lvalue_error(object, main_lvalue);
+            }
+            HirLValue::Index { array, .. } => {
+                self.push_assign_to_immutable_lvalue_error(array, main_lvalue);
+            }
+            HirLValue::Dereference { lvalue, .. } => {
+                if let HirLValue::Ident(ident, _) = lvalue.as_ref() {
+                    let definition = self.interner.definition(ident.id);
+                    let name = definition.name.clone();
+                    let location = ident.location;
+                    self.push_err(TypeCheckError::CannotAssignToReference { name, location });
+                } else {
+                    let lvalue = main_lvalue.to_display_ast(self.interner).to_string();
+                    let location = main_lvalue.location();
+                    self.push_err(TypeCheckError::CannotAssignToLValueBehindReference {
+                        lvalue,
+                        location,
+                    });
+                }
+            }
+            HirLValue::Error { .. } => {
+                // An error was already pushed for this
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
         let (start, end, inclusive) = match for_loop.range {
             ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
@@ -335,6 +389,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
         let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
@@ -368,6 +423,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
@@ -407,6 +463,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
@@ -449,6 +506,7 @@ impl Elaborator<'_> {
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
@@ -491,6 +549,8 @@ impl Elaborator<'_> {
                         } else {
                             self.push_err(error);
                         }
+
+                        // We se this to mutable to prevent further errors from being reported
                         let mutable = true;
                         (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
@@ -503,7 +563,7 @@ impl Elaborator<'_> {
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
 
-                let dereference_lhs = move |_: &mut Self, _, element_type| {
+                let dereference_lhs = move |_: &mut Self, _, element_type, is_mutable| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
                     let tmp_value = HirLValue::Error { location };
@@ -515,7 +575,7 @@ impl Elaborator<'_> {
                         location,
                         implicitly_added: true,
                     };
-                    *mutable_ref = true;
+                    *mutable_ref = is_mutable;
                 };
 
                 let name = field_name.as_str();
@@ -562,7 +622,7 @@ impl Elaborator<'_> {
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any `&` or `&mut` wrappers.
-                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
+                while let Type::Reference(element, is_mutable) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue = HirLValue::Dereference {
                         lvalue: Box::new(lvalue),
@@ -571,12 +631,14 @@ impl Elaborator<'_> {
                         implicitly_added: true,
                     };
                     lvalue_type = *element;
-                    // We know this value to be mutable now since we found an `&mut`
-                    mutable = true;
+                    mutable = is_mutable;
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
-                    Type::Array(_, elem_type) => *elem_type,
+                    Type::Array(ref size, ref elem_type) => {
+                        self.check_array_index_out_of_bounds(size, &index, location);
+                        *elem_type.clone()
+                    }
                     Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
@@ -606,8 +668,13 @@ impl Elaborator<'_> {
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
             LValue::Dereference(lvalue, location) => {
-                let (lvalue, reference_type, _, statements) = self.elaborate_lvalue(*lvalue);
+                let (lvalue, reference_type, mut mutable, statements) =
+                    self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
+
+                if let Type::Reference(_, is_mutable) = reference_type {
+                    mutable = is_mutable;
+                }
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
@@ -620,7 +687,6 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
 
-                // Dereferences are always mutable since we already type checked against a &mut T
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference {
                     lvalue,
@@ -628,7 +694,7 @@ impl Elaborator<'_> {
                     location,
                     implicitly_added: false,
                 };
-                (lvalue, typ, true, statements)
+                (lvalue, typ, mutable, statements)
             }
             LValue::Interned(id, location) => {
                 let lvalue = self.interner.get_lvalue(id, location);
@@ -637,6 +703,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue_ident(
         &mut self,
         ident: HirIdent,
@@ -660,6 +727,7 @@ impl Elaborator<'_> {
         (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn fresh_definition_for_lvalue_index(
         &mut self,
         expr: ExprId,
@@ -669,15 +737,13 @@ impl Elaborator<'_> {
         // If the original expression trivially cannot have side-effects, don't bother cluttering
         // the output with a let binding. Note that array literals can have side-effects but these
         // would produce type errors anyway.
-        if matches!(
-            self.interner.expression(&expr),
-            HirExpression::Ident(..) | HirExpression::Literal(..)
-        ) {
+        if !self.index_could_have_side_effects(expr) {
             return None;
         }
 
+        let lvalue_index_counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{}", self.interner.definition_count()),
+            format!("i_{lvalue_index_counter}"),
             false,
             false,
             DefinitionKind::Local(None),
@@ -694,6 +760,58 @@ impl Elaborator<'_> {
         Some((let_, ident_id))
     }
 
+    /// Returns `true` if the given index expression could potentially have side-effects.
+    /// Returns `false` if the expression is guaranteed to not have side-effects.
+    fn index_could_have_side_effects(&self, expr: ExprId) -> bool {
+        match self.interner.expression_ref(&expr) {
+            HirExpression::Ident(..) => false,
+            HirExpression::Literal(hir_literal) => match hir_literal {
+                HirLiteral::Bool(_)
+                | HirLiteral::Integer(..)
+                | HirLiteral::Str(_)
+                | HirLiteral::Unit => false,
+                HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
+            },
+            HirExpression::Prefix(hir_prefix_expression) => {
+                hir_prefix_expression.trait_method_id.is_some()
+                    || self.index_could_have_side_effects(hir_prefix_expression.rhs)
+            }
+            HirExpression::Infix(hir_infix_expression) => {
+                hir_infix_expression.trait_method_id.is_some()
+                    || self.index_could_have_side_effects(hir_infix_expression.lhs)
+                    || self.index_could_have_side_effects(hir_infix_expression.rhs)
+            }
+            HirExpression::Index(hir_index_expression) => {
+                self.index_could_have_side_effects(hir_index_expression.collection)
+                    || self.index_could_have_side_effects(hir_index_expression.index)
+            }
+            HirExpression::Constructor(hir_constructor_expression) => {
+                !hir_constructor_expression.fields.is_empty()
+            }
+            HirExpression::EnumConstructor(hir_enum_constructor_expression) => {
+                !hir_enum_constructor_expression.arguments.is_empty()
+            }
+            HirExpression::MemberAccess(hir_member_access) => {
+                self.index_could_have_side_effects(hir_member_access.lhs)
+            }
+            HirExpression::Call(..) => true,
+            HirExpression::Constrain(..) => true,
+            HirExpression::Cast(hir_cast_expression) => {
+                self.index_could_have_side_effects(hir_cast_expression.lhs)
+            }
+            HirExpression::If(..)
+            | HirExpression::Match(..)
+            | HirExpression::Tuple(..)
+            | HirExpression::Lambda(..)
+            | HirExpression::Quote(..)
+            | HirExpression::Unquote(..)
+            | HirExpression::Unsafe(..)
+            | HirExpression::Block(..)
+            | HirExpression::Error => true,
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_statement(
         &mut self,
         statement: Statement,

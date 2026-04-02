@@ -8,7 +8,13 @@ keywords: [traits, trait, interface, protocol, default, add, eq]
 
 ### `std::default::Default`
 
-#include_code default-trait noir_stdlib/src/default.nr rust
+```rust title="default-trait" showLineNumbers 
+pub trait Default {
+    fn default() -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/default.nr#L4-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/default.nr#L4-L8</a></sub></sup>
+
 
 Constructs a default value of a type.
 
@@ -57,12 +63,200 @@ except vectors whose length is unknown and thus defaulted to zero.
 
 ### `std::convert::From`
 
-#include_code from-trait noir_stdlib/src/convert.nr rust
+```rust title="from-trait" showLineNumbers 
+pub trait From<T> {
+    fn from(input: T) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/convert.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/convert.nr#L1-L5</a></sub></sup>
+
 
 The `From` trait defines how to convert from a given type `T` to the type on which the trait is implemented.
 
 The Noir standard library provides a number of implementations of `From` between primitive types.
-#include_code from-impls noir_stdlib/src/convert.nr rust
+```rust title="from-impls" showLineNumbers 
+// Unsigned integers
+
+impl From<u8> for u16 {
+    fn from(value: u8) -> u16 {
+        value as u16
+    }
+}
+
+impl From<u8> for u32 {
+    fn from(value: u8) -> u32 {
+        value as u32
+    }
+}
+
+impl From<u16> for u32 {
+    fn from(value: u16) -> u32 {
+        value as u32
+    }
+}
+
+impl From<u8> for u64 {
+    fn from(value: u8) -> u64 {
+        value as u64
+    }
+}
+
+impl From<u16> for u64 {
+    fn from(value: u16) -> u64 {
+        value as u64
+    }
+}
+
+impl From<u32> for u64 {
+    fn from(value: u32) -> u64 {
+        value as u64
+    }
+}
+
+impl From<u8> for u128 {
+    fn from(value: u8) -> u128 {
+        value as u128
+    }
+}
+
+impl From<u16> for u128 {
+    fn from(value: u16) -> u128 {
+        value as u128
+    }
+}
+
+impl From<u32> for u128 {
+    fn from(value: u32) -> u128 {
+        value as u128
+    }
+}
+impl From<u64> for u128 {
+    fn from(value: u64) -> u128 {
+        value as u128
+    }
+}
+
+impl From<u8> for Field {
+    fn from(value: u8) -> Field {
+        value as Field
+    }
+}
+
+impl From<u16> for Field {
+    fn from(value: u16) -> Field {
+        value as Field
+    }
+}
+
+impl From<u32> for Field {
+    fn from(value: u32) -> Field {
+        value as Field
+    }
+}
+impl From<u64> for Field {
+    fn from(value: u64) -> Field {
+        value as Field
+    }
+}
+
+impl From<u128> for Field {
+    fn from(value: u128) -> Field {
+        value as Field
+    }
+}
+
+// Signed integers
+
+impl From<i8> for i16 {
+    fn from(value: i8) -> i16 {
+        value as i16
+    }
+}
+
+impl From<i8> for i32 {
+    fn from(value: i8) -> i32 {
+        value as i32
+    }
+}
+
+impl From<i16> for i32 {
+    fn from(value: i16) -> i32 {
+        value as i32
+    }
+}
+
+impl From<i8> for i64 {
+    fn from(value: i8) -> i64 {
+        value as i64
+    }
+}
+
+impl From<i16> for i64 {
+    fn from(value: i16) -> i64 {
+        value as i64
+    }
+}
+
+impl From<i32> for i64 {
+    fn from(value: i32) -> i64 {
+        value as i64
+    }
+}
+
+// Booleans
+impl From<bool> for u8 {
+    fn from(value: bool) -> u8 {
+        value as u8
+    }
+}
+impl From<bool> for u16 {
+    fn from(value: bool) -> u16 {
+        value as u16
+    }
+}
+impl From<bool> for u32 {
+    fn from(value: bool) -> u32 {
+        value as u32
+    }
+}
+impl From<bool> for u64 {
+    fn from(value: bool) -> u64 {
+        value as u64
+    }
+}
+impl From<bool> for u128 {
+    fn from(value: bool) -> u128 {
+        value as u128
+    }
+}
+impl From<bool> for i8 {
+    fn from(value: bool) -> i8 {
+        value as i8
+    }
+}
+impl From<bool> for i16 {
+    fn from(value: bool) -> i16 {
+        value as i16
+    }
+}
+impl From<bool> for i32 {
+    fn from(value: bool) -> i32 {
+        value as i32
+    }
+}
+impl From<bool> for i64 {
+    fn from(value: bool) -> i64 {
+        value as i64
+    }
+}
+impl From<bool> for Field {
+    fn from(value: bool) -> Field {
+        value as Field
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/convert.nr#L28-L208" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/convert.nr#L28-L208</a></sub></sup>
+
 
 #### When to implement `From`
 
@@ -82,7 +276,22 @@ The `Into` trait is defined as the reciprocal of `From`. It should be easy to co
 
 For this reason, implementing `From` on a type will automatically generate a matching `Into` implementation. One should always prefer implementing `From` over `Into` as implementing `Into` will not generate a matching `From` implementation.
 
-#include_code into-trait noir_stdlib/src/convert.nr rust
+```rust title="into-trait" showLineNumbers 
+pub trait Into<T> {
+    fn into(self) -> T;
+}
+
+impl<T, U> Into<T> for U
+where
+    T: From<U>,
+{
+    fn into(self) -> T {
+        T::from(self)
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/convert.nr#L13-L26" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/convert.nr#L13-L26</a></sub></sup>
+
 
 `Into` is most useful when passing function arguments where the types don't quite match up with what the function expects. In this case, the compiler has enough type information to perform the necessary conversion by just appending `.into()` onto the arguments in question.
 
@@ -92,7 +301,13 @@ For this reason, implementing `From` on a type will automatically generate a mat
 
 ### `std::cmp::Eq`
 
-#include_code eq-trait noir_stdlib/src/cmp.nr rust
+```rust title="eq-trait" showLineNumbers 
+pub trait Eq {
+    fn eq(self, other: Self) -> bool;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L4-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L4-L8</a></sub></sup>
+
 
 Returns `true` if `self` is equal to `other`. Implementing this trait on a type
 allows the type to be used with `==` and `!=`.
@@ -135,7 +350,13 @@ impl<A, B, C, D, E> Eq for (A, B, C, D, E)
 
 ### `std::cmp::Ord`
 
-#include_code ord-trait noir_stdlib/src/cmp.nr rust
+```rust title="ord-trait" showLineNumbers 
+pub trait Ord {
+    fn cmp(self, other: Self) -> Ordering;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L217-L221" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L217-L221</a></sub></sup>
+
 
 `a.cmp(b)` compares two values returning `Ordering::less()` if `a < b`,
 `Ordering::equal()` if `a == b`, or `Ordering::greater()` if `a > b`.
@@ -190,10 +411,34 @@ These traits abstract over addition, subtraction, multiplication, and division r
 Implementing these traits for a given type will also allow that type to be used with the corresponding operator
 for that trait (`+` for Add, etc) in addition to the normal method names.
 
-#include_code add-trait noir_stdlib/src/ops/arith.nr rust
-#include_code sub-trait noir_stdlib/src/ops/arith.nr rust
-#include_code mul-trait noir_stdlib/src/ops/arith.nr rust
-#include_code div-trait noir_stdlib/src/ops/arith.nr rust
+```rust title="add-trait" showLineNumbers 
+pub trait Add {
+    fn add(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L3-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L3-L7</a></sub></sup>
+
+```rust title="sub-trait" showLineNumbers 
+pub trait Sub {
+    fn sub(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L67-L71" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L67-L71</a></sub></sup>
+
+```rust title="mul-trait" showLineNumbers 
+pub trait Mul {
+    fn mul(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L131-L135" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L131-L135</a></sub></sup>
+
+```rust title="div-trait" showLineNumbers 
+pub trait Div {
+    fn div(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L195-L199" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L195-L199</a></sub></sup>
+
 
 The implementations block below is given for the `Add` trait, but the same types that implement
 `Add` also implement `Sub`, `Mul`, and `Div`.
@@ -215,7 +460,13 @@ impl Add for u64 { .. }
 
 ### `std::ops::Rem`
 
-#include_code rem-trait noir_stdlib/src/ops/arith.nr rust
+```rust title="rem-trait" showLineNumbers 
+pub trait Rem {
+    fn rem(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L259-L263" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L259-L263</a></sub></sup>
+
 
 `Rem::rem(a, b)` is the remainder function returning the result of what is
 left after dividing `a` and `b`. Implementing `Rem` allows the `%` operator
@@ -238,27 +489,146 @@ impl Rem for i64 { fn rem(self, other: i64) -> i64 { self % other } }
 
 ### `std::ops::Neg`
 
-#include_code neg-trait noir_stdlib/src/ops/arith.nr rust
+```rust title="neg-trait" showLineNumbers 
+pub trait Neg {
+    fn neg(self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L317-L321" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L317-L321</a></sub></sup>
+
 
 `Neg::neg` is equivalent to the unary negation operator `-`.
 
 Implementations:
-#include_code neg-trait-impls noir_stdlib/src/ops/arith.nr rust
+```rust title="neg-trait-impls" showLineNumbers 
+impl Neg for Field {
+    fn neg(self) -> Field {
+        -self
+    }
+}
+
+impl Neg for i8 {
+    fn neg(self) -> i8 {
+        -self
+    }
+}
+impl Neg for i16 {
+    fn neg(self) -> i16 {
+        -self
+    }
+}
+impl Neg for i32 {
+    fn neg(self) -> i32 {
+        -self
+    }
+}
+impl Neg for i64 {
+    fn neg(self) -> i64 {
+        -self
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/arith.nr#L323-L350" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/arith.nr#L323-L350</a></sub></sup>
+
 
 ### `std::ops::Not`
 
-#include_code not-trait noir_stdlib/src/ops/bit.nr rust
+```rust title="not-trait" showLineNumbers 
+pub trait Not {
+    fn not(self: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L1-L5</a></sub></sup>
+
 
 `Not::not` is equivalent to the unary bitwise NOT operator `!`.
 
 Implementations:
-#include_code not-trait-impls noir_stdlib/src/ops/bit.nr rust
+```rust title="not-trait-impls" showLineNumbers 
+impl Not for bool {
+    fn not(self) -> bool {
+        !self
+    }
+}
+
+impl Not for u128 {
+    fn not(self) -> u128 {
+        !self
+    }
+}
+impl Not for u64 {
+    fn not(self) -> u64 {
+        !self
+    }
+}
+impl Not for u32 {
+    fn not(self) -> u32 {
+        !self
+    }
+}
+impl Not for u16 {
+    fn not(self) -> u16 {
+        !self
+    }
+}
+impl Not for u8 {
+    fn not(self) -> u8 {
+        !self
+    }
+}
+impl Not for u1 {
+    fn not(self) -> u1 {
+        !self
+    }
+}
+
+impl Not for i8 {
+    fn not(self) -> i8 {
+        !self
+    }
+}
+impl Not for i16 {
+    fn not(self) -> i16 {
+        !self
+    }
+}
+impl Not for i32 {
+    fn not(self) -> i32 {
+        !self
+    }
+}
+impl Not for i64 {
+    fn not(self) -> i64 {
+        !self
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L7-L65" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L7-L65</a></sub></sup>
+
 
 ### `std::ops::{ BitOr, BitAnd, BitXor }`
 
-#include_code bitor-trait noir_stdlib/src/ops/bit.nr rust
-#include_code bitand-trait noir_stdlib/src/ops/bit.nr rust
-#include_code bitxor-trait noir_stdlib/src/ops/bit.nr rust
+```rust title="bitor-trait" showLineNumbers 
+pub trait BitOr {
+    fn bitor(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L67-L71" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L67-L71</a></sub></sup>
+
+```rust title="bitand-trait" showLineNumbers 
+pub trait BitAnd {
+    fn bitand(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L131-L135" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L131-L135</a></sub></sup>
+
+```rust title="bitxor-trait" showLineNumbers 
+pub trait BitXor {
+    fn bitxor(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L195-L199" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L195-L199</a></sub></sup>
+
 
 Traits for the bitwise operations `|`, `&`, and `^`.
 
@@ -285,8 +655,20 @@ impl BitOr for i64 { fn bitor(self, other: i64) -> i64 { self | other } }
 
 ### `std::ops::{ Shl, Shr }`
 
-#include_code shl-trait noir_stdlib/src/ops/bit.nr rust
-#include_code shr-trait noir_stdlib/src/ops/bit.nr rust
+```rust title="shl-trait" showLineNumbers 
+pub trait Shl {
+    fn shl(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L259-L263" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L259-L263</a></sub></sup>
+
+```rust title="shr-trait" showLineNumbers 
+pub trait Shr {
+    fn shr(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/ops/bit.nr#L317-L321" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/ops/bit.nr#L317-L321</a></sub></sup>
+
 
 Traits for a bit shift left and bit shift right.
 
@@ -314,7 +696,14 @@ impl Shl for u64 { fn shl(self, other: u64) -> u64 { self << other } }
 
 `Append` can abstract over types that can be appended to - usually container types:
 
-#include_code append-trait noir_stdlib/src/append.nr rust
+```rust title="append-trait" showLineNumbers 
+pub trait Append {
+    fn empty() -> Self;
+    fn append(self, other: Self) -> Self;
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/append.nr#L9-L14" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/append.nr#L9-L14</a></sub></sup>
+
 
 `Append` requires two methods:
 

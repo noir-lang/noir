@@ -93,7 +93,7 @@ pub struct TraitImpl {
     pub external_types: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Import {
     pub name: Ident,
     pub id: ModuleDefId,

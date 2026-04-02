@@ -1,0 +1,6 @@
+[package]
+name = "comptime_fn_disable"
+type = "bin"
+authors = [""]
+
+[dependencies]

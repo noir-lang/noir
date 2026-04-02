@@ -274,16 +274,26 @@ impl Context<'_, '_, '_> {
                 // Performs the division on the adjusted complement (or the operand if positive)
                 let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
                 // For negative numbers, convert back to 2-complement by subtracting 1.
-                let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
-                // The requirements for this to underflow are all of these:
-                // - lhs < 0
-                // - div_complement(lhs) / (2^rhs) == 0
-                // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-                // to be larger than the lhs bitsize for this to overflow.
-                let sub = BinaryOp::Sub { unchecked: true };
-                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                // Cast to Field and add 2^bit_size to handle underflow; the subsequent truncate
+                // to bit_size bits corrects the extra 2^bit_size.
+                let shifted_complement_field =
+                    self.insert_cast(shifted_complement, NumericType::NativeField);
+                let modulus = self.field_constant(
+                    FieldElement::from(2u32).pow(&FieldElement::from(u128::from(bit_size))),
+                );
+                let shifted = self.insert_binary(
+                    shifted_complement_field,
+                    BinaryOp::Add { unchecked: true },
+                    modulus,
+                );
+                let shifted = self.insert_binary(
+                    shifted,
+                    BinaryOp::Sub { unchecked: true },
+                    lhs_sign_as_field,
+                );
+                let truncated = self.insert_truncate(shifted, bit_size, bit_size + 1);
+                self.insert_cast(truncated, lhs_typ)
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
@@ -921,10 +931,12 @@ mod tests {
                 v7 = truncate v6 to 32 bits, max_bit_size: 33
                 v8 = cast v7 as i32
                 v10 = div v8, i32 4
-                v11 = cast v3 as i32
-                v12 = unchecked_sub v10, v11
-                v13 = truncate v12 to 32 bits, max_bit_size: 33
-                return v13
+                v11 = cast v10 as Field
+                v13 = add v11, Field 4294967296
+                v14 = sub v13, v4
+                v15 = truncate v14 to 32 bits, max_bit_size: 33
+                v16 = cast v15 as i32
+                return v16
             }
             ");
         }
@@ -1000,10 +1012,12 @@ mod tests {
                 v64 = truncate v63 to 32 bits, max_bit_size: 33
                 v65 = cast v64 as i32
                 v66 = div v65, v57
-                v67 = cast v60 as i32
-                v68 = unchecked_sub v66, v67
-                v69 = truncate v68 to 32 bits, max_bit_size: 33
-                return v69
+                v67 = cast v66 as Field
+                v69 = add v67, Field 4294967296
+                v70 = sub v69, v61
+                v71 = truncate v70 to 32 bits, max_bit_size: 33
+                v72 = cast v71 as i32
+                return v72
             }
             "#);
         }

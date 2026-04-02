@@ -494,10 +494,11 @@ trait OpcodeAddressVisitor {
                     self.write_value_or_array(destination, location);
                 }
             }
-            Opcode::ConditionalMov { source_a, source_b, condition, .. } => {
+            Opcode::ConditionalMov { source_a, source_b, condition, destination } => {
                 self.read(condition, location);
                 self.read(source_a, location);
                 self.read(source_b, location);
+                self.write(destination, location);
             }
             Opcode::BlackBox(black_box_op) => self.visit_black_box_op(black_box_op, location),
             Opcode::Trap { revert_data } => self.read_heap_vector(revert_data, location),

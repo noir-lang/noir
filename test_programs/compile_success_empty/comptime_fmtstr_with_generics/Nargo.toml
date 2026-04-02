@@ -1,0 +1,6 @@
+[package]
+name = "comptime_fmtstr_with_generics"
+type = "bin"
+authors = [""]
+
+[dependencies]

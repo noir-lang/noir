@@ -38,7 +38,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a type definition can
 // create us a quoted trait impl from it.
-pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
+pub comptime type DeriveFunction = fn(TypeDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =

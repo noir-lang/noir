@@ -68,61 +68,6 @@ fn recursive_type_with_alias_errors() {
 }
 
 #[test]
-fn mutually_recursive_types_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `Odd` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(Odd),
-        }
-
-        enum Odd {
-            One,
-            Succ(Even),
-        }
-        ";
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
-fn mutually_recursive_types_with_structs_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `EvenSucc` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(EvenSucc),
-        }
-
-        pub struct EvenSucc { inner: Odd }
-
-        enum Odd {
-            One,
-            Succ(OddSucc),
-        }
-
-        pub struct OddSucc { inner: Even }
-        ";
-
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main(y: call_data(0) Field) -> pub Field {
@@ -613,7 +558,12 @@ fn unused_str_const_generic_in_enum_inferred() {
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+    insta::assert_snapshot!(program, @"
+global B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());
+fn main$f0() -> () {
+    let _f$l0 = B$g0
+}
+");
 }
 
 #[test]
@@ -1204,7 +1154,11 @@ fn evaluates_builtin_zeroed() {
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
-    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+    insta::assert_snapshot!(program, @"
+fn main$f0() -> () {
+    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]
+}
+");
 }
 
 #[test]
@@ -1505,4 +1459,44 @@ fn main() {{
         }
         Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
     }
+}
+
+#[test]
+fn deref_of_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let mut x: Field = 5;
+            let y = *&mut x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&mut x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn deref_of_immutable_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let x: Field = 5;
+            let y = *&x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
 }

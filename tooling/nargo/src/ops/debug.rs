@@ -109,6 +109,7 @@ pub fn compile_bin_package_for_debugging(
     report_errors(
         compilation_result,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )

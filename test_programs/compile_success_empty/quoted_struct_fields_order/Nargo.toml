@@ -1,0 +1,6 @@
+[package]
+name = "quoted_struct_fields_order"
+type = "bin"
+authors = [""]
+
+[dependencies]

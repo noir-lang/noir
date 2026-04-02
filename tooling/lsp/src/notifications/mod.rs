@@ -20,7 +20,7 @@ use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
 use noirc_frontend::parse_program;
 
@@ -304,7 +304,7 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     // This is when the type-checking of this single file happens
     let reuse_existing_module_declarations = true;
-    let mut errors = Vec::new();
+    let mut errors = CompilationErrors::default();
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
         file_id,

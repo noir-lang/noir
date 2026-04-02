@@ -8,6 +8,8 @@ use crate::{
         value::{ValueId, ValueMapping},
     },
 };
+use itertools::Itertools;
+
 use acvm::{
     FieldElement,
     acir::brillig::lengths::{FlattenedLength, SemanticLength},
@@ -248,7 +250,7 @@ impl FunctionBuilder {
             self.deflatten_databus_visibilities(params, flattened_databus_visibilities);
 
         let mut databus_param: BTreeMap<u32, Vec<ValueId>> = BTreeMap::new();
-        for (param, databus_attribute) in params.iter().zip(is_params_databus) {
+        for (param, databus_attribute) in params.iter().zip_eq(is_params_databus) {
             match databus_attribute {
                 DatabusVisibility::None | DatabusVisibility::ReturnData => continue,
                 DatabusVisibility::CallData(call_data_id) => {

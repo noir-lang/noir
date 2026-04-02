@@ -142,12 +142,23 @@ fn format_struct(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("struct ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in fields {
         string.push_str("        ");
+        if field.visibility != ItemVisibility::Private {
+            string.push_str(&field.visibility.to_string());
+            string.push(' ');
+        }
         string.push_str(field.name.as_str());
         string.push_str(": ");
         string.push_str(&format!("{}", field.typ));
@@ -170,6 +181,13 @@ fn format_enum(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("enum ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
@@ -210,6 +228,10 @@ fn format_struct_member(
     string.push_str(struct_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
+    if field.visibility != ItemVisibility::Private {
+        string.push_str(&field.visibility.to_string());
+        string.push(' ');
+    }
     string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
@@ -572,6 +594,13 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     format_parent_module(ModuleDefId::TypeAliasId(id), args, &mut string);
     string.push('\n');
     string.push_str("    ");
+    if type_alias.visibility != ItemVisibility::Private {
+        string.push_str(&type_alias.visibility.to_string());
+        string.push(' ');
+    }
+    if type_alias.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");

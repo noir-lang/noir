@@ -5,6 +5,7 @@ use acvm::acir::brillig::lengths::{
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
@@ -236,7 +237,7 @@ impl Context<'_> {
         output_values: Vec<AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        for (result_id, output) in result_ids.iter().zip(output_values) {
+        for (result_id, output) in result_ids.iter().zip_eq(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
                 let block_id = self.block_id(array_id);

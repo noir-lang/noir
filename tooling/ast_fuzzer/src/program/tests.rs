@@ -1,11 +1,13 @@
+use std::rc::Rc;
+
 use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
 use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::ast::{
-        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-        Program, Type,
+        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LValue,
+        LocalId, Program, Type,
     },
     shared::Visibility,
 };
@@ -61,9 +63,9 @@ fn test_modulo_of_negative_literals_in_range() {
         Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
 
     let start_range =
-        range_modulo(int_literal(9u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-9i64, index_type.clone()), index_type.clone(), max_size);
     let end_range =
-        range_modulo(int_literal(1u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-1i64, index_type.clone()), index_type.clone(), max_size);
 
     let body = Expression::For(For {
         index_variable: LocalId(0),
@@ -122,12 +124,12 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Type::Function(
+                        typ: Rc::new(Type::Function(
                             vec![],
-                            Box::new(Type::Unit),
-                            Box::new(Type::Unit),
+                            Rc::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             callee_unconstrained,
-                        ),
+                        )),
                         id: ident_id,
                     })),
                     arguments: vec![],
@@ -240,4 +242,44 @@ fn test_recursion_limit_rewrite() {
         bar((&mut ctx_limit))
     }
     ");
+}
+
+/// `assign_ref` must set `element_type` to the inner type (`u32`), not the
+/// full reference type (`&mut u32`). Otherwise nested lvalue codegen in SSA
+/// would produce `load ref -> &mut u32` which is invalid.
+#[test]
+fn test_assign_ref_element_type() {
+    use super::expr::assign_ref;
+
+    let ref_type = Type::Reference(Rc::new(crate::program::types::U32), true);
+    let ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "r".to_string(),
+        typ: Rc::new(ref_type),
+        id: IdentId(0),
+    };
+
+    let rhs = Expression::Literal(noirc_frontend::monomorphization::ast::Literal::Integer(
+        acir::FieldElement::from(0u32),
+        crate::program::types::U32,
+        Location::dummy(),
+    ));
+
+    let assign_expr = assign_ref(ident, rhs);
+    let Expression::Assign(assign) = assign_expr else {
+        panic!("expected Assign");
+    };
+
+    let LValue::Dereference { element_type, .. } = &assign.lvalue else {
+        panic!("expected LValue::Dereference, got {:?}", assign.lvalue);
+    };
+
+    // Before the fix, element_type was `&mut u32` instead of `u32`.
+    assert_eq!(
+        *element_type,
+        crate::program::types::U32,
+        "element_type should be the inner type (u32), not the reference type (&mut u32)"
+    );
 }

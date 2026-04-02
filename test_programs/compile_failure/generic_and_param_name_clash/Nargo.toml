@@ -1,0 +1,6 @@
+[package]
+name = "generic_and_param_name_clash"
+type = "bin"
+authors = [""]
+
+[dependencies]

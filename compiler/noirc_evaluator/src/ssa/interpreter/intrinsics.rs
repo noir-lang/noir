@@ -544,9 +544,18 @@ impl<W: Write> Interpreter<'_, W> {
 
         // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(element_types.len() * length as usize);
-        for arg in args.iter().skip(2) {
-            new_elements.push(self.lookup(*arg)?);
+        // We could remove any extras and then append:
+        //  new_elements.truncate(element_types.len() * length as usize);
+        // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+        // so instead of truncating, we append as well as overwrite.
+        let end_index = element_types.len() * (length as usize);
+        let push_only = end_index == new_elements.len();
+        for (i, arg) in args.iter().skip(2).enumerate() {
+            let value = self.lookup(*arg)?;
+            if !push_only {
+                new_elements[end_index + i] = value.clone();
+            }
+            new_elements.push(value);
         }
 
         let new_length = Value::u32(length + 1);

@@ -97,8 +97,10 @@ pub enum ParserErrorReason {
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
-    #[error("The `deprecated` attribute expects a string argument")]
-    DeprecatedAttributeExpectsAStringArgument,
+    #[error(
+        "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
+    )]
+    DeprecatedAttributeInvalidArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]

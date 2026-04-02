@@ -9,6 +9,7 @@ error: Assertion failed: attempt to add with overflow
   │                     -------
   │
   = Call stack:
-    1. src/main.nr:7:21
+    1: main
+            at src/main.nr:7:21
 
 Failed assertion
