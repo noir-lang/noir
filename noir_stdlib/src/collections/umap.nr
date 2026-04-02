@@ -320,7 +320,6 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if slot._key == key {
                     // Key exists: update in place without changing length.
                     insert_index = index;
-                    increment_length = false;
                     break;
                 }
             } else if slot._is_deleted {
