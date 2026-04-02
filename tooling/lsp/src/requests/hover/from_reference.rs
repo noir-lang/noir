@@ -613,38 +613,49 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
-    if let DefinitionKind::Global(global_id) = &definition_info.kind {
-        return format_global(*global_id, args);
-    }
 
-    let DefinitionKind::Local(expr_id) = definition_info.kind else {
-        panic!("Expected a local reference to reference a local definition")
-    };
-    let typ = args.interner.definition_type(id);
+    match &definition_info.kind {
+        DefinitionKind::Global(global_id) => format_global(*global_id, args),
+        DefinitionKind::Local(expr_id) => {
+            let typ = args.interner.definition_type(id);
 
-    let mut string = String::new();
-    string.push_str("    ");
-    if definition_info.comptime {
-        string.push_str("comptime ");
-    }
-    if expr_id.is_some() {
-        string.push_str("let ");
-    }
-    if definition_info.mutable {
-        if expr_id.is_none() {
-            string.push_str("let ");
+            let mut string = String::new();
+            string.push_str("    ");
+            if definition_info.comptime {
+                string.push_str("comptime ");
+            }
+            if expr_id.is_some() {
+                string.push_str("let ");
+            }
+            if definition_info.mutable {
+                if expr_id.is_none() {
+                    string.push_str("let ");
+                }
+                string.push_str("mut ");
+            }
+            string.push_str(&definition_info.name);
+            if !matches!(typ, Type::Error) {
+                string.push_str(": ");
+                string.push_str(&format!("{typ}"));
+            }
+
+            string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+            string
         }
-        string.push_str("mut ");
+        DefinitionKind::NumericGeneric(_, typ) => {
+            let mut string = String::new();
+            string.push_str("    ");
+            string.push_str("let ");
+            string.push_str(&definition_info.name);
+            string.push_str(": ");
+            string.push_str(&typ.to_string());
+            string
+        }
+        other => {
+            panic!("Unexpected definition kind: {other:?}")
+        }
     }
-    string.push_str(&definition_info.name);
-    if !matches!(typ, Type::Error) {
-        string.push_str(": ");
-        string.push_str(&format!("{typ}"));
-    }
-
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
-
-    string
 }
 
 fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
