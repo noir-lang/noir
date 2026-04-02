@@ -286,3 +286,15 @@ fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
     "#;
     check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }
+
+#[test]
+fn cannot_take_mut_ref_of_immutable_variable_in_deref() {
+    let src = r#"
+    fn main() {
+        let x: Field = 5;
+        let _y = *&mut x;
+                       ^ Cannot mutate immutable variable `x`
+    }
+    "#;
+    check_errors(src);
+}

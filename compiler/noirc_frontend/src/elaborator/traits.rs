@@ -194,9 +194,7 @@ use crate::{
         function::FuncMeta,
         traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
-    node_interner::{
-        DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
-    },
+    node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
 use super::{Elaborator, generics::GenericsState};
@@ -986,10 +984,11 @@ impl Elaborator<'_> {
 ///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
-    interner: &NodeInterner,
+    elaborator: &Elaborator,
     function: FuncId,
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
+    let interner = &elaborator.interner;
     let meta = interner.function_meta(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
@@ -1082,6 +1081,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 
         check_function_type_matches_expected_type(
+            elaborator,
             &declaration_type,
             meta,
             method_name,
@@ -1104,6 +1104,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 /// This is used to check if a trait impl's function type matches the declared function in the
 /// original trait declaration - while handling the appropriate generic substitutions.
 fn check_function_type_matches_expected_type(
+    elaborator: &Elaborator,
     expected: &Type,
     meta: &FuncMeta,
     method_name: &str,
@@ -1149,11 +1150,11 @@ fn check_function_type_matches_expected_type(
             }
 
             if ret_b.try_unify(ret_a, &mut bindings).is_err() {
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: ret_a.to_string(),
-                    expr_typ: ret_b.to_string(),
-                    expr_location: meta.return_type.location(),
-                });
+                errors.push(elaborator.new_type_mismatch_error(
+                    ret_b,
+                    ret_a,
+                    meta.return_type.location(),
+                ));
             }
         } else {
             errors.push(TypeCheckError::MismatchTraitImplNumParameters {
@@ -1170,12 +1171,6 @@ fn check_function_type_matches_expected_type(
     // signatures were not a perfect match. Note that this relies on us already binding
     // all the expected generics to each other prior to this check.
     if !bindings.is_empty() {
-        let expected_typ = expected.to_string();
-        let expr_typ = actual.to_string();
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ,
-            expr_typ,
-            expr_location: location,
-        });
+        errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
     }
 }
