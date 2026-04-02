@@ -2,18 +2,19 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Function expects 1 parameter but 2 were given
-  ┌─ src/main.nr:6:9
-  │
-6 │         poseidon2_permutation(input1, 16)[0]
-  │         ---------------------------------
-  │
+error: the input length must equal the state size in the Poseidon2 config; expected 4, got 16
+    ┌─ std/hash/mod.nr:143:5
+    │  
+143 │ ╭     static_assert(
+144 │ │         N == POSEIDON2_CONFIG_STATE_SIZE,
+145 │ │         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+146 │ │     );
+    │ ╰─────'
+    │  
+    = Call stack:
+      1: main
+              at src/main.nr:6:9
+      2: poseidon2_permutation
+              at std/hash/mod.nr:143:5
 
-error: Function expects 1 parameter but 2 were given
-  ┌─ src/main.nr:8:9
-  │
-8 │         poseidon2_permutation(input2, 4)[0]
-  │         --------------------------------
-  │
-
-Aborting due to 2 previous errors
+Aborting due to 1 previous error
