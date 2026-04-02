@@ -495,10 +495,23 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }
             Opcode::MemoryInit { block_id, init, .. } => {
-                MemoryOpSolver::new(init, &self.witness_map).map(|solver| {
-                    let existing_block_id = self.block_solvers.insert(*block_id, solver);
-                    assert!(existing_block_id.is_none(), "Memory block already initialized");
-                })
+                match MemoryOpSolver::new(init, &self.witness_map) {
+                    Ok(solver) => {
+                        if self.block_solvers.insert(*block_id, solver).is_some() {
+                            // Memory block is already initialized
+                            return ACVMStatus::Failure(
+                                OpcodeResolutionError::UnsatisfiedConstrain {
+                                    opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(
+                                        self.instruction_pointer(),
+                                    )),
+                                    payload: None,
+                                },
+                            );
+                        }
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
             }
             Opcode::MemoryOp { block_id, op } => {
                 let solver = self
