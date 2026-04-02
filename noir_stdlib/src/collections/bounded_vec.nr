@@ -330,8 +330,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             // but the capacity of the source vector could be higher.
             let max = crate::cmp::min(Len, MaxLen);
 
+            // Save the last item in case we have to do a fixup on an already full array.
+            let last = if MaxLen > 0 {
+                self.storage[MaxLen - 1]
+            } else {
+                crate::mem::zeroed()
+            };
+
             for src in 0..max {
-                // The destination index.
                 // Since we are iterating to the static capacity of the arrays,
                 // the destination could be out of bounds. If that's the case,
                 // overwrite the last item, which we'll fixup in the end.
@@ -340,15 +346,17 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[dst] = if src < append_len {
                     vec.get_unchecked(src)
                 } else {
-                    crate::mem::zeroed()
+                    last
                 }
             }
 
             // Fixup the last item if we have to.
-            self.storage[MaxLen - 1] = if self.len + max > MaxLen {
-                vec.get_unchecked(append_len - 1)
-            } else {
-                self.storage[MaxLen - 1]
+            if MaxLen > 0 {
+                self.storage[MaxLen - 1] = if self.len + max > MaxLen & append_len > 0 {
+                    vec.get_unchecked(append_len - 1)
+                } else {
+                    last
+                }
             }
         }
         self.len = new_len;
@@ -1294,6 +1302,32 @@ mod bounded_vec_tests {
             assert_eq(vec1.len(), 2);
             assert_eq(vec1.get(0), 1);
             assert_eq(vec1.get(1), 2);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_full_and_empty() {
+            // Capacity and contents chosen so the last item must be assigned to.
+            let mut vec1: BoundedVec<u32, 2> = BoundedVec::new();
+            let vec2: BoundedVec<u32, 5> = BoundedVec::new();
+
+            vec1.push(1);
+            vec1.push(2);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 2);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_zero_len() {
+            let mut vec1: BoundedVec<u32, 0> = BoundedVec::new();
+            let vec2: BoundedVec<u32, 0> = BoundedVec::new();
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 0);
         }
 
         #[test(should_fail_with = "extend_from_array out of bounds")]
