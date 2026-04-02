@@ -352,7 +352,9 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
 
             // Fixup the last item if we have to.
             if MaxLen > 0 {
-                self.storage[MaxLen - 1] = if self.len + max > MaxLen & append_len > 0 {
+                self.storage[MaxLen - 1] = if (self.len + max > MaxLen)
+                    & (self.len + append_len == MaxLen)
+                    & (append_len > 0) {
                     vec.get_unchecked(append_len - 1)
                 } else {
                     last
@@ -1328,6 +1330,21 @@ mod bounded_vec_tests {
             vec1.extend_from_bounded_vec(vec2);
 
             assert_eq(vec1.len(), 0);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_last_zeroed() {
+            let mut vec1: BoundedVec<u32, 4> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 4> = BoundedVec::new();
+
+            vec1.push(1);
+            vec1.push(2);
+            vec2.push(3);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 3);
+            assert_eq(vec1.get_unchecked(3), 0);
         }
 
         #[test(should_fail_with = "extend_from_array out of bounds")]
