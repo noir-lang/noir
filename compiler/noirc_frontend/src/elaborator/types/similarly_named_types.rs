@@ -53,26 +53,26 @@ impl Elaborator<'_> {
                 }
 
                 for (actual, expected) in generics_1.iter().zip(generics_2) {
-                    self.compute_similarly_named_types_helper(actual, &expected, similar_types);
+                    self.compute_similarly_named_types_helper(actual, expected, similar_types);
                 }
             }
             (Type::Tuple(types_1), Type::Tuple(types_2)) => {
                 for (actual, expected) in types_1.iter().zip(types_2) {
-                    self.compute_similarly_named_types_helper(actual, &expected, similar_types);
+                    self.compute_similarly_named_types_helper(actual, expected, similar_types);
                 }
             }
             (Type::Array(_, type_1), Type::Array(_, type_2))
             | (Type::Vector(type_1), Type::Vector(type_2))
             | (Type::FmtString(_, type_1), Type::FmtString(_, type_2))
             | (Type::Reference(type_1, _), Type::Reference(type_2, _)) => {
-                self.compute_similarly_named_types_helper(&type_1, &type_2, similar_types);
+                self.compute_similarly_named_types_helper(type_1, type_2, similar_types);
             }
             (Type::Function(arg_1, ret_1, env_1, _), Type::Function(arg_2, ret_2, env_2, _)) => {
                 for (actual, expected) in arg_1.iter().zip(arg_2) {
-                    self.compute_similarly_named_types_helper(actual, &expected, similar_types);
+                    self.compute_similarly_named_types_helper(actual, expected, similar_types);
                 }
-                self.compute_similarly_named_types_helper(&ret_1, &ret_2, similar_types);
-                self.compute_similarly_named_types_helper(&env_1, &env_2, similar_types);
+                self.compute_similarly_named_types_helper(ret_1, ret_2, similar_types);
+                self.compute_similarly_named_types_helper(env_1, env_2, similar_types);
             }
             _ => {}
         }
