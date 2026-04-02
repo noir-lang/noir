@@ -73,7 +73,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.string.push_str(", ");
             }
 
-            let is_self = pattern_is_self(pattern, self.interner);
+            let is_self = pattern.is_self(self.interner);
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
             if is_self && let Type::Reference(_, mutable) = typ {
                 if *mutable {
@@ -467,16 +467,5 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(typ);
             }
         }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
