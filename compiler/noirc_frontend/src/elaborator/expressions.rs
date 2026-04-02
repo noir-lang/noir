@@ -55,17 +55,26 @@ use super::{
 };
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         self.elaborate_expression_with_target_type(expr, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_expression_with_target_type(
         &mut self,
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        if !self.inc_recursion_depth(expr.location) {
+            let id = self.interner.push_expr_full(HirExpression::Error, expr.location, Type::Error);
+            return (id, Type::Error);
+        }
+
         let ((id, typ), has_errors) =
             self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+
+        self.dec_recursion_depth();
 
         if has_errors {
             self.interner.exprs_with_errors.insert(id);
@@ -74,6 +83,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_expression_inner(
         &mut self,
         expr: Expression,
@@ -153,6 +163,7 @@ impl Elaborator<'_> {
     /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
     /// instead of a reference). This flag is used when `&mut foo.bar.baz` is used to cancel out
     /// the `&mut`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_reference_expression(&mut self, expr: Expression) -> (ExprId, Type, bool) {
         match expr.kind {
             ExpressionKind::MemberAccess(access) => {
@@ -166,6 +177,7 @@ impl Elaborator<'_> {
     }
 
     /// Given its ID, retrieve and elaborate an interned [StatementKind].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_interned_statement_as_expr(
         &mut self,
         id: InternedStatementKind,
@@ -192,6 +204,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_block(
         &mut self,
         block: BlockExpression,
@@ -201,6 +214,7 @@ impl Elaborator<'_> {
         (HirExpression::Block(block), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_block_expression(
         &mut self,
         block: BlockExpression,
@@ -301,6 +315,7 @@ impl Elaborator<'_> {
         helper(typ, 10)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_unsafe_block(
         &mut self,
         unsafe_expression: UnsafeExpression,
@@ -341,6 +356,7 @@ impl Elaborator<'_> {
         (HirExpression::Unsafe(hir_block_expression), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_literal(&mut self, literal: Literal, location: Location) -> (HirExpression, Type) {
         use HirExpression::Literal as Lit;
         match literal {
@@ -366,6 +382,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
         use {Signedness::*, Type::Integer};
         match suffix {
@@ -384,6 +401,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
@@ -454,6 +472,7 @@ impl Elaborator<'_> {
         (HirExpression::Literal(constructor(expr)), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_fmt_string(
         &mut self,
         fragments: Vec<FmtStrFragment>,
@@ -496,6 +515,7 @@ impl Elaborator<'_> {
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_fmt_string_ident(
         &mut self,
         hir_ident: HirIdent,
@@ -508,14 +528,20 @@ impl Elaborator<'_> {
         (typ, expr_id)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
         // Simplify `*&x` and `*&mut x` to just `x`
         if let UnaryOp::Dereference { .. } = prefix.operator
             && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
-            && matches!(inner.operator, UnaryOp::Reference { .. })
+            && let UnaryOp::Reference { mutable } = inner.operator
         {
             let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
-            return self.elaborate_expression(inner.rhs);
+            let rhs_location = inner.rhs.location;
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            }
+            return (rhs, typ);
         }
 
         let rhs_location = prefix.rhs.location;
@@ -579,6 +605,7 @@ impl Elaborator<'_> {
     /// Pushes an error if it cannot be done.
     ///
     /// Also, if the expression is a local variable, marks it as mutated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
@@ -608,6 +635,7 @@ impl Elaborator<'_> {
     /// having captured a mutable reference.
     ///
     /// Pushes an error if the mutation is illegal.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_can_mutate_lambda_capture(
         &mut self,
         id: DefinitionId,
@@ -625,6 +653,7 @@ impl Elaborator<'_> {
 
     /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
     /// However, dereferences do not cause mutation of their inner variables.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
@@ -656,6 +685,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
         let location = index_expr.index.location;
 
@@ -704,6 +734,7 @@ impl Elaborator<'_> {
 
     /// If the index expression is a constant integer literal, check that it is
     /// within bounds for the given array length type.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_array_index_out_of_bounds(
         &mut self,
         array_size: &Type,
@@ -724,6 +755,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_call(
         &mut self,
         call: CallExpression,
@@ -752,6 +784,7 @@ impl Elaborator<'_> {
 
     /// Helper function containing the elaboration logic for a call expression.
     /// Returns the HIR call and its type.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_call_inner(
         &mut self,
         call: CallExpression,
@@ -807,6 +840,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborate the target of the method call and try to look up the method in its type.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_method_call(
         &mut self,
         method_call: MethodCallExpression,
@@ -836,6 +870,7 @@ impl Elaborator<'_> {
 
     /// Helper function containing the elaboration logic for a method call.
     /// Returns the desugared function call and its type.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_method_call_inner(
         &mut self,
         method_call: MethodCallExpression,
@@ -957,6 +992,7 @@ impl Elaborator<'_> {
         (function_call, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_constrain(
         &mut self,
         mut expr: ConstrainExpression,
@@ -1043,6 +1079,7 @@ impl Elaborator<'_> {
     ///
     /// This method resolves the [UnresolvedType][crate::ast::UnresolvedType] into the [Type] being constructed,
     /// then delegates to [Elaborator::elaborate_constructor_with_type] to handle the fields.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor(
         &mut self,
         constructor: ConstructorExpression,
@@ -1093,6 +1130,7 @@ impl Elaborator<'_> {
     }
 
     /// Knowing the [Type] being constructed, elaborate all field expressions.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_constructor_with_type(
         &mut self,
         typ: Type,
@@ -1173,6 +1211,7 @@ impl Elaborator<'_> {
     }
 
     /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
@@ -1182,6 +1221,7 @@ impl Elaborator<'_> {
     /// Resolve all the fields of a struct constructor expression.
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_constructor_expr_fields(
         &mut self,
         struct_type: Shared<DataType>,
@@ -1272,6 +1312,7 @@ impl Elaborator<'_> {
     /// - `is_offset = false`: Auto-dereferencing will occur, and this will always return false
     /// - `is_offset = true`: Auto-dereferencing is disabled, and this will return true if the lhs
     ///   is a reference.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_member_access(
         &mut self,
         access: MemberAccessExpression,
@@ -1297,6 +1338,7 @@ impl Elaborator<'_> {
     }
 
     /// Push a [HirExpression] with its [Location], with the [Type] to be followed up later.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr(
         &mut self,
         expr: HirExpression,
@@ -1306,11 +1348,13 @@ impl Elaborator<'_> {
     }
 
     /// Follow up [Self::intern_expr] with the [Type].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
         expr_id.push_type(self.interner, typ)
     }
 
     /// Elaborate the expression, resolve the target type, then type check that they are compatible.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_cast(
         &mut self,
         cast: CastExpression,
@@ -1343,6 +1387,7 @@ impl Elaborator<'_> {
         (expr, result)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
@@ -1379,6 +1424,7 @@ impl Elaborator<'_> {
     /// * if the rules returned an `Err`, it returns [Type::Error]
     /// * if the results indicate that a trait method should be used,
     ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
+    #[tracing::instrument(level = "trace", skip_all)]
     fn handle_operand_type_rules_result(
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
@@ -1422,6 +1468,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_if(
         &mut self,
         if_expr: IfExpression,
@@ -1482,6 +1529,7 @@ impl Elaborator<'_> {
     ///   match internal variable { <rules> }
     /// }
     /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_match(
         &mut self,
         match_expr: MatchExpression,
@@ -1519,6 +1567,7 @@ impl Elaborator<'_> {
     }
 
     /// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn wrap_in_let(&mut self, expr_id: ExprId, typ: Type) -> (StmtId, DefinitionId) {
         let location = self.interner.expr_location(&expr_id);
         let name = "internal variable".to_string();
@@ -1532,6 +1581,7 @@ impl Elaborator<'_> {
         (let_, variable)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_tuple(
         &mut self,
         tuple: Vec<Expression>,
@@ -1552,6 +1602,7 @@ impl Elaborator<'_> {
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lambda_with_target_type(
         &mut self,
         lambda: Lambda,
@@ -1576,6 +1627,7 @@ impl Elaborator<'_> {
     ///
     /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
     /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
@@ -1654,6 +1706,7 @@ impl Elaborator<'_> {
         (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_quote(&mut self, mut tokens: Tokens, location: Location) -> (HirExpression, Type) {
         tokens = self.find_unquoted_exprs_tokens(tokens);
 
@@ -1665,6 +1718,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_block(
         &mut self,
         block: BlockExpression,
@@ -1702,6 +1756,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
@@ -1761,6 +1816,7 @@ impl Elaborator<'_> {
 
     /// Validate a macro call without executing it.
     /// Checks that the callee is a comptime function and the return type is `Quoted`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn validate_macro_call(
         &mut self,
         func: ExprId,
@@ -1782,6 +1838,7 @@ impl Elaborator<'_> {
 
     /// Call a macro function and inlines its code at the call site.
     /// This will also perform a type check to ensure that the return type is an `Expr` value.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn call_macro(
         &mut self,
         func: ExprId,
@@ -1817,6 +1874,7 @@ impl Elaborator<'_> {
         Some((self.interner.expression(&expr_id), typ))
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
         let location = path.typ.location.merge(path.trait_path.location);
 

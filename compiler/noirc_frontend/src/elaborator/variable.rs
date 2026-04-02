@@ -24,7 +24,7 @@ use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable};
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
 /// The result of [`Elaborator::resolve_variable`].
@@ -37,6 +37,7 @@ pub(crate) enum VariableResolution {
 }
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let (id, typ, is_comptime_local, location) = self.elaborate_variable_inner(variable);
 
@@ -62,6 +63,7 @@ impl Elaborator<'_> {
 
     /// Helper function containing the elaboration logic for a variable.
     /// Returns the expression ID, type, whether it's a comptime local, and location.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
         let variable = self.validate_path(variable);
         if let Some((expr_id, typ)) =
@@ -315,6 +317,7 @@ impl Elaborator<'_> {
     ///
     /// In the third case, we resolve the associated type first, then elaborate the method
     /// call on that resolved type.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
@@ -390,6 +393,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
@@ -450,6 +454,7 @@ impl Elaborator<'_> {
     /// foo::Bar::<i32>::baz
     /// ```
     /// Solve `<i32>` above
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_item_turbofish_and_self_type(
         &mut self,
         item: PathResolutionItem,
@@ -543,6 +548,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborates a type path used in an expression, e.g. `Type::method::<Args>`
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
@@ -552,6 +558,7 @@ impl Elaborator<'_> {
     }
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
@@ -587,6 +594,7 @@ impl Elaborator<'_> {
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
     /// Used when the turbofish generics have already been resolved.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
@@ -620,6 +628,7 @@ impl Elaborator<'_> {
     }
 
     /// Common implementation for type path impl variants.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_inner(
         &mut self,
         typ: &Type,
@@ -694,6 +703,7 @@ impl Elaborator<'_> {
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
     /// * add local identifiers to lambda captures
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
         match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
@@ -739,6 +749,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn handle_local_variable(&mut self, variable: &Variable) {
         self.check_if_variable_is_captured_by_closure(variable);
         let hir_ident = &variable.ident;
@@ -747,6 +758,7 @@ impl Elaborator<'_> {
 
     /// Starting with empty bindings, perform the type checking of an interned expression
     /// and a corresponding identifier, returning the instantiated [Type].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
@@ -770,6 +782,7 @@ impl Elaborator<'_> {
     ///
     /// If `push_required_type_variables`, the bindings are added to the function context,
     /// to be checked before it's finished.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
@@ -882,10 +895,16 @@ impl Elaborator<'_> {
         }
 
         if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
+            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+            let required_type_variables =
+                btree_map(bindings.values(), |(type_variable, _, typ)| {
+                    (type_variable.id(), typ.clone())
+                });
+
+            for (type_variable_id, typ) in required_type_variables {
                 self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
+                    type_variable_id,
+                    typ,
                     BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );
@@ -902,6 +921,7 @@ impl Elaborator<'_> {
     ///
     /// Returns a type error if the callee cannot be resolved on a second try,
     /// which indicates a dependency cycle.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
         let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
             Ok(typ) => return typ,
@@ -932,6 +952,7 @@ impl Elaborator<'_> {
     ///
     /// If there are turbofish generics and their number matches the expectations of the function,
     /// those are used as well, otherwise they are ignored and an error is pushed.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn instantiate(
         &mut self,
         typ: Type,
