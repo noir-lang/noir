@@ -1131,8 +1131,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
-                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
-                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                     ^^^^^ Reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1499,4 +1499,57 @@ fn deref_of_immutable_ref_is_simplified() {
         assert((y$l1 == 5));
     }
     ");
+}
+
+#[test]
+fn outer_immref_to_brillig_is_accepted() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&x) };
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &Field) -> Field {
+            *x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn inner_immref_to_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&&x) };
+                                 ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &&Field) -> Field {
+            **x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn outer_immref_from_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            // Safety:
+            let y = unsafe { foo(5) };
+                             ^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                             ^^^^^^ Reference `&Field` cannot be returned from an unconstrained runtime to a constrained runtime
+            assert(*y == 5);
+        }
+
+        unconstrained fn foo(x: Field) -> &Field {
+            &x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
 }
