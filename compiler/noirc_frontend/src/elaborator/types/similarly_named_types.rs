@@ -36,10 +36,10 @@ impl Elaborator<'_> {
         expected: &Type,
         similar_types: &mut Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
     ) {
-        let actual = actual.follow_bindings();
-        let expected = expected.follow_bindings();
+        let actual = actual.follow_bindings_shallow();
+        let expected = expected.follow_bindings_shallow();
 
-        match (actual, expected) {
+        match (actual.as_ref(), expected.as_ref()) {
             (Type::DataType(data_type_1, generics_1), Type::DataType(data_type_2, generics_2)) => {
                 let data_type_1 = data_type_1.borrow();
                 let data_type_2 = data_type_2.borrow();
