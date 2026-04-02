@@ -328,15 +328,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             // regardless we will only ever be able to read or write whichever is
             // the shorter index of the two. We asserted that the actual content fits,
             // but the capacity of the source vector could be higher.
-            let max = if MaxLen > Len { Len } else { MaxLen };
+            let max = crate::cmp::min(Len, MaxLen);
 
             for src in 0..max {
                 // The destination index.
-                let dst = self.len + src;
                 // Since we are iterating to the static capacity of the arrays,
                 // the destination could be out of bounds. If that's the case,
                 // overwrite the last item, which we'll fixup in the end.
-                let dst = if dst >= MaxLen { MaxLen - 1 } else { dst };
+                let dst = crate::cmp::min(self.len + src, MaxLen - 1);
                 // Assigning the source or zeroed to avoid having to merge arrays in SSA.
                 self.storage[dst] = if src < append_len {
                     vec.get_unchecked(src)
