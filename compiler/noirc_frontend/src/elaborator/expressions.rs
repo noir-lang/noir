@@ -245,7 +245,7 @@ impl Elaborator<'_> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || {
+                self.unify(&inner_expr_type, &Type::Unit, |_| {
                     let expr_type = inner_expr_type.clone();
                     let expr_location = location;
 
@@ -426,7 +426,7 @@ impl Elaborator<'_> {
                     let location = elem.location;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
-                    self.unify(&elem_type, &first_elem_type, || {
+                    self.unify(&elem_type, &first_elem_type, |_| {
                         TypeCheckError::NonHomogeneousArray {
                             first_location,
                             first_type: first_elem_type.to_string(),
@@ -692,12 +692,12 @@ impl Elaborator<'_> {
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
         let expected = Type::u32();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
-            expected: expected.clone(),
-            actual: index_type.clone(),
+        self.unify_or_type_mismatch_with_source(
+            &index_type,
+            &expected,
+            Source::ArrayIndex,
             location,
-            source: Source::ArrayIndex,
-        });
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -723,6 +723,7 @@ impl Elaborator<'_> {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
                     expr_location: lhs_location,
+                    similarly_named_types: Vec::new(),
                 });
                 Type::Error
             }
@@ -1066,11 +1067,7 @@ impl Elaborator<'_> {
             msg
         });
 
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
         (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
     }
@@ -1260,12 +1257,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || {
-                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                            expected_typ: expected_type.to_string(),
-                            expr_typ: field_type.to_string(),
-                            expr_location: field_location,
-                        })
+                    |elaborator| {
+                        CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                            &field_type,
+                            expected_type,
+                            field_location,
+                        ))
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -1480,11 +1477,7 @@ impl Elaborator<'_> {
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, expr_location);
 
         let (alternative, else_type, error_location) =
             if let Some(alternative) = if_expr.alternative {
@@ -1496,12 +1489,8 @@ impl Elaborator<'_> {
                 (None, Type::Unit, consequence_location)
             };
 
-        self.unify(&ret_type, &else_type, || {
-            let err = TypeCheckError::TypeMismatch {
-                expected_typ: ret_type.to_string(),
-                expr_typ: else_type.to_string(),
-                expr_location: error_location,
-            };
+        self.unify(&else_type, &ret_type, |elaborator| {
+            let err = elaborator.new_type_mismatch_error(&else_type, &ret_type, error_location);
 
             let context = if ret_type == Type::Unit {
                 "Are you missing a semicolon at the end of your 'else' branch?"
@@ -1682,11 +1671,7 @@ impl Elaborator<'_> {
         let lambda_context = self.lambda_stack.pop().unwrap();
         self.pop_scope();
 
-        self.unify(&body_type, &return_type, || TypeCheckError::TypeMismatch {
-            expected_typ: return_type.to_string(),
-            expr_typ: body_type.to_string(),
-            expr_location: body_location,
-        });
+        self.unify_or_type_mismatch(&body_type, &return_type, body_location);
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
             self.interner.definition_type(capture.ident.id)
@@ -1733,11 +1718,7 @@ impl Elaborator<'_> {
             // If we don't do this, "1" will end up with the default integer or field type,
             // which is Field.
             if let Some(target_type) = target_type {
-                this.unify(&block_type, target_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: target_type.to_string(),
-                    expr_typ: block_type.to_string(),
-                    expr_location: location,
-                });
+                this.unify_or_type_mismatch(&block_type, target_type, location);
             }
 
             block
@@ -1823,7 +1804,7 @@ impl Elaborator<'_> {
         return_type: &Type,
         location: Location,
     ) -> Option<FuncId> {
-        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), || {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), |_| {
             TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
         });
 
