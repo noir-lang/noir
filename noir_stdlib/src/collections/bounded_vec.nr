@@ -354,8 +354,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
 
             // Fixup the last item if we have to.
             if MaxLen > 0 {
-                self.storage[MaxLen - 1] = if (self.len + append_len == MaxLen)
-                    & (append_len > 0) {
+                self.storage[MaxLen - 1] = if (self.len + append_len == MaxLen) & (append_len > 0) {
                     vec.get_unchecked(append_len - 1)
                 } else {
                     last
