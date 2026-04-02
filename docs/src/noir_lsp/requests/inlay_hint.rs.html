@@ -1105,7 +1105,7 @@
 <a href=#1105 id=1105 data-nosnippet>1105</a>            <span class="macro">panic!</span>(<span class="string">"Expected label parts"</span>);
 <a href=#1106 id=1106 data-nosnippet>1106</a>        };
 <a href=#1107 id=1107 data-nosnippet>1107</a>        <span class="kw">let </span>label = parts.iter().map(|part| part.value.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">""</span>);
-<a href=#1108 id=1108 data-nosnippet>1108</a>        <span class="macro">assert_eq!</span>(label, <span class="string">" [u32; 14]"</span>);
+<a href=#1108 id=1108 data-nosnippet>1108</a>        <span class="macro">assert_eq!</span>(label, <span class="string">" &amp;[u32; 14]"</span>);
 <a href=#1109 id=1109 data-nosnippet>1109</a>
 <a href=#1110 id=1110 data-nosnippet>1110</a>        <span class="kw">let </span>inlay_hint = <span class="kw-2">&amp;</span>inlay_hints[<span class="number">1</span>];
 <a href=#1111 id=1111 data-nosnippet>1111</a>        <span class="macro">assert_eq!</span>(inlay_hint.position.line, <span class="number">126</span>);
