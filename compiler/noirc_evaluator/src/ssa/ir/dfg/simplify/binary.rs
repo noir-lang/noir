@@ -287,7 +287,7 @@ pub(super) fn simplify_binary(
                 return SimplifyResult::SimplifiedTo(lhs);
             }
 
-            if lhs_is_max || rhs_is_max {
+            if (lhs_is_max || rhs_is_max) && lhs_type.is_unsigned() {
                 let max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
                 return SimplifyResult::SimplifiedTo(max);
             }
@@ -316,7 +316,10 @@ pub(super) fn simplify_binary(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn replaces_shl_identity_with_lhs() {
@@ -374,5 +377,39 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_integer_or_max_with_itself() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = or v0, u8 255
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            return u8 255
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_signed_integer_or_max_with_itself() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = or v0, i8 127
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
