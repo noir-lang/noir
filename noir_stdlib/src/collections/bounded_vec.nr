@@ -341,7 +341,9 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 // Since we are iterating to the static capacity of the arrays,
                 // the destination could be out of bounds. If that's the case,
                 // overwrite the last item, which we'll fixup in the end.
-                let dst = crate::cmp::min(self.len + src, MaxLen - 1);
+                // NB using cmp::min resulted in more opcodes here.
+                let mut dst = self.len + src;
+                if dst >= MaxLen { dst = MaxLen - 1; };
                 // Assigning the source or zeroed to avoid having to merge arrays in SSA.
                 self.storage[dst] = if src < append_len {
                     vec.get_unchecked(src)
