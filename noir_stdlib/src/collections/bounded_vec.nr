@@ -326,7 +326,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         } else {
             // The source vector can be longer than the destination, or vice versa;
             // regardless we will only ever be able to read or write whichever is
-            // the shorter index of the two. We asserted that the actual content fits,
+            // the shorter max length of the two. We asserted that the actual content fits,
             // but the capacity of the source vector could be higher.
             let max = crate::cmp::min(Len, MaxLen - 1);
 
