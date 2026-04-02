@@ -1,4 +1,4 @@
-use std::collections::map::HashMap;
+use std::collections::umap::UHashMap;
 use std::hash::{BuildHasherDefault, Hasher};
 
 struct DummyHasher {}
@@ -18,6 +18,6 @@ impl Default for DummyHasher {
 }
 
 fn main() {
-    let map: HashMap<u64, u64, 10, BuildHasherDefault<DummyHasher>> = HashMap::default();
+    let map: UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> = UHashMap::default();
     println(map == map);
 }
