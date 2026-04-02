@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775163076280,
+  "lastUpdate": 1775163092550,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b76b08d4c2e3fee23dfab383f8f03975b0db5e81",
-          "message": "chore: document safety invariant for multiplication overflow check (#12013)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-26T16:13:38Z",
-          "tree_id": "0d5295d71cee747ec417c0de48c5cf02deb38f02",
-          "url": "https://github.com/noir-lang/noir/commit/b76b08d4c2e3fee23dfab383f8f03975b0db5e81"
-        },
-        "date": 1774543405947,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165137,
-            "range": "± 422",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133192,
-            "range": "± 744",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2122503,
-            "range": "± 2384",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646290,
             "range": "± 2796",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ed8c124c32d66390b1ed7092e209af9185eb5756",
+          "message": "fix: avoid duplicates when removing then inserting in hashmap (#12084)",
+          "timestamp": "2026-04-02T20:19:07Z",
+          "tree_id": "964e4d9fceaae5f617781972835852edbdbdd63d",
+          "url": "https://github.com/noir-lang/noir/commit/ed8c124c32d66390b1ed7092e209af9185eb5756"
+        },
+        "date": 1775163035986,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169632,
+            "range": "± 441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141017,
+            "range": "± 351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648444,
+            "range": "± 2060",
             "unit": "ns/iter"
           }
         ]
