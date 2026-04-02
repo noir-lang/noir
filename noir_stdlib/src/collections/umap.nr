@@ -309,7 +309,6 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         let hash = self.hash(key);
         let mut insert_index: u32 = 0;
-        let mut increment_length = false;
         let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
@@ -334,18 +333,18 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if !found_deleted_candidate {
                     insert_index = index;
                 }
-                increment_length = true;
                 break;
             }
         }
 
         let mut s = self._table[insert_index];
-        s.set(key, value);
-        self._table[insert_index] = s;
 
-        if increment_length {
+        if !s._is_present {
             self._len += 1;
         }
+
+        s.set(key, value);
+        self._table[insert_index] = s;
     }
 
     unconstrained fn try_resize(&mut self)
