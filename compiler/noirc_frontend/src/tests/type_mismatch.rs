@@ -147,3 +147,34 @@ fn type_mismatch_same_name_different_fully_qualified_name_reference_case() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn type_mismatch_same_name_different_fully_qualified_name_cyclic_types() {
+    let src = r#"
+    pub struct Gen<T> {
+               ^^^ Self-referential types are not supported
+               ~~~ Note: `Gen` is defined in the current crate
+        x: Gen<T>,
+    }
+
+    mod moo {
+        pub struct Gen<T> {
+                   ^^^ Self-referential types are not supported
+                   ~~~ Note: `moo::Gen` is defined in the current crate
+            x: Gen<T>,
+        }
+    }
+
+    fn foo<T>(_: Gen<T>) {}
+
+    fn main() {
+        foo(moo::Gen::<i32> {})
+            ^^^^^^^^^^^^^^^ missing field x in struct Gen
+            ^^^^^^^^^^^^^^^^^^ Expected type Gen<_>, found type Gen<i32>
+            ~~~~~~~~~~~~~~~~~~ Note: `moo::Gen` and `Gen` have similar names, but are actually distinct types
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
+    }
+    "#;
+    check_errors(src);
+}
