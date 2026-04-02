@@ -339,9 +339,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         let mut s = self._table[insert_index];
 
-        if !s._is_present {
-            self._len += 1;
-        }
+        self._len += (!s._is_present | s._is_deleted) as u32;
 
         s.set(key, value);
         self._table[insert_index] = s;
