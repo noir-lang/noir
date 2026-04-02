@@ -3,10 +3,10 @@
 //! It also detect consecutive `ArrayGet` written into consecutive registers,
 //! and consecutive `ArraySet` of consecutive registers, which both can be optimized with `mem_copy`.
 //!
-//! This is a read-only analysis computed once per function (in [`FunctionContext::new`])
+//! This is a read-only analysis computed once per function (in `FunctionContext::new`)
 //! and consumed during block codegen. It follows the same pattern as
-//! [`ConstantAllocation`] and [`VariableLiveness`] — an analysis struct stored in
-//! [`FunctionContext`], not a modification to the SSA IR.
+//! `ConstantAllocation` and `VariableLiveness` — an analysis struct stored in
+//! `FunctionContext`, not a modification to the SSA IR.
 //!
 //! ## Pattern matched
 //!
