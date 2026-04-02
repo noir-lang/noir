@@ -43,6 +43,15 @@ impl NodeInterner {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, interned_location, typ));
+                    } else if interned_location.span == current_location.1.span {
+                        // Two expressions with different types might exist in the same location due to
+                        // coercions from and to references. In this case, prefer showing the user the
+                        // non-reference type.
+                        if matches!(current_location.2, Type::Reference(..))
+                            && !matches!(typ, Type::Reference(..))
+                        {
+                            location_candidate = Some((index, interned_location, typ));
+                        }
                     }
                 } else {
                     location_candidate = Some((index, interned_location, typ));

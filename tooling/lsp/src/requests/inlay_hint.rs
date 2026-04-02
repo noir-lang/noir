@@ -1105,7 +1105,7 @@ mod inlay_hints_tests {
             panic!("Expected label parts");
         };
         let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
-        assert_eq!(label, " &[u32; 14]");
+        assert_eq!(label, " [u32; 14]");
 
         let inlay_hint = &inlay_hints[1];
         assert_eq!(inlay_hint.position.line, 126);
