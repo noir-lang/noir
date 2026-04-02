@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775158021008,
+  "lastUpdate": 1775162254152,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "667dd9badae81836d9cc90bc7a124f237e01acc0",
-          "message": "chore(ssa): Separate the two underconstrained checks (#12008)",
-          "timestamp": "2026-03-26T11:31:07Z",
-          "tree_id": "d59a0a292b0a40b2587bb3d19789e2f3d5f0d726",
-          "url": "https://github.com/noir-lang/noir/commit/667dd9badae81836d9cc90bc7a124f237e01acc0"
-        },
-        "date": 1774526207711,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167716,
-            "range": "± 491",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137088,
-            "range": "± 352",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643947,
-            "range": "± 66009",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647504,
             "range": "± 2669",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6c53b58d92c6e062ccb846bf45377737b13c23bd",
+          "message": "feat: Allow immrefs to go from acir to brillig (#12035)",
+          "timestamp": "2026-04-02T20:08:28Z",
+          "tree_id": "83e8a9359fbe8821d3e4ee78bae622002f146f57",
+          "url": "https://github.com/noir-lang/noir/commit/6c53b58d92c6e062ccb846bf45377737b13c23bd"
+        },
+        "date": 1775162201596,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167955,
+            "range": "± 509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139370,
+            "range": "± 2798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646290,
+            "range": "± 2796",
             "unit": "ns/iter"
           }
         ]
