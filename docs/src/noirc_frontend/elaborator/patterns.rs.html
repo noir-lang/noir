@@ -205,12 +205,12 @@
 <a href=#205 id=205 data-nosnippet>205</a>                        <span class="kw">let </span>tuple =
 <a href=#206 id=206 data-nosnippet>206</a>                            Type::Tuple(vecmap(<span class="kw-2">&amp;</span>fields, |<span class="kw">_</span>| <span class="self">self</span>.interner.next_type_variable()));
 <a href=#207 id=207 data-nosnippet>207</a>
-<a href=#208 id=208 data-nosnippet>208</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeMismatchWithSource {
-<a href=#209 id=209 data-nosnippet>209</a>                            expected: expected_type,
-<a href=#210 id=210 data-nosnippet>210</a>                            actual: tuple,
-<a href=#211 id=211 data-nosnippet>211</a>                            location,
-<a href=#212 id=212 data-nosnippet>212</a>                            source: Source::Assignment,
-<a href=#213 id=213 data-nosnippet>213</a>                        });
+<a href=#208 id=208 data-nosnippet>208</a>                        <span class="self">self</span>.push_err(<span class="self">self</span>.new_type_mismatch_with_source_error(
+<a href=#209 id=209 data-nosnippet>209</a>                            <span class="kw-2">&amp;</span>tuple,
+<a href=#210 id=210 data-nosnippet>210</a>                            <span class="kw-2">&amp;</span>expected_type,
+<a href=#211 id=211 data-nosnippet>211</a>                            Source::Assignment,
+<a href=#212 id=212 data-nosnippet>212</a>                            location,
+<a href=#213 id=213 data-nosnippet>213</a>                        ));
 <a href=#214 id=214 data-nosnippet>214</a>                        <span class="prelude-val">None
 <a href=#215 id=215 data-nosnippet>215</a>                    </span>}
 <a href=#216 id=216 data-nosnippet>216</a>                };
@@ -346,12 +346,12 @@
 <a href=#346 id=346 data-nosnippet>346</a>
 <a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span>actual_type = Type::DataType(struct_type.clone(), generics);
 <a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a>        <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>actual_type, <span class="kw-2">&amp;</span>expected_type, || TypeCheckError::TypeMismatchWithSource {
-<a href=#350 id=350 data-nosnippet>350</a>            expected: expected_type.clone(),
-<a href=#351 id=351 data-nosnippet>351</a>            actual: actual_type.clone(),
-<a href=#352 id=352 data-nosnippet>352</a>            location,
-<a href=#353 id=353 data-nosnippet>353</a>            source: Source::Assignment,
-<a href=#354 id=354 data-nosnippet>354</a>        });
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="self">self</span>.unify_or_type_mismatch_with_source(
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw-2">&amp;</span>actual_type,
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="kw-2">&amp;</span>expected_type,
+<a href=#352 id=352 data-nosnippet>352</a>            Source::Assignment,
+<a href=#353 id=353 data-nosnippet>353</a>            location,
+<a href=#354 id=354 data-nosnippet>354</a>        );
 <a href=#355 id=355 data-nosnippet>355</a>
 <a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>fields = <span class="self">self</span>.resolve_constructor_pattern_fields(
 <a href=#357 id=357 data-nosnippet>357</a>            fields,

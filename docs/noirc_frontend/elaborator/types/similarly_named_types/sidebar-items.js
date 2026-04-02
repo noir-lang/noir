@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["data_type_fully_qualified_name","data_type_to_similarly_named_type"],"struct":["SimilarlyNamedType"]};

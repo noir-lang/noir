@@ -550,4 +550,12 @@
 <a href=#550 id=550 data-nosnippet>550</a>        </span>)
 <a href=#551 id=551 data-nosnippet>551</a>        .<span class="kw">await</span>;
 <a href=#552 id=552 data-nosnippet>552</a>    }
-<a href=#553 id=553 data-nosnippet>553</a>}</code></pre></div></section></main></body></html>
+<a href=#553 id=553 data-nosnippet>553</a>
+<a href=#554 id=554 data-nosnippet>554</a>    <span class="attr">#[test]
+<a href=#555 id=555 data-nosnippet>555</a>    </span><span class="kw">async fn </span>hover_on_numeric_generic() {
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>hover_text =
+<a href=#557 id=557 data-nosnippet>557</a>            get_hover_text(<span class="string">"workspace"</span>, <span class="string">"two/src/lib.nr"</span>, Position { line: <span class="number">126</span>, character: <span class="number">12 </span>})
+<a href=#558 id=558 data-nosnippet>558</a>                .<span class="kw">await</span>;
+<a href=#559 id=559 data-nosnippet>559</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>hover_text, <span class="string">"    let N: u32"</span>);
+<a href=#560 id=560 data-nosnippet>560</a>    }
+<a href=#561 id=561 data-nosnippet>561</a>}</code></pre></div></section></main></body></html>
