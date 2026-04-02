@@ -328,7 +328,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             // regardless we will only ever be able to read or write whichever is
             // the shorter max length of the two. We asserted that the actual content fits,
             // but the capacity of the source vector could be higher.
-            let max = crate::cmp::min(Len, MaxLen - 1);
+            let max = crate::cmp::min(Len, MaxLen);
+
+            // Save the last item in case we have to do a fixup on an already full array.
+            let last = if MaxLen > 0 {
+                self.storage[MaxLen - 1]
+            } else {
+                crate::mem::zeroed()
+            };
 
             for src in 0..max {
                 // Since we are iterating to the static capacity of the arrays,
@@ -341,17 +348,19 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[dst] = if src < append_len {
                     vec.get_unchecked(src)
                 } else {
-                    crate::mem::zeroed()
+                    last
                 }
             }
 
-            // Fixup the last item: either the vecs fill the storage exactly
-            // and we write the correct last element, or they don't and we
-            // zero out the last element.
-            self.storage[MaxLen - 1] = if new_len > MaxLen - 1 {
-                vec.get_unchecked(append_len - 1)
-            } else {
-                crate::mem::zeroed()
+            // Fixup the last item if we have to.
+            if MaxLen > 0 {
+                self.storage[MaxLen - 1] = if (self.len + max >= MaxLen)
+                    & (self.len + append_len == MaxLen)
+                    & (append_len > 0) {
+                    vec.get_unchecked(append_len - 1)
+                } else {
+                    last
+                }
             }
         }
         self.len = new_len;
