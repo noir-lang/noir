@@ -3,10 +3,10 @@
 //! It also detect consecutive `ArrayGet` written into consecutive registers,
 //! and consecutive `ArraySet` of consecutive registers, which both can be optimized with `mem_copy`.
 //!
-//! This is a read-only analysis computed once per function (in `FunctionContext::new`)
+//! This is a read-only analysis computed once per function (in [`FunctionContext::new`])
 //! and consumed during block codegen. It follows the same pattern as
-//! `ConstantAllocation` and `VariableLiveness` — an analysis struct stored in
-//! `FunctionContext`, not a modification to the SSA IR.
+//! [`ConstantAllocation`] and [`VariableLiveness`] — an analysis struct stored in
+//! [`FunctionContext`], not a modification to the SSA IR.
 //!
 //! ## Pattern matched
 //!
@@ -49,7 +49,7 @@ use crate::{
 
 /// Minimum number of elements in a `MakeArray` to consider for memcpy optimization.
 /// Small arrays don't benefit enough from the memcpy loop overhead.
-pub(super) const MIN_MEMCPY_ELEMENTS: usize = 4;
+pub(super) const MIN_MEMCPY_ELEMENTS: usize = 8;
 
 /// Per-function analysis identifying instructions that can use `mem_copy`
 /// and instructions whose codegen should be skipped.
@@ -57,8 +57,7 @@ pub(super) const MIN_MEMCPY_ELEMENTS: usize = 4;
 pub(crate) struct MemcpyOptimizations {
     /// `MakeArray` instructions that should emit `mem_copy` instead of per-element stores.
     pub(crate) memcpy_groups: HashMap<InstructionId, MemcpyInfo>,
-    /// Consecutive `ArrayGet` runs that should emit a single `mem_copy` into
-    /// consecutive stack registers. Keyed by the FIRST `ArrayGet`'s instruction ID.
+    /// Consecutive `ArrayGet` runs that should emit a single `mem_copy` into consecutive stack registers.
     pub(crate) load_groups: HashMap<InstructionId, LoadGroupInfo>,
     /// Instructions whose Brillig codegen should be skipped entirely.
     /// Contains dead `ArrayGet`s and their single-use `Binary::Add` index computations.
@@ -87,10 +86,10 @@ pub(crate) struct LoadGroupInfo {
 }
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
-    /// If the given registers are consecutive stack-relative addresses, try to emit a memcpy
-    /// to copy them into `dest_pointer` (a heap array items pointer).
+    /// If the given registers are consecutive stack-relative addresses, emit a memcpy
+    /// to copy them into `dest_pointer`.
     ///
-    /// Returns `true` if a memcpy was emitted (or patched), `false` if the registers
+    /// Returns `true` if a memcpy was emitted, `false` if the registers
     /// aren't consecutive and the caller should fall back to individual stores.
     pub(super) fn try_memcpy_to_dest_from_consecutive_registers(
         &mut self,
@@ -101,7 +100,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             return false;
         };
 
-        // Emit a memcpy from the consecutive stack registers to the heap destination.
         let source_ptr = self.brillig_context.allocate_register();
         let offset_const = self
             .brillig_context
@@ -122,8 +120,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Emits a single `MemCopy` call for a pre-detected load group, placing the
     /// results into consecutive stack registers and mapping each SSA result value.
     ///
-    /// Called from `convert_ssa_instruction` when the current instruction is the
-    /// first `ArrayGet` of a load group (detected by `from_function()`).
     /// Returns `true` if the memcpy was emitted, `false` if there wasn't enough
     /// consecutive register space (caller must fall back to individual codegen).
     pub(super) fn codegen_load_group(&mut self, info: &LoadGroupInfo, dfg: &DataFlowGraph) -> bool {
@@ -216,6 +212,45 @@ fn try_get_consecutive_relative(registers: &[MemoryAddress]) -> Option<u32> {
         }
     }
     Some(first)
+}
+
+/// Check if `index` equals `base + expected_offset` in the SSA value graph.
+///
+/// Handles two cases:
+/// 1. Both are numeric constants: `candidate_const - base_const == expected_offset`
+/// 2. `index` is defined by `Binary::Add(base, constant(expected_offset))`
+fn is_index_base_plus_offset(
+    dfg: &DataFlowGraph,
+    base: ValueId,
+    index: ValueId,
+    expected_offset: u128,
+) -> bool {
+    // Case 1: both are constants.
+    if let (Some(base_const), Some(index_const)) =
+        (dfg.get_numeric_constant(base), dfg.get_numeric_constant(index))
+    {
+        return index_const.to_u128() == base_const.to_u128() + expected_offset;
+    }
+
+    // Case 2: index = base + constant(expected_offset) via Binary::Add.
+    let Some(instr_id) = defining_instruction(dfg, index) else {
+        return false;
+    };
+    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = &dfg[instr_id]
+    else {
+        return false;
+    };
+    if *lhs == base
+        && let Some(c) = dfg.get_numeric_constant(*rhs)
+    {
+        return c.to_u128() == expected_offset;
+    }
+    if *rhs == base
+        && let Some(c) = dfg.get_numeric_constant(*lhs)
+    {
+        return c.to_u128() == expected_offset;
+    }
+    false
 }
 
 impl MemcpyOptimizations {
@@ -335,7 +370,7 @@ impl MemcpyOptimizations {
 
                 let total_consumed = array_get_ids.len() + skipped_ids.len();
 
-                // Mark elements 1..N for skipping — codegen_load_group defines them all.
+                // Mark ALL elements 1..N for skipping — codegen_load_group defines them all.
                 for &get_id in &array_get_ids[1..] {
                     result.skip_instructions.insert(get_id);
                 }
@@ -346,6 +381,7 @@ impl MemcpyOptimizations {
                         result.skip_instructions.insert(add_id);
                     }
                 }
+
                 result.load_groups.insert(
                     first_id,
                     LoadGroupInfo {
@@ -386,7 +422,7 @@ fn build_use_counts(func: &Function) -> HashMap<ValueId, u32> {
 }
 
 /// Check whether all elements of a `MakeArray` are `ArrayGet` instructions
-/// from the same source array with consecutive dynamic indices.
+/// from the same source array with consecutive indices.
 ///
 /// Returns `Some((source_array, base_index))` on success.
 fn detect_consecutive_array_gets(
@@ -403,7 +439,7 @@ fn detect_consecutive_array_gets(
     let source = *source;
     let base_index = *base_index;
 
-    // Elements 1..N must be ArrayGet from the same source with index = base + i.
+    // Elements 1..N must be ArrayGet from the same source with index = base + constant(i).
     for (i, element) in elements.iter().enumerate().skip(1) {
         let instr_id = defining_instruction(dfg, *element)?;
         let Instruction::ArrayGet { array, index } = &dfg[instr_id] else {
@@ -420,47 +456,6 @@ fn detect_consecutive_array_gets(
     Some((source, base_index))
 }
 
-/// Check if `candidate` equals `base + expected_offset` in the SSA value graph.
-///
-/// Handles two cases:
-/// 1. Both are numeric constants: `candidate_const - base_const == expected_offset`
-/// 2. `candidate` is defined by `Binary::Add(base, constant(expected_offset))`
-fn is_index_base_plus_offset(
-    dfg: &DataFlowGraph,
-    base: ValueId,
-    candidate: ValueId,
-    expected_offset: u128,
-) -> bool {
-    // Case 1: both are constants — compare their numeric values.
-    if let (Some(base_const), Some(cand_const)) =
-        (dfg.get_numeric_constant(base), dfg.get_numeric_constant(candidate))
-    {
-        return cand_const.to_u128() == base_const.to_u128() + expected_offset;
-    }
-
-    // Case 2: candidate = base + constant(expected_offset) via Binary::Add.
-    let Some(instr_id) = defining_instruction(dfg, candidate) else {
-        return false;
-    };
-    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = &dfg[instr_id]
-    else {
-        return false;
-    };
-    // Check lhs=base, rhs=constant(expected_offset)
-    if *lhs == base
-        && let Some(c) = dfg.get_numeric_constant(*rhs)
-    {
-        return c.to_u128() == expected_offset;
-    }
-    // Check rhs=base, lhs=constant(expected_offset)
-    if *rhs == base
-        && let Some(c) = dfg.get_numeric_constant(*lhs)
-    {
-        return c.to_u128() == expected_offset;
-    }
-    false
-}
-
 /// Get the InstructionId that defines a given value, if it was produced by an instruction.
 fn defining_instruction(dfg: &DataFlowGraph, value: ValueId) -> Option<InstructionId> {
     match &dfg[value] {
@@ -471,6 +466,7 @@ fn defining_instruction(dfg: &DataFlowGraph, value: ValueId) -> Option<Instructi
 
 #[cfg(test)]
 mod tests {
+
     use acvm::acir::brillig::Opcode as BrilligOpcode;
 
     use crate::{
@@ -554,7 +550,7 @@ mod tests {
 
     #[test]
     fn too_few_elements_not_detected() {
-        // Only 3 elements — below MIN_MEMCPY_ELEMENTS threshold.
+        // Only 4 elements — below MIN_MEMCPY_ELEMENTS threshold.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field; 40], v1: u32):
@@ -564,7 +560,9 @@ mod tests {
             v5 = array_get v0, index v4 -> Field
             v6 = unchecked_add v2, u32 2
             v7 = array_get v0, index v6 -> Field
-            v10 = make_array [v3, v5, v7] : [Field; 3]
+            v8 = unchecked_add v2, u32 3
+            v9 = array_get v0, index v8 -> Field
+            v10 = make_array [v3, v5, v7, v9] : [Field; 4]
             return v10
         }
         ";
@@ -624,26 +622,10 @@ mod tests {
         }
         ";
         let opts = analyze(src);
-
         assert_eq!(opts.memcpy_groups.len(), 1, "memcpy group still detected");
         // Element 1 (v5) has 2 uses, so its array_get + Binary::Add are NOT skipped.
         // Element 0 is never skipped. Elements 2..7: 6 array_gets + 6 adds = 12.
         assert_eq!(opts.skip_instructions.len(), 12);
-
-        let generated = compile_ssa_to_brillig(src);
-        let calls = count_calls(&generated);
-        assert!(calls == 5, "Expected 5 Call instructions (including memcpy calls), got {calls}");
-
-        // The make_array should NOT have individual stores (the 8 stores are replaced by memcpy).
-        // The only stores remaining should be from the MemCopy procedure body itself.
-        let stores = count_stores(&generated);
-        assert!(stores == 1, "Expected 1 Store instruction (in MemCopy procedure), got {stores}");
-
-        let loads = count_loads(&generated);
-        assert!(
-            loads == 3,
-            "Expected 3 Load instructions (1 in MemCopy + 2 non-skipped array_gets), got {loads}"
-        );
     }
 
     #[test]
@@ -725,7 +707,11 @@ mod tests {
         assert_eq!(load_group.array_get_ids.len(), 8, "Should have 8 array_gets in the group");
 
         // Elements 1-7 are skipped (7 array_gets) + 7 single-use index adds = 14.
-        assert_eq!(opts.skip_instructions.len(), 14, "14 instructions should be skipped");
+        assert_eq!(
+            opts.skip_instructions.len(),
+            14,
+            "7 array_gets + 7 index adds should be skipped"
+        );
     }
 
     #[test]

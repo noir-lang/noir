@@ -181,13 +181,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         pointer: MemoryAddress,
     ) {
         use crate::brillig::brillig_gen::memcpy_optimizations::MIN_MEMCPY_ELEMENTS;
-        use crate::brillig::brillig_ir::registers::MAX_STACK_FRAME_SIZE;
 
         // For arrays within a safe size range, collect all element registers upfront
         // and check if they're consecutive — if so, emit a single memcpy.
-        // collecting all registers upfront causes excessive register pressure
-        // for large arrays.
-        if data.len() >= MIN_MEMCPY_ELEMENTS && data.len() <= MAX_STACK_FRAME_SIZE / 2 {
+        // Avoid it for large arrays because collecting all registers upfront causes excessive register pressure.
+        let max_frame = self.brillig_context.registers().layout().max_stack_frame_size();
+        let max_collect =
+            (max_frame / 2).min(self.brillig_context.registers().available_registers());
+        if data.len() >= MIN_MEMCPY_ELEMENTS && data.len() <= max_collect {
             let registers: Vec<MemoryAddress> =
                 data.iter().map(|id| self.convert_ssa_value(*id, dfg).extract_register()).collect();
 
@@ -461,7 +462,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let base_index_id = info.base_index;
             let length = info.length;
 
-            // When the base index is a constant, use the raw array pointer.
+            // When the base index is a constant, brillig_array_get_and_set has already
+            // adjusted it to include the metadata offset. Use the raw array pointer.
             // When dynamic, compute the items pointer.
             let has_offset = dfg.get_numeric_constant(base_index_id).is_some();
             let src_variable = self.convert_ssa_value(source_array, dfg);
