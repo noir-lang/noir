@@ -69,6 +69,7 @@ impl Ssa {
     /// **Important:** This should only be used after flattening for ACIR functions.
     /// Before flattening, use `mem2reg_simple_pre_flattening` instead to avoid
     /// regressions from promoting variables that span too many blocks.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let max_vars =
@@ -79,6 +80,7 @@ impl Ssa {
     }
 
     /// Run mem2reg_simple only on Brillig functions.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
@@ -94,6 +96,7 @@ impl Ssa {
     /// a variable limit and a block span limit to avoid regressions: promoting a
     /// variable whose declaration dominates many blocks (e.g. across an unrolled loop)
     /// generates O(variables × blocks) extra predicate opcodes after flattening.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
@@ -154,12 +157,19 @@ impl Function {
         let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
         let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
 
+        // Precompute which variables are visible at each block by walking the dominator tree.
+        // A variable declared in block D is visible at block B iff D dominates B.
+        // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
+        // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
+        // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
+        // this visibility propagation replaces the per-variable dominance checks in phase 2).
+        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
         let mut block_states = BlockStates::default();
         add_block_params_and_find_exit_states(
             &blocks,
-            &variables,
+            &visible_vars,
             &param_locations,
-            &mut dom_tree,
             &mut inserter,
             &mut block_states,
             &cfg,
@@ -241,24 +251,55 @@ fn iterated_dominance_frontier(
     result
 }
 
+/// Precompute which variables are visible at each block by walking the dominator tree.
+///
+/// A variable declared in block D is visible at block B iff D dominates B. Instead of
+/// checking `dominates(D, B)` for every (variable, block) pair — O(variables × blocks) —
+/// we walk blocks in RPO and inherit the visible set from the immediate dominator.
+/// Each block's visible set is its idom's visible set plus any variables declared locally.
+fn compute_visible_vars(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    dom_tree: &DominatorTree,
+) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+    // Group variables by their declaration block
+    let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
+    for (var, decl_block) in variables {
+        vars_by_decl_block.entry(*decl_block).or_default().push(*var);
+    }
+
+    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    for &block in blocks {
+        let mut vars = match dom_tree.immediate_dominator(block) {
+            Some(idom) => visible[&idom].clone(),
+            None => BTreeMap::new(),
+        };
+        if let Some(declared_here) = vars_by_decl_block.get(&block) {
+            for var in declared_here {
+                vars.insert(*var, block);
+            }
+        }
+        visible.insert(block, vars);
+    }
+    visible
+}
+
 /// Find the starting & ending states of each variable in each block.
 ///
 /// Block parameters are only added at blocks in the variable's IDF (param_locations).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
     param_locations: &ParamLocations,
-    dom_tree: &mut DominatorTree,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
         let entry_state = compute_entry_state(
-            variables,
+            &visible_vars[&block],
             param_locations,
-            dom_tree,
             block,
             &mut inserter.function.dfg,
             block_states,
@@ -271,26 +312,24 @@ fn add_block_params_and_find_exit_states(
 
 /// Compute the entry state for a block.
 ///
-/// For each visible variable (whose declaration dominates this block):
+/// `visible_vars` contains only the variables whose declaration dominates this block
+/// (precomputed via dominator tree walk in `compute_visible_vars`).
+///
+/// For each visible variable:
 /// - If this is the declaration block: use the original allocate result
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
-    dom_tree: &mut DominatorTree,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
     block_states: &BlockStates,
     cfg: &ControlFlowGraph,
 ) -> StateVec {
-    variables
+    visible_vars
         .iter()
         .filter_map(|(var, decl_block)| {
-            if !dom_tree.dominates(*decl_block, block) {
-                return None;
-            }
-
             let value = if block == *decl_block {
                 // Declaration block: use original allocate result
                 *var
