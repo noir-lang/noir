@@ -467,7 +467,19 @@ impl ItemPrinter<'_, '_> {
         }
 
         let first_argument = self.dereference_hir_expression_id(arguments[0]);
-        self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        let first_arg_exp = self.interner.expression(&first_argument);
+        if let HirExpression::Prefix(HirPrefixExpression {
+            operator: UnaryOp::Dereference { implicitly_added: false },
+            ..
+        }) = first_arg_exp
+        {
+            // In general we don't need parentheses around dereferences, but here we do
+            self.push('(');
+            self.show_hir_expression(first_arg_exp, first_argument);
+            self.push(')');
+        } else {
+            self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        }
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
 
