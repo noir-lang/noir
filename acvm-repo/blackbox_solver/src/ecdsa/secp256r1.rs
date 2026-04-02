@@ -60,7 +60,7 @@ pub(super) fn verify_signature(
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256r1 curve.
         return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
+            BlackBoxFunc::EcdsaSecp256r1,
             "Invalid public key provided for ECDSA verification".to_string(),
         ));
     }

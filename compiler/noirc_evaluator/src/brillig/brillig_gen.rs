@@ -11,6 +11,7 @@ mod live_intervals;
 pub(crate) mod spill_manager;
 #[cfg(test)]
 mod tests;
+mod union_find;
 mod variable_liveness;
 
 use acvm::FieldElement;

@@ -23,7 +23,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -45,7 +45,7 @@ jobs:
       - name: Send an alert in slack
         # Send notifications on weekdays if there's a failure.
         if: ${{ failure() && steps.date.outputs.DAY <= 5 }}
-        uses: slackapi/slack-github-action@v3.0.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: ${{ secrets.FUZZING_ALERT_URL }}
           webhook-type: webhook-trigger
