@@ -272,14 +272,39 @@ fn forward_loads_and_stores_in_block(
                 // For direct references we only invalidate that specific address.
                 // For containers (arrays/tuples) holding references, we can't know
                 // which addresses they hold, so we conservatively clear everything.
+                //
+                // Additionally, if a reference's inner type also contains a reference
+                // (e.g. `&mut &mut Field`), the callee can chase the indirection and
+                // write through the inner reference, so we must clear all known values.
+                //
+                // We also remove passed references from local_allocations: once an
+                // address escapes to a callee, it may be returned as an alias, so the
+                // "local and non-aliasing" invariant no longer holds.
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
-                    if inserter.function.dfg.value_is_reference(value) {
-                        known_values.remove(&value);
-                        last_stores.remove(&value);
-                    } else if inserter.function.dfg.type_of_value(value).contains_reference() {
-                        known_values.clear();
-                        last_stores.clear();
+                    let typ = inserter.function.dfg.type_of_value(value);
+                    if typ.contains_reference() {
+                        if let Some(inner) = typ.reference_element_type() {
+                            if inner.contains_reference() {
+                                // Double-reference (e.g. &mut &mut Field): callee can
+                                // load the inner ref and write through it — clear all.
+                                known_values.clear();
+                                last_stores.clear();
+                                local_allocations.clear();
+                            } else {
+                                // Simple reference: only invalidate this address, but
+                                // also remove from local_allocations since the address
+                                // now escapes and may be returned as an alias.
+                                known_values.remove(&value);
+                                last_stores.remove(&value);
+                                local_allocations.remove(&value);
+                            }
+                        } else {
+                            // Container holding references (array/tuple) — clear all.
+                            known_values.clear();
+                            last_stores.clear();
+                            local_allocations.clear();
+                        }
                     }
                 });
             }
@@ -701,6 +726,62 @@ mod tests {
             return Field 42
         }
         ");
+    }
+
+    #[test]
+    fn call_with_double_reference_clears_inner_known_value() {
+        // Bug: When a `&mut &mut Field` is passed to a call, only the outer reference
+        // is removed from known_values. The callee can load the inner reference and
+        // store through it, but the inner ref's known value survives — causing a
+        // subsequent load through the inner ref to forward a stale value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v10: &mut &mut Field):
+            v11 = load v10 -> &mut Field
+            store Field 99 at v11
+            return
+        }
+        ";
+        // The callee writes 99 through the inner ref (v0). The load of v0 must NOT
+        // be forwarded to the stale value 42.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn call_returning_alias_of_local_allocation_prevents_forwarding() {
+        // Bug: When a local allocation is passed to a call, it is removed from
+        // known_values/last_stores but NOT from local_allocations. If the callee
+        // returns an alias to the same memory, stores through the original address
+        // skip the conservative clear (because it's still in local_allocations),
+        // leaving stale entries for the alias.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = call f1(v0) -> &mut Field
+            store Field 2 at v1
+            store Field 3 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        // v1 aliases v0. After `store 3 at v0`, loading v1 should see 3, not stale 2.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
     #[test]
