@@ -38,14 +38,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary limit for maximum variables optimized by this pass in each function.
-///
-/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
-/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
-/// to pay for passing around the variables while with the `Load` approach, only the inner loops
-/// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
-
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
     ///
@@ -58,9 +50,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let max_vars =
-                if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars, None, true);
+            function.mem2reg_simple(true);
         }
         self
     }
@@ -70,7 +60,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None, true);
+                function.mem2reg_simple(true);
             }
         }
         self
@@ -85,23 +75,18 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None, true);
-            } else {
-                function.mem2reg_simple(None, None, true);
-            }
+            function.mem2reg_simple_pre_flattening();
         }
         self
     }
 }
 
 impl Function {
-    fn mem2reg_simple(
-        &mut self,
-        max_variables: Option<u32>,
-        max_block_span: Option<usize>,
-        cleanup: bool,
-    ) {
+    pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
+        self.mem2reg_simple(true);
+    }
+
+    fn mem2reg_simple(&mut self, cleanup: bool) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -113,30 +98,9 @@ impl Function {
         // ValueId of the `allocate` instruction result. These are all iterated over at some point
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
-        let (mut variables, def_sites) =
+        let (variables, def_sites) =
             collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
-        // Filter out variables whose declaration dominates too many blocks.
-        if let Some(max_span) = max_block_span
-            && blocks.len() > max_span
-            && !variables.is_empty()
-        {
-            let mut subtree_size: HashMap<BasicBlockId, usize> =
-                blocks.iter().map(|b| (*b, 1)).collect();
-
-            for &block in blocks.iter().rev() {
-                if let Some(idom) = dom_tree.immediate_dominator(block) {
-                    let size = subtree_size[&block];
-                    *subtree_size.entry(idom).or_insert(1) += size;
-                }
-            }
-            variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
-        }
-
-        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        if let Some(max) = max_variables {
-            variables = variables.into_iter().take(max as usize).collect();
-        }
         if variables.is_empty() {
             return;
         }
@@ -184,7 +148,7 @@ impl Function {
     /// avoided unnecessary parameters at source, rather than relying on cleanup.
     #[cfg(test)]
     fn mem2reg_simple_without_cleanup(&mut self) {
-        self.mem2reg_simple(None, None, false);
+        self.mem2reg_simple(false);
     }
 }
 

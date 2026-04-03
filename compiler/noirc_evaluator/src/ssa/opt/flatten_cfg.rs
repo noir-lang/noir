@@ -70,7 +70,7 @@
 //!    an equality with `c`:
 //! ```text
 //! constrain v0
-//! ============
+//! ---- becomes ----
 //! v1 = mul v0, c
 //! v2 = eq v1, c
 //! constrain v2
@@ -92,7 +92,7 @@
 //!   jmp b3(v2)
 //! b3(v3: Field):
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   v3 = mul v0, v1
 //!   v4 = not v0
@@ -121,7 +121,7 @@
 //!   jmp b3
 //! b3():
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0():
 //!   v1 = allocate -> &mut Field
 //!   store Field 3 at v1     // no prior value so we do not load & merge
@@ -1511,7 +1511,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg();
+        let ssa = ssa.flatten_cfg().mem2reg_simple();
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1520,44 +1520,44 @@ mod tests {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+        assert_eq!(merged_values, vec![1, 2, 3, 5, 6]);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
-            v2 = allocate -> &mut Field
             enable_side_effects v0
-            v3 = not v0
-            v4 = cast v0 as Field
-            v5 = cast v3 as Field
-            v7 = mul v4, Field 2
-            v8 = add v7, v5
-            v9 = unchecked_mul v0, v1
-            enable_side_effects v9
-            v10 = not v9
-            v11 = cast v9 as Field
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v8 = mul v4, Field 1
+            v9 = add v6, v8
+            v10 = unchecked_mul v0, v1
+            enable_side_effects v10
+            v11 = not v10
             v12 = cast v10 as Field
-            v14 = mul v11, Field 5
-            v15 = mul v12, v8
-            v16 = add v14, v15
-            v17 = not v1
-            v18 = unchecked_mul v0, v17
-            enable_side_effects v18
-            v19 = not v18
-            v20 = cast v18 as Field
+            v13 = cast v11 as Field
+            v15 = mul v12, Field 5
+            v16 = mul v13, v9
+            v17 = add v15, v16
+            v18 = not v1
+            v19 = unchecked_mul v0, v18
+            enable_side_effects v19
+            v20 = not v19
             v21 = cast v19 as Field
-            v23 = mul v20, Field 6
-            v24 = mul v21, v16
-            v25 = add v23, v24
+            v22 = cast v20 as Field
+            v24 = mul v21, Field 6
+            v25 = mul v22, v17
+            v26 = add v24, v25
             enable_side_effects v0
-            enable_side_effects v3
-            v26 = cast v3 as Field
-            v27 = cast v0 as Field
-            v29 = mul v26, Field 3
-            v30 = mul v27, v25
-            v31 = add v29, v30
+            enable_side_effects v2
+            v27 = cast v2 as Field
+            v28 = cast v0 as Field
+            v30 = mul v27, Field 3
+            v31 = mul v28, v26
+            v32 = add v30, v31
             enable_side_effects u1 1
-            return v31
+            return v32
         }
         ");
     }
@@ -1896,7 +1896,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
 
         let main = ssa.main();
 
@@ -1917,8 +1917,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut u32
-            v1 = allocate -> &mut u32
             enable_side_effects u1 1
             return u32 200
         }
@@ -1963,21 +1961,20 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut Field
             enable_side_effects v0
-            v2 = not v0
-            v3 = cast v0 as Field
-            v4 = cast v2 as Field
-            v6 = mul v3, Field 2
-            v7 = mul v4, v3
-            v8 = add v6, v7
+            v1 = not v0
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v5 = mul v2, Field 2
+            v6 = mul v3, v2
+            v7 = add v5, v6
             enable_side_effects u1 1
-            return v8
+            return v7
         }
         ");
     }
@@ -2006,7 +2003,7 @@ mod tests {
 
         let ssa = ssa
             .flatten_cfg()
-            .mem2reg()
+            .mem2reg_simple()
             .remove_if_else()
             .unwrap()
             .fold_constants(1)
@@ -2016,14 +2013,18 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
+            v2 = not v0
             enable_side_effects u1 1
-            v3 = cast v0 as Field
+            v4 = cast v0 as Field
+            v5 = cast v2 as Field
             enable_side_effects v0
             enable_side_effects u1 1
-            v5 = mul v3, Field 2
-            v6 = make_array [v5] : [Field; 1]
+            v7 = mul v4, Field 2
+            v8 = mul v5, v4
+            v9 = add v7, v8
+            v10 = make_array [v9] : [Field; 1]
             enable_side_effects u1 1
-            return v6
+            return v10
         }
         ");
     }
