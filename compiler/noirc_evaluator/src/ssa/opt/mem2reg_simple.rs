@@ -38,28 +38,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary limit for maximum variables optimized by this pass in each function.
-///
-/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
-/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
-/// to pay for passing around the variables while with the `Load` approach, only the inner loops
-/// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
-
-// /// Maximum number of blocks a variable's declaration can dominate before we skip
-// /// promoting it in the pre-flattening pass.
-// ///
-// /// The cost of promoting a variable before flattening is O(promoted_variables × dominated_blocks)
-// /// because each promoted variable adds a block parameter to every dominated block, and the
-// /// flattener converts each conditional block into ~5 predicate opcodes (not, mul,
-// /// enable_side_effects, etc.). A variable that spans many blocks (e.g. a byte in a 254-iteration
-// /// unrolled loop) can generate thousands of extra ACIR opcodes.
-// ///
-// /// This limit filters out variables whose declaration dominates too many blocks,
-// /// keeping promotion beneficial for small CFGs (like if/else diamonds in `conditional_1`)
-// /// while avoiding regressions in deeply unrolled code (like `to_bytes_integration`).
-// const MAX_BLOCK_SPAN_PRE_FLATTENING: usize = 100;
-
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
     ///
@@ -72,9 +50,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let max_vars =
-                if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars, None);
+            function.mem2reg_simple(None, None);
         }
         self
     }
@@ -84,24 +60,6 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
-            }
-        }
-        self
-    }
-
-    /// Run mem2reg_simple on all functions before flattening.
-    ///
-    /// Brillig functions use the standard variable limit. ACIR functions use both
-    /// a variable limit and a block span limit to avoid regressions: promoting a
-    /// variable whose declaration dominates many blocks (e.g. across an unrolled loop)
-    /// generates O(variables × blocks) extra predicate opcodes after flattening.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
-            } else {
                 function.mem2reg_simple(None, None);
             }
         }
