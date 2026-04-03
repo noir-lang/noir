@@ -1912,11 +1912,10 @@ impl<'f> LoopIteration<'f> {
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
     function.mem2reg_simple_pre_flattening();
-    function.load_store_forwarding();
+    function.simplify_instructions();
     function.simplify_function();
     // Do another mem2reg after simplify_cfg to aid the next unroll
     function.mem2reg_simple_pre_flattening();
-    function.load_store_forwarding();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
@@ -3649,5 +3648,216 @@ mod tests {
         // This panics because v4 (a header instruction result) was not mapped
         // to its final-iteration value, leaving a dangling reference.
         let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+    }
+}
+
+#[cfg(test)]
+mod upper_loop_bound_resolution {
+    use crate::ssa::Ssa;
+
+    use super::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
+
+    /// Regression test for vector_loop: after mem2reg_simple promotes the vector length
+    /// allocation to a block parameter, the iterative unrolling must still resolve the
+    /// sum loop's bound to a constant through the vector_push_back simplification chain.
+    ///
+    /// This is the SSA input to unrolling from the
+    /// `test_programs/execution_success/vector_loop` test program.
+    #[test]
+    fn acir_vector_loop_unrolling() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(Field, Field); 3]):
+            v14 = make_array [] : [Field]
+            jmp b1(u32 0, u32 0, v14)
+          b1(v1: u32, v2: u32, v3: [Field]):
+            v17 = lt v1, u32 3
+            jmpif v17 then: b2(), else: b3()
+          b2():
+            v37 = unchecked_mul v1, u32 2
+            v38 = array_get v0, index v37 -> Field
+            v39 = unchecked_add v37, u32 1
+            v40 = array_get v0, index v39 -> Field
+            v41 = make_array [v38, v40] : [Field]
+            jmp b4(u32 0, v2, v3)
+          b4(v4: u32, v5: u32, v6: [Field]):
+            v42 = lt v4, u32 2
+            jmpif v42 then: b7(), else: b8()
+          b7():
+            v44 = array_get v41, index v4 -> Field
+            v45, v46 = call vector_push_back(v5, v6, v44) -> (u32, [Field])
+            v47 = unchecked_add v4, u32 1
+            jmp b4(v47, v45, v46)
+          b8():
+            v43 = unchecked_add v1, u32 1
+            jmp b1(v43, v5, v6)
+          b3():
+            v19 = lt u32 5, v2
+            jmpif v19 then: b5(), else: b6(v2, v3)
+          b5():
+            v21 = make_array [Field 0, Field 0] : [Field]
+            jmp b9(u32 0, v2, v3)
+          b9(v9: u32, v10: u32, v11: [Field]):
+            v23 = lt v9, u32 2
+            jmpif v23 then: b11(), else: b12()
+          b11():
+            v32 = array_get v21, index v9 -> Field
+            v34, v35 = call vector_push_back(v10, v11, v32) -> (u32, [Field])
+            v36 = unchecked_add v9, u32 1
+            jmp b9(v36, v34, v35)
+          b12():
+            jmp b6(v10, v11)
+          b6(v7: u32, v8: [Field]):
+            jmp b10(u32 0, Field 0)
+          b10(v12: u32, v13: Field):
+            v24 = lt v12, v7
+            jmpif v24 then: b13(), else: b14()
+          b13():
+            v26 = lt v12, v7
+            constrain v26 == u1 1, \"Index out of bounds\"
+            v28 = array_get v8, index v12 -> Field
+            v29 = add v13, v28
+            v31 = unchecked_add v12, u32 1
+            jmp b10(v31, v29)
+          b14():
+            constrain v13 == Field 21
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // let ssa = ssa.mem2reg_simple().load_store_forwarding().simplify_cfg().mem2reg_simple();
+        // println!("{}", ssa.print_with(None));
+        // This should successfully unroll all loops, including the sum loop whose bound
+        // depends on the vector length accumulated through vector_push_back calls.
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(result.is_ok(), "All loops should be unrollable, got error: {:?}", result.err());
+    }
+
+    /// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
+    /// incrementing `len`), a second loop that loads that counter as its bound requires
+    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+    /// after the first loop is unrolled.
+    ///
+    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+    ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
+    ///   2. After the loop, the counter is loaded as the bound of a second loop
+    ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
+    ///
+    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+    /// constant, leaving the second loop's bound non-constant and unrolling fails.
+    #[test]
+    fn acir_unroll_with_store_load_loop_bound() {
+        // Loop 1 (b1): constant bound 3, stores incremented counter to v0 (allocation)
+        // Loop 2 (b4): bound loaded from v0 — should be 3 after Loop 1 completes
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v0 -> u32
+            v7 = add v6, u32 1
+            store v7 at v0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> u32
+            jmp b4(u32 0, Field 0)
+          b4(v2: u32, v3: Field):
+            v10 = lt v2, v9
+            jmpif v10 then: b5(), else: b6()
+          b5():
+            v11 = add v3, Field 1
+            v12 = unchecked_add v2, u32 1
+            jmp b4(v12, v11)
+          b6():
+            constrain v3 == Field 3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Both loops should be unrollable after store/load forwarding, got error: {:?}",
+            result.err()
+        );
+    }
+
+    /// Regression test: a BoundedVec's length is stored in an allocation.
+    /// Two sequential loops use the same length as their bound.
+    /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
+    /// because `simplify_function` cannot merge the blocks (a conditional branch in
+    /// between prevents it).
+    ///
+    /// Without mem2reg promoting the allocation to a block parameter (skipped for large
+    /// functions), `simplify_between_unrolls` must resolve the cross-block store->load
+    /// so the unroller can determine Loop 2's constant bound.
+    ///
+    /// Pattern from `for _i in 0..copy.len() { requests.pop(); }; for _i in 0..copy.len() { ... }`.
+    #[test]
+    fn acir_unroll_cross_block_load_bound() {
+        // v0 = allocation for `copy.len` (stored once as u32 3, never modified)
+        // v1 = allocation for `requests.len` (modified in Loop 1's body)
+        // Loop 1 (b1→b2→b1): bound is u32 3 (constant), body modifies v1
+        // b3: conditional branch that prevents simplify_function from merging
+        //     the entry block with Loop 2's pre-header
+        // After Loop 1 unrolls, Loop 2's bound comes from `load v0` in a
+        // different block that can't be merged with the store block.
+        // Loop 2 (b6→b7→b6): bound loaded from v0 (should resolve to u32 3)
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v100: Field):
+            v0 = allocate -> &mut u32
+            store u32 3 at v0
+            v1 = allocate -> &mut u32
+            store u32 3 at v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v1 -> u32
+            v7 = sub v6, u32 1
+            store v7 at v1
+            v8 = unchecked_add v2, u32 1
+            jmp b1(v8)
+          b3():
+            v13 = eq v100, Field 0
+            jmpif v13 then: b4(), else: b5()
+          b4():
+            jmp b9(Field 100)
+          b5():
+            jmp b9(Field 200)
+          b9(v14: Field):
+            v9 = load v0 -> u32
+            jmp b6(u32 0, v14)
+          b6(v3: u32, v4: Field):
+            v10 = lt v3, v9
+            jmpif v10 then: b7(), else: b8()
+          b7():
+            v11 = add v4, Field 1
+            v12 = unchecked_add v3, u32 1
+            jmp b6(v12, v11)
+          b8():
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Cross-block store->load bound should be resolved, got error: {:?}",
+            result.err()
+        );
     }
 }

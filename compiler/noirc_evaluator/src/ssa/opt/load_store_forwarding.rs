@@ -86,10 +86,15 @@ impl Function {
                     .retain(|id| !instructions_to_remove.contains(id));
             }
 
-            // Remap instructions and terminator immediately — all predecessor
-            // mappings are already in the inserter thanks to RPO ordering.
-            for instruction_id in inserter.function.dfg[block].instructions().to_vec() {
-                inserter.map_instruction_in_place(instruction_id);
+            // Re-insert instructions through the DFG simplify path. This resolves
+            // value mappings from load forwarding AND triggers simplification
+            // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
+            // Instructions marked for removal (forwarded loads, dead stores) are skipped.
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                if !instructions_to_remove.contains(instruction_id) {
+                    inserter.push_instruction(*instruction_id, block, true);
+                }
             }
             inserter.map_terminator_in_place(block);
         }
