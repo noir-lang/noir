@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775246185841,
+  "lastUpdate": 1775246187696,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c90e834c9d1d64ef8ec45063d28dbb6b36502806",
-          "message": "fix(brillig): Handle the 4th case in `SpillManager::ensure_permanent_spill` (#12027)",
-          "timestamp": "2026-03-27T16:01:57Z",
-          "tree_id": "a1c518fe1f520df2c5a89d164342dfd8ec20b99a",
-          "url": "https://github.com/noir-lang/noir/commit/c90e834c9d1d64ef8ec45063d28dbb6b36502806"
-        },
-        "date": 1774629451968,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.576,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.332,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.634,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.806,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.77,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.726,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 309,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 485,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.824,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 20.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 119.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.79,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.078,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.581,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.707,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5939e7b2db1a78634b59f24c9223b4d2e02415bc",
+          "message": "fix: check dominators when removing truncate instructions (#12095)",
+          "timestamp": "2026-04-03T19:16:07Z",
+          "tree_id": "fb2801888cad7fda76c6d0dffb7b79749f423ead",
+          "url": "https://github.com/noir-lang/noir/commit/5939e7b2db1a78634b59f24c9223b4d2e02415bc"
+        },
+        "date": 1775246125759,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.526,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.752,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.866,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 260,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 285,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.828,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 20.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 112.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.756,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.554,
             "unit": "s"
           }
         ]
