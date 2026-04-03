@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775164274013,
+  "lastUpdate": 1775221059611,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b48edd44c613d05ee8ecc1764fce300308df27dd",
-          "message": "feat(ssa): Replace most usage of old mem2reg pass (#11935)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-26T18:21:20Z",
-          "tree_id": "8c3f18afea092019c577530c0e8ce1a897e14a1a",
-          "url": "https://github.com/noir-lang/noir/commit/b48edd44c613d05ee8ecc1764fce300308df27dd"
-        },
-        "date": 1774550647454,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168386,
-            "range": "± 306",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137199,
-            "range": "± 1109",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643423,
-            "range": "± 1675",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648444,
             "range": "± 2060",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "64115fc68e79b1b6690ba66f35adaec0c439b33d",
+          "message": "fix(lsp): when two exprs exist at a location, prefer the type of the expression that came first (#12108)",
+          "timestamp": "2026-04-03T12:28:49Z",
+          "tree_id": "6e333a527d5092fd0779061d809a94e7dc4d0a33",
+          "url": "https://github.com/noir-lang/noir/commit/64115fc68e79b1b6690ba66f35adaec0c439b33d"
+        },
+        "date": 1775221007125,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167219,
+            "range": "± 1422",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140864,
+            "range": "± 2907",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645178,
+            "range": "± 2829",
             "unit": "ns/iter"
           }
         ]
