@@ -78,6 +78,8 @@ impl ConstantAllocation {
     }
 
     /// Visit all constant variables in the function and record their locations.
+    ///
+    /// Visit all constant variables in the function and record their locations.
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {

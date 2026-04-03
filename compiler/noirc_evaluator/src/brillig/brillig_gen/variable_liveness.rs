@@ -19,7 +19,7 @@ use crate::ssa::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::{constant_allocation::ConstantAllocation, memcpy_optimizations::MemcpyInfo};
 
 /// A set of [ValueId]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
@@ -83,13 +83,27 @@ fn variables_returned_by_instruction(
 /// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
-fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
+fn variables_used_in_block(
+    block: &BasicBlock,
+    dfg: &DataFlowGraph,
+    memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()
         .flat_map(|instruction_id| {
-            let instruction = &dfg[*instruction_id];
-            variables_used_in_instruction(instruction, dfg)
+            let mut vars = variables_used_in_instruction(&dfg[*instruction_id], dfg);
+            // For memcpy-group MakeArrays, the codegen needs source_array and
+            // base_index alive — inject them as synthetic uses.
+            if let Some(info) = memcpy_groups.get(instruction_id) {
+                if is_variable(info.source_array, dfg) {
+                    vars.insert(info.source_array);
+                }
+                if is_variable(info.base_index, dfg) {
+                    vars.insert(info.base_index);
+                }
+            }
+            vars
         })
         .collect();
 
@@ -129,7 +143,16 @@ pub(crate) struct VariableLiveness {
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
-    pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
+    ///
+    /// `memcpy_groups` maps `MakeArray` instruction IDs to their memcpy info.
+    /// The memcpy codegen needs `source_array` and `base_index` alive at the
+    /// `MakeArray`, even though these are NOT SSA operands of `MakeArray`.
+    /// We inject them as synthetic uses so liveness keeps them alive.
+    pub(crate) fn from_function(
+        func: &Function,
+        constants: &ConstantAllocation,
+        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+    ) -> Self {
         let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
         let back_edges: LoopMap = loops
@@ -150,8 +173,8 @@ impl VariableLiveness {
             max_live_count: 0,
         }
         .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
+        .compute_live_in_of_blocks(func, constants, memcpy_groups, back_edges)
+        .compute_last_uses(func, memcpy_groups)
         .compute_max_live_count(func)
     }
 
@@ -216,10 +239,11 @@ impl VariableLiveness {
         mut self,
         func: &Function,
         constants: &ConstantAllocation,
+        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in(func, func.entry_block(), constants, &back_edges);
+        self.compute_live_in(func, func.entry_block(), constants, memcpy_groups, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -242,6 +266,7 @@ impl VariableLiveness {
         func: &Function,
         entry_block: BasicBlockId,
         constants: &ConstantAllocation,
+        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
         back_edges: &LoopMap,
     ) {
         // Each entry is (block_id, processing_state)
@@ -276,7 +301,7 @@ impl VariableLiveness {
                 // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
 
                 // Variables used in this block, defined in this block or before.
-                let used = variables_used_in_block(block, &func.dfg);
+                let used = variables_used_in_block(block, &func.dfg, memcpy_groups);
 
                 // Variables defined in this block are not alive at the beginning.
                 let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
@@ -375,7 +400,11 @@ impl VariableLiveness {
     ///
     /// For each block, starting from the terminator than going backwards through the instructions,
     /// take note of the first (technically last) instruction the value is used in.
-    fn compute_last_uses(mut self, func: &Function) -> Self {
+    fn compute_last_uses(
+        mut self,
+        func: &Function,
+        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+    ) -> Self {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
@@ -398,11 +427,20 @@ impl VariableLiveness {
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
-                let mut instruction_last_uses: HashSet<ValueId> =
-                    variables_used_in_instruction(instruction, &func.dfg)
-                        .into_iter()
-                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                        .collect();
+                let mut used_vars = variables_used_in_instruction(instruction, &func.dfg);
+                // Inject synthetic uses for memcpy-group MakeArrays.
+                if let Some(info) = memcpy_groups.get(instruction_id) {
+                    if is_variable(info.source_array, &func.dfg) {
+                        used_vars.insert(info.source_array);
+                    }
+                    if is_variable(info.base_index, &func.dfg) {
+                        used_vars.insert(info.base_index);
+                    }
+                }
+                let mut instruction_last_uses: HashSet<ValueId> = used_vars
+                    .into_iter()
+                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                    .collect();
 
                 // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
@@ -567,7 +605,7 @@ mod tests {
         let ssa = builder.finish();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
         assert_eq!(
@@ -719,7 +757,7 @@ mod tests {
         let func = ssa.main();
 
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
         assert_eq!(
@@ -803,7 +841,7 @@ mod tests {
         let func = ssa.main();
 
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Entry point defines its own params and also b3's params.
         assert_eq!(liveness.defined_block_params(&func.entry_block()), vec![v0, v1, v2]);
@@ -834,7 +872,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         let [b0, b1, b2, b3] = block_ids();
         let [_v0, _v1, v2, v3] = value_ids();

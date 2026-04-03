@@ -407,7 +407,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
         let post_order = PostOrder::with_function(func).into_vec();
         let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
         (intervals, ssa)

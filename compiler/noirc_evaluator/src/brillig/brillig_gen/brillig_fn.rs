@@ -18,7 +18,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use super::{
     coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
-    spill_manager::SpillManager, variable_liveness::VariableLiveness,
+    memcpy_optimizations::MemcpyOptimizations, spill_manager::SpillManager,
+    variable_liveness::VariableLiveness,
 };
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
@@ -58,6 +59,9 @@ pub(crate) struct FunctionContext {
     pub(crate) spill_manager: Option<SpillManager>,
     /// Coalescing map for jmp argument → block parameter register sharing.
     pub(crate) coalescing: CoalescingMap,
+    /// Memcpy optimization data: which MakeArray instructions should use mem_copy,
+    /// and which instructions (dead ArrayGets + index adds) should be skipped.
+    pub(crate) memcpy_opts: MemcpyOptimizations,
 }
 
 impl FunctionContext {
@@ -85,8 +89,10 @@ impl FunctionContext {
         let id = function.id();
 
         let post_order = PostOrder::with_function(function).into_vec();
+        let memcpy_opts = MemcpyOptimizations::from_function(function);
         let constants = ConstantAllocation::from_function(function);
-        let liveness = VariableLiveness::from_function(function, &constants);
+        let liveness =
+            VariableLiveness::from_function(function, &constants, &memcpy_opts.memcpy_groups);
         let needs_spill_support =
             liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
@@ -109,6 +115,7 @@ impl FunctionContext {
             constant_allocation: constants,
             spill_manager,
             coalescing,
+            memcpy_opts,
         }
     }
 
