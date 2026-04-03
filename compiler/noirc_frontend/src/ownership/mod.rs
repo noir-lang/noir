@@ -381,7 +381,7 @@ impl Context {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
 
-                if contains_index(array) {
+                if contains_index_or_dereference(array) {
                     **array = LValue::Clone(array.clone());
                 }
             }
@@ -398,14 +398,14 @@ impl Context {
     }
 }
 
-fn contains_index(lvalue: &LValue) -> bool {
+fn contains_index_or_dereference(lvalue: &LValue) -> bool {
     use LValue::*;
     match lvalue {
         Ident(_) => false,
-        Index { .. } => true,
-        Dereference { reference: lvalue, .. }
-        | MemberAccess { object: lvalue, .. }
-        | Clone(lvalue) => contains_index(lvalue),
+        Index { .. } | Dereference { .. } => true,
+        MemberAccess { object: lvalue, .. } | Clone(lvalue) => {
+            contains_index_or_dereference(lvalue)
+        }
     }
 }
 
