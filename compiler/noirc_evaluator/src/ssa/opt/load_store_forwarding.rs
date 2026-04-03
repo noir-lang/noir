@@ -267,6 +267,11 @@ fn forward_loads_and_stores_in_block(
                     let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
+                } else {
+                    // No known value yet — record the load result so subsequent
+                    // loads from the same address can be forwarded (load-to-load).
+                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
+                    known_values.insert(address, result);
                 }
 
                 // This address was loaded from, so the last store to it is not dead.
@@ -389,8 +394,7 @@ mod tests {
             v0 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v0
-            v3 = add Field 1, Field 2
-            return v3
+            return Field 3
         }
         ");
     }
@@ -442,8 +446,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v1
-            v4 = add Field 1, Field 2
-            return v4
+            return Field 3
         }
         ");
     }
@@ -573,9 +576,23 @@ mod tests {
             return v3
         }
         ";
-        // The store to v2 (alias of v0) must clear v0's known value,
-        // so the load should NOT be forwarded.
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The store to v2 (alias of v0) clears v0's known value during forwarding,
+        // so the load is NOT forwarded to stale Field 1. The array_get simplifies
+        // to v0 during re-insertion, but the load correctly remains.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            store Field 2 at v0
+            v4 = load v0 -> Field
+            return v4
+        }
+        ");
     }
 
     #[test]
@@ -664,8 +681,7 @@ mod tests {
           b0():
             jmp b2()
           b1():
-            v3 = add u32 10, u32 1
-            return v3
+            return u32 11
           b2():
             v0 = allocate -> &mut u32
             store u32 10 at v0
@@ -741,5 +757,85 @@ mod tests {
         // is loaded from v2, which aliases v3 after `store v3 at v2`) reads
         // through the alias in the next iteration.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn remove_redundant_loads_from_ref_params() {
+        // Loads from reference parameters (not local allocations) should still be
+        // forwarded load-to-load when no intervening store invalidates them.
+        // After a store, subsequent loads should pick up the stored value.
+        let src = "
+        brillig(inline) impure fn push f0 {
+          b0(v0: &mut [Field; 4], v1: &mut u32, v2: Field):
+            v3 = load v0 -> [Field; 4]
+            v4 = load v1 -> u32
+            v5 = load v0 -> [Field; 4]
+            v6 = load v1 -> u32
+            v8 = lt v6, u32 4
+            constrain v8 == u1 1
+            v10 = array_set v3, index v6, value v2
+            v12 = unchecked_add v6, u32 1
+            store v10 at v0
+            store v4 at v1
+            v13 = load v0 -> [Field; 4]
+            v14 = add v4, u32 1
+            v15 = load v0 -> [Field; 4]
+            store v15 at v0
+            store v14 at v1
+            return
+        }
+        brillig(inline) impure fn next_counter f1 {
+          b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
+            v3 = load v0 -> [Field; 4]
+            v4 = load v1 -> u32
+            v5 = load v2 -> Field
+            v6 = load v0 -> [Field; 4]
+            v7 = load v1 -> u32
+            v8 = load v2 -> Field
+            v10 = add v8, Field 1
+            v11 = load v0 -> [Field; 4]
+            v12 = load v1 -> u32
+            v13 = load v2 -> Field
+            store v11 at v0
+            store v12 at v1
+            store v10 at v2
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // In push: v5/v6 forward to v3/v4 (load-to-load), v13 forwards to v10 (store-to-load),
+        // v15 forwards to v10 (store-to-load, since v13 was forwarded to v10).
+        // In next_counter: v6/v7/v8 forward to v3/v4/v5 (load-to-load),
+        // v11/v12/v13 forward to v3/v4/v5 (load-to-load, no intervening stores to v0/v1/v2
+        // between the first loads and these).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn push f0 {
+          b0(v0: &mut [Field; 4], v1: &mut u32, v2: Field):
+            v3 = load v0 -> [Field; 4]
+            v4 = load v1 -> u32
+            v6 = lt v4, u32 4
+            constrain v6 == u1 1
+            v8 = array_set v3, index v4, value v2
+            v10 = unchecked_add v4, u32 1
+            store v8 at v0
+            v11 = add v4, u32 1
+            store v8 at v0
+            store v11 at v1
+            return
+        }
+        brillig(inline) impure fn next_counter f1 {
+          b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
+            v3 = load v0 -> [Field; 4]
+            v4 = load v1 -> u32
+            v5 = load v2 -> Field
+            v7 = add v5, Field 1
+            store v3 at v0
+            store v4 at v1
+            store v7 at v2
+            return v5
+        }
+        ");
     }
 }
