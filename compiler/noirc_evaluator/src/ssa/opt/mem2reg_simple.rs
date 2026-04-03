@@ -46,19 +46,6 @@ use crate::ssa::{
 /// paid previously.
 const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
-// /// Maximum number of blocks a variable's declaration can dominate before we skip
-// /// promoting it in the pre-flattening pass.
-// ///
-// /// The cost of promoting a variable before flattening is O(promoted_variables × dominated_blocks)
-// /// because each promoted variable adds a block parameter to every dominated block, and the
-// /// flattener converts each conditional block into ~5 predicate opcodes (not, mul,
-// /// enable_side_effects, etc.). A variable that spans many blocks (e.g. a byte in a 254-iteration
-// /// unrolled loop) can generate thousands of extra ACIR opcodes.
-// ///
-// /// This limit filters out variables whose declaration dominates too many blocks,
-// /// keeping promotion beneficial for small CFGs (like if/else diamonds in `conditional_1`)
-// /// while avoiding regressions in deeply unrolled code (like `to_bytes_integration`).
-// const MAX_BLOCK_SPAN_PRE_FLATTENING: usize = 100;
 
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
