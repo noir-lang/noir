@@ -786,8 +786,10 @@ impl Elaborator<'_> {
                 self.unify_or_type_mismatch(&reference_type, &expected_type, location);
 
                 // Check mutability after unification so that type variables are resolved first
-                if let Type::Reference(_, is_mutable) = reference_type.follow_bindings() {
-                    mutable = is_mutable;
+                if let Type::Reference(_, is_mutable) =
+                    reference_type.follow_bindings_shallow().as_ref()
+                {
+                    mutable = *is_mutable;
                 }
 
                 let typ = element_type.clone();
