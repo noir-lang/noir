@@ -216,6 +216,10 @@ fn forward_loads_and_stores_in_block(
     // Maps address -> last store instruction (candidate for dead store elimination)
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
+    // Maps address -> last load result (for load-to-load forwarding).
+    // Kept separate from known_values so that load entries don't interfere
+    // with the store handler's clear-on-unknown-store alias heuristic.
+    let mut last_loads: HashMap<ValueId, ValueId> = HashMap::default();
     // Track addresses from Allocate instructions in this block.
     // These are definitionally fresh and cannot alias anything else.
     let mut local_allocations: HashSet<ValueId> = HashSet::default();
@@ -240,22 +244,29 @@ fn forward_loads_and_stores_in_block(
                     // variable in a subsequent iteration. Conservatively clear all
                     // known values to prevent stale forwarding.
                     known_values.clear();
+                    last_loads.clear();
                     last_stores.clear();
                 } else if !known_values.contains_key(&address)
                     && !local_allocations.contains(&address)
                 {
                     // This address wasn't allocated locally and wasn't seen in a prior
                     // store — it could be an alias of an existing known reference
-                    // (e.g. extracted via array_get). Conservatively clear all known
-                    // reference values.
-                    known_values.clear();
-                    last_stores.clear();
+                    // (e.g. extracted via array_get). Clear known values for addresses
+                    // of the same type, since different-typed references cannot alias.
+                    let store_type = inserter.function.dfg.type_of_value(address);
+                    let can_alias =
+                        |addr: &ValueId| inserter.function.dfg.type_of_value(*addr) == store_type;
+                    known_values.retain(|addr, _| !can_alias(addr));
+                    last_loads.retain(|addr, _| !can_alias(addr));
+                    last_stores.retain(|addr, _| !can_alias(addr));
                 } else if let Some(prev_store) = last_stores.get(&address) {
                     // Previous store to this known/local address with no intervening
                     // load is dead.
                     instructions_to_remove.insert(*prev_store);
                 }
 
+                // A store supersedes any prior load from this address.
+                last_loads.remove(&address);
                 known_values.insert(address, value);
                 last_stores.insert(address, instruction_id);
             }
@@ -263,15 +274,20 @@ fn forward_loads_and_stores_in_block(
                 let address = inserter.resolve(*address);
 
                 if let Some(value) = known_values.get(&address) {
-                    // We know the value at this address — replace the load result.
+                    // Store-to-load: we know the value from a prior store.
                     let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
-                } else {
-                    // No known value yet — record the load result so subsequent
-                    // loads from the same address can be forwarded (load-to-load).
+                } else if let Some(prev_result) = last_loads.get(&address) {
+                    // Load-to-load: no store to this address since the last load,
+                    // so we can reuse the previous load's result.
                     let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    known_values.insert(address, result);
+                    inserter.map_value(result, *prev_result);
+                    instructions_to_remove.insert(instruction_id);
+                } else {
+                    // No known value — record for future load-to-load forwarding.
+                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
+                    last_loads.insert(address, result);
                 }
 
                 // This address was loaded from, so the last store to it is not dead.
@@ -286,9 +302,11 @@ fn forward_loads_and_stores_in_block(
                     let value = inserter.resolve(value);
                     if inserter.function.dfg.value_is_reference(value) {
                         known_values.remove(&value);
+                        last_loads.remove(&value);
                         last_stores.remove(&value);
                     } else if inserter.function.dfg.type_of_value(value).contains_reference() {
                         known_values.clear();
+                        last_loads.clear();
                         last_stores.clear();
                     }
                 });
@@ -805,8 +823,9 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
 
-        // In push: v5/v6 forward to v3/v4 (load-to-load), v13 forwards to v10 (store-to-load),
-        // v15 forwards to v10 (store-to-load, since v13 was forwarded to v10).
+        // In push: v5/v6 forward to v3/v4 (load-to-load before any stores).
+        // v13 forwards to v10 (store-to-load: v0 kept through store to v1 since types differ),
+        // v15 forwards to v10 (store-to-load), making store v4 at v1 a dead store.
         // In next_counter: v6/v7/v8 forward to v3/v4/v5 (load-to-load),
         // v11/v12/v13 forward to v3/v4/v5 (load-to-load, no intervening stores to v0/v1/v2
         // between the first loads and these).
@@ -837,5 +856,24 @@ mod tests {
             return v5
         }
         ");
+    }
+
+    #[test]
+    fn load_to_load_does_not_bypass_alias_clear() {
+        // Two reference params could alias. A load-to-load entry for v1 must not
+        // prevent the store-to-v1 from clearing v0's known value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            v2 = load v0 -> Field
+            store Field 5 at v0
+            v3 = load v1 -> Field
+            store Field 6 at v1
+            v4 = load v0 -> Field
+            return v4
+        }
+        ";
+        // v0 and v1 could alias, so load v0 after store to v1 must NOT be forwarded.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 }
