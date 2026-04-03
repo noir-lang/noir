@@ -1,9 +1,6 @@
-use crate::{
-    elaborator::UnstableFeature,
-    tests::{
-        assert_no_errors, assert_no_errors_using_features, check_errors,
-        check_errors_using_features, check_monomorphization_error, get_program_using_features,
-    },
+use crate::tests::{
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    check_monomorphization_error,
 };
 
 #[test]
@@ -108,7 +105,7 @@ fn constrained_reference_to_unconstrained() {
 }
 
 #[test]
-fn immutable_references_with_ownership_feature() {
+fn immutable_references_with_ownership_feature_brillig() {
     let src = r#"
         unconstrained fn main() {
             let array = [1, 2, 3];
@@ -117,26 +114,20 @@ fn immutable_references_with_ownership_feature() {
 
         fn borrow(_array: &[Field; 3]) {}
     "#;
-
-    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
-fn immutable_references_without_ownership_feature() {
+fn immutable_references_with_ownership_feature() {
     let src = r#"
         fn main() {
             let array = [1, 2, 3];
             borrow(&array);
-                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
         }
 
         fn borrow(_array: &[Field; 3]) {}
-                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors(src);
+     "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -223,7 +214,7 @@ fn method_with_immutable_self_reference_does_not_require_mutable_variable() {
         assert(s.ping() == 1);
     }
     "#;
-    assert_no_errors_using_features(src, &[UnstableFeature::Ownership]);
+    assert_no_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -236,7 +227,7 @@ fn disallows_mutating_non_mutable_ref_member_access() {
         ^^ `ps` is a `&` reference, so it cannot be written to
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -249,7 +240,7 @@ fn disallows_mutating_non_mutable_ref_array_index() {
         ^^ `ps` is a `&` reference, so it cannot be written to
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -261,7 +252,7 @@ fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
         ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -272,7 +263,7 @@ fn allows_mutating_mutable_reference_inside_non_mutable_reference() {
         x.0.0 = 1;
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -284,7 +275,7 @@ fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
         ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
