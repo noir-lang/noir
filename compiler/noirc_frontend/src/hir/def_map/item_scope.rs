@@ -54,10 +54,19 @@ impl ItemScope {
                     // which exists in the Noir stdlib prelude.
                     //
                     // In this case we ignore the prelude and favour the explicit import.
-                    let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
-                    let old_ident = o.key();
-
-                    if is_prelude { Ok(()) } else { Err((old_ident.clone(), name)) }
+                    let old_is_prelude = n.get().2;
+                    if old_is_prelude && !is_prelude {
+                        // Explicit import or definition overrides prelude
+                        *n.get_mut() = (mod_def, visibility, is_prelude);
+                        Ok(())
+                    } else if is_prelude {
+                        // Prelude cannot override anything: silently drop prelude import
+                        Ok(())
+                    } else {
+                        // Two non-prelude definitions: genuine duplicate
+                        let old_ident = o.key();
+                        Err((old_ident.clone(), name))
+                    }
                 } else {
                     trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                     Ok(())
