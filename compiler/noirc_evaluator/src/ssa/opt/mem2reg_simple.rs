@@ -74,7 +74,7 @@ impl Ssa {
         for function in self.functions.values_mut() {
             let max_vars =
                 if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars, None);
+            function.mem2reg_simple(max_vars, None, true);
         }
         self
     }
@@ -84,7 +84,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
+                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None, true);
             }
         }
         self
@@ -100,9 +100,9 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
+                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None, true);
             } else {
-                function.mem2reg_simple(None, None);
+                function.mem2reg_simple(None, None, true);
             }
         }
         self
@@ -110,7 +110,12 @@ impl Ssa {
 }
 
 impl Function {
-    fn mem2reg_simple(&mut self, max_variables: Option<u32>, max_block_span: Option<usize>) {
+    fn mem2reg_simple(
+        &mut self,
+        max_variables: Option<u32>,
+        max_block_span: Option<usize>,
+        cleanup: bool,
+    ) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -182,7 +187,9 @@ impl Function {
             &block_states,
             &cfg,
         );
-        remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
+        if cleanup {
+            remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
+        }
         commit(&mut inserter, &variables, blocks);
     }
 
@@ -190,43 +197,8 @@ impl Function {
     /// whose arguments are all identical. This reveals whether the IDF-based placement
     /// avoided unnecessary parameters at source, rather than relying on cleanup.
     #[cfg(test)]
-    pub(crate) fn mem2reg_simple_without_cleanup(&mut self) {
-        let cfg = ControlFlowGraph::with_function(self);
-        let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-        let mut inserter = FunctionInserter::new(self);
-
-        let blocks = post_order.into_vec_reverse();
-        let (variables, def_sites) =
-            collect_eligible_variables_and_def_sites(inserter.function, &blocks);
-        if variables.is_empty() {
-            return;
-        }
-
-        let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
-        let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
-
-        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
-
-        let mut block_states = BlockStates::default();
-        add_block_params_and_find_exit_states(
-            &blocks,
-            &visible_vars,
-            &param_locations,
-            &mut inserter,
-            &mut block_states,
-            &cfg,
-        );
-        add_terminator_arguments(
-            &blocks,
-            &variables,
-            &param_locations,
-            &mut inserter,
-            &block_states,
-            &cfg,
-        );
-        // Intentionally skip remove_params_from_blocks_with_identical_terminator_args
-        commit(&mut inserter, &variables, blocks);
+    fn mem2reg_simple_without_cleanup(&mut self) {
+        self.mem2reg_simple(None, None, false);
     }
 }
 
