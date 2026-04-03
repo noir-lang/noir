@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::elaborator::types::SimilarlyNamedType;
 use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
@@ -62,9 +63,20 @@ pub enum TypeCheckError {
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
-    TypeMismatch { expected_typ: String, expr_typ: String, expr_location: Location },
+    TypeMismatch {
+        expected_typ: String,
+        expr_typ: String,
+        expr_location: Location,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
+    },
     #[error("Expected type {expected} is not the same as {actual}")]
-    TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
+    TypeMismatchWithSource {
+        expected: String,
+        actual: String,
+        location: Location,
+        source: Source,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
+    },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
@@ -196,9 +208,7 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { location: Location },
-    #[error(
-        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
-    )]
+    #[error("Cannot pass a reference from an unconstrained runtime to an constrained runtime")]
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { location: Location },
@@ -426,12 +436,27 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *location,
             ),
-            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location } => {
-                Diagnostic::simple_error(
+            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location, similarly_named_types: similar_types } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     *expr_location,
-                )
+                );
+                for (type1, type2) in similar_types {
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *expr_location);
+
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
+                }
+                diagnostic
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
                 // Try to improve the error message for some kind combinations
@@ -629,7 +654,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source, similarly_named_types: similar_types } => {
                 let message = match source {
                     Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
@@ -654,7 +679,23 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
-                Diagnostic::simple_error(message, String::new(), *location)
+                let mut diagnostic = Diagnostic::simple_error(message, String::new(), *location);
+                for (type1, type2) in similar_types {
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *location);
+
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
+                }
+                diagnostic
+
             }
             TypeCheckError::CallDeprecated { location, note, deny, name } => {
                 let default_primary = format!("`{name}` has been deprecated");

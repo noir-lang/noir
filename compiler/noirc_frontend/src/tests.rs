@@ -24,6 +24,7 @@ mod runtime;
 mod structs;
 mod traits;
 mod turbofish;
+mod type_mismatch;
 mod unused_items;
 mod visibility;
 

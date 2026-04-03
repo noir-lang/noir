@@ -1,4 +1,5 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
+mod similarly_named_types;
 
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
@@ -8,6 +9,8 @@ use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
+
+pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
     BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
@@ -263,20 +266,10 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            Reference(element, mutable) => {
-                if !mutable {
-                    self.use_unstable_feature(UnstableFeature::Ownership, location);
-                }
-                Type::Reference(
-                    Box::new(self.resolve_type_with_kind_inner(
-                        *element,
-                        kind,
-                        mode,
-                        wildcard_allowed,
-                    )),
-                    mutable,
-                )
-            }
+            Reference(element, mutable) => Type::Reference(
+                Box::new(self.resolve_type_with_kind_inner(*element, kind, mode, wildcard_allowed)),
+                mutable,
+            ),
             Parenthesized(typ) => {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
@@ -1603,10 +1596,11 @@ impl Elaborator<'_> {
         &mut self,
         actual: &Type,
         expected: &Type,
-        make_error: impl FnOnce() -> TypeCheckError,
+        make_error: impl FnOnce(&Elaborator) -> TypeCheckError,
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
-            self.push_err(make_error());
+            let error = make_error(self);
+            self.push_err(error);
         }
     }
 
@@ -1618,17 +1612,10 @@ impl Elaborator<'_> {
         expected: &Type,
         expression: ExprId,
         location: Location,
-        make_error: impl FnOnce() -> CompilationError,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(
-            expected,
-            expression,
-            location,
-            self.interner,
-            &mut errors,
-            make_error,
-        );
+        actual.unify_with_coercions(expected, expression, location, self, &mut errors, make_error);
 
         // When passing lambdas to unconstrained functions that don't explicitly state
         // that they expect unconstrained lambdas, ignore the coercion.
@@ -1639,6 +1626,59 @@ impl Elaborator<'_> {
         }
 
         self.push_errors(errors);
+    }
+
+    pub(super) fn unify_or_type_mismatch(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        location: Location,
+    ) {
+        self.unify(actual, expected, |elaborator| {
+            elaborator.new_type_mismatch_error(actual, expected, location)
+        });
+    }
+
+    pub(super) fn unify_or_type_mismatch_with_source(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        source: Source,
+        location: Location,
+    ) {
+        self.unify(actual, expected, |elaborator| {
+            elaborator.new_type_mismatch_with_source_error(actual, expected, source, location)
+        });
+    }
+
+    pub(crate) fn new_type_mismatch_error(
+        &self,
+        actual: &Type,
+        expected: &Type,
+        location: Location,
+    ) -> TypeCheckError {
+        TypeCheckError::TypeMismatch {
+            expected_typ: expected.to_string(),
+            expr_typ: actual.to_string(),
+            expr_location: location,
+            similarly_named_types: self.compute_similarly_named_types(actual, expected),
+        }
+    }
+
+    pub(crate) fn new_type_mismatch_with_source_error(
+        &self,
+        actual: &Type,
+        expected: &Type,
+        source: Source,
+        location: Location,
+    ) -> TypeCheckError {
+        TypeCheckError::TypeMismatchWithSource {
+            expected: expected.to_string(),
+            actual: actual.to_string(),
+            source,
+            location,
+            similarly_named_types: self.compute_similarly_named_types(actual, expected),
+        }
     }
 
     /// Return a fresh integer or field type variable and log it
@@ -1749,12 +1789,12 @@ impl Elaborator<'_> {
         }
 
         for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
-            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
-                CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                    expected_typ: param.to_string(),
-                    expr_typ: arg.to_string(),
-                    expr_location: *arg_location,
-                })
+            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, |elaborator| {
+                CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                    arg,
+                    param,
+                    *arg_location,
+                ))
             });
         }
 
@@ -1826,7 +1866,7 @@ impl Elaborator<'_> {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
                 let expected = self.polymorphic_integer_or_field();
-                self.unify(from, &expected, || TypeCheckError::InvalidCast {
+                self.unify(from, &expected, |_| TypeCheckError::InvalidCast {
                     from: from.clone(),
                     location,
                     reason: "casting from a non-integral type is unsupported".into(),
@@ -1953,12 +1993,7 @@ impl Elaborator<'_> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs.clone(),
-                    actual: rhs.clone(),
-                    location: op.location,
-                    source: Source::Binary,
-                });
+                self.unify_or_type_mismatch_with_source(rhs, lhs, Source::Binary, op.location);
                 Ok((Bool, true))
             }
         }
@@ -1975,11 +2010,13 @@ impl Elaborator<'_> {
         rhs_type: &Type,
         location: Location,
     ) -> bool {
-        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
-            expected: lhs_type.clone(),
-            actual: rhs_type.clone(),
-            source: Source::Binary,
-            location,
+        self.unify(lhs_type, rhs_type, |elaborator| {
+            elaborator.new_type_mismatch_with_source_error(
+                rhs_type,
+                lhs_type,
+                Source::Binary,
+                location,
+            )
         });
 
         let use_impl = !lhs_type.is_numeric_value();
@@ -1993,7 +2030,7 @@ impl Elaborator<'_> {
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
-            self.unify(lhs_type, &target, || match op.kind {
+            self.unify(lhs_type, &target, |_| match op.kind {
                 Less | LessEqual | Greater | GreaterEqual => FieldComparison { location },
                 And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { location },
                 Modulo => FieldModulo { location },
@@ -2092,12 +2129,7 @@ impl Elaborator<'_> {
             },
 
             (lhs, rhs) => {
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
-                    expected: lhs.clone(),
-                    actual: rhs.clone(),
-                    location: op.location,
-                    source: Source::Binary,
-                });
+                self.unify_or_type_mismatch_with_source(rhs, lhs, Source::Binary, op.location);
                 Ok((lhs.clone(), true))
             }
         }
@@ -2139,7 +2171,7 @@ impl Elaborator<'_> {
                         // type we constrain it to just (non-Field) integer types.
                         if matches!(op, UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
-                            self.unify(rhs_type, &integer_type, || {
+                            self.unify(rhs_type, &integer_type, |_| {
                                 TypeCheckError::InvalidUnaryOp {
                                     typ: rhs_type.to_string(),
                                     operator: "!",
@@ -2186,11 +2218,7 @@ impl Elaborator<'_> {
 
                 // Both `&mut T` and `&T` should coerce to an expected `&T`.
                 if !rhs_type.try_reference_coercion(&immutable) {
-                    self.unify(rhs_type, &mutable, || TypeCheckError::TypeMismatch {
-                        expr_typ: rhs_type.to_string(),
-                        expected_typ: mutable.to_string(),
-                        expr_location: location,
-                    });
+                    self.unify_or_type_mismatch(rhs_type, &mutable, location);
                 }
                 Ok((element_type, false))
             }
@@ -2223,11 +2251,7 @@ impl Elaborator<'_> {
                     "type_check_operator_method ICE: expected operator method to have at least one argument type"
                 );
 
-                self.unify(&env, &Type::Unit, || TypeCheckError::TypeMismatch {
-                    expected_typ: Type::Unit.to_string(),
-                    expr_typ: env.to_string(),
-                    expr_location: location,
-                });
+                self.unify_or_type_mismatch(&env, &Type::Unit, location);
 
                 // Uses of `Ord` that return `bool`, e.g. `<`, `<=`, etc., are expected to have
                 // a `return_type` of `bool`, but have a `ret` of type `std::cmp::Ordering`
@@ -2264,40 +2288,20 @@ impl Elaborator<'_> {
                         WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn),
                     );
 
-                    self.unify(&Type::Bool, return_type, || TypeCheckError::TypeMismatch {
-                        expr_typ: ret.to_string(),
-                        expected_typ: Type::Bool.to_string(),
-                        expr_location: location,
-                    });
-                    self.unify(&ordering_type, &ret, || TypeCheckError::TypeMismatch {
-                        expr_typ: ret.to_string(),
-                        expected_typ: ordering_type.to_string(),
-                        expr_location: location,
-                    });
+                    self.unify_or_type_mismatch(return_type, &Type::Bool, location);
+                    self.unify_or_type_mismatch(&ret, &ordering_type, location);
                 } else {
-                    self.unify(&ret, return_type, || TypeCheckError::TypeMismatch {
-                        expr_typ: ret.to_string(),
-                        expected_typ: return_type.to_string(),
-                        expr_location: location,
-                    });
+                    self.unify_or_type_mismatch(&ret, return_type, location);
                 }
 
                 let expected_object_type = args.pop().unwrap_or_else(|| {
                     unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")
                 });
                 for arg in args {
-                    self.unify(&arg, &expected_object_type, || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_object_type.to_string(),
-                        expr_typ: arg.to_string(),
-                        expr_location: location,
-                    });
+                    self.unify_or_type_mismatch(&arg, &expected_object_type, location);
                 }
 
-                self.unify(object_type, &expected_object_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected_object_type.to_string(),
-                    expr_typ: object_type.to_string(),
-                    expr_location: location,
-                });
+                self.unify_or_type_mismatch(object_type, &expected_object_type, location);
             }
             Type::Error => {
                 self.push_err(TypeCheckError::expecting_other_error(
@@ -3003,12 +3007,12 @@ impl Elaborator<'_> {
                 )
                 .is_err()
             {
-                self.push_err(TypeCheckError::TypeMismatchWithSource {
-                    expected: declared_return_type.clone(),
-                    actual: body_type,
-                    location: last_expr_location,
-                    source: Source::Return(meta.return_type.clone(), expr_location),
-                });
+                self.push_err(self.new_type_mismatch_with_source_error(
+                    &body_type,
+                    declared_return_type,
+                    Source::Return(meta.return_type.clone(), expr_location),
+                    last_expr_location,
+                ));
             }
         } else {
             self.unify_with_coercions(
@@ -3016,13 +3020,13 @@ impl Elaborator<'_> {
                 declared_return_type,
                 body_id,
                 last_expr_location,
-                || {
-                    let mut error = TypeCheckError::TypeMismatchWithSource {
-                        expected: declared_return_type.clone(),
-                        actual: body_type.clone(),
-                        location: last_expr_location,
-                        source: Source::Return(meta.return_type.clone(), expr_location),
-                    };
+                |elaborator| {
+                    let mut error = elaborator.new_type_mismatch_with_source_error(
+                        &body_type,
+                        declared_return_type,
+                        Source::Return(meta.return_type.clone(), expr_location),
+                        last_expr_location,
+                    );
 
                     if empty_function {
                         error = error.add_context(
