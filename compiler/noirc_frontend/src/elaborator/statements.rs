@@ -5,9 +5,8 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignOpStatement, AssignStatement, BinaryOp, Expression, ExpressionKind, ForLoopStatement,
-        ForRange, InfixExpression, LValue, LetStatement, LoopStatement, Statement, StatementKind,
-        WhileStatement,
+        AssignOpStatement, AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement,
+        LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
     },
     elaborator::{
         PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
@@ -19,7 +18,10 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
+        expr::{
+            HirBinaryOp, HirBlockExpression, HirExpression, HirIdent, HirIndexExpression,
+            HirLiteral, HirMemberAccess, HirPrefixExpression,
+        },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
@@ -246,47 +248,16 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-        let (lvalue, lvalue_type, mutable, mut new_statements) =
-            self.elaborate_lvalue(assign.lvalue);
-
-        self.mark_lvalue_variables_as_mutated(&lvalue);
-
-        if !mutable {
-            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
-        } else {
-            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
-            if let Some(id) = id {
-                self.check_can_mutate_lambda_capture(id, name, location);
-            }
-        }
-
-        self.unify_with_coercions(
-            &expr_type,
-            &lvalue_type,
+        let (lvalue, lvalue_type, mutable, new_statements) = self.elaborate_lvalue(assign.lvalue);
+        self.finish_assign(
+            lvalue,
+            lvalue_type,
+            mutable,
             expression,
+            expr_type,
             expr_location,
-            |elaborator| {
-                CompilationError::TypeError(elaborator.new_type_mismatch_with_source_error(
-                    &expr_type,
-                    &lvalue_type,
-                    Source::Assignment,
-                    expr_location,
-                ))
-            },
-        );
-
-        let assign = HirAssignStatement { lvalue, expression };
-        let assign = HirStatement::Assign(assign);
-
-        if new_statements.is_empty() {
-            (assign, Type::Unit)
-        } else {
-            let assign = self.interner.push_stmt_full(assign, expr_location);
-            new_statements.push(assign);
-            let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
-            let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
-            (HirStatement::Expression(block), Type::Unit)
-        }
+            new_statements,
+        )
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -294,24 +265,135 @@ impl Elaborator<'_> {
         &mut self,
         assign_op: AssignOpStatement,
     ) -> (HirStatement, Type) {
-        // Transform `a <op>= b` into `a = a <op> b` and then elaborate that assignment statement
-        // TODO: this still has the issue that `a` will be evaluated twice, but this will be fixed in a next commit.
-        let lvalue = assign_op.lvalue;
-        let rhs_expression = lvalue.as_expression();
+        // Transform `lvalue <op>= rhs` into `lvalue = lvalue <op> rhs`.
+        //
+        // We must elaborate the lvalue first and reuse its HIR form for the read side of the
+        // infix expression. This prevents index sub-expressions from being evaluated twice.
+        // For example, `x[f()] += 1` must call `f()` only once.
+        //
+        // `elaborate_lvalue` already extracts any side-effectful index expressions into fresh
+        // let bindings (new_statements) and replaces them with simple ident references, so the
+        // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
+        // any side effects.
         let expression_location = assign_op.expression.location;
-        let expression = Expression {
-            kind: ExpressionKind::Infix(Box::new(InfixExpression {
-                lhs: rhs_expression,
-                operator: BinaryOp::from(
-                    assign_op.op.location(),
-                    assign_op.op.contents.to_binary_op_kind(),
-                ),
-                rhs: assign_op.expression,
-            })),
-            location: expression_location,
-        };
-        let assign = AssignStatement { lvalue, expression };
-        self.elaborate_assign(assign)
+
+        let (hir_lvalue, lvalue_type, mutable, new_statements) =
+            self.elaborate_lvalue(assign_op.lvalue);
+
+        // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
+        // that were already bound by the index let-statements in new_statements.
+        let lhs_expr = self.hir_lvalue_as_expr(&hir_lvalue);
+        let lhs_type = lvalue_type.clone();
+
+        // Elaborate the right-hand side of the operator.
+        let (rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
+
+        let op_kind = assign_op.op.contents.to_binary_op_kind();
+        let operator = HirBinaryOp { kind: op_kind, location: assign_op.op.location() };
+        let (expression, expression_type) = self.finish_infix(
+            lhs_expr,
+            lhs_type,
+            operator,
+            rhs_expr,
+            rhs_type,
+            expression_location,
+        );
+
+        self.finish_assign(
+            hir_lvalue,
+            lvalue_type,
+            mutable,
+            expression,
+            expression_type,
+            expression_location,
+            new_statements,
+        )
+    }
+
+    /// Complete assignment elaboration given an already-elaborated lvalue and rhs expression.
+    /// Handles mutability checks, type unification, and wrapping in a block when index
+    /// let-bindings were emitted by `elaborate_lvalue`.
+    #[allow(clippy::too_many_arguments)]
+    fn finish_assign(
+        &mut self,
+        lvalue: HirLValue,
+        lvalue_type: Type,
+        mutable: bool,
+        expression: ExprId,
+        expr_type: Type,
+        location: Location,
+        mut new_statements: Vec<StmtId>,
+    ) -> (HirStatement, Type) {
+        self.mark_lvalue_variables_as_mutated(&lvalue);
+
+        if !mutable {
+            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
+        } else {
+            let (id, name, loc) = self.get_lvalue_error_info(&lvalue);
+            if let Some(id) = id {
+                self.check_can_mutate_lambda_capture(id, name, loc);
+            }
+        }
+
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, location, |elaborator| {
+            CompilationError::TypeError(elaborator.new_type_mismatch_with_source_error(
+                &expr_type,
+                &lvalue_type,
+                Source::Assignment,
+                location,
+            ))
+        });
+
+        let assign = HirAssignStatement { lvalue, expression };
+        let assign = HirStatement::Assign(assign);
+
+        if new_statements.is_empty() {
+            (assign, Type::Unit)
+        } else {
+            let assign = self.interner.push_stmt_full(assign, location);
+            new_statements.push(assign);
+            let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
+            let block = self.interner.push_expr_full(block, location, Type::Unit);
+            (HirStatement::Expression(block), Type::Unit)
+        }
+    }
+
+    /// Convert a HIR lvalue into a read expression, reusing the same ident ExprIds.
+    /// This is used to build the read side of a desugared op-assign without re-evaluating
+    /// any index sub-expressions.
+    fn hir_lvalue_as_expr(&mut self, lvalue: &HirLValue) -> ExprId {
+        let location = lvalue.location();
+        match lvalue {
+            HirLValue::Ident(ident, typ) => {
+                let expr = HirExpression::Ident(ident.clone(), None);
+                self.interner.push_expr_full(expr, location, typ.clone())
+            }
+            HirLValue::MemberAccess { object, field_name, typ, location, .. } => {
+                let lhs = self.hir_lvalue_as_expr(object);
+                let expr = HirExpression::MemberAccess(HirMemberAccess {
+                    lhs,
+                    rhs: field_name.clone(),
+                    is_offset: false,
+                });
+                self.interner.push_expr_full(expr, *location, typ.clone())
+            }
+            HirLValue::Index { array, index, typ, location } => {
+                let collection = self.hir_lvalue_as_expr(array);
+                let expr = HirExpression::Index(HirIndexExpression { collection, index: *index });
+                self.interner.push_expr_full(expr, *location, typ.clone())
+            }
+            HirLValue::Dereference { lvalue, element_type, implicitly_added, location } => {
+                let inner = self.hir_lvalue_as_expr(lvalue);
+                let expr = HirExpression::Prefix(HirPrefixExpression::new(
+                    UnaryOp::Dereference { implicitly_added: *implicitly_added },
+                    inner,
+                ));
+                self.interner.push_expr_full(expr, *location, element_type.clone())
+            }
+            HirLValue::Error { location } => {
+                self.interner.push_expr_full(HirExpression::Error, *location, Type::Error)
+            }
+        }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
