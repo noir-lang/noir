@@ -49,10 +49,6 @@ impl<K, V> Slot<K, V> {
         !self._is_deleted & self._is_present
     }
 
-    fn is_available(&self) -> bool {
-        self._is_deleted | !self._is_present
-    }
-
     fn set(&mut self, key: K, value: V) {
         self._key = key;
         self._value = value;
@@ -88,7 +84,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     where
         B: BuildHasher,
     {
-        // docs:end:with_hasher
         let mut _table = [].as_vector();
         for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
@@ -315,27 +310,43 @@ impl<K, V, B> UHashMap<K, V, B> {
         self.try_resize();
 
         let hash = self.hash(key);
+        let mut insert_index: u32 = 0;
+        let mut increment_length = false;
+        let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
-            let index = self.linear_probe(hash, attempt as u32);
-            let mut slot = self._table[index];
-            let mut insert = false;
+            let index = self.linear_probe(hash, attempt);
+            let slot = self._table[index];
 
-            // Either marked as deleted or has unset key-value.
-            if slot.is_available() {
-                insert = true;
-                self._len += 1;
-            } else {
+            if slot.is_valid() {
                 if slot._key == key {
-                    insert = true;
+                    // Key exists: update in place without changing length.
+                    insert_index = index;
+                    break;
                 }
-            }
-
-            if insert {
-                slot.set(key, value);
-                self._table[index] = slot;
+            } else if slot._is_deleted {
+                // Deleted slot: remember as candidate but keep probing for existing key.
+                if !found_deleted_candidate {
+                    insert_index = index;
+                    found_deleted_candidate = true;
+                }
+            } else {
+                // Empty slot: key cannot exist beyond this point.
+                // Insert at a deleted slot, if we found one previously, or at the current slot.
+                if !found_deleted_candidate {
+                    insert_index = index;
+                }
+                increment_length = true;
                 break;
             }
+        }
+
+        let mut s = self._table[insert_index];
+        s.set(key, value);
+        self._table[insert_index] = s;
+
+        if increment_length {
+            self._len += 1;
         }
     }
 
@@ -445,5 +456,27 @@ where
     fn default() -> Self {
         // docs:end:default
         UHashMap::with_hasher(B::default())
+    }
+}
+
+mod test {
+    use crate::hash::BuildHasherDefault;
+    use crate::hash::poseidon2::Poseidon2Hasher;
+    use super::UHashMap;
+
+    #[test]
+    unconstrained fn test_no_duplicate_keys_after_deletion_and_insertion() {
+        // The capacity and keys used here, with the Poseidon2Hasher, have the keys 5 and 8 end up in slot 0.
+        let mut map = UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<Poseidon2Hasher> {},
+            8,
+        );
+        map.insert(5, 5);
+        map.insert(8, 8);
+        map.remove(5);
+        map.insert(8, 9);
+
+        assert_eq(map.entries(), @[(8, 9)]);
+        assert_eq(map.keys(), @[8]);
     }
 }

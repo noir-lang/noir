@@ -421,6 +421,7 @@ impl Type {
                             )
                         })
                     } else {
+                        // enum (unimplemented)
                         false
                     }
                 } else {

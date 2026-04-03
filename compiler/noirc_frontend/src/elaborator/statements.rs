@@ -30,10 +30,12 @@ use crate::{
 use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value_with_target_type(
         &mut self,
         statement: Statement,
@@ -74,10 +76,12 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         self.elaborate_statement_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement_with_target_type(
         &mut self,
         statement: Statement,
@@ -93,6 +97,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_inner(
         &mut self,
         statement: Statement,
@@ -105,6 +110,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let (let_statement, typ) = self.elaborate_let(let_stmt, None);
         (HirStatement::Let(let_statement), typ)
@@ -114,6 +120,7 @@ impl Elaborator<'_> {
     /// If this is a global let, the DefinitionId of the global is specified so that
     /// elaborate_pattern can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
         &mut self,
         let_stmt: LetStatement,
@@ -189,13 +196,19 @@ impl Elaborator<'_> {
 
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
-        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
-            CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                expected_typ: annotated_type.to_string(),
-                expr_typ: expr_type.to_string(),
-                expr_location,
-            })
-        });
+        self.unify_with_coercions(
+            &expr_type,
+            &annotated_type,
+            expression,
+            expr_location,
+            |elaborator| {
+                CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                    &expr_type,
+                    &annotated_type,
+                    expr_location,
+                ))
+            },
+        );
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
@@ -227,6 +240,7 @@ impl Elaborator<'_> {
         (let_, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
@@ -244,14 +258,20 @@ impl Elaborator<'_> {
             }
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
-            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
-                actual: expr_type.clone(),
-                expected: lvalue_type.clone(),
-                location: expr_location,
-                source: Source::Assignment,
-            })
-        });
+        self.unify_with_coercions(
+            &expr_type,
+            &lvalue_type,
+            expression,
+            expr_location,
+            |elaborator| {
+                CompilationError::TypeError(elaborator.new_type_mismatch_with_source_error(
+                    &expr_type,
+                    &lvalue_type,
+                    Source::Assignment,
+                    expr_location,
+                ))
+            },
+        );
 
         let assign = HirAssignStatement { lvalue, expression };
         let assign = HirStatement::Assign(assign);
@@ -267,6 +287,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn push_assign_to_immutable_lvalue_error(
         &mut self,
         lvalue: &HirLValue,
@@ -307,6 +328,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
         let (start, end, inclusive) = match for_loop.range {
             ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
@@ -340,15 +362,11 @@ impl Elaborator<'_> {
         );
 
         // Check that start range and end range have the same types
-        self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
-            expected_typ: start_range_type.to_string(),
-            expr_typ: end_range_type.to_string(),
-            expr_location: end_location,
-        });
+        self.unify_or_type_mismatch(&end_range_type, &start_range_type, end_location);
 
         let expected_type = self.polymorphic_integer();
 
-        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+        self.unify(&start_range_type, &expected_type, |_| TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
             place: "for loop",
             location: start_location,
@@ -359,11 +377,7 @@ impl Elaborator<'_> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
         self.current_loop = old_loop;
@@ -379,6 +393,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
         let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
@@ -393,11 +408,7 @@ impl Elaborator<'_> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
 
@@ -412,6 +423,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
@@ -427,20 +439,12 @@ impl Elaborator<'_> {
         let location = while_.condition.type_location();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_location: location,
-        });
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
 
-        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Unit.to_string(),
-            expr_typ: block_type.to_string(),
-            expr_location: block_location,
-        });
+        self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
 
@@ -451,6 +455,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
@@ -493,6 +498,7 @@ impl Elaborator<'_> {
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
@@ -585,12 +591,12 @@ impl Elaborator<'_> {
                 let (mut index, index_type) = self.elaborate_expression(index);
 
                 let expected = Type::u32();
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
-                    expected: expected.clone(),
-                    actual: index_type.clone(),
-                    location: expr_location,
-                    source: Source::ArrayIndex,
-                });
+                self.unify_or_type_mismatch_with_source(
+                    &index_type,
+                    &expected,
+                    Source::ArrayIndex,
+                    expr_location,
+                );
 
                 let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =
                     self.elaborate_lvalue(*array);
@@ -644,6 +650,7 @@ impl Elaborator<'_> {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
                             expr_location: location,
+                            similarly_named_types: Vec::new(),
                         });
                         Type::Error
                     }
@@ -667,11 +674,7 @@ impl Elaborator<'_> {
                 // Always expect a mutable reference here since we're storing to it
                 let expected_type = Type::Reference(Box::new(element_type.clone()), true);
 
-                self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: reference_type.to_string(),
-                    expr_location: location,
-                });
+                self.unify_or_type_mismatch(&reference_type, &expected_type, location);
 
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference {
@@ -689,6 +692,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue_ident(
         &mut self,
         ident: HirIdent,
@@ -712,6 +716,7 @@ impl Elaborator<'_> {
         (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn fresh_definition_for_lvalue_index(
         &mut self,
         expr: ExprId,
@@ -795,6 +800,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_statement(
         &mut self,
         statement: Statement,
@@ -816,11 +822,7 @@ impl Elaborator<'_> {
             // If we don't do this, "1" will end up with the default integer or field type,
             // which is Field.
             if let Some(target_type) = target_type {
-                this.unify(&typ, target_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: target_type.to_string(),
-                    expr_typ: typ.to_string(),
-                    expr_location: location,
-                });
+                this.unify_or_type_mismatch(&typ, target_type, location);
             }
 
             hir_statement

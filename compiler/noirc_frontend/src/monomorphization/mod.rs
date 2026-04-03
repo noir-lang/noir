@@ -2267,17 +2267,15 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<(), MonomorphizationError> {
         if return_type.contains_vector() {
-            let typ = return_type.to_string();
             return Err(MonomorphizationError::UnconstrainedVectorReturnToConstrained {
-                typ,
+                typ: return_type.to_string(),
                 location,
             });
         }
 
-        if return_type.contains_mutable_reference() {
-            let typ = return_type.to_string();
+        if return_type.contains_reference() {
             return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
-                typ,
+                typ: return_type.to_string(),
                 location,
             });
         }
