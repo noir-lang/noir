@@ -9,8 +9,8 @@
 <a href=#9 id=9 data-nosnippet>9</a>//! - A function is reachable if it is called from another reachable function
 <a href=#10 id=10 data-nosnippet>10</a>//! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
 <a href=#11 id=11 data-nosnippet>11</a>//!   Even if not immediately called, it may later be dynamically loaded and invoked.
-<a href=#12 id=12 data-nosnippet>12</a>//!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
-<a href=#13 id=13 data-nosnippet>13</a>//!   for resolving loads/stores.
+<a href=#12 id=12 data-nosnippet>12</a>//!   This marking is conservative but ensures correctness. We should instead rely on
+<a href=#13 id=13 data-nosnippet>13</a>//!   [crate::ssa::opt::mem2reg_simple] for resolving loads/stores.
 <a href=#14 id=14 data-nosnippet>14</a>//! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 <a href=#15 id=15 data-nosnippet>15</a>//!
 <a href=#16 id=16 data-nosnippet>16</a>//! The pass builds a call graph based upon the definition of reachability above.

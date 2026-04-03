@@ -66,81 +66,83 @@
 <a href=#66 id=66 data-nosnippet>66</a>                <span class="kw-2">&amp;</span>callee_costs,
 <a href=#67 id=67 data-nosnippet>67</a>            );
 <a href=#68 id=68 data-nosnippet>68</a>            <span class="comment">// Reduce the number of redundant stores/loads after unrolling
-<a href=#69 id=69 data-nosnippet>69</a>            </span>function.mem2reg();
-<a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a>            <span class="comment">// Try to reduce the number of blocks.
-<a href=#72 id=72 data-nosnippet>72</a>            </span>function.simplify_function();
-<a href=#73 id=73 data-nosnippet>73</a>
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="comment">// Put it back into the SSA, so the next functions can pick it up.
-<a href=#75 id=75 data-nosnippet>75</a>            </span><span class="self">self</span>.functions.insert(id, function);
-<a href=#76 id=76 data-nosnippet>76</a>        }
-<a href=#77 id=77 data-nosnippet>77</a>
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="comment">// Remove any functions that have been inlined into others already.
-<a href=#79 id=79 data-nosnippet>79</a>        </span><span class="kw">let </span>ssa = <span class="self">self</span>.remove_unreachable_functions();
-<a href=#80 id=80 data-nosnippet>80</a>        <span class="comment">// Remove leftover instructions.
-<a href=#81 id=81 data-nosnippet>81</a>        </span><span class="prelude-val">Ok</span>(ssa.dead_instruction_elimination())
-<a href=#82 id=82 data-nosnippet>82</a>    }
-<a href=#83 id=83 data-nosnippet>83</a>}
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a><span class="attr">#[cfg(test)]
-<a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">mod </span>tests {
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">use crate</span>::{
-<a href=#88 id=88 data-nosnippet>88</a>        assert_ssa_snapshot,
-<a href=#89 id=89 data-nosnippet>89</a>        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
-<a href=#90 id=90 data-nosnippet>90</a>    };
-<a href=#91 id=91 data-nosnippet>91</a>
-<a href=#92 id=92 data-nosnippet>92</a>    <span class="attr">#[test]
-<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="kw">fn </span>dead_block_params() {
-<a href=#94 id=94 data-nosnippet>94</a>        <span class="comment">// This test makes sure that we are appropriately triggering DIE+parameter pruning.
-<a href=#95 id=95 data-nosnippet>95</a>        //
-<a href=#96 id=96 data-nosnippet>96</a>        // DIE must be run over the full SSA to correctly identify unused block parameters.
-<a href=#97 id=97 data-nosnippet>97</a>        // If it's run in isolation on a single function (e.g., during preprocessing),
-<a href=#98 id=98 data-nosnippet>98</a>        // it may leave dangling block parameters.
-<a href=#99 id=99 data-nosnippet>99</a>        //
-<a href=#100 id=100 data-nosnippet>100</a>        // We need to call f0 from an entry point as inline targets are not preprocessed.
-<a href=#101 id=101 data-nosnippet>101</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#102 id=102 data-nosnippet>102</a>        acir(inline) fn main f0 {
-<a href=#103 id=103 data-nosnippet>103</a>          b0():
-<a href=#104 id=104 data-nosnippet>104</a>            call f0(u32 1, Field 2)
-<a href=#105 id=105 data-nosnippet>105</a>            return
-<a href=#106 id=106 data-nosnippet>106</a>        }
-<a href=#107 id=107 data-nosnippet>107</a>        acir(inline) fn foo f0 {
-<a href=#108 id=108 data-nosnippet>108</a>          b0(v0: u32, v1: Field):
-<a href=#109 id=109 data-nosnippet>109</a>            v2 = eq v0, u32 1
-<a href=#110 id=110 data-nosnippet>110</a>            jmpif v2 then: b1(), else: b2()
-<a href=#111 id=111 data-nosnippet>111</a>          b1():
-<a href=#112 id=112 data-nosnippet>112</a>            v6 = add v0, u32 1
-<a href=#113 id=113 data-nosnippet>113</a>            jmp b3(v6, v1)
-<a href=#114 id=114 data-nosnippet>114</a>          b2():
-<a href=#115 id=115 data-nosnippet>115</a>            v5 = sub v0, u32 1
-<a href=#116 id=116 data-nosnippet>116</a>            jmp b3(v5, v1)
-<a href=#117 id=117 data-nosnippet>117</a>          b3(v3: u32, v4: Field):
-<a href=#118 id=118 data-nosnippet>118</a>            return
-<a href=#119 id=119 data-nosnippet>119</a>        }
-<a href=#120 id=120 data-nosnippet>120</a>        "#</span>;
-<a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#126 id=126 data-nosnippet>126</a>        acir(inline) fn main f0 {
-<a href=#127 id=127 data-nosnippet>127</a>          b0():
-<a href=#128 id=128 data-nosnippet>128</a>            call f1(u32 1)
-<a href=#129 id=129 data-nosnippet>129</a>            return
-<a href=#130 id=130 data-nosnippet>130</a>        }
-<a href=#131 id=131 data-nosnippet>131</a>        acir(inline) fn foo f1 {
-<a href=#132 id=132 data-nosnippet>132</a>          b0(v0: u32):
-<a href=#133 id=133 data-nosnippet>133</a>            v2 = eq v0, u32 1
-<a href=#134 id=134 data-nosnippet>134</a>            jmpif v2 then: b1(), else: b2()
-<a href=#135 id=135 data-nosnippet>135</a>          b1():
-<a href=#136 id=136 data-nosnippet>136</a>            v4 = add v0, u32 1
-<a href=#137 id=137 data-nosnippet>137</a>            jmp b3()
-<a href=#138 id=138 data-nosnippet>138</a>          b2():
-<a href=#139 id=139 data-nosnippet>139</a>            v3 = sub v0, u32 1
-<a href=#140 id=140 data-nosnippet>140</a>            jmp b3()
-<a href=#141 id=141 data-nosnippet>141</a>          b3():
-<a href=#142 id=142 data-nosnippet>142</a>            return
-<a href=#143 id=143 data-nosnippet>143</a>        }
-<a href=#144 id=144 data-nosnippet>144</a>        "</span>);
-<a href=#145 id=145 data-nosnippet>145</a>    }
-<a href=#146 id=146 data-nosnippet>146</a>}</code></pre></div></section></main></body></html>
+<a href=#69 id=69 data-nosnippet>69</a>            </span>function.mem2reg_simple_pre_flattening();
+<a href=#70 id=70 data-nosnippet>70</a>            function.load_store_forwarding();
+<a href=#71 id=71 data-nosnippet>71</a>            function.remove_redundant_params();
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a>            <span class="comment">// Try to reduce the number of blocks.
+<a href=#74 id=74 data-nosnippet>74</a>            </span>function.simplify_function();
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a>            <span class="comment">// Put it back into the SSA, so the next functions can pick it up.
+<a href=#77 id=77 data-nosnippet>77</a>            </span><span class="self">self</span>.functions.insert(id, function);
+<a href=#78 id=78 data-nosnippet>78</a>        }
+<a href=#79 id=79 data-nosnippet>79</a>
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="comment">// Remove any functions that have been inlined into others already.
+<a href=#81 id=81 data-nosnippet>81</a>        </span><span class="kw">let </span>ssa = <span class="self">self</span>.remove_unreachable_functions();
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="comment">// Remove leftover instructions.
+<a href=#83 id=83 data-nosnippet>83</a>        </span><span class="prelude-val">Ok</span>(ssa.dead_instruction_elimination())
+<a href=#84 id=84 data-nosnippet>84</a>    }
+<a href=#85 id=85 data-nosnippet>85</a>}
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a><span class="attr">#[cfg(test)]
+<a href=#88 id=88 data-nosnippet>88</a></span><span class="kw">mod </span>tests {
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">use crate</span>::{
+<a href=#90 id=90 data-nosnippet>90</a>        assert_ssa_snapshot,
+<a href=#91 id=91 data-nosnippet>91</a>        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+<a href=#92 id=92 data-nosnippet>92</a>    };
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="attr">#[test]
+<a href=#95 id=95 data-nosnippet>95</a>    </span><span class="kw">fn </span>dead_block_params() {
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="comment">// This test makes sure that we are appropriately triggering DIE+parameter pruning.
+<a href=#97 id=97 data-nosnippet>97</a>        //
+<a href=#98 id=98 data-nosnippet>98</a>        // DIE must be run over the full SSA to correctly identify unused block parameters.
+<a href=#99 id=99 data-nosnippet>99</a>        // If it's run in isolation on a single function (e.g., during preprocessing),
+<a href=#100 id=100 data-nosnippet>100</a>        // it may leave dangling block parameters.
+<a href=#101 id=101 data-nosnippet>101</a>        //
+<a href=#102 id=102 data-nosnippet>102</a>        // We need to call f0 from an entry point as inline targets are not preprocessed.
+<a href=#103 id=103 data-nosnippet>103</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#104 id=104 data-nosnippet>104</a>        acir(inline) fn main f0 {
+<a href=#105 id=105 data-nosnippet>105</a>          b0():
+<a href=#106 id=106 data-nosnippet>106</a>            call f0(u32 1, Field 2)
+<a href=#107 id=107 data-nosnippet>107</a>            return
+<a href=#108 id=108 data-nosnippet>108</a>        }
+<a href=#109 id=109 data-nosnippet>109</a>        acir(inline) fn foo f0 {
+<a href=#110 id=110 data-nosnippet>110</a>          b0(v0: u32, v1: Field):
+<a href=#111 id=111 data-nosnippet>111</a>            v2 = eq v0, u32 1
+<a href=#112 id=112 data-nosnippet>112</a>            jmpif v2 then: b1(), else: b2()
+<a href=#113 id=113 data-nosnippet>113</a>          b1():
+<a href=#114 id=114 data-nosnippet>114</a>            v6 = add v0, u32 1
+<a href=#115 id=115 data-nosnippet>115</a>            jmp b3(v6, v1)
+<a href=#116 id=116 data-nosnippet>116</a>          b2():
+<a href=#117 id=117 data-nosnippet>117</a>            v5 = sub v0, u32 1
+<a href=#118 id=118 data-nosnippet>118</a>            jmp b3(v5, v1)
+<a href=#119 id=119 data-nosnippet>119</a>          b3(v3: u32, v4: Field):
+<a href=#120 id=120 data-nosnippet>120</a>            return
+<a href=#121 id=121 data-nosnippet>121</a>        }
+<a href=#122 id=122 data-nosnippet>122</a>        "#</span>;
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">let </span>ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+<a href=#126 id=126 data-nosnippet>126</a>
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#128 id=128 data-nosnippet>128</a>        acir(inline) fn main f0 {
+<a href=#129 id=129 data-nosnippet>129</a>          b0():
+<a href=#130 id=130 data-nosnippet>130</a>            call f1(u32 1)
+<a href=#131 id=131 data-nosnippet>131</a>            return
+<a href=#132 id=132 data-nosnippet>132</a>        }
+<a href=#133 id=133 data-nosnippet>133</a>        acir(inline) fn foo f1 {
+<a href=#134 id=134 data-nosnippet>134</a>          b0(v0: u32):
+<a href=#135 id=135 data-nosnippet>135</a>            v2 = eq v0, u32 1
+<a href=#136 id=136 data-nosnippet>136</a>            jmpif v2 then: b1(), else: b2()
+<a href=#137 id=137 data-nosnippet>137</a>          b1():
+<a href=#138 id=138 data-nosnippet>138</a>            v4 = add v0, u32 1
+<a href=#139 id=139 data-nosnippet>139</a>            jmp b3()
+<a href=#140 id=140 data-nosnippet>140</a>          b2():
+<a href=#141 id=141 data-nosnippet>141</a>            v3 = sub v0, u32 1
+<a href=#142 id=142 data-nosnippet>142</a>            jmp b3()
+<a href=#143 id=143 data-nosnippet>143</a>          b3():
+<a href=#144 id=144 data-nosnippet>144</a>            return
+<a href=#145 id=145 data-nosnippet>145</a>        }
+<a href=#146 id=146 data-nosnippet>146</a>        "</span>);
+<a href=#147 id=147 data-nosnippet>147</a>    }
+<a href=#148 id=148 data-nosnippet>148</a>}</code></pre></div></section></main></body></html>

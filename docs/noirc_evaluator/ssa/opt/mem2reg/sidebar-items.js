@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["alias_set","block"],"struct":["PerFunctionContext"]};
