@@ -1673,13 +1673,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop_opt!(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedSub::checked_sub,
-                display_binary
-            )
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
