@@ -7,8 +7,8 @@ fn main() {
     // Index sub-expression must be evaluated only once.
     let mut x = [1, 2, 3];
     x[{
-        x[0] += 2;
-        0
+    x[0] += 2;
+    0
     }] += 3;
     assert_eq(x[0], 1 + 2 + 3);
 
