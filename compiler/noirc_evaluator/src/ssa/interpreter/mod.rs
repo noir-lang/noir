@@ -1072,10 +1072,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
