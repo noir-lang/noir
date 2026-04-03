@@ -3357,7 +3357,6 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "num-bigint",
  "proptest",
  "proptest-derive",
  "rand 0.9.2",
