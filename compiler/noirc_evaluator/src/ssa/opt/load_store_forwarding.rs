@@ -283,28 +283,24 @@ fn forward_loads_and_stores_in_block(
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
                     let typ = inserter.function.dfg.type_of_value(value);
-                    if typ.contains_reference() {
-                        if let Some(inner) = typ.reference_element_type() {
-                            if inner.contains_reference() {
-                                // Double-reference (e.g. &mut &mut Field): callee can
-                                // load the inner ref and write through it — clear all.
-                                known_values.clear();
-                                last_stores.clear();
-                                local_allocations.clear();
-                            } else {
-                                // Simple reference: only invalidate this address, but
-                                // also remove from local_allocations since the address
-                                // now escapes and may be returned as an alias.
-                                known_values.remove(&value);
-                                last_stores.remove(&value);
-                                local_allocations.remove(&value);
-                            }
-                        } else {
-                            // Container holding references (array/tuple) — clear all.
-                            known_values.clear();
-                            last_stores.clear();
-                            local_allocations.clear();
-                        }
+                    // Simple reference to a non-reference type (e.g. &mut Field):
+                    // only invalidate this specific address. Also remove from
+                    // local_allocations since the address now escapes to the callee
+                    // and may be returned as an alias.
+                    //
+                    // Everything else that contains a reference — double-references
+                    // (&mut &mut Field), containers ([&mut Field; N]), etc. — requires
+                    // clearing all state since the callee can chase indirections or
+                    // extract inner references and write through them.
+                    let is_simple_ref = matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
+                    if is_simple_ref {
+                        known_values.remove(&value);
+                        last_stores.remove(&value);
+                        local_allocations.remove(&value);
+                    } else if typ.contains_reference() {
+                        known_values.clear();
+                        last_stores.clear();
+                        local_allocations.clear();
                     }
                 });
             }
