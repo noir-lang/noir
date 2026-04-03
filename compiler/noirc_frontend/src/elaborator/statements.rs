@@ -368,14 +368,18 @@ impl Elaborator<'_> {
                 let expr = HirExpression::Ident(ident.clone(), None);
                 self.interner.push_expr_full(expr, location, typ.clone())
             }
-            HirLValue::MemberAccess { object, field_name, typ, location, .. } => {
+            HirLValue::MemberAccess { object, field_name, field_index, typ, location } => {
                 let lhs = self.hir_lvalue_as_expr(object);
                 let expr = HirExpression::MemberAccess(HirMemberAccess {
                     lhs,
                     rhs: field_name.clone(),
                     is_offset: false,
                 });
-                self.interner.push_expr_full(expr, *location, typ.clone())
+                let expr_id = self.interner.push_expr_full(expr, *location, typ.clone());
+                if let Some(index) = field_index {
+                    self.interner.set_field_index(expr_id, *index);
+                }
+                expr_id
             }
             HirLValue::Index { array, index, typ, location } => {
                 let collection = self.hir_lvalue_as_expr(array);
