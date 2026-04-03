@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775246659019,
+  "lastUpdate": 1775246839700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "21edbd35147b995055298667b678c8d600f5b38e",
-          "message": "chore(deps): bump path-to-regexp from 0.1.12 to 0.1.13 (#12040)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-30T14:02:55Z",
-          "tree_id": "12bb5f495da9ac35a4f5c139f495f9358f4032bf",
-          "url": "https://github.com/noir-lang/noir/commit/21edbd35147b995055298667b678c8d600f5b38e"
-        },
-        "date": 1774880956831,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168313,
-            "range": "± 393",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137870,
-            "range": "± 2430",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643199,
-            "range": "± 1872",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "40323a52e51adf28ad09bd4278baa67969731bac",
           "message": "chore(deps): bump brace-expansion from 1.1.12 to 1.1.13 (#12033)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-03-30T13:10:46Z",
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648074,
             "range": "± 9421",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9405c29ea97d88a567f0b96090565c245d3fe9c4",
+          "message": "fix: incorrect cast between signed integers simplification (#12104)",
+          "timestamp": "2026-04-03T19:23:33Z",
+          "tree_id": "0b9bdf028dca1b71a9d466f7afa09a38616dad4a",
+          "url": "https://github.com/noir-lang/noir/commit/9405c29ea97d88a567f0b96090565c245d3fe9c4"
+        },
+        "date": 1775246777936,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 161718,
+            "range": "± 884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 133404,
+            "range": "± 6410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2120631,
+            "range": "± 2424",
             "unit": "ns/iter"
           }
         ]
