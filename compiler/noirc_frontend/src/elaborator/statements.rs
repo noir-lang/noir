@@ -778,16 +778,17 @@ impl Elaborator<'_> {
                     self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
 
-                if let Type::Reference(_, is_mutable) = reference_type {
-                    mutable = is_mutable;
-                }
-
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
                 // Always expect a mutable reference here since we're storing to it
                 let expected_type = Type::Reference(Box::new(element_type.clone()), true);
 
                 self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+
+                // Check mutability after unification so that type variables are resolved first
+                if let Type::Reference(_, is_mutable) = reference_type.follow_bindings() {
+                    mutable = is_mutable;
+                }
 
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference {
