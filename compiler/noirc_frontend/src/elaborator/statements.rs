@@ -5,8 +5,9 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        AssignStatement, ForLoopStatement, ForRange, LValue, LetStatement, LoopStatement,
-        Statement, StatementKind, WhileStatement,
+        AssignOpStatement, AssignStatement, BinaryOp, Expression, ExpressionKind, ForLoopStatement,
+        ForRange, InfixExpression, LValue, LetStatement, LoopStatement, Statement, StatementKind,
+        WhileStatement,
     },
     elaborator::{
         PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
@@ -44,6 +45,7 @@ impl Elaborator<'_> {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
+            StatementKind::AssignOp(assign_op) => self.elaborate_assign_op(assign_op),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Loop(loop_) => self.elaborate_loop(loop_),
             StatementKind::While(while_) => self.elaborate_while(while_),
@@ -285,6 +287,31 @@ impl Elaborator<'_> {
             let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
             (HirStatement::Expression(block), Type::Unit)
         }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn elaborate_assign_op(
+        &mut self,
+        assign_op: AssignOpStatement,
+    ) -> (HirStatement, Type) {
+        // Transform `a <op>= b` into `a = a <op> b` and then elaborate that assignment statement
+        // TODO: this still has the issue that `a` will be evaluated twice, but this will be fixed in a next commit.
+        let lvalue = assign_op.lvalue;
+        let rhs_expression = lvalue.as_expression();
+        let expression_location = assign_op.expression.location;
+        let expression = Expression {
+            kind: ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: rhs_expression,
+                operator: BinaryOp::from(
+                    assign_op.op.location(),
+                    assign_op.op.contents.to_binary_op_kind(),
+                ),
+                rhs: assign_op.expression,
+            })),
+            location: expression_location,
+        };
+        let assign = AssignStatement { lvalue, expression };
+        self.elaborate_assign(assign)
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
