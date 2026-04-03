@@ -156,7 +156,7 @@
 <a href=#156 id=156 data-nosnippet>156</a>            <span class="prelude-val">Ok</span>(JsValue::from_str(<span class="kw-2">&amp;</span>string))
 <a href=#157 id=157 data-nosnippet>157</a>        }
 <a href=#158 id=158 data-nosnippet>158</a>        AbiErrorType::Custom(typ) =&gt; {
-<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let </span>input_value = decode_value(<span class="kw-2">&amp;mut </span>error_data.into_iter(), <span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
+<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let </span>input_value = decode_value(<span class="kw-2">&amp;mut </span>error_data.into_iter(), <span class="kw-2">&amp;</span>typ, <span class="string">"error"</span>)<span class="question-mark">?</span>;
 <a href=#160 id=160 data-nosnippet>160</a>            <span class="kw">let </span>json_types = JsonTypes::try_from_input_value(<span class="kw-2">&amp;</span>input_value, <span class="kw-2">&amp;</span>typ)<span class="question-mark">?</span>;
 <a href=#161 id=161 data-nosnippet>161</a>            &lt;JsValue <span class="kw">as </span>JsValueSerdeExt&gt;::from_serde(<span class="kw-2">&amp;</span>json_types)
 <a href=#162 id=162 data-nosnippet>162</a>                .map_err(|err| err.to_string().into())
