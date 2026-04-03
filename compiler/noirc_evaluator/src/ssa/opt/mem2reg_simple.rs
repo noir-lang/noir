@@ -46,7 +46,6 @@ use crate::ssa::{
 /// paid previously.
 const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
-
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
     ///
