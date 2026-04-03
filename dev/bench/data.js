@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775240707502,
+  "lastUpdate": 1775240979412,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "69b2a097d4c94276b317b033d62da353186f097a",
-          "message": "fix(ssa): Remove dead Brillig stores to local allocations in DIE (#12020)",
-          "timestamp": "2026-03-27T13:20:21Z",
-          "tree_id": "eda5b8290c3789f2e66f953ab724e1a674470492",
-          "url": "https://github.com/noir-lang/noir/commit/69b2a097d4c94276b317b033d62da353186f097a"
-        },
-        "date": 1774618974908,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168535,
-            "range": "± 1664",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136990,
-            "range": "± 12620",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643542,
-            "range": "± 9149",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645187,
             "range": "± 2896",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4b1d34b7d5adaf58e679803ee805221209ac2606",
+          "message": "fix: don't panic on ABI tuple length mismatch (#12096)",
+          "timestamp": "2026-04-03T18:04:48Z",
+          "tree_id": "5f5b94fa38ee4674099e1c247a9cbe18da84fa19",
+          "url": "https://github.com/noir-lang/noir/commit/4b1d34b7d5adaf58e679803ee805221209ac2606"
+        },
+        "date": 1775240927537,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167696,
+            "range": "± 412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140235,
+            "range": "± 414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645747,
+            "range": "± 2561",
             "unit": "ns/iter"
           }
         ]
