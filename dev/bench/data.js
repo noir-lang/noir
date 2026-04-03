@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775245547931,
+  "lastUpdate": 1775245634958,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0ea490f9eaf15585e3f55d4c44c154f66436e40c",
-          "message": "chore: bump yarn version (#12029)",
-          "timestamp": "2026-03-27T17:04:07Z",
-          "tree_id": "6d277949be64567fa6973fa6bc78d5348177911d",
-          "url": "https://github.com/noir-lang/noir/commit/0ea490f9eaf15585e3f55d4c44c154f66436e40c"
-        },
-        "date": 1774632713648,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168697,
-            "range": "± 824",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137272,
-            "range": "± 1432",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642464,
-            "range": "± 2336",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644497,
             "range": "± 10252",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5f93d49ca17c9da73ec03fb0efcac25bdd3f46cd",
+          "message": "fix: prevent potential overflow for i128 (#12115)",
+          "timestamp": "2026-04-03T19:19:11Z",
+          "tree_id": "a579ba0e9cc6b0f99f89c93d38be1f44893ad0c1",
+          "url": "https://github.com/noir-lang/noir/commit/5f93d49ca17c9da73ec03fb0efcac25bdd3f46cd"
+        },
+        "date": 1775245582414,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167597,
+            "range": "± 456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140041,
+            "range": "± 1889",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646062,
+            "range": "± 5151",
             "unit": "ns/iter"
           }
         ]
