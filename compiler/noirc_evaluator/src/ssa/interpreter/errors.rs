@@ -96,10 +96,6 @@ pub enum InternalError {
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
     CalledNonFunction { value: String, value_id: ValueId },
-    // Note that we don't need to display the value_id because displaying a reference
-    // value shows the original value id anyway
-    #[error("Reference value `{value}` passed from a constrained to an unconstrained function")]
-    ReferenceValueCrossedUnconstrainedBoundary { value: String },
     #[error("Reference value `{value}` loaded before it was first stored to")]
     UninitializedReferenceValueLoaded { value: String },
     #[error(

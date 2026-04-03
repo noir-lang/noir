@@ -452,11 +452,7 @@ impl Elaborator<'_> {
             let body_location = branch.type_location();
             let (body, body_type) = self.elaborate_expression(branch);
 
-            self.unify(&body_type, &result_type, || TypeCheckError::TypeMismatch {
-                expected_typ: result_type.to_string(),
-                expr_typ: body_type.to_string(),
-                expr_location: body_location,
-            });
+            self.unify_or_type_mismatch(&body_type, &result_type, body_location);
 
             self.pop_scope();
             Row::new(columns, guard, body, pattern_location)
@@ -474,11 +470,7 @@ impl Elaborator<'_> {
     ) -> Pattern {
         let expr_location = expression.type_location();
         let unify_with_expected_type = |this: &mut Self, actual| {
-            this.unify(actual, expected_type, || TypeCheckError::TypeMismatch {
-                expected_typ: expected_type.to_string(),
-                expr_typ: actual.to_string(),
-                expr_location,
-            });
+            this.unify_or_type_mismatch(actual, expected_type, expr_location);
         };
 
         // We want the actual expression's location here, not the innermost one from `type_location()`
@@ -671,11 +663,7 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
-        self.unify(&typ, expected_type, || TypeCheckError::TypeMismatch {
-            expected_typ: expected_type.to_string(),
-            expr_typ: typ.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&typ, expected_type, expr_location);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -896,11 +884,7 @@ impl Elaborator<'_> {
 
         // We must unify the actual type before `expected_arg_types` are used since those
         // are instantiated and rely on this already being unified.
-        self.unify(&actual_type, expected_type, || TypeCheckError::TypeMismatch {
-            expected_typ: expected_type.to_string(),
-            expr_typ: actual_type.to_string(),
-            expr_location: location,
-        });
+        self.unify_or_type_mismatch(&actual_type, expected_type, location);
 
         if args.len() != expected_arg_types.len() {
             let expected = expected_arg_types.len();
@@ -925,11 +909,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Pattern {
         let actual_type = constant.get_type();
-        self.unify(&actual_type, expected_type, || TypeCheckError::TypeMismatch {
-            expected_typ: expected_type.to_string(),
-            expr_typ: actual_type.to_string(),
-            expr_location: location,
-        });
+        self.unify_or_type_mismatch(&actual_type, expected_type, location);
 
         let value = match constant {
             Value::Bool(value) => value.into(),
