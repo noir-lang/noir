@@ -206,12 +206,13 @@ impl Function {
         let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
         let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
 
+        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
         let mut block_states = BlockStates::default();
         add_block_params_and_find_exit_states(
             &blocks,
-            &variables,
+            &visible_vars,
             &param_locations,
-            &mut dom_tree,
             &mut inserter,
             &mut block_states,
             &cfg,
