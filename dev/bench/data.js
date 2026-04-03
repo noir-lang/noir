@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775223047588,
+  "lastUpdate": 1775226318823,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "a25d8109ab8e8c31d8c6b7bb4d68452cfec113c5",
-          "message": "chore: add debug assertions for array size invariants in Brillig codegen (#12024)",
-          "timestamp": "2026-03-26T23:08:18Z",
-          "tree_id": "b33fe388ab327df57b7e02d7f08d2cda5836b394",
-          "url": "https://github.com/noir-lang/noir/commit/a25d8109ab8e8c31d8c6b7bb4d68452cfec113c5"
-        },
-        "date": 1774568097359,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165858,
-            "range": "± 334",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133943,
-            "range": "± 3740",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2121705,
-            "range": "± 6178",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b3c4bbdb02f1fe2e1c934db960e1dd518da4dcea",
           "message": "chore: add missing documentation for ecdsa_secp256r1 and fix copy-paste bug (#12014)",
           "timestamp": "2026-03-27T11:40:51Z",
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644121,
             "range": "± 2007",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "28d61db0d80c50c0aa79bb4da351b41a3b28d8de",
+          "message": "fix: ssa interpreter unchecked sub was checked (#12113)",
+          "timestamp": "2026-04-03T14:01:25Z",
+          "tree_id": "7f78e46a647fcbac944df179a8c77ebe98e8fb7c",
+          "url": "https://github.com/noir-lang/noir/commit/28d61db0d80c50c0aa79bb4da351b41a3b28d8de"
+        },
+        "date": 1775226266157,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167942,
+            "range": "± 442",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140121,
+            "range": "± 321",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645964,
+            "range": "± 2412",
             "unit": "ns/iter"
           }
         ]
