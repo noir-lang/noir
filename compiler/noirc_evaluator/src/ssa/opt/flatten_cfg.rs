@@ -720,11 +720,24 @@ impl<'f> Context<'f> {
                 return Some(result);
             }
         }
-        // Note: we intentionally do NOT check else_arg provenance.
-        // The else_arg often comes from outside the current branch (e.g. jmpif
-        // else_arguments or a value threaded through unchanged). Its provenance
-        // may be from a previous, unrelated conditional context where the conditions
-        // are not "under" the current merge's condition, making the collapse unsound.
+        // Check else_arg provenance (safe because merge_provenance is cleared at
+        // each jmpif entry, so only provenance from the current conditional survives).
+        if let Some(prov) = self.merge_provenance.get(&else_arg) {
+            let prov_else = self.inserter.resolve(prov.else_value);
+            let prov_then = self.inserter.resolve(prov.then_value);
+            if prov_else == then_arg {
+                // Group 1: IfElse(c1, y, _, IfElse(c2, x, _, y)) → IfElse(c2, x, _, y)
+                let result = (prov.then_condition, prov_then, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+            if prov_then == then_arg {
+                // Group 2: IfElse(c1, x, _, IfElse(_, x, c2e, z)) → IfElse(c2e, z, _, x)
+                let result = (prov.else_condition, prov_else, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+        }
         None
     }
 
@@ -819,23 +832,22 @@ impl<'f> Context<'f> {
             // else_value (or then_value) matches the outer merge's corresponding
             // argument, the two merges can be combined into one.
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_cond, then_val, else_cond, else_val) = if let Some((tc, tv, ev)) = collapsed {
-                // For the collapsed merge, the then_condition is the inner's
-                // condition which already incorporates all outer conditions.
-                // The correct else_condition is NOT(then_condition).
-                let ec = self
-                    .not_instruction(tc, self.inserter.function.dfg.get_value_call_stack_id(tc));
-                (tc, tv, ec, ev)
-            } else {
-                (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
-            };
+            let (then_condition, then_value, else_condition, else_value) =
+                if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
+                    // For the collapsed merge, the then_condition is the inner's
+                    // condition which already incorporates all outer conditions.
+                    // The correct else_condition is NOT(then_condition).
+                    let inner_else_cond = self.not_instruction(
+                        inner_then_cond,
+                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
+                    );
+                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
+                } else {
+                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
+                };
 
-            let instruction = Instruction::IfElse {
-                then_condition: then_cond,
-                then_value: then_val,
-                else_condition: else_cond,
-                else_value: else_val,
-            };
+            let instruction =
+                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
             let result = self
                 .inserter
                 .function
@@ -849,15 +861,10 @@ impl<'f> Context<'f> {
             // use by `try_collapse_merge`, preventing stale entries from matching
             // at unrelated merge points. Skip when the IfElse simplified to an
             // existing value (e.g. then_value == else_value).
-            if collapsed.is_none() && result != then_val && result != else_val {
+            if collapsed.is_none() && result != then_value && result != else_value {
                 self.merge_provenance.insert(
                     result,
-                    MergeProvenance {
-                        then_condition: then_cond,
-                        then_value: then_val,
-                        else_condition: else_cond,
-                        else_value: else_val,
-                    },
+                    MergeProvenance { then_condition, then_value, else_condition, else_value },
                 );
             }
 
@@ -2198,6 +2205,17 @@ mod tests {
         }
         ");
     }
+}
+
+/// Tests for the merge provenance collapse optimization (issue #12106).
+///
+/// When nested `jmpif` blocks thread the same value through their else-arguments,
+/// `flatten_cfg` can collapse the double merge into a single one. These tests verify
+/// the collapse fires correctly, chains across nesting levels, and — critically — that
+/// provenance does not leak across unrelated conditionals.
+#[cfg(test)]
+mod merge_provenance_tests {
+    use crate::{assert_ssa_snapshot, ssa::Ssa};
 
     /// Regression test for #12106: promoted block params with jmpif else_arguments
     /// should produce the same (or fewer) instructions as the equivalent store/load
@@ -2280,10 +2298,8 @@ mod tests {
         let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
         let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
 
-        let mut promoted_flat =
+        let promoted_flat =
             promoted_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
-        promoted_flat.normalize_ids();
-        println!("{}", promoted_flat.print_with(None));
         let store_load_flat =
             store_load_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
 
