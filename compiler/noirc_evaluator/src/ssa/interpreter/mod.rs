@@ -1072,10 +1072,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
@@ -1674,13 +1673,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop_opt!(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedSub::checked_sub,
-                display_binary
-            )
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
