@@ -1912,8 +1912,12 @@ impl<'f> LoopIteration<'f> {
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
     function.mem2reg_simple_pre_flattening();
+    // Resolves constants, but merge blocks still have 2 predecessors
     function.simplify_instructions();
+    // Eliminates dead jmpif branches, collapses merge blocks
     function.simplify_function();
+    // Re-simplify after branch elimination
+    function.simplify_instructions();
     // Do another mem2reg after simplify_cfg to aid the next unroll
     function.mem2reg_simple_pre_flattening();
 }
@@ -3857,6 +3861,65 @@ mod upper_loop_bound_resolution {
         assert!(
             result.is_ok(),
             "Cross-block store->load bound should be resolved, got error: {:?}",
+            result.err()
+        );
+    }
+
+    /// Regression test for `vector_join` and `vector::test::chain_operations`:
+    /// A filter loop conditionally pushes elements via `vector_push_back`,
+    /// then a second loop uses the accumulated length as its bound
+    /// (e.g. `assert_eq` calling `<[T]>::eq` with `for i in 0..self.len()`).
+    ///
+    /// After the filter loop unrolls, `simplify_between_unrolls` must resolve
+    /// the conditional `vector_push_back` chain to a constant length so the
+    /// second loop can unroll.
+    #[test]
+    fn acir_unroll_conditional_push_back_then_length_bounded_loop() {
+        // Loop 1 (b1): iterates 0..3, conditionally pushes odd elements
+        //   Elements: [1, 2, 3]. Odd check: truncate to 1 bit, eq 1.
+        //   Pushes 1, 3 → length becomes 2.
+        // Loop 2 (b6): iterates 0..v1, needs v1=2 to be resolved as constant
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v100 = make_array [u32 1, u32 2, u32 3] : [u32]
+            v101 = make_array [] : [u32]
+            jmp b1(u32 0, u32 0, v101)
+          b1(v0: u32, v1: u32, v2: [u32]):
+            v10 = lt v0, u32 3
+            jmpif v10 then: b2(), else: b3()
+          b2():
+            v11 = array_get v100, index v0 -> u32
+            v12 = truncate v11 to 1 bits, max_bit_size: 32
+            v13 = eq v12, u32 1
+            jmpif v13 then: b4(), else: b5(v1, v2)
+          b4():
+            v14, v15 = call vector_push_back(v1, v2, v11) -> (u32, [u32])
+            jmp b5(v14, v15)
+          b5(v3: u32, v4: [u32]):
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16, v3, v4)
+          b3():
+            jmp b6(u32 0, Field 0)
+          b6(v5: u32, v6: Field):
+            v17 = lt v5, v1
+            jmpif v17 then: b7(), else: b8()
+          b7():
+            v18 = add v6, Field 1
+            v19 = unchecked_add v5, u32 1
+            jmp b6(v19, v18)
+          b8():
+            constrain v6 == Field 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Conditional vector_push_back chain should resolve to constant loop bound, got error: {:?}",
             result.err()
         );
     }
