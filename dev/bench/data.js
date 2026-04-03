@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775235547640,
+  "lastUpdate": 1775239708794,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e62f39e7775a8d2babb494d0f4932f6d52c862c0",
-          "message": "fix(stdlib): correct misleading doc comment on UHashMap::linear_probe (#12023)",
-          "timestamp": "2026-03-27T12:24:56Z",
-          "tree_id": "b846f681c1263df9817dbcd567d50053f1118df3",
-          "url": "https://github.com/noir-lang/noir/commit/e62f39e7775a8d2babb494d0f4932f6d52c862c0"
-        },
-        "date": 1774615647045,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168489,
-            "range": "± 566",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137824,
-            "range": "± 286",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642227,
-            "range": "± 10401",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645973,
             "range": "± 2145",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2d3e6c60c0b61bfe6907cf303383c445f5adde8e",
+          "message": "feat(ssa): Iterative dominance frontiers for mem2reg_simple (Cytron et. al 1991)  (#12091)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-04-03T17:44:40Z",
+          "tree_id": "fae4310f2ddcafff7d71b7f8d5b1cad233bc5c93",
+          "url": "https://github.com/noir-lang/noir/commit/2d3e6c60c0b61bfe6907cf303383c445f5adde8e"
+        },
+        "date": 1775239657030,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168471,
+            "range": "± 393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139931,
+            "range": "± 879",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645187,
+            "range": "± 2896",
             "unit": "ns/iter"
           }
         ]
