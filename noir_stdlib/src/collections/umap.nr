@@ -102,7 +102,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(self, key: K) -> bool
+    pub fn contains_key(&self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
@@ -126,7 +126,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         // docs:end:entries
         let mut entries = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
                 entries = entries.push_back((slot._key, slot._value));
@@ -149,7 +149,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         // docs:end:keys
         let mut keys = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 keys = keys.push_back(slot._key);
             }
@@ -171,7 +171,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         // docs:end:values
         let mut values = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 values = values.push_back(slot._value);
             }
@@ -202,8 +202,8 @@ impl<K, V, B> UHashMap<K, V, B> {
             new_map.insert(key, value);
         }
 
-        self._table = new_map._table;
         self._len = new_map._len;
+        self._table = new_map._table;
     }
 
     /// For each key applies mutator function.
@@ -222,8 +222,10 @@ impl<K, V, B> UHashMap<K, V, B> {
             new_map.insert(key, value);
         }
 
-        self._table = new_map._table;
         self._len = new_map._len;
+        // The ownership pass being unsophisticated means we avoid a clone if we
+        // set the table after the len instead of before
+        self._table = new_map._table;
     }
 
     /// For each value applies mutator function.
@@ -271,7 +273,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    pub unconstrained fn get(self, key: K) -> Option<V>
+    pub unconstrained fn get(&self, key: K) -> Option<V>
     where
         K: Eq + Hash,
         B: BuildHasher,
