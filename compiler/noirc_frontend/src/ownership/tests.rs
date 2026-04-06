@@ -981,3 +981,108 @@ fn single_field_struct_extraction_is_optimal() {
     }
     ");
 }
+
+/// Extracting all fields of a tuple sequentially: each `t.N` accesses a
+/// distinct field, so no aliasing occurs and no clones are needed.
+#[test]
+fn tuple_disjoint_field_extraction_is_optimal() {
+    let src = "
+    unconstrained fn main() {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, 42, arr2);
+        let _a = t.0;
+        let _b = t.1;
+        let _c = t.2;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr1$l0 = [1, 2];
+        let arr2$l1 = [3, 4];
+        let t$l2 = (arr1$l0, 42, arr2$l1);
+        let _a$l3 = t$l2.0;
+        let _b$l4 = t$l2.1;
+        let _c$l5 = t$l2.2
+    }
+    ");
+}
+
+/// Extracting all fields of a struct: each field access is independent.
+#[test]
+fn struct_disjoint_field_extraction_is_optimal() {
+    let src = "
+    struct MyStruct {
+        data: [Field; 3],
+        flag: bool,
+        other: [Field; 2],
+    }
+
+    unconstrained fn main() {
+        let s = MyStruct { data: [1, 2, 3], flag: true, other: [4, 5] };
+        let _d = s.data;
+        let _f = s.flag;
+        let _o = s.other;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let s$l3 = {
+            let data$l0 = [1, 2, 3];
+            let flag$l1 = true;
+            let other$l2 = [4, 5];
+            (data$l0, flag$l1, other$l2)
+        };
+        let _d$l4 = s$l3.0;
+        let _f$l5 = s$l3.1;
+        let _o$l6 = s$l3.2
+    }
+    ");
+}
+
+/// Nested extraction with non-overlapping paths: `x.0.0` and `x.0.1` reach
+/// into distinct sub-fields of `x.0`. The paths diverge at the second index.
+#[test]
+fn nested_tuple_disjoint_subfield_extraction_is_optimal() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), ([3], [4]));
+        let _a = x.0.0;
+        let _b = x.0.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), ([3], [4]));
+        let _a$l1 = x$l0.0.0;
+        let _b$l2 = x$l0.0.1
+    }
+    ");
+}
+
+/// `x.0.0` and `x.1` access completely disjoint top-level fields.
+#[test]
+fn disjoint_nested_and_shallow_extraction_is_optimal() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), [3]);
+        let _a = x.0.0;
+        let _b = x.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), [3]);
+        let _a$l1 = x$l0.0.0;
+        let _b$l2 = x$l0.1
+    }
+    ");
+}

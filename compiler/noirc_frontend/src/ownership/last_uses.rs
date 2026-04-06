@@ -21,11 +21,18 @@
 //!     is the last use of its variable and it was not moved into an `if` or `match`.
 //!   - When the variable is used within an `if` or `match` its last use will have a value of
 //!     `Branches::IfOrMatch(cases)` with the given nested last uses in each case of the if/match.
-//! - This pass is not sophisticated with regard to struct and tuple fields. It currently
-//!   ignores these entirely and counts each use as a use of the entire variable. This is an
-//!   area for future optimization. E.g. the program `a.b.c; a.e.f` will result in `a` being
-//!   cloned in its entirety in the first statement. Note that this is lessened in the overall
-//!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
+//!
+//! ## Field-path-aware tracking
+//!
+//! When a variable is accessed through `ExtractTupleField` (e.g. `x.0.1`), this pass
+//! also tracks uses at the **field-path** granularity. Each distinct field path gets its
+//! own `Branches` tracking, enabling independent move decisions for disjoint paths.
+//! For example, `x.0` and `x.1` can both be moved if neither field is used again after
+//! its extraction.
+//!
+//! When field paths conflict (one is a prefix of another, or a bare use of the variable
+//! exists alongside field uses), the per-path tracking is discarded and the pass falls
+//! back to the whole-variable `Branches` which tracks the overall last use as before.
 
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
@@ -60,6 +67,12 @@ pub(super) enum Branches {
     None,
     Direct(IdentId),
     IfOrMatch(IfOrMatchId, HashMap<BranchId, Branches>),
+}
+
+impl Default for Branches {
+    fn default() -> Self {
+        Branches::None
+    }
 }
 
 impl Branches {
@@ -110,6 +123,10 @@ pub(super) struct IfOrMatchId(u32);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(super) struct BranchId(u32);
 
+/// A field access path through `ExtractTupleField` chains.
+/// For example, `x.0.1` has path `[0, 1]`. A bare use of `x` has an empty path `[]`.
+type FieldPath = Vec<usize>;
+
 struct LastUseContext {
     /// The outer `Vec` is each loop we're currently in, while the `BranchPath` contains
     /// the path to overwrite the last use in any `Branches` enums of the variables we find.
@@ -119,48 +136,42 @@ struct LastUseContext {
     /// Next `if` or `match` ID.
     next_id: u32,
 
-    /// Stores the location of each variable's last use.
+    /// Stores the location of each variable's last use considering all access paths.
     ///
     /// Map from each local variable to the last instance of that variable. Separate uses of
     /// the same variable are differentiated by that identifier's `IdentId` which is always
     /// different on separate identifiers, unlike the `LocalId` which is the same for any
     /// identifier referring to the same underlying definition.
     ///
-    /// Each definition is mapped to a loop index and a Branches enumeration.
-    /// - The loop index tracks how many loops deep the variable was declared at. It may be moved
-    ///   within the same loop but cannot be moved within a nested loop. E.g:
-    ///   ```noir
-    ///   fn foo() {
-    ///       let x = 2;
-    ///       for _ in 0 .. 2 {
-    ///           let b = true;
-    ///           println((x, b));
-    ///       }
-    ///   }
-    ///   ```
-    ///   In the snippet above, `x` will have loop index 0 which does not match its last use
-    ///   within the for loop (1 loop deep = loop index of 1). However, `b` has loop index 1
-    ///   and thus can be moved into its last use in the loop, in this case the `println` call.
-    /// - The Branches enumeration holds each last use of the variable. This is usually only
-    ///   one use but can be multiple if the last use is spread across several `if` or `match`
-    ///   branches. E.g:
-    ///   ```noir
-    ///   fn bar() {
-    ///       let x = 2;
-    ///       if true {
-    ///           println(x);
-    ///       } else {
-    ///           assert(x < 5);
-    ///       }
-    ///   }
-    ///   ```
-    ///   `x` above has two last uses, one in each if branch.
-    last_uses: HashMap<LocalId, (/*loop index*/ usize, Branches)>,
+    /// Each definition is mapped to a `PlaceUses` which contains both the overall last use
+    /// (considering all field paths as a single use) and per-field-path last uses for
+    /// field-level optimization.
+    last_uses: HashMap<LocalId, PlaceUses>,
 
     /// When a variable is overwritten in an assignment, we can treat the last uses so far
     /// as confirmed, because the reassignment essentially kills the reference to the previous
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+}
+
+/// Tracks last uses of a variable at both whole-variable and per-field-path granularity.
+///
+/// The `overall` field tracks the last use considering all accesses as uses of the entire
+/// variable — this is the same behavior as before field-path tracking was added and serves
+/// as the fallback when field paths conflict.
+///
+/// The `per_path` field tracks last uses independently for each field access path. When all
+/// paths are disjoint (no prefix relationships), each path's last use can be moved
+/// independently. When paths conflict, the per-path data is discarded and `overall` is used.
+struct PlaceUses {
+    /// How many loops deep the variable was declared at.
+    loop_index: usize,
+    /// Last use of the variable considering all accesses as whole-variable uses.
+    /// This is the fallback when field paths conflict.
+    overall: Branches,
+    /// Per-field-path last uses, tracked with full `Branches` support for if/match branching.
+    /// Each distinct field path (e.g. `[0, 1]` for `x.0.1`) gets its own `Branches`.
+    per_path: HashMap<FieldPath, Branches>,
 }
 
 impl Context {
@@ -170,7 +181,7 @@ impl Context {
         function: &Function,
     ) -> HashMap<LocalId, Vec<IdentId>> {
         let mut context = LastUseContext {
-            current_loop_and_branch: Vec::new(),
+            current_loop_and_branch: vec![],
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
             next_id: 0,
@@ -228,27 +239,36 @@ impl LastUseContext {
     /// Insert the last use of a local variable, defined in the current loop with no branching.
     fn declare_variable(&mut self, id: LocalId) {
         let loop_index = self.loop_index();
-        self.last_uses.insert(id, (loop_index, Branches::None));
+        self.last_uses.insert(
+            id,
+            PlaceUses { loop_index, overall: Branches::None, per_path: HashMap::default() },
+        );
     }
 
-    /// Remember a new use of the given variable, possibly overwriting or
-    /// adding to the previous last use depending on the current position
-    /// in if/match branches or the loop index.
+    /// Remember a new use of the given variable at a specific field access path.
+    ///
+    /// Updates both the whole-variable `overall` tracking and the per-field-path tracking.
+    /// An empty `field_path` indicates a bare/whole-variable use.
     ///
     /// If the loop index is equal to the variable's when it was defined we can
     /// overwrite the last use, but if it is greater we have to set the last use to None.
-    /// This is because variable's cannot be moved within loops unless it was defined
+    /// This is because variables cannot be moved within loops unless they were defined
     /// within the same loop.
-    fn remember_use_of_variable(&mut self, id: LocalId, variable: IdentId) {
-        let path =
+    fn remember_use_of_variable(&mut self, id: LocalId, variable: IdentId, field_path: &FieldPath) {
+        let branch_path =
             self.current_loop_and_branch.last().expect("We should always have at least 1 path");
         let loop_index = self.loop_index();
 
-        if let Some((variable_loop_index, uses)) = self.last_uses.get_mut(&id) {
-            if *variable_loop_index == loop_index {
-                Self::remember_use_of_variable_rec(uses, path, variable);
+        if let Some(place_uses) = self.last_uses.get_mut(&id) {
+            if place_uses.loop_index == loop_index {
+                // Update overall (whole-variable) tracking
+                Self::remember_use_of_variable_rec(&mut place_uses.overall, branch_path, variable);
+                // Update per-field-path tracking
+                let path_branches = place_uses.per_path.entry(field_path.clone()).or_default();
+                Self::remember_use_of_variable_rec(path_branches, branch_path, variable);
             } else {
-                *uses = Branches::None;
+                place_uses.overall = Branches::None;
+                place_uses.per_path.clear();
             }
         }
     }
@@ -322,11 +342,28 @@ impl LastUseContext {
     }
 
     /// Collect the last use(s) of every local variable.
+    ///
+    /// For each variable, tries field-path-level decomposition first: if all recorded
+    /// field paths are pairwise disjoint (no prefix relationships), each path's last
+    /// use(s) can be moved independently. Otherwise, falls back to the whole-variable
+    /// `overall` tracking.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         let mut moves = self.confirmed_moves;
-        for (id, (_, branches)) in self.last_uses {
-            moves.entry(id).or_default().extend(branches.flatten_uses());
+
+        for (id, place_uses) in self.last_uses {
+            let paths: Vec<&FieldPath> = place_uses.per_path.keys().collect();
+
+            if all_paths_disjoint(&paths) {
+                // All field paths are independent — use per-path moves
+                for (_, branches) in place_uses.per_path {
+                    moves.entry(id).or_default().extend(branches.flatten_uses());
+                }
+            } else {
+                // Paths conflict — fall back to whole-variable last use
+                moves.entry(id).or_default().extend(place_uses.overall.flatten_uses());
+            }
         }
+
         moves
     }
 
@@ -347,8 +384,8 @@ impl LastUseContext {
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
             Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
-            Expression::ExtractTupleField(tuple, _index) => {
-                self.track_variables_in_expression(tuple);
+            Expression::ExtractTupleField(_, _) => {
+                self.track_variables_in_extract(expr);
             }
             Expression::Call(call) => self.track_variables_in_call(call),
             Expression::Let(let_expr) => self.track_variables_in_let(let_expr),
@@ -367,8 +404,33 @@ impl LastUseContext {
     fn track_variables_in_ident(&mut self, ident: &ast::Ident) {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
-            self.remember_use_of_variable(*local_id, ident.id);
+            self.remember_use_of_variable(*local_id, ident.id, &vec![]);
         }
+    }
+
+    /// Track a variable accessed through one or more `ExtractTupleField` operations.
+    ///
+    /// Walks the chain to extract the full field path (e.g. `x.0.1` → `[0, 1]`)
+    /// and records the use at that specific path for field-level optimization.
+    fn track_variables_in_extract(&mut self, expr: &Expression) {
+        let mut path = Vec::new();
+        let mut current = expr;
+
+        while let Expression::ExtractTupleField(inner, index) = current {
+            path.push(*index);
+            current = inner;
+        }
+        path.reverse();
+
+        if let Expression::Ident(ident) = current {
+            if let ast::Definition::Local(local_id) = &ident.definition {
+                self.remember_use_of_variable(*local_id, ident.id, &path);
+                return;
+            }
+        }
+
+        // Base is not a local ident (e.g. function call result) — track normally
+        self.track_variables_in_expression(current);
     }
 
     fn track_variables_in_literal(&mut self, literal: &Literal) {
@@ -427,7 +489,7 @@ impl LastUseContext {
     fn track_variables_in_loop_exprs(&mut self, loop_exprs: &[&Expression]) {
         // Save the current loop index of the variables we are tracking.
         // They *might* be reassigned inside the loop, which would change their index, but we need to restore them after.
-        let orig_indices = vecmap(&self.last_uses, |(id, (index, _))| (*id, *index));
+        let orig_indices = vecmap(&self.last_uses, |(id, place_uses)| (*id, place_uses.loop_index));
 
         self.push_loop_scope();
         for expr in loop_exprs {
@@ -436,12 +498,13 @@ impl LastUseContext {
         self.pop_loop_scope();
 
         for (id, orig_index) in orig_indices {
-            if let Some((index, branches)) = self.last_uses.get_mut(&id)
-                && *index != orig_index
+            if let Some(place_uses) = self.last_uses.get_mut(&id)
+                && place_uses.loop_index != orig_index
             {
-                *index = orig_index;
+                place_uses.loop_index = orig_index;
                 // If the value is still accessible outside the loop, don't move it inside the loop after it has been redeclared.
-                *branches = Branches::None;
+                place_uses.overall = Branches::None;
+                place_uses.per_path.clear();
             }
         }
     }
@@ -532,8 +595,8 @@ impl LastUseContext {
             // Adjust its loop index to be the current loop, so that `remember_use_of_variable`
             // remembers any last use, rather than clear out its current state.
             let current_index = self.loop_index();
-            if let Some((index, _)) = self.last_uses.get_mut(local_id) {
-                *index = current_index;
+            if let Some(place_uses) = self.last_uses.get_mut(local_id) {
+                place_uses.loop_index = current_index;
             }
         }
 
@@ -542,13 +605,21 @@ impl LastUseContext {
         if let Some(local_id) = variable {
             // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
             // From here on it acts as a newly declared variable with no history.
-            if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
-                let path = self
+            if let Some(place_uses) = self.last_uses.get_mut(&local_id) {
+                let branch_path = self
                     .current_loop_and_branch
                     .last()
                     .expect("We should always have at least 1 path");
-                let extracted = Self::extract_branch_at_path(branches, path);
+                let extracted = Self::extract_branch_at_path(&mut place_uses.overall, branch_path);
                 self.confirmed_moves.entry(local_id).or_default().extend(extracted.flatten_uses());
+                // Also extract and confirm per-path uses at the current branch only
+                for (_, branches) in place_uses.per_path.iter_mut() {
+                    let extracted = Self::extract_branch_at_path(branches, branch_path);
+                    self.confirmed_moves
+                        .entry(local_id)
+                        .or_default()
+                        .extend(extracted.flatten_uses());
+                }
                 return;
             }
         }
@@ -596,4 +667,37 @@ impl LastUseContext {
             }
         }
     }
+}
+
+/// Returns true if all field paths in the slice are pairwise disjoint.
+///
+/// Two paths are disjoint if they diverge at some index: `[0, 1]` and `[0, 2]`
+/// diverge at position 1. A path that is a prefix of another (`[0]` and `[0, 1]`)
+/// is NOT disjoint. An empty path (bare variable use) is never disjoint from anything.
+fn all_paths_disjoint(paths: &[&FieldPath]) -> bool {
+    for (i, a) in paths.iter().enumerate() {
+        for b in &paths[i + 1..] {
+            if !field_paths_are_disjoint(a, b) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Two field paths are disjoint if they diverge at some position.
+///
+/// An empty path (whole-variable use) is never disjoint from anything.
+/// A path that is a prefix of another is not disjoint.
+fn field_paths_are_disjoint(a: &[usize], b: &[usize]) -> bool {
+    if a.is_empty() || b.is_empty() {
+        return false;
+    }
+    for (x, y) in a.iter().zip(b.iter()) {
+        if x != y {
+            return true;
+        }
+    }
+    // One is a prefix of the other (or they're equal)
+    false
 }
