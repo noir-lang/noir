@@ -94,7 +94,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -141,17 +141,11 @@ impl VariableLiveness {
             })
             .collect();
 
-        Self {
-            cfg: loops.cfg,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-            max_live_count: 0,
-        }
-        .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
-        .compute_max_live_count(func)
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func)
     }
 
     /// The set of values that are alive before the block starts executing.

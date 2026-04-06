@@ -6,6 +6,8 @@
 //! and permanent spills (values that must survive across block boundaries), allocating stable
 //! heap slots for the latter.
 
+use std::collections::hash_map::Entry;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -107,9 +109,7 @@ impl SpillManager {
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
-        if let std::collections::hash_map::Entry::Occupied(mut entry) =
-            self.records.entry(*value_id)
-        {
+        if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
             if entry.get().is_permanent {
                 entry.get_mut().is_currently_spilled = false;
             } else {

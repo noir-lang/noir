@@ -153,10 +153,7 @@ impl Function {
 }
 
 /// Contains the starting & ending values of each variable in each block
-#[derive(Default)]
-struct BlockStates {
-    blocks: BTreeMap<BasicBlockId, BlockState>,
-}
+type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
@@ -271,7 +268,7 @@ fn add_block_params_and_find_exit_states(
             cfg,
         );
         let exit_state = abstract_interpret_block(inserter, block, &entry_state);
-        block_states.blocks.insert(block, BlockState { entry_state, exit_state });
+        block_states.insert(block, BlockState { entry_state, exit_state });
     }
 }
 
@@ -329,7 +326,7 @@ fn get_value_from_visited_predecessor(
     block_states: &BlockStates,
 ) -> Option<ValueId> {
     for predecessor in cfg.predecessors(block) {
-        if let Some(pred_state) = block_states.blocks.get(&predecessor) {
+        if let Some(pred_state) = block_states.get(&predecessor) {
             return Some(pred_state.get_exit_value(var));
         }
     }
@@ -348,10 +345,10 @@ fn add_terminator_arguments(
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        let block_state = &block_states.blocks[&block];
+        let block_state = &block_states[&block];
 
         for predecessor in cfg.predecessors(block) {
-            let pred_state = &block_states.blocks[&predecessor];
+            let pred_state = &block_states[&predecessor];
             let args = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
             for address in block_state.entry_state.keys() {
                 // Only wire arguments for IDF blocks (those with block parameters).
