@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 381
+expression: expanded_code
+---
+struct Wrapper {
+    arr: [u32; 3],
+}
+
+unconstrained fn main(arr: [u32; 3], idx: u32) {
+    let mut w2: Wrapper = Wrapper { arr: arr };
+    let z: &mut [u32; 3] = &mut w2.arr;
+    let y: Wrapper = w2;
+    (*z)[idx] = 100_u32;
+    assert((*z)[idx] == 100_u32);
+    assert(y.arr[idx] == 1_u32);
+}

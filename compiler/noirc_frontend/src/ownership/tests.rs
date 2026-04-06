@@ -1024,3 +1024,31 @@ fn clones_non_moved_variable_because_of_reference_even_if_unused() {
     }
     ");
 }
+
+#[test]
+fn clones_non_moved_variable_because_of_field_reference() {
+    // `&mut w2.arr` takes a reference to a field of `w2`, so `w2` is aliased.
+    // `let y = w2` must clone `w2` (not move) so that the subsequent write through
+    // `z` triggers copy-on-write and leaves `y` unchanged.
+    let src = "
+    struct Wrapper {
+        arr: [u32; 3],
+    }
+    unconstrained fn main(w: Wrapper, idx: u32) {
+        let mut w2: Wrapper = w;
+        let z: &mut [u32; 3] = &mut w2.arr;
+        let y: Wrapper = w2;
+        (*z)[idx] = 100;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(w$l0: ([u32; 3],), idx$l1: u32) -> () {
+        let mut w2$l2 = w$l0;
+        let z$l3 = (&mut w2$l2.0);
+        let y$l4 = w2$l2.clone();
+        (*z$l3)[idx$l1] = 100
+    }
+    ");
+}

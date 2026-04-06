@@ -28,7 +28,7 @@
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 
 use crate::ast::UnaryOp;
-use crate::monomorphization::ast::{self, IdentId, LocalId};
+use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -407,12 +407,11 @@ impl LastUseContext {
 
     fn track_variables_in_unary(&mut self, unary: &ast::Unary) {
         if matches!(unary.operator, UnaryOp::Reference { .. }) {
-            // When `&var` or `&mut var` is taken directly on a local variable, that variable
-            // is now aliased. Mark it so that any future copy must clone rather than move.
+            // When a reference is taken to a local variable or one of its fields (e.g. `&mut x`
+            // or `&mut x.field`), the variable `x` is now aliased. Mark it so that any future
+            // copy of `x` must clone rather than move.
             // See `referenced_variables` for the full explanation.
-            if let Expression::Ident(ident) = unary.rhs.as_ref()
-                && let ast::Definition::Local(local_id) = ident.definition
-            {
+            if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
                 self.referenced_variables.insert(local_id);
             }
         }
@@ -623,5 +622,28 @@ impl LastUseContext {
                 unreachable!("LValue::Clone should only be inserted by the ownership pass")
             }
         }
+    }
+}
+
+/// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),
+/// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
+/// and return the `LocalId` of the base variable, if it is a local variable.
+///
+/// For example:
+/// - `&mut x`         → `Some(x_id)`
+/// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
+/// - `&mut x.a.b`     → `Some(x_id)`
+/// - `&mut some_call()` → `None`
+fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
+    match expr {
+        Expression::Ident(ident) => {
+            if let Definition::Local(local_id) = ident.definition {
+                Some(local_id)
+            } else {
+                None
+            }
+        }
+        Expression::ExtractTupleField(inner, _) => base_ident_of_field_access(inner),
+        _ => None,
     }
 }
