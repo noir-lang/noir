@@ -637,22 +637,23 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
         // checking each candidate against only the unique later paths, of which
         // there are at most as many as the struct/tuple arity — typically very small.
         let mut later_paths: Vec<&FieldPath> = Vec::new();
-        let mut has_bare_later = false;
 
         for (ident_id, path) in records.iter().rev() {
             if path.is_empty() {
-                // Bare use — no later use can be disjoint from this.
-                has_bare_later = true;
-            } else if !prior_moves.contains(ident_id) && !has_bare_later {
-                let disjoint =
-                    later_paths.iter().all(|later| field_paths_are_disjoint(path, later));
-                if disjoint {
-                    new_moves.push((*local_id, *ident_id));
-                }
+                // Bare use — no earlier use can be disjoint from this, so we're done.
+                break;
             }
 
-            // Add to later_paths if this path is unique (not already present).
-            if !path.is_empty() && !later_paths.contains(&path) {
+            // Check if this use can be moved (disjoint from all later field paths).
+            // Skip uses already marked as moves — but still track their paths below,
+            // since later candidates need to check disjointness against them.
+            if !prior_moves.contains(ident_id)
+                && later_paths.iter().all(|later| field_paths_are_disjoint(path, later))
+            {
+                new_moves.push((*local_id, *ident_id));
+            }
+
+            if !later_paths.contains(&path) {
                 later_paths.push(path);
             }
         }
