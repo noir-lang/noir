@@ -1,3 +1,11 @@
+//! Register spill management for the Brillig code generator.
+//!
+//! When register pressure exceeds the available register count, the [`SpillManager`] coordinates
+//! evicting the least-recently-used (LRU) values to a spill region in heap memory, and reloading
+//! them on demand. It distinguishes between transient spills (temporary within a basic block)
+//! and permanent spills (values that must survive across block boundaries), allocating stable
+//! heap slots for the latter.
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;

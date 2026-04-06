@@ -65,6 +65,8 @@ impl Ssa {
 }
 
 impl Function {
+    /// Runs load/store forwarding on this function by iterating all blocks in reverse
+    /// post-order and applying per-block forwarding and dead store elimination.
     pub(crate) fn load_store_forwarding(&mut self) {
         let loop_aliases = analyze_loop_aliases(self);
 
