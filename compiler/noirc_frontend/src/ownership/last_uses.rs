@@ -633,9 +633,9 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
 
     for (local_id, records) in &use_records {
         // Scan in reverse, maintaining the set of unique field paths seen so far
-        // (i.e. paths from later uses). This avoids the O(R²) forward scan by
-        // checking each candidate against at most U unique paths, where U is
-        // bounded by the struct/tuple arity — typically very small.
+        // (i.e. paths from later uses). This avoids an O(n²) forward scan by
+        // checking each candidate against only the unique later paths, of which
+        // there are at most as many as the struct/tuple arity — typically very small.
         let mut later_paths: Vec<&FieldPath> = Vec::new();
         let mut has_bare_later = false;
 
