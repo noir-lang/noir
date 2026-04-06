@@ -169,6 +169,25 @@ struct PlaceUses {
     per_path: HashMap<FieldPath, Branches>,
 }
 
+impl PlaceUses {
+    /// Returns true if all recorded field paths are pairwise disjoint.
+    ///
+    /// Two paths are disjoint if they diverge at some index: `[0, 1]` and `[0, 2]`
+    /// diverge at position 1. A path that is a prefix of another (`[0]` and `[0, 1]`)
+    /// is NOT disjoint. An empty path (bare variable use) is never disjoint from anything.
+    fn all_paths_disjoint(&self) -> bool {
+        let keys: Vec<_> = self.per_path.keys().collect();
+        for (i, a) in keys.iter().enumerate() {
+            for b in &keys[i + 1..] {
+                if !field_paths_are_disjoint(a, b) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
 impl Context {
     /// Traverse the given function and return the last use(s) of each local variable.
     /// A variable may have multiple last uses if it was last used within a conditional expression.
@@ -176,7 +195,7 @@ impl Context {
         function: &Function,
     ) -> HashMap<LocalId, Vec<IdentId>> {
         let mut context = LastUseContext {
-            current_loop_and_branch: vec![],
+            current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
             next_id: 0,
@@ -346,9 +365,7 @@ impl LastUseContext {
         let mut moves = self.confirmed_moves;
 
         for (id, place_uses) in self.last_uses {
-            let paths: Vec<&FieldPath> = place_uses.per_path.keys().collect();
-
-            if all_paths_disjoint(&paths) {
+            if place_uses.all_paths_disjoint() {
                 // All field paths are independent — use per-path moves
                 for (_, branches) in place_uses.per_path {
                     moves.entry(id).or_default().extend(branches.flatten_uses());
@@ -662,22 +679,6 @@ impl LastUseContext {
             }
         }
     }
-}
-
-/// Returns true if all field paths in the slice are pairwise disjoint.
-///
-/// Two paths are disjoint if they diverge at some index: `[0, 1]` and `[0, 2]`
-/// diverge at position 1. A path that is a prefix of another (`[0]` and `[0, 1]`)
-/// is NOT disjoint. An empty path (bare variable use) is never disjoint from anything.
-fn all_paths_disjoint(paths: &[&FieldPath]) -> bool {
-    for (i, a) in paths.iter().enumerate() {
-        for b in &paths[i + 1..] {
-            if !field_paths_are_disjoint(a, b) {
-                return false;
-            }
-        }
-    }
-    true
 }
 
 /// Two field paths are disjoint if they diverge at some position.
