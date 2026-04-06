@@ -652,7 +652,7 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
             }
 
             // Add to later_paths if this path is unique (not already present).
-            if !path.is_empty() && !later_paths.iter().any(|p| *p == path) {
+            if !path.is_empty() && !later_paths.contains(&path) {
                 later_paths.push(path);
             }
         }
