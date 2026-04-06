@@ -2887,18 +2887,9 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Check whether a call expression's callee is an unconstrained function.
-    /// Resolves the callee's type (following bindings) and checks for unconstrained status
-    /// both on direct function types and on `(constrained_fn, unconstrained_fn)` tuple pairs
-    /// used when functions are bound to local variables.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
         let typ = self.interner.id_type(function).follow_bindings();
-        match &typ {
-            Type::Function(_, _, _, unconstrained) => *unconstrained,
-            Type::Tuple(elements) => {
-                elements.iter().any(|e| matches!(e, Type::Function(_, _, _, true)))
-            }
-            _ => false,
-        }
+        matches!(typ, Type::Function(_, _, _, true))
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {
