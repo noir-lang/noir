@@ -223,6 +223,11 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
     }
 }
 
+/// Mutable context threaded through the CFG flattening pass.
+///
+/// Holds the function inserter, the pre-modification CFG, branch-end map, and all
+/// bookkeeping needed to merge stores and conditions as branches are inlined one by
+/// one into `target_block`.
 pub(crate) struct Context<'f> {
     pub(crate) inserter: FunctionInserter<'f>,
 
@@ -291,6 +296,7 @@ struct MergeProvenance {
     else_value: ValueId,
 }
 
+/// State for one side (then or else) of a conditional being flattened.
 #[derive(Clone)]
 struct ConditionalBranch {
     /// Contains the last processed block during the processing of the branch.
@@ -301,6 +307,10 @@ struct ConditionalBranch {
     condition: ValueId,
 }
 
+/// All bookkeeping for a single `jmpif` that is currently being flattened.
+///
+/// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
+/// its join point is reached.
 struct ConditionalContext {
     /// Condition from the conditional statement
     condition: ValueId,
@@ -348,6 +358,11 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 pub(crate) type WorkList = IndexSet<BasicBlockId>;
 
 impl<'f> Context<'f> {
+    /// Creates a new flattening context.
+    ///
+    /// `cfg` must be computed from `function` before any modifications are made.
+    /// `branch_ends` maps each branch-start block to its join/exit block.
+    /// `target_block` is the single block into which all instructions will be inlined.
     pub(crate) fn new(
         function: &'f mut Function,
         cfg: ControlFlowGraph,
@@ -799,7 +814,7 @@ impl<'f> Context<'f> {
         let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
             args.clone()
         } else if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
+            let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
             self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
         } else {
             Vec::new()
