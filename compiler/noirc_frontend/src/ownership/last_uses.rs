@@ -667,25 +667,12 @@ impl LastUseContext {
 /// be treated as aliasing `x`, because the callee might write the reference into the location
 /// reachable through that argument.
 fn arg_can_store_reference(arg: &Expression) -> bool {
-    if let Some(typ) = expression_type(arg) { type_can_store_reference(typ) } else { true }
-}
-
-/// Returns the type of an expression, if it can be determined cheaply.
-///
-/// Handles identifiers, unary expressions (which carry `result_type`), and chains of
-/// `ExtractTupleField` (struct field accesses like `entry.0`).
-fn expression_type(expr: &Expression) -> Option<&ast::Type> {
-    match expr {
-        Expression::Ident(ident) => Some(&ident.typ),
-        Expression::Unary(unary) => Some(&unary.result_type),
-        Expression::ExtractTupleField(tuple, index) => {
-            if let ast::Type::Tuple(elements) = expression_type(tuple)? {
-                elements.get(*index)
-            } else {
-                None
-            }
-        }
-        _ => None,
+    // Expression::return_type() covers all expression variants that carry type information.
+    // For the few statement-like variants that return None (For, Loop, While, Let, etc.)
+    // being conservative (true) is fine since they cannot be call arguments anyway.
+    match arg.return_type() {
+        Some(typ) => type_can_store_reference(&typ),
+        None => true,
     }
 }
 
