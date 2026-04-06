@@ -61,18 +61,13 @@ use super::Context;
 ///     Branches::Direct(4),
 /// ])
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(super) enum Branches {
     /// No (last) use in this branch or there is no branch.
+    #[default]
     None,
     Direct(IdentId),
     IfOrMatch(IfOrMatchId, HashMap<BranchId, Branches>),
-}
-
-impl Default for Branches {
-    fn default() -> Self {
-        Branches::None
-    }
 }
 
 impl Branches {
@@ -422,11 +417,11 @@ impl LastUseContext {
         }
         path.reverse();
 
-        if let Expression::Ident(ident) = current {
-            if let ast::Definition::Local(local_id) = &ident.definition {
-                self.remember_use_of_variable(*local_id, ident.id, &path);
-                return;
-            }
+        if let Expression::Ident(ident) = current
+            && let ast::Definition::Local(local_id) = &ident.definition
+        {
+            self.remember_use_of_variable(*local_id, ident.id, &path);
+            return;
         }
 
         // Base is not a local ident (e.g. function call result) — track normally
@@ -613,7 +608,7 @@ impl LastUseContext {
                 let extracted = Self::extract_branch_at_path(&mut place_uses.overall, branch_path);
                 self.confirmed_moves.entry(local_id).or_default().extend(extracted.flatten_uses());
                 // Also extract and confirm per-path uses at the current branch only
-                for (_, branches) in place_uses.per_path.iter_mut() {
+                for branches in place_uses.per_path.values_mut() {
                     let extracted = Self::extract_branch_at_path(branches, branch_path);
                     self.confirmed_moves
                         .entry(local_id)
