@@ -5,42 +5,60 @@ use itertools::Itertools;
 use crate::FieldElement;
 use crate::poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config};
 
+/// Poseidon2 permutation dispatching on input length.
+/// Currently supports T=4; the framework is ready for T=8 and T=12 when
+/// constants and matrix operations are added.
 pub fn poseidon2_permutation(
     inputs: &[FieldElement],
 ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-    let poseidon = Poseidon2::new();
-    poseidon.permutation(inputs)
+    match inputs.len() {
+        4 => Poseidon2::<4>::new().permutation(inputs),
+        len => Err(BlackBoxResolutionError::Failed(
+            acir::BlackBoxFunc::Poseidon2Permutation,
+            format!("Unsupported Poseidon2 state size: {len}. Supported values: 4"),
+        )),
+    }
 }
 
 pub fn poseidon2_config_state_size() -> u32 {
-    POSEIDON2_CONFIG.t
+    4
 }
 
-struct Poseidon2<'a> {
-    config: &'a Poseidon2Config,
+struct Poseidon2<const T: usize> {
+    config: &'static Poseidon2Config<T>,
 }
 
-impl Poseidon2<'_> {
+impl Poseidon2<4> {
     fn new() -> Self {
         Poseidon2 { config: &POSEIDON2_CONFIG }
     }
+}
 
+impl<const T: usize> Poseidon2<T> {
     fn single_box(x: FieldElement) -> FieldElement {
         let s = x * x;
         s * s * x
     }
 
-    fn s_box(input: &mut [FieldElement]) {
+    fn s_box(input: &mut [FieldElement; T]) {
         for i in input {
             *i = Self::single_box(*i);
         }
     }
 
-    fn add_round_constants(&self, state: &mut [FieldElement], round: usize) {
+    fn add_round_constants(&self, state: &mut [FieldElement; T], round: usize) {
         for (state_element, constant_element) in
             state.iter_mut().zip_eq(self.config.round_constant[round])
         {
             *state_element += constant_element;
+        }
+    }
+
+    /// Dispatches to the appropriate matrix multiplication for the state width T.
+    fn external_matrix_multiplication(input: &mut [FieldElement; T]) {
+        match T {
+            4 => Self::matrix_multiplication_4x4(input.as_mut_slice()),
+            _ => unimplemented!("Matrix multiplication for T={T} not yet implemented"),
         }
     }
 
@@ -67,7 +85,7 @@ impl Poseidon2<'_> {
         input[3] = t4;
     }
 
-    fn internal_m_multiplication(&self, input: &mut [FieldElement]) {
+    fn internal_m_multiplication(&self, input: &mut [FieldElement; T]) {
         let mut sum = FieldElement::zero();
         for i in input.iter() {
             sum += *i;
@@ -82,27 +100,29 @@ impl Poseidon2<'_> {
         &self,
         inputs: &[FieldElement],
     ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-        if inputs.len() != self.config.t as usize {
+        if inputs.len() != T {
             return Err(BlackBoxResolutionError::Failed(
                 acir::BlackBoxFunc::Poseidon2Permutation,
-                format!("Expected {} values but encountered {}", self.config.t, inputs.len()),
+                format!("Expected {T} values but encountered {}", inputs.len()),
             ));
         }
-        // Read witness assignments
-        let mut state = [FieldElement::zero(); 4];
+
+        let mut state = [FieldElement::zero(); T];
         for (index, input) in inputs.iter().enumerate() {
             state[index] = *input;
         }
+
         // Apply 1st linear layer
-        Self::matrix_multiplication_4x4(&mut state);
+        Self::external_matrix_multiplication(&mut state);
 
         // First set of external rounds
         let rf_first = self.config.rounds_f / 2;
         for r in 0..rf_first {
             self.add_round_constants(&mut state, r as usize);
             Self::s_box(&mut state);
-            Self::matrix_multiplication_4x4(&mut state);
+            Self::external_matrix_multiplication(&mut state);
         }
+
         // Internal rounds
         let p_end = rf_first + self.config.rounds_p;
         for r in rf_first..p_end {
@@ -116,8 +136,9 @@ impl Poseidon2<'_> {
         for i in p_end..num_rounds {
             self.add_round_constants(&mut state, i as usize);
             Self::s_box(&mut state);
-            Self::matrix_multiplication_4x4(&mut state);
+            Self::external_matrix_multiplication(&mut state);
         }
+
         Ok(state.into())
     }
 }
@@ -169,7 +190,7 @@ mod tests {
     fn run_both_poseidon2_permutations(
         inputs: Vec<FieldElement>,
     ) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
-        let poseidon2_t = POSEIDON2_CONFIG.t as usize;
+        let poseidon2_t = 4usize;
         let poseidon2_d = 5;
         let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
         let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
@@ -178,8 +199,8 @@ mod tests {
         let mat_internal = vec![];
         let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
             .round_constant
-            .into_iter()
-            .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
+            .iter()
+            .map(|fields| fields.iter().copied().map(into_old_ark_field).collect())
             .collect();
 
         let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(

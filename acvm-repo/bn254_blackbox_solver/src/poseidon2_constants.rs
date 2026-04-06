@@ -6,11 +6,8 @@ use acir::AcirField;
 
 use crate::FieldElement;
 
-/// Configuration parameters for Poseidon2 permutation
-pub(crate) struct Poseidon2Config {
-    /// State width (or state size, number of field elements in the permutation state).
-    pub(crate) t: u32,
-
+/// Configuration parameters for Poseidon2 permutation, parameterized by state width T.
+pub(crate) struct Poseidon2Config<const T: usize> {
     /// Number of full rounds (also called R_F).
     /// In full rounds, the S-box is applied to all state elements.
     pub(crate) rounds_f: u32,
@@ -20,10 +17,10 @@ pub(crate) struct Poseidon2Config {
     pub(crate) rounds_p: u32,
 
     /// Internal matrix diagonal values used in the linear layer of partial rounds.
-    pub(crate) internal_matrix_diagonal: [FieldElement; 4],
+    pub(crate) internal_matrix_diagonal: [FieldElement; T],
 
     /// Round constants added to the state in each round.
-    pub(crate) round_constant: [[FieldElement; 4]; 64],
+    pub(crate) round_constant: Vec<[FieldElement; T]>,
 }
 
 /// Helper function to convert hex strings to field elements
@@ -33,15 +30,12 @@ pub(crate) fn field_from_hex(hex: &str) -> FieldElement {
 
 /// The complete Poseidon2 configuration for BN254.
 /// This includes all parameters and constants needed for the permutation.
-pub(crate) static POSEIDON2_CONFIG: std::sync::LazyLock<Poseidon2Config> =
+pub(crate) static POSEIDON2_CONFIG: std::sync::LazyLock<Poseidon2Config<4>> =
     std::sync::LazyLock::new(|| Poseidon2Config {
-        // The value of 4 is optimized for a PLONK proving system width of 4,
-        // to align with the number of witness columns available in the constraint system.
-        t: 4,
         rounds_f: 8,
         rounds_p: 56,
         internal_matrix_diagonal: *INTERNAL_MATRIX_DIAGONAL,
-        round_constant: *ROUND_CONSTANT,
+        round_constant: ROUND_CONSTANT.to_vec(),
     });
 
 /// Internal matrix diagonal for Poseidon2 permutation.
