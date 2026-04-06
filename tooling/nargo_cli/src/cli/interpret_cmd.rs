@@ -1,6 +1,7 @@
 //! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 use std::collections::BTreeMap;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
@@ -142,6 +143,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let file_manager =
             if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
         let mut last_ssa_printed: Option<String> = None;
+        let mut previous_interpreted_pass_snapshot: Option<InterpretedPassSnapshot> = None;
 
         is_ok &= print_and_interpret_ssa(
             ssa_options,
@@ -153,6 +155,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             interpreter_options,
             file_manager,
             &mut last_ssa_printed,
+            &mut previous_interpreted_pass_snapshot,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -179,6 +182,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 interpreter_options,
                 file_manager,
                 &mut last_ssa_printed,
+                &mut previous_interpreted_pass_snapshot,
             )?;
         }
     }
@@ -187,6 +191,40 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
     } else {
         Err(CliError::Generic("The interpreter encountered an error on one or more passes.".into()))
     }
+}
+
+struct TeeWriter<A, B> {
+    left: A,
+    right: B,
+}
+
+impl<A, B> TeeWriter<A, B> {
+    fn new(left: A, right: B) -> Self {
+        Self { left, right }
+    }
+}
+
+impl<A: Write, B: Write> Write for TeeWriter<A, B> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.left.write_all(buf)?;
+        self.right.write_all(buf)?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.left.flush()?;
+        self.right.flush()
+    }
+}
+
+struct InterpretedPassOutput {
+    is_ok: bool,
+    print_output: String,
+}
+
+struct InterpretedPassSnapshot {
+    pass_name: String,
+    print_output: String,
 }
 
 /// Compile the source code into the monomorphized AST, which is one step before SSA passes.
@@ -285,8 +323,8 @@ fn print_ssa(
 /// Interpret the SSA if it's part of the selected passes.
 ///
 /// The return value is:
-/// * `Ok(true)` if the interpretation was successful, or it was skipped.
-/// * `Ok(false)` if the interpreter returned an error, but we didn't have any expectation.
+/// * `Ok(Some(_))` if the pass was interpreted.
+/// * `Ok(None)` if the pass was skipped because it was not selected.
 /// * `Err(_)` if the returned result did not match the expectation.
 fn interpret_ssa(
     passes_to_interpret: &[String],
@@ -295,11 +333,15 @@ fn interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     options: InterpreterOptions,
-) -> Result<bool, CliError> {
+) -> Result<Option<InterpretedPassOutput>, CliError> {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
-        let result = ssa.interpret_with_options(args, options, std::io::stdout());
+        let mut print_output = Vec::new();
+        let result = {
+            let output = TeeWriter::new(io::stdout(), &mut print_output);
+            ssa.interpret_with_options(args, options, output)
+        };
         match &result {
             Ok(value) => {
                 let value_as_string = vecmap(value, ToString::to_string).join(", ");
@@ -321,10 +363,45 @@ fn interpret_ssa(
                 return Err(CliError::Generic(error));
             }
         }
-        Ok(is_ok)
+        Ok(Some(InterpretedPassOutput {
+            is_ok,
+            print_output: String::from_utf8(print_output).expect("from_utf8 of interpreter print"),
+        }))
     } else {
-        Ok(true)
+        Ok(None)
     }
+}
+
+/// If the current pass succeeded, compare its print output against the previous
+/// successful pass snapshot. Returns an error if the outputs differ, otherwise
+/// advances the snapshot to the current pass.
+fn check_and_advance_snapshot(
+    previous_interpreted_pass_snapshot: &mut Option<InterpretedPassSnapshot>,
+    msg: &str,
+    current_output: &InterpretedPassOutput,
+) -> Result<(), CliError> {
+    if !current_output.is_ok {
+        return Ok(());
+    }
+
+    if let Some(previous_snapshot) = previous_interpreted_pass_snapshot {
+        if previous_snapshot.print_output != current_output.print_output {
+            let error = format!(
+                "Error: interpreter printed output changed between SSA passes.\nPrevious checked pass: {}\nCurrent checked pass: {msg}\nPrevious output:\n{}\nCurrent output:\n{}",
+                previous_snapshot.pass_name,
+                previous_snapshot.print_output,
+                current_output.print_output
+            );
+            return Err(CliError::Generic(error));
+        }
+    }
+
+    *previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
+        pass_name: msg.to_string(),
+        print_output: current_output.print_output.clone(),
+    });
+
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -338,10 +415,18 @@ fn print_and_interpret_ssa(
     interpreter_options: InterpreterOptions,
     fm: Option<&FileManager>,
     last_ssa_printed: &mut Option<String>,
+    previous_interpreted_pass_snapshot: &mut Option<InterpretedPassSnapshot>,
 ) -> Result<bool, CliError> {
     let must_interpret = print_ssa(options, ssa, msg, fm, last_ssa_printed);
     if must_interpret {
-        interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
+        if let Some(current_output) =
+            interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)?
+        {
+            check_and_advance_snapshot(previous_interpreted_pass_snapshot, msg, &current_output)?;
+            Ok(current_output.is_ok)
+        } else {
+            Ok(true)
+        }
     } else {
         Ok(true)
     }
@@ -369,5 +454,106 @@ fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
         | Value::Function(..)
         | Value::Intrinsic(..)
         | Value::ForeignFunction(..) => flattened_values.push(value),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use super::{
+        InterpretedPassOutput, InterpretedPassSnapshot, TeeWriter, check_and_advance_snapshot,
+    };
+    use crate::errors::CliError;
+
+    #[test]
+    fn tee_writer_writes_to_both_outputs() {
+        let mut left = Vec::new();
+        let mut right = Vec::new();
+
+        {
+            let mut writer = TeeWriter::new(&mut left, &mut right);
+            writer.write_all(b"hello").unwrap();
+            writer.write_all(b" world").unwrap();
+            writer.flush().unwrap();
+        }
+
+        assert_eq!(left, b"hello world");
+        assert_eq!(right, b"hello world");
+    }
+
+    #[test]
+    fn matching_printed_output_establishes_and_updates_the_baseline() {
+        let mut previous_interpreted_pass_snapshot = None;
+        let first_output = InterpretedPassOutput { is_ok: true, print_output: "same".into() };
+        let second_output = InterpretedPassOutput { is_ok: true, print_output: "same".into() };
+
+        check_and_advance_snapshot(
+            &mut previous_interpreted_pass_snapshot,
+            "Initial SSA",
+            &first_output,
+        )
+        .unwrap();
+
+        check_and_advance_snapshot(
+            &mut previous_interpreted_pass_snapshot,
+            "Mem2Reg Simple (step 6)",
+            &second_output,
+        )
+        .unwrap();
+
+        let previous_interpreted_pass_snapshot =
+            previous_interpreted_pass_snapshot.expect("expected updated baseline");
+        assert_eq!(previous_interpreted_pass_snapshot.pass_name, "Mem2Reg Simple (step 6)");
+        assert_eq!(previous_interpreted_pass_snapshot.print_output, "same");
+    }
+
+    #[test]
+    fn different_printed_output_returns_an_error_with_both_pass_names() {
+        let mut previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
+            pass_name: "Removing Unreachable Functions (step 5)".to_string(),
+            print_output: "0x06".to_string(),
+        });
+        let current_output = InterpretedPassOutput { is_ok: true, print_output: "0x05".into() };
+
+        let error = check_and_advance_snapshot(
+            &mut previous_interpreted_pass_snapshot,
+            "Mem2Reg Simple (step 6)",
+            &current_output,
+        )
+        .expect_err("expected mismatch error");
+
+        let CliError::Generic(message) = error else {
+            panic!("expected generic cli error");
+        };
+
+        assert!(message.contains("Removing Unreachable Functions (step 5)"));
+        assert!(message.contains("Mem2Reg Simple (step 6)"));
+        assert!(message.contains("0x06"));
+        assert!(message.contains("0x05"));
+    }
+
+    #[test]
+    fn failed_runs_do_not_compare_or_update_the_baseline() {
+        let mut previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
+            pass_name: "Removing Unreachable Functions (step 5)".to_string(),
+            print_output: "0x06".to_string(),
+        });
+        let current_output = InterpretedPassOutput { is_ok: false, print_output: "0x05".into() };
+
+        check_and_advance_snapshot(
+            &mut previous_interpreted_pass_snapshot,
+            "Mem2Reg Simple (step 6)",
+            &current_output,
+        )
+        .unwrap();
+
+        let previous_interpreted_pass_snapshot =
+            previous_interpreted_pass_snapshot.expect("expected baseline to remain untouched");
+        assert_eq!(
+            previous_interpreted_pass_snapshot.pass_name,
+            "Removing Unreachable Functions (step 5)"
+        );
+        assert_eq!(previous_interpreted_pass_snapshot.print_output, "0x06");
     }
 }
