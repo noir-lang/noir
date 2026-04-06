@@ -135,10 +135,9 @@ impl VariableLiveness {
         let back_edges: LoopMap = loops
             .yet_to_unroll
             .into_iter()
-            .map(|_loop| {
-                let back_edge = BackEdge { header: _loop.header, start: _loop.back_edge_start };
-                let loop_body = _loop.blocks;
-                (back_edge, loop_body)
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
             })
             .collect();
 
@@ -381,9 +380,9 @@ impl VariableLiveness {
             let live_out = self.get_live_out(&block_id);
 
             // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
-            let mut used_after: Variables = Default::default();
+            let mut used_after = Variables::default();
             // Variables becoming dead after each instruction.
-            let mut block_last_uses: LastUses = Default::default();
+            let mut block_last_uses = LastUses::default();
 
             // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {

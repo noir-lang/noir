@@ -286,21 +286,8 @@ impl SpillManager {
         let Some(record) = self.records.get_mut(value_id) else {
             return false;
         };
-        if record.is_permanent && record.is_currently_spilled {
-            // Already permanent and spilled — nothing to do.
-        } else if record.is_currently_spilled {
-            // Transient spill — promote to permanent.
-            record.is_permanent = true;
-        } else if record.is_permanent {
-            // Permanent but reloaded — re-mark as spilled.
-            record.is_currently_spilled = true;
-        } else {
-            // Transient spill that got reloaded - re-mark as spilled and promote to permanent.
-            // `record_permanent_spill` ensures that we never change the offset of an existing record,
-            // so the data in the spill slot should still be good.
-            record.is_permanent = true;
-            record.is_currently_spilled = true;
-        }
+        record.is_permanent = true;
+        record.is_currently_spilled = true;
         true
     }
 }
