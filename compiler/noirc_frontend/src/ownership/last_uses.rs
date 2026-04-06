@@ -384,7 +384,7 @@ impl LastUseContext {
 
     fn track_variables_in_ident(&mut self, ident: &ast::Ident) {
         // We only track last uses for local variables, globals are always cloned
-        if let ast::Definition::Local(local_id) = &ident.definition {
+        if let Definition::Local(local_id) = &ident.definition {
             self.remember_use_of_variable(*local_id, ident.id);
         }
     }
@@ -549,9 +549,9 @@ impl LastUseContext {
         // Only considering simple variables here, not member access or indexing; those would require a more
         // careful analysis and potentially a different algorithm.
         let variable = match &assign.lvalue {
-            ast::LValue::Ident(ast::Ident {
-                definition: ast::Definition::Local(local_id), ..
-            }) => Some(*local_id),
+            ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) => {
+                Some(*local_id)
+            }
             _ => None,
         };
 
