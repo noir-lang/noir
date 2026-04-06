@@ -211,6 +211,11 @@ impl Context {
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
             }
+            Expression::Index(index) => {
+                let (should_clone, _) = self.handle_extract_expression_rec(&mut index.collection)?;
+                self.handle_expression(&mut index.index);
+                Some((should_clone, index.element_type.clone()))
+            }
             _ => None,
         }
     }
@@ -289,13 +294,22 @@ impl Context {
             panic!("handle_index given non-index expression: {index_expr}");
         };
 
-        // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
-        self.handle_expression(&mut index.index);
-
-        // If the index collection is being borrowed we need to clone the result.
-        if contains_array_or_str_type(&index.element_type) {
-            clone_expr(index_expr);
+        // Try to walk the accessor chain (idents, tuple field extractions, and other indexes)
+        // to find the base variable and determine whether we need to clone based on its last use.
+        // This avoids cloning when the base variable is being consumed (last use).
+        if let Some((should_clone, _)) = self.handle_extract_expression_rec(&mut index.collection) {
+            self.handle_expression(&mut index.index);
+            if should_clone && contains_array_or_str_type(&index.element_type) {
+                clone_expr(index_expr);
+            }
+        } else {
+            // Collection is a complex expression (function call, block, etc.),
+            // fall back to always cloning the extracted element.
+            self.handle_reference_expression(&mut index.collection);
+            self.handle_expression(&mut index.index);
+            if contains_array_or_str_type(&index.element_type) {
+                clone_expr(index_expr);
+            }
         }
     }
 

@@ -127,14 +127,14 @@ fn nested_array_two_disjoint_indexes() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // arr$l0[1].clone() is suboptimal — this is the last use of arr
     // arr$l0[0].clone() is arguably necessary since arr is used again,
-    // but could be avoided if we knew the indexes don't alias (different constants)
+    // but could be avoided if we knew the indexes don't alias (different constants).
+    // arr$l0[1] is now correctly moved — this is the last use of arr.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[1, 2], [3, 4]];
         let _a$l1 = arr$l0[0].clone();
-        let _b$l2 = arr$l0[1].clone()
+        let _b$l2 = arr$l0[1]
     }
     ");
 }
@@ -155,12 +155,12 @@ fn nested_array_double_index() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // arr$l0[0][1].clone() is suboptimal — arr is not used again and the
+    // arr$l0[0][1] is now correctly moved — arr is not used again and the
     // intermediate arr[0] is a temporary
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
-        let _val$l1 = arr$l0[0][1].clone()
+        let _val$l1 = arr$l0[0][1]
     }
     ");
 }
