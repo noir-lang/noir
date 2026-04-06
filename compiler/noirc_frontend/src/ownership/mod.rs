@@ -212,7 +212,8 @@ impl Context {
                 Some((should_clone, elements.swap_remove(*index)))
             }
             Expression::Index(index) => {
-                let (should_clone, _) = self.handle_extract_expression_rec(&mut index.collection)?;
+                let (should_clone, _) =
+                    self.handle_extract_expression_rec(&mut index.collection)?;
                 self.handle_expression(&mut index.index);
                 Some((should_clone, index.element_type.clone()))
             }
