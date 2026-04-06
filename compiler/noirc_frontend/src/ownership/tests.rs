@@ -983,7 +983,9 @@ fn single_field_struct_extraction_is_optimal() {
 }
 
 #[test]
-fn clones_dereference_in_index_object() {
+fn clones_non_moved_variable_because_of_reference() {
+    // Here `let y = arr;` shouldn't be considered a move of `arr` because
+    // `z` keeps a reference to `arr`;
     let src = "
     unconstrained fn main(mut arr: [u32; 3], idx: u32) {
         let z: &mut [u32; 3] = &mut arr;
