@@ -1190,3 +1190,43 @@ fn reference_passed_alongside_struct_with_mut_ref_to_ref_prevents_move() {
     }
     ");
 }
+
+#[test]
+fn call_with_extract_tuple_field_args_does_not_prevent_move() {
+    // Mirrors the `try_resize` pattern in UHashMap: `insert(&mut new_map, entry.0, entry.1)`
+    // where `entry` is a tuple. The arguments `entry.0` and `entry.1` are `ExtractTupleField`
+    // expressions. Even though their types cannot be resolved as Ident/Unary, they are plain
+    // Field values — not capable of storing a reference — so the conservative fallback must NOT
+    // trigger, and `new_map` must be movable at `*dest = new_map` (no clone).
+    let src = "
+    unconstrained fn main(mut dest: [Field; 3]) {
+        let mut new_map: [Field; 3] = [0, 0, 0];
+        let entries: [(Field, Field); 2] = [(1, 2), (3, 4)];
+        for i in 0..2 {
+            let entry = entries[i];
+            insert(&mut new_map, entry.0, entry.1);
+        }
+        dest = new_map;
+    }
+
+    fn insert(map: &mut [Field; 3], key: Field, value: Field) {
+        map[0] = key + value;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut dest$l0: [Field; 3]) -> () {
+        let mut new_map$l1 = [0, 0, 0];
+        let entries$l2 = [(1, 2), (3, 4)];
+        for i$l3 in 0 .. 2 {
+            let entry$l4 = entries$l2[i$l3];
+            insert$f1((&mut new_map$l1), entry$l4.0, entry$l4.1);
+        };
+        dest$l0 = new_map$l1
+    }
+    unconstrained fn insert$f1(map$l5: &mut [Field; 3], key$l6: Field, value$l7: Field) -> () {
+        (*map$l5)[0] = (key$l6 + value$l7)
+    }
+    ");
+}
