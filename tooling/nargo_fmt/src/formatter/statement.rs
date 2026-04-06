@@ -196,8 +196,9 @@ impl ChunkFormatter<'_, '_> {
         let mut group = ChunkGroup::new();
         let mut is_op_assign = false;
 
+        self.format_lvalue(assign_statement.lvalue, &mut group);
+
         group.text(self.chunk(|formatter| {
-            formatter.format_lvalue(assign_statement.lvalue);
             formatter.write_space();
             if formatter.is_at(Token::Assign) {
                 formatter.write_token(Token::Assign);
@@ -546,6 +547,25 @@ mod tests {
         let src = " fn foo() { x [ y ]  =  2 ; } ";
         let expected = "fn foo() {
     x[y] = 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_assign_to_index_with_block() {
+        let src = "fn main(mut array: [Field; 3]) {
+    array[{
+    1;
+    2
+    }] = 3;
+}
+";
+        let expected = "fn main(mut array: [Field; 3]) {
+    array[{
+        1;
+        2
+    }] = 3;
 }
 ";
         assert_format(src, expected);
