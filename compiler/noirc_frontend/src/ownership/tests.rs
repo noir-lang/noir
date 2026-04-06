@@ -1005,10 +1005,10 @@ fn clones_non_moved_variable_because_of_reference() {
 }
 
 #[test]
-fn clones_non_moved_variable_because_of_reference_even_if_unused() {
-    // Similar to the above test, but shows that even when taking a reference
-    // to a variable and never using that reference again, the variable will still
-    // be cloned instead of moved.
+fn moves_variable_when_mutable_reference_is_unused() {
+    // When a mutable reference is taken but never used afterward,
+    // the variable can be safely moved instead of cloned, because
+    // no writes through the reference can occur.
     let src = "
     unconstrained fn main(mut arr: [u32; 3], idx: u32) {
         let _: &mut [u32; 3] = &mut arr;
@@ -1020,7 +1020,7 @@ fn clones_non_moved_variable_because_of_reference_even_if_unused() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
         let _$l2 = (&mut arr$l0);
-        let y$l3 = arr$l0.clone()
+        let y$l3 = arr$l0
     }
     ");
 }

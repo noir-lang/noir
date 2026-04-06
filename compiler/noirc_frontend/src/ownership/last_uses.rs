@@ -31,7 +31,7 @@ use crate::ast::UnaryOp;
 use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use super::Context;
 
@@ -65,13 +65,13 @@ pub(super) enum Branches {
 
 impl Branches {
     /// Collect all `IdentId`s from this tree.
-    fn flatten_uses(self) -> Vec<IdentId> {
-        fn go(branches: Branches, acc: &mut Vec<IdentId>) {
+    fn flatten_uses(&self) -> Vec<IdentId> {
+        fn go(branches: &Branches, acc: &mut Vec<IdentId>) {
             match branches {
                 Branches::None => {}
-                Branches::Direct(ident_id) => acc.push(ident_id),
+                Branches::Direct(ident_id) => acc.push(*ident_id),
                 Branches::IfOrMatch(_, cases) => {
-                    for case in cases.into_values() {
+                    for case in cases.values() {
                         go(case, acc);
                     }
                 }
@@ -80,6 +80,15 @@ impl Branches {
         let mut acc = Vec::new();
         go(self, &mut acc);
         acc
+    }
+
+    /// Return the maximum `IdentId` across all branches, if any.
+    fn max_ident_id(&self) -> Option<IdentId> {
+        match self {
+            Branches::None => None,
+            Branches::Direct(id) => Some(*id),
+            Branches::IfOrMatch(_, cases) => cases.values().filter_map(|b| b.max_ident_id()).max(),
+        }
     }
 
     fn get_if_or_match_id(&self) -> Option<IfOrMatchId> {
@@ -163,17 +172,21 @@ struct LastUseContext {
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
 
-    /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
+    /// Maps a variable to the set of reference variables that alias it via `&mut`.
     ///
-    /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
-    /// This is because the reference creates an invisible alias: if the variable were moved
-    /// (sharing the same array pointer with refcount=1), a later write through the reference
-    /// would mutate the "moved" copy in place (bypassing copy-on-write semantics), since the
-    /// refcount would be 1 and no COW would be triggered.
+    /// When we see `let z = &mut x` (or `let z = &mut x.field`), we record `x → [z]`.
+    /// Similarly, `let z = call(..., &mut x, ...)` conservatively records the alias since
+    /// the function might return a reference derived from `x`.
     ///
-    /// By preventing moves of aliased variables, we ensure that subsequent copies increment
-    /// the refcount, so that writes through the reference correctly trigger COW.
-    referenced_variables: HashSet<LocalId>,
+    /// In `get_variables_to_move`, we only prevent moves of `x` if one of its alias
+    /// variables (`z`) is still live (has last uses after the proposed move point).
+    /// This uses `IdentId` ordering — since `IdentId`s are assigned monotonically during
+    /// monomorphization, a higher `IdentId` means a later position in the program.
+    ///
+    /// This is more precise than a blanket `HashSet<LocalId>` which would permanently
+    /// prevent moves of any referenced variable, even when the reference is dead by
+    /// the time the variable is moved.
+    mutable_aliases: HashMap<LocalId, Vec<LocalId>>,
 }
 
 impl Context {
@@ -186,7 +199,7 @@ impl Context {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
-            referenced_variables: HashSet::default(),
+            mutable_aliases: HashMap::default(),
             next_id: 0,
         };
 
@@ -337,12 +350,35 @@ impl LastUseContext {
 
     /// Collect the last use(s) of every local variable.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
+        // Pre-compute the maximum IdentId for each variable's last uses.
+        // This lets us quickly check whether an alias variable is still live
+        // at a given move point.
+        let max_use_ids: HashMap<LocalId, IdentId> = self
+            .last_uses
+            .iter()
+            .filter_map(|(id, (_, branches))| branches.max_ident_id().map(|max| (*id, max)))
+            .collect();
+
         let mut moves = self.confirmed_moves;
-        for (id, (_, branches)) in self.last_uses {
-            // Variables aliased via references must always be cloned on copy (never moved).
-            // See `referenced_variables` for the reasoning.
-            if !self.referenced_variables.contains(&id) {
-                moves.entry(id).or_default().extend(branches.flatten_uses());
+        for (id, (_, branches)) in &self.last_uses {
+            let proposed_moves = branches.flatten_uses();
+            if proposed_moves.is_empty() {
+                continue;
+            }
+
+            // If this variable has mutable aliases, check whether any alias is still
+            // live at the proposed move point. If so, skip the move (force clone).
+            let alias_blocks_move = self.mutable_aliases.get(id).is_some_and(|alias_vars| {
+                let min_move_id = proposed_moves.iter().copied().min().unwrap();
+                alias_vars.iter().any(|alias_local_id| {
+                    max_use_ids
+                        .get(alias_local_id)
+                        .is_some_and(|&max_alias_use| max_alias_use >= min_move_id)
+                })
+            });
+
+            if !alias_blocks_move {
+                moves.entry(*id).or_default().extend(proposed_moves);
             }
         }
         moves
@@ -406,15 +442,6 @@ impl LastUseContext {
     }
 
     fn track_variables_in_unary(&mut self, unary: &ast::Unary) {
-        if matches!(unary.operator, UnaryOp::Reference { .. }) {
-            // When a reference is taken to a local variable or one of its fields (e.g. `&mut x`
-            // or `&mut x.field`), the variable `x` is now aliased. Mark it so that any future
-            // copy of `x` must clone rather than move.
-            // See `referenced_variables` for the full explanation.
-            if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
-                self.referenced_variables.insert(local_id);
-            }
-        }
         self.track_variables_in_expression(&unary.rhs);
     }
 
@@ -527,8 +554,48 @@ impl LastUseContext {
     }
 
     fn track_variables_in_let(&mut self, let_expr: &ast::Let) {
+        // Detect mutable reference aliasing patterns and record them so we can
+        // prevent moves while the reference is still live.
+        //
+        // Only mutable references create aliasing issues: a write through `&mut`
+        // with refcount 1 (after a move) bypasses copy-on-write. Immutable
+        // references cannot trigger this because they cannot write.
+        self.detect_mutable_alias_in_let(let_expr);
+
         self.track_variables_in_expression(&let_expr.expression);
         self.declare_variable(let_expr.id);
+    }
+
+    /// Check if this let binding creates a mutable alias to a local variable.
+    /// Handles two patterns:
+    /// 1. Direct: `let z = &mut x` or `let z = &mut x.field`
+    /// 2. Via call: `let z = call(..., &mut x, ...)` — the function might return
+    ///    a reference derived from `x`, so conservatively treat `z` as an alias.
+    fn detect_mutable_alias_in_let(&mut self, let_expr: &ast::Let) {
+        match &*let_expr.expression {
+            Expression::Unary(unary)
+                if matches!(unary.operator, UnaryOp::Reference { mutable: true }) =>
+            {
+                if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
+                    self.mutable_aliases.entry(local_id).or_default().push(let_expr.id);
+                }
+            }
+            Expression::Call(call) => {
+                // If any argument is `&mut x`, conservatively assume the returned
+                // value might alias `x`. This handles functions that return
+                // references derived from their `&mut` arguments.
+                for arg in &call.arguments {
+                    if let Expression::Unary(unary) = arg {
+                        if matches!(unary.operator, UnaryOp::Reference { mutable: true }) {
+                            if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
+                                self.mutable_aliases.entry(local_id).or_default().push(let_expr.id);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     fn track_variables_in_constrain(
