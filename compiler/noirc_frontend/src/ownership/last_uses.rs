@@ -521,8 +521,29 @@ impl LastUseContext {
 
     fn track_variables_in_call(&mut self, call: &ast::Call) {
         self.track_variables_in_expression(&call.func);
+
+        // A reference passed directly as a call argument (e.g. `foo(&mut x)`) is temporary:
+        // it only lives for the duration of the call. After the call returns, `x` is no longer
+        // aliased, so future copies of `x` don't need to clone.
+        //
+        // We must fall back to conservative (mark `x` as aliased) if the reference could escape:
+        // 1. The call returns a reference type — the passed reference might be returned.
+        // 2. Another argument has type `&mut T` where `T` contains a reference — the function
+        //    could write the passed reference into `*that_arg`, making it escape without returning.
+        let conservative = type_contains_reference(&call.return_type)
+            || call.arguments.iter().any(arg_can_store_reference);
         for arg in &call.arguments {
-            self.track_variables_in_expression(arg);
+            if !conservative
+                && let Expression::Unary(unary) = arg
+                && matches!(unary.operator, UnaryOp::Reference { .. })
+                && base_ident_of_field_access(&unary.rhs).is_some()
+            {
+                // Track the use of the variable inside the reference (for last-use analysis)
+                // but skip the unary handler, which would mark the variable as aliased.
+                self.track_variables_in_expression(&unary.rhs);
+            } else {
+                self.track_variables_in_expression(arg);
+            }
         }
     }
 
@@ -634,6 +655,72 @@ impl LastUseContext {
 /// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
 /// - `&mut x.a.b`     → `Some(x_id)`
 /// - `&mut some_call()` → `None`
+/// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
+/// contains a `&mut T` (at any depth) where `T` itself contains a reference.
+///
+/// This covers both direct `&mut &mut T` arguments and arguments whose struct/tuple/array
+/// type has a field of such a type, as well as reaching through immutable references to
+/// find inner mutable ones (e.g. `& SomeStruct` where `SomeStruct` has a `&mut &mut T` field).
+///
+/// When this is true for any argument, all `&mut x` arguments in the call must conservatively
+/// be treated as aliasing `x`, because the callee might write the reference into the location
+/// reachable through that argument.
+fn arg_can_store_reference(arg: &Expression) -> bool {
+    let typ = match arg {
+        Expression::Ident(ident) => &ident.typ,
+        Expression::Unary(unary) => &unary.result_type,
+        // For other expression kinds we can't easily determine the type, so be conservative.
+        _ => return true,
+    };
+    type_can_store_reference(typ)
+}
+
+/// Returns `true` if `typ` contains — at any depth — a `&mut T` where `T` itself contains
+/// a reference. Such a type allows a reference to be written somewhere persistent.
+///
+/// We recurse through immutable references too: given `& SomeStruct`, its inner mutable
+/// reference fields are still accessible and writable (e.g. `*(s.slot) = x`).
+fn type_can_store_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        // A mutable reference to something that contains a reference can be written through.
+        Type::Reference(inner, true /* mutable */) => type_contains_reference(inner),
+        // An immutable reference can't be written to directly, but its inner fields may still
+        // expose mutable references we can write through — so recurse.
+        Type::Reference(inner, false) => type_can_store_reference(inner),
+        Type::Tuple(elements) => elements.iter().any(type_can_store_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_can_store_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_can_store_reference)
+                || type_can_store_reference(ret)
+                || type_can_store_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
+/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
+/// tuples, arrays, or function types). Used to decide whether a call might return a
+/// reference that aliases a variable passed by `&mut` to that call.
+fn type_contains_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        Type::Reference(..) => true,
+        Type::Tuple(elements) => elements.iter().any(type_contains_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_contains_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_contains_reference)
+                || type_contains_reference(ret)
+                || type_contains_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
 fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
     match expr {
         Expression::Ident(ident) => {
