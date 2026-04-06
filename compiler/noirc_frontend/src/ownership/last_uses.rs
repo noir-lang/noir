@@ -27,10 +27,11 @@
 //!   cloned in its entirety in the first statement. Note that this is lessened in the overall
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 
+use crate::ast::UnaryOp;
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::Context;
 
@@ -161,6 +162,18 @@ struct LastUseContext {
     /// as confirmed, because the reassignment essentially kills the reference to the previous
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
+    ///
+    /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
+    /// This is because the reference creates an invisible alias: if the variable were moved
+    /// (sharing the same array pointer with refcount=1), a later write through the reference
+    /// would mutate the "moved" copy in place (bypassing copy-on-write semantics), since the
+    /// refcount would be 1 and no COW would be triggered.
+    ///
+    /// By preventing moves of aliased variables, we ensure that subsequent copies increment
+    /// the refcount, so that writes through the reference correctly trigger COW.
+    referenced_variables: HashSet<LocalId>,
 }
 
 impl Context {
@@ -173,6 +186,7 @@ impl Context {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
+            referenced_variables: HashSet::default(),
             next_id: 0,
         };
 
@@ -325,7 +339,11 @@ impl LastUseContext {
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         let mut moves = self.confirmed_moves;
         for (id, (_, branches)) in self.last_uses {
-            moves.entry(id).or_default().extend(branches.flatten_uses());
+            // Variables aliased via references must always be cloned on copy (never moved).
+            // See `referenced_variables` for the reasoning.
+            if !self.referenced_variables.contains(&id) {
+                moves.entry(id).or_default().extend(branches.flatten_uses());
+            }
         }
         moves
     }
@@ -388,6 +406,16 @@ impl LastUseContext {
     }
 
     fn track_variables_in_unary(&mut self, unary: &ast::Unary) {
+        if matches!(unary.operator, UnaryOp::Reference { .. }) {
+            // When `&var` or `&mut var` is taken directly on a local variable, that variable
+            // is now aliased. Mark it so that any future copy must clone rather than move.
+            // See `referenced_variables` for the full explanation.
+            if let Expression::Ident(ident) = unary.rhs.as_ref()
+                && let ast::Definition::Local(local_id) = ident.definition
+            {
+                self.referenced_variables.insert(local_id);
+            }
+        }
         self.track_variables_in_expression(&unary.rhs);
     }
 

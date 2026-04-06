@@ -996,8 +996,8 @@ fn clones_dereference_in_index_object() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
         let z$l2 = (&mut arr$l0);
-        let y$l3 = arr$l0;
-        (*z$l2).clone()[idx$l1] = 100
+        let y$l3 = arr$l0.clone();
+        (*z$l2)[idx$l1] = 100
     }
     ");
 }
