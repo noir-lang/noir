@@ -250,7 +250,7 @@ where
     ///     assert(sorted == [32, 42]);
     /// }
     /// ```
-    pub fn sort(self) -> Self {
+    pub fn sort(&self) -> Self {
         self.sort_via(|a, b| a <= b)
     }
 }
@@ -277,7 +277,7 @@ where
     ///     assert(sorted_descending == [32, 42]); // does not verify
     /// }
     /// ```
-    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
+    pub fn sort_via<Env>(&self, ordering: fn[Env](T, T) -> bool) -> Self {
         // Safety: `sorted` array is checked to be:
         // a. a permutation of `input`'s elements
         // b. satisfying the predicate `ordering`
@@ -290,7 +290,7 @@ where
                     "Array has not been sorted correctly according to `ordering`.",
                 );
             }
-            check_shuffle::check_shuffle(self, sorted);
+            check_shuffle::check_shuffle(self, &sorted);
         }
         sorted
     }

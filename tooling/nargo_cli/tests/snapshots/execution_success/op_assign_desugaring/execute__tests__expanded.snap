@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Pair {
+    x: Field,
+    y: Field,
+}
+
+fn main() {
+    let mut x: [Field; 3] = [1_Field, 2_Field, 3_Field];
+    {
+        let i_0: u32 = {
+            x[0_u32] = x[0_u32] + 2_Field;
+            0_u32
+        };
+        x[i_0] = x[i_0] + 3_Field;
+    };
+    assert(x[0_u32] == ((1_Field + 2_Field) + 3_Field));
+    let mut p: Pair = Pair { x: 10_Field, y: 20_Field };
+    p.x = p.x + 5_Field;
+    assert(p.x == 15_Field);
+    assert(p.y == 20_Field);
+}

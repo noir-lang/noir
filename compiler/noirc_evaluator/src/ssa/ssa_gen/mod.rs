@@ -1001,7 +1001,9 @@ impl FunctionContext<'_> {
             self.builder.switch_to_block(end_block);
         } else {
             // In the case we have no 'else', the 'else' block is actually the end block.
-            self.builder.terminate_with_jmp(else_block, vec![]);
+            self.codegen_unless_break_or_continue(then_result, |this, _| {
+                this.builder.terminate_with_jmp(else_block, vec![]);
+            })?;
             self.builder.switch_to_block(else_block);
         }
 
