@@ -6,7 +6,8 @@ use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize, de::Error};
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub(crate) fn parse_toml(
@@ -17,7 +18,9 @@ pub(crate) fn parse_toml(
     let data: BTreeMap<String, TomlTypes> = toml::from_str(input_string).map_err(|err| {
         // Try to improve a bit the error message we get when large numbers are used in TOML
         let message = err.to_string();
-        if message.contains("number too large to fit in target type") {
+        if message.contains("number too large to fit in target type")
+            || message.contains("integer number overflowed")
+        {
             let message = message.trim_end();
             toml::de::Error::custom(format!("{message}\n\nnote: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"))
         } else {
@@ -73,21 +76,89 @@ pub(crate) fn serialize_to_toml(
     Ok(toml_string)
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 enum TomlTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
-    // Just a regular integer, that can fit in 64 bits
-    // Note that the toml spec specifies that all numbers are represented as `i64`s.
-    Integer(i64),
+    // An integer that can fit in 128 bits.
+    // Note that TOML spec v1.0 used i64, but v1.1 extended this to i128.
+    Integer(i128),
     // Simple boolean flag
     Bool(bool),
     // Array of TomlTypes
     Array(Vec<TomlTypes>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
+}
+
+// Custom Deserialize implementation because serde's `#[serde(untagged)]` enum
+// deserialization does not properly forward i128 deserialization calls.
+impl<'de> Deserialize<'de> for TomlTypes {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, MapAccess, SeqAccess, Visitor};
+        use std::fmt;
+
+        struct TomlTypesVisitor;
+
+        impl<'de> Visitor<'de> for TomlTypesVisitor {
+            type Value = TomlTypes;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string, integer, boolean, array, or table")
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::String(v.to_owned()))
+            }
+
+            fn visit_string<E: de::Error>(self, v: String) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::String(v))
+            }
+
+            fn visit_bool<E: de::Error>(self, v: bool) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::Bool(v))
+            }
+
+            fn visit_i64<E: de::Error>(self, v: i64) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::Integer(i128::from(v)))
+            }
+
+            fn visit_i128<E: de::Error>(self, v: i128) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::Integer(v))
+            }
+
+            fn visit_u64<E: de::Error>(self, v: u64) -> Result<TomlTypes, E> {
+                Ok(TomlTypes::Integer(i128::from(v)))
+            }
+
+            fn visit_u128<E: de::Error>(self, v: u128) -> Result<TomlTypes, E> {
+                i128::try_from(v).map(TomlTypes::Integer).map_err(de::Error::custom)
+            }
+
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<TomlTypes, A::Error> {
+                let mut vec = Vec::new();
+                while let Some(elem) = seq.next_element()? {
+                    vec.push(elem);
+                }
+                Ok(TomlTypes::Array(vec))
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<TomlTypes, A::Error> {
+                let mut btree = BTreeMap::new();
+                while let Some((key, value)) = map.next_entry()? {
+                    btree.insert(key, value);
+                }
+                Ok(TomlTypes::Table(btree))
+            }
+        }
+
+        deserializer.deserialize_any(TomlTypesVisitor)
+    }
 }
 
 impl TomlTypes {
@@ -161,7 +232,7 @@ impl InputValue {
                 TomlTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let new_value = parse_integer_to_signed(i128::from(integer), *width, arg_name)?;
+                let new_value = parse_integer_to_signed(integer, *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 
@@ -169,7 +240,7 @@ impl InputValue {
                 TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
-                let new_value = FieldElement::from(i128::from(integer));
+                let new_value = FieldElement::from(integer);
 
                 InputValue::Field(new_value)
             }
@@ -285,6 +356,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_integers_larger_than_i64() {
+        let typ = AbiType::Field;
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        // 19223372036854775807 is larger than i64::MAX but fits in i128
+        let toml = "input = 19223372036854775807";
+        let result = parse_toml(toml, &abi).expect("should parse i128-range integers");
+        let InputValue::Field(field) = &result["input"] else {
+            panic!("Expected field");
+        };
+        assert_eq!(*field, FieldElement::from(19223372036854775807_i128));
+    }
+
+    #[test]
     fn suggests_wrapping_large_numbers_in_double_quotes() {
         let typ = AbiType::Field;
         let abi = Abi {
@@ -296,7 +388,8 @@ mod tests {
             return_type: None,
             error_types: Default::default(),
         };
-        let toml = "input = 19223372036854775807";
+        // This number is larger than i128::MAX, so the TOML parser will reject it.
+        let toml = "input = 999999999999999999999999999999999999999999";
         let err = parse_toml(toml, &abi).unwrap_err();
         assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
@@ -313,7 +406,8 @@ mod tests {
             return_type: None,
             error_types: Default::default(),
         };
-        let toml = "input = 0x19223372036854775807";
+        // This hex number is larger than i128::MAX, so the TOML parser will reject it.
+        let toml = "input = 0x99999999999999999999999999999999999999";
         let err = parse_toml(toml, &abi).unwrap_err();
         assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
