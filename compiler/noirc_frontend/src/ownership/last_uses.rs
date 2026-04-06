@@ -624,25 +624,42 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
     let mut use_records: HashMap<LocalId, Vec<(IdentId, FieldPath)>> = HashMap::default();
     collect_use_records(body, &mut use_records);
 
-    for (local_id, records) in &use_records {
-        let already_moves: HashSet<IdentId> =
-            moves.get(local_id).map(|v| v.iter().copied().collect()).unwrap_or_default();
+    // Moves identified by the main last-use analysis. Since IdentIds are unique per use-site,
+    // a move added for one variable can never appear in another variable's records, so we can
+    // safely precompute this set once rather than rebuilding it per variable.
+    let prior_moves: HashSet<IdentId> = moves.values().flat_map(|v| v.iter().copied()).collect();
 
-        for (i, (ident_id, path)) in records.iter().enumerate() {
-            // Skip bare uses (empty path = whole-variable use, can't do field-level opt)
-            // and uses already marked as moves
-            if path.is_empty() || already_moves.contains(ident_id) {
-                continue;
+    let mut new_moves: Vec<(LocalId, IdentId)> = Vec::new();
+
+    for (local_id, records) in &use_records {
+        // Scan in reverse, maintaining the set of unique field paths seen so far
+        // (i.e. paths from later uses). This avoids the O(R²) forward scan by
+        // checking each candidate against at most U unique paths, where U is
+        // bounded by the struct/tuple arity — typically very small.
+        let mut later_paths: Vec<&FieldPath> = Vec::new();
+        let mut has_bare_later = false;
+
+        for (ident_id, path) in records.iter().rev() {
+            if path.is_empty() {
+                // Bare use — no later use can be disjoint from this.
+                has_bare_later = true;
+            } else if !prior_moves.contains(ident_id) && !has_bare_later {
+                let disjoint =
+                    later_paths.iter().all(|later| field_paths_are_disjoint(path, later));
+                if disjoint {
+                    new_moves.push((*local_id, *ident_id));
+                }
             }
 
-            let disjoint_from_all_later = records[i + 1..]
-                .iter()
-                .all(|(_, later_path)| field_paths_are_disjoint(path, later_path));
-
-            if disjoint_from_all_later {
-                moves.entry(*local_id).or_default().push(*ident_id);
+            // Add to later_paths if this path is unique (not already present).
+            if !path.is_empty() && !later_paths.iter().any(|p| *p == path) {
+                later_paths.push(path);
             }
         }
+    }
+
+    for (local_id, ident_id) in new_moves {
+        moves.entry(local_id).or_default().push(ident_id);
     }
 }
 
