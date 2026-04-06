@@ -10,8 +10,10 @@
 use std::path::Path;
 
 use crate::elaborator::FrontendOptions;
+use crate::tests::report_all;
 
 use iter_extended::vecmap;
+use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
 use crate::hir::Context;
@@ -79,6 +81,8 @@ pub fn get_monomorphized_with_options(
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
     if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(&context, &errors, false, false);
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
