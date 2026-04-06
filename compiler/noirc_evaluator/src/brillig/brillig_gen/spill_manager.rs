@@ -1,3 +1,13 @@
+//! Register spill management for the Brillig code generator.
+//!
+//! When register pressure exceeds the available register count, the [`SpillManager`] coordinates
+//! evicting the least-recently-used (LRU) values to a spill region in heap memory, and reloading
+//! them on demand. It distinguishes between transient spills (temporary within a basic block)
+//! and permanent spills (values that must survive across block boundaries), allocating stable
+//! heap slots for the latter.
+
+use std::collections::hash_map::Entry;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -99,9 +109,7 @@ impl SpillManager {
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
-        if let std::collections::hash_map::Entry::Occupied(mut entry) =
-            self.records.entry(*value_id)
-        {
+        if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
             if entry.get().is_permanent {
                 entry.get_mut().is_currently_spilled = false;
             } else {
@@ -278,21 +286,8 @@ impl SpillManager {
         let Some(record) = self.records.get_mut(value_id) else {
             return false;
         };
-        if record.is_permanent && record.is_currently_spilled {
-            // Already permanent and spilled — nothing to do.
-        } else if record.is_currently_spilled {
-            // Transient spill — promote to permanent.
-            record.is_permanent = true;
-        } else if record.is_permanent {
-            // Permanent but reloaded — re-mark as spilled.
-            record.is_currently_spilled = true;
-        } else {
-            // Transient spill that got reloaded - re-mark as spilled and promote to permanent.
-            // `record_permanent_spill` ensures that we never change the offset of an existing record,
-            // so the data in the spill slot should still be good.
-            record.is_permanent = true;
-            record.is_currently_spilled = true;
-        }
+        record.is_permanent = true;
+        record.is_currently_spilled = true;
         true
     }
 }
