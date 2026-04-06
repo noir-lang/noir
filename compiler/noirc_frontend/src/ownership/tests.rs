@@ -1086,3 +1086,74 @@ fn does_not_clone_disjoint_nested_and_shallow_extractions() {
     }
     ");
 }
+
+/// Mixed whole-variable use and disjoint field extractions. `foo(tuple)` clones
+/// the whole variable (correct), but `tuple.0.0` is disjoint from all later
+/// extraction paths so it doesn't need a clone.
+#[test]
+fn does_not_clone_field_extraction_disjoint_from_later_uses() {
+    let src = "
+    unconstrained fn main() {
+        let tuple = (([1], [2]), ([3], ([4], [5])));
+        foo(tuple);
+        foo(tuple.0.0);
+        foo(tuple.1.1);
+        foo(tuple.1.1.1);
+    }
+
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // tuple.clone() is correct — whole variable used again
+    // tuple.0.0 is NOT cloned — disjoint from all later paths
+    // tuple.1.1.clone() is correct — overlaps with tuple.1.1.1
+    // tuple.1.1.1 is NOT cloned — last use
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let tuple$l0 = (([1], [2]), ([3], ([4], [5])));
+        foo$f1(tuple$l0.clone());;
+        foo$f2(tuple$l0.0.0);;
+        foo$f3(tuple$l0.1.1.clone());;
+        foo$f2(tuple$l0.1.1.1);
+    }
+    unconstrained fn foo$f1(_$l1: (([Field; 1], [Field; 1]), ([Field; 1], ([Field; 1], [Field; 1])))) -> () {
+    }
+    unconstrained fn foo$f2(_$l2: [Field; 1]) -> () {
+    }
+    unconstrained fn foo$f3(_$l3: ([Field; 1], [Field; 1])) -> () {
+    }
+    ");
+}
+
+/// Field extractions with a mix of overlapping and disjoint paths. `tuple.0.0`
+/// is disjoint from the later paths `tuple.1.1` and `tuple.1.1.1`, so it
+/// doesn't need a clone. `tuple.1.1` overlaps with `tuple.1.1.1` (prefix),
+/// so its clone is correctly retained.
+#[test]
+fn does_not_clone_disjoint_path_among_overlapping_paths() {
+    let src = "
+    unconstrained fn main() {
+        let tuple = (([1], [2]), ([3], ([4], [5])));
+        foo(tuple.0.0);
+        foo(tuple.1.1);
+        foo(tuple.1.1.1);
+    }
+
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let tuple$l0 = (([1], [2]), ([3], ([4], [5])));
+        foo$f1(tuple$l0.0.0);;
+        foo$f2(tuple$l0.1.1.clone());;
+        foo$f1(tuple$l0.1.1.1);
+    }
+    unconstrained fn foo$f1(_$l1: [Field; 1]) -> () {
+    }
+    unconstrained fn foo$f2(_$l2: ([Field; 1], [Field; 1])) -> () {
+    }
+    ");
+}
