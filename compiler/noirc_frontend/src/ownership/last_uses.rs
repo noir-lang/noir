@@ -655,6 +655,7 @@ impl LastUseContext {
 /// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
 /// - `&mut x.a.b`     → `Some(x_id)`
 /// - `&mut some_call()` → `None`
+///
 /// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
 /// contains a `&mut T` (at any depth) where `T` itself contains a reference.
 ///
