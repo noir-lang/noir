@@ -73,7 +73,7 @@
 <div class="padded-description"><div class="comments">
 <p>Clears the map, removing all key-value entries.</p>
 </div>
-</div><code id="contains_key" class="code-header">pub fn <a href="#contains_key"><span class="fn">contains_key</span></a>(self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
+</div><code id="contains_key" class="code-header">pub fn <a href="#contains_key"><span class="fn">contains_key</span></a>(&mut self: &Self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -143,7 +143,7 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>Get the current capacity of the inner table.</p>
 </div>
-</div><code id="get" class="code-header">pub unconstrained fn <a href="#get"><span class="fn">get</span></a>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
+</div><code id="get" class="code-header">pub unconstrained fn <a href="#get"><span class="fn">get</span></a>(&mut self: &Self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
