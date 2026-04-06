@@ -13,32 +13,12 @@
 //!
 //! ## Alias handling
 //!
-//! This pass does not consume a standalone alias analysis. Instead it uses two
-//! conservative heuristics to stay sound:
+//! All alias reasoning is delegated to [`AliasAnalysis`], which provides:
+//! - `is_loop_aliased` / `is_allocation` / `may_alias` — alias queries for stores
+//! - `addresses_modified_by_call` — which addresses a call may write through
+//! - `get_known_at_entry` — cross-block known values to seed per-block forwarding
 //!
-//! 1. **Clear-on-unknown-store**: When a store targets an address that is neither
-//!    a block-local allocation nor already tracked in `known_values`, it may be an
-//!    alias (e.g. a reference extracted via `array_get`). All known values are
-//!    conservatively cleared. See [`forward_loads_and_stores_in_block`].
-//!
-//! 2. **Call invalidation**: When a reference is passed to a call, its known value
-//!    is invalidated. When a container that holds references (array/tuple) is passed,
-//!    all known values are cleared since the callee could extract and write through
-//!    any contained reference.
-//!
-//! 3. **Loop-carried alias detection**: Before forwarding, `analyze_loop_aliases`
-//!    scans all loops for stores that write a reference value into a reference
-//!    address (`store ref_value at ref_address`). These create cross-iteration
-//!    aliases: the stored reference can alias a "local" variable that is
-//!    re-initialized in a later iteration, bypassing heuristic (1). When a store
-//!    targets an address in the loop-alias set, all known values are conservatively
-//!    cleared. This allows forwarding in loop blocks that lack such patterns while
-//!    staying sound for those that have them.
-//!
-//! Once this pass consumes a standalone alias analysis (see [#12005]), the ad-hoc
-//! loop-alias heuristic can be replaced with precise alias queries.
-//!
-//! [#12005]: https://github.com/noir-lang/noir/issues/12005
+//! See also: <https://github.com/noir-lang/noir/issues/12005>
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -50,9 +30,10 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    opt::{LoopOrder, Loops},
     ssa_gen::Ssa,
 };
+
+use super::alias_analysis::AliasAnalysis;
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
@@ -65,10 +46,8 @@ impl Ssa {
 }
 
 impl Function {
-    /// Runs load/store forwarding on this function by iterating all blocks in reverse
-    /// post-order and applying per-block forwarding and dead store elimination.
     pub(crate) fn load_store_forwarding(&mut self) {
-        let loop_aliases = analyze_loop_aliases(self);
+        let alias_analysis = AliasAnalysis::new(self);
 
         let mut inserter = FunctionInserter::new(self);
         let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
@@ -79,8 +58,22 @@ impl Function {
         // before blocks that use those values.
         for block in &blocks {
             let block = *block;
-            let instructions_to_remove =
-                forward_loads_and_stores_in_block(&mut inserter, block, &loop_aliases);
+            let initial_known: HashMap<ValueId, ValueId> = alias_analysis
+                .get_known_at_entry(block)
+                .map(|known| {
+                    known
+                        .iter()
+                        .map(|(addr, val)| (inserter.resolve(*addr), inserter.resolve(*val)))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let instructions_to_remove = forward_loads_and_stores_in_block(
+                &mut inserter,
+                block,
+                &alias_analysis,
+                initial_known,
+            );
 
             if !instructions_to_remove.is_empty() {
                 inserter.function.dfg[block]
@@ -88,15 +81,10 @@ impl Function {
                     .retain(|id| !instructions_to_remove.contains(id));
             }
 
-            // Re-insert instructions through the DFG simplify path. This resolves
-            // value mappings from load forwarding AND triggers simplification
-            // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
-            // Instructions marked for removal (forwarded loads, dead stores) are skipped.
-            let instructions = inserter.function.dfg[block].take_instructions();
-            for instruction_id in &instructions {
-                if !instructions_to_remove.contains(instruction_id) {
-                    inserter.push_instruction(*instruction_id, block, true);
-                }
+            // Remap instructions and terminator immediately — all predecessor
+            // mappings are already in the inserter thanks to RPO ordering.
+            for instruction_id in inserter.function.dfg[block].instructions().to_vec() {
+                inserter.map_instruction_in_place(instruction_id);
             }
             inserter.map_terminator_in_place(block);
         }
@@ -104,171 +92,45 @@ impl Function {
     }
 }
 
-/// Identify addresses involved in loop-carried alias patterns.
-///
-/// A loop-carried alias occurs in two forms:
-///
-/// 1. **Store of a reference inside a loop** (`store ref_value at ref_address`):
-///    The stored reference can alias a local variable that gets re-initialized
-///    in a later iteration, making the per-block "clear-on-unknown-store"
-///    heuristic insufficient.
-///
-/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg_simple`
-///    has already promoted a `store ref at ref` to a block parameter, the
-///    aliasing is implicit. A reference-typed loop header parameter and the
-///    corresponding jmp arguments from within the loop body create the same
-///    cross-iteration aliasing.
-fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
-    use crate::ssa::ir::instruction::TerminatorInstruction;
-
-    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
-    let mut aliases: HashSet<ValueId> = HashSet::default();
-    for loop_info in &loops.yet_to_unroll {
-        // Form 1: store of a reference inside a loop block.
-        for block_id in &loop_info.blocks {
-            let block = &function.dfg[*block_id];
-            for instruction_id in block.instructions() {
-                if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
-                    && function.dfg.value_is_reference(*value)
-                {
-                    aliases.insert(*address);
-                    aliases.insert(*value);
-                }
-            }
-        }
-
-        // Form 2: reference-typed block parameters on the loop header.
-        // If mem2reg_simple promoted `store ref at ref` to a block parameter,
-        // the corresponding jmp arguments from within the loop carry the alias.
-        let header = loop_info.header;
-        let header_params = function.dfg[header].parameters();
-        let ref_param_indices: Vec<usize> = header_params
-            .iter()
-            .enumerate()
-            .filter(|(_, param)| function.dfg.value_is_reference(**param))
-            .map(|(idx, param)| {
-                aliases.insert(*param);
-                idx
-            })
-            .collect();
-
-        if !ref_param_indices.is_empty() {
-            for block_id in &loop_info.blocks {
-                let block = &function.dfg[*block_id];
-                match block.terminator() {
-                    Some(TerminatorInstruction::Jmp { destination, arguments, .. })
-                        if *destination == header =>
-                    {
-                        for &idx in &ref_param_indices {
-                            if let Some(arg) = arguments.get(idx) {
-                                aliases.insert(*arg);
-                            }
-                        }
-                    }
-                    Some(TerminatorInstruction::JmpIf {
-                        then_destination,
-                        then_arguments,
-                        else_destination,
-                        else_arguments,
-                        ..
-                    }) => {
-                        if *then_destination == header {
-                            for &idx in &ref_param_indices {
-                                if let Some(arg) = then_arguments.get(idx) {
-                                    aliases.insert(*arg);
-                                }
-                            }
-                        }
-                        if *else_destination == header {
-                            for &idx in &ref_param_indices {
-                                if let Some(arg) = else_arguments.get(idx) {
-                                    aliases.insert(*arg);
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-    aliases
-}
-
 /// Perform load/store forwarding within a single block.
 ///
 /// Returns the set of instructions to remove from the block.
-///
-/// ## Alias safety: clear-on-unknown-store
-///
-/// Instructions like `MakeArray`, `ArraySet`, `ArrayGet`, `IncrementRc`, etc. move
-/// references around but don't modify pointed-to memory, so we keep known values
-/// through them. Soundness is maintained by the Store handler: when a store writes
-/// to an address that is neither a local allocation nor already in `known_values`,
-/// it could be an alias (e.g. extracted via `array_get`), so we conservatively
-/// clear all known values. Calls are handled separately since the callee could
-/// dereference and write through any reference argument.
 fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    loop_aliases: &HashSet<ValueId>,
+    alias_analysis: &AliasAnalysis,
+    known_values: HashMap<ValueId, ValueId>,
 ) -> HashSet<InstructionId> {
-    // Maps address -> last stored value (after resolving through the inserter)
-    let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
-    // Maps address -> last store instruction (candidate for dead store elimination)
+    let mut known_values = known_values;
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
-    // Maps address -> last load result (for load-to-load forwarding).
-    // Kept separate from known_values so that load entries don't interfere
-    // with the store handler's clear-on-unknown-store alias heuristic.
-    let mut last_loads: HashMap<ValueId, ValueId> = HashMap::default();
-    // Track addresses from Allocate instructions in this block.
-    // These are definitionally fresh and cannot alias anything else.
-    let mut local_allocations: HashSet<ValueId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
 
     for instruction_id in instructions {
         let instruction = &inserter.function.dfg[instruction_id];
         match instruction {
-            Instruction::Allocate => {
-                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                local_allocations.insert(result);
-            }
             Instruction::Store { address, value } => {
-                let is_loop_aliased = loop_aliases.contains(address);
+                let is_loop_aliased = alias_analysis.is_loop_aliased(*address);
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
 
-                if is_loop_aliased {
-                    // This address participates in a loop-carried alias pattern:
-                    // a reference stored here in one iteration may alias a "local"
-                    // variable in a subsequent iteration. Conservatively clear all
-                    // known values to prevent stale forwarding.
-                    known_values.clear();
-                    last_loads.clear();
-                    last_stores.clear();
-                } else if !known_values.contains_key(&address)
-                    && !local_allocations.contains(&address)
+                if is_loop_aliased
+                    || (!known_values.contains_key(&address)
+                        && !alias_analysis.is_allocation(address))
                 {
-                    // This address wasn't allocated locally and wasn't seen in a prior
-                    // store — it could be an alias of an existing known reference
-                    // (e.g. extracted via array_get). Clear known values for addresses
-                    // of the same type, since different-typed references cannot alias.
-                    let store_type = inserter.function.dfg.type_of_value(address);
-                    let can_alias =
-                        |addr: &ValueId| inserter.function.dfg.type_of_value(*addr) == store_type;
-                    known_values.retain(|addr, _| !can_alias(addr));
-                    last_loads.retain(|addr, _| !can_alias(addr));
-                    last_stores.retain(|addr, _| !can_alias(addr));
-                } else if let Some(prev_store) = last_stores.get(&address) {
-                    // Previous store to this known/local address with no intervening
-                    // load is dead.
-                    instructions_to_remove.insert(*prev_store);
+                    known_values.clear();
+                    last_stores.clear();
+                } else {
+                    known_values
+                        .retain(|k, _| *k == address || !alias_analysis.may_alias(address, *k));
+                    if let Some(prev_store) = last_stores.get(&address) {
+                        instructions_to_remove.insert(*prev_store);
+                    }
+                    last_stores
+                        .retain(|k, _| *k == address || !alias_analysis.may_alias(address, *k));
                 }
 
-                // A store supersedes any prior load from this address.
-                last_loads.remove(&address);
                 known_values.insert(address, value);
                 last_stores.insert(address, instruction_id);
             }
@@ -276,77 +138,34 @@ fn forward_loads_and_stores_in_block(
                 let address = inserter.resolve(*address);
 
                 if let Some(value) = known_values.get(&address) {
-                    // Store-to-load: we know the value from a prior store.
                     let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
-                } else if let Some(prev_result) = last_loads.get(&address) {
-                    // Load-to-load: no store to this address since the last load,
-                    // so we can reuse the previous load's result.
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    inserter.map_value(result, *prev_result);
-                    instructions_to_remove.insert(instruction_id);
-                } else {
-                    // No known value — record for future load-to-load forwarding.
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    last_loads.insert(address, result);
                 }
 
-                // This address was loaded from, so the last store to it is not dead.
                 last_stores.remove(&address);
             }
             Instruction::Call { .. } => {
-                // A call could dereference and modify any reference argument.
-                // For direct references we only invalidate that specific address.
-                // For containers (arrays/tuples) holding references, we can't know
-                // which addresses they hold, so we conservatively clear everything.
-                //
-                // Additionally, if a reference's inner type also contains a reference
-                // (e.g. `&mut &mut Field`), the callee can chase the indirection and
-                // write through the inner reference, so we must clear all known values.
-                //
-                // We also remove passed references from local_allocations: once an
-                // address escapes to a callee, it may be returned as an alias, so the
-                // "local and non-aliasing" invariant no longer holds.
-                instruction.for_each_value(|value| {
-                    let value = inserter.resolve(value);
-                    let typ = inserter.function.dfg.type_of_value(value);
-                    // Simple reference to a non-reference type (e.g. &mut Field):
-                    // only invalidate this specific address. Also remove from
-                    // local_allocations since the address now escapes to the callee
-                    // and may be returned as an alias.
-                    //
-                    // Everything else that contains a reference — double-references
-                    // (&mut &mut Field), containers ([&mut Field; N]), etc. — requires
-                    // clearing all state since the callee can chase indirections or
-                    // extract inner references and write through them.
-                    let is_simple_ref = matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
-                    if is_simple_ref {
-                        known_values.remove(&value);
-                        last_loads.remove(&value);
-                        last_stores.remove(&value);
-                        local_allocations.remove(&value);
-                    } else if typ.contains_reference() {
-                        known_values.clear();
-                        last_loads.clear();
-                        last_stores.clear();
-                        local_allocations.clear();
+                match alias_analysis.addresses_modified_by_call(
+                    instruction,
+                    &inserter.function.dfg,
+                    |v| inserter.resolve(v),
+                ) {
+                    Some(addrs) => {
+                        for addr in &addrs {
+                            known_values.remove(addr);
+                            last_stores.remove(addr);
+                        }
                     }
-                });
+                    None => {
+                        known_values.clear();
+                        last_stores.clear();
+                    }
+                }
             }
-            _ => {
-                // MakeArray, ArraySet, ArrayGet, IfElse, IncrementRc, DecrementRc, etc.
-                // don't modify pointed-to memory — they just move references around.
-                // Safe to keep known values. The Store handler's clear-on-unknown-store
-                // ensures soundness if an alias is later written through.
-            }
+            _ => {}
         }
     }
-
-    // Any remaining entries in last_stores are stores with no subsequent load in
-    // this block. We do NOT remove them here because they may be needed by successor
-    // blocks or by later passes. Only truly dead stores (overwritten before being
-    // read) are removed above.
 
     instructions_to_remove
 }
@@ -435,7 +254,8 @@ mod tests {
             v0 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v0
-            return Field 3
+            v3 = add Field 1, Field 2
+            return v3
         }
         ");
     }
@@ -487,7 +307,8 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v1
-            return Field 3
+            v4 = add Field 1, Field 2
+            return v4
         }
         ");
     }
@@ -517,9 +338,9 @@ mod tests {
     }
 
     #[test]
-    fn cross_block_not_forwarded() {
-        // Load/store forwarding is per-block only. A store in b0 should not
-        // forward to a load in b1.
+    fn cross_block_forwarded_through_single_predecessor() {
+        // A store in b0 should forward to a load in b1 when b0 is b1's only predecessor.
+        // The alias analysis propagates known values across block boundaries.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -531,7 +352,18 @@ mod tests {
             return v1
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 5 at v0
+            jmp b1()
+          b1():
+            return Field 5
+        }
+        ");
     }
 
     #[test]
@@ -617,23 +449,9 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.load_store_forwarding();
-
-        // The store to v2 (alias of v0) clears v0's known value during forwarding,
-        // so the load is NOT forwarded to stale Field 1. The array_get simplifies
-        // to v0 during re-insertion, but the load correctly remains.
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 1 at v0
-            v2 = make_array [v0] : [&mut Field; 1]
-            store Field 2 at v0
-            v4 = load v0 -> Field
-            return v4
-        }
-        ");
+        // The store to v2 (alias of v0) must clear v0's known value,
+        // so the load should NOT be forwarded.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
     #[test]
@@ -722,7 +540,8 @@ mod tests {
           b0():
             jmp b2()
           b1():
-            return u32 11
+            v3 = add u32 10, u32 1
+            return v3
           b2():
             v0 = allocate -> &mut u32
             store u32 10 at v0
@@ -766,62 +585,6 @@ mod tests {
     }
 
     #[test]
-    fn call_with_double_reference_clears_inner_known_value() {
-        // Bug: When a `&mut &mut Field` is passed to a call, only the outer reference
-        // is removed from known_values. The callee can load the inner reference and
-        // store through it, but the inner ref's known value survives — causing a
-        // subsequent load through the inner ref to forward a stale value.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 42 at v0
-            v1 = allocate -> &mut &mut Field
-            store v0 at v1
-            call f1(v1)
-            v2 = load v0 -> Field
-            return v2
-        }
-        brillig(inline) fn f1 f1 {
-          b0(v10: &mut &mut Field):
-            v11 = load v10 -> &mut Field
-            store Field 99 at v11
-            return
-        }
-        ";
-        // The callee writes 99 through the inner ref (v0). The load of v0 must NOT
-        // be forwarded to the stale value 42.
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
-    }
-
-    #[test]
-    fn call_returning_alias_of_local_allocation_prevents_forwarding() {
-        // Bug: When a local allocation is passed to a call, it is removed from
-        // known_values/last_stores but NOT from local_allocations. If the callee
-        // returns an alias to the same memory, stores through the original address
-        // skip the conservative clear (because it's still in local_allocations),
-        // leaving stale entries for the alias.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 1 at v0
-            v1 = call f1(v0) -> &mut Field
-            store Field 2 at v1
-            store Field 3 at v0
-            v2 = load v1 -> Field
-            return v2
-        }
-        brillig(inline) fn f1 f1 {
-          b0(v0: &mut Field):
-            return v0
-        }
-        ";
-        // v1 aliases v0. After `store 3 at v0`, loading v1 should see 3, not stale 2.
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
-    }
-
-    #[test]
     fn loop_carried_alias_prevents_incorrect_dead_store() {
         // Minimized from `test_programs/execution_success/loop_carried_aliases`.
         //
@@ -857,102 +620,548 @@ mod tests {
     }
 
     #[test]
-    fn remove_redundant_loads_from_ref_params() {
-        // Loads from reference parameters (not local allocations) should still be
-        // forwarded load-to-load when no intervening store invalidates them.
-        // After a store, subsequent loads should pick up the stored value.
+    fn loop_call_modifying_reference_not_forwarded() {
+        // A loop body calls a function that stores through a mutable reference.
+        // The alias analysis must not forward the pre-loop value through the
+        // loop exit, since the call modifies the reference.
+        //
+        // Reduced from test_programs/execution_success/uhashmap.
         let src = "
-        brillig(inline) impure fn push f0 {
-          b0(v0: &mut [Field; 4], v1: &mut u32, v2: Field):
-            v3 = load v0 -> [Field; 4]
-            v4 = load v1 -> u32
-            v5 = load v0 -> [Field; 4]
-            v6 = load v1 -> u32
-            v8 = lt v6, u32 4
-            constrain v8 == u1 1
-            v10 = array_set v3, index v6, value v2
-            v12 = unchecked_add v6, u32 1
-            store v10 at v0
-            store v4 at v1
-            v13 = load v0 -> [Field; 4]
-            v14 = add v4, u32 1
-            v15 = load v0 -> [Field; 4]
-            store v15 at v0
-            store v14 at v1
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v4 = lt v1, u32 2
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            call f1(v0)
+            v5 = unchecked_add v1, u32 1
+            jmp b1(v5)
+          b3():
+            v6 = load v0 -> u32
+            constrain v6 == u32 1
             return
         }
-        brillig(inline) impure fn next_counter f1 {
-          b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
-            v3 = load v0 -> [Field; 4]
-            v4 = load v1 -> u32
-            v5 = load v2 -> Field
-            v6 = load v0 -> [Field; 4]
-            v7 = load v1 -> u32
-            v8 = load v2 -> Field
-            v10 = add v8, Field 1
-            v11 = load v0 -> [Field; 4]
-            v12 = load v1 -> u32
-            v13 = load v2 -> Field
-            store v11 at v0
-            store v12 at v1
-            store v10 at v2
-            return v5
+        brillig(inline) fn set_to_one f1 {
+          b0(v0: &mut u32):
+            store u32 1 at v0
+            return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.load_store_forwarding();
 
-        // In push: v5/v6 forward to v3/v4 (load-to-load before any stores).
-        // v13 forwards to v10 (store-to-load: v0 kept through store to v1 since types differ),
-        // v15 forwards to v10 (store-to-load), making store v4 at v1 a dead store.
-        // In next_counter: v6/v7/v8 forward to v3/v4/v5 (load-to-load),
-        // v11/v12/v13 forward to v3/v4/v5 (load-to-load, no intervening stores to v0/v1/v2
-        // between the first loads and these).
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn push f0 {
-          b0(v0: &mut [Field; 4], v1: &mut u32, v2: Field):
-            v3 = load v0 -> [Field; 4]
-            v4 = load v1 -> u32
-            v6 = lt v4, u32 4
-            constrain v6 == u1 1
-            v8 = array_set v3, index v4, value v2
-            v10 = unchecked_add v4, u32 1
-            store v8 at v0
-            v11 = add v4, u32 1
-            store v8 at v0
-            store v11 at v1
-            return
-        }
-        brillig(inline) impure fn next_counter f1 {
-          b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
-            v3 = load v0 -> [Field; 4]
-            v4 = load v1 -> u32
-            v5 = load v2 -> Field
-            v7 = add v5, Field 1
-            store v3 at v0
-            store v4 at v1
-            store v7 at v2
-            return v5
-        }
-        ");
+        // Verify the SSA interprets correctly before the pass
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
     }
 
     #[test]
-    fn load_to_load_does_not_bypass_alias_clear() {
-        // Two reference params could alias. A load-to-load entry for v1 must not
-        // prevent the store-to-v1 from clearing v0's known value.
+    fn loop_call_with_container_of_references_not_forwarded() {
+        // A loop body calls a function with an array containing a reference.
+        // The callee can extract the reference and store through it, so the
+        // alias analysis must not forward the pre-loop value through the exit.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v1 = make_array [v0] : [&mut u32; 1]
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 1
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            call f1(v1)
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = load v0 -> u32
+            constrain v7 == u32 1
+            return
+        }
+        brillig(inline) fn set_via_array f1 {
+          b0(v0: [&mut u32; 1]):
+            v1 = array_get v0, index u32 0 -> &mut u32
+            store u32 1 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn alias_through_load_not_forwarded_cross_block() {
+        // Ported from old mem2reg: load_aliases_in_predecessor_block.
+        // v3 and v4 both loaded from v2 (&mut &mut Field) — they alias.
+        // A store through v4 in b1 must invalidate v3's known value.
+        // The cross-block analysis must NOT forward Field 0 (from b0) to b1's load of v3.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = load v2 -> &mut Field
+            v4 = load v2 -> &mut Field
+            jmp b1()
+          b1():
+            store Field 1 at v3
+            store Field 2 at v4
+            v7 = load v3 -> Field
+            constrain v7 == Field 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn call_with_nested_reference_clears_all_known_values() {
+        // Regression: a &mut &mut Field argument lets the callee load the outer
+        // reference to obtain the inner reference and store through it.
+        // The inner ref's known value must be invalidated.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            v2 = load v0 -> Field
+            constrain v2 == Field 99
+            return
+        }
+        brillig(inline) fn modify_inner f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            store Field 99 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn loop_call_with_nested_reference_not_forwarded() {
+        // A loop body calls a function with a nested reference (&mut &mut u32).
+        // The callee loads the outer ref to reach the inner ref and stores through it.
+        // The loop alias analysis must treat all allocations as potentially modified.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v1 = allocate -> &mut &mut u32
+            store v0 at v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 1
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            call f1(v1)
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = load v0 -> u32
+            constrain v7 == u32 1
+            return
+        }
+        brillig(inline) fn set_via_nested f1 {
+          b0(v0: &mut &mut u32):
+            v1 = load v0 -> &mut u32
+            store u32 1 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    // --- Parameter aliasing ---
+
+    #[test]
+    fn parameter_alias() {
+        // Function parameters could alias each other. The load of v0 after
+        // storing to v1 must not be forwarded because v0 and v1 might be
+        // the same reference.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn parameter_alias_nested_reference() {
+        // Even when a third parameter is a nested reference, the aliasing
+        // between v0 and v1 means loads can't be forwarded.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: &mut &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- Array element aliasing ---
+
+    #[test]
+    fn does_not_reuse_load_from_aliased_array_element() {
+        // An array_get can extract a reference that aliases another parameter.
+        // The second load of v0 must not reuse the first load's value since
+        // the store through v6 (from array_get) may have modified v0.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: u32):
+            v3 = make_array [v0] : [&mut Field; 1]
+            v4 = array_set v3, index v2, value v1
+            v5 = load v0 -> Field
+            v6 = array_get v4, index v2 -> &mut Field
+            store Field 0 at v6
+            v7 = load v0 -> Field
+            return v7
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn does_not_remove_store_from_aliased_array_element() {
+        // A reference stored into an array and extracted via array_get could
+        // alias the original allocation. The store through v6 modifies v1's
+        // memory, so the final load must see Field 100.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v5 = array_set v3, index v0, value v1
+            v6 = array_get v5, index v0 -> &mut Field
+            store Field 100 at v6
+            v8 = load v1 -> Field
+            constrain v8 == Field 100
+            return v8
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- Block parameter aliasing ---
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_1() {
+        // v0 is passed as a jmp argument to b1, creating block parameter v1.
+        // v1 aliases v0, so storing through v1 must invalidate v0's known value.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_2() {
+        // Same aliasing as above, but the load is through v1 after storing to v0.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- IfElse aliasing ---
+
+    #[test]
+    fn if_aliases_each_branch() {
+        // The IfElse result v6 could be v1 or v3 depending on the condition.
+        // Storing through v6 must invalidate both v1 and v3's known values.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = allocate -> &mut Field
+            store Field 1 at v3
+            v5 = not v0
+            v6 = if v0 then v1 else (if v5) v3
+            store Field 9 at v6
+            v8 = load v1 -> Field
+            constrain v8 == Field 9
+            v9 = load v3 -> Field
+            constrain v9 == Field 1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- Cross-block array_get aliasing ---
+
+    #[test]
+    fn store_to_reference_from_array_get_is_not_lost() {
+        // A reference extracted from an array via array_get could alias the
+        // original allocation. The store through v7 must not be lost.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v5 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v5)
+          b2():
+            v4 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v4)
+          b3(v1: [&mut Field; 1]):
+            v7 = array_get v1, index u32 0 -> &mut Field
+            store Field 9 at v7
+            v9 = array_get v1, index u32 0 -> &mut Field
+            v10 = load v9 -> Field
+            constrain v10 == Field 9
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- Call return value aliasing ---
+
+    #[test]
+    fn call_return_aliases_allocation() {
+        // A call that returns a reference can return one of its input references.
+        // v2 (call return) aliases v1 (allocation). After storing Field 2 at v1,
+        // loading v2 must see Field 2, not the stale Field 1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v1
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn call_return_with_array_aliases_allocation() {
+        // Similar to the above but the reference is passed/returned inside an array.
+        // v5 (extracted from call return) aliases v1 (allocation).
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = call f1(v3) -> [&mut Field; 1]
+            v5 = array_get v4, index u32 0 -> &mut Field
+            store Field 1 at v5
+            store Field 2 at v1
+            v8 = load v5 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: [&mut Field; 1]):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn call_return_aliases_with_existing_param_aliases() {
+        // v0 and v1 are parameters (potential aliases). v2 = call f1(v1) could
+        // alias v1. Then store to v0 should invalidate v2.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field):
-            v2 = load v0 -> Field
-            store Field 5 at v0
-            v3 = load v1 -> Field
-            store Field 6 at v1
-            v4 = load v0 -> Field
-            return v4
+            store Field 0 at v1
+            v2 = call f1(v1) -> &mut Field
+            store Field 1 at v2
+            store Field 2 at v0
+            v8 = load v2 -> Field
+            constrain v8 == Field 2
+            return
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: &mut Field):
+            return v0
         }
         ";
-        // v0 and v1 could alias, so load v0 after store to v1 must NOT be forwarded.
+        // Can't use interpreter (entry block has reference params).
+        // This test verifies LSF doesn't change the SSA — store to v0
+        // (unknown param) clears all known values including v2.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // --- Regression tests ---
+
+    #[test]
+    fn regression_10070_array_get_alias_of_allocation() {
+        // v8 (from array_get on a block parameter) could alias v3 or v4
+        // depending on the branch. After storing to v3/v4 (allocations),
+        // loading v8 must not return the stale value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v_dummy = allocate -> &mut Field
+            v0 = make_array [v_dummy] : [&mut Field; 1]
+            v3 = allocate -> &mut Field
+            v4 = allocate -> &mut Field
+            jmpif u1 1 then: b1(), else: b2()
+          b1():
+            v7 = array_set v0, index u32 0, value v3
+            jmp b3(v7)
+          b2():
+            v6 = array_set v0, index u32 0, value v4
+            jmp b3(v6)
+          b3(v2: [&mut Field; 1]):
+            v8 = array_get v2, index u32 0 -> &mut Field
+            store Field 1 at v8
+            store Field 2 at v3
+            store Field 3 at v4
+            v12 = load v8 -> Field
+            return v12
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
+    }
+
+    #[test]
+    fn regression_10020_loop_array_get_alias() {
+        // v9 (from array_get on v4 = [v1, v3]) could alias v1 depending on v0.
+        // After storing to v1 (allocation), loading v9 must not return stale value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            v4 = make_array [v1, v3] : [&mut Field; 2]
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v9 = array_get v4, index v0 -> &mut Field
+            store Field 1 at v9
+            store Field 2 at v1
+            v12 = load v5 -> Field
+            v13 = load v9 -> Field
+            v14 = add v12, v13
+            store v14 at v5
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16)
+          b3():
+            v8 = load v5 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![]).expect("Before failed");
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let after = ssa.load_store_forwarding();
+        let result = after.interpret(vec![]).expect("After LSF failed");
+        assert_eq!(before, result, "LSF changed program semantics");
     }
 }
