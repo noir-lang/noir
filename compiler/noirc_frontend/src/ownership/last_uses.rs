@@ -166,7 +166,15 @@ struct PlaceUses {
     overall: Branches,
     /// Per-field-path last uses, tracked with full `Branches` support for if/match branching.
     /// Each distinct field path (e.g. `[0, 1]` for `x.0.1`) gets its own `Branches`.
+    ///
+    /// This is only populated for variables accessed through `ExtractTupleField`.
+    /// Variables with only bare ident uses skip per-path tracking entirely since
+    /// they cannot benefit from field-level decomposition.
     per_path: HashMap<FieldPath, Branches>,
+    /// Set to true when the variable has been used as a bare ident (not through
+    /// `ExtractTupleField`). When true, per-path tracking is skipped because
+    /// the bare use's empty path conflicts with every field path.
+    has_bare_use: bool,
 }
 
 impl PlaceUses {
@@ -176,6 +184,10 @@ impl PlaceUses {
     /// diverge at position 1. A path that is a prefix of another (`[0]` and `[0, 1]`)
     /// is NOT disjoint. An empty path (bare variable use) is never disjoint from anything.
     fn all_paths_disjoint(&self) -> bool {
+        // A bare use conflicts with every path — fast exit for the common case.
+        if self.has_bare_use {
+            return false;
+        }
         let keys: Vec<_> = self.per_path.keys().collect();
         for (i, a) in keys.iter().enumerate() {
             for b in &keys[i + 1..] {
@@ -255,34 +267,58 @@ impl LastUseContext {
         let loop_index = self.loop_index();
         self.last_uses.insert(
             id,
-            PlaceUses { loop_index, overall: Branches::None, per_path: HashMap::default() },
+            PlaceUses {
+                loop_index,
+                overall: Branches::None,
+                per_path: HashMap::default(),
+                has_bare_use: false,
+            },
         );
     }
 
-    /// Remember a new use of the given variable at a specific field access path.
+    /// Remember a bare (non-field) use of the given variable.
     ///
-    /// Updates both the whole-variable `overall` tracking and the per-field-path tracking.
-    /// An empty `field_path` indicates a bare/whole-variable use.
-    ///
-    /// If the loop index is equal to the variable's when it was defined we can
-    /// overwrite the last use, but if it is greater we have to set the last use to None.
-    /// This is because variables cannot be moved within loops unless they were defined
-    /// within the same loop.
-    fn remember_use_of_variable(&mut self, id: LocalId, variable: IdentId, field_path: &FieldPath) {
+    /// Only updates the whole-variable `overall` tracking. Sets `has_bare_use` so that
+    /// per-path tracking is skipped (a bare use conflicts with every field path).
+    fn remember_bare_use(&mut self, id: LocalId, variable: IdentId) {
         let branch_path =
             self.current_loop_and_branch.last().expect("We should always have at least 1 path");
         let loop_index = self.loop_index();
 
         if let Some(place_uses) = self.last_uses.get_mut(&id) {
             if place_uses.loop_index == loop_index {
-                // Update overall (whole-variable) tracking
                 Self::remember_use_of_variable_rec(&mut place_uses.overall, branch_path, variable);
-                // Update per-field-path tracking
-                let path_branches = place_uses.per_path.entry(field_path.clone()).or_default();
-                Self::remember_use_of_variable_rec(path_branches, branch_path, variable);
+                place_uses.has_bare_use = true;
             } else {
                 place_uses.overall = Branches::None;
                 place_uses.per_path.clear();
+                place_uses.has_bare_use = false;
+            }
+        }
+    }
+
+    /// Remember a use of the given variable through an `ExtractTupleField` field path.
+    ///
+    /// Updates both the whole-variable `overall` tracking and the per-field-path tracking.
+    /// If the variable already has a bare use, per-path tracking is skipped since the
+    /// paths can never be fully disjoint.
+    fn remember_field_use(&mut self, id: LocalId, variable: IdentId, field_path: FieldPath) {
+        let branch_path =
+            self.current_loop_and_branch.last().expect("We should always have at least 1 path");
+        let loop_index = self.loop_index();
+
+        if let Some(place_uses) = self.last_uses.get_mut(&id) {
+            if place_uses.loop_index == loop_index {
+                Self::remember_use_of_variable_rec(&mut place_uses.overall, branch_path, variable);
+                // Only track per-path if there's no bare use (bare use makes all paths conflict)
+                if !place_uses.has_bare_use {
+                    let path_branches = place_uses.per_path.entry(field_path).or_default();
+                    Self::remember_use_of_variable_rec(path_branches, branch_path, variable);
+                }
+            } else {
+                place_uses.overall = Branches::None;
+                place_uses.per_path.clear();
+                place_uses.has_bare_use = false;
             }
         }
     }
@@ -416,7 +452,7 @@ impl LastUseContext {
     fn track_variables_in_ident(&mut self, ident: &ast::Ident) {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
-            self.remember_use_of_variable(*local_id, ident.id, &vec![]);
+            self.remember_bare_use(*local_id, ident.id);
         }
     }
 
@@ -437,7 +473,7 @@ impl LastUseContext {
         if let Expression::Ident(ident) = current
             && let ast::Definition::Local(local_id) = &ident.definition
         {
-            self.remember_use_of_variable(*local_id, ident.id, &path);
+            self.remember_field_use(*local_id, ident.id, path);
             return;
         }
 
@@ -517,6 +553,7 @@ impl LastUseContext {
                 // If the value is still accessible outside the loop, don't move it inside the loop after it has been redeclared.
                 place_uses.overall = Branches::None;
                 place_uses.per_path.clear();
+                place_uses.has_bare_use = false;
             }
         }
     }
