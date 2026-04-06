@@ -985,7 +985,7 @@ fn single_field_struct_extraction_is_optimal() {
 /// Extracting all fields of a tuple sequentially: each `t.N` accesses a
 /// distinct field, so no aliasing occurs and no clones are needed.
 #[test]
-fn tuple_disjoint_field_extraction_is_optimal() {
+fn does_not_clone_disjoint_tuple_field_extractions() {
     let src = "
     unconstrained fn main() {
         let arr1 = [1, 2];
@@ -1012,7 +1012,7 @@ fn tuple_disjoint_field_extraction_is_optimal() {
 
 /// Extracting all fields of a struct: each field access is independent.
 #[test]
-fn struct_disjoint_field_extraction_is_optimal() {
+fn does_not_clone_disjoint_struct_field_extractions() {
     let src = "
     struct MyStruct {
         data: [Field; 3],
@@ -1047,7 +1047,7 @@ fn struct_disjoint_field_extraction_is_optimal() {
 /// Nested extraction with non-overlapping paths: `x.0.0` and `x.0.1` reach
 /// into distinct sub-fields of `x.0`. The paths diverge at the second index.
 #[test]
-fn nested_tuple_disjoint_subfield_extraction_is_optimal() {
+fn does_not_clone_nested_disjoint_subfield_extractions() {
     let src = "
     unconstrained fn main() {
         let x = (([1], [2]), ([3], [4]));
@@ -1068,7 +1068,7 @@ fn nested_tuple_disjoint_subfield_extraction_is_optimal() {
 
 /// `x.0.0` and `x.1` access completely disjoint top-level fields.
 #[test]
-fn disjoint_nested_and_shallow_extraction_is_optimal() {
+fn does_not_clone_disjoint_nested_and_shallow_extractions() {
     let src = "
     unconstrained fn main() {
         let x = (([1], [2]), [3]);
