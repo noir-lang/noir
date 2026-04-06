@@ -189,7 +189,8 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+                let lhs_exp = self.dereference_hir_expression_id(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&lhs_exp);
 
                 if let HirExpression::Prefix(HirPrefixExpression {
                     operator: UnaryOp::Dereference { implicitly_added: false },

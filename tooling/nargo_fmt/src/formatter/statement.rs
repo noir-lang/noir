@@ -1,7 +1,8 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
+        AssignOpStatement, AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange,
+        LetStatement, LoopStatement, Pattern, Statement, StatementKind, UnresolvedType,
+        WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -74,6 +75,9 @@ impl ChunkFormatter<'_, '_> {
             },
             StatementKind::Assign(assign_statement) => {
                 group.group(self.format_assign(assign_statement));
+            }
+            StatementKind::AssignOp(assign_op_statement) => {
+                group.group(self.format_assign_op(assign_op_statement));
             }
             StatementKind::For(for_loop_statement) => {
                 group.group(self.format_for_loop(for_loop_statement));
@@ -194,39 +198,51 @@ impl ChunkFormatter<'_, '_> {
 
     fn format_assign(&mut self, assign_statement: AssignStatement) -> ChunkGroup {
         let mut group = ChunkGroup::new();
-        let mut is_op_assign = false;
 
         group.text(self.chunk(|formatter| {
             formatter.format_lvalue(assign_statement.lvalue);
             formatter.write_space();
-            if formatter.is_at(Token::Assign) {
-                formatter.write_token(Token::Assign);
-            } else {
-                // This is something like `x += 1`, which is parsed as an
-                // Assign with an InfixExpression as its right-hand side: `x = x + 1`.
-                // There will always be two tokens here, like `+ =` or `> >=`.
-                formatter.write_current_token();
-                formatter.bump();
-                formatter.skip_comments_and_whitespace();
-                formatter.write_current_token();
-                formatter.bump();
-
-                is_op_assign = true;
-            }
+            formatter.write_token(Token::Assign);
             formatter.write_space();
         }));
 
         let mut value_group = ChunkGroup::new();
         value_group.kind = GroupKind::AssignValue;
 
-        if is_op_assign {
-            let ExpressionKind::Infix(infix) = assign_statement.expression.kind else {
-                panic!("Expected an infix expression for op assign");
-            };
-            self.format_expression(infix.rhs, &mut value_group);
-        } else {
-            self.format_expression(assign_statement.expression, &mut value_group);
+        self.format_expression(assign_statement.expression, &mut value_group);
+
+        value_group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+        }));
+        if self.is_at(Token::Semicolon) {
+            value_group.semicolon(self);
         }
+        group.group(value_group);
+
+        group
+    }
+
+    fn format_assign_op(&mut self, assign_op_statement: AssignOpStatement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
+            formatter.format_lvalue(assign_op_statement.lvalue);
+            formatter.write_space();
+
+            // The operator and the assign token are always two tokens, like `+ =` or `> >=`.
+            formatter.write_current_token();
+            formatter.bump();
+            formatter.skip_comments_and_whitespace();
+            formatter.write_current_token();
+            formatter.bump();
+
+            formatter.write_space();
+        }));
+
+        let mut value_group = ChunkGroup::new();
+        value_group.kind = GroupKind::AssignValue;
+
+        self.format_expression(assign_op_statement.expression, &mut value_group);
 
         value_group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
