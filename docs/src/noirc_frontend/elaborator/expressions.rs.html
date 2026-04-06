@@ -1386,537 +1386,554 @@
 <a href=#1386 id=1386 data-nosnippet>1386</a>    </span><span class="kw">fn </span>elaborate_infix(<span class="kw-2">&amp;mut </span><span class="self">self</span>, infix: InfixExpression, location: Location) -&gt; (ExprId, Type) {
 <a href=#1387 id=1387 data-nosnippet>1387</a>        <span class="kw">let </span>(lhs, lhs_type) = <span class="self">self</span>.elaborate_expression(infix.lhs);
 <a href=#1388 id=1388 data-nosnippet>1388</a>        <span class="kw">let </span>(rhs, rhs_type) = <span class="self">self</span>.elaborate_expression(infix.rhs);
-<a href=#1389 id=1389 data-nosnippet>1389</a>        <span class="kw">let </span>opt_trait_id = <span class="self">self</span>.interner.try_get_operator_trait_method(infix.operator.contents);
-<a href=#1390 id=1390 data-nosnippet>1390</a>
-<a href=#1391 id=1391 data-nosnippet>1391</a>        <span class="kw">let </span>file = infix.operator.location().file;
-<a href=#1392 id=1392 data-nosnippet>1392</a>        <span class="kw">let </span>is_ord =
-<a href=#1393 id=1393 data-nosnippet>1393</a>            infix.operator.contents.is_comparator() &amp;&amp; !infix.operator.contents.is_equality();
-<a href=#1394 id=1394 data-nosnippet>1394</a>        <span class="kw">let </span>operator = HirBinaryOp::new(infix.operator, file);
-<a href=#1395 id=1395 data-nosnippet>1395</a>        <span class="kw">let </span>expr = HirExpression::Infix(HirInfixExpression {
-<a href=#1396 id=1396 data-nosnippet>1396</a>            lhs,
-<a href=#1397 id=1397 data-nosnippet>1397</a>            operator,
-<a href=#1398 id=1398 data-nosnippet>1398</a>            trait_method_id: opt_trait_id,
-<a href=#1399 id=1399 data-nosnippet>1399</a>            rhs,
-<a href=#1400 id=1400 data-nosnippet>1400</a>        });
-<a href=#1401 id=1401 data-nosnippet>1401</a>
-<a href=#1402 id=1402 data-nosnippet>1402</a>        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(expr, location);
-<a href=#1403 id=1403 data-nosnippet>1403</a>
-<a href=#1404 id=1404 data-nosnippet>1404</a>        <span class="kw">let </span>result = <span class="self">self</span>.infix_operand_type_rules(<span class="kw-2">&amp;</span>lhs_type, <span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
-<a href=#1405 id=1405 data-nosnippet>1405</a>        <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
-<a href=#1406 id=1406 data-nosnippet>1406</a>            result,
-<a href=#1407 id=1407 data-nosnippet>1407</a>            <span class="kw-2">&amp;</span>lhs_type,
-<a href=#1408 id=1408 data-nosnippet>1408</a>            opt_trait_id,
-<a href=#1409 id=1409 data-nosnippet>1409</a>            <span class="kw-2">*</span>expr_id,
-<a href=#1410 id=1410 data-nosnippet>1410</a>            location,
-<a href=#1411 id=1411 data-nosnippet>1411</a>            is_ord,
-<a href=#1412 id=1412 data-nosnippet>1412</a>        );
-<a href=#1413 id=1413 data-nosnippet>1413</a>
-<a href=#1414 id=1414 data-nosnippet>1414</a>        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
-<a href=#1415 id=1415 data-nosnippet>1415</a>        (expr_id, typ)
-<a href=#1416 id=1416 data-nosnippet>1416</a>    }
-<a href=#1417 id=1417 data-nosnippet>1417</a>
-<a href=#1418 id=1418 data-nosnippet>1418</a>    <span class="doccomment">/// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
-<a href=#1419 id=1419 data-nosnippet>1419</a>    /// * if the rules returned an `Err`, it returns [Type::Error]
-<a href=#1420 id=1420 data-nosnippet>1420</a>    /// * if the results indicate that a trait method should be used,
-<a href=#1421 id=1421 data-nosnippet>1421</a>    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
-<a href=#1422 id=1422 data-nosnippet>1422</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1423 id=1423 data-nosnippet>1423</a>    </span><span class="kw">fn </span>handle_operand_type_rules_result(
-<a href=#1424 id=1424 data-nosnippet>1424</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1425 id=1425 data-nosnippet>1425</a>        result: <span class="prelude-ty">Result</span>&lt;(Type, bool), TypeCheckError&gt;,
-<a href=#1426 id=1426 data-nosnippet>1426</a>        operand_type: <span class="kw-2">&amp;</span>Type,
-<a href=#1427 id=1427 data-nosnippet>1427</a>        trait_method_id: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
-<a href=#1428 id=1428 data-nosnippet>1428</a>        expr_id: ExprId,
-<a href=#1429 id=1429 data-nosnippet>1429</a>        location: Location,
-<a href=#1430 id=1430 data-nosnippet>1430</a>        is_ord: bool,
-<a href=#1431 id=1431 data-nosnippet>1431</a>    ) -&gt; Type {
-<a href=#1432 id=1432 data-nosnippet>1432</a>        <span class="kw">match </span>result {
-<a href=#1433 id=1433 data-nosnippet>1433</a>            <span class="prelude-val">Ok</span>((typ, use_impl)) =&gt; {
-<a href=#1434 id=1434 data-nosnippet>1434</a>                <span class="kw">if </span>use_impl {
-<a href=#1435 id=1435 data-nosnippet>1435</a>                    <span class="kw">let </span>trait_method_id = trait_method_id
-<a href=#1436 id=1436 data-nosnippet>1436</a>                        .expect(<span class="string">"ICE: expected some trait_method_id when use_impl is true"</span>);
-<a href=#1437 id=1437 data-nosnippet>1437</a>
-<a href=#1438 id=1438 data-nosnippet>1438</a>                    <span class="comment">// Delay checking the trait constraint until the end of the function.
-<a href=#1439 id=1439 data-nosnippet>1439</a>                    // Checking it now could bind an unbound type variable to any type
-<a href=#1440 id=1440 data-nosnippet>1440</a>                    // that implements the trait.
-<a href=#1441 id=1441 data-nosnippet>1441</a>                    </span><span class="kw">let </span>trait_id = trait_method_id.trait_id;
-<a href=#1442 id=1442 data-nosnippet>1442</a>                    <span class="kw">let </span>trait_generics = TraitGenerics::default();
-<a href=#1443 id=1443 data-nosnippet>1443</a>                    <span class="kw">let </span>trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
-<a href=#1444 id=1444 data-nosnippet>1444</a>                    <span class="kw">let </span>constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
-<a href=#1445 id=1445 data-nosnippet>1445</a>                    <span class="kw">let </span>select_impl = <span class="bool-val">true</span>; <span class="comment">// this constraint should lead to choosing a trait impl
-<a href=#1446 id=1446 data-nosnippet>1446</a>                    </span><span class="self">self</span>.push_trait_constraint(constraint, expr_id, select_impl);
-<a href=#1447 id=1447 data-nosnippet>1447</a>
-<a href=#1448 id=1448 data-nosnippet>1448</a>                    <span class="self">self</span>.type_check_operator_method(
-<a href=#1449 id=1449 data-nosnippet>1449</a>                        expr_id,
-<a href=#1450 id=1450 data-nosnippet>1450</a>                        trait_method_id,
-<a href=#1451 id=1451 data-nosnippet>1451</a>                        operand_type,
-<a href=#1452 id=1452 data-nosnippet>1452</a>                        <span class="kw-2">&amp;</span>typ,
-<a href=#1453 id=1453 data-nosnippet>1453</a>                        location,
-<a href=#1454 id=1454 data-nosnippet>1454</a>                        is_ord,
-<a href=#1455 id=1455 data-nosnippet>1455</a>                    );
-<a href=#1456 id=1456 data-nosnippet>1456</a>                }
-<a href=#1457 id=1457 data-nosnippet>1457</a>                typ
-<a href=#1458 id=1458 data-nosnippet>1458</a>            }
-<a href=#1459 id=1459 data-nosnippet>1459</a>            <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#1460 id=1460 data-nosnippet>1460</a>                <span class="self">self</span>.push_err(error);
-<a href=#1461 id=1461 data-nosnippet>1461</a>                Type::Error
-<a href=#1462 id=1462 data-nosnippet>1462</a>            }
-<a href=#1463 id=1463 data-nosnippet>1463</a>        }
-<a href=#1464 id=1464 data-nosnippet>1464</a>    }
-<a href=#1465 id=1465 data-nosnippet>1465</a>
-<a href=#1466 id=1466 data-nosnippet>1466</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1467 id=1467 data-nosnippet>1467</a>    </span><span class="kw">fn </span>elaborate_if(
-<a href=#1468 id=1468 data-nosnippet>1468</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1469 id=1469 data-nosnippet>1469</a>        if_expr: IfExpression,
-<a href=#1470 id=1470 data-nosnippet>1470</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#1471 id=1471 data-nosnippet>1471</a>    ) -&gt; (HirExpression, Type) {
-<a href=#1472 id=1472 data-nosnippet>1472</a>        <span class="kw">let </span>expr_location = if_expr.condition.type_location();
-<a href=#1473 id=1473 data-nosnippet>1473</a>        <span class="kw">let </span>consequence_location = if_expr.consequence.type_location();
-<a href=#1474 id=1474 data-nosnippet>1474</a>        <span class="kw">let </span>(condition, cond_type) = <span class="self">self</span>.elaborate_expression(if_expr.condition);
-<a href=#1475 id=1475 data-nosnippet>1475</a>        <span class="kw">let </span>(consequence, <span class="kw-2">mut </span>ret_type) =
-<a href=#1476 id=1476 data-nosnippet>1476</a>            <span class="self">self</span>.elaborate_expression_with_target_type(if_expr.consequence, target_type);
-<a href=#1477 id=1477 data-nosnippet>1477</a>
-<a href=#1478 id=1478 data-nosnippet>1478</a>        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>cond_type, <span class="kw-2">&amp;</span>Type::Bool, expr_location);
-<a href=#1479 id=1479 data-nosnippet>1479</a>
-<a href=#1480 id=1480 data-nosnippet>1480</a>        <span class="kw">let </span>(alternative, else_type, error_location) =
-<a href=#1481 id=1481 data-nosnippet>1481</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(alternative) = if_expr.alternative {
-<a href=#1482 id=1482 data-nosnippet>1482</a>                <span class="kw">let </span>alternative_location = alternative.type_location();
-<a href=#1483 id=1483 data-nosnippet>1483</a>                <span class="kw">let </span>(else_, else_type) =
-<a href=#1484 id=1484 data-nosnippet>1484</a>                    <span class="self">self</span>.elaborate_expression_with_target_type(alternative, target_type);
-<a href=#1485 id=1485 data-nosnippet>1485</a>                (<span class="prelude-val">Some</span>(else_), else_type, alternative_location)
-<a href=#1486 id=1486 data-nosnippet>1486</a>            } <span class="kw">else </span>{
-<a href=#1487 id=1487 data-nosnippet>1487</a>                (<span class="prelude-val">None</span>, Type::Unit, consequence_location)
-<a href=#1488 id=1488 data-nosnippet>1488</a>            };
-<a href=#1489 id=1489 data-nosnippet>1489</a>
-<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>else_type, <span class="kw-2">&amp;</span>ret_type, |elaborator| {
-<a href=#1491 id=1491 data-nosnippet>1491</a>            <span class="kw">let </span>err = elaborator.new_type_mismatch_error(<span class="kw-2">&amp;</span>else_type, <span class="kw-2">&amp;</span>ret_type, error_location);
-<a href=#1492 id=1492 data-nosnippet>1492</a>
-<a href=#1493 id=1493 data-nosnippet>1493</a>            <span class="kw">let </span>context = <span class="kw">if </span>ret_type == Type::Unit {
-<a href=#1494 id=1494 data-nosnippet>1494</a>                <span class="string">"Are you missing a semicolon at the end of your 'else' branch?"
-<a href=#1495 id=1495 data-nosnippet>1495</a>            </span>} <span class="kw">else if </span>else_type == Type::Unit {
-<a href=#1496 id=1496 data-nosnippet>1496</a>                <span class="string">"Are you missing a semicolon at the end of the first block of this 'if'?"
-<a href=#1497 id=1497 data-nosnippet>1497</a>            </span>} <span class="kw">else </span>{
-<a href=#1498 id=1498 data-nosnippet>1498</a>                <span class="string">"Expected the types of both if branches to be equal"
-<a href=#1499 id=1499 data-nosnippet>1499</a>            </span>};
-<a href=#1500 id=1500 data-nosnippet>1500</a>
-<a href=#1501 id=1501 data-nosnippet>1501</a>            err.add_context(context)
-<a href=#1502 id=1502 data-nosnippet>1502</a>        });
-<a href=#1503 id=1503 data-nosnippet>1503</a>
-<a href=#1504 id=1504 data-nosnippet>1504</a>        <span class="kw">if </span>alternative.is_none() {
-<a href=#1505 id=1505 data-nosnippet>1505</a>            ret_type = Type::Unit;
-<a href=#1506 id=1506 data-nosnippet>1506</a>        }
-<a href=#1507 id=1507 data-nosnippet>1507</a>
-<a href=#1508 id=1508 data-nosnippet>1508</a>        <span class="kw">let </span>if_expr = HirIfExpression { condition, consequence, alternative };
-<a href=#1509 id=1509 data-nosnippet>1509</a>        (HirExpression::If(if_expr), ret_type)
-<a href=#1510 id=1510 data-nosnippet>1510</a>    }
-<a href=#1511 id=1511 data-nosnippet>1511</a>
-<a href=#1512 id=1512 data-nosnippet>1512</a>    <span class="doccomment">/// Elaborate a `match &lt;expr&gt; { &lt;rules&gt; }` expression by creating an block such as this:
-<a href=#1513 id=1513 data-nosnippet>1513</a>    /// ```text
-<a href=#1514 id=1514 data-nosnippet>1514</a>    /// {
-<a href=#1515 id=1515 data-nosnippet>1515</a>    ///   let internal variable = &lt;expr&gt;;
-<a href=#1516 id=1516 data-nosnippet>1516</a>    ///   match internal variable { &lt;rules&gt; }
-<a href=#1517 id=1517 data-nosnippet>1517</a>    /// }
-<a href=#1518 id=1518 data-nosnippet>1518</a>    /// ```
-<a href=#1519 id=1519 data-nosnippet>1519</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1520 id=1520 data-nosnippet>1520</a>    </span><span class="kw">fn </span>elaborate_match(
-<a href=#1521 id=1521 data-nosnippet>1521</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1522 id=1522 data-nosnippet>1522</a>        match_expr: MatchExpression,
-<a href=#1523 id=1523 data-nosnippet>1523</a>        location: Location,
-<a href=#1524 id=1524 data-nosnippet>1524</a>    ) -&gt; (HirExpression, Type) {
-<a href=#1525 id=1525 data-nosnippet>1525</a>        <span class="comment">// Show error on the `match` keyword
-<a href=#1526 id=1526 data-nosnippet>1526</a>        </span><span class="kw">let </span>match_location = Location::new(
-<a href=#1527 id=1527 data-nosnippet>1527</a>            Span::from(location.span.start()..location.span.start() + <span class="number">5</span>),
-<a href=#1528 id=1528 data-nosnippet>1528</a>            location.file,
-<a href=#1529 id=1529 data-nosnippet>1529</a>        );
-<a href=#1530 id=1530 data-nosnippet>1530</a>        <span class="self">self</span>.use_unstable_feature(UnstableFeature::Enums, match_location);
-<a href=#1531 id=1531 data-nosnippet>1531</a>
-<a href=#1532 id=1532 data-nosnippet>1532</a>        <span class="kw">let </span>expr_location = match_expr.expression.location;
-<a href=#1533 id=1533 data-nosnippet>1533</a>        <span class="kw">let </span>(expression, typ) = <span class="self">self</span>.elaborate_expression(match_expr.expression);
-<a href=#1534 id=1534 data-nosnippet>1534</a>        <span class="kw">let </span>(let_, variable) = <span class="self">self</span>.wrap_in_let(expression, typ.clone());
-<a href=#1535 id=1535 data-nosnippet>1535</a>
-<a href=#1536 id=1536 data-nosnippet>1536</a>        <span class="kw">let </span>(errored, (rows, result_type)) =
-<a href=#1537 id=1537 data-nosnippet>1537</a>            <span class="self">self</span>.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
-<a href=#1538 id=1538 data-nosnippet>1538</a>
-<a href=#1539 id=1539 data-nosnippet>1539</a>        <span class="comment">// Avoid calling `elaborate_match_rows` if there were errors while constructing
-<a href=#1540 id=1540 data-nosnippet>1540</a>        // the match rows - it'll just lead to extra errors like `unreachable pattern`
-<a href=#1541 id=1541 data-nosnippet>1541</a>        // warnings on branches which previously had type errors.
-<a href=#1542 id=1542 data-nosnippet>1542</a>        </span><span class="kw">let </span>tree = HirExpression::Match(<span class="kw">if </span>!errored {
-<a href=#1543 id=1543 data-nosnippet>1543</a>            <span class="self">self</span>.elaborate_match_rows(rows, <span class="kw-2">&amp;</span>typ, expr_location)
-<a href=#1544 id=1544 data-nosnippet>1544</a>        } <span class="kw">else </span>{
-<a href=#1545 id=1545 data-nosnippet>1545</a>            HirMatch::Failure { missing_case: <span class="bool-val">false </span>}
-<a href=#1546 id=1546 data-nosnippet>1546</a>        });
-<a href=#1547 id=1547 data-nosnippet>1547</a>
-<a href=#1548 id=1548 data-nosnippet>1548</a>        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_expr_full(tree, location, result_type.clone());
-<a href=#1549 id=1549 data-nosnippet>1549</a>
-<a href=#1550 id=1550 data-nosnippet>1550</a>        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_stmt_full(HirStatement::Expression(tree), location);
-<a href=#1551 id=1551 data-nosnippet>1551</a>
-<a href=#1552 id=1552 data-nosnippet>1552</a>        <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, tree] });
-<a href=#1553 id=1553 data-nosnippet>1553</a>        (block, result_type)
-<a href=#1554 id=1554 data-nosnippet>1554</a>    }
+<a href=#1389 id=1389 data-nosnippet>1389</a>
+<a href=#1390 id=1390 data-nosnippet>1390</a>        <span class="kw">let </span>file = infix.operator.location().file;
+<a href=#1391 id=1391 data-nosnippet>1391</a>        <span class="kw">let </span>operator = HirBinaryOp::new(infix.operator, file);
+<a href=#1392 id=1392 data-nosnippet>1392</a>        <span class="self">self</span>.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+<a href=#1393 id=1393 data-nosnippet>1393</a>    }
+<a href=#1394 id=1394 data-nosnippet>1394</a>
+<a href=#1395 id=1395 data-nosnippet>1395</a>    <span class="doccomment">/// Complete infix elaboration given pre-elaborated operands.
+<a href=#1396 id=1396 data-nosnippet>1396</a>    ///
+<a href=#1397 id=1397 data-nosnippet>1397</a>    /// This is the shared core of [`Self::elaborate_infix`] and the op-assign desugaring in
+<a href=#1398 id=1398 data-nosnippet>1398</a>    /// [`Self::elaborate_assign_op`], which needs to supply an already-elaborated lhs to avoid
+<a href=#1399 id=1399 data-nosnippet>1399</a>    /// evaluating index sub-expressions twice.
+<a href=#1400 id=1400 data-nosnippet>1400</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>finish_infix(
+<a href=#1401 id=1401 data-nosnippet>1401</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1402 id=1402 data-nosnippet>1402</a>        lhs: ExprId,
+<a href=#1403 id=1403 data-nosnippet>1403</a>        lhs_type: Type,
+<a href=#1404 id=1404 data-nosnippet>1404</a>        operator: HirBinaryOp,
+<a href=#1405 id=1405 data-nosnippet>1405</a>        rhs: ExprId,
+<a href=#1406 id=1406 data-nosnippet>1406</a>        rhs_type: Type,
+<a href=#1407 id=1407 data-nosnippet>1407</a>        location: Location,
+<a href=#1408 id=1408 data-nosnippet>1408</a>    ) -&gt; (ExprId, Type) {
+<a href=#1409 id=1409 data-nosnippet>1409</a>        <span class="kw">let </span>opt_trait_id = <span class="self">self</span>.interner.try_get_operator_trait_method(operator.kind);
+<a href=#1410 id=1410 data-nosnippet>1410</a>        <span class="kw">let </span>is_ord = operator.kind.is_comparator() &amp;&amp; !operator.kind.is_equality();
+<a href=#1411 id=1411 data-nosnippet>1411</a>
+<a href=#1412 id=1412 data-nosnippet>1412</a>        <span class="kw">let </span>expr = HirExpression::Infix(HirInfixExpression {
+<a href=#1413 id=1413 data-nosnippet>1413</a>            lhs,
+<a href=#1414 id=1414 data-nosnippet>1414</a>            operator,
+<a href=#1415 id=1415 data-nosnippet>1415</a>            trait_method_id: opt_trait_id,
+<a href=#1416 id=1416 data-nosnippet>1416</a>            rhs,
+<a href=#1417 id=1417 data-nosnippet>1417</a>        });
+<a href=#1418 id=1418 data-nosnippet>1418</a>
+<a href=#1419 id=1419 data-nosnippet>1419</a>        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(expr, location);
+<a href=#1420 id=1420 data-nosnippet>1420</a>
+<a href=#1421 id=1421 data-nosnippet>1421</a>        <span class="kw">let </span>result = <span class="self">self</span>.infix_operand_type_rules(<span class="kw-2">&amp;</span>lhs_type, <span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
+<a href=#1422 id=1422 data-nosnippet>1422</a>        <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
+<a href=#1423 id=1423 data-nosnippet>1423</a>            result,
+<a href=#1424 id=1424 data-nosnippet>1424</a>            <span class="kw-2">&amp;</span>lhs_type,
+<a href=#1425 id=1425 data-nosnippet>1425</a>            opt_trait_id,
+<a href=#1426 id=1426 data-nosnippet>1426</a>            <span class="kw-2">*</span>expr_id,
+<a href=#1427 id=1427 data-nosnippet>1427</a>            location,
+<a href=#1428 id=1428 data-nosnippet>1428</a>            is_ord,
+<a href=#1429 id=1429 data-nosnippet>1429</a>        );
+<a href=#1430 id=1430 data-nosnippet>1430</a>
+<a href=#1431 id=1431 data-nosnippet>1431</a>        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr_type(expr_id, typ.clone());
+<a href=#1432 id=1432 data-nosnippet>1432</a>        (expr_id, typ)
+<a href=#1433 id=1433 data-nosnippet>1433</a>    }
+<a href=#1434 id=1434 data-nosnippet>1434</a>
+<a href=#1435 id=1435 data-nosnippet>1435</a>    <span class="doccomment">/// Handles the results of [Self::prefix_operand_type_rules] and [Self::infix_operand_type_rules].
+<a href=#1436 id=1436 data-nosnippet>1436</a>    /// * if the rules returned an `Err`, it returns [Type::Error]
+<a href=#1437 id=1437 data-nosnippet>1437</a>    /// * if the results indicate that a trait method should be used,
+<a href=#1438 id=1438 data-nosnippet>1438</a>    ///   it pushes a trait constraint and checks that the expression type is compatible with the trait method
+<a href=#1439 id=1439 data-nosnippet>1439</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1440 id=1440 data-nosnippet>1440</a>    </span><span class="kw">fn </span>handle_operand_type_rules_result(
+<a href=#1441 id=1441 data-nosnippet>1441</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1442 id=1442 data-nosnippet>1442</a>        result: <span class="prelude-ty">Result</span>&lt;(Type, bool), TypeCheckError&gt;,
+<a href=#1443 id=1443 data-nosnippet>1443</a>        operand_type: <span class="kw-2">&amp;</span>Type,
+<a href=#1444 id=1444 data-nosnippet>1444</a>        trait_method_id: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
+<a href=#1445 id=1445 data-nosnippet>1445</a>        expr_id: ExprId,
+<a href=#1446 id=1446 data-nosnippet>1446</a>        location: Location,
+<a href=#1447 id=1447 data-nosnippet>1447</a>        is_ord: bool,
+<a href=#1448 id=1448 data-nosnippet>1448</a>    ) -&gt; Type {
+<a href=#1449 id=1449 data-nosnippet>1449</a>        <span class="kw">match </span>result {
+<a href=#1450 id=1450 data-nosnippet>1450</a>            <span class="prelude-val">Ok</span>((typ, use_impl)) =&gt; {
+<a href=#1451 id=1451 data-nosnippet>1451</a>                <span class="kw">if </span>use_impl {
+<a href=#1452 id=1452 data-nosnippet>1452</a>                    <span class="kw">let </span>trait_method_id = trait_method_id
+<a href=#1453 id=1453 data-nosnippet>1453</a>                        .expect(<span class="string">"ICE: expected some trait_method_id when use_impl is true"</span>);
+<a href=#1454 id=1454 data-nosnippet>1454</a>
+<a href=#1455 id=1455 data-nosnippet>1455</a>                    <span class="comment">// Delay checking the trait constraint until the end of the function.
+<a href=#1456 id=1456 data-nosnippet>1456</a>                    // Checking it now could bind an unbound type variable to any type
+<a href=#1457 id=1457 data-nosnippet>1457</a>                    // that implements the trait.
+<a href=#1458 id=1458 data-nosnippet>1458</a>                    </span><span class="kw">let </span>trait_id = trait_method_id.trait_id;
+<a href=#1459 id=1459 data-nosnippet>1459</a>                    <span class="kw">let </span>trait_generics = TraitGenerics::default();
+<a href=#1460 id=1460 data-nosnippet>1460</a>                    <span class="kw">let </span>trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+<a href=#1461 id=1461 data-nosnippet>1461</a>                    <span class="kw">let </span>constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+<a href=#1462 id=1462 data-nosnippet>1462</a>                    <span class="kw">let </span>select_impl = <span class="bool-val">true</span>; <span class="comment">// this constraint should lead to choosing a trait impl
+<a href=#1463 id=1463 data-nosnippet>1463</a>                    </span><span class="self">self</span>.push_trait_constraint(constraint, expr_id, select_impl);
+<a href=#1464 id=1464 data-nosnippet>1464</a>
+<a href=#1465 id=1465 data-nosnippet>1465</a>                    <span class="self">self</span>.type_check_operator_method(
+<a href=#1466 id=1466 data-nosnippet>1466</a>                        expr_id,
+<a href=#1467 id=1467 data-nosnippet>1467</a>                        trait_method_id,
+<a href=#1468 id=1468 data-nosnippet>1468</a>                        operand_type,
+<a href=#1469 id=1469 data-nosnippet>1469</a>                        <span class="kw-2">&amp;</span>typ,
+<a href=#1470 id=1470 data-nosnippet>1470</a>                        location,
+<a href=#1471 id=1471 data-nosnippet>1471</a>                        is_ord,
+<a href=#1472 id=1472 data-nosnippet>1472</a>                    );
+<a href=#1473 id=1473 data-nosnippet>1473</a>                }
+<a href=#1474 id=1474 data-nosnippet>1474</a>                typ
+<a href=#1475 id=1475 data-nosnippet>1475</a>            }
+<a href=#1476 id=1476 data-nosnippet>1476</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#1477 id=1477 data-nosnippet>1477</a>                <span class="self">self</span>.push_err(error);
+<a href=#1478 id=1478 data-nosnippet>1478</a>                Type::Error
+<a href=#1479 id=1479 data-nosnippet>1479</a>            }
+<a href=#1480 id=1480 data-nosnippet>1480</a>        }
+<a href=#1481 id=1481 data-nosnippet>1481</a>    }
+<a href=#1482 id=1482 data-nosnippet>1482</a>
+<a href=#1483 id=1483 data-nosnippet>1483</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1484 id=1484 data-nosnippet>1484</a>    </span><span class="kw">fn </span>elaborate_if(
+<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1486 id=1486 data-nosnippet>1486</a>        if_expr: IfExpression,
+<a href=#1487 id=1487 data-nosnippet>1487</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#1488 id=1488 data-nosnippet>1488</a>    ) -&gt; (HirExpression, Type) {
+<a href=#1489 id=1489 data-nosnippet>1489</a>        <span class="kw">let </span>expr_location = if_expr.condition.type_location();
+<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">let </span>consequence_location = if_expr.consequence.type_location();
+<a href=#1491 id=1491 data-nosnippet>1491</a>        <span class="kw">let </span>(condition, cond_type) = <span class="self">self</span>.elaborate_expression(if_expr.condition);
+<a href=#1492 id=1492 data-nosnippet>1492</a>        <span class="kw">let </span>(consequence, <span class="kw-2">mut </span>ret_type) =
+<a href=#1493 id=1493 data-nosnippet>1493</a>            <span class="self">self</span>.elaborate_expression_with_target_type(if_expr.consequence, target_type);
+<a href=#1494 id=1494 data-nosnippet>1494</a>
+<a href=#1495 id=1495 data-nosnippet>1495</a>        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>cond_type, <span class="kw-2">&amp;</span>Type::Bool, expr_location);
+<a href=#1496 id=1496 data-nosnippet>1496</a>
+<a href=#1497 id=1497 data-nosnippet>1497</a>        <span class="kw">let </span>(alternative, else_type, error_location) =
+<a href=#1498 id=1498 data-nosnippet>1498</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(alternative) = if_expr.alternative {
+<a href=#1499 id=1499 data-nosnippet>1499</a>                <span class="kw">let </span>alternative_location = alternative.type_location();
+<a href=#1500 id=1500 data-nosnippet>1500</a>                <span class="kw">let </span>(else_, else_type) =
+<a href=#1501 id=1501 data-nosnippet>1501</a>                    <span class="self">self</span>.elaborate_expression_with_target_type(alternative, target_type);
+<a href=#1502 id=1502 data-nosnippet>1502</a>                (<span class="prelude-val">Some</span>(else_), else_type, alternative_location)
+<a href=#1503 id=1503 data-nosnippet>1503</a>            } <span class="kw">else </span>{
+<a href=#1504 id=1504 data-nosnippet>1504</a>                (<span class="prelude-val">None</span>, Type::Unit, consequence_location)
+<a href=#1505 id=1505 data-nosnippet>1505</a>            };
+<a href=#1506 id=1506 data-nosnippet>1506</a>
+<a href=#1507 id=1507 data-nosnippet>1507</a>        <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>else_type, <span class="kw-2">&amp;</span>ret_type, |elaborator| {
+<a href=#1508 id=1508 data-nosnippet>1508</a>            <span class="kw">let </span>err = elaborator.new_type_mismatch_error(<span class="kw-2">&amp;</span>else_type, <span class="kw-2">&amp;</span>ret_type, error_location);
+<a href=#1509 id=1509 data-nosnippet>1509</a>
+<a href=#1510 id=1510 data-nosnippet>1510</a>            <span class="kw">let </span>context = <span class="kw">if </span>ret_type == Type::Unit {
+<a href=#1511 id=1511 data-nosnippet>1511</a>                <span class="string">"Are you missing a semicolon at the end of your 'else' branch?"
+<a href=#1512 id=1512 data-nosnippet>1512</a>            </span>} <span class="kw">else if </span>else_type == Type::Unit {
+<a href=#1513 id=1513 data-nosnippet>1513</a>                <span class="string">"Are you missing a semicolon at the end of the first block of this 'if'?"
+<a href=#1514 id=1514 data-nosnippet>1514</a>            </span>} <span class="kw">else </span>{
+<a href=#1515 id=1515 data-nosnippet>1515</a>                <span class="string">"Expected the types of both if branches to be equal"
+<a href=#1516 id=1516 data-nosnippet>1516</a>            </span>};
+<a href=#1517 id=1517 data-nosnippet>1517</a>
+<a href=#1518 id=1518 data-nosnippet>1518</a>            err.add_context(context)
+<a href=#1519 id=1519 data-nosnippet>1519</a>        });
+<a href=#1520 id=1520 data-nosnippet>1520</a>
+<a href=#1521 id=1521 data-nosnippet>1521</a>        <span class="kw">if </span>alternative.is_none() {
+<a href=#1522 id=1522 data-nosnippet>1522</a>            ret_type = Type::Unit;
+<a href=#1523 id=1523 data-nosnippet>1523</a>        }
+<a href=#1524 id=1524 data-nosnippet>1524</a>
+<a href=#1525 id=1525 data-nosnippet>1525</a>        <span class="kw">let </span>if_expr = HirIfExpression { condition, consequence, alternative };
+<a href=#1526 id=1526 data-nosnippet>1526</a>        (HirExpression::If(if_expr), ret_type)
+<a href=#1527 id=1527 data-nosnippet>1527</a>    }
+<a href=#1528 id=1528 data-nosnippet>1528</a>
+<a href=#1529 id=1529 data-nosnippet>1529</a>    <span class="doccomment">/// Elaborate a `match &lt;expr&gt; { &lt;rules&gt; }` expression by creating an block such as this:
+<a href=#1530 id=1530 data-nosnippet>1530</a>    /// ```text
+<a href=#1531 id=1531 data-nosnippet>1531</a>    /// {
+<a href=#1532 id=1532 data-nosnippet>1532</a>    ///   let internal variable = &lt;expr&gt;;
+<a href=#1533 id=1533 data-nosnippet>1533</a>    ///   match internal variable { &lt;rules&gt; }
+<a href=#1534 id=1534 data-nosnippet>1534</a>    /// }
+<a href=#1535 id=1535 data-nosnippet>1535</a>    /// ```
+<a href=#1536 id=1536 data-nosnippet>1536</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1537 id=1537 data-nosnippet>1537</a>    </span><span class="kw">fn </span>elaborate_match(
+<a href=#1538 id=1538 data-nosnippet>1538</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1539 id=1539 data-nosnippet>1539</a>        match_expr: MatchExpression,
+<a href=#1540 id=1540 data-nosnippet>1540</a>        location: Location,
+<a href=#1541 id=1541 data-nosnippet>1541</a>    ) -&gt; (HirExpression, Type) {
+<a href=#1542 id=1542 data-nosnippet>1542</a>        <span class="comment">// Show error on the `match` keyword
+<a href=#1543 id=1543 data-nosnippet>1543</a>        </span><span class="kw">let </span>match_location = Location::new(
+<a href=#1544 id=1544 data-nosnippet>1544</a>            Span::from(location.span.start()..location.span.start() + <span class="number">5</span>),
+<a href=#1545 id=1545 data-nosnippet>1545</a>            location.file,
+<a href=#1546 id=1546 data-nosnippet>1546</a>        );
+<a href=#1547 id=1547 data-nosnippet>1547</a>        <span class="self">self</span>.use_unstable_feature(UnstableFeature::Enums, match_location);
+<a href=#1548 id=1548 data-nosnippet>1548</a>
+<a href=#1549 id=1549 data-nosnippet>1549</a>        <span class="kw">let </span>expr_location = match_expr.expression.location;
+<a href=#1550 id=1550 data-nosnippet>1550</a>        <span class="kw">let </span>(expression, typ) = <span class="self">self</span>.elaborate_expression(match_expr.expression);
+<a href=#1551 id=1551 data-nosnippet>1551</a>        <span class="kw">let </span>(let_, variable) = <span class="self">self</span>.wrap_in_let(expression, typ.clone());
+<a href=#1552 id=1552 data-nosnippet>1552</a>
+<a href=#1553 id=1553 data-nosnippet>1553</a>        <span class="kw">let </span>(errored, (rows, result_type)) =
+<a href=#1554 id=1554 data-nosnippet>1554</a>            <span class="self">self</span>.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
 <a href=#1555 id=1555 data-nosnippet>1555</a>
-<a href=#1556 id=1556 data-nosnippet>1556</a>    <span class="doccomment">/// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
-<a href=#1557 id=1557 data-nosnippet>1557</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1558 id=1558 data-nosnippet>1558</a>    </span><span class="kw">fn </span>wrap_in_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, typ: Type) -&gt; (StmtId, DefinitionId) {
-<a href=#1559 id=1559 data-nosnippet>1559</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-<a href=#1560 id=1560 data-nosnippet>1560</a>        <span class="kw">let </span>name = <span class="string">"internal variable"</span>.to_string();
-<a href=#1561 id=1561 data-nosnippet>1561</a>        <span class="kw">let </span>definition = DefinitionKind::Local(<span class="prelude-val">None</span>);
-<a href=#1562 id=1562 data-nosnippet>1562</a>        <span class="kw">let </span>variable = <span class="self">self</span>.interner.push_definition(name, <span class="bool-val">false</span>, <span class="bool-val">false</span>, definition, location);
-<a href=#1563 id=1563 data-nosnippet>1563</a>        <span class="self">self</span>.interner.push_definition_type(variable, typ.clone());
+<a href=#1556 id=1556 data-nosnippet>1556</a>        <span class="comment">// Avoid calling `elaborate_match_rows` if there were errors while constructing
+<a href=#1557 id=1557 data-nosnippet>1557</a>        // the match rows - it'll just lead to extra errors like `unreachable pattern`
+<a href=#1558 id=1558 data-nosnippet>1558</a>        // warnings on branches which previously had type errors.
+<a href=#1559 id=1559 data-nosnippet>1559</a>        </span><span class="kw">let </span>tree = HirExpression::Match(<span class="kw">if </span>!errored {
+<a href=#1560 id=1560 data-nosnippet>1560</a>            <span class="self">self</span>.elaborate_match_rows(rows, <span class="kw-2">&amp;</span>typ, expr_location)
+<a href=#1561 id=1561 data-nosnippet>1561</a>        } <span class="kw">else </span>{
+<a href=#1562 id=1562 data-nosnippet>1562</a>            HirMatch::Failure { missing_case: <span class="bool-val">false </span>}
+<a href=#1563 id=1563 data-nosnippet>1563</a>        });
 <a href=#1564 id=1564 data-nosnippet>1564</a>
-<a href=#1565 id=1565 data-nosnippet>1565</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
-<a href=#1566 id=1566 data-nosnippet>1566</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
-<a href=#1567 id=1567 data-nosnippet>1567</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
-<a href=#1568 id=1568 data-nosnippet>1568</a>        (let_, variable)
-<a href=#1569 id=1569 data-nosnippet>1569</a>    }
-<a href=#1570 id=1570 data-nosnippet>1570</a>
-<a href=#1571 id=1571 data-nosnippet>1571</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1572 id=1572 data-nosnippet>1572</a>    </span><span class="kw">fn </span>elaborate_tuple(
-<a href=#1573 id=1573 data-nosnippet>1573</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1574 id=1574 data-nosnippet>1574</a>        tuple: Vec&lt;Expression&gt;,
-<a href=#1575 id=1575 data-nosnippet>1575</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#1576 id=1576 data-nosnippet>1576</a>    ) -&gt; (HirExpression, Type) {
-<a href=#1577 id=1577 data-nosnippet>1577</a>        <span class="kw">let </span><span class="kw-2">mut </span>element_ids = Vec::with_capacity(tuple.len());
-<a href=#1578 id=1578 data-nosnippet>1578</a>        <span class="kw">let </span><span class="kw-2">mut </span>element_types = Vec::with_capacity(tuple.len());
-<a href=#1579 id=1579 data-nosnippet>1579</a>
-<a href=#1580 id=1580 data-nosnippet>1580</a>        <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
-<a href=#1581 id=1581 data-nosnippet>1581</a>        <span class="kw">for </span>(index, element) <span class="kw">in </span>tuple.into_iter().enumerate() {
-<a href=#1582 id=1582 data-nosnippet>1582</a>            <span class="kw">let </span>expr_target_type =
-<a href=#1583 id=1583 data-nosnippet>1583</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Tuple(types)) = <span class="kw-2">&amp;</span>target_type { types.get(index) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
-<a href=#1584 id=1584 data-nosnippet>1584</a>            <span class="kw">let </span>(id, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(element, expr_target_type);
-<a href=#1585 id=1585 data-nosnippet>1585</a>            element_ids.push(id);
-<a href=#1586 id=1586 data-nosnippet>1586</a>            element_types.push(typ);
-<a href=#1587 id=1587 data-nosnippet>1587</a>        }
-<a href=#1588 id=1588 data-nosnippet>1588</a>
-<a href=#1589 id=1589 data-nosnippet>1589</a>        (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
-<a href=#1590 id=1590 data-nosnippet>1590</a>    }
-<a href=#1591 id=1591 data-nosnippet>1591</a>
-<a href=#1592 id=1592 data-nosnippet>1592</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1593 id=1593 data-nosnippet>1593</a>    </span><span class="kw">fn </span>elaborate_lambda_with_target_type(
-<a href=#1594 id=1594 data-nosnippet>1594</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1595 id=1595 data-nosnippet>1595</a>        lambda: Lambda,
-<a href=#1596 id=1596 data-nosnippet>1596</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#1597 id=1597 data-nosnippet>1597</a>    ) -&gt; (HirExpression, Type) {
-<a href=#1598 id=1598 data-nosnippet>1598</a>        <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
-<a href=#1599 id=1599 data-nosnippet>1599</a>
-<a href=#1600 id=1600 data-nosnippet>1600</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained)) = target_type {
-<a href=#1601 id=1601 data-nosnippet>1601</a>            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(
-<a href=#1602 id=1602 data-nosnippet>1602</a>                lambda,
-<a href=#1603 id=1603 data-nosnippet>1603</a>                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args),
-<a href=#1604 id=1604 data-nosnippet>1604</a>                unconstrained || <span class="self">self</span>.in_unconstrained_args,
-<a href=#1605 id=1605 data-nosnippet>1605</a>            )
-<a href=#1606 id=1606 data-nosnippet>1606</a>        } <span class="kw">else </span>{
-<a href=#1607 id=1607 data-nosnippet>1607</a>            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
-<a href=#1608 id=1608 data-nosnippet>1608</a>        }
-<a href=#1609 id=1609 data-nosnippet>1609</a>    }
-<a href=#1610 id=1610 data-nosnippet>1610</a>
-<a href=#1611 id=1611 data-nosnippet>1611</a>    <span class="doccomment">/// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
-<a href=#1612 id=1612 data-nosnippet>1612</a>    /// call that has this lambda as the argument. The parameter type hints will be the types of
-<a href=#1613 id=1613 data-nosnippet>1613</a>    /// the function type corresponding to the lambda argument.
-<a href=#1614 id=1614 data-nosnippet>1614</a>    ///
-<a href=#1615 id=1615 data-nosnippet>1615</a>    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
-<a href=#1616 id=1616 data-nosnippet>1616</a>    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
-<a href=#1617 id=1617 data-nosnippet>1617</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1618 id=1618 data-nosnippet>1618</a>    </span><span class="kw">fn </span>elaborate_lambda_with_parameter_type_hints(
-<a href=#1619 id=1619 data-nosnippet>1619</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1620 id=1620 data-nosnippet>1620</a>        lambda: Lambda,
-<a href=#1621 id=1621 data-nosnippet>1621</a>        parameters_type_hints: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;Type&gt;&gt;,
-<a href=#1622 id=1622 data-nosnippet>1622</a>        unconstrained: bool,
-<a href=#1623 id=1623 data-nosnippet>1623</a>    ) -&gt; (HirExpression, Type) {
-<a href=#1624 id=1624 data-nosnippet>1624</a>        <span class="self">self</span>.push_scope();
-<a href=#1625 id=1625 data-nosnippet>1625</a>        <span class="kw">let </span>scope_index = <span class="self">self</span>.scopes.current_scope_index();
-<a href=#1626 id=1626 data-nosnippet>1626</a>
-<a href=#1627 id=1627 data-nosnippet>1627</a>        <span class="self">self</span>.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
-<a href=#1628 id=1628 data-nosnippet>1628</a>
-<a href=#1629 id=1629 data-nosnippet>1629</a>        <span class="kw">let </span><span class="kw-2">mut </span>arg_types = Vec::with_capacity(lambda.parameters.len());
-<a href=#1630 id=1630 data-nosnippet>1630</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = HashMap::default();
-<a href=#1631 id=1631 data-nosnippet>1631</a>        <span class="kw">let </span>parameters =
-<a href=#1632 id=1632 data-nosnippet>1632</a>            vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
-<a href=#1633 id=1633 data-nosnippet>1633</a>                <span class="kw">let </span>parameter = DefinitionKind::Local(<span class="prelude-val">None</span>);
-<a href=#1634 id=1634 data-nosnippet>1634</a>                <span class="kw">let </span>typ = <span class="kw">match </span>typ {
-<a href=#1635 id=1635 data-nosnippet>1635</a>                    <span class="prelude-val">Some</span>(typ) =&gt; {
-<a href=#1636 id=1636 data-nosnippet>1636</a>                        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#1637 id=1637 data-nosnippet>1637</a>                        <span class="self">self</span>.resolve_type(typ, wildcard_allowed)
-<a href=#1638 id=1638 data-nosnippet>1638</a>                    }
-<a href=#1639 id=1639 data-nosnippet>1639</a>                    <span class="prelude-val">None </span>=&gt; {
-<a href=#1640 id=1640 data-nosnippet>1640</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(parameter_type_hint) =
-<a href=#1641 id=1641 data-nosnippet>1641</a>                            parameters_type_hints.and_then(|hints| hints.get(index))
-<a href=#1642 id=1642 data-nosnippet>1642</a>                        {
-<a href=#1643 id=1643 data-nosnippet>1643</a>                            parameter_type_hint.clone()
-<a href=#1644 id=1644 data-nosnippet>1644</a>                        } <span class="kw">else </span>{
-<a href=#1645 id=1645 data-nosnippet>1645</a>                            <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
-<a href=#1646 id=1646 data-nosnippet>1646</a>                        }
-<a href=#1647 id=1647 data-nosnippet>1647</a>                    }
-<a href=#1648 id=1648 data-nosnippet>1648</a>                };
-<a href=#1649 id=1649 data-nosnippet>1649</a>
-<a href=#1650 id=1650 data-nosnippet>1650</a>                arg_types.push(typ.clone());
-<a href=#1651 id=1651 data-nosnippet>1651</a>                (
-<a href=#1652 id=1652 data-nosnippet>1652</a>                    <span class="self">self</span>.elaborate_pattern(
-<a href=#1653 id=1653 data-nosnippet>1653</a>                        pattern,
-<a href=#1654 id=1654 data-nosnippet>1654</a>                        typ.clone(),
-<a href=#1655 id=1655 data-nosnippet>1655</a>                        parameter,
-<a href=#1656 id=1656 data-nosnippet>1656</a>                        <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
-<a href=#1657 id=1657 data-nosnippet>1657</a>                        </span><span class="bool-val">true</span>, <span class="comment">// warn_if_not_mutated
-<a href=#1658 id=1658 data-nosnippet>1658</a>                        </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
-<a href=#1659 id=1659 data-nosnippet>1659</a>                    ),
-<a href=#1660 id=1660 data-nosnippet>1660</a>                    typ,
-<a href=#1661 id=1661 data-nosnippet>1661</a>                )
-<a href=#1662 id=1662 data-nosnippet>1662</a>            });
-<a href=#1663 id=1663 data-nosnippet>1663</a>
-<a href=#1664 id=1664 data-nosnippet>1664</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#1665 id=1665 data-nosnippet>1665</a>        <span class="kw">let </span>return_type = <span class="self">self</span>.resolve_inferred_type(lambda.return_type, wildcard_allowed);
-<a href=#1666 id=1666 data-nosnippet>1666</a>        <span class="kw">let </span>body_location = lambda.body.location;
-<a href=#1667 id=1667 data-nosnippet>1667</a>        <span class="kw">let </span>(body, body_type) = <span class="self">self</span>.elaborate_expression(lambda.body);
-<a href=#1668 id=1668 data-nosnippet>1668</a>
-<a href=#1669 id=1669 data-nosnippet>1669</a>        <span class="kw">let </span>lambda_context = <span class="self">self</span>.lambda_stack.pop().unwrap();
-<a href=#1670 id=1670 data-nosnippet>1670</a>        <span class="self">self</span>.pop_scope();
-<a href=#1671 id=1671 data-nosnippet>1671</a>
-<a href=#1672 id=1672 data-nosnippet>1672</a>        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>body_type, <span class="kw-2">&amp;</span>return_type, body_location);
-<a href=#1673 id=1673 data-nosnippet>1673</a>
-<a href=#1674 id=1674 data-nosnippet>1674</a>        <span class="kw">let </span>captured_vars = vecmap(<span class="kw-2">&amp;</span>lambda_context.captures, |capture| {
-<a href=#1675 id=1675 data-nosnippet>1675</a>            <span class="self">self</span>.interner.definition_type(capture.ident.id)
-<a href=#1676 id=1676 data-nosnippet>1676</a>        });
-<a href=#1677 id=1677 data-nosnippet>1677</a>
-<a href=#1678 id=1678 data-nosnippet>1678</a>        <span class="kw">let </span>env_type =
-<a href=#1679 id=1679 data-nosnippet>1679</a>            <span class="kw">if </span>captured_vars.is_empty() { Type::Unit } <span class="kw">else </span>{ Type::Tuple(captured_vars) };
+<a href=#1565 id=1565 data-nosnippet>1565</a>        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_expr_full(tree, location, result_type.clone());
+<a href=#1566 id=1566 data-nosnippet>1566</a>
+<a href=#1567 id=1567 data-nosnippet>1567</a>        <span class="kw">let </span>tree = <span class="self">self</span>.interner.push_stmt_full(HirStatement::Expression(tree), location);
+<a href=#1568 id=1568 data-nosnippet>1568</a>
+<a href=#1569 id=1569 data-nosnippet>1569</a>        <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, tree] });
+<a href=#1570 id=1570 data-nosnippet>1570</a>        (block, result_type)
+<a href=#1571 id=1571 data-nosnippet>1571</a>    }
+<a href=#1572 id=1572 data-nosnippet>1572</a>
+<a href=#1573 id=1573 data-nosnippet>1573</a>    <span class="doccomment">/// Introduce an internal variable in order to be able to refer to the expression using a local identifier.
+<a href=#1574 id=1574 data-nosnippet>1574</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1575 id=1575 data-nosnippet>1575</a>    </span><span class="kw">fn </span>wrap_in_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, typ: Type) -&gt; (StmtId, DefinitionId) {
+<a href=#1576 id=1576 data-nosnippet>1576</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
+<a href=#1577 id=1577 data-nosnippet>1577</a>        <span class="kw">let </span>name = <span class="string">"internal variable"</span>.to_string();
+<a href=#1578 id=1578 data-nosnippet>1578</a>        <span class="kw">let </span>definition = DefinitionKind::Local(<span class="prelude-val">None</span>);
+<a href=#1579 id=1579 data-nosnippet>1579</a>        <span class="kw">let </span>variable = <span class="self">self</span>.interner.push_definition(name, <span class="bool-val">false</span>, <span class="bool-val">false</span>, definition, location);
+<a href=#1580 id=1580 data-nosnippet>1580</a>        <span class="self">self</span>.interner.push_definition_type(variable, typ.clone());
+<a href=#1581 id=1581 data-nosnippet>1581</a>
+<a href=#1582 id=1582 data-nosnippet>1582</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
+<a href=#1583 id=1583 data-nosnippet>1583</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
+<a href=#1584 id=1584 data-nosnippet>1584</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
+<a href=#1585 id=1585 data-nosnippet>1585</a>        (let_, variable)
+<a href=#1586 id=1586 data-nosnippet>1586</a>    }
+<a href=#1587 id=1587 data-nosnippet>1587</a>
+<a href=#1588 id=1588 data-nosnippet>1588</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1589 id=1589 data-nosnippet>1589</a>    </span><span class="kw">fn </span>elaborate_tuple(
+<a href=#1590 id=1590 data-nosnippet>1590</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1591 id=1591 data-nosnippet>1591</a>        tuple: Vec&lt;Expression&gt;,
+<a href=#1592 id=1592 data-nosnippet>1592</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#1593 id=1593 data-nosnippet>1593</a>    ) -&gt; (HirExpression, Type) {
+<a href=#1594 id=1594 data-nosnippet>1594</a>        <span class="kw">let </span><span class="kw-2">mut </span>element_ids = Vec::with_capacity(tuple.len());
+<a href=#1595 id=1595 data-nosnippet>1595</a>        <span class="kw">let </span><span class="kw-2">mut </span>element_types = Vec::with_capacity(tuple.len());
+<a href=#1596 id=1596 data-nosnippet>1596</a>
+<a href=#1597 id=1597 data-nosnippet>1597</a>        <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
+<a href=#1598 id=1598 data-nosnippet>1598</a>        <span class="kw">for </span>(index, element) <span class="kw">in </span>tuple.into_iter().enumerate() {
+<a href=#1599 id=1599 data-nosnippet>1599</a>            <span class="kw">let </span>expr_target_type =
+<a href=#1600 id=1600 data-nosnippet>1600</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Tuple(types)) = <span class="kw-2">&amp;</span>target_type { types.get(index) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
+<a href=#1601 id=1601 data-nosnippet>1601</a>            <span class="kw">let </span>(id, typ) = <span class="self">self</span>.elaborate_expression_with_target_type(element, expr_target_type);
+<a href=#1602 id=1602 data-nosnippet>1602</a>            element_ids.push(id);
+<a href=#1603 id=1603 data-nosnippet>1603</a>            element_types.push(typ);
+<a href=#1604 id=1604 data-nosnippet>1604</a>        }
+<a href=#1605 id=1605 data-nosnippet>1605</a>
+<a href=#1606 id=1606 data-nosnippet>1606</a>        (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
+<a href=#1607 id=1607 data-nosnippet>1607</a>    }
+<a href=#1608 id=1608 data-nosnippet>1608</a>
+<a href=#1609 id=1609 data-nosnippet>1609</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1610 id=1610 data-nosnippet>1610</a>    </span><span class="kw">fn </span>elaborate_lambda_with_target_type(
+<a href=#1611 id=1611 data-nosnippet>1611</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1612 id=1612 data-nosnippet>1612</a>        lambda: Lambda,
+<a href=#1613 id=1613 data-nosnippet>1613</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#1614 id=1614 data-nosnippet>1614</a>    ) -&gt; (HirExpression, Type) {
+<a href=#1615 id=1615 data-nosnippet>1615</a>        <span class="kw">let </span>target_type = target_type.map(|typ| typ.follow_bindings());
+<a href=#1616 id=1616 data-nosnippet>1616</a>
+<a href=#1617 id=1617 data-nosnippet>1617</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained)) = target_type {
+<a href=#1618 id=1618 data-nosnippet>1618</a>            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(
+<a href=#1619 id=1619 data-nosnippet>1619</a>                lambda,
+<a href=#1620 id=1620 data-nosnippet>1620</a>                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>args),
+<a href=#1621 id=1621 data-nosnippet>1621</a>                unconstrained || <span class="self">self</span>.in_unconstrained_args,
+<a href=#1622 id=1622 data-nosnippet>1622</a>            )
+<a href=#1623 id=1623 data-nosnippet>1623</a>        } <span class="kw">else </span>{
+<a href=#1624 id=1624 data-nosnippet>1624</a>            <span class="self">self</span>.elaborate_lambda_with_parameter_type_hints(lambda, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
+<a href=#1625 id=1625 data-nosnippet>1625</a>        }
+<a href=#1626 id=1626 data-nosnippet>1626</a>    }
+<a href=#1627 id=1627 data-nosnippet>1627</a>
+<a href=#1628 id=1628 data-nosnippet>1628</a>    <span class="doccomment">/// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
+<a href=#1629 id=1629 data-nosnippet>1629</a>    /// call that has this lambda as the argument. The parameter type hints will be the types of
+<a href=#1630 id=1630 data-nosnippet>1630</a>    /// the function type corresponding to the lambda argument.
+<a href=#1631 id=1631 data-nosnippet>1631</a>    ///
+<a href=#1632 id=1632 data-nosnippet>1632</a>    /// The `unconstrained` parameter is set based on whether the lambda is expected to be unconstrained
+<a href=#1633 id=1633 data-nosnippet>1633</a>    /// by the function we are passing it to. If we just assign the lambda to a variable, then it's `false`.
+<a href=#1634 id=1634 data-nosnippet>1634</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1635 id=1635 data-nosnippet>1635</a>    </span><span class="kw">fn </span>elaborate_lambda_with_parameter_type_hints(
+<a href=#1636 id=1636 data-nosnippet>1636</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1637 id=1637 data-nosnippet>1637</a>        lambda: Lambda,
+<a href=#1638 id=1638 data-nosnippet>1638</a>        parameters_type_hints: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Vec&lt;Type&gt;&gt;,
+<a href=#1639 id=1639 data-nosnippet>1639</a>        unconstrained: bool,
+<a href=#1640 id=1640 data-nosnippet>1640</a>    ) -&gt; (HirExpression, Type) {
+<a href=#1641 id=1641 data-nosnippet>1641</a>        <span class="self">self</span>.push_scope();
+<a href=#1642 id=1642 data-nosnippet>1642</a>        <span class="kw">let </span>scope_index = <span class="self">self</span>.scopes.current_scope_index();
+<a href=#1643 id=1643 data-nosnippet>1643</a>
+<a href=#1644 id=1644 data-nosnippet>1644</a>        <span class="self">self</span>.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
+<a href=#1645 id=1645 data-nosnippet>1645</a>
+<a href=#1646 id=1646 data-nosnippet>1646</a>        <span class="kw">let </span><span class="kw-2">mut </span>arg_types = Vec::with_capacity(lambda.parameters.len());
+<a href=#1647 id=1647 data-nosnippet>1647</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = HashMap::default();
+<a href=#1648 id=1648 data-nosnippet>1648</a>        <span class="kw">let </span>parameters =
+<a href=#1649 id=1649 data-nosnippet>1649</a>            vecmap(lambda.parameters.into_iter().enumerate(), |(index, (pattern, typ))| {
+<a href=#1650 id=1650 data-nosnippet>1650</a>                <span class="kw">let </span>parameter = DefinitionKind::Local(<span class="prelude-val">None</span>);
+<a href=#1651 id=1651 data-nosnippet>1651</a>                <span class="kw">let </span>typ = <span class="kw">match </span>typ {
+<a href=#1652 id=1652 data-nosnippet>1652</a>                    <span class="prelude-val">Some</span>(typ) =&gt; {
+<a href=#1653 id=1653 data-nosnippet>1653</a>                        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#1654 id=1654 data-nosnippet>1654</a>                        <span class="self">self</span>.resolve_type(typ, wildcard_allowed)
+<a href=#1655 id=1655 data-nosnippet>1655</a>                    }
+<a href=#1656 id=1656 data-nosnippet>1656</a>                    <span class="prelude-val">None </span>=&gt; {
+<a href=#1657 id=1657 data-nosnippet>1657</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(parameter_type_hint) =
+<a href=#1658 id=1658 data-nosnippet>1658</a>                            parameters_type_hints.and_then(|hints| hints.get(index))
+<a href=#1659 id=1659 data-nosnippet>1659</a>                        {
+<a href=#1660 id=1660 data-nosnippet>1660</a>                            parameter_type_hint.clone()
+<a href=#1661 id=1661 data-nosnippet>1661</a>                        } <span class="kw">else </span>{
+<a href=#1662 id=1662 data-nosnippet>1662</a>                            <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
+<a href=#1663 id=1663 data-nosnippet>1663</a>                        }
+<a href=#1664 id=1664 data-nosnippet>1664</a>                    }
+<a href=#1665 id=1665 data-nosnippet>1665</a>                };
+<a href=#1666 id=1666 data-nosnippet>1666</a>
+<a href=#1667 id=1667 data-nosnippet>1667</a>                arg_types.push(typ.clone());
+<a href=#1668 id=1668 data-nosnippet>1668</a>                (
+<a href=#1669 id=1669 data-nosnippet>1669</a>                    <span class="self">self</span>.elaborate_pattern(
+<a href=#1670 id=1670 data-nosnippet>1670</a>                        pattern,
+<a href=#1671 id=1671 data-nosnippet>1671</a>                        typ.clone(),
+<a href=#1672 id=1672 data-nosnippet>1672</a>                        parameter,
+<a href=#1673 id=1673 data-nosnippet>1673</a>                        <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
+<a href=#1674 id=1674 data-nosnippet>1674</a>                        </span><span class="bool-val">true</span>, <span class="comment">// warn_if_not_mutated
+<a href=#1675 id=1675 data-nosnippet>1675</a>                        </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
+<a href=#1676 id=1676 data-nosnippet>1676</a>                    ),
+<a href=#1677 id=1677 data-nosnippet>1677</a>                    typ,
+<a href=#1678 id=1678 data-nosnippet>1678</a>                )
+<a href=#1679 id=1679 data-nosnippet>1679</a>            });
 <a href=#1680 id=1680 data-nosnippet>1680</a>
-<a href=#1681 id=1681 data-nosnippet>1681</a>        <span class="kw">let </span>captures = lambda_context.captures;
-<a href=#1682 id=1682 data-nosnippet>1682</a>        <span class="kw">let </span>expr = HirExpression::Lambda(HirLambda {
-<a href=#1683 id=1683 data-nosnippet>1683</a>            parameters,
-<a href=#1684 id=1684 data-nosnippet>1684</a>            return_type,
-<a href=#1685 id=1685 data-nosnippet>1685</a>            body,
-<a href=#1686 id=1686 data-nosnippet>1686</a>            captures,
-<a href=#1687 id=1687 data-nosnippet>1687</a>            unconstrained,
-<a href=#1688 id=1688 data-nosnippet>1688</a>        });
-<a href=#1689 id=1689 data-nosnippet>1689</a>        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
-<a href=#1690 id=1690 data-nosnippet>1690</a>    }
-<a href=#1691 id=1691 data-nosnippet>1691</a>
-<a href=#1692 id=1692 data-nosnippet>1692</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1693 id=1693 data-nosnippet>1693</a>    </span><span class="kw">fn </span>elaborate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens, location: Location) -&gt; (HirExpression, Type) {
-<a href=#1694 id=1694 data-nosnippet>1694</a>        tokens = <span class="self">self</span>.find_unquoted_exprs_tokens(tokens);
-<a href=#1695 id=1695 data-nosnippet>1695</a>
-<a href=#1696 id=1696 data-nosnippet>1696</a>        <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
-<a href=#1697 id=1697 data-nosnippet>1697</a>            (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
-<a href=#1698 id=1698 data-nosnippet>1698</a>        } <span class="kw">else </span>{
-<a href=#1699 id=1699 data-nosnippet>1699</a>            <span class="self">self</span>.push_err(ResolverError::QuoteInRuntimeCode { location });
-<a href=#1700 id=1700 data-nosnippet>1700</a>            (HirExpression::Error, Type::Quoted(QuotedType::Quoted))
-<a href=#1701 id=1701 data-nosnippet>1701</a>        }
-<a href=#1702 id=1702 data-nosnippet>1702</a>    }
-<a href=#1703 id=1703 data-nosnippet>1703</a>
-<a href=#1704 id=1704 data-nosnippet>1704</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1705 id=1705 data-nosnippet>1705</a>    </span><span class="kw">fn </span>elaborate_comptime_block(
-<a href=#1706 id=1706 data-nosnippet>1706</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1707 id=1707 data-nosnippet>1707</a>        block: BlockExpression,
-<a href=#1708 id=1708 data-nosnippet>1708</a>        location: Location,
-<a href=#1709 id=1709 data-nosnippet>1709</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#1710 id=1710 data-nosnippet>1710</a>    ) -&gt; (ExprId, Type) {
-<a href=#1711 id=1711 data-nosnippet>1711</a>        <span class="kw">let </span>block = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
-<a href=#1712 id=1712 data-nosnippet>1712</a>            <span class="kw">let </span>(block, block_type) = this.elaborate_block_expression(block, target_type);
-<a href=#1713 id=1713 data-nosnippet>1713</a>
-<a href=#1714 id=1714 data-nosnippet>1714</a>            <span class="comment">// If the comptime block is expected to return a specific type, unify their types.
-<a href=#1715 id=1715 data-nosnippet>1715</a>            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
-<a href=#1716 id=1716 data-nosnippet>1716</a>            // If we don't do this, "1" will end up with the default integer or field type,
-<a href=#1717 id=1717 data-nosnippet>1717</a>            // which is Field.
-<a href=#1718 id=1718 data-nosnippet>1718</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
-<a href=#1719 id=1719 data-nosnippet>1719</a>                this.unify_or_type_mismatch(<span class="kw-2">&amp;</span>block_type, target_type, location);
-<a href=#1720 id=1720 data-nosnippet>1720</a>            }
-<a href=#1721 id=1721 data-nosnippet>1721</a>
-<a href=#1722 id=1722 data-nosnippet>1722</a>            block
-<a href=#1723 id=1723 data-nosnippet>1723</a>        });
-<a href=#1724 id=1724 data-nosnippet>1724</a>
-<a href=#1725 id=1725 data-nosnippet>1725</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
-<a href=#1726 id=1726 data-nosnippet>1726</a>        <span class="kw">let </span>value = interpreter.evaluate_block(block);
-<a href=#1727 id=1727 data-nosnippet>1727</a>
-<a href=#1728 id=1728 data-nosnippet>1728</a>        <span class="kw">let </span>(id, typ) = <span class="self">self</span>.inline_comptime_value(value, location);
-<a href=#1729 id=1729 data-nosnippet>1729</a>
-<a href=#1730 id=1730 data-nosnippet>1730</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(id);
-<a href=#1731 id=1731 data-nosnippet>1731</a>        <span class="self">self</span>.debug_comptime(location, |interner| {
-<a href=#1732 id=1732 data-nosnippet>1732</a>            interner.expression(<span class="kw-2">&amp;</span>id).to_display_ast(interner, location).kind
-<a href=#1733 id=1733 data-nosnippet>1733</a>        });
-<a href=#1734 id=1734 data-nosnippet>1734</a>
-<a href=#1735 id=1735 data-nosnippet>1735</a>        (id, typ)
-<a href=#1736 id=1736 data-nosnippet>1736</a>    }
-<a href=#1737 id=1737 data-nosnippet>1737</a>
-<a href=#1738 id=1738 data-nosnippet>1738</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1739 id=1739 data-nosnippet>1739</a>    </span><span class="kw">pub fn </span>inline_comptime_value(
-<a href=#1740 id=1740 data-nosnippet>1740</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1741 id=1741 data-nosnippet>1741</a>        value: <span class="prelude-ty">Result</span>&lt;comptime::Value, InterpreterError&gt;,
-<a href=#1742 id=1742 data-nosnippet>1742</a>        location: Location,
-<a href=#1743 id=1743 data-nosnippet>1743</a>    ) -&gt; (ExprId, Type) {
-<a href=#1744 id=1744 data-nosnippet>1744</a>        <span class="kw">let </span>make_error = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, error: InterpreterError| {
-<a href=#1745 id=1745 data-nosnippet>1745</a>            <span class="kw">let </span>error: CompilationError = error.into();
-<a href=#1746 id=1746 data-nosnippet>1746</a>            this.push_err(error);
-<a href=#1747 id=1747 data-nosnippet>1747</a>            <span class="kw">let </span>typ = Type::Error;
-<a href=#1748 id=1748 data-nosnippet>1748</a>            <span class="kw">let </span>error = this.interner.push_expr_full(HirExpression::Error, location, typ.clone());
-<a href=#1749 id=1749 data-nosnippet>1749</a>            (error, typ)
-<a href=#1750 id=1750 data-nosnippet>1750</a>        };
+<a href=#1681 id=1681 data-nosnippet>1681</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#1682 id=1682 data-nosnippet>1682</a>        <span class="kw">let </span>return_type = <span class="self">self</span>.resolve_inferred_type(lambda.return_type, wildcard_allowed);
+<a href=#1683 id=1683 data-nosnippet>1683</a>        <span class="kw">let </span>body_location = lambda.body.location;
+<a href=#1684 id=1684 data-nosnippet>1684</a>        <span class="kw">let </span>(body, body_type) = <span class="self">self</span>.elaborate_expression(lambda.body);
+<a href=#1685 id=1685 data-nosnippet>1685</a>
+<a href=#1686 id=1686 data-nosnippet>1686</a>        <span class="kw">let </span>lambda_context = <span class="self">self</span>.lambda_stack.pop().unwrap();
+<a href=#1687 id=1687 data-nosnippet>1687</a>        <span class="self">self</span>.pop_scope();
+<a href=#1688 id=1688 data-nosnippet>1688</a>
+<a href=#1689 id=1689 data-nosnippet>1689</a>        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>body_type, <span class="kw-2">&amp;</span>return_type, body_location);
+<a href=#1690 id=1690 data-nosnippet>1690</a>
+<a href=#1691 id=1691 data-nosnippet>1691</a>        <span class="kw">let </span>captured_vars = vecmap(<span class="kw-2">&amp;</span>lambda_context.captures, |capture| {
+<a href=#1692 id=1692 data-nosnippet>1692</a>            <span class="self">self</span>.interner.definition_type(capture.ident.id)
+<a href=#1693 id=1693 data-nosnippet>1693</a>        });
+<a href=#1694 id=1694 data-nosnippet>1694</a>
+<a href=#1695 id=1695 data-nosnippet>1695</a>        <span class="kw">let </span>env_type =
+<a href=#1696 id=1696 data-nosnippet>1696</a>            <span class="kw">if </span>captured_vars.is_empty() { Type::Unit } <span class="kw">else </span>{ Type::Tuple(captured_vars) };
+<a href=#1697 id=1697 data-nosnippet>1697</a>
+<a href=#1698 id=1698 data-nosnippet>1698</a>        <span class="kw">let </span>captures = lambda_context.captures;
+<a href=#1699 id=1699 data-nosnippet>1699</a>        <span class="kw">let </span>expr = HirExpression::Lambda(HirLambda {
+<a href=#1700 id=1700 data-nosnippet>1700</a>            parameters,
+<a href=#1701 id=1701 data-nosnippet>1701</a>            return_type,
+<a href=#1702 id=1702 data-nosnippet>1702</a>            body,
+<a href=#1703 id=1703 data-nosnippet>1703</a>            captures,
+<a href=#1704 id=1704 data-nosnippet>1704</a>            unconstrained,
+<a href=#1705 id=1705 data-nosnippet>1705</a>        });
+<a href=#1706 id=1706 data-nosnippet>1706</a>        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), unconstrained))
+<a href=#1707 id=1707 data-nosnippet>1707</a>    }
+<a href=#1708 id=1708 data-nosnippet>1708</a>
+<a href=#1709 id=1709 data-nosnippet>1709</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1710 id=1710 data-nosnippet>1710</a>    </span><span class="kw">fn </span>elaborate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens, location: Location) -&gt; (HirExpression, Type) {
+<a href=#1711 id=1711 data-nosnippet>1711</a>        tokens = <span class="self">self</span>.find_unquoted_exprs_tokens(tokens);
+<a href=#1712 id=1712 data-nosnippet>1712</a>
+<a href=#1713 id=1713 data-nosnippet>1713</a>        <span class="kw">if </span><span class="self">self</span>.in_comptime_context() {
+<a href=#1714 id=1714 data-nosnippet>1714</a>            (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
+<a href=#1715 id=1715 data-nosnippet>1715</a>        } <span class="kw">else </span>{
+<a href=#1716 id=1716 data-nosnippet>1716</a>            <span class="self">self</span>.push_err(ResolverError::QuoteInRuntimeCode { location });
+<a href=#1717 id=1717 data-nosnippet>1717</a>            (HirExpression::Error, Type::Quoted(QuotedType::Quoted))
+<a href=#1718 id=1718 data-nosnippet>1718</a>        }
+<a href=#1719 id=1719 data-nosnippet>1719</a>    }
+<a href=#1720 id=1720 data-nosnippet>1720</a>
+<a href=#1721 id=1721 data-nosnippet>1721</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1722 id=1722 data-nosnippet>1722</a>    </span><span class="kw">fn </span>elaborate_comptime_block(
+<a href=#1723 id=1723 data-nosnippet>1723</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1724 id=1724 data-nosnippet>1724</a>        block: BlockExpression,
+<a href=#1725 id=1725 data-nosnippet>1725</a>        location: Location,
+<a href=#1726 id=1726 data-nosnippet>1726</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#1727 id=1727 data-nosnippet>1727</a>    ) -&gt; (ExprId, Type) {
+<a href=#1728 id=1728 data-nosnippet>1728</a>        <span class="kw">let </span>block = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
+<a href=#1729 id=1729 data-nosnippet>1729</a>            <span class="kw">let </span>(block, block_type) = this.elaborate_block_expression(block, target_type);
+<a href=#1730 id=1730 data-nosnippet>1730</a>
+<a href=#1731 id=1731 data-nosnippet>1731</a>            <span class="comment">// If the comptime block is expected to return a specific type, unify their types.
+<a href=#1732 id=1732 data-nosnippet>1732</a>            // This for example allows this code to compile: `let x: u8 = comptime { 1 }`.
+<a href=#1733 id=1733 data-nosnippet>1733</a>            // If we don't do this, "1" will end up with the default integer or field type,
+<a href=#1734 id=1734 data-nosnippet>1734</a>            // which is Field.
+<a href=#1735 id=1735 data-nosnippet>1735</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
+<a href=#1736 id=1736 data-nosnippet>1736</a>                this.unify_or_type_mismatch(<span class="kw-2">&amp;</span>block_type, target_type, location);
+<a href=#1737 id=1737 data-nosnippet>1737</a>            }
+<a href=#1738 id=1738 data-nosnippet>1738</a>
+<a href=#1739 id=1739 data-nosnippet>1739</a>            block
+<a href=#1740 id=1740 data-nosnippet>1740</a>        });
+<a href=#1741 id=1741 data-nosnippet>1741</a>
+<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
+<a href=#1743 id=1743 data-nosnippet>1743</a>        <span class="kw">let </span>value = interpreter.evaluate_block(block);
+<a href=#1744 id=1744 data-nosnippet>1744</a>
+<a href=#1745 id=1745 data-nosnippet>1745</a>        <span class="kw">let </span>(id, typ) = <span class="self">self</span>.inline_comptime_value(value, location);
+<a href=#1746 id=1746 data-nosnippet>1746</a>
+<a href=#1747 id=1747 data-nosnippet>1747</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(id);
+<a href=#1748 id=1748 data-nosnippet>1748</a>        <span class="self">self</span>.debug_comptime(location, |interner| {
+<a href=#1749 id=1749 data-nosnippet>1749</a>            interner.expression(<span class="kw-2">&amp;</span>id).to_display_ast(interner, location).kind
+<a href=#1750 id=1750 data-nosnippet>1750</a>        });
 <a href=#1751 id=1751 data-nosnippet>1751</a>
-<a href=#1752 id=1752 data-nosnippet>1752</a>        <span class="kw">let </span>value = <span class="kw">match </span>value {
-<a href=#1753 id=1753 data-nosnippet>1753</a>            <span class="prelude-val">Ok</span>(value) =&gt; value,
-<a href=#1754 id=1754 data-nosnippet>1754</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">return </span>make_error(<span class="self">self</span>, error),
-<a href=#1755 id=1755 data-nosnippet>1755</a>        };
-<a href=#1756 id=1756 data-nosnippet>1756</a>
-<a href=#1757 id=1757 data-nosnippet>1757</a>        <span class="kw">match </span>value.into_expression(<span class="self">self</span>, location) {
-<a href=#1758 id=1758 data-nosnippet>1758</a>            <span class="prelude-val">Ok</span>(new_expr) =&gt; {
-<a href=#1759 id=1759 data-nosnippet>1759</a>                <span class="comment">// At this point the Expression was already elaborated and we got a Value.
-<a href=#1760 id=1760 data-nosnippet>1760</a>                // We'll elaborate this value turned into Expression to inline it and get
-<a href=#1761 id=1761 data-nosnippet>1761</a>                // an ExprId and Type, but we don't want any visibility errors to happen
-<a href=#1762 id=1762 data-nosnippet>1762</a>                // here (they could if we have `Foo { inner: 5 }` and `inner` is not
-<a href=#1763 id=1763 data-nosnippet>1763</a>                // accessible from where this expression is being elaborated).
-<a href=#1764 id=1764 data-nosnippet>1764</a>                </span><span class="self">self</span>.silence_field_visibility_errors += <span class="number">1</span>;
-<a href=#1765 id=1765 data-nosnippet>1765</a>                <span class="kw">let </span>value = <span class="self">self</span>.elaborate_expression(new_expr);
-<a href=#1766 id=1766 data-nosnippet>1766</a>                <span class="self">self</span>.silence_field_visibility_errors -= <span class="number">1</span>;
-<a href=#1767 id=1767 data-nosnippet>1767</a>                value
-<a href=#1768 id=1768 data-nosnippet>1768</a>            }
-<a href=#1769 id=1769 data-nosnippet>1769</a>            <span class="prelude-val">Err</span>(error) =&gt; make_error(<span class="self">self</span>, error),
-<a href=#1770 id=1770 data-nosnippet>1770</a>        }
-<a href=#1771 id=1771 data-nosnippet>1771</a>    }
-<a href=#1772 id=1772 data-nosnippet>1772</a>
-<a href=#1773 id=1773 data-nosnippet>1773</a>    <span class="kw">fn </span>try_get_comptime_function(
-<a href=#1774 id=1774 data-nosnippet>1774</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1775 id=1775 data-nosnippet>1775</a>        func: ExprId,
-<a href=#1776 id=1776 data-nosnippet>1776</a>        location: Location,
-<a href=#1777 id=1777 data-nosnippet>1777</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;FuncId, ResolverError&gt; {
-<a href=#1778 id=1778 data-nosnippet>1778</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>func) {
-<a href=#1779 id=1779 data-nosnippet>1779</a>            HirExpression::Ident(ident, _generics) =&gt; {
-<a href=#1780 id=1780 data-nosnippet>1780</a>                <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#1781 id=1781 data-nosnippet>1781</a>                <span class="kw">if let </span>DefinitionKind::Function(function) = definition.kind {
-<a href=#1782 id=1782 data-nosnippet>1782</a>                    <span class="kw">let </span>meta = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>function);
-<a href=#1783 id=1783 data-nosnippet>1783</a>                    <span class="kw">if </span>meta.is_comptime {
-<a href=#1784 id=1784 data-nosnippet>1784</a>                        <span class="prelude-val">Ok</span>(function)
-<a href=#1785 id=1785 data-nosnippet>1785</a>                    } <span class="kw">else </span>{
-<a href=#1786 id=1786 data-nosnippet>1786</a>                        <span class="prelude-val">Err</span>(ResolverError::MacroIsNotComptime { location })
-<a href=#1787 id=1787 data-nosnippet>1787</a>                    }
-<a href=#1788 id=1788 data-nosnippet>1788</a>                } <span class="kw">else </span>{
-<a href=#1789 id=1789 data-nosnippet>1789</a>                    <span class="prelude-val">Err</span>(ResolverError::InvalidSyntaxInMacroCall { location })
-<a href=#1790 id=1790 data-nosnippet>1790</a>                }
-<a href=#1791 id=1791 data-nosnippet>1791</a>            }
-<a href=#1792 id=1792 data-nosnippet>1792</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::InvalidSyntaxInMacroCall { location }),
-<a href=#1793 id=1793 data-nosnippet>1793</a>        }
-<a href=#1794 id=1794 data-nosnippet>1794</a>    }
-<a href=#1795 id=1795 data-nosnippet>1795</a>
-<a href=#1796 id=1796 data-nosnippet>1796</a>    <span class="doccomment">/// Validate a macro call without executing it.
-<a href=#1797 id=1797 data-nosnippet>1797</a>    /// Checks that the callee is a comptime function and the return type is `Quoted`.
-<a href=#1798 id=1798 data-nosnippet>1798</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1799 id=1799 data-nosnippet>1799</a>    </span><span class="kw">fn </span>validate_macro_call(
-<a href=#1800 id=1800 data-nosnippet>1800</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1801 id=1801 data-nosnippet>1801</a>        func: ExprId,
-<a href=#1802 id=1802 data-nosnippet>1802</a>        return_type: <span class="kw-2">&amp;</span>Type,
-<a href=#1803 id=1803 data-nosnippet>1803</a>        location: Location,
-<a href=#1804 id=1804 data-nosnippet>1804</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
-<a href=#1805 id=1805 data-nosnippet>1805</a>        <span class="self">self</span>.unify(return_type, <span class="kw-2">&amp;</span>Type::Quoted(QuotedType::Quoted), |<span class="kw">_</span>| {
-<a href=#1806 id=1806 data-nosnippet>1806</a>            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
-<a href=#1807 id=1807 data-nosnippet>1807</a>        });
-<a href=#1808 id=1808 data-nosnippet>1808</a>
-<a href=#1809 id=1809 data-nosnippet>1809</a>        <span class="kw">match </span><span class="self">self</span>.try_get_comptime_function(func, location) {
-<a href=#1810 id=1810 data-nosnippet>1810</a>            <span class="prelude-val">Ok</span>(function) =&gt; <span class="prelude-val">Some</span>(function),
-<a href=#1811 id=1811 data-nosnippet>1811</a>            <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#1812 id=1812 data-nosnippet>1812</a>                <span class="self">self</span>.push_err(error);
-<a href=#1813 id=1813 data-nosnippet>1813</a>                <span class="prelude-val">None
-<a href=#1814 id=1814 data-nosnippet>1814</a>            </span>}
-<a href=#1815 id=1815 data-nosnippet>1815</a>        }
-<a href=#1816 id=1816 data-nosnippet>1816</a>    }
-<a href=#1817 id=1817 data-nosnippet>1817</a>
-<a href=#1818 id=1818 data-nosnippet>1818</a>    <span class="doccomment">/// Call a macro function and inlines its code at the call site.
-<a href=#1819 id=1819 data-nosnippet>1819</a>    /// This will also perform a type check to ensure that the return type is an `Expr` value.
-<a href=#1820 id=1820 data-nosnippet>1820</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1821 id=1821 data-nosnippet>1821</a>    </span><span class="kw">fn </span>call_macro(
-<a href=#1822 id=1822 data-nosnippet>1822</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1823 id=1823 data-nosnippet>1823</a>        func: ExprId,
-<a href=#1824 id=1824 data-nosnippet>1824</a>        arguments: Vec&lt;ExprId&gt;,
-<a href=#1825 id=1825 data-nosnippet>1825</a>        location: Location,
-<a href=#1826 id=1826 data-nosnippet>1826</a>        return_type: Type,
-<a href=#1827 id=1827 data-nosnippet>1827</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(HirExpression, Type)&gt; {
-<a href=#1828 id=1828 data-nosnippet>1828</a>        <span class="kw">let </span>function = <span class="self">self</span>.validate_macro_call(func, <span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
-<a href=#1829 id=1829 data-nosnippet>1829</a>
-<a href=#1830 id=1830 data-nosnippet>1830</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
-<a href=#1831 id=1831 data-nosnippet>1831</a>        <span class="kw">let </span><span class="kw-2">mut </span>comptime_args = Vec::new();
-<a href=#1832 id=1832 data-nosnippet>1832</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = Vec::new();
-<a href=#1833 id=1833 data-nosnippet>1833</a>
-<a href=#1834 id=1834 data-nosnippet>1834</a>        <span class="kw">for </span>argument <span class="kw">in </span>arguments {
-<a href=#1835 id=1835 data-nosnippet>1835</a>            <span class="kw">match </span>interpreter.evaluate(argument) {
-<a href=#1836 id=1836 data-nosnippet>1836</a>                <span class="prelude-val">Ok</span>(arg) =&gt; {
-<a href=#1837 id=1837 data-nosnippet>1837</a>                    <span class="kw">let </span>location = interpreter.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>argument);
-<a href=#1838 id=1838 data-nosnippet>1838</a>                    comptime_args.push((arg, location));
-<a href=#1839 id=1839 data-nosnippet>1839</a>                }
-<a href=#1840 id=1840 data-nosnippet>1840</a>                <span class="prelude-val">Err</span>(error) =&gt; errors.push(error.into()),
-<a href=#1841 id=1841 data-nosnippet>1841</a>            }
-<a href=#1842 id=1842 data-nosnippet>1842</a>        }
-<a href=#1843 id=1843 data-nosnippet>1843</a>
-<a href=#1844 id=1844 data-nosnippet>1844</a>        <span class="kw">let </span>bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
-<a href=#1845 id=1845 data-nosnippet>1845</a>        <span class="kw">let </span>result = interpreter.call_function(function, comptime_args, bindings, location);
+<a href=#1752 id=1752 data-nosnippet>1752</a>        (id, typ)
+<a href=#1753 id=1753 data-nosnippet>1753</a>    }
+<a href=#1754 id=1754 data-nosnippet>1754</a>
+<a href=#1755 id=1755 data-nosnippet>1755</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1756 id=1756 data-nosnippet>1756</a>    </span><span class="kw">pub fn </span>inline_comptime_value(
+<a href=#1757 id=1757 data-nosnippet>1757</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1758 id=1758 data-nosnippet>1758</a>        value: <span class="prelude-ty">Result</span>&lt;comptime::Value, InterpreterError&gt;,
+<a href=#1759 id=1759 data-nosnippet>1759</a>        location: Location,
+<a href=#1760 id=1760 data-nosnippet>1760</a>    ) -&gt; (ExprId, Type) {
+<a href=#1761 id=1761 data-nosnippet>1761</a>        <span class="kw">let </span>make_error = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, error: InterpreterError| {
+<a href=#1762 id=1762 data-nosnippet>1762</a>            <span class="kw">let </span>error: CompilationError = error.into();
+<a href=#1763 id=1763 data-nosnippet>1763</a>            this.push_err(error);
+<a href=#1764 id=1764 data-nosnippet>1764</a>            <span class="kw">let </span>typ = Type::Error;
+<a href=#1765 id=1765 data-nosnippet>1765</a>            <span class="kw">let </span>error = this.interner.push_expr_full(HirExpression::Error, location, typ.clone());
+<a href=#1766 id=1766 data-nosnippet>1766</a>            (error, typ)
+<a href=#1767 id=1767 data-nosnippet>1767</a>        };
+<a href=#1768 id=1768 data-nosnippet>1768</a>
+<a href=#1769 id=1769 data-nosnippet>1769</a>        <span class="kw">let </span>value = <span class="kw">match </span>value {
+<a href=#1770 id=1770 data-nosnippet>1770</a>            <span class="prelude-val">Ok</span>(value) =&gt; value,
+<a href=#1771 id=1771 data-nosnippet>1771</a>            <span class="prelude-val">Err</span>(error) =&gt; <span class="kw">return </span>make_error(<span class="self">self</span>, error),
+<a href=#1772 id=1772 data-nosnippet>1772</a>        };
+<a href=#1773 id=1773 data-nosnippet>1773</a>
+<a href=#1774 id=1774 data-nosnippet>1774</a>        <span class="kw">match </span>value.into_expression(<span class="self">self</span>, location) {
+<a href=#1775 id=1775 data-nosnippet>1775</a>            <span class="prelude-val">Ok</span>(new_expr) =&gt; {
+<a href=#1776 id=1776 data-nosnippet>1776</a>                <span class="comment">// At this point the Expression was already elaborated and we got a Value.
+<a href=#1777 id=1777 data-nosnippet>1777</a>                // We'll elaborate this value turned into Expression to inline it and get
+<a href=#1778 id=1778 data-nosnippet>1778</a>                // an ExprId and Type, but we don't want any visibility errors to happen
+<a href=#1779 id=1779 data-nosnippet>1779</a>                // here (they could if we have `Foo { inner: 5 }` and `inner` is not
+<a href=#1780 id=1780 data-nosnippet>1780</a>                // accessible from where this expression is being elaborated).
+<a href=#1781 id=1781 data-nosnippet>1781</a>                </span><span class="self">self</span>.silence_field_visibility_errors += <span class="number">1</span>;
+<a href=#1782 id=1782 data-nosnippet>1782</a>                <span class="kw">let </span>value = <span class="self">self</span>.elaborate_expression(new_expr);
+<a href=#1783 id=1783 data-nosnippet>1783</a>                <span class="self">self</span>.silence_field_visibility_errors -= <span class="number">1</span>;
+<a href=#1784 id=1784 data-nosnippet>1784</a>                value
+<a href=#1785 id=1785 data-nosnippet>1785</a>            }
+<a href=#1786 id=1786 data-nosnippet>1786</a>            <span class="prelude-val">Err</span>(error) =&gt; make_error(<span class="self">self</span>, error),
+<a href=#1787 id=1787 data-nosnippet>1787</a>        }
+<a href=#1788 id=1788 data-nosnippet>1788</a>    }
+<a href=#1789 id=1789 data-nosnippet>1789</a>
+<a href=#1790 id=1790 data-nosnippet>1790</a>    <span class="kw">fn </span>try_get_comptime_function(
+<a href=#1791 id=1791 data-nosnippet>1791</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#1792 id=1792 data-nosnippet>1792</a>        func: ExprId,
+<a href=#1793 id=1793 data-nosnippet>1793</a>        location: Location,
+<a href=#1794 id=1794 data-nosnippet>1794</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;FuncId, ResolverError&gt; {
+<a href=#1795 id=1795 data-nosnippet>1795</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>func) {
+<a href=#1796 id=1796 data-nosnippet>1796</a>            HirExpression::Ident(ident, _generics) =&gt; {
+<a href=#1797 id=1797 data-nosnippet>1797</a>                <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#1798 id=1798 data-nosnippet>1798</a>                <span class="kw">if let </span>DefinitionKind::Function(function) = definition.kind {
+<a href=#1799 id=1799 data-nosnippet>1799</a>                    <span class="kw">let </span>meta = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>function);
+<a href=#1800 id=1800 data-nosnippet>1800</a>                    <span class="kw">if </span>meta.is_comptime {
+<a href=#1801 id=1801 data-nosnippet>1801</a>                        <span class="prelude-val">Ok</span>(function)
+<a href=#1802 id=1802 data-nosnippet>1802</a>                    } <span class="kw">else </span>{
+<a href=#1803 id=1803 data-nosnippet>1803</a>                        <span class="prelude-val">Err</span>(ResolverError::MacroIsNotComptime { location })
+<a href=#1804 id=1804 data-nosnippet>1804</a>                    }
+<a href=#1805 id=1805 data-nosnippet>1805</a>                } <span class="kw">else </span>{
+<a href=#1806 id=1806 data-nosnippet>1806</a>                    <span class="prelude-val">Err</span>(ResolverError::InvalidSyntaxInMacroCall { location })
+<a href=#1807 id=1807 data-nosnippet>1807</a>                }
+<a href=#1808 id=1808 data-nosnippet>1808</a>            }
+<a href=#1809 id=1809 data-nosnippet>1809</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::InvalidSyntaxInMacroCall { location }),
+<a href=#1810 id=1810 data-nosnippet>1810</a>        }
+<a href=#1811 id=1811 data-nosnippet>1811</a>    }
+<a href=#1812 id=1812 data-nosnippet>1812</a>
+<a href=#1813 id=1813 data-nosnippet>1813</a>    <span class="doccomment">/// Validate a macro call without executing it.
+<a href=#1814 id=1814 data-nosnippet>1814</a>    /// Checks that the callee is a comptime function and the return type is `Quoted`.
+<a href=#1815 id=1815 data-nosnippet>1815</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1816 id=1816 data-nosnippet>1816</a>    </span><span class="kw">fn </span>validate_macro_call(
+<a href=#1817 id=1817 data-nosnippet>1817</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1818 id=1818 data-nosnippet>1818</a>        func: ExprId,
+<a href=#1819 id=1819 data-nosnippet>1819</a>        return_type: <span class="kw-2">&amp;</span>Type,
+<a href=#1820 id=1820 data-nosnippet>1820</a>        location: Location,
+<a href=#1821 id=1821 data-nosnippet>1821</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;FuncId&gt; {
+<a href=#1822 id=1822 data-nosnippet>1822</a>        <span class="self">self</span>.unify(return_type, <span class="kw-2">&amp;</span>Type::Quoted(QuotedType::Quoted), |<span class="kw">_</span>| {
+<a href=#1823 id=1823 data-nosnippet>1823</a>            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
+<a href=#1824 id=1824 data-nosnippet>1824</a>        });
+<a href=#1825 id=1825 data-nosnippet>1825</a>
+<a href=#1826 id=1826 data-nosnippet>1826</a>        <span class="kw">match </span><span class="self">self</span>.try_get_comptime_function(func, location) {
+<a href=#1827 id=1827 data-nosnippet>1827</a>            <span class="prelude-val">Ok</span>(function) =&gt; <span class="prelude-val">Some</span>(function),
+<a href=#1828 id=1828 data-nosnippet>1828</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#1829 id=1829 data-nosnippet>1829</a>                <span class="self">self</span>.push_err(error);
+<a href=#1830 id=1830 data-nosnippet>1830</a>                <span class="prelude-val">None
+<a href=#1831 id=1831 data-nosnippet>1831</a>            </span>}
+<a href=#1832 id=1832 data-nosnippet>1832</a>        }
+<a href=#1833 id=1833 data-nosnippet>1833</a>    }
+<a href=#1834 id=1834 data-nosnippet>1834</a>
+<a href=#1835 id=1835 data-nosnippet>1835</a>    <span class="doccomment">/// Call a macro function and inlines its code at the call site.
+<a href=#1836 id=1836 data-nosnippet>1836</a>    /// This will also perform a type check to ensure that the return type is an `Expr` value.
+<a href=#1837 id=1837 data-nosnippet>1837</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1838 id=1838 data-nosnippet>1838</a>    </span><span class="kw">fn </span>call_macro(
+<a href=#1839 id=1839 data-nosnippet>1839</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1840 id=1840 data-nosnippet>1840</a>        func: ExprId,
+<a href=#1841 id=1841 data-nosnippet>1841</a>        arguments: Vec&lt;ExprId&gt;,
+<a href=#1842 id=1842 data-nosnippet>1842</a>        location: Location,
+<a href=#1843 id=1843 data-nosnippet>1843</a>        return_type: Type,
+<a href=#1844 id=1844 data-nosnippet>1844</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(HirExpression, Type)&gt; {
+<a href=#1845 id=1845 data-nosnippet>1845</a>        <span class="kw">let </span>function = <span class="self">self</span>.validate_macro_call(func, <span class="kw-2">&amp;</span>return_type, location)<span class="question-mark">?</span>;
 <a href=#1846 id=1846 data-nosnippet>1846</a>
-<a href=#1847 id=1847 data-nosnippet>1847</a>        <span class="kw">if </span>!errors.is_empty() {
-<a href=#1848 id=1848 data-nosnippet>1848</a>            <span class="self">self</span>.push_errors(errors);
-<a href=#1849 id=1849 data-nosnippet>1849</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#1850 id=1850 data-nosnippet>1850</a>        }
-<a href=#1851 id=1851 data-nosnippet>1851</a>
-<a href=#1852 id=1852 data-nosnippet>1852</a>        <span class="kw">let </span>(expr_id, typ) = <span class="self">self</span>.inline_comptime_value(result, location);
-<a href=#1853 id=1853 data-nosnippet>1853</a>        <span class="prelude-val">Some</span>((<span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id), typ))
-<a href=#1854 id=1854 data-nosnippet>1854</a>    }
-<a href=#1855 id=1855 data-nosnippet>1855</a>
-<a href=#1856 id=1856 data-nosnippet>1856</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1857 id=1857 data-nosnippet>1857</a>    </span><span class="kw">fn </span>elaborate_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath) -&gt; (ExprId, Type) {
-<a href=#1858 id=1858 data-nosnippet>1858</a>        <span class="kw">let </span>location = path.typ.location.merge(path.trait_path.location);
-<a href=#1859 id=1859 data-nosnippet>1859</a>
-<a href=#1860 id=1860 data-nosnippet>1860</a>        <span class="kw">let </span>constraint = UnresolvedTraitConstraint {
-<a href=#1861 id=1861 data-nosnippet>1861</a>            typ: path.typ,
-<a href=#1862 id=1862 data-nosnippet>1862</a>            trait_bound: TraitBound {
-<a href=#1863 id=1863 data-nosnippet>1863</a>                trait_path: path.trait_path,
-<a href=#1864 id=1864 data-nosnippet>1864</a>                trait_generics: path.trait_generics,
-<a href=#1865 id=1865 data-nosnippet>1865</a>            },
-<a href=#1866 id=1866 data-nosnippet>1866</a>        };
-<a href=#1867 id=1867 data-nosnippet>1867</a>
-<a href=#1868 id=1868 data-nosnippet>1868</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#1869 id=1869 data-nosnippet>1869</a>        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(constraint.typ.clone(), wildcard_allowed);
-<a href=#1870 id=1870 data-nosnippet>1870</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.use_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound) <span class="kw">else </span>{
-<a href=#1871 id=1871 data-nosnippet>1871</a>            <span class="comment">// resolve_trait_bound only returns None if it has already issued an error, so don't
-<a href=#1872 id=1872 data-nosnippet>1872</a>            // issue another here.
-<a href=#1873 id=1873 data-nosnippet>1873</a>            </span><span class="kw">let </span>error = <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);
-<a href=#1874 id=1874 data-nosnippet>1874</a>            <span class="kw">return </span>(error, Type::Error);
-<a href=#1875 id=1875 data-nosnippet>1875</a>        };
+<a href=#1847 id=1847 data-nosnippet>1847</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
+<a href=#1848 id=1848 data-nosnippet>1848</a>        <span class="kw">let </span><span class="kw-2">mut </span>comptime_args = Vec::new();
+<a href=#1849 id=1849 data-nosnippet>1849</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = Vec::new();
+<a href=#1850 id=1850 data-nosnippet>1850</a>
+<a href=#1851 id=1851 data-nosnippet>1851</a>        <span class="kw">for </span>argument <span class="kw">in </span>arguments {
+<a href=#1852 id=1852 data-nosnippet>1852</a>            <span class="kw">match </span>interpreter.evaluate(argument) {
+<a href=#1853 id=1853 data-nosnippet>1853</a>                <span class="prelude-val">Ok</span>(arg) =&gt; {
+<a href=#1854 id=1854 data-nosnippet>1854</a>                    <span class="kw">let </span>location = interpreter.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>argument);
+<a href=#1855 id=1855 data-nosnippet>1855</a>                    comptime_args.push((arg, location));
+<a href=#1856 id=1856 data-nosnippet>1856</a>                }
+<a href=#1857 id=1857 data-nosnippet>1857</a>                <span class="prelude-val">Err</span>(error) =&gt; errors.push(error.into()),
+<a href=#1858 id=1858 data-nosnippet>1858</a>            }
+<a href=#1859 id=1859 data-nosnippet>1859</a>        }
+<a href=#1860 id=1860 data-nosnippet>1860</a>
+<a href=#1861 id=1861 data-nosnippet>1861</a>        <span class="kw">let </span>bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
+<a href=#1862 id=1862 data-nosnippet>1862</a>        <span class="kw">let </span>result = interpreter.call_function(function, comptime_args, bindings, location);
+<a href=#1863 id=1863 data-nosnippet>1863</a>
+<a href=#1864 id=1864 data-nosnippet>1864</a>        <span class="kw">if </span>!errors.is_empty() {
+<a href=#1865 id=1865 data-nosnippet>1865</a>            <span class="self">self</span>.push_errors(errors);
+<a href=#1866 id=1866 data-nosnippet>1866</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#1867 id=1867 data-nosnippet>1867</a>        }
+<a href=#1868 id=1868 data-nosnippet>1868</a>
+<a href=#1869 id=1869 data-nosnippet>1869</a>        <span class="kw">let </span>(expr_id, typ) = <span class="self">self</span>.inline_comptime_value(result, location);
+<a href=#1870 id=1870 data-nosnippet>1870</a>        <span class="prelude-val">Some</span>((<span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id), typ))
+<a href=#1871 id=1871 data-nosnippet>1871</a>    }
+<a href=#1872 id=1872 data-nosnippet>1872</a>
+<a href=#1873 id=1873 data-nosnippet>1873</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1874 id=1874 data-nosnippet>1874</a>    </span><span class="kw">fn </span>elaborate_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath) -&gt; (ExprId, Type) {
+<a href=#1875 id=1875 data-nosnippet>1875</a>        <span class="kw">let </span>location = path.typ.location.merge(path.trait_path.location);
 <a href=#1876 id=1876 data-nosnippet>1876</a>
-<a href=#1877 id=1877 data-nosnippet>1877</a>        <span class="kw">let </span>constraint = TraitConstraint { typ, trait_bound };
-<a href=#1878 id=1878 data-nosnippet>1878</a>
-<a href=#1879 id=1879 data-nosnippet>1879</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-<a href=#1880 id=1880 data-nosnippet>1880</a>        <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
-<a href=#1881 id=1881 data-nosnippet>1881</a>        <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
-<a href=#1882 id=1882 data-nosnippet>1882</a>
-<a href=#1883 id=1883 data-nosnippet>1883</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(definition) =
-<a href=#1884 id=1884 data-nosnippet>1884</a>            the_trait.find_method_or_constant(path.impl_item.as_str(), <span class="self">self</span>.interner)
-<a href=#1885 id=1885 data-nosnippet>1885</a>        <span class="kw">else </span>{
-<a href=#1886 id=1886 data-nosnippet>1886</a>            <span class="kw">let </span>trait_name = the_trait.name.to_string();
-<a href=#1887 id=1887 data-nosnippet>1887</a>            <span class="kw">let </span>method_name = path.impl_item.to_string();
-<a href=#1888 id=1888 data-nosnippet>1888</a>            <span class="kw">let </span>location = path.impl_item.location();
-<a href=#1889 id=1889 data-nosnippet>1889</a>            <span class="self">self</span>.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
-<a href=#1890 id=1890 data-nosnippet>1890</a>            <span class="kw">let </span>error = <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+<a href=#1877 id=1877 data-nosnippet>1877</a>        <span class="kw">let </span>constraint = UnresolvedTraitConstraint {
+<a href=#1878 id=1878 data-nosnippet>1878</a>            typ: path.typ,
+<a href=#1879 id=1879 data-nosnippet>1879</a>            trait_bound: TraitBound {
+<a href=#1880 id=1880 data-nosnippet>1880</a>                trait_path: path.trait_path,
+<a href=#1881 id=1881 data-nosnippet>1881</a>                trait_generics: path.trait_generics,
+<a href=#1882 id=1882 data-nosnippet>1882</a>            },
+<a href=#1883 id=1883 data-nosnippet>1883</a>        };
+<a href=#1884 id=1884 data-nosnippet>1884</a>
+<a href=#1885 id=1885 data-nosnippet>1885</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#1886 id=1886 data-nosnippet>1886</a>        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(constraint.typ.clone(), wildcard_allowed);
+<a href=#1887 id=1887 data-nosnippet>1887</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.use_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound) <span class="kw">else </span>{
+<a href=#1888 id=1888 data-nosnippet>1888</a>            <span class="comment">// resolve_trait_bound only returns None if it has already issued an error, so don't
+<a href=#1889 id=1889 data-nosnippet>1889</a>            // issue another here.
+<a href=#1890 id=1890 data-nosnippet>1890</a>            </span><span class="kw">let </span>error = <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);
 <a href=#1891 id=1891 data-nosnippet>1891</a>            <span class="kw">return </span>(error, Type::Error);
 <a href=#1892 id=1892 data-nosnippet>1892</a>        };
 <a href=#1893 id=1893 data-nosnippet>1893</a>
-<a href=#1894 id=1894 data-nosnippet>1894</a>        <span class="kw">let </span>trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: <span class="bool-val">false </span>};
+<a href=#1894 id=1894 data-nosnippet>1894</a>        <span class="kw">let </span>constraint = TraitConstraint { typ, trait_bound };
 <a href=#1895 id=1895 data-nosnippet>1895</a>
-<a href=#1896 id=1896 data-nosnippet>1896</a>        <span class="kw">let </span>ident = HirIdent {
-<a href=#1897 id=1897 data-nosnippet>1897</a>            location: path.impl_item.location(),
-<a href=#1898 id=1898 data-nosnippet>1898</a>            id: definition,
-<a href=#1899 id=1899 data-nosnippet>1899</a>            impl_kind: ImplKind::TraitItem(trait_item),
-<a href=#1900 id=1900 data-nosnippet>1900</a>        };
-<a href=#1901 id=1901 data-nosnippet>1901</a>
-<a href=#1902 id=1902 data-nosnippet>1902</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>), location);
-<a href=#1903 id=1903 data-nosnippet>1903</a>
-<a href=#1904 id=1904 data-nosnippet>1904</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#1905 id=1905 data-nosnippet>1905</a>
-<a href=#1906 id=1906 data-nosnippet>1906</a>        <span class="comment">// In `&lt;Type as Trait&gt;::method` we know `Self` is `Type` so we bind that now
-<a href=#1907 id=1907 data-nosnippet>1907</a>        </span>bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
-<a href=#1908 id=1908 data-nosnippet>1908</a>
-<a href=#1909 id=1909 data-nosnippet>1909</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#1910 id=1910 data-nosnippet>1910</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#1911 id=1911 data-nosnippet>1911</a>
-<a href=#1912 id=1912 data-nosnippet>1912</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#1913 id=1913 data-nosnippet>1913</a>            ident,
-<a href=#1914 id=1914 data-nosnippet>1914</a>            <span class="kw-2">&amp;</span>id,
-<a href=#1915 id=1915 data-nosnippet>1915</a>            <span class="prelude-val">None</span>,
-<a href=#1916 id=1916 data-nosnippet>1916</a>            bindings,
-<a href=#1917 id=1917 data-nosnippet>1917</a>            push_required_type_variables,
-<a href=#1918 id=1918 data-nosnippet>1918</a>        );
-<a href=#1919 id=1919 data-nosnippet>1919</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#1920 id=1920 data-nosnippet>1920</a>        (id, typ)
-<a href=#1921 id=1921 data-nosnippet>1921</a>    }
-<a href=#1922 id=1922 data-nosnippet>1922</a>}</code></pre></div></section></main></body></html>
+<a href=#1896 id=1896 data-nosnippet>1896</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
+<a href=#1897 id=1897 data-nosnippet>1897</a>        <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
+<a href=#1898 id=1898 data-nosnippet>1898</a>        <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
+<a href=#1899 id=1899 data-nosnippet>1899</a>
+<a href=#1900 id=1900 data-nosnippet>1900</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(definition) =
+<a href=#1901 id=1901 data-nosnippet>1901</a>            the_trait.find_method_or_constant(path.impl_item.as_str(), <span class="self">self</span>.interner)
+<a href=#1902 id=1902 data-nosnippet>1902</a>        <span class="kw">else </span>{
+<a href=#1903 id=1903 data-nosnippet>1903</a>            <span class="kw">let </span>trait_name = the_trait.name.to_string();
+<a href=#1904 id=1904 data-nosnippet>1904</a>            <span class="kw">let </span>method_name = path.impl_item.to_string();
+<a href=#1905 id=1905 data-nosnippet>1905</a>            <span class="kw">let </span>location = path.impl_item.location();
+<a href=#1906 id=1906 data-nosnippet>1906</a>            <span class="self">self</span>.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
+<a href=#1907 id=1907 data-nosnippet>1907</a>            <span class="kw">let </span>error = <span class="self">self</span>.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+<a href=#1908 id=1908 data-nosnippet>1908</a>            <span class="kw">return </span>(error, Type::Error);
+<a href=#1909 id=1909 data-nosnippet>1909</a>        };
+<a href=#1910 id=1910 data-nosnippet>1910</a>
+<a href=#1911 id=1911 data-nosnippet>1911</a>        <span class="kw">let </span>trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: <span class="bool-val">false </span>};
+<a href=#1912 id=1912 data-nosnippet>1912</a>
+<a href=#1913 id=1913 data-nosnippet>1913</a>        <span class="kw">let </span>ident = HirIdent {
+<a href=#1914 id=1914 data-nosnippet>1914</a>            location: path.impl_item.location(),
+<a href=#1915 id=1915 data-nosnippet>1915</a>            id: definition,
+<a href=#1916 id=1916 data-nosnippet>1916</a>            impl_kind: ImplKind::TraitItem(trait_item),
+<a href=#1917 id=1917 data-nosnippet>1917</a>        };
+<a href=#1918 id=1918 data-nosnippet>1918</a>
+<a href=#1919 id=1919 data-nosnippet>1919</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>), location);
+<a href=#1920 id=1920 data-nosnippet>1920</a>
+<a href=#1921 id=1921 data-nosnippet>1921</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#1922 id=1922 data-nosnippet>1922</a>
+<a href=#1923 id=1923 data-nosnippet>1923</a>        <span class="comment">// In `&lt;Type as Trait&gt;::method` we know `Self` is `Type` so we bind that now
+<a href=#1924 id=1924 data-nosnippet>1924</a>        </span>bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
+<a href=#1925 id=1925 data-nosnippet>1925</a>
+<a href=#1926 id=1926 data-nosnippet>1926</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+<a href=#1927 id=1927 data-nosnippet>1927</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
+<a href=#1928 id=1928 data-nosnippet>1928</a>
+<a href=#1929 id=1929 data-nosnippet>1929</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
+<a href=#1930 id=1930 data-nosnippet>1930</a>            ident,
+<a href=#1931 id=1931 data-nosnippet>1931</a>            <span class="kw-2">&amp;</span>id,
+<a href=#1932 id=1932 data-nosnippet>1932</a>            <span class="prelude-val">None</span>,
+<a href=#1933 id=1933 data-nosnippet>1933</a>            bindings,
+<a href=#1934 id=1934 data-nosnippet>1934</a>            push_required_type_variables,
+<a href=#1935 id=1935 data-nosnippet>1935</a>        );
+<a href=#1936 id=1936 data-nosnippet>1936</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#1937 id=1937 data-nosnippet>1937</a>        (id, typ)
+<a href=#1938 id=1938 data-nosnippet>1938</a>    }
+<a href=#1939 id=1939 data-nosnippet>1939</a>}</code></pre></div></section></main></body></html>

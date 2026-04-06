@@ -4,15 +4,15 @@
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>noirc_frontend::{
 <a href=#5 id=5 data-nosnippet>5</a>    ParsedModule,
 <a href=#6 id=6 data-nosnippet>6</a>    ast::{
-<a href=#7 id=7 data-nosnippet>7</a>        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-<a href=#8 id=8 data-nosnippet>8</a>        CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
-<a href=#9 id=9 data-nosnippet>9</a>        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
-<a href=#10 id=10 data-nosnippet>10</a>        FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
-<a href=#11 id=11 data-nosnippet>11</a>        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
-<a href=#12 id=12 data-nosnippet>12</a>        MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
-<a href=#13 id=13 data-nosnippet>13</a>        NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path,
-<a href=#14 id=14 data-nosnippet>14</a>        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
-<a href=#15 id=15 data-nosnippet>15</a>        TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
+<a href=#7 id=7 data-nosnippet>7</a>        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+<a href=#8 id=8 data-nosnippet>8</a>        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Documented,
+<a href=#9 id=9 data-nosnippet>9</a>        EnumVariant, Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange,
+<a href=#10 id=10 data-nosnippet>10</a>        FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType,
+<a href=#11 id=11 data-nosnippet>11</a>        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+<a href=#12 id=12 data-nosnippet>12</a>        LoopStatement, MatchExpression, MemberAccessExpression, MethodCallExpression,
+<a href=#13 id=13 data-nosnippet>13</a>        ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+<a href=#14 id=14 data-nosnippet>14</a>        Param, Path, PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField,
+<a href=#15 id=15 data-nosnippet>15</a>        TraitBound, TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
 <a href=#16 id=16 data-nosnippet>16</a>        UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
 <a href=#17 id=17 data-nosnippet>17</a>        UnresolvedTypeExpression, UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
 <a href=#18 id=18 data-nosnippet>18</a>    },
@@ -909,141 +909,152 @@
 <a href=#909 id=909 data-nosnippet>909</a>        StatementKind::Assign(assign_statement) =&gt; {
 <a href=#910 id=910 data-nosnippet>910</a>            StatementKind::Assign(assign_statement_with_file(assign_statement, file))
 <a href=#911 id=911 data-nosnippet>911</a>        }
-<a href=#912 id=912 data-nosnippet>912</a>        StatementKind::For(for_loop_statement) =&gt; {
-<a href=#913 id=913 data-nosnippet>913</a>            StatementKind::For(for_loop_statement_with_file(for_loop_statement, file))
+<a href=#912 id=912 data-nosnippet>912</a>        StatementKind::AssignOp(assign_op_statement) =&gt; {
+<a href=#913 id=913 data-nosnippet>913</a>            StatementKind::AssignOp(assign_op_statement_with_file(assign_op_statement, file))
 <a href=#914 id=914 data-nosnippet>914</a>        }
-<a href=#915 id=915 data-nosnippet>915</a>        StatementKind::While(while_) =&gt; StatementKind::While(WhileStatement {
-<a href=#916 id=916 data-nosnippet>916</a>            condition: expression_with_file(while_.condition, file),
-<a href=#917 id=917 data-nosnippet>917</a>            body: expression_with_file(while_.body, file),
-<a href=#918 id=918 data-nosnippet>918</a>            while_keyword_location: while_.while_keyword_location,
-<a href=#919 id=919 data-nosnippet>919</a>        }),
-<a href=#920 id=920 data-nosnippet>920</a>        StatementKind::Loop(loop_) =&gt; StatementKind::Loop(LoopStatement {
-<a href=#921 id=921 data-nosnippet>921</a>            body: expression_with_file(loop_.body, file),
-<a href=#922 id=922 data-nosnippet>922</a>            loop_keyword_location: location_with_file(loop_.loop_keyword_location, file),
-<a href=#923 id=923 data-nosnippet>923</a>        }),
-<a href=#924 id=924 data-nosnippet>924</a>        StatementKind::Comptime(statement) =&gt; {
-<a href=#925 id=925 data-nosnippet>925</a>            StatementKind::Comptime(Box::new(statement_with_file(<span class="kw-2">*</span>statement, file)))
-<a href=#926 id=926 data-nosnippet>926</a>        }
-<a href=#927 id=927 data-nosnippet>927</a>        StatementKind::Semi(expression) =&gt; {
-<a href=#928 id=928 data-nosnippet>928</a>            StatementKind::Semi(expression_with_file(expression, file))
+<a href=#915 id=915 data-nosnippet>915</a>        StatementKind::For(for_loop_statement) =&gt; {
+<a href=#916 id=916 data-nosnippet>916</a>            StatementKind::For(for_loop_statement_with_file(for_loop_statement, file))
+<a href=#917 id=917 data-nosnippet>917</a>        }
+<a href=#918 id=918 data-nosnippet>918</a>        StatementKind::While(while_) =&gt; StatementKind::While(WhileStatement {
+<a href=#919 id=919 data-nosnippet>919</a>            condition: expression_with_file(while_.condition, file),
+<a href=#920 id=920 data-nosnippet>920</a>            body: expression_with_file(while_.body, file),
+<a href=#921 id=921 data-nosnippet>921</a>            while_keyword_location: while_.while_keyword_location,
+<a href=#922 id=922 data-nosnippet>922</a>        }),
+<a href=#923 id=923 data-nosnippet>923</a>        StatementKind::Loop(loop_) =&gt; StatementKind::Loop(LoopStatement {
+<a href=#924 id=924 data-nosnippet>924</a>            body: expression_with_file(loop_.body, file),
+<a href=#925 id=925 data-nosnippet>925</a>            loop_keyword_location: location_with_file(loop_.loop_keyword_location, file),
+<a href=#926 id=926 data-nosnippet>926</a>        }),
+<a href=#927 id=927 data-nosnippet>927</a>        StatementKind::Comptime(statement) =&gt; {
+<a href=#928 id=928 data-nosnippet>928</a>            StatementKind::Comptime(Box::new(statement_with_file(<span class="kw-2">*</span>statement, file)))
 <a href=#929 id=929 data-nosnippet>929</a>        }
-<a href=#930 id=930 data-nosnippet>930</a>        StatementKind::Interned(..)
-<a href=#931 id=931 data-nosnippet>931</a>        | StatementKind::Break
-<a href=#932 id=932 data-nosnippet>932</a>        | StatementKind::Continue
-<a href=#933 id=933 data-nosnippet>933</a>        | StatementKind::Error =&gt; kind,
-<a href=#934 id=934 data-nosnippet>934</a>    }
-<a href=#935 id=935 data-nosnippet>935</a>}
-<a href=#936 id=936 data-nosnippet>936</a>
-<a href=#937 id=937 data-nosnippet>937</a><span class="kw">fn </span>for_loop_statement_with_file(for_loop: ForLoopStatement, file: FileId) -&gt; ForLoopStatement {
-<a href=#938 id=938 data-nosnippet>938</a>    ForLoopStatement {
-<a href=#939 id=939 data-nosnippet>939</a>        identifier: ident_with_file(for_loop.identifier, file),
-<a href=#940 id=940 data-nosnippet>940</a>        range: for_range_with_file(for_loop.range, file),
-<a href=#941 id=941 data-nosnippet>941</a>        block: expression_with_file(for_loop.block, file),
-<a href=#942 id=942 data-nosnippet>942</a>        location: location_with_file(for_loop.location, file),
-<a href=#943 id=943 data-nosnippet>943</a>    }
-<a href=#944 id=944 data-nosnippet>944</a>}
-<a href=#945 id=945 data-nosnippet>945</a>
-<a href=#946 id=946 data-nosnippet>946</a><span class="kw">fn </span>for_range_with_file(range: ForRange, file: FileId) -&gt; ForRange {
-<a href=#947 id=947 data-nosnippet>947</a>    <span class="kw">match </span>range {
-<a href=#948 id=948 data-nosnippet>948</a>        ForRange::Range(for_bounds) =&gt; ForRange::Range(for_bounds_with_file(for_bounds, file)),
-<a href=#949 id=949 data-nosnippet>949</a>        ForRange::Array(expression) =&gt; ForRange::Array(expression_with_file(expression, file)),
-<a href=#950 id=950 data-nosnippet>950</a>    }
-<a href=#951 id=951 data-nosnippet>951</a>}
-<a href=#952 id=952 data-nosnippet>952</a>
-<a href=#953 id=953 data-nosnippet>953</a><span class="kw">fn </span>for_bounds_with_file(for_bounds: ForBounds, file: FileId) -&gt; ForBounds {
-<a href=#954 id=954 data-nosnippet>954</a>    ForBounds {
-<a href=#955 id=955 data-nosnippet>955</a>        start: expression_with_file(for_bounds.start, file),
-<a href=#956 id=956 data-nosnippet>956</a>        end: expression_with_file(for_bounds.end, file),
-<a href=#957 id=957 data-nosnippet>957</a>        inclusive: for_bounds.inclusive,
-<a href=#958 id=958 data-nosnippet>958</a>    }
-<a href=#959 id=959 data-nosnippet>959</a>}
-<a href=#960 id=960 data-nosnippet>960</a>
-<a href=#961 id=961 data-nosnippet>961</a><span class="kw">fn </span>assign_statement_with_file(assign: AssignStatement, file: FileId) -&gt; AssignStatement {
-<a href=#962 id=962 data-nosnippet>962</a>    AssignStatement {
-<a href=#963 id=963 data-nosnippet>963</a>        lvalue: lvalue_with_file(assign.lvalue, file),
-<a href=#964 id=964 data-nosnippet>964</a>        expression: expression_with_file(assign.expression, file),
-<a href=#965 id=965 data-nosnippet>965</a>    }
-<a href=#966 id=966 data-nosnippet>966</a>}
-<a href=#967 id=967 data-nosnippet>967</a>
-<a href=#968 id=968 data-nosnippet>968</a><span class="kw">fn </span>lvalue_with_file(lvalue: LValue, file: FileId) -&gt; LValue {
-<a href=#969 id=969 data-nosnippet>969</a>    <span class="kw">match </span>lvalue {
-<a href=#970 id=970 data-nosnippet>970</a>        LValue::Path(path) =&gt; LValue::Path(path_with_file(path, file)),
-<a href=#971 id=971 data-nosnippet>971</a>        LValue::MemberAccess { object, field_name, location } =&gt; LValue::MemberAccess {
-<a href=#972 id=972 data-nosnippet>972</a>            object: Box::new(lvalue_with_file(<span class="kw-2">*</span>object, file)),
-<a href=#973 id=973 data-nosnippet>973</a>            field_name: ident_with_file(field_name, file),
-<a href=#974 id=974 data-nosnippet>974</a>            location: location_with_file(location, file),
-<a href=#975 id=975 data-nosnippet>975</a>        },
-<a href=#976 id=976 data-nosnippet>976</a>        LValue::Index { array, index, location } =&gt; LValue::Index {
-<a href=#977 id=977 data-nosnippet>977</a>            array: Box::new(lvalue_with_file(<span class="kw-2">*</span>array, file)),
-<a href=#978 id=978 data-nosnippet>978</a>            index: expression_with_file(index, file),
-<a href=#979 id=979 data-nosnippet>979</a>            location: location_with_file(location, file),
-<a href=#980 id=980 data-nosnippet>980</a>        },
-<a href=#981 id=981 data-nosnippet>981</a>        LValue::Dereference(lvalue, location) =&gt; LValue::Dereference(
-<a href=#982 id=982 data-nosnippet>982</a>            Box::new(lvalue_with_file(<span class="kw-2">*</span>lvalue, file)),
-<a href=#983 id=983 data-nosnippet>983</a>            location_with_file(location, file),
-<a href=#984 id=984 data-nosnippet>984</a>        ),
-<a href=#985 id=985 data-nosnippet>985</a>        LValue::Interned(interned_expression_kind, location) =&gt; {
-<a href=#986 id=986 data-nosnippet>986</a>            LValue::Interned(interned_expression_kind, location_with_file(location, file))
-<a href=#987 id=987 data-nosnippet>987</a>        }
-<a href=#988 id=988 data-nosnippet>988</a>    }
-<a href=#989 id=989 data-nosnippet>989</a>}
-<a href=#990 id=990 data-nosnippet>990</a>
-<a href=#991 id=991 data-nosnippet>991</a><span class="kw">fn </span>unresolved_generics_with_file(
-<a href=#992 id=992 data-nosnippet>992</a>    generics: Vec&lt;UnresolvedGeneric&gt;,
-<a href=#993 id=993 data-nosnippet>993</a>    file: FileId,
-<a href=#994 id=994 data-nosnippet>994</a>) -&gt; Vec&lt;UnresolvedGeneric&gt; {
-<a href=#995 id=995 data-nosnippet>995</a>    vecmap(generics, |generic| unresolved_generic_with_file(generic, file))
-<a href=#996 id=996 data-nosnippet>996</a>}
-<a href=#997 id=997 data-nosnippet>997</a>
-<a href=#998 id=998 data-nosnippet>998</a><span class="kw">fn </span>unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -&gt; UnresolvedGeneric {
-<a href=#999 id=999 data-nosnippet>999</a>    <span class="kw">let </span>ident = <span class="kw">match </span>generic.ident() {
-<a href=#1000 id=1000 data-nosnippet>1000</a>        IdentOrQuotedType::Ident(ident) =&gt; {
-<a href=#1001 id=1001 data-nosnippet>1001</a>            IdentOrQuotedType::Ident(ident_with_file(ident.clone(), file))
-<a href=#1002 id=1002 data-nosnippet>1002</a>        }
-<a href=#1003 id=1003 data-nosnippet>1003</a>        IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
-<a href=#1004 id=1004 data-nosnippet>1004</a>            IdentOrQuotedType::Quoted(<span class="kw-2">*</span>quoted_type_id, location_with_file(<span class="kw-2">*</span>location, file))
-<a href=#1005 id=1005 data-nosnippet>1005</a>        }
-<a href=#1006 id=1006 data-nosnippet>1006</a>    };
-<a href=#1007 id=1007 data-nosnippet>1007</a>
-<a href=#1008 id=1008 data-nosnippet>1008</a>    <span class="kw">match </span>generic {
-<a href=#1009 id=1009 data-nosnippet>1009</a>        UnresolvedGeneric::Variable(<span class="kw">_</span>, trait_bounds) =&gt; {
-<a href=#1010 id=1010 data-nosnippet>1010</a>            <span class="kw">let </span>trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
-<a href=#1011 id=1011 data-nosnippet>1011</a>            UnresolvedGeneric::Variable(ident, trait_bounds)
-<a href=#1012 id=1012 data-nosnippet>1012</a>        }
-<a href=#1013 id=1013 data-nosnippet>1013</a>        UnresolvedGeneric::Numeric { ident: <span class="kw">_</span>, typ } =&gt; {
-<a href=#1014 id=1014 data-nosnippet>1014</a>            UnresolvedGeneric::Numeric { ident, typ: unresolved_type_with_file(typ, file) }
-<a href=#1015 id=1015 data-nosnippet>1015</a>        }
-<a href=#1016 id=1016 data-nosnippet>1016</a>    }
-<a href=#1017 id=1017 data-nosnippet>1017</a>}
+<a href=#930 id=930 data-nosnippet>930</a>        StatementKind::Semi(expression) =&gt; {
+<a href=#931 id=931 data-nosnippet>931</a>            StatementKind::Semi(expression_with_file(expression, file))
+<a href=#932 id=932 data-nosnippet>932</a>        }
+<a href=#933 id=933 data-nosnippet>933</a>        StatementKind::Interned(..)
+<a href=#934 id=934 data-nosnippet>934</a>        | StatementKind::Break
+<a href=#935 id=935 data-nosnippet>935</a>        | StatementKind::Continue
+<a href=#936 id=936 data-nosnippet>936</a>        | StatementKind::Error =&gt; kind,
+<a href=#937 id=937 data-nosnippet>937</a>    }
+<a href=#938 id=938 data-nosnippet>938</a>}
+<a href=#939 id=939 data-nosnippet>939</a>
+<a href=#940 id=940 data-nosnippet>940</a><span class="kw">fn </span>for_loop_statement_with_file(for_loop: ForLoopStatement, file: FileId) -&gt; ForLoopStatement {
+<a href=#941 id=941 data-nosnippet>941</a>    ForLoopStatement {
+<a href=#942 id=942 data-nosnippet>942</a>        identifier: ident_with_file(for_loop.identifier, file),
+<a href=#943 id=943 data-nosnippet>943</a>        range: for_range_with_file(for_loop.range, file),
+<a href=#944 id=944 data-nosnippet>944</a>        block: expression_with_file(for_loop.block, file),
+<a href=#945 id=945 data-nosnippet>945</a>        location: location_with_file(for_loop.location, file),
+<a href=#946 id=946 data-nosnippet>946</a>    }
+<a href=#947 id=947 data-nosnippet>947</a>}
+<a href=#948 id=948 data-nosnippet>948</a>
+<a href=#949 id=949 data-nosnippet>949</a><span class="kw">fn </span>for_range_with_file(range: ForRange, file: FileId) -&gt; ForRange {
+<a href=#950 id=950 data-nosnippet>950</a>    <span class="kw">match </span>range {
+<a href=#951 id=951 data-nosnippet>951</a>        ForRange::Range(for_bounds) =&gt; ForRange::Range(for_bounds_with_file(for_bounds, file)),
+<a href=#952 id=952 data-nosnippet>952</a>        ForRange::Array(expression) =&gt; ForRange::Array(expression_with_file(expression, file)),
+<a href=#953 id=953 data-nosnippet>953</a>    }
+<a href=#954 id=954 data-nosnippet>954</a>}
+<a href=#955 id=955 data-nosnippet>955</a>
+<a href=#956 id=956 data-nosnippet>956</a><span class="kw">fn </span>for_bounds_with_file(for_bounds: ForBounds, file: FileId) -&gt; ForBounds {
+<a href=#957 id=957 data-nosnippet>957</a>    ForBounds {
+<a href=#958 id=958 data-nosnippet>958</a>        start: expression_with_file(for_bounds.start, file),
+<a href=#959 id=959 data-nosnippet>959</a>        end: expression_with_file(for_bounds.end, file),
+<a href=#960 id=960 data-nosnippet>960</a>        inclusive: for_bounds.inclusive,
+<a href=#961 id=961 data-nosnippet>961</a>    }
+<a href=#962 id=962 data-nosnippet>962</a>}
+<a href=#963 id=963 data-nosnippet>963</a>
+<a href=#964 id=964 data-nosnippet>964</a><span class="kw">fn </span>assign_statement_with_file(assign: AssignStatement, file: FileId) -&gt; AssignStatement {
+<a href=#965 id=965 data-nosnippet>965</a>    AssignStatement {
+<a href=#966 id=966 data-nosnippet>966</a>        lvalue: lvalue_with_file(assign.lvalue, file),
+<a href=#967 id=967 data-nosnippet>967</a>        expression: expression_with_file(assign.expression, file),
+<a href=#968 id=968 data-nosnippet>968</a>    }
+<a href=#969 id=969 data-nosnippet>969</a>}
+<a href=#970 id=970 data-nosnippet>970</a>
+<a href=#971 id=971 data-nosnippet>971</a><span class="kw">fn </span>assign_op_statement_with_file(assign: AssignOpStatement, file: FileId) -&gt; AssignOpStatement {
+<a href=#972 id=972 data-nosnippet>972</a>    AssignOpStatement {
+<a href=#973 id=973 data-nosnippet>973</a>        lvalue: lvalue_with_file(assign.lvalue, file),
+<a href=#974 id=974 data-nosnippet>974</a>        op: assign.op,
+<a href=#975 id=975 data-nosnippet>975</a>        expression: expression_with_file(assign.expression, file),
+<a href=#976 id=976 data-nosnippet>976</a>    }
+<a href=#977 id=977 data-nosnippet>977</a>}
+<a href=#978 id=978 data-nosnippet>978</a>
+<a href=#979 id=979 data-nosnippet>979</a><span class="kw">fn </span>lvalue_with_file(lvalue: LValue, file: FileId) -&gt; LValue {
+<a href=#980 id=980 data-nosnippet>980</a>    <span class="kw">match </span>lvalue {
+<a href=#981 id=981 data-nosnippet>981</a>        LValue::Path(path) =&gt; LValue::Path(path_with_file(path, file)),
+<a href=#982 id=982 data-nosnippet>982</a>        LValue::MemberAccess { object, field_name, location } =&gt; LValue::MemberAccess {
+<a href=#983 id=983 data-nosnippet>983</a>            object: Box::new(lvalue_with_file(<span class="kw-2">*</span>object, file)),
+<a href=#984 id=984 data-nosnippet>984</a>            field_name: ident_with_file(field_name, file),
+<a href=#985 id=985 data-nosnippet>985</a>            location: location_with_file(location, file),
+<a href=#986 id=986 data-nosnippet>986</a>        },
+<a href=#987 id=987 data-nosnippet>987</a>        LValue::Index { array, index, location } =&gt; LValue::Index {
+<a href=#988 id=988 data-nosnippet>988</a>            array: Box::new(lvalue_with_file(<span class="kw-2">*</span>array, file)),
+<a href=#989 id=989 data-nosnippet>989</a>            index: expression_with_file(index, file),
+<a href=#990 id=990 data-nosnippet>990</a>            location: location_with_file(location, file),
+<a href=#991 id=991 data-nosnippet>991</a>        },
+<a href=#992 id=992 data-nosnippet>992</a>        LValue::Dereference(lvalue, location) =&gt; LValue::Dereference(
+<a href=#993 id=993 data-nosnippet>993</a>            Box::new(lvalue_with_file(<span class="kw-2">*</span>lvalue, file)),
+<a href=#994 id=994 data-nosnippet>994</a>            location_with_file(location, file),
+<a href=#995 id=995 data-nosnippet>995</a>        ),
+<a href=#996 id=996 data-nosnippet>996</a>        LValue::Interned(interned_expression_kind, location) =&gt; {
+<a href=#997 id=997 data-nosnippet>997</a>            LValue::Interned(interned_expression_kind, location_with_file(location, file))
+<a href=#998 id=998 data-nosnippet>998</a>        }
+<a href=#999 id=999 data-nosnippet>999</a>    }
+<a href=#1000 id=1000 data-nosnippet>1000</a>}
+<a href=#1001 id=1001 data-nosnippet>1001</a>
+<a href=#1002 id=1002 data-nosnippet>1002</a><span class="kw">fn </span>unresolved_generics_with_file(
+<a href=#1003 id=1003 data-nosnippet>1003</a>    generics: Vec&lt;UnresolvedGeneric&gt;,
+<a href=#1004 id=1004 data-nosnippet>1004</a>    file: FileId,
+<a href=#1005 id=1005 data-nosnippet>1005</a>) -&gt; Vec&lt;UnresolvedGeneric&gt; {
+<a href=#1006 id=1006 data-nosnippet>1006</a>    vecmap(generics, |generic| unresolved_generic_with_file(generic, file))
+<a href=#1007 id=1007 data-nosnippet>1007</a>}
+<a href=#1008 id=1008 data-nosnippet>1008</a>
+<a href=#1009 id=1009 data-nosnippet>1009</a><span class="kw">fn </span>unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -&gt; UnresolvedGeneric {
+<a href=#1010 id=1010 data-nosnippet>1010</a>    <span class="kw">let </span>ident = <span class="kw">match </span>generic.ident() {
+<a href=#1011 id=1011 data-nosnippet>1011</a>        IdentOrQuotedType::Ident(ident) =&gt; {
+<a href=#1012 id=1012 data-nosnippet>1012</a>            IdentOrQuotedType::Ident(ident_with_file(ident.clone(), file))
+<a href=#1013 id=1013 data-nosnippet>1013</a>        }
+<a href=#1014 id=1014 data-nosnippet>1014</a>        IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
+<a href=#1015 id=1015 data-nosnippet>1015</a>            IdentOrQuotedType::Quoted(<span class="kw-2">*</span>quoted_type_id, location_with_file(<span class="kw-2">*</span>location, file))
+<a href=#1016 id=1016 data-nosnippet>1016</a>        }
+<a href=#1017 id=1017 data-nosnippet>1017</a>    };
 <a href=#1018 id=1018 data-nosnippet>1018</a>
-<a href=#1019 id=1019 data-nosnippet>1019</a><span class="kw">fn </span>unresolved_trait_constraints_with_file(
-<a href=#1020 id=1020 data-nosnippet>1020</a>    constraints: Vec&lt;UnresolvedTraitConstraint&gt;,
-<a href=#1021 id=1021 data-nosnippet>1021</a>    file: FileId,
-<a href=#1022 id=1022 data-nosnippet>1022</a>) -&gt; Vec&lt;UnresolvedTraitConstraint&gt; {
-<a href=#1023 id=1023 data-nosnippet>1023</a>    vecmap(constraints, |constraint| unresolved_trait_constraint_with_file(constraint, file))
-<a href=#1024 id=1024 data-nosnippet>1024</a>}
-<a href=#1025 id=1025 data-nosnippet>1025</a>
-<a href=#1026 id=1026 data-nosnippet>1026</a><span class="kw">fn </span>unresolved_trait_constraint_with_file(
-<a href=#1027 id=1027 data-nosnippet>1027</a>    constraint: UnresolvedTraitConstraint,
-<a href=#1028 id=1028 data-nosnippet>1028</a>    file: FileId,
-<a href=#1029 id=1029 data-nosnippet>1029</a>) -&gt; UnresolvedTraitConstraint {
-<a href=#1030 id=1030 data-nosnippet>1030</a>    UnresolvedTraitConstraint {
-<a href=#1031 id=1031 data-nosnippet>1031</a>        typ: unresolved_type_with_file(constraint.typ, file),
-<a href=#1032 id=1032 data-nosnippet>1032</a>        trait_bound: trait_bound_with_file(constraint.trait_bound, file),
-<a href=#1033 id=1033 data-nosnippet>1033</a>    }
-<a href=#1034 id=1034 data-nosnippet>1034</a>}
-<a href=#1035 id=1035 data-nosnippet>1035</a>
-<a href=#1036 id=1036 data-nosnippet>1036</a><span class="kw">fn </span>trait_bounds_with_file(trait_bounds: Vec&lt;TraitBound&gt;, file: FileId) -&gt; Vec&lt;TraitBound&gt; {
-<a href=#1037 id=1037 data-nosnippet>1037</a>    vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file))
-<a href=#1038 id=1038 data-nosnippet>1038</a>}
-<a href=#1039 id=1039 data-nosnippet>1039</a>
-<a href=#1040 id=1040 data-nosnippet>1040</a><span class="kw">fn </span>trait_bound_with_file(trait_bound: TraitBound, file: FileId) -&gt; TraitBound {
-<a href=#1041 id=1041 data-nosnippet>1041</a>    TraitBound {
-<a href=#1042 id=1042 data-nosnippet>1042</a>        trait_path: path_with_file(trait_bound.trait_path, file),
-<a href=#1043 id=1043 data-nosnippet>1043</a>        trait_generics: generic_type_args_with_file(trait_bound.trait_generics, file),
+<a href=#1019 id=1019 data-nosnippet>1019</a>    <span class="kw">match </span>generic {
+<a href=#1020 id=1020 data-nosnippet>1020</a>        UnresolvedGeneric::Variable(<span class="kw">_</span>, trait_bounds) =&gt; {
+<a href=#1021 id=1021 data-nosnippet>1021</a>            <span class="kw">let </span>trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
+<a href=#1022 id=1022 data-nosnippet>1022</a>            UnresolvedGeneric::Variable(ident, trait_bounds)
+<a href=#1023 id=1023 data-nosnippet>1023</a>        }
+<a href=#1024 id=1024 data-nosnippet>1024</a>        UnresolvedGeneric::Numeric { ident: <span class="kw">_</span>, typ } =&gt; {
+<a href=#1025 id=1025 data-nosnippet>1025</a>            UnresolvedGeneric::Numeric { ident, typ: unresolved_type_with_file(typ, file) }
+<a href=#1026 id=1026 data-nosnippet>1026</a>        }
+<a href=#1027 id=1027 data-nosnippet>1027</a>    }
+<a href=#1028 id=1028 data-nosnippet>1028</a>}
+<a href=#1029 id=1029 data-nosnippet>1029</a>
+<a href=#1030 id=1030 data-nosnippet>1030</a><span class="kw">fn </span>unresolved_trait_constraints_with_file(
+<a href=#1031 id=1031 data-nosnippet>1031</a>    constraints: Vec&lt;UnresolvedTraitConstraint&gt;,
+<a href=#1032 id=1032 data-nosnippet>1032</a>    file: FileId,
+<a href=#1033 id=1033 data-nosnippet>1033</a>) -&gt; Vec&lt;UnresolvedTraitConstraint&gt; {
+<a href=#1034 id=1034 data-nosnippet>1034</a>    vecmap(constraints, |constraint| unresolved_trait_constraint_with_file(constraint, file))
+<a href=#1035 id=1035 data-nosnippet>1035</a>}
+<a href=#1036 id=1036 data-nosnippet>1036</a>
+<a href=#1037 id=1037 data-nosnippet>1037</a><span class="kw">fn </span>unresolved_trait_constraint_with_file(
+<a href=#1038 id=1038 data-nosnippet>1038</a>    constraint: UnresolvedTraitConstraint,
+<a href=#1039 id=1039 data-nosnippet>1039</a>    file: FileId,
+<a href=#1040 id=1040 data-nosnippet>1040</a>) -&gt; UnresolvedTraitConstraint {
+<a href=#1041 id=1041 data-nosnippet>1041</a>    UnresolvedTraitConstraint {
+<a href=#1042 id=1042 data-nosnippet>1042</a>        typ: unresolved_type_with_file(constraint.typ, file),
+<a href=#1043 id=1043 data-nosnippet>1043</a>        trait_bound: trait_bound_with_file(constraint.trait_bound, file),
 <a href=#1044 id=1044 data-nosnippet>1044</a>    }
 <a href=#1045 id=1045 data-nosnippet>1045</a>}
 <a href=#1046 id=1046 data-nosnippet>1046</a>
-<a href=#1047 id=1047 data-nosnippet>1047</a><span class="kw">fn </span>location_with_file(location: Location, file: FileId) -&gt; Location {
-<a href=#1048 id=1048 data-nosnippet>1048</a>    Location { file, ..location }
-<a href=#1049 id=1049 data-nosnippet>1049</a>}</code></pre></div></section></main></body></html>
+<a href=#1047 id=1047 data-nosnippet>1047</a><span class="kw">fn </span>trait_bounds_with_file(trait_bounds: Vec&lt;TraitBound&gt;, file: FileId) -&gt; Vec&lt;TraitBound&gt; {
+<a href=#1048 id=1048 data-nosnippet>1048</a>    vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file))
+<a href=#1049 id=1049 data-nosnippet>1049</a>}
+<a href=#1050 id=1050 data-nosnippet>1050</a>
+<a href=#1051 id=1051 data-nosnippet>1051</a><span class="kw">fn </span>trait_bound_with_file(trait_bound: TraitBound, file: FileId) -&gt; TraitBound {
+<a href=#1052 id=1052 data-nosnippet>1052</a>    TraitBound {
+<a href=#1053 id=1053 data-nosnippet>1053</a>        trait_path: path_with_file(trait_bound.trait_path, file),
+<a href=#1054 id=1054 data-nosnippet>1054</a>        trait_generics: generic_type_args_with_file(trait_bound.trait_generics, file),
+<a href=#1055 id=1055 data-nosnippet>1055</a>    }
+<a href=#1056 id=1056 data-nosnippet>1056</a>}
+<a href=#1057 id=1057 data-nosnippet>1057</a>
+<a href=#1058 id=1058 data-nosnippet>1058</a><span class="kw">fn </span>location_with_file(location: Location, file: FileId) -&gt; Location {
+<a href=#1059 id=1059 data-nosnippet>1059</a>    Location { file, ..location }
+<a href=#1060 id=1060 data-nosnippet>1060</a>}</code></pre></div></section></main></body></html>
