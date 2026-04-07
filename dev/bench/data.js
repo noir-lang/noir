@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775592886322,
+  "lastUpdate": 1775592916585,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "58dabf8e3de5adcf6910728f4b9eb03c0faff900",
-          "message": "chore(ssa): Clarify the handling of globals in `covert_ssa_value` (#12076)",
-          "timestamp": "2026-04-01T15:42:10Z",
-          "tree_id": "e829de4c732bf54480f3056834d2e053b8a2edcb",
-          "url": "https://github.com/noir-lang/noir/commit/58dabf8e3de5adcf6910728f4b9eb03c0faff900"
-        },
-        "date": 1775060609656,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 305.43,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 520.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 277.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 356.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 355.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 358,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 355.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 10370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 10370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 358.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2940,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 355.12,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 102.71,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 155.34,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4819,6 +4720,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 150.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5af706783e60b08545b3395a2e9d85bc74ccd147",
+          "message": "chore!: remove unnecessary `state_len` argument from `poseidon2_permu… (#11610)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-04-07T19:49:09Z",
+          "tree_id": "33861bef3d941183a87b158b0acf7c15cee05f2c",
+          "url": "https://github.com/noir-lang/noir/commit/5af706783e60b08545b3395a2e9d85bc74ccd147"
+        },
+        "date": 1775592864471,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha512_100_bytes",
+            "value": 150.01,
             "unit": "MB"
           }
         ]
