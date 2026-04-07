@@ -50,9 +50,10 @@ impl Monomorphizer<'_> {
         };
         if let HirExpression::Ident(ident, _) = self.interner.expression(&call.func)
             && let DefinitionKind::Function(func_id) = &self.interner.definition(ident.id).kind
-                && self.interner.function_meta(func_id).source_crate != debug_crate_id {
-                    return Ok(());
-                }
+            && self.interner.function_meta(func_id).source_crate != debug_crate_id
+        {
+            return Ok(());
+        }
 
         if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
