@@ -184,7 +184,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
@@ -194,6 +194,25 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         f: fn[Env](Field) -> (),
         g: fn[Env](Field) -> (),
     ) -> fn[Env](Field) -> () {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        foo::<&[(u8, u8); 3]>();
+    }
+
+    unconstrained fn foo<T>() {
+        let f = get_array::<T>;
+                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+        let _result = f();
+    }
+
+    #[oracle(get_array)]
+    unconstrained fn get_array<T>() -> [T] {}
     "#;
     check_monomorphization_error(src);
 }
