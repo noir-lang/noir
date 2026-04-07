@@ -618,13 +618,12 @@ impl<'f> Validator<'f> {
                     assert_array(&result_type, "DerivePedersenGenerators result");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected derive_pedersen_generators result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
-                assert_field(&result_elements[0], "embedded_curve_add result x");
-                assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
+                assert_field(&result_elements[0], "derive_pedersen_generators result x");
+                assert_field(&result_elements[1], "derive_pedersen_generators result y");
             }
             Intrinsic::FieldLessThan => {
                 // fn __field_less_than(x: Field, y: Field) -> bool {}

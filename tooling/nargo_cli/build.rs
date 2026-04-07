@@ -277,6 +277,25 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
 
+/// Tests that depend on the external poseidon library which currently doesn't compile.
+/// Remove tests from this list once the poseidon library is updated.
+const POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS: [&str; 9] = [
+    "bench_2_to_17",
+    "fold_2_to_17",
+    "fold_numeric_generic_poseidon",
+    "no_predicates_numeric_generic_poseidon",
+    "poseidon_bn254_hash_width_3",
+    "poseidonsponge_x5_254",
+    "regression_5252",
+    "regression_5615",
+    "uhashmap",
+];
+
+/// Tests that depend on the external poseidon library which currently doesn't compile.
+/// Remove tests from this list once the poseidon library is updated.
+const POSEIDON_COMPILE_FAILURE_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 3] =
+    ["poseidon2_simplification", "trait_method_mut_self", "turbofish_call_func_diff_types"];
+
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
@@ -452,6 +471,9 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let test_dir = test_dir.display();
 
         let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
@@ -556,7 +578,9 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+        {
             continue;
         }
         let should_panic =
@@ -642,7 +666,9 @@ fn generate_brillig_small_stack_execution_success_tests(
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
+        if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+        {
             continue;
         }
 
@@ -764,6 +790,9 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if POSEIDON_COMPILE_FAILURE_COMPILE_SUCCESS_EMPTY_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let test_dir = test_dir.display();
 
         generate_test_cases(
@@ -899,7 +928,9 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        if IGNORED_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+        if IGNORED_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+        {
             continue;
         }
 
@@ -966,7 +997,9 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
-        if IGNORED_MINIMAL_EXECUTION_TESTS.contains(&test_name.as_str()) {
+        if IGNORED_MINIMAL_EXECUTION_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+        {
             continue;
         }
         let test_dir = test_dir.display();
@@ -1013,7 +1046,9 @@ mod nargo_expand_{test_type} {{
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
-        if IGNORED_NARGO_EXPAND_EXECUTION_TESTS.contains(&test_name.as_str()) {
+        if IGNORED_NARGO_EXPAND_EXECUTION_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+        {
             continue;
         }
 
@@ -1064,6 +1099,11 @@ mod nargo_expand_{test_type} {{
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
+        if POSEIDON_COMPILE_FAILURE_EXECUTION_TESTS.contains(&test_name.as_str())
+            || POSEIDON_COMPILE_FAILURE_COMPILE_SUCCESS_EMPTY_TESTS.contains(&test_name.as_str())
+        {
+            continue;
+        }
         let should_panic =
             if ignore.contains(&test_name.as_str()) { "#[should_panic]" } else { "" };
 

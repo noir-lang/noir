@@ -114,7 +114,22 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_expression_id_maybe_inside_parens(hir_infix_expression.rhs);
             }
             HirExpression::Index(hir_index_expression) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_index_expression.collection);
+                let collection = self.interner.expression(&hir_index_expression.collection);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = collection
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(collection, hir_index_expression.collection);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(
+                        hir_index_expression.collection,
+                    );
+                }
                 self.push('[');
                 self.show_hir_expression_id(hir_index_expression.index);
                 self.push(']');
@@ -723,7 +738,14 @@ impl ItemPrinter<'_, '_> {
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
                 let array = simplify_hir_lvalue(*array);
+                let array_is_dereference = matches!(array, HirLValue::Dereference { .. });
+                if array_is_dereference {
+                    self.push('(');
+                }
                 self.show_hir_lvalue(array);
+                if array_is_dereference {
+                    self.push(')');
+                }
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
