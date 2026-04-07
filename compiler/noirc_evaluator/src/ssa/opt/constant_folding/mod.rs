@@ -1198,24 +1198,26 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        let ssa = ssa.fold_constants_using_constraints(2);
 
+        // 1st iteration:
         // The `array_get` instruction after `enable_side_effects v1` is deduplicated
         // with the one under `enable_side_effects v0` because it doesn't require a predicate,
         // but the `array_set` is not, because it does require a predicate, and the subsequent
         // `array_get` uses a different input, so it's not a duplicate of anything.
+        // 2nd iteration:
+        // Simplification allows array_gets to be deduplicated even when they read through an
+        // array_set at a different index: `array_get (array_set v2, idx 1, _), idx 0` simplifies
+        // to `array_get v2, idx 0` which matches the cached result. The constrains then become
+        // trivial (`v4 == v4`) and are removed.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: [Field; 2]):
             enable_side_effects v0
             v4 = array_get v2, index u32 0 -> u32
             v7 = array_set v2, index u32 1, value u32 2
-            v8 = array_get v2, index u32 0 -> u32
-            constrain v4 == v8
             enable_side_effects v1
-            v9 = array_set v2, index u32 1, value u32 2
-            v10 = array_get v2, index u32 0 -> u32
-            constrain v4 == v10
+            v8 = array_set v2, index u32 1, value u32 2
             enable_side_effects v0
             return
         }
