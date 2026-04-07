@@ -366,7 +366,7 @@ impl<'a> Context<'a> {
         };
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
-            let value = self.convert_ssa_block_param(&*typ)?;
+            let value = self.convert_ssa_block_param(&typ)?;
             match &value {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {

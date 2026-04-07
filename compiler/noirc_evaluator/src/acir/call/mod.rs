@@ -225,7 +225,7 @@ impl Context<'_> {
                         len,
                     )
                 } else {
-                    FunctionContext::ssa_type_to_parameter(&*typ)
+                    FunctionContext::ssa_type_to_parameter(&typ)
                 }
             })
             .collect()
@@ -285,7 +285,7 @@ impl Context<'_> {
                 }
                 values.push(AcirValue::Array(element_values));
             } else {
-                values.push(Self::convert_var_type_to_values(&*result_type, &mut vars));
+                values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
             }
         }
         values

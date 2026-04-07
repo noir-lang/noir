@@ -534,7 +534,7 @@ impl DataFlowGraph {
         match instruction.result_type() {
             InstructionResultType::Known(typ) => f(self, typ),
             InstructionResultType::Operand(value) => {
-                f(self, self.type_of_value(value).into_owned())
+                f(self, self.type_of_value(value).into_owned());
             }
             InstructionResultType::None => (),
             InstructionResultType::Unknown => {
