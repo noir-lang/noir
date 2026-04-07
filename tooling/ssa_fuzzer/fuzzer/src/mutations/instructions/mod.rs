@@ -11,7 +11,7 @@ use crate::mutations::{
     instructions::instruction_block_mutator::instruction_block_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 fn generate_random_instruction_block(rng: &mut StdRng) -> InstructionBlock {
     let mut buf = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];

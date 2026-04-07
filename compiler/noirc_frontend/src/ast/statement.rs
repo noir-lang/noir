@@ -9,6 +9,7 @@ use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
     IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
+use crate::ast::BinaryOpKind;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
 use crate::node_interner::{
@@ -47,6 +48,7 @@ pub enum StatementKind {
     Let(LetStatement),
     Expression(Expression),
     Assign(AssignStatement),
+    AssignOp(AssignOpStatement),
     For(ForLoopStatement),
     Loop(LoopStatement),
     While(WhileStatement),
@@ -84,6 +86,7 @@ impl Statement {
             StatementKind::Comptime(statement) => statement.type_location(),
             StatementKind::Let(..)
             | StatementKind::Assign(..)
+            | StatementKind::AssignOp(..)
             | StatementKind::For(..)
             | StatementKind::Loop(..)
             | StatementKind::While(..)
@@ -117,6 +120,7 @@ impl StatementKind {
                 self
             }
             StatementKind::Assign(_)
+            | StatementKind::AssignOp(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
@@ -591,6 +595,46 @@ pub struct AssignStatement {
     pub expression: Expression,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AssignOpStatement {
+    pub lvalue: LValue,
+    pub op: AssignOp,
+    pub expression: Expression,
+}
+
+pub type AssignOp = Located<AssignOpKind>;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum AssignOpKind {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    And,
+    Or,
+    Xor,
+    ShiftRight,
+    ShiftLeft,
+    Modulo,
+}
+
+impl AssignOpKind {
+    pub fn to_binary_op_kind(&self) -> BinaryOpKind {
+        match self {
+            AssignOpKind::Add => BinaryOpKind::Add,
+            AssignOpKind::Subtract => BinaryOpKind::Subtract,
+            AssignOpKind::Multiply => BinaryOpKind::Multiply,
+            AssignOpKind::Divide => BinaryOpKind::Divide,
+            AssignOpKind::And => BinaryOpKind::And,
+            AssignOpKind::Or => BinaryOpKind::Or,
+            AssignOpKind::Xor => BinaryOpKind::Xor,
+            AssignOpKind::ShiftRight => BinaryOpKind::ShiftRight,
+            AssignOpKind::ShiftLeft => BinaryOpKind::ShiftLeft,
+            AssignOpKind::Modulo => BinaryOpKind::Modulo,
+        }
+    }
+}
+
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
@@ -911,6 +955,7 @@ impl Display for StatementKind {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
+            StatementKind::AssignOp(assign_op) => assign_op.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
@@ -939,6 +984,29 @@ impl Display for LetStatement {
 impl Display for AssignStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.lvalue, self.expression)
+    }
+}
+
+impl Display for AssignOpStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}= {}", self.lvalue, self.op.contents, self.expression)
+    }
+}
+
+impl Display for AssignOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssignOpKind::Add => write!(f, "+"),
+            AssignOpKind::Subtract => write!(f, "-"),
+            AssignOpKind::Multiply => write!(f, "*"),
+            AssignOpKind::Divide => write!(f, "/"),
+            AssignOpKind::And => write!(f, "&"),
+            AssignOpKind::Or => write!(f, "|"),
+            AssignOpKind::Xor => write!(f, "^"),
+            AssignOpKind::ShiftRight => write!(f, ">>"),
+            AssignOpKind::ShiftLeft => write!(f, "<<"),
+            AssignOpKind::Modulo => write!(f, "%"),
+        }
     }
 }
 
