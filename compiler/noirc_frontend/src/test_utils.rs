@@ -81,8 +81,8 @@ pub fn get_monomorphized_with_options(
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
     if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
-        let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
-        report_all(&context.file_manager, &context.parsed_files, &errors, false, false);
+        let diagnostics = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(&context.file_manager, &context.parsed_files, &diagnostics, false, false);
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
