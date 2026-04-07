@@ -1007,3 +1007,28 @@ fn clone_inserted_on_index_then_collection() {
     }
     ");
 }
+
+#[test]
+fn clone_inserted_on_index_then_collection_in_lvalue() {
+    let src = "
+    unconstrained fn main() {
+        let mut a = [10];
+        a[bar(a)] = 20;
+    }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut a$l0 = [10];
+        {
+            let i_0$l1 = bar$f1(a$l0.clone());
+            a$l0[i_0$l1] = 20
+        }
+    }
+    unconstrained fn bar$f1(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
