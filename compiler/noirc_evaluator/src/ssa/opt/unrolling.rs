@@ -2691,15 +2691,15 @@ mod tests {
     /// but total_cost is high due to the many instructions.
     fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
         assert!(num_adds >= 1, "need at least one add");
-        let mut body_instrs = String::new();
+        let mut body_instructions = String::new();
         // v8 = load result, v9 = first add
         let mut next_v = 9;
         // First add uses the loaded value (v8) and induction variable (v1)
-        body_instrs += &format!("            v{next_v} = add v8, v1\n");
+        body_instructions += &format!("            v{next_v} = add v8, v1\n");
         next_v += 1;
         // Chain more adds, each using the previous result + induction variable
         for _ in 1..num_adds {
-            body_instrs += &format!("            v{next_v} = add v{}, v1\n", next_v - 1);
+            body_instructions += &format!("            v{next_v} = add v{}, v1\n", next_v - 1);
             next_v += 1;
         }
         let store_val = next_v - 1;
@@ -2716,7 +2716,7 @@ mod tests {
             jmpif v5 then: b3(), else: b2()
           b3():
             v8 = load v2 -> u32
-{body_instrs}            store v{store_val} at v2
+{body_instructions}            store v{store_val} at v2
             v{inc_v} = unchecked_add v1, u32 1
             jmp b1(v{inc_v})
           b2():
