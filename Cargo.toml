@@ -213,7 +213,7 @@ num_enum = "0.7.3"
 num-integer = "0.1"
 regex = "1.11"
 similar = "2.7.0"
-similar-asserts = "1.5.0"
+similar-asserts = "2.0.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
 jsonrpsee = { version = "0.26", features = ["client-core"] }
