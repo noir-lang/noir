@@ -6,7 +6,7 @@ use noirc_printable_type::PrintableType;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
-use crate::node_interner::ExprId;
+use crate::node_interner::{DefinitionKind, ExprId};
 
 use super::ast::{Expression, Ident};
 use super::{MonomorphizationError, Monomorphizer};
@@ -42,6 +42,18 @@ impl Monomorphizer<'_> {
         function: &Expression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
+        // Only patch calls to functions that originate from the debug crate.
+        // This prevents user-defined functions with the same name (e.g. __debug_var_assign)
+        // from being incorrectly patched.
+        let Some(debug_crate_id) = self.debug_crate_id else {
+            return Ok(());
+        };
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&call.func)
+            && let DefinitionKind::Function(func_id) = &self.interner.definition(ident.id).kind
+                && self.interner.function_meta(func_id).source_crate != debug_crate_id {
+                    return Ok(());
+                }
+
         if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
                 self.patch_debug_var_assign(call, arguments)?;
