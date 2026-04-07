@@ -1305,7 +1305,7 @@ impl FunctionContext<'_> {
         let points_array = arguments[0];
         let points_type = self.builder.current_function.dfg.type_of_value(points_array);
 
-        let n = match &points_type {
+        let n = match &*points_type {
             Type::Array(_, len) => len.0,
             _ => unreachable!("ICE: MSM points argument must be an array"),
         };
