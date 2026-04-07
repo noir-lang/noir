@@ -33,7 +33,7 @@ install-js-tools: install-binstall
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
-    npx -y playwright@1.55.0 install --with-deps
+    npx -y playwright@1.58.2 install --with-deps
 
 # Installs Foundry (necessary for examples)
 install-foundry:
