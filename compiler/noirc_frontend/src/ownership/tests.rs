@@ -981,3 +981,24 @@ fn single_field_struct_extraction_is_optimal() {
     }
     ");
 }
+
+/// Nested array index: `arr[0][1]` on a 3D array. When the base variable has
+/// no further uses, the indexed element can be moved without cloning.
+#[test]
+fn nested_array_double_index_is_moved() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+        let _val = arr[0][1];
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // No clone needed — arr is not used again and the intermediate arr[0] is a temporary
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+        let _val$l1 = arr$l0[0][1]
+    }
+    ");
+}
