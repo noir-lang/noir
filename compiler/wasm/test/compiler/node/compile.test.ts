@@ -100,6 +100,16 @@ describe('noir-compiler/node', () => {
     'workspace',
     'workspace_default_member',
     'regression_9294', // TODO: Requires the 'enums' unstable feature.
+    // These depend on the external poseidon library which currently doesn't compile.
+    'bench_2_to_17',
+    'fold_2_to_17',
+    'fold_numeric_generic_poseidon',
+    'no_predicates_numeric_generic_poseidon',
+    'poseidon_bn254_hash_width_3',
+    'poseidonsponge_x5_254',
+    'regression_5252',
+    'regression_5615',
+    'uhashmap',
   ];
   getSubdirs(join(testProgramsDir, 'execution_success'))
     .filter((name) => !filteredExecutionSuccessTests.includes(name))
