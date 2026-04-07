@@ -108,10 +108,11 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
 /// (`println` -> `print_unconstrained` -> oracle). The fuzzer instead
 /// generates direct oracle calls, which hits a compiler optimization:
 /// SSA codegen skips `Clone` (and therefore `inc_rc`) for oracle call
-/// arguments, since oracles cannot modify their inputs. However, the
-/// corresponding `Drop`/`dec_rc` is still emitted, so the reference
-/// count ends up lower than ownership analysis intended. This breaks
-/// Brillig's copy-on-write invariant and can corrupt array values.
+/// arguments, since oracles cannot modify their inputs. Without the
+/// `inc_rc`, the array's reference count stays at 1 even when ownership
+/// analysis determined it is shared. A later `array_set` then sees
+/// `rc <= 1` and mutates in-place instead of copying, corrupting the
+/// value for subsequent uses.
 ///
 /// Adding wrapper functions around the oracle calls matches nargo's
 /// structure, so `Clone`/`inc_rc` is preserved at the call site.

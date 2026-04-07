@@ -261,7 +261,7 @@ fn test_assign_ref_element_type() {
         id: IdentId(0),
     };
 
-    let rhs = Expression::Literal(noirc_frontend::monomorphization::ast::Literal::Integer(
+    let rhs = Expression::Literal(Literal::Integer(
         acir::FieldElement::from(0u32),
         crate::program::types::U32,
         Location::dummy(),
@@ -287,8 +287,8 @@ fn test_assign_ref_element_type() {
 /// The fuzzer's direct oracle print calls must be wrapped in functions to
 /// match nargo's `println` -> `print_unconstrained` -> oracle structure.
 /// Without the wrapper, SSA codegen skips `Clone`/`inc_rc` for oracle
-/// arguments but the corresponding `Drop`/`dec_rc` is still emitted,
-/// breaking Brillig's copy-on-write reference count invariant.
+/// arguments, so the array's reference count stays at 1 even when shared.
+/// A later `array_set` then mutates in-place instead of copying.
 ///
 /// Found via seed `0x6a98890f00100000` in `comptime_vs_brillig_direct` at commit `c09ce9a7db`.
 #[test]
