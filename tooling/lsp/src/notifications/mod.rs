@@ -57,6 +57,7 @@ pub(super) fn on_initialized(
             .expect("serialization of DidChangeWatchedFilesRegistrationOptions should not fail"),
         ),
     };
+    #[allow(clippy::let_underscore_future)]
     let _ =
         state.client.register_capability(RegistrationParams { registrations: vec![registration] });
     ControlFlow::Continue(())
@@ -81,14 +82,13 @@ pub(super) fn on_did_change_watched_files(
 
         // For created or changed Nargo.toml files, find a source file in that workspace
         // and reprocess it. We do this by finding any open file that belongs to the workspace.
-        let toml_path = match change.uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => continue,
+        let Ok(toml_path) = change.uri.to_file_path() else {
+            continue;
         };
-        let workspace_root = match toml_path.parent() {
-            Some(parent) => parent.to_path_buf(),
-            None => continue,
+        let Some(parent) = toml_path.parent() else {
+            continue;
         };
+        let workspace_root = parent.to_path_buf();
 
         // Invalidate any cached data for this workspace so it's reprocessed fresh.
         state.workspace_cache.remove(&workspace_root);
@@ -100,18 +100,15 @@ pub(super) fn on_did_change_watched_files(
             .keys()
             .find(|uri| {
                 uri.strip_prefix("file://")
-                    .map(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
-                    .unwrap_or(false)
+                    .is_some_and(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
             })
             .cloned();
 
-        if let Some(uri_string) = open_file_uri {
-            if let Ok(uri) = Url::parse(&uri_string) {
-                match handle_text_document_open_or_close_notification(state, uri) {
-                    Ok(_) => {}
-                    Err(_) => {} // Errors are surfaced as diagnostics on Nargo.toml
-                }
-            }
+        if let Some(uri_string) = open_file_uri
+            && let Ok(uri) = Url::parse(&uri_string)
+        {
+            // Errors are surfaced as diagnostics on Nargo.toml
+            let _ = handle_text_document_open_or_close_notification(state, uri);
         }
     }
     ControlFlow::Continue(())
@@ -235,14 +232,14 @@ pub(crate) fn workspace_from_document_uri(
     match resolve_workspace_for_source_path(&file_path) {
         Ok(workspace) => {
             // If this workspace's Nargo.toml previously had errors, clear them now.
-            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join("Nargo.toml")) {
-                if state.toml_files_with_errors.remove(&toml_uri) {
-                    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-                        uri: toml_uri,
-                        version: None,
-                        diagnostics: vec![],
-                    });
-                }
+            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join("Nargo.toml"))
+                && state.toml_files_with_errors.remove(&toml_uri)
+            {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: toml_uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
             }
             Ok(Some(workspace))
         }
