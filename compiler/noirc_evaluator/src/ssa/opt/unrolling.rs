@@ -209,6 +209,13 @@ impl Function {
     /// This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     /// Brillig also generally prefers smaller code rather than faster code,
     /// so we only attempt to unroll small loops, which we decide on a case-by-case basis.
+    ///
+    /// For both ACIR and Brillig, we prefer InsideOut ordering: inner loops are unrolled
+    /// first, producing simpler outer loop bodies and reducing the total amount of
+    /// duplicated code. For ACIR, if InsideOut makes no progress (because inner loop
+    /// bounds depend on outer induction variables), we fall back to OutsideIn ordering
+    /// which unrolls the outer loop first, duplicating the inner loops with now-constant
+    /// bounds that can be resolved in subsequent passes.
     fn try_unroll_loops(
         &mut self,
         max_unroll_iterations: usize,
@@ -218,105 +225,148 @@ impl Function {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
-        // The reasons why loops in the above set failed to unroll.
-        let mut unroll_errors = vec![];
         let mut has_unrolled = false;
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
-        loop {
-            let order = if self.runtime().is_brillig() {
-                LoopOrder::InsideOut
-            } else {
-                LoopOrder::OutsideIn
-            };
-            let mut loops = Loops::find_all(self, order);
-            loops.callee_costs = callee_costs.clone();
+        let unroll_errors = loop {
+            // Always prefer InsideOut: unroll inner loops first so that outer loops
+            // see simpler bodies, reducing code duplication.
+            let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
+                LoopOrder::InsideOut,
+                &mut failed_to_unroll,
+                max_unroll_iterations,
+                force_unroll_threshold,
+                callee_costs,
+            );
+            has_unrolled |= unrolled;
 
-            // Blocks which were part of loops we unrolled. Nested loops are included in the
-            // outer loops, so if an outer loop is unrolled, we have to restart looking for
-            // the nested ones.
-            let mut modified_blocks = HashSet::new();
-            // Blocks from loops that were skipped or failed to unroll. In InsideOut
-            // ordering, if an inner loop can't be unrolled, any enclosing loop that
-            // contains those blocks must also be skipped: unrolling visits each
-            // block once and cannot traverse the inner loop's cycle.
-            let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
-            let mut needs_refresh = false;
-            // Accumulated header-param→final-value mappings from all unrolled loops
-            // in this iteration. Applied in bulk after the loop processing is done,
-            // avoiding O(loops * blocks) per-loop exit-block walks.
-            let mut accumulated_mapping = ValueMapping::default();
-
-            while let Some(next_loop) = loops.yet_to_unroll.pop() {
-                // If we've previously modified a block in this loop we need to refresh.
-                // This happens any time we have nested loops.
-                if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
-                    needs_refresh = true;
-                    continue;
-                }
-
-                // InsideOut: skip if this loop contains blocks from an inner loop
-                // that couldn't be unrolled. Unrolling visits each block once and
-                // can't traverse an inner loop's cycle, so attempting to unroll an
-                // outer loop with a non-unrolled inner loop would corrupt the SSA.
-                // OutsideIn (ACIR) does not need this: outer loops are processed
-                // first, and if they fail, inner loops are tried independently.
-                if order == LoopOrder::InsideOut
-                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
-                {
-                    continue;
-                }
-
-                // Don't try to unroll the loop again if it is known to fail.
-                // Save loop blocks before `try_unroll_loop` takes ownership.
-                let loop_blocks = next_loop.blocks.clone();
-                let result = if failed_to_unroll.contains(&next_loop.header) {
-                    LoopUnrollResult::Skipped
-                } else {
-                    self.try_unroll_loop(
-                        next_loop,
-                        &loops,
+            // For ACIR: if InsideOut made no progress but there are failed loops
+            // (inner loops whose bounds depend on outer induction variables),
+            // fall back to OutsideIn to unroll the outer loops first.
+            // We use a fresh failed set so the OutsideIn pass can try outer loops
+            // that were skipped due to failed_blocks poisoning in InsideOut.
+            if !unrolled && !errors.is_empty() && self.runtime().is_acir() {
+                let mut fallback_failed = HashSet::new();
+                let (fallback_unrolled, _, _fallback_errors) =
+                    self.try_unroll_loops_with_order(
+                        LoopOrder::OutsideIn,
+                        &mut fallback_failed,
                         max_unroll_iterations,
                         force_unroll_threshold,
-                    )
-                };
-                match result {
-                    LoopUnrollResult::Skipped => {}
-                    LoopUnrollResult::Failed(header, error) => {
-                        failed_to_unroll.insert(header);
-                        unroll_errors.push(error);
-                        failed_blocks.extend(loop_blocks);
-                    }
-                    LoopUnrollResult::Unrolled(blocks, mapping) => {
-                        has_unrolled = true;
-                        modified_blocks.extend(blocks);
-                        accumulated_mapping.extend(mapping);
-                    }
+                        callee_costs,
+                    );
+                has_unrolled |= fallback_unrolled;
+                failed_to_unroll.extend(fallback_failed);
+
+                if fallback_unrolled {
+                    // OutsideIn made progress (unrolled outer loops, duplicating inner loops).
+                    // Continue to handle the duplicated inner loops in the next InsideOut pass.
+                    continue;
                 }
+                // OutsideIn also made no progress — return errors from the InsideOut pass.
             }
 
-            // Apply all header param->final value replacements in a single pass over
-            // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
-            if !accumulated_mapping.is_empty() {
-                for block_id in self.reachable_blocks() {
-                    self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
+            if !refresh {
+                break errors;
+            }
+
+            // After unrolling inner loops, simplify before evaluating outer loops.
+            // For Brillig this is needed for accurate cost estimates; for ACIR this
+            // helps resolve bounds that become constant after inner loop unrolling.
+            simplify_between_unrolls(self);
+        };
+        (has_unrolled, unroll_errors)
+    }
+
+    /// Run a single pass of loop unrolling with the given ordering.
+    ///
+    /// Returns `(has_unrolled, needs_refresh, unroll_errors)`.
+    fn try_unroll_loops_with_order(
+        &mut self,
+        order: LoopOrder,
+        failed_to_unroll: &mut HashSet<BasicBlockId>,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+        callee_costs: &HashMap<FunctionId, usize>,
+    ) -> (bool, bool, Vec<RuntimeError>) {
+        let mut loops = Loops::find_all(self, order);
+        loops.callee_costs = callee_costs.clone();
+
+        let mut has_unrolled = false;
+        let mut unroll_errors = vec![];
+
+        // Blocks which were part of loops we unrolled. Nested loops are included in the
+        // outer loops, so if an outer loop is unrolled, we have to restart looking for
+        // the nested ones.
+        let mut modified_blocks = HashSet::new();
+        // Blocks from loops that were skipped or failed to unroll. In InsideOut
+        // ordering, if an inner loop can't be unrolled, any enclosing loop that
+        // contains those blocks must also be skipped: unrolling visits each
+        // block once and cannot traverse the inner loop's cycle.
+        let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
+        let mut needs_refresh = false;
+        // Accumulated header-param→final-value mappings from all unrolled loops
+        // in this iteration. Applied in bulk after the loop processing is done,
+        // avoiding O(loops * blocks) per-loop exit-block walks.
+        let mut accumulated_mapping = ValueMapping::default();
+
+        while let Some(next_loop) = loops.yet_to_unroll.pop() {
+            // If we've previously modified a block in this loop we need to refresh.
+            // This happens any time we have nested loops.
+            if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
+                needs_refresh = true;
+                continue;
+            }
+
+            // InsideOut: skip if this loop contains blocks from an inner loop
+            // that couldn't be unrolled. Unrolling visits each block once and
+            // can't traverse an inner loop's cycle, so attempting to unroll an
+            // outer loop with a non-unrolled inner loop would corrupt the SSA.
+            // OutsideIn does not need this: outer loops are processed first,
+            // and if they fail, inner loops are tried independently.
+            if order == LoopOrder::InsideOut
+                && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+            {
+                continue;
+            }
+
+            // Don't try to unroll the loop again if it is known to fail.
+            // Save loop blocks before `try_unroll_loop` takes ownership.
+            let loop_blocks = next_loop.blocks.clone();
+            let result = if failed_to_unroll.contains(&next_loop.header) {
+                LoopUnrollResult::Skipped
+            } else {
+                self.try_unroll_loop(
+                    next_loop,
+                    &loops,
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                )
+            };
+            match result {
+                LoopUnrollResult::Skipped => {}
+                LoopUnrollResult::Failed(header, error) => {
+                    failed_to_unroll.insert(header);
+                    unroll_errors.push(error);
+                    failed_blocks.extend(loop_blocks);
                 }
-            }
-
-            // If we didn't need to refresh, we're done
-            if !needs_refresh {
-                break;
-            }
-
-            // In Brillig, simplify between inner and outer loop evaluations.
-            // After unrolling inner loops, the expanded instructions need to be
-            // constant-folded before the outer loop's cost model is evaluated,
-            // otherwise useless_cost is inflated by un-simplified instructions.
-            if self.runtime().is_brillig() {
-                simplify_between_unrolls(self);
+                LoopUnrollResult::Unrolled(blocks, mapping) => {
+                    has_unrolled = true;
+                    modified_blocks.extend(blocks);
+                    accumulated_mapping.extend(mapping);
+                }
             }
         }
-        (has_unrolled, unroll_errors)
+
+        // Apply all header param->final value replacements in a single pass over
+        // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
+        if !accumulated_mapping.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
+            }
+        }
+
+        (has_unrolled, needs_refresh, unroll_errors)
     }
 
     /// Try to unroll a single loop.
@@ -395,11 +445,12 @@ pub(crate) struct Loop {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopOrder {
     /// Process inner (smaller) loops first, then outer loops.
-    /// Used for Brillig which can tolerate inner loops that reference outer induction variables.
+    /// Preferred for both ACIR and Brillig: unrolling inner loops first produces
+    /// simpler outer loop bodies and avoids duplicating inner loop code N times.
     InsideOut,
     /// Process outer (larger) loops first, then inner loops.
-    /// Used for ACIR which cannot tolerate inner loops that reference outer induction variables,
-    /// so outer loops must be unrolled first.
+    /// Used as a fallback for ACIR when inner loop bounds depend on outer induction
+    /// variables and cannot be resolved until the outer loop is unrolled.
     OutsideIn,
 }
 
@@ -471,16 +522,16 @@ impl Loops {
         match order {
             LoopOrder::InsideOut => {
                 // Sort by block size descending so we pop and unroll smaller, inner loops first.
-                // This is safe for Brillig because if inner loop bounds depend on an outer
-                // induction variable, `get_const_bounds` returns None, `is_small_loop` returns
-                // false, and we skip it. After unrolling inner loops, outer loops have simpler
-                // bodies and more accurate cost estimates for the `is_small_loop` heuristic.
+                // Inner loops with constant bounds are unrolled first, producing simpler outer
+                // loop bodies and reducing code duplication. If inner loop bounds depend on an
+                // outer induction variable, the unroll will fail and the failed_blocks mechanism
+                // prevents corrupting the outer loop. For ACIR, try_unroll_loops then falls
+                // back to OutsideIn for those cases. For Brillig, the loop is simply skipped.
                 loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
             }
             LoopOrder::OutsideIn => {
                 // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
-                // This is needed because inner loops may use the induction variable from their
-                // outer loops in their loop range.
+                // Used as a fallback when inner loops depend on outer induction variables.
                 loops.sort_by_key(|loop_| loop_.blocks.len());
             }
         }
@@ -2011,11 +2062,11 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        // The final block count is not 1 because unrolling creates some unnecessary jmps.
-        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
+        // With InsideOut ordering, inner loops are unrolled first with simplification
+        // between passes. This produces fewer intermediate blocks than OutsideIn because
+        // the simplify pass between inner and outer unrolling cleans up unnecessary jmps.
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
-        assert_eq!(ssa.main().reachable_blocks().len(), 5);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2024,23 +2075,17 @@ mod tests {
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
-            jmp b2()
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            jmp b1()
           b1():
             return u32 0
-          b2():
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            jmp b3()
-          b3():
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            jmp b4()
-          b4():
-            jmp b1()
         }
         ");
     }
