@@ -78,7 +78,7 @@ impl<'f> Validator<'f> {
             _ => return,
         };
 
-        if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
+        if !matches!(*dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
 
@@ -165,7 +165,7 @@ impl<'f> Validator<'f> {
                     "Left-hand side and right-hand side of `{operator}` must have the same type"
                 );
 
-                if lhs_type == Type::field()
+                if *lhs_type == Type::field()
                     && matches!(
                         operator,
                         BinaryOp::Lt
@@ -182,7 +182,7 @@ impl<'f> Validator<'f> {
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
-                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                if !matches!(*index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
@@ -255,7 +255,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &element_type != expected_type {
+                    if &*element_type != expected_type {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {}, got {}",
                             expected_type, element_type
@@ -265,12 +265,12 @@ impl<'f> Validator<'f> {
             }
             Instruction::Store { address, value } => {
                 let address_type = dfg.type_of_value(*address);
-                let Type::Reference(address_value_type) = address_type else {
+                let Type::Reference(address_value_type) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if *address_value_type != value_type {
+                if **address_value_type != *value_type {
                     panic!(
                         "Store address type {} does not match value type {}",
                         address_value_type, value_type
@@ -287,7 +287,7 @@ impl<'f> Validator<'f> {
                         operator: BinaryOp::Sub { unchecked: true },
                         ..
                     }) = &dfg[*instruction]
-                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
                     panic!(
                         "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
@@ -331,7 +331,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if argument_type != parameter_type {
+                    if *argument_type != parameter_type {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -671,7 +671,7 @@ impl<'f> Validator<'f> {
                 let value_typ = dfg.type_of_value(arguments[0]);
                 assert!(
                     matches!(
-                        value_typ,
+                        *value_typ,
                         Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
                     ),
                     "Bitwise operation performed on non-integer type"
@@ -906,15 +906,15 @@ impl<'f> Validator<'f> {
     fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Type {
         assert_arguments_length(arguments, 1, object);
 
-        self.function.dfg.type_of_value(arguments[0])
+        self.function.dfg.type_of_value(arguments[0]).into_owned()
     }
 
     fn assert_two_arguments(&self, arguments: &[ValueId], object: &'static str) -> (Type, Type) {
         assert_arguments_length(arguments, 2, object);
 
         (
-            self.function.dfg.type_of_value(arguments[0]),
-            self.function.dfg.type_of_value(arguments[1]),
+            self.function.dfg.type_of_value(arguments[0]).into_owned(),
+            self.function.dfg.type_of_value(arguments[1]).into_owned(),
         )
     }
 
@@ -926,9 +926,9 @@ impl<'f> Validator<'f> {
         assert_arguments_length(arguments, 3, object);
 
         (
-            self.function.dfg.type_of_value(arguments[0]),
-            self.function.dfg.type_of_value(arguments[1]),
-            self.function.dfg.type_of_value(arguments[2]),
+            self.function.dfg.type_of_value(arguments[0]).into_owned(),
+            self.function.dfg.type_of_value(arguments[1]).into_owned(),
+            self.function.dfg.type_of_value(arguments[2]).into_owned(),
         )
     }
 
@@ -940,13 +940,16 @@ impl<'f> Validator<'f> {
     fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 1, "Expected one result for {object}",);
-        self.function.dfg.type_of_value(results[0])
+        self.function.dfg.type_of_value(results[0]).into_owned()
     }
 
     fn assert_two_results(&self, instruction: InstructionId, object: &'static str) -> (Type, Type) {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 2, "Expected two results for {object}",);
-        (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
+        (
+            self.function.dfg.type_of_value(results[0]).into_owned(),
+            self.function.dfg.type_of_value(results[1]).into_owned(),
+        )
     }
 
     /// Validates that ACIR functions are not called from unconstrained code.
@@ -1051,7 +1054,7 @@ impl<'f> Validator<'f> {
                     "Entry block cannot be the target of a jump"
                 );
                 assert_eq!(
-                    condition_type,
+                    *condition_type,
                     Type::bool(),
                     "JmpIf conditions should have boolean type"
                 );

@@ -219,9 +219,10 @@ impl Function {
     }
 
     pub(crate) fn signature(&self) -> Signature {
-        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns =
-            vecmap(self.returns().unwrap_or_default(), |ret| self.dfg.type_of_value(*ret));
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param).into_owned());
+        let returns = vecmap(self.returns().unwrap_or_default(), |ret| {
+            self.dfg.type_of_value(*ret).into_owned()
+        });
         Signature { params, returns }
     }
 
@@ -325,12 +326,12 @@ impl<'a> FunctionView<'a> {
 
     /// Return the types of the function parameters.
     pub fn parameter_types(&self) -> Vec<Type> {
-        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p))
+        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p).into_owned())
     }
 
     /// Return the types of the returned values, if there are any.
     pub fn return_types(&self) -> Option<Vec<Type>> {
-        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p)))
+        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p).into_owned()))
     }
 }
 

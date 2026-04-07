@@ -46,7 +46,7 @@ impl Context<'_> {
 
         let new_vector_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
-            let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
+            let mut new_vector = self.read_array_with_type(vector, &*vector_typ)?;
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
             for (i, elem) in elements_to_push.iter().enumerate() {
@@ -67,13 +67,13 @@ impl Context<'_> {
             // 1. Push dummy data to the vector, so that it's capacity covers for the push_back
             // 2. Generate a DynamicArray corresponding to the new vector flattened content
             // 3. Write the elements to push to this array at the correct length
-            let value_types = flat_element_types(&vector_typ);
-            let Type::Vector(vector_types) = &vector_typ else {
+            let value_types = flat_element_types(&*vector_typ);
+            let Type::Vector(vector_types) = &*vector_typ else {
                 unreachable!("ICE: vector operation on a non vector type");
             };
 
             let mut elements_var = Vec::new();
-            let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
+            let mut new_vector = self.read_array_with_type(vector, &*vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time

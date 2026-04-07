@@ -84,7 +84,7 @@ impl Context {
                 let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
                 (false_const, true_const)
             } else {
-                let array_typ = function.dfg.type_of_value(*array);
+                let array_typ = function.dfg.type_of_value(*array).into_owned();
                 let element_size = array_typ.element_size();
                 let Type::Array(_, len) = array_typ else {
                     panic!("Expected an array");

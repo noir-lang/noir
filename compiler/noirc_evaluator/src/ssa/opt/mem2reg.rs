@@ -481,7 +481,7 @@ impl<'f> PerFunctionContext<'f> {
         let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
 
         for param in params {
-            match dfg.type_of_value(*param) {
+            match &*dfg.type_of_value(*param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
                 Type::Reference(element) if element.contains_reference() => {
@@ -959,7 +959,7 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
                 // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
                 // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
-                if let Type::Reference(element) = &typ
+                if let Type::Reference(element) = &*typ
                     && element.contains_reference()
                     && let Some(inner_ref) = references.get_known_value(value)
                 {
@@ -1011,7 +1011,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip_eq(arguments) {
-                    match self.inserter.function.dfg.type_of_value(*parameter) {
+                    match &*self.inserter.function.dfg.type_of_value(*parameter) {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
                         Type::Reference(element) if element.contains_reference() => {

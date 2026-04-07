@@ -51,7 +51,7 @@ impl Function {
 
             let first_argument =
                 arguments.first().expect("AsVector should always have one argument");
-            let array_typ = context.dfg.type_of_value(*first_argument);
+            let array_typ = context.dfg.type_of_value(*first_argument).into_owned();
             let Type::Array(_, length) = array_typ else {
                 unreachable!("AsVector called with non-array {}", array_typ);
             };

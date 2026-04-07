@@ -119,7 +119,7 @@ impl Function {
                 unreachable!("candidate ArraySet index must be a constant u32");
             };
 
-            let typ = context.dfg.type_of_value(array);
+            let typ = context.dfg.type_of_value(array).into_owned();
             let element_types = typ.element_types();
             let len = context
                 .dfg
@@ -303,11 +303,11 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
 
                     // array_set with a constant in-bound index on a small array or vector
                     if let Some(index) = dfg.get_numeric_constant(*index) {
-                        let semi_flattened_length = match dfg.type_of_value(*array) {
+                        let semi_flattened_length = match &*dfg.type_of_value(*array) {
                             Type::Array(elements, len) => {
                                 let elements_length =
                                     ElementTypesLength(assert_u32(elements.len()));
-                                Some(len * elements_length)
+                                Some(*len * elements_length)
                             }
                             Type::Vector(elements) => {
                                 dfg.try_get_vector_capacity(*array).map(|capacity| {

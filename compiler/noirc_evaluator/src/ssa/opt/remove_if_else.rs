@@ -318,7 +318,7 @@ impl Context {
         f: impl Fn(SemanticLength) -> SemanticLength,
     ) {
         // No need to store the capacity of arrays, only vectors.
-        if !matches!(dfg.type_of_value(new), Type::Vector(_)) {
+        if !matches!(*dfg.type_of_value(new), Type::Vector(_)) {
             return;
         }
         let capacity = self.get_or_find_capacity(dfg, old);
@@ -371,8 +371,10 @@ impl Context {
             }
             Intrinsic::Hint(Hint::BlackBox) => {
                 // Try to set the length of any vector argument to be that of the preceding constant.
-                let arguments_types =
-                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                let arguments_types = arguments
+                    .iter()
+                    .map(|x| dfg.type_of_value(*x).into_owned())
+                    .collect::<Vec<_>>();
 
                 for (i, argument) in arguments.iter().enumerate().skip(1) {
                     if !matches!(arguments_types[i], Type::Vector(_)) {
@@ -405,8 +407,8 @@ impl Context {
                 assert_eq!(results.len(), 2);
                 let old = arguments[1];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Inc { old, new }
             }
 
@@ -418,8 +420,8 @@ impl Context {
                 // so the vector is the second result.
                 let old = arguments[1];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
 
@@ -430,8 +432,8 @@ impl Context {
                 // so the vector is the last result.
                 let old = arguments[1];
                 let new = results[results.len() - 1];
-                assert!(matches!(dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::Dec { old, new }
             }
 
@@ -440,17 +442,19 @@ impl Context {
                 assert_eq!(results.len(), 2);
                 let old = arguments[0];
                 let new = results[1];
-                assert!(matches!(dfg.type_of_value(old), Type::Array(_, _)));
-                assert!(matches!(dfg.type_of_value(new), Type::Vector(_)));
+                assert!(matches!(*dfg.type_of_value(old), Type::Array(_, _)));
+                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
                 SizeChange::SetTo { old, new }
             }
 
             Intrinsic::Hint(Hint::BlackBox) => {
                 assert_eq!(arguments.len(), results.len());
-                let arguments_types =
-                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                let arguments_types = arguments
+                    .iter()
+                    .map(|x| dfg.type_of_value(*x).into_owned())
+                    .collect::<Vec<_>>();
                 let results_types =
-                    results.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+                    results.iter().map(|x| dfg.type_of_value(*x).into_owned()).collect::<Vec<_>>();
 
                 assert_eq!(arguments_types, results_types);
 

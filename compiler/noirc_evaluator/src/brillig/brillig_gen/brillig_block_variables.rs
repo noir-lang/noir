@@ -219,7 +219,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
-    let typ = dfg.type_of_value(value_id);
+    let typ = dfg.type_of_value(value_id).into_owned();
 
     allocate_value_with_type(brillig_context, typ)
 }

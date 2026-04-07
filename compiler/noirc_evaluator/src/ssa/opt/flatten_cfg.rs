@@ -864,7 +864,7 @@ impl<'f> Context<'f> {
                     // If the reference was allocated before this condition took effect, then we must only
                     // overwrite it if the condition is true.
                     // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
-                    let typ = self.inserter.function.dfg.type_of_value(value);
+                    let typ = self.inserter.function.dfg.type_of_value(value).into_owned();
                     let load = Instruction::Load { address };
                     let previous_value = self
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)

@@ -23,7 +23,7 @@ pub(super) fn simplify_cast(
         dfg.type_of_value(value)
     );
 
-    if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
+    if Type::Numeric(dst_typ) == *dfg.type_of_value(value) {
         return SimplifiedTo(value);
     }
 

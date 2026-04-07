@@ -297,7 +297,7 @@ impl Function {
                 | Instruction::ArraySet { array, index, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    let array_type = context.dfg.type_of_value(*array);
+                    let array_type = context.dfg.type_of_value(*array).into_owned();
                     // We can only know a guaranteed out-of-bounds access for arrays,
                     // and vectors which have been declared as a literal.
                     let len = match array_type {
@@ -423,7 +423,7 @@ fn binary_operation_always_fails(
         return Some("attempt to calculate the remainder with a divisor of zero".to_string());
     }
 
-    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
+    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs).into_owned() else {
         panic!("Expected numeric type for binary operation");
     };
 
@@ -509,7 +509,7 @@ fn remove_and_replace_with_defaults(
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
     let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
     for (i, result_id) in result_ids.iter().enumerate() {
-        let typ = &context.dfg.type_of_value(*result_id);
+        let typ = context.dfg.type_of_value(*result_id).into_owned();
         if matches!(typ, Type::Vector(_)) {
             let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
                 // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
@@ -517,7 +517,7 @@ fn remove_and_replace_with_defaults(
             };
             // Check if this result is preceded the semantic length.
             let follows_semantic_length = i > 0
-                && context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
+                && *context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
                 && matches!(context.instruction(), Instruction::Call { .. });
 
             if follows_semantic_length {
@@ -528,10 +528,10 @@ fn remove_and_replace_with_defaults(
             }
             replacements.push((
                 *result_id,
-                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+                zeroed_vector_of_size(context.dfg, func_id, block_id, &typ, len.to_usize()),
             ));
         } else {
-            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
         }
     }
 
@@ -595,7 +595,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 
         // If it's zero, make sure that the type in the results
         if index_zero {
-            let typ = match context.dfg.type_of_value(*array) {
+            let typ = match context.dfg.type_of_value(*array).into_owned() {
                 Type::Array(typ, _) | Type::Vector(typ) => typ,
                 other => unreachable!("Array or Vector type expected; got {other:?}"),
             };
@@ -604,7 +604,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // If the type doesn't agree then we should not use this any more,
             // as the type in the array will replace the type we wanted to get,
             // and cause problems further on.
-            if typ[0] != result_type {
+            if typ[0] != *result_type {
                 return true;
             }
             // If the array contains a reference, then we should replace the results

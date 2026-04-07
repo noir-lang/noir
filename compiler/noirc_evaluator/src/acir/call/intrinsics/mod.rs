@@ -42,7 +42,9 @@ impl Context<'_> {
                 // Vector arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
                 // No blackbox functions currently take vector arguments so we have an assertion here to catch if this changes in the future.
                 assert!(
-                    !arguments.iter().any(|arg| matches!(dfg.type_of_value(*arg), Type::Vector(_))),
+                    !arguments
+                        .iter()
+                        .any(|arg| matches!(*dfg.type_of_value(*arg), Type::Vector(_))),
                     "ICE: Vector arguments passed to blackbox function"
                 );
 
@@ -67,7 +69,7 @@ impl Context<'_> {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
 
-                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                let Type::Array(result_type, array_length) = &*dfg.type_of_value(result_ids[0])
                 else {
                     unreachable!("ICE: ToRadix result must be an array");
                 };
@@ -75,18 +77,18 @@ impl Context<'_> {
                     result_type.len() == 1,
                     "ICE: ToRadix result type must have a single element type"
                 );
-                let Type::Numeric(numeric_type) = result_type[0] else {
+                let Type::Numeric(numeric_type) = &result_type[0] else {
                     unreachable!("ICE: ToRadix result element type must be numeric");
                 };
 
                 self.acir_context
-                    .radix_decompose(endian, field, radix, array_length, numeric_type)
+                    .radix_decompose(endian, field, radix, *array_length, *numeric_type)
                     .map(|array| vec![array])
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
 
-                let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
+                let Type::Array(result_type, array_length) = &*dfg.type_of_value(result_ids[0])
                 else {
                     unreachable!("ICE: ToBits result must be an array");
                 };
@@ -94,12 +96,12 @@ impl Context<'_> {
                     result_type.len() == 1,
                     "ICE: ToBits result type must have a single element type"
                 );
-                let Type::Numeric(numeric_type) = result_type[0] else {
+                let Type::Numeric(numeric_type) = &result_type[0] else {
                     unreachable!("ICE: ToBits result element type must be numeric");
                 };
 
                 self.acir_context
-                    .bit_decompose(endian, field, array_length, numeric_type)
+                    .bit_decompose(endian, field, *array_length, *numeric_type)
                     .map(|array| vec![array])
             }
             Intrinsic::AsVector => {
@@ -109,12 +111,12 @@ impl Context<'_> {
                     !array_type.is_nested_vector(),
                     "ICE: Nested vector used in ACIR generation"
                 );
-                let Type::Array(_, vector_length) = array_type else {
+                let Type::Array(_, vector_length) = &*array_type else {
                     unreachable!("Expected Array input for `as_vector` intrinsic");
                 };
                 let vector_length = self.acir_context.add_constant(vector_length.0);
                 let acir_value = self.convert_value(array_contents, dfg);
-                let result = self.read_array_with_type(acir_value, &array_type)?;
+                let result = self.read_array_with_type(acir_value, &*array_type)?;
                 Ok(vec![
                     AcirValue::Var(vector_length, NumericType::length_type()),
                     AcirValue::Array(result),
