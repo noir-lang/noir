@@ -438,7 +438,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
 
                 let result_type = self.dfg().type_of_value(results[0]);
-                let Type::Array(_, n) = result_type else {
+                let Type::Array(_, n) = &*result_type else {
                     return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
                         actual_type: result_type.to_string(),
                         expected_type: "array",
@@ -514,7 +514,7 @@ impl<W: Write> Interpreter<'_, W> {
         result: ValueId,
     ) -> IResults {
         let result_type = self.dfg().type_of_value(result);
-        let Type::Array(_, limb_count) = result_type else {
+        let Type::Array(_, limb_count) = &*result_type else {
             return Err(InterpreterError::Internal(InternalError::TypeError {
                 value_id: result,
                 value: result_type.to_string(),

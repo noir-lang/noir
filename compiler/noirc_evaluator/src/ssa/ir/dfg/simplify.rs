@@ -122,7 +122,7 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, SemanticLength(1)))
+            if matches!(*array_or_vector_type, Type::Array(_, SemanticLength(1)))
                 && array_or_vector_type.element_size() == ElementTypesLength(1)
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
@@ -283,7 +283,7 @@ pub(crate) fn simplify(
             // TODO: We could check to see if `then_condition == inner_else_condition`
             // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
-            if matches!(&typ, Type::Numeric(_)) {
+            if matches!(&*typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
                     dfg,
                     block,

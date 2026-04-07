@@ -89,7 +89,7 @@ impl Context {
 
         for instruction in function.dfg[entry].instructions() {
             if let Instruction::IncrementRc { value } = &function.dfg[*instruction] {
-                let typ = function.dfg.type_of_value(*value);
+                let typ = function.dfg.type_of_value(*value).into_owned();
 
                 // We assume arrays aren't mutated until we find an array_set
                 let inc_rc =

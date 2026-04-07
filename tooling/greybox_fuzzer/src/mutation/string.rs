@@ -12,7 +12,7 @@ use super::configurations::{
 use super::dictionary::IntDictionary;
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{Rng, seq::IndexedRandom};
+use rand::{RngExt, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 use std::cmp::min;
 
