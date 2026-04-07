@@ -139,25 +139,29 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         BrilligBinaryOp::Equals,
                     );
 
-                    self.brillig_context.codegen_branch(is_length_zero.address, |ctx, is_zero| {
-                        if is_zero {
-                            ctx.mov_instruction(length_addr, calculated_semantic_length.address);
-                        } else {
-                            let length_equals = ctx.allocate_single_addr_bool();
-                            ctx.binary_instruction(
-                                length,
-                                *calculated_semantic_length,
-                                *length_equals,
-                                BrilligBinaryOp::Equals,
-                            );
-                            ctx.codegen_constrain(
-                                *length_equals,
-                                Some(
-                                    "semantic length returned from oracle does not match data"
-                                        .to_string(),
-                                ),
-                            );
-                        }
+                    // If length is zero, use calculated_semantic_length; otherwise keep current length
+                    self.brillig_context.conditional_move_instruction(
+                        is_length_zero.address,
+                        calculated_semantic_length.address,
+                        length_addr,
+                        length_addr,
+                    );
+                    // If length was non-zero, assert it matches the calculated length
+                    self.brillig_context.codegen_if_not(is_length_zero.address, |ctx| {
+                        let length_equals = ctx.allocate_single_addr_bool();
+                        ctx.binary_instruction(
+                            length,
+                            *calculated_semantic_length,
+                            *length_equals,
+                            BrilligBinaryOp::Equals,
+                        );
+                        ctx.codegen_constrain(
+                            *length_equals,
+                            Some(
+                                "semantic length returned from oracle does not match data"
+                                    .to_string(),
+                            ),
+                        );
                     });
                 }
             } else {

@@ -2,18 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Duplicate definitions of import with name Eq found
-   ┌─ std/aes128.nr:1:1
-   │
- 1 │ // docs:start:aes128
-   │ - Second import found here
-   │
-   ┌─ src/main.nr:14:7
-   │
-14 │ trait Eq {
-   │       -- First import found here
-   │
-
 error: Type provided when a numeric generic was expected
    ┌─ src/main.nr:18:19
    │
@@ -37,4 +25,4 @@ error: No matching impl found for `T: Eq`
   │
   = Required by `[Field; 3]: Eq`
 
-Aborting due to 4 previous errors
+Aborting due to 3 previous errors

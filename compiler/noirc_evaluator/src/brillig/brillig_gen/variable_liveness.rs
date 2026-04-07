@@ -94,7 +94,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -135,24 +135,17 @@ impl VariableLiveness {
         let back_edges: LoopMap = loops
             .yet_to_unroll
             .into_iter()
-            .map(|_loop| {
-                let back_edge = BackEdge { header: _loop.header, start: _loop.back_edge_start };
-                let loop_body = _loop.blocks;
-                (back_edge, loop_body)
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
             })
             .collect();
 
-        Self {
-            cfg: loops.cfg,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-            max_live_count: 0,
-        }
-        .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
-        .compute_max_live_count(func)
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -381,9 +374,9 @@ impl VariableLiveness {
             let live_out = self.get_live_out(&block_id);
 
             // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
-            let mut used_after: Variables = Default::default();
+            let mut used_after = Variables::default();
             // Variables becoming dead after each instruction.
-            let mut block_last_uses: LastUses = Default::default();
+            let mut block_last_uses = LastUses::default();
 
             // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {

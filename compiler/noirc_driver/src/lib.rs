@@ -20,7 +20,8 @@ use noirc_evaluator::brillig::brillig_ir::{
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
-    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+    DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
     MAX_UNROLL_ITERATIONS,
 };
 use noirc_evaluator::ssa::{
@@ -214,6 +215,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
     pub force_unroll_threshold: usize,
 
+    /// Minimum percentage cost reduction required to keep a specialized
+    /// Brillig function clone. Set to 0 to disable specialization.
+    #[arg(long, hide = true, default_value_t = DEFAULT_SPECIALIZATION_THRESHOLD)]
+    pub specialization_threshold: usize,
+
+    /// Maximum number of specialized clones per original Brillig function.
+    #[arg(long, hide = true, default_value_t = DEFAULT_MAX_SPECIALIZATIONS_PER_FN)]
+    pub max_specializations_per_fn: usize,
+
     /// Maximum size of a single Brillig stack frame.
     #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
     pub max_stack_frame_size: usize,
@@ -287,6 +297,8 @@ impl Default for CompileOptions {
             max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             max_stack_frame_size: MAX_STACK_FRAME_SIZE,
             num_stack_frames: NUM_STACK_FRAMES,
             max_scratch_space: MAX_SCRATCH_SPACE,
@@ -332,6 +344,8 @@ impl CompileOptions {
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             max_unroll_iterations: self.max_unroll_iterations,
             force_unroll_threshold: self.force_unroll_threshold,
+            specialization_threshold: self.specialization_threshold,
+            max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
         }
@@ -530,6 +544,7 @@ pub fn compute_function_abi(
 /// On error this returns the non-empty list of warnings and errors.
 ///
 /// See [compile_no_check] for further information about the use of `cached_program`.
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -569,6 +584,7 @@ pub fn compile_main(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,

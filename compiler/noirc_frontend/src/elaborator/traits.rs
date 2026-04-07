@@ -194,9 +194,7 @@ use crate::{
         function::FuncMeta,
         traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
-    node_interner::{
-        DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
-    },
+    node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
 use super::{Elaborator, generics::GenericsState};
@@ -211,6 +209,7 @@ struct TraitScopeState {
 impl Elaborator<'_> {
     /// Sets up the elaborator scope for processing a trait.
     /// Returns state that must be passed to `exit_trait_scope` to restore the previous state.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn enter_trait_scope(
         &mut self,
         trait_id: TraitId,
@@ -233,6 +232,7 @@ impl Elaborator<'_> {
     }
 
     /// Restores the elaborator state after processing a trait.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn exit_trait_scope(&mut self, state: TraitScopeState) {
         self.exit_generics_scope(state.generics);
         self.current_trait = state.current_trait;
@@ -247,6 +247,7 @@ impl Elaborator<'_> {
     /// 2. Resolves the trait's where clause.
     /// 3. Resolves any bounds on associated types
     /// 4. Resolves the trait's bounds (its listed super traits).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
@@ -309,6 +310,7 @@ impl Elaborator<'_> {
     ///
     /// This mostly consists of resolving each parameter and any trait constraints. The trait
     /// method bodies are not elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
@@ -337,6 +339,7 @@ impl Elaborator<'_> {
     /// elided by the user. See [Self::add_missing_named_generics] for more detail.
     ///
     /// Returns all newly created generics to be added to this function/trait/impl.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
@@ -361,6 +364,7 @@ impl Elaborator<'_> {
     ///
     /// with a vector of `<A, B>` returned so that the caller can then modify the function to:
     /// `fn foo<T, A, B>() where T: Foo<Bar = A, Baz = B> { ... }`
+    #[tracing::instrument(level = "trace", skip_all)]
     fn add_missing_named_generics(
         &mut self,
         object: &UnresolvedType,
@@ -435,6 +439,7 @@ impl Elaborator<'_> {
     /// into
     /// `fn foo<T0_impl_Bar>(x: T0_impl_Bar) where T0_impl_Bar: Bar`
     /// although the fresh type variable is not named internally.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn desugar_impl_trait_arg(
         &mut self,
         trait_path: Path,
@@ -460,22 +465,26 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a slice of trait bounds, filtering out any that fail to resolve.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bounds(&mut self, bounds: &[TraitBound]) -> Vec<ResolvedTraitBound> {
         bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
     /// Resolves a trait bound, marking the trait as referenced.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
     }
 
     /// Resolves a trait bound, marking the trait as used.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
     }
 
     /// Resolve the given TraitBound, pushing error(s) if the path or any
     /// types used failed to resolve.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bound_inner(
         &mut self,
         bound: &TraitBound,
@@ -504,6 +513,7 @@ impl Elaborator<'_> {
     /// Since there is no global/local scope distinction for trait constraints,
     /// care should be taken to manually remove these from scope (via
     /// [Self::remove_trait_constraints_from_scope]) after the desired item finishes resolving.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_constraints_to_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
@@ -528,6 +538,7 @@ impl Elaborator<'_> {
     ///
     /// This will only remove assumed trait impls from scope, but this
     /// is always what is desired since true trait impls are permanent.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn remove_trait_constraints_from_scope<'a>(
         &mut self,
         constraints: impl Iterator<Item = &'a TraitConstraint>,
@@ -552,6 +563,7 @@ impl Elaborator<'_> {
     ///
     /// If these constraints are unwanted afterward they should be manually
     /// removed from the interner.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_constraints_and_add_to_scope(
         &mut self,
         where_clause: &[UnresolvedTraitConstraint],
@@ -566,6 +578,7 @@ impl Elaborator<'_> {
     /// This second step is necessary to resolve subsequent constraints such
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
@@ -595,6 +608,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (new_generics, new_constraints) to be added to the function's generics
     /// and trait constraints respectively.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_parent_associated_type_constraints(
         &mut self,
         constraints: &[TraitConstraint],
@@ -620,6 +634,7 @@ impl Elaborator<'_> {
     /// Recursively walk parent trait hierarchies and create fresh type variables
     /// for any associated types found on parent traits. The new constraints are
     /// pushed to `self.trait_bounds` and returned via the output parameters.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
         object_type: &Type,
@@ -715,6 +730,7 @@ impl Elaborator<'_> {
     /// with cycle detection to prevent infinite recursion.
     ///
     /// If the trait bound is already satisfied, an `UnneededTraitConstraint` error is pushed.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_bound_to_scope(
         &mut self,
         location: Location,
@@ -725,6 +741,7 @@ impl Elaborator<'_> {
         self.add_trait_bound_to_scope_inner(location, object, trait_bound, &mut visited);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn add_trait_bound_to_scope_inner(
         &mut self,
         location: Location,
@@ -794,6 +811,7 @@ impl Elaborator<'_> {
 
     /// Resolves a trait's methods, but does not elaborate their bodies.
     /// Sets the FuncMeta for each trait method.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_methods(
         &mut self,
         trait_id: TraitId,
@@ -910,6 +928,7 @@ impl Elaborator<'_> {
     /// Defines the FuncMeta for this trait function.
     ///
     /// The bodies of each function (if they exist) are not elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_function(
         &mut self,
         trait_id: TraitId,
@@ -965,10 +984,11 @@ impl Elaborator<'_> {
 ///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
-    interner: &NodeInterner,
+    elaborator: &Elaborator,
     function: FuncId,
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
+    let interner = &elaborator.interner;
     let meta = interner.function_meta(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
@@ -1061,6 +1081,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 
         check_function_type_matches_expected_type(
+            elaborator,
             &declaration_type,
             meta,
             method_name,
@@ -1083,6 +1104,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 /// This is used to check if a trait impl's function type matches the declared function in the
 /// original trait declaration - while handling the appropriate generic substitutions.
 fn check_function_type_matches_expected_type(
+    elaborator: &Elaborator,
     expected: &Type,
     meta: &FuncMeta,
     method_name: &str,
@@ -1128,11 +1150,11 @@ fn check_function_type_matches_expected_type(
             }
 
             if ret_b.try_unify(ret_a, &mut bindings).is_err() {
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: ret_a.to_string(),
-                    expr_typ: ret_b.to_string(),
-                    expr_location: meta.return_type.location(),
-                });
+                errors.push(elaborator.new_type_mismatch_error(
+                    ret_b,
+                    ret_a,
+                    meta.return_type.location(),
+                ));
             }
         } else {
             errors.push(TypeCheckError::MismatchTraitImplNumParameters {
@@ -1149,12 +1171,6 @@ fn check_function_type_matches_expected_type(
     // signatures were not a perfect match. Note that this relies on us already binding
     // all the expected generics to each other prior to this check.
     if !bindings.is_empty() {
-        let expected_typ = expected.to_string();
-        let expr_typ = actual.to_string();
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ,
-            expr_typ,
-            expr_location: location,
-        });
+        errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
     }
 }

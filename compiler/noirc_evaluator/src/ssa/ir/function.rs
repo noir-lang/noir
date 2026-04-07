@@ -251,6 +251,28 @@ impl Function {
     pub fn view(&self) -> FunctionView {
         FunctionView(self)
     }
+
+    /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
+    ///                                                                                                                                                                                                                              
+    /// This creates a [FunctionInserter][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
+    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
+    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
+    pub(crate) fn simplify_instructions(&mut self) {
+        use crate::ssa::ir::function_inserter::FunctionInserter;
+
+        let mut inserter = FunctionInserter::new(self);
+        let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
+
+        for &block in &blocks {
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                inserter.push_instruction(*instruction_id, block, true);
+            }
+            inserter.map_terminator_in_place(block);
+        }
+        inserter.map_data_bus_in_place();
+    }
 }
 
 impl Clone for Function {

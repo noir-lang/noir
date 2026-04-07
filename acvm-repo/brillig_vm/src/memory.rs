@@ -383,30 +383,38 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
 /// - On 32-bit: Hard limit of ~44 million addressable slots
 ///
 /// Exceeding these limits will cause a panic with "capacity overflow".
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Memory<F> {
     // Internal memory representation
     inner: Vec<MemoryValue<F>>,
+    /// Cached stack pointer to avoid a memory read + enum match on every
+    /// relative address resolution.
+    ///
+    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+    /// and must remain there for downstream ZK VM proving. We mirror it here
+    /// because [Self::resolve] is called on every memory access
+    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+    /// which are more rare than reads.
+    stack_pointer: u32,
+}
+
+impl<F> Default for Memory<F> {
+    fn default() -> Self {
+        Self { inner: Vec::new(), stack_pointer: STACK_POINTER_ADDRESS.to_u32() }
+    }
 }
 
 impl<F: AcirField> Memory<F> {
-    /// Read the value from slot 0.
-    ///
-    /// Panics if it's not a `U32`.
-    fn get_stack_pointer(&self) -> u32 {
-        self.read(STACK_POINTER_ADDRESS).to_u32()
-    }
-
     /// Resolve an address to either:
     /// * itself, if it's a direct address, or
-    /// * the current stack pointer plus the offset, if it's relative.
+    /// * the cached stack pointer plus the offset, if it's relative.
     ///
     /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> u32 {
         match address {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(offset) => {
-                self.get_stack_pointer().checked_add(offset).expect("stack pointer offset overflow")
+                self.stack_pointer.checked_add(offset).expect("stack pointer offset overflow")
             }
         }
     }
@@ -449,6 +457,11 @@ impl<F: AcirField> Memory<F> {
         let resolved_addr = assert_usize(self.resolve(address));
         self.resize_to_fit(resolved_addr + 1);
         self.inner[resolved_addr] = value;
+        if address == STACK_POINTER_ADDRESS
+            && let MemoryValue::U32(sp) = value
+        {
+            self.stack_pointer = sp;
+        }
     }
 
     /// Maximum number of memory slots that can be allocated.
@@ -484,6 +497,11 @@ impl<F: AcirField> Memory<F> {
         let end_addr = resolved_addr + values.len();
         self.resize_to_fit(end_addr);
         self.inner[resolved_addr..end_addr].copy_from_slice(values);
+        if address == STACK_POINTER_ADDRESS
+            && let Some(MemoryValue::U32(sp)) = values.first()
+        {
+            self.stack_pointer = *sp;
+        }
     }
 
     /// Returns the values of the memory
