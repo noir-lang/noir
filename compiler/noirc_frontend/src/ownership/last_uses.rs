@@ -397,8 +397,11 @@ impl LastUseContext {
     }
 
     fn track_variables_in_index(&mut self, index: &ast::Index) {
-        self.track_variables_in_expression(&index.collection);
+        // SSA generation happens for the index first, so if it modifies the collection it
+        // takes effect before it's indexed. This means the last use is actually the collection,
+        // and if anything needs to be cloned it has to happen in the index part already.
         self.track_variables_in_expression(&index.index);
+        self.track_variables_in_expression(&index.collection);
     }
 
     fn track_variables_in_cast(&mut self, cast: &ast::Cast) {
