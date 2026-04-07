@@ -183,6 +183,12 @@ impl Function {
             }
             RuntimeType::Brillig(_) => loop {
                 simplify_between_unrolls(self);
+                // Fast check: if no back-edges remain in the CFG, there are no loops
+                // to unroll. This avoids the expensive CFG/PostOrder/DominatorTree
+                // rebuild that `try_unroll_loops` → `Loops::find_all` would perform.
+                if !Loops::has_loops(self) {
+                    break;
+                }
                 let (unrolled, _) = self.try_unroll_loops(
                     max_unroll_iterations,
                     force_unroll_threshold,
@@ -419,6 +425,48 @@ pub(crate) struct Loops {
 }
 
 impl Loops {
+    /// Quick check for whether the function contains any loops (back-edges in the CFG).
+    ///
+    /// Uses an iterative DFS coloring approach to detect back-edges without building
+    /// a full CFG, PostOrder, or DominatorTree. This is much cheaper than `find_all`
+    /// on large functions (e.g. 30k+ blocks from loop unrolling) when no loops remain.
+    ///
+    /// Returns `true` if any back-edge is found (i.e. there is at least one loop).
+    pub(crate) fn has_loops(function: &Function) -> bool {
+        // DFS coloring: White = unseen, Gray = on current path, Black = finished.
+        // A back-edge is an edge to a Gray node.
+        let mut on_stack: HashSet<BasicBlockId> = HashSet::new();
+        let mut visited: HashSet<BasicBlockId> = HashSet::new();
+
+        // Stack holds (block, successor_index) pairs for iterative DFS.
+        let entry = function.entry_block();
+        let mut stack: Vec<(BasicBlockId, Vec<BasicBlockId>)> = vec![];
+
+        on_stack.insert(entry);
+        visited.insert(entry);
+        let successors: Vec<_> = function.dfg[entry].successors().collect();
+        stack.push((entry, successors));
+
+        while let Some((block, succs)) = stack.last_mut() {
+            if let Some(succ) = succs.pop() {
+                if on_stack.contains(&succ) {
+                    return true; // Back-edge found → loop exists
+                }
+                if visited.insert(succ) {
+                    on_stack.insert(succ);
+                    let next_succs: Vec<_> = function.dfg[succ].successors().collect();
+                    stack.push((succ, next_succs));
+                }
+            } else {
+                let block = *block;
+                on_stack.remove(&block);
+                stack.pop();
+            }
+        }
+
+        false
+    }
+
     /// Find all loops in the program by finding a node that dominates any predecessor node.
     /// The edge where this happens will be the back-edge of the loop.
     ///
@@ -452,7 +500,8 @@ impl Loops {
     /// which we can use to check whether we were able to unroll all blocks.
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+        // Reuse the already-built CFG instead of building a second one inside PostOrder.
+        let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
@@ -3535,5 +3584,42 @@ mod tests {
         ssa_after = ssa_after.loop_invariant_code_motion();
         let after = ssa_after.interpret(vec![Value::bool(false)]);
         assert_eq!(before, after, "LICM should preserve semantics");
+    }
+
+    #[test]
+    fn has_loops_detects_simple_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 10
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = add v1, u32 1
+            jmp b1(v3)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(Loops::has_loops(ssa.main()), "should detect a loop");
+    }
+
+    #[test]
+    fn has_loops_no_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = lt v0, u32 10
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(!Loops::has_loops(ssa.main()), "should not detect a loop");
     }
 }
