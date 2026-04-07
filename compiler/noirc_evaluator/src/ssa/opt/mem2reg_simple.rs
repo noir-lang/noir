@@ -19,7 +19,6 @@
 //! For blocks not in the IDF (the common case in unrolled code with single-predecessor chains),
 //! the variable's value is inherited directly from the predecessor's exit state. This avoids
 //! the O(variables × blocks) cost of adding block parameters everywhere.
-use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 
@@ -86,7 +85,7 @@ impl Function {
         self.mem2reg_simple(false);
     }
 
-    fn mem2reg_simple(&mut self, cleanup: bool) {
+    fn mem2reg_simple(&mut self, _cleanup: bool) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -137,9 +136,6 @@ impl Function {
             &block_states,
             &cfg,
         );
-        if cleanup {
-            remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
-        }
         commit(&mut inserter, &variables, blocks);
     }
 
