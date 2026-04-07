@@ -73,7 +73,7 @@ jobs:
       - name: Build list of projects
         id: get_bench_projects
         run: |
-          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | to_entries | map(.value + { name: .key })')
+          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '(.projects // {}) | to_entries | map(.value + { name: .key })')
           echo "projects=$PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
