@@ -70,6 +70,7 @@ excluded_dirs=(
     "bench_poseidon2_hash_30"
     "bench_poseidon2_hash_100"
     "semaphore_depth_10"
+    "sha512_100_bytes"
 )
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"

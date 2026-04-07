@@ -64,12 +64,12 @@ fn struct_array_len() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<let N: u32>(_array: [u1; N]) {
+        fn hello<let N: u32>(_array: [bool; N]) {
             for _ in 0..N {}
         }
 
         fn main() {
-            let array: [u1; 2] = [0, 1];
+            let array: [bool; 2] = [false, true];
             hello(array);
         }
     "#;

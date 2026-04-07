@@ -304,7 +304,6 @@ impl Kind {
         match (typ.as_ref(), &value) {
             // First case: exact match, integer is already of type
             (Type::FieldElement, Integer::Field(_))
-            | (Type::Integer(Unsigned, One), Integer::U1(_))
             | (Type::Integer(Unsigned, Eight), Integer::U8(_))
             | (Type::Integer(Unsigned, Sixteen), Integer::U16(_))
             | (Type::Integer(Unsigned, ThirtyTwo), Integer::U32(_))
@@ -3224,7 +3223,6 @@ impl Type {
             Type::Integer(Signed, ThirtyTwo) => Some(32),
             Type::Integer(Signed, SixtyFour) => Some(64),
             Type::Integer(Signed, HundredTwentyEight) => Some(128),
-            Type::Integer(Unsigned, One) => Some(1),
             Type::Integer(Unsigned, Eight) => Some(8),
             Type::Integer(Unsigned, Sixteen) => Some(16),
             Type::Integer(Unsigned, ThirtyTwo) => Some(32),
