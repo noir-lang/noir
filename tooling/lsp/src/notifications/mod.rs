@@ -10,8 +10,9 @@ use crate::{
 };
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
-    DiagnosticRelatedInformation, DiagnosticTag, MessageType, Position, Range, ShowMessageParams,
-    Url,
+    DiagnosticRelatedInformation, DiagnosticTag, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, FileChangeType, FileSystemWatcher, GlobPattern,
+    Position, Range, Registration, RegistrationParams, Url, WatchKind,
 };
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileId, FileManager, FileMap, PathString};
@@ -39,9 +40,80 @@ use crate::{
 };
 
 pub(super) fn on_initialized(
-    _state: &mut LspState,
+    state: &mut LspState,
     _params: InitializedParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+    // Register a file watcher for Nargo.toml so we get notified when it changes.
+    let registration = Registration {
+        id: "nargo-toml-watcher".to_string(),
+        method: "workspace/didChangeWatchedFiles".to_string(),
+        register_options: Some(
+            serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                watchers: vec![FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/Nargo.toml".to_string()),
+                    kind: Some(WatchKind::all()),
+                }],
+            })
+            .expect("serialization of DidChangeWatchedFilesRegistrationOptions should not fail"),
+        ),
+    };
+    let _ =
+        state.client.register_capability(RegistrationParams { registrations: vec![registration] });
+    ControlFlow::Continue(())
+}
+
+pub(super) fn on_did_change_watched_files(
+    state: &mut LspState,
+    params: DidChangeWatchedFilesParams,
+) -> ControlFlow<Result<(), async_lsp::Error>> {
+    for change in params.changes {
+        if change.typ == FileChangeType::DELETED {
+            // If a Nargo.toml was deleted, clear any diagnostics on it.
+            if state.toml_files_with_errors.remove(&change.uri) {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: change.uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
+            }
+            continue;
+        }
+
+        // For created or changed Nargo.toml files, find a source file in that workspace
+        // and reprocess it. We do this by finding any open file that belongs to the workspace.
+        let toml_path = match change.uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+        let workspace_root = match toml_path.parent() {
+            Some(parent) => parent.to_path_buf(),
+            None => continue,
+        };
+
+        // Invalidate any cached data for this workspace so it's reprocessed fresh.
+        state.workspace_cache.remove(&workspace_root);
+        state.package_cache.remove(&workspace_root);
+
+        // Find an open file that lives under this workspace root and trigger reprocessing.
+        let open_file_uri = state
+            .input_files
+            .keys()
+            .find(|uri| {
+                uri.strip_prefix("file://")
+                    .map(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
+                    .unwrap_or(false)
+            })
+            .cloned();
+
+        if let Some(uri_string) = open_file_uri {
+            if let Ok(uri) = Url::parse(&uri_string) {
+                match handle_text_document_open_or_close_notification(state, uri) {
+                    Ok(_) => {}
+                    Err(_) => {} // Errors are surfaced as diagnostics on Nargo.toml
+                }
+            }
+        }
+    }
     ControlFlow::Continue(())
 }
 
@@ -223,11 +295,6 @@ fn publish_nargo_toml_error(
         diagnostics: vec![diagnostic],
     });
     state.toml_files_with_errors.insert(toml_uri);
-
-    let _ = state.client.show_message(ShowMessageParams {
-        typ: MessageType::ERROR,
-        message: format!("Nargo.toml error: {error}"),
-    });
 }
 
 fn byte_offset_to_position(content: &str, offset: usize) -> Position {

@@ -47,8 +47,9 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 use notifications::{
-    on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
-    on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
+    on_did_change_configuration, on_did_change_text_document, on_did_change_watched_files,
+    on_did_close_text_document, on_did_open_text_document, on_did_save_text_document, on_exit,
+    on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
@@ -193,6 +194,7 @@ impl NargoLspService {
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
             .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
             .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
+            .notification::<notification::DidChangeWatchedFiles>(on_did_change_watched_files)
             .notification::<notification::Exit>(on_exit);
         Self { router }
     }
