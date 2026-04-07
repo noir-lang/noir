@@ -27,10 +27,11 @@
 //!   cloned in its entirety in the first statement. Note that this is lessened in the overall
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 
-use crate::monomorphization::ast::{self, IdentId, LocalId};
+use crate::ast::UnaryOp;
+use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::Context;
 
@@ -161,6 +162,18 @@ struct LastUseContext {
     /// as confirmed, because the reassignment essentially kills the reference to the previous
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
+    ///
+    /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
+    /// This is because the reference creates an invisible alias: if the variable were moved
+    /// (sharing the same array pointer with refcount=1), a later write through the reference
+    /// would mutate the "moved" copy in place (bypassing copy-on-write semantics), since the
+    /// refcount would be 1 and no COW would be triggered.
+    ///
+    /// By preventing moves of aliased variables, we ensure that subsequent copies increment
+    /// the refcount, so that writes through the reference correctly trigger COW.
+    referenced_variables: HashSet<LocalId>,
 }
 
 impl Context {
@@ -173,6 +186,7 @@ impl Context {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
+            referenced_variables: HashSet::default(),
             next_id: 0,
         };
 
@@ -325,7 +339,11 @@ impl LastUseContext {
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         let mut moves = self.confirmed_moves;
         for (id, (_, branches)) in self.last_uses {
-            moves.entry(id).or_default().extend(branches.flatten_uses());
+            // Variables aliased via references must always be cloned on copy (never moved).
+            // See `referenced_variables` for the reasoning.
+            if !self.referenced_variables.contains(&id) {
+                moves.entry(id).or_default().extend(branches.flatten_uses());
+            }
         }
         moves
     }
@@ -366,7 +384,7 @@ impl LastUseContext {
 
     fn track_variables_in_ident(&mut self, ident: &ast::Ident) {
         // We only track last uses for local variables, globals are always cloned
-        if let ast::Definition::Local(local_id) = &ident.definition {
+        if let Definition::Local(local_id) = &ident.definition {
             self.remember_use_of_variable(*local_id, ident.id);
         }
     }
@@ -388,6 +406,15 @@ impl LastUseContext {
     }
 
     fn track_variables_in_unary(&mut self, unary: &ast::Unary) {
+        if matches!(unary.operator, UnaryOp::Reference { .. }) {
+            // When a reference is taken to a local variable or one of its fields (e.g. `&mut x`
+            // or `&mut x.field`), the variable `x` is now aliased. Mark it so that any future
+            // copy of `x` must clone rather than move.
+            // See `referenced_variables` for the full explanation.
+            if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
+                self.referenced_variables.insert(local_id);
+            }
+        }
         self.track_variables_in_expression(&unary.rhs);
     }
 
@@ -494,8 +521,29 @@ impl LastUseContext {
 
     fn track_variables_in_call(&mut self, call: &ast::Call) {
         self.track_variables_in_expression(&call.func);
+
+        // A reference passed directly as a call argument (e.g. `foo(&mut x)`) is temporary:
+        // it only lives for the duration of the call. After the call returns, `x` is no longer
+        // aliased, so future copies of `x` don't need to clone.
+        //
+        // We must fall back to conservative (mark `x` as aliased) if the reference could escape:
+        // 1. The call returns a reference type — the passed reference might be returned.
+        // 2. Another argument has type `&mut T` where `T` contains a reference — the function
+        //    could write the passed reference into `*that_arg`, making it escape without returning.
+        let conservative = type_contains_reference(&call.return_type)
+            || call.arguments.iter().any(arg_can_store_reference);
         for arg in &call.arguments {
-            self.track_variables_in_expression(arg);
+            if !conservative
+                && let Expression::Unary(unary) = arg
+                && matches!(unary.operator, UnaryOp::Reference { .. })
+                && base_ident_of_field_access(&unary.rhs).is_some()
+            {
+                // Track the use of the variable inside the reference (for last-use analysis)
+                // but skip the unary handler, which would mark the variable as aliased.
+                self.track_variables_in_expression(&unary.rhs);
+            } else {
+                self.track_variables_in_expression(arg);
+            }
         }
     }
 
@@ -522,9 +570,9 @@ impl LastUseContext {
         // Only considering simple variables here, not member access or indexing; those would require a more
         // careful analysis and potentially a different algorithm.
         let variable = match &assign.lvalue {
-            ast::LValue::Ident(ast::Ident {
-                definition: ast::Definition::Local(local_id), ..
-            }) => Some(*local_id),
+            ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) => {
+                Some(*local_id)
+            }
             _ => None,
         };
 
@@ -595,5 +643,95 @@ impl LastUseContext {
                 unreachable!("LValue::Clone should only be inserted by the ownership pass")
             }
         }
+    }
+}
+
+/// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),
+/// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
+/// and return the `LocalId` of the base variable, if it is a local variable.
+///
+/// For example:
+/// - `&mut x`         → `Some(x_id)`
+/// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
+/// - `&mut x.a.b`     → `Some(x_id)`
+/// - `&mut some_call()` → `None`
+///
+/// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
+/// contains a `&mut T` (at any depth) where `T` itself contains a reference.
+///
+/// This covers both direct `&mut &mut T` arguments and arguments whose struct/tuple/array
+/// type has a field of such a type, as well as reaching through immutable references to
+/// find inner mutable ones (e.g. `& SomeStruct` where `SomeStruct` has a `&mut &mut T` field).
+///
+/// When this is true for any argument, all `&mut x` arguments in the call must conservatively
+/// be treated as aliasing `x`, because the callee might write the reference into the location
+/// reachable through that argument.
+fn arg_can_store_reference(arg: &Expression) -> bool {
+    // Expression::return_type() covers all expression variants that carry type information.
+    // For the few statement-like variants that return None (For, Loop, While, Let, etc.)
+    // being conservative (true) is fine since they cannot be call arguments anyway.
+    match arg.return_type() {
+        Some(typ) => type_can_store_reference(&typ),
+        None => true,
+    }
+}
+
+/// Returns `true` if `typ` contains — at any depth — a `&mut T` where `T` itself contains
+/// a reference. Such a type allows a reference to be written somewhere persistent.
+///
+/// We recurse through immutable references too: given `& SomeStruct`, its inner mutable
+/// reference fields are still accessible and writable (e.g. `*(s.slot) = x`).
+fn type_can_store_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        // A mutable reference to something that contains a reference can be written through.
+        Type::Reference(inner, true /* mutable */) => type_contains_reference(inner),
+        // An immutable reference can't be written to directly, but its inner fields may still
+        // expose mutable references we can write through — so recurse.
+        Type::Reference(inner, false) => type_can_store_reference(inner),
+        Type::Tuple(elements) => elements.iter().any(type_can_store_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_can_store_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_can_store_reference)
+                || type_can_store_reference(ret)
+                || type_can_store_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
+/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
+/// tuples, arrays, or function types). Used to decide whether a call might return a
+/// reference that aliases a variable passed by `&mut` to that call.
+fn type_contains_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        Type::Reference(..) => true,
+        Type::Tuple(elements) => elements.iter().any(type_contains_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_contains_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_contains_reference)
+                || type_contains_reference(ret)
+                || type_contains_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
+fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
+    match expr {
+        Expression::Ident(ident) => {
+            if let Definition::Local(local_id) = ident.definition {
+                Some(local_id)
+            } else {
+                None
+            }
+        }
+        Expression::ExtractTupleField(inner, _) => base_ident_of_field_access(inner),
+        _ => None,
     }
 }

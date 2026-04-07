@@ -106,7 +106,7 @@ struct BlockSummary {
 }
 
 impl Function {
-    fn remove_redundant_params(&mut self) {
+    pub(crate) fn remove_redundant_params(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let rpo = PostOrder::with_cfg(&cfg).into_vec_reverse();
 

@@ -24,7 +24,7 @@ use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable};
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
 /// The result of [`Elaborator::resolve_variable`].
@@ -145,11 +145,8 @@ impl Elaborator<'_> {
 
                     // Unify the expression's type with the declared type from the type alias
                     // to ensure proper type checking.
-                    self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
-                        expected_typ: declared_type.to_string(),
-                        expr_typ: typ.to_string(),
-                        expr_location,
-                    });
+                    self.unify_or_type_mismatch(&typ, &declared_type, expr_location);
+
                     return (id, declared_type, false, location);
                 }
                 (None, None)
@@ -231,13 +228,7 @@ impl Elaborator<'_> {
                     }
                     // Verify turbofish types match the impl's concrete types
                     for (turbofish_type, concrete_type) in concrete_mismatches {
-                        self.unify(&turbofish_type, &concrete_type, || {
-                            TypeCheckError::TypeMismatch {
-                                expected_typ: concrete_type.to_string(),
-                                expr_typ: turbofish_type.to_string(),
-                                expr_location: location,
-                            }
-                        });
+                        self.unify_or_type_mismatch(&turbofish_type, &concrete_type, location);
                     }
                 } else if type_generics.len() <= impl_generics.len() {
                     // For trait function paths, impl_generics may include Self and associated
@@ -895,10 +886,16 @@ impl Elaborator<'_> {
         }
 
         if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
+            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+            let required_type_variables =
+                btree_map(bindings.values(), |(type_variable, _, typ)| {
+                    (type_variable.id(), typ.clone())
+                });
+
+            for (type_variable_id, typ) in required_type_variables {
                 self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
+                    type_variable_id,
+                    typ,
                     BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );

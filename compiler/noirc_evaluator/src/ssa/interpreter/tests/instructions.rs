@@ -173,7 +173,7 @@ fn sub_underflow_signed() {
 
 #[test]
 fn sub_unchecked_unsigned() {
-    let error = expect_error(
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -182,7 +182,6 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]

@@ -196,11 +196,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
 
-            if expected_type != actual_type {
+            if *expected_type != actual_type {
                 // Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
                 // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
                 // Later optimization passes will fix the representation.
-                let types_compatible = match (&expected_type, &actual_type) {
+                let types_compatible = match (&*expected_type, &actual_type) {
                     (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
                         expected_elem == actual_elem
                             && expected_elem.is_empty()
@@ -1033,7 +1033,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
                 return Ok(vecmap(results, |result| {
                     let typ = self.dfg().type_of_value(*result);
-                    if matches!(typ, Type::Vector(_)) {
+                    if matches!(*typ, Type::Vector(_)) {
                         Value::uninitialized_vector(&element_types, output_len, *result)
                     } else {
                         Value::uninitialized(&typ, *result)
@@ -1072,10 +1072,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
@@ -1090,7 +1089,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
-        let result_type = self.dfg().type_of_value(result);
+        let result_type = self.dfg().type_of_value(result).into_owned();
         let element_type = match result_type {
             Type::Reference(element_type) => element_type,
             other => unreachable!(
@@ -1174,7 +1173,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Find a valid index
                 let typ = self.dfg().type_of_value(result);
                 for (i, element) in array.elements.borrow().iter().enumerate() {
-                    if element.get_type() == typ {
+                    if element.get_type() == *typ {
                         index = i as u32;
                         break;
                     }
@@ -1674,13 +1673,7 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop_opt!(
-                lhs,
-                rhs,
-                binary,
-                num_traits::CheckedSub::checked_sub,
-                display_binary
-            )
+            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects

@@ -3619,4 +3619,50 @@ fn main() {
         )
         .await;
     }
+
+    #[test]
+    async fn autocompletes_type_in_generic_call() {
+        let src = r#"
+        pub struct FooBar {}
+
+        pub struct Generic<T> {}
+
+        fn main() {
+            Generic::<FooB>|<>::new()
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn autocompletes_type_in_generic_constructor() {
+        let src = r#"
+        pub struct FooBar {}
+
+        pub struct Generic<T> {}
+
+        fn main() {
+            Generic::< FooB>|< > {}
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
 }

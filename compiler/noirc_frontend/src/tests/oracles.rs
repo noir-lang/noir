@@ -1,4 +1,3 @@
-use crate::elaborator::UnstableFeature;
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
 };
@@ -134,7 +133,7 @@ fn errors_if_oracle_returns_reference_in_tuple() {
     pub unconstrained fn oracle_call() -> (Field, &Field) {}
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -149,7 +148,7 @@ fn errors_if_oracle_returns_reference_in_struct() {
                          ^^^^^^^^^^^ Oracle functions cannot return references
     "#;
     //check_errors(src);
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]

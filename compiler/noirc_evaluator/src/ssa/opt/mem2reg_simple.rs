@@ -6,8 +6,21 @@
 //! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
 //! replace the old pass with this one plus any other, separate passes needed for the features
 //! unhandled here (such as alias analysis).
-use iter_extended::btree_map;
-use rustc_hash::FxHashSet as HashSet;
+//!
+//! ## Block parameter placement
+//!
+//! When a variable is stored in multiple blocks, this pass places block parameters only at the
+//! **iterated dominance frontier** (IDF) of those definition sites. This is the minimal set of
+//! blocks where values from different control-flow paths could merge, following the standard
+//! algorithm from Cytron et al. (1991). For variables stored in a single block, the dominance
+//! frontier is often empty, meaning no block parameters are needed at all — the value simply
+//! propagates to all loads.
+//!
+//! For blocks not in the IDF (the common case in unrolled code with single-predecessor chains),
+//! the variable's value is inherited directly from the predecessor's exit state. This avoids
+//! the O(variables × blocks) cost of adding block parameters everywhere.
+use iter_extended::vecmap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 
 use crate::ssa::{
@@ -25,28 +38,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary limit for maximum variables optimized by this pass in each function.
-///
-/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
-/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
-/// to pay for passing around the variables while with the `Load` approach, only the inner loops
-/// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
-
-/// Maximum number of blocks a variable's declaration can dominate before we skip
-/// promoting it in the pre-flattening pass.
-///
-/// The cost of promoting a variable before flattening is O(promoted_variables × dominated_blocks)
-/// because each promoted variable adds a block parameter to every dominated block, and the
-/// flattener converts each conditional block into ~5 predicate opcodes (not, mul,
-/// enable_side_effects, etc.). A variable that spans many blocks (e.g. a byte in a 254-iteration
-/// unrolled loop) can generate thousands of extra ACIR opcodes.
-///
-/// This limit filters out variables whose declaration dominates too many blocks,
-/// keeping promotion beneficial for small CFGs (like if/else diamonds in `conditional_1`)
-/// while avoiding regressions in deeply unrolled code (like `to_bytes_integration`).
-const MAX_BLOCK_SPAN_PRE_FLATTENING: usize = 100;
-
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
     ///
@@ -56,20 +47,20 @@ impl Ssa {
     /// **Important:** This should only be used after flattening for ACIR functions.
     /// Before flattening, use `mem2reg_simple_pre_flattening` instead to avoid
     /// regressions from promoting variables that span too many blocks.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let max_vars =
-                if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars, None);
+            function.mem2reg_simple(false);
         }
         self
     }
 
     /// Run mem2reg_simple only on Brillig functions.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
+                function.mem2reg_simple(false);
             }
         }
         self
@@ -81,23 +72,21 @@ impl Ssa {
     /// a variable limit and a block span limit to avoid regressions: promoting a
     /// variable whose declaration dominates many blocks (e.g. across an unrolled loop)
     /// generates O(variables × blocks) extra predicate opcodes after flattening.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
-            } else {
-                function.mem2reg_simple(
-                    Some(MAX_VARIABLES_OPTIMIZED),
-                    Some(MAX_BLOCK_SPAN_PRE_FLATTENING),
-                );
-            }
+            function.mem2reg_simple_pre_flattening();
         }
         self
     }
 }
 
 impl Function {
-    fn mem2reg_simple(&mut self, max_variables: Option<u32>, max_block_span: Option<usize>) {
+    pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
+        self.mem2reg_simple(false);
+    }
+
+    fn mem2reg_simple(&mut self, cleanup: bool) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -109,59 +98,62 @@ impl Function {
         // ValueId of the `allocate` instruction result. These are all iterated over at some point
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
-        let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
+        let (variables, def_sites) =
+            collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
-        // Filter out variables whose declaration dominates too many blocks.
-        // Each promoted variable adds a block parameter to every dominated block, and the
-        // flattener converts each conditional into predicate opcodes, so the cost is
-        // O(promoted_variables × dominated_blocks).
-        //
-        // We approximate this count by precomputing dominator-tree subtree
-        // sizes in O(blocks): `blocks` is in RPO order, so iterating in reverse guarantees
-        // each block is visited before its immediate dominator (dominators always have a
-        // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
-        if let Some(max_span) = max_block_span
-            && blocks.len() > max_span
-            && !variables.is_empty()
-        {
-            // Initialize each block's dom count to 1
-            let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
-
-            for &block in blocks.iter().rev() {
-                if let Some(idom) = dom_tree.immediate_dominator(block) {
-                    let size = subtree_size[&block];
-                    *subtree_size.entry(idom).or_insert(1) += size;
-                }
-            }
-            variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
-        }
-
-        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        if let Some(max) = max_variables {
-            variables = variables.into_iter().take(max as usize).collect();
-        }
         if variables.is_empty() {
             return;
         }
 
+        // Compute where block parameters are needed using iterated dominance frontiers.
+        // A variable only needs a block parameter at blocks where values from different
+        // control-flow paths could merge (its IDF). For variables stored in a single block,
+        // this is typically empty — no block parameters needed at all.
+        let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
+        let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
+
+        // Precompute which variables are visible at each block by walking the dominator tree.
+        // A variable declared in block D is visible at block B iff D dominates B.
+        // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
+        // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
+        // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
+        // this visibility propagation replaces the per-variable dominance checks in phase 2).
+        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
         let mut block_states = BlockStates::default();
         add_block_params_and_find_exit_states(
             &blocks,
-            &variables,
-            &mut dom_tree,
+            &visible_vars,
+            &param_locations,
             &mut inserter,
             &mut block_states,
+            &cfg,
         );
-        add_terminator_arguments(&blocks, &variables, &mut inserter, &block_states, &cfg);
+        add_terminator_arguments(
+            &blocks,
+            &variables,
+            &param_locations,
+            &mut inserter,
+            &block_states,
+            &cfg,
+        );
+        if cleanup {
+            remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
+        }
         commit(&mut inserter, &variables, blocks);
+    }
+
+    /// Like `mem2reg_simple` but skips the cleanup pass that removes block parameters
+    /// whose arguments are all identical. This reveals whether the IDF-based placement
+    /// avoided unnecessary parameters at source, rather than relying on cleanup.
+    #[cfg(test)]
+    fn mem2reg_simple_without_cleanup(&mut self) {
+        self.mem2reg_simple(false);
     }
 }
 
 /// Contains the starting & ending values of each variable in each block
-#[derive(Default)]
-struct BlockStates {
-    blocks: BTreeMap<BasicBlockId, BlockState>,
-}
+type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
@@ -176,49 +168,192 @@ struct BlockState {
     exit_state: BTreeMap<ValueId, ValueId>,
 }
 
-/// Find the starting & ending states of each variable in each block.
+/// For each eligible variable, the set of blocks where a block parameter must be inserted.
+/// Computed as the iterated dominance frontier of the variable's definition sites.
+type ParamLocations = BTreeMap<ValueId, HashSet<BasicBlockId>>;
+
+/// Compute where block parameters are needed for each variable.
 ///
-/// This will add a block parameter for every variable in `variables` that
-/// is alive in each block. This parameter will always be the entry state
-/// of that variable, while the exit state will be empty (variable was not changed)
-/// or filled with the most recent Store value to the variable in the block.
-fn add_block_params_and_find_exit_states(
-    blocks: &[BasicBlockId],
+/// A variable needs a block parameter at block B if B is in the iterated dominance frontier
+/// of the blocks where the variable is stored to. This is the minimal set of blocks where
+/// values from different control-flow paths could merge.
+fn compute_param_locations(
     variables: &BTreeMap<ValueId, BasicBlockId>,
-    dom_tree: &mut DominatorTree,
-    inserter: &mut FunctionInserter,
-    variable_states: &mut BlockStates,
-) {
-    for block in blocks.iter().copied() {
-        // All variables visible at the start of the current block
-        let entry_state = add_visible_variables_as_block_parameters(
-            variables,
-            dom_tree,
-            block,
-            &mut inserter.function.dfg,
-        );
-        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
-        variable_states.blocks.insert(block, BlockState { entry_state, exit_state });
+    def_sites: &HashMap<ValueId, HashSet<BasicBlockId>>,
+    dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+) -> ParamLocations {
+    let mut result = BTreeMap::new();
+    for var in variables.keys() {
+        let sites = def_sites.get(var).cloned().unwrap_or_default();
+        result.insert(*var, iterated_dominance_frontier(&sites, dom_frontiers));
     }
+    result
 }
 
-/// Link entry & exit states by adding terminator arguments for every variable stored to.
-fn add_terminator_arguments(
+/// Compute the iterated dominance frontier of a set of blocks.
+///
+/// Starting from the given definition sites, this computes the closure of the dominance
+/// frontier: DF+(S) = DF(S) ∪ DF(DF(S)) ∪ ... This is the standard worklist algorithm.
+fn iterated_dominance_frontier(
+    def_sites: &HashSet<BasicBlockId>,
+    dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+) -> HashSet<BasicBlockId> {
+    let mut result = HashSet::default();
+    let mut worklist: Vec<BasicBlockId> = def_sites.iter().copied().collect();
+
+    while let Some(block) = worklist.pop() {
+        if let Some(frontier) = dom_frontiers.get(&block) {
+            for &df_block in frontier {
+                if result.insert(df_block) {
+                    worklist.push(df_block);
+                }
+            }
+        }
+    }
+    result
+}
+
+/// Precompute which variables are visible at each block by walking the dominator tree.
+///
+/// A variable declared in block D is visible at block B iff D dominates B. Instead of
+/// checking `dominates(D, B)` for every (variable, block) pair — O(variables × blocks) —
+/// we walk blocks in RPO and inherit the visible set from the immediate dominator.
+/// Each block's visible set is its idom's visible set plus any variables declared locally.
+fn compute_visible_vars(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
+    dom_tree: &DominatorTree,
+) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+    // Group variables by their declaration block
+    let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
+    for (var, decl_block) in variables {
+        vars_by_decl_block.entry(*decl_block).or_default().push(*var);
+    }
+
+    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    for &block in blocks {
+        let mut vars = match dom_tree.immediate_dominator(block) {
+            Some(idom) => visible[&idom].clone(),
+            None => BTreeMap::new(),
+        };
+        if let Some(declared_here) = vars_by_decl_block.get(&block) {
+            for var in declared_here {
+                vars.insert(*var, block);
+            }
+        }
+        visible.insert(block, vars);
+    }
+    visible
+}
+
+/// Find the starting & ending states of each variable in each block.
+///
+/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// For all other blocks, the entry value is inherited from the predecessor's exit state.
+fn add_block_params_and_find_exit_states(
+    blocks: &[BasicBlockId],
+    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
-    variable_states: &BlockStates,
+    block_states: &mut BlockStates,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        let block_state = &variable_states.blocks[&block];
+        let entry_state = compute_entry_state(
+            &visible_vars[&block],
+            param_locations,
+            block,
+            &mut inserter.function.dfg,
+            block_states,
+            cfg,
+        );
+        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
+        block_states.insert(block, BlockState { entry_state, exit_state });
+    }
+}
+
+/// Compute the entry state for a block.
+///
+/// `visible_vars` contains only the variables whose declaration dominates this block
+/// (precomputed via dominator tree walk in `compute_visible_vars`).
+///
+/// For each visible variable:
+/// - If this is the declaration block: use the original allocate result
+/// - If this block is in the variable's IDF: add a fresh block parameter
+/// - Otherwise: inherit the value from a visited predecessor's exit state
+fn compute_entry_state(
+    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    param_locations: &ParamLocations,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+    block_states: &BlockStates,
+    cfg: &ControlFlowGraph,
+) -> StateVec {
+    visible_vars
+        .iter()
+        .filter_map(|(var, decl_block)| {
+            let value = if block == *decl_block {
+                // Declaration block: use original allocate result
+                *var
+            } else if param_locations[var].contains(&block) {
+                // IDF block: add a block parameter for this variable
+                let typ = dfg
+                    .type_of_value(*var)
+                    .reference_element_type()
+                    .expect("All variables should be references")
+                    .clone();
+                dfg.add_block_parameter(block, typ)
+            } else {
+                // Non-IDF block: inherit from a visited predecessor.
+                // Since we process in RPO, at least one non-back-edge predecessor
+                // has been visited. All visited predecessors must agree on this
+                // variable's value (otherwise this block would be in the IDF).
+                get_value_from_visited_predecessor(*var, block, cfg, block_states)?
+            };
+
+            Some((*var, value))
+        })
+        .collect()
+}
+
+/// Get a variable's exit value from a visited predecessor.
+///
+/// Returns None if no predecessor has been visited yet (can happen for unreachable blocks).
+fn get_value_from_visited_predecessor(
+    var: ValueId,
+    block: BasicBlockId,
+    cfg: &ControlFlowGraph,
+    block_states: &BlockStates,
+) -> Option<ValueId> {
+    for predecessor in cfg.predecessors(block) {
+        if let Some(pred_state) = block_states.get(&predecessor) {
+            return Some(pred_state.get_exit_value(var));
+        }
+    }
+    None
+}
+
+/// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
+///
+/// Only blocks in a variable's IDF have block parameters that need arguments wired.
+fn add_terminator_arguments(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    param_locations: &ParamLocations,
+    inserter: &mut FunctionInserter,
+    block_states: &BlockStates,
+    cfg: &ControlFlowGraph,
+) {
+    for block in blocks.iter().copied() {
+        let block_state = &block_states[&block];
 
         for predecessor in cfg.predecessors(block) {
-            let pred_state = &variable_states.blocks[&predecessor];
+            let pred_state = &block_states[&predecessor];
             let args = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
             for address in block_state.entry_state.keys() {
-                // If the current block is this variable's source block, no merge is needed.
-                if block != variables[address] {
+                // Only wire arguments for IDF blocks (those with block parameters).
+                // Declaration blocks and inherited-value blocks don't have params to wire.
+                if block != variables[address] && param_locations[address].contains(&block) {
                     args.push(pred_state.get_exit_value(*address));
                 }
             }
@@ -228,35 +363,6 @@ fn add_terminator_arguments(
 
 /// Mapping from a variable to its value at a point in time.
 type StateVec = BTreeMap<ValueId, ValueId>;
-
-/// Filter `variables`, returning only those that are visible at the start of the given block.
-/// Since we do not consider variables within a block, the visible variables at the start of a block
-/// are any variables whose declaration block dominates the given block.
-fn add_visible_variables_as_block_parameters(
-    variables: &BTreeMap<ValueId, BasicBlockId>,
-    dom_tree: &mut DominatorTree,
-    block: BasicBlockId,
-    dfg: &mut DataFlowGraph,
-) -> StateVec {
-    variables
-        .iter()
-        .filter_map(|(var, decl_block)| {
-            if dom_tree.dominates(*decl_block, block) {
-                let typ = dfg
-                    .type_of_value(*var)
-                    .reference_element_type()
-                    .expect("All variables should be references")
-                    .clone();
-
-                let new_value =
-                    if block == *decl_block { *var } else { dfg.add_block_parameter(block, typ) };
-                Some((*var, new_value))
-            } else {
-                None
-            }
-        })
-        .collect()
-}
 
 impl BlockState {
     /// Gets the "exit value" of a variable, which is its value at the end of the given block.
@@ -339,15 +445,19 @@ fn abstract_interpret_block(
     exit_state
 }
 
-/// Return a map from each variable to the block it was declared in.
-/// This only includes variables that are eligible for mem2reg optimization,
+/// Return a map from each eligible variable to the block it was declared in,
+/// along with the set of blocks where each variable is stored to (definition sites).
+///
+/// Only includes variables that are eligible for mem2reg optimization,
 /// i.e. those that are allocated but never used in a first-class manner.
-fn collect_all_eligible_variables(
+fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
-) -> BTreeMap<ValueId, BasicBlockId> {
+) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>) {
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
+    // Map each variable to the set of blocks that contain stores to it
+    let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg_simple.
@@ -367,20 +477,31 @@ fn collect_all_eligible_variables(
                 Instruction::Store { address, value } => {
                     variables.remove(value);
 
+                    if variables.contains_key(address) {
+                        def_sites.entry(*address).or_default().insert(block_id);
+                    }
+
                     if variables.get(address) == Some(&block_id) {
                         variables_with_stores_in_decl_block.insert(*address);
                     }
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
-                _ => instruction.for_each_value(|value| variables.remove(&value)),
+                _ => instruction.for_each_value(|value| {
+                    variables.remove(&value);
+                    def_sites.remove(&value);
+                }),
             }
         }
 
-        block.unwrap_terminator().for_each_value(|value| variables.remove(&value));
+        block.unwrap_terminator().for_each_value(|value| {
+            variables.remove(&value);
+            def_sites.remove(&value);
+        });
     }
 
     variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
-    variables
+    def_sites.retain(|address, _| variables.contains_key(address));
+    (variables, def_sites)
 }
 
 /// Commit to all changes made by the pass:
@@ -751,10 +872,7 @@ mod tests {
 
     #[test]
     fn reference_not_found_regression() {
-        // v119 in b24 was being improperly registered as valid at the
-        // start of b24, and we were trying to look for its value in the predecessor blocks where
-        // it doesn't exist, leading to a panic. This regression ensures we do not do that, and
-        // gives us a test case with more complex control-flow.
+        // Regression test with complex control flow
         let src = "
 brillig(inline) fn main f0 {
   b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v4: u32):
@@ -1058,11 +1176,6 @@ brillig(inline) fn main f0 {
 
     #[test]
     fn add_arg_to_jmpif_block_regression() {
-        // Before JmpIf arguments were added, we used to require a separate pass
-        // (Ssa::process_cfg_for_mem2reg_simple) for converting the SSA into a form where we
-        // didn't need to add jmpif arguments. This test was erroring in a corner case of that
-        // analysis previously. Now, we do have jmpif arguments and don't need a preprocessing
-        // step but this test is kept anyway.
         let src = "
             brillig(inline) fn to_le_bits f19 {
               b0(v0: Field):
@@ -1152,10 +1265,6 @@ brillig(inline) fn main f0 {
 
     #[test]
     fn read_only_loop() {
-        // In the loop header b1 we have v1 incoming with a value of Field 0 from b0,
-        // or the current block parameter that was added from the loop edge. Normally,
-        // we only check if all arguments are equal to forward them, but it is sufficient
-        // to check if all arguments are equal or equal to the original block parameter.
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: u1):
@@ -1244,6 +1353,75 @@ brillig(inline) fn main f0 {
           b6(v7: Field, v8: Field):
             v16 = add v4, Field 1
             jmp b4(v7, v16)
+        }
+        ");
+    }
+
+    /// Verify that IDF-based placement avoids unnecessary block parameters.
+    ///
+    /// The variable v1 is stored in b0 and b1. The IDF of {b0, b1} is {b3} (the merge point).
+    /// Blocks b2, b4, and b5 are single-predecessor blocks that should NOT get block parameters.
+    ///
+    /// We use `mem2reg_simple_without_cleanup` to verify this at source: if the IDF optimization
+    /// were removed (adding params everywhere), b2/b4/b5 would have params that cleanup would
+    /// remove — but we'd lose the O(V×B) performance benefit.
+    #[test]
+    fn idf_avoids_unnecessary_block_params() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                jmp b4()
+              b4():
+                jmp b5()
+              b5():
+                v2 = load v1 -> Field
+                return v2
+            }
+        ";
+        let mut ssa = Ssa::from_str(src).unwrap();
+
+        // Run without cleanup to reveal whether IDF placement avoids parameters at source.
+        // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
+        for function in ssa.functions.values_mut() {
+            function.mem2reg_simple_without_cleanup();
+        }
+
+        // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
+        // for v1 that the cleanup pass would later remove:
+        //
+        //   b2(v_unnecessary_1: Field):      ← param added then cleaned up
+        //     jmp b3(Field 0)
+        //   b3(v3: Field):
+        //     jmp b4(v3)
+        //   b4(v_unnecessary_2: Field):      ← param added then cleaned up
+        //     jmp b5(v_unnecessary_2)
+        //   b5(v_unnecessary_3: Field):      ← param added then cleaned up
+        //     return v_unnecessary_3
+        //
+        // With IDF, only b3 gets a parameter — the minimal correct placement:
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 10)
+          b2():
+            jmp b3(Field 0)
+          b3(v1: Field):
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            return v1
         }
         ");
     }

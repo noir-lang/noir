@@ -13,6 +13,10 @@ impl Hasher for TestHasher {
         self.result
     }
 
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
+    }
+
     fn write(&mut self, input: Field) {
         self.result = self.result + input;
     }
