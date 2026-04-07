@@ -204,7 +204,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let element_type =
+            self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);

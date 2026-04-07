@@ -245,7 +245,7 @@ impl Context<'_, '_, '_> {
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
     fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
-        assert_eq!(self.context.dfg.type_of_value(sign), Type::bool());
+        assert_eq!(*self.context.dfg.type_of_value(sign), Type::bool());
 
         // We compute the absolute value of lhs
         let bit_width = FieldElement::from(2_u128.pow(bit_size));
@@ -277,7 +277,7 @@ impl Context<'_, '_, '_> {
     ///
     /// Compared to `self.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(&mut self, mut value: ValueId, typ: NumericType) -> ValueId {
-        let incoming_type = self.context.dfg.type_of_value(value);
+        let incoming_type = self.context.dfg.type_of_value(value).into_owned();
 
         let result = match (&incoming_type, typ) {
             // Casting to field is safe

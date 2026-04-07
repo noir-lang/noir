@@ -125,7 +125,8 @@ fn try_collect_transformation(
     if !callee.runtime().is_brillig() {
         return None;
     }
-    if !arguments.iter().any(|&arg| matches!(function.dfg.type_of_value(arg), Type::Reference(_))) {
+    if !arguments.iter().any(|&arg| matches!(*function.dfg.type_of_value(arg), Type::Reference(_)))
+    {
         return None;
     }
 
@@ -134,11 +135,13 @@ fn try_collect_transformation(
         call_id,
         callee_id,
         callee_name: callee.name().to_string(),
-        callee_param_types: vecmap(callee.parameters(), |&p| callee.dfg.type_of_value(p)),
+        callee_param_types: vecmap(callee.parameters(), |&p| {
+            callee.dfg.type_of_value(p).into_owned()
+        }),
         callee_globals: callee.dfg.globals.clone(),
         original_args: arguments.clone(),
         call_result_types: vecmap(function.dfg.instruction_results(call_id), |&v| {
-            function.dfg.type_of_value(v)
+            function.dfg.type_of_value(v).into_owned()
         }),
     })
 }
@@ -174,7 +177,7 @@ fn insert_loads_for_ref_args(
     args: &mut [ValueId],
 ) {
     for arg in args {
-        let Type::Reference(inner_type) = function.dfg.type_of_value(*arg) else {
+        let Type::Reference(inner_type) = function.dfg.type_of_value(*arg).into_owned() else {
             continue;
         };
         let load = function.dfg.insert_instruction_and_results_without_simplification(
