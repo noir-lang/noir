@@ -143,7 +143,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let file_manager =
             if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
         let mut last_ssa_printed: Option<String> = None;
-        let mut previous_interpreted_pass_snapshot: Option<InterpretedPassSnapshot> = None;
+        let mut previous_snapshot: Option<PassSnapshot> = None;
 
         is_ok &= print_and_interpret_ssa(
             ssa_options,
@@ -155,7 +155,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             interpreter_options,
             file_manager,
             &mut last_ssa_printed,
-            &mut previous_interpreted_pass_snapshot,
+            &mut previous_snapshot,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -182,14 +182,16 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 interpreter_options,
                 file_manager,
                 &mut last_ssa_printed,
-                &mut previous_interpreted_pass_snapshot,
+                &mut previous_snapshot,
             )?;
         }
     }
     if is_ok {
         Ok(())
     } else {
-        Err(CliError::Generic("The interpreter encountered an error on one or more passes.".into()))
+        Err(CliError::Generic(
+            "The interpreter encountered an error or disagreement on one or more passes.".into(),
+        ))
     }
 }
 
@@ -217,14 +219,26 @@ impl<A: Write, B: Write> Write for TeeWriter<A, B> {
     }
 }
 
-struct InterpretedPassOutput {
-    is_ok: bool,
-    print_output: String,
-}
-
-struct InterpretedPassSnapshot {
+/// The observation recorded for an interpreted SSA pass.
+///
+/// `result` is `Some(..)` when interpretation succeeded and `None` when it returned an error.
+#[derive(Clone, Debug, PartialEq)]
+struct PassSnapshot {
     pass_name: String,
     print_output: String,
+    result: Option<Vec<Value>>,
+}
+
+impl PassSnapshot {
+    fn result_string(&self) -> String {
+        match &self.result {
+            Some(values) => {
+                let values = vecmap(values, ToString::to_string).join(", ");
+                format!("Ok({values})")
+            }
+            None => "Err".to_string(),
+        }
+    }
 }
 
 /// Compile the source code into the monomorphized AST, which is one step before SSA passes.
@@ -325,7 +339,7 @@ fn print_ssa(
 /// The return value is:
 /// * `Ok(Some(_))` if the pass was interpreted.
 /// * `Ok(None)` if the pass was skipped because it was not selected.
-/// * `Err(_)` if the returned result did not match the expectation.
+/// * `Err(_)` if the observed result did not match `return_value`.
 fn interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &Ssa,
@@ -333,7 +347,7 @@ fn interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     options: InterpreterOptions,
-) -> Result<Option<InterpretedPassOutput>, CliError> {
+) -> Result<Option<PassSnapshot>, CliError> {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
@@ -344,64 +358,90 @@ fn interpret_ssa(
         };
         match &result {
             Ok(value) => {
-                let value_as_string = vecmap(value, ToString::to_string).join(", ");
-                println!("--- Interpreter result after {msg}:\nOk({value_as_string})\n---");
+                let value_string = vecmap(value, ToString::to_string).join(", ");
+                println!("--- Interpreter result after {msg}:\nOk({value_string})\n---");
             }
             Err(err) => {
                 println!("--- Interpreter result after {msg}:\nErr({err})\n---");
             }
         }
-        let is_ok = result.is_ok();
         if let Some(return_value) = return_value {
-            let result = result.expect("Expected a non-error result");
-            if &result != return_value {
-                let result_as_string = vecmap(&result, ToString::to_string).join(", ");
-                let return_value_as_string = vecmap(return_value, ToString::to_string).join(", ");
-                let error = format!(
-                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result:   {result_as_string}"
-                );
-                return Err(CliError::Generic(error));
+            match &result {
+                Ok(actual_result) if actual_result == return_value => {}
+                Ok(actual_result) => {
+                    let actual_result_string =
+                        vecmap(actual_result, ToString::to_string).join(", ");
+                    let return_value_string = vecmap(return_value, ToString::to_string).join(", ");
+                    let error = format!(
+                        "Error: interpreter produced an unexpected result.\nExpected result: {return_value_string}\nActual result:   {actual_result_string}"
+                    );
+                    return Err(CliError::Generic(error));
+                }
+                Err(err) => {
+                    let return_value_string = vecmap(return_value, ToString::to_string).join(", ");
+                    let error = format!(
+                        "Error: interpreter produced an unexpected error.\nExpected result: {return_value_string}\nActual result:   Err({err})"
+                    );
+                    return Err(CliError::Generic(error));
+                }
             }
         }
-        Ok(Some(InterpretedPassOutput {
-            is_ok,
+        let result = result.ok();
+        Ok(Some(PassSnapshot {
+            pass_name: msg.to_string(),
             print_output: String::from_utf8(print_output).expect("from_utf8 of interpreter print"),
+            result,
         }))
     } else {
         Ok(None)
     }
 }
 
-/// If the current pass succeeded, compare its print output against the previous
-/// successful pass snapshot. Returns an error if the outputs differ, otherwise
-/// advances the snapshot to the current pass.
-fn check_and_advance_snapshot(
-    previous_interpreted_pass_snapshot: &mut Option<InterpretedPassSnapshot>,
-    msg: &str,
-    current_output: &InterpretedPassOutput,
-) -> Result<(), CliError> {
-    if !current_output.is_ok {
-        return Ok(());
-    }
+/// Compares the current interpreted snapshot with the previous one.
+///
+/// Returns a discrepancy message when the observation changed and always advances the baseline
+/// to the current pass.
+fn compare_and_update_snapshot(
+    previous_snapshot: &mut Option<PassSnapshot>,
+    current_snapshot: PassSnapshot,
+    compare_results: bool,
+) -> Option<String> {
+    let discrepancy = previous_snapshot.as_ref().and_then(|previous_snapshot| {
+        let output_changed = previous_snapshot.print_output != current_snapshot.print_output;
+        let result_changed = compare_results
+            && match (&previous_snapshot.result, &current_snapshot.result) {
+                (Some(previous_result), Some(current_result)) => previous_result != current_result,
+                (Some(_), None) | (None, Some(_)) => true,
+                (None, None) => false,
+            };
 
-    if let Some(previous_snapshot) = previous_interpreted_pass_snapshot {
-        if previous_snapshot.print_output != current_output.print_output {
-            let error = format!(
-                "Error: interpreter printed output changed between SSA passes.\nPrevious checked pass: {}\nCurrent checked pass: {msg}\nPrevious output:\n{}\nCurrent output:\n{}",
-                previous_snapshot.pass_name,
-                previous_snapshot.print_output,
-                current_output.print_output
-            );
-            return Err(CliError::Generic(error));
+        if !output_changed && !result_changed {
+            return None;
         }
-    }
 
-    *previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
-        pass_name: msg.to_string(),
-        print_output: current_output.print_output.clone(),
+        let mut message = format!(
+            "Error: interpreter observation changed between SSA passes.\nPrevious checked pass: {}\nCurrent checked pass: {}",
+            previous_snapshot.pass_name, current_snapshot.pass_name
+        );
+        if output_changed {
+            message.push_str(&format!(
+                "\nPrinted output changed.\nPrevious output:\n{}\nCurrent output:\n{}",
+                previous_snapshot.print_output, current_snapshot.print_output
+            ));
+        }
+        if result_changed {
+            message.push_str(&format!(
+                "\nResult changed.\nPrevious result: {}\nCurrent result: {}",
+                previous_snapshot.result_string(),
+                current_snapshot.result_string(),
+            ));
+        }
+        Some(message)
     });
 
-    Ok(())
+    *previous_snapshot = Some(current_snapshot);
+
+    discrepancy
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -415,15 +455,24 @@ fn print_and_interpret_ssa(
     interpreter_options: InterpreterOptions,
     fm: Option<&FileManager>,
     last_ssa_printed: &mut Option<String>,
-    previous_interpreted_pass_snapshot: &mut Option<InterpretedPassSnapshot>,
+    previous_snapshot: &mut Option<PassSnapshot>,
 ) -> Result<bool, CliError> {
     let must_interpret = print_ssa(options, ssa, msg, fm, last_ssa_printed);
     if must_interpret {
-        if let Some(current_output) =
+        if let Some(current_snapshot) =
             interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)?
         {
-            check_and_advance_snapshot(previous_interpreted_pass_snapshot, msg, &current_output)?;
-            Ok(current_output.is_ok)
+            let interpreter_failed = current_snapshot.result.is_none();
+            let discrepancy = compare_and_update_snapshot(
+                previous_snapshot,
+                current_snapshot,
+                return_value.is_none(),
+            );
+            let disagreed = discrepancy.is_some();
+            if let Some(message) = &discrepancy {
+                println!("{message}");
+            }
+            Ok(!interpreter_failed && !disagreed)
         } else {
             Ok(true)
         }
@@ -461,10 +510,23 @@ fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
 mod tests {
     use std::io::Write;
 
-    use super::{
-        InterpretedPassOutput, InterpretedPassSnapshot, TeeWriter, check_and_advance_snapshot,
-    };
+    use super::{PassSnapshot, TeeWriter, compare_and_update_snapshot, interpret_ssa};
     use crate::errors::CliError;
+    use noirc_evaluator::ssa::interpreter::InterpreterOptions;
+    use noirc_evaluator::ssa::interpreter::value::Value;
+    use noirc_evaluator::ssa::ssa_gen::Ssa;
+
+    fn ok_result(value: u32) -> Option<Vec<Value>> {
+        Some(vec![Value::u32(value)])
+    }
+
+    fn snapshot(pass_name: &str, result: Option<Vec<Value>>, print_output: &str) -> PassSnapshot {
+        PassSnapshot {
+            pass_name: pass_name.to_string(),
+            print_output: print_output.to_string(),
+            result,
+        }
+    }
 
     #[test]
     fn tee_writer_writes_to_both_outputs() {
@@ -483,77 +545,175 @@ mod tests {
     }
 
     #[test]
-    fn matching_printed_output_establishes_and_updates_the_baseline() {
-        let mut previous_interpreted_pass_snapshot = None;
-        let first_output = InterpretedPassOutput { is_ok: true, print_output: "same".into() };
-        let second_output = InterpretedPassOutput { is_ok: true, print_output: "same".into() };
+    fn matching_observation_establishes_and_updates_the_baseline() {
+        let mut previous_snapshot = None;
+        let first_snapshot = snapshot("Initial SSA", ok_result(1), "same");
+        let second_snapshot = snapshot("Mem2Reg Simple (step 6)", ok_result(1), "same");
 
-        check_and_advance_snapshot(
-            &mut previous_interpreted_pass_snapshot,
-            "Initial SSA",
-            &first_output,
-        )
-        .unwrap();
+        assert_eq!(compare_and_update_snapshot(&mut previous_snapshot, first_snapshot, true), None);
 
-        check_and_advance_snapshot(
-            &mut previous_interpreted_pass_snapshot,
-            "Mem2Reg Simple (step 6)",
-            &second_output,
-        )
-        .unwrap();
+        assert_eq!(
+            compare_and_update_snapshot(&mut previous_snapshot, second_snapshot.clone(), true),
+            None
+        );
 
-        let previous_interpreted_pass_snapshot =
-            previous_interpreted_pass_snapshot.expect("expected updated baseline");
-        assert_eq!(previous_interpreted_pass_snapshot.pass_name, "Mem2Reg Simple (step 6)");
-        assert_eq!(previous_interpreted_pass_snapshot.print_output, "same");
+        let previous_snapshot = previous_snapshot.expect("expected updated baseline");
+        assert_eq!(previous_snapshot, second_snapshot);
     }
 
     #[test]
-    fn different_printed_output_returns_an_error_with_both_pass_names() {
-        let mut previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
-            pass_name: "Removing Unreachable Functions (step 5)".to_string(),
-            print_output: "0x06".to_string(),
-        });
-        let current_output = InterpretedPassOutput { is_ok: true, print_output: "0x05".into() };
+    fn different_printed_output_reports_a_discrepancy_and_advances_the_snapshot() {
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", ok_result(1), "0x06"));
+        let current_snapshot = snapshot("Mem2Reg Simple (step 6)", ok_result(1), "0x05");
 
-        let error = check_and_advance_snapshot(
-            &mut previous_interpreted_pass_snapshot,
-            "Mem2Reg Simple (step 6)",
-            &current_output,
+        let message =
+            compare_and_update_snapshot(&mut previous_snapshot, current_snapshot.clone(), true)
+                .expect("expected mismatch message");
+
+        assert!(message.contains("Printed output changed."));
+        assert!(message.contains("Removing Unreachable Functions (step 5)"));
+        assert!(message.contains("Mem2Reg Simple (step 6)"));
+        assert!(message.contains("0x06"));
+        assert!(message.contains("0x05"));
+
+        let previous_snapshot = previous_snapshot.expect("expected updated baseline");
+        assert_eq!(previous_snapshot, current_snapshot);
+    }
+
+    #[test]
+    fn different_printed_output_on_errors_is_still_reported() {
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", None, "0x06"));
+        let current_snapshot = snapshot("Mem2Reg Simple (step 6)", None, "0x05");
+
+        let message =
+            compare_and_update_snapshot(&mut previous_snapshot, current_snapshot.clone(), true)
+                .expect("expected mismatch message");
+
+        assert!(message.contains("Printed output changed."));
+        assert!(!message.contains("Result changed."));
+
+        let previous_snapshot = previous_snapshot.expect("expected updated baseline");
+        assert_eq!(previous_snapshot, current_snapshot);
+    }
+
+    #[test]
+    fn result_mismatch_is_reported_when_expected_return_is_absent() {
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", ok_result(1), "same"));
+        let changed_result = snapshot("Mem2Reg Simple (step 6)", ok_result(2), "same");
+
+        let message = compare_and_update_snapshot(&mut previous_snapshot, changed_result, true)
+            .expect("expected mismatch message");
+
+        assert!(message.contains("Result changed."));
+        assert!(message.contains("Ok(u32 1)"));
+        assert!(message.contains("Ok(u32 2)"));
+
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", ok_result(1), "same"));
+        let err_result = snapshot("Mem2Reg Simple (step 6)", None, "same");
+
+        let message = compare_and_update_snapshot(&mut previous_snapshot, err_result, true)
+            .expect("expected mismatch message");
+
+        assert!(message.contains("Result changed."));
+        assert!(message.contains("Ok(u32 1)"));
+        assert!(message.contains("Current result: Err"));
+
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", None, "same"));
+        assert_eq!(
+            compare_and_update_snapshot(
+                &mut previous_snapshot,
+                snapshot("Mem2Reg Simple (step 6)", None, "same"),
+                true,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn return_value_comparison_can_be_disabled_for_pass_snapshots() {
+        let mut previous_snapshot =
+            Some(snapshot("Removing Unreachable Functions (step 5)", ok_result(1), "same"));
+        let current_snapshot = snapshot("Mem2Reg Simple (step 6)", ok_result(2), "same");
+
+        assert_eq!(
+            compare_and_update_snapshot(&mut previous_snapshot, current_snapshot, false),
+            None
+        );
+    }
+
+    #[test]
+    fn expected_return_mismatch_returns_a_cli_error() {
+        let ssa = Ssa::from_str(
+            r#"
+                acir(inline) fn main f0 {
+                  b0():
+                    return u32 2
+                }
+            "#,
         )
-        .expect_err("expected mismatch error");
+        .unwrap();
+
+        let error = interpret_ssa(
+            &[],
+            &ssa,
+            "Initial SSA",
+            &[],
+            &Some(vec![Value::u32(1)]),
+            InterpreterOptions::default(),
+        )
+        .expect_err("expected return mismatch");
 
         let CliError::Generic(message) = error else {
             panic!("expected generic cli error");
         };
 
-        assert!(message.contains("Removing Unreachable Functions (step 5)"));
-        assert!(message.contains("Mem2Reg Simple (step 6)"));
-        assert!(message.contains("0x06"));
-        assert!(message.contains("0x05"));
+        assert!(message.contains("Expected result: u32 1"));
+        assert!(message.contains("Actual result:   u32 2"));
     }
 
     #[test]
-    fn failed_runs_do_not_compare_or_update_the_baseline() {
-        let mut previous_interpreted_pass_snapshot = Some(InterpretedPassSnapshot {
-            pass_name: "Removing Unreachable Functions (step 5)".to_string(),
-            print_output: "0x06".to_string(),
-        });
-        let current_output = InterpretedPassOutput { is_ok: false, print_output: "0x05".into() };
-
-        check_and_advance_snapshot(
-            &mut previous_interpreted_pass_snapshot,
-            "Mem2Reg Simple (step 6)",
-            &current_output,
+    fn unexpected_interpreter_error_with_expected_return_is_a_cli_error() {
+        let ssa = Ssa::from_str(
+            r#"
+                acir(inline) predicate_pure fn main f0 {
+                b0():
+                  call f1(u1 0)
+                  return
+                }
+                brillig(inline) predicate_pure fn func_2 f1 {
+                  b0(v0: u1):
+                    jmp b1()
+                  b1():
+                    jmpif v0 then: b2(), else: b3()
+                  b2():
+                    return
+                  b3():
+                    jmp b1()
+                }
+            "#,
         )
         .unwrap();
 
-        let previous_interpreted_pass_snapshot =
-            previous_interpreted_pass_snapshot.expect("expected baseline to remain untouched");
-        assert_eq!(
-            previous_interpreted_pass_snapshot.pass_name,
-            "Removing Unreachable Functions (step 5)"
-        );
-        assert_eq!(previous_interpreted_pass_snapshot.print_output, "0x06");
+        let error = interpret_ssa(
+            &[],
+            &ssa,
+            "Initial SSA",
+            &[],
+            &Some(vec![]),
+            InterpreterOptions { step_limit: Some(100), ..Default::default() },
+        )
+        .expect_err("expected interpreter error");
+
+        let CliError::Generic(message) = error else {
+            panic!("expected generic cli error");
+        };
+
+        assert!(message.contains("Error: interpreter produced an unexpected error."));
+        assert!(message.contains("Actual result:   Err("));
     }
 }
