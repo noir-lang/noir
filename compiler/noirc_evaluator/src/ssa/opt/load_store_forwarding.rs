@@ -122,28 +122,23 @@ fn forward_loads_and_stores_in_block(
                 let is_loop_aliased = alias_analysis.is_loop_aliased(*address);
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
+                let dfg = &inserter.function.dfg;
 
                 if is_loop_aliased {
-                    // Loop-aliased stores must clear everything conservatively.
-                    known_values.clear();
-                    last_loads.clear();
-                    last_stores.clear();
+                    // Loop-aliased addresses could alias any same-typed address
+                    // across iterations. Use type discrimination to preserve
+                    // entries with different types.
+                    let addr_type = dfg.type_of_value(address);
+                    known_values.retain(|k, _| dfg.type_of_value(*k) != addr_type);
+                    last_loads.retain(|k, _| dfg.type_of_value(*k) != addr_type);
+                    last_stores.retain(|k, _| dfg.type_of_value(*k) != addr_type);
                 } else {
-                    // Use may_alias (with type-based discrimination) to retain
-                    // entries that provably don't alias this store address.
-                    let dfg = &inserter.function.dfg;
-                    known_values.retain(|k, _| {
-                        *k == address || !alias_analysis.may_alias(address, *k, dfg)
-                    });
-                    last_loads.retain(|k, _| {
-                        *k == address || !alias_analysis.may_alias(address, *k, dfg)
-                    });
+                    known_values.retain(|k, _| !alias_analysis.may_alias(address, *k, dfg));
+                    last_loads.retain(|k, _| !alias_analysis.may_alias(address, *k, dfg));
                     if let Some(prev_store) = last_stores.get(&address) {
                         instructions_to_remove.insert(*prev_store);
                     }
-                    last_stores.retain(|k, _| {
-                        *k == address || !alias_analysis.may_alias(address, *k, dfg)
-                    });
+                    last_stores.retain(|k, _| !alias_analysis.may_alias(address, *k, dfg));
                 }
 
                 // A store supersedes any prior load from this address.

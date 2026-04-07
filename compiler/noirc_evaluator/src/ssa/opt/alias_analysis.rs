@@ -39,7 +39,7 @@ pub(crate) struct AliasAnalysis {
     allocations: HashSet<ValueId>,
 
     /// Addresses involved in loop-carried alias patterns.
-    /// Stores to these addresses conservatively invalidate all known values.
+    /// Stores to these addresses invalidate same-typed known values.
     loop_aliases: HashSet<ValueId>,
 
     /// Per-block known address→value at the ENTRY of each block.
@@ -74,20 +74,7 @@ impl AliasAnalysis {
     /// Returns true if the two addresses might refer to the same memory.
     /// Conservative: returns true (MayAlias) when uncertain.
     pub(crate) fn may_alias(&self, addr_a: ValueId, addr_b: ValueId, dfg: &DataFlowGraph) -> bool {
-        if addr_a == addr_b {
-            return true;
-        }
-        // Two different allocations provably don't alias.
-        let a_is_alloc = self.allocations.contains(&addr_a);
-        let b_is_alloc = self.allocations.contains(&addr_b);
-        if a_is_alloc && b_is_alloc {
-            return false;
-        }
-        // Different types can't alias in Noir (no type-punning or union types).
-        if dfg.type_of_value(addr_a) != dfg.type_of_value(addr_b) {
-            return false;
-        }
-        true // Unknown derivation → conservative MayAlias
+        may_alias_with(addr_a, addr_b, &self.allocations, dfg)
     }
 
     /// Returns true if this address is involved in a loop-carried alias pattern.
@@ -149,6 +136,31 @@ fn compute_addresses_modified_by_call(
     });
 
     if clear_all { None } else { Some(modified) }
+}
+
+/// Returns true if the two addresses might refer to the same memory.
+/// Conservative: returns true (MayAlias) when uncertain.
+///
+/// Used by both the `AliasAnalysis` method and the dataflow computation
+/// (which runs during construction before the struct exists).
+fn may_alias_with(
+    addr_a: ValueId,
+    addr_b: ValueId,
+    allocations: &HashSet<ValueId>,
+    dfg: &DataFlowGraph,
+) -> bool {
+    if addr_a == addr_b {
+        return true;
+    }
+    // Two different allocations provably don't alias.
+    if allocations.contains(&addr_a) && allocations.contains(&addr_b) {
+        return false;
+    }
+    // Different types can't alias in Noir (no type-punning or union types).
+    if dfg.type_of_value(addr_a) != dfg.type_of_value(addr_b) {
+        return false;
+    }
+    true // Unknown derivation → conservative MayAlias
 }
 
 /// Collect all addresses from `allocate` instructions across reachable blocks.
@@ -260,10 +272,9 @@ fn analyze_loop_aliases(function: &Function, loops: &Loops) -> HashSet<ValueId> 
 /// This is sound for both acyclic control flow (diamonds/merge points) and loops
 /// (back-edge predecessors are skipped since they haven't been visited in RPO).
 ///
-/// Within each block, stores update known values using conservative alias heuristics:
-/// - Loop-aliased addresses → clear all known values
-/// - Unknown addresses (not an allocation, not already tracked) → clear all
-/// - Known/allocation addresses → update only that entry
+/// Within each block, stores update known values using alias heuristics:
+/// - Loop-aliased addresses → clear same-typed entries (type discrimination)
+/// - Otherwise → clear entries that `may_alias_with` the store address
 ///
 /// Calls invalidate known values for reference arguments.
 fn compute_known_values_at_entry(
@@ -338,17 +349,14 @@ fn compute_known_values_at_entry(
             match instruction {
                 Instruction::Store { address, value } => {
                     if loop_aliases.contains(address) {
-                        known.clear();
-                    } else {
-                        // Invalidate entries that may alias this store address.
-                        // Two distinct allocations don't alias (NoAlias).
-                        // Different types can't alias in Noir (no type-punning).
-                        let addr_is_alloc = allocations.contains(address);
+                        // Loop-aliased addresses could alias any same-typed
+                        // address across iterations. Use type discrimination
+                        // to preserve entries with different types.
                         let addr_type = function.dfg.type_of_value(*address);
+                        known.retain(|k, _| function.dfg.type_of_value(*k) != addr_type);
+                    } else {
                         known.retain(|k, _| {
-                            k == address
-                                || (addr_is_alloc && allocations.contains(k))
-                                || function.dfg.type_of_value(*k) != addr_type
+                            !may_alias_with(*address, *k, allocations, &function.dfg)
                         });
                     }
                     known.insert(*address, *value);
@@ -390,10 +398,16 @@ fn collect_loop_stored_addresses(
                     Instruction::Store { address, .. } => {
                         stored_addresses.insert(*address);
                         // If the store address is NOT a known allocation, it could
-                        // be a loaded reference that aliases any allocation.
-                        // Conservatively mark all allocations as potentially modified.
+                        // be a loaded reference that aliases same-typed allocations.
+                        // Use type discrimination to limit what gets invalidated.
                         if !allocations.contains(address) {
-                            stored_addresses.extend(allocations.iter().copied());
+                            let addr_type = function.dfg.type_of_value(*address);
+                            stored_addresses.extend(
+                                allocations
+                                    .iter()
+                                    .filter(|a| function.dfg.type_of_value(**a) == addr_type)
+                                    .copied(),
+                            );
                         }
                     }
                     // A call with reference arguments may store through those
