@@ -2778,6 +2778,50 @@ mod tests {
         assert_eq!(is_new_size_ok(old, new, max), ok);
     }
 
+    /// Regression test: when `useful_cost` is zero, `unrolled_cost = 0 * iterations`
+    /// is always zero, so `force_unroll` approves the loop regardless of iteration
+    /// count. This mirrors a real-world regression in `noir_bigcurve` where removing
+    /// a handful of `inc_rc` instructions dropped `useful_cost` from 3 to 0 for a
+    /// 754-iteration scalar-multiplication loop, causing the unroller to fully unroll
+    /// it and produce a ~300k-line function from ~5k lines of input.
+    ///
+    /// This test uses 500 iterations with useful_cost = 0 to demonstrate the blowup:
+    /// - `unrolled_cost` = 0 (always zero when useful_cost = 0)
+    /// - `conservative_unrolled_cost` = 3500 (far above the 128 threshold)
+    /// - The unroller force-unrolls the loop because `0 <= 128`
+    #[test]
+    fn force_unroll_zero_useful_cost_blowup() {
+        let ssa = brillig_unroll_test_case_with_params("u32", "0", "500");
+        let function = ssa.main();
+        let pre_unroll_instructions: usize =
+            function.reachable_blocks().iter().map(|b| function.dfg[*b].instructions().len()).sum();
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 500);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "0 * 500 = 0 (the bug)");
+        assert!(
+            stats.conservative_unrolled_cost() > FORCE_UNROLL_THRESHOLD * 20,
+            "conservative estimate ({}) should far exceed the force-unroll threshold ({})",
+            stats.conservative_unrolled_cost(),
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The unroller force-unrolls this loop because unrolled_cost (0) <= threshold (128).
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+
+        let function = ssa.main();
+        let post_unroll_instructions: usize =
+            function.reachable_blocks().iter().map(|b| function.dfg[*b].instructions().len()).sum();
+
+        // The loop was unrolled, producing a massive blowup in instruction count.
+        assert!(
+            post_unroll_instructions > pre_unroll_instructions * 50,
+            "expected significant blowup: pre={pre_unroll_instructions}, post={post_unroll_instructions}",
+        );
+    }
+
     #[test]
     fn do_not_unroll_loop_with_break() {
         // One of the loop header's (b1) successors (b3) has multiple predecessors (b1 and b4).
