@@ -71,6 +71,10 @@ describe('noir-compiler/node', () => {
     'regression_7570_serial',
     'workspace_reexport_bug',
     'overlapping_dep_and_mod',
+    // These depend on the external poseidon library which currently doesn't compile.
+    'poseidon2_simplification',
+    'trait_method_mut_self',
+    'turbofish_call_func_diff_types',
   ];
   getSubdirs(join(testProgramsDir, 'compile_success_empty'))
     .filter((name) => !filteredCompileSuccessEmptyTests.includes(name))
