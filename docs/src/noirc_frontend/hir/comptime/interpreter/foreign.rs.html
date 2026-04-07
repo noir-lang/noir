@@ -1,365 +1,359 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/hir/comptime/interpreter/foreign.rs`."><title>foreign.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../../src-files.js"></script><script defer src="../../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/hir/comptime/interpreter/</div>foreign.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 <a href=#2 id=2 data-nosnippet>2</a>//! all foreign functions available to the interpreter.
-<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
-<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
-<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>im::{Vector, vector};
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>noirc_errors::Location;
-<a href=#7 id=7 data-nosnippet>7</a>
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use crate</span>::{
-<a href=#9 id=9 data-nosnippet>9</a>    Type,
-<a href=#10 id=10 data-nosnippet>10</a>    hir::comptime::{
-<a href=#11 id=11 data-nosnippet>11</a>        InterpreterError, Value,
-<a href=#12 id=12 data-nosnippet>12</a>        errors::IResult,
-<a href=#13 id=13 data-nosnippet>13</a>        interpreter::{
-<a href=#14 id=14 data-nosnippet>14</a>            builtin::builtin_helpers::to_byte_array, builtin_helpers::check_argument_count,
-<a href=#15 id=15 data-nosnippet>15</a>        },
-<a href=#16 id=16 data-nosnippet>16</a>    },
-<a href=#17 id=17 data-nosnippet>17</a>};
-<a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use super</span>::{
-<a href=#20 id=20 data-nosnippet>20</a>    Interpreter,
-<a href=#21 id=21 data-nosnippet>21</a>    builtin::builtin_helpers::{
-<a href=#22 id=22 data-nosnippet>22</a>        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-<a href=#23 id=23 data-nosnippet>23</a>        get_array_map, get_bool, get_field, get_fixed_array_map, get_struct_field,
-<a href=#24 id=24 data-nosnippet>24</a>        get_struct_fields, get_u8, get_u32, get_u64, to_struct,
-<a href=#25 id=25 data-nosnippet>25</a>    },
-<a href=#26 id=26 data-nosnippet>26</a>};
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a><span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_foreign(
-<a href=#30 id=30 data-nosnippet>30</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#31 id=31 data-nosnippet>31</a>        name: <span class="kw-2">&amp;</span>str,
-<a href=#32 id=32 data-nosnippet>32</a>        arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#33 id=33 data-nosnippet>33</a>        return_type: Type,
-<a href=#34 id=34 data-nosnippet>34</a>        location: Location,
-<a href=#35 id=35 data-nosnippet>35</a>    ) -&gt; IResult&lt;Value&gt; {
-<a href=#36 id=36 data-nosnippet>36</a>        call_foreign(name, arguments, return_type, location)
-<a href=#37 id=37 data-nosnippet>37</a>    }
-<a href=#38 id=38 data-nosnippet>38</a>}
-<a href=#39 id=39 data-nosnippet>39</a>
-<a href=#40 id=40 data-nosnippet>40</a><span class="doccomment">/// Calls the given foreign function.
-<a href=#41 id=41 data-nosnippet>41</a>///
-<a href=#42 id=42 data-nosnippet>42</a>/// Similar to `evaluate_black_box` in `brillig_vm`.
-<a href=#43 id=43 data-nosnippet>43</a></span><span class="kw">fn </span>call_foreign(
-<a href=#44 id=44 data-nosnippet>44</a>    name: <span class="kw-2">&amp;</span>str,
-<a href=#45 id=45 data-nosnippet>45</a>    args: Vec&lt;(Value, Location)&gt;,
-<a href=#46 id=46 data-nosnippet>46</a>    return_type: Type,
-<a href=#47 id=47 data-nosnippet>47</a>    location: Location,
-<a href=#48 id=48 data-nosnippet>48</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#49 id=49 data-nosnippet>49</a>    <span class="kw">match </span>name {
-<a href=#50 id=50 data-nosnippet>50</a>        <span class="string">"aes128_encrypt" </span>=&gt; aes128_encrypt(args, location),
-<a href=#51 id=51 data-nosnippet>51</a>        <span class="string">"blake2s" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake2s),
-<a href=#52 id=52 data-nosnippet>52</a>        <span class="string">"blake3" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake3),
-<a href=#53 id=53 data-nosnippet>53</a>        <span class="comment">// cSpell:disable-next-line
-<a href=#54 id=54 data-nosnippet>54</a>        </span><span class="string">"ecdsa_secp256k1" </span>=&gt; {
-<a href=#55 id=55 data-nosnippet>55</a>            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256k1_verify)
-<a href=#56 id=56 data-nosnippet>56</a>        }
-<a href=#57 id=57 data-nosnippet>57</a>        <span class="comment">// cSpell:disable-next-line
-<a href=#58 id=58 data-nosnippet>58</a>        </span><span class="string">"ecdsa_secp256r1" </span>=&gt; {
-<a href=#59 id=59 data-nosnippet>59</a>            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
-<a href=#60 id=60 data-nosnippet>60</a>        }
-<a href=#61 id=61 data-nosnippet>61</a>        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location),
-<a href=#62 id=62 data-nosnippet>62</a>        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location),
-<a href=#63 id=63 data-nosnippet>63</a>        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location),
-<a href=#64 id=64 data-nosnippet>64</a>        <span class="string">"poseidon2_config_state_size" </span>=&gt; poseidon2_config_state_size(args, location),
-<a href=#65 id=65 data-nosnippet>65</a>        <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
-<a href=#66 id=66 data-nosnippet>66</a>        <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
-<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">_ </span>=&gt; {
-<a href=#68 id=68 data-nosnippet>68</a>            <span class="kw">let </span>explanation = <span class="kw">match </span>name {
-<a href=#69 id=69 data-nosnippet>69</a>                <span class="string">"and" </span>| <span class="string">"xor" </span>=&gt; <span class="string">"It should be turned into a binary operation."</span>.into(),
-<a href=#70 id=70 data-nosnippet>70</a>                <span class="string">"recursive_aggregation" </span>=&gt; <span class="string">"A proof cannot be verified at comptime."</span>.into(),
-<a href=#71 id=71 data-nosnippet>71</a>                <span class="kw">_ </span>=&gt; {
-<a href=#72 id=72 data-nosnippet>72</a>                    <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for foreign function '{name}'"</span>);
-<a href=#73 id=73 data-nosnippet>73</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::Unimplemented { item, location });
-<a href=#74 id=74 data-nosnippet>74</a>                }
-<a href=#75 id=75 data-nosnippet>75</a>            };
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a>            <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Attempting to evaluate foreign function '{name}'"</span>);
-<a href=#78 id=78 data-nosnippet>78</a>            <span class="prelude-val">Err</span>(InterpreterError::InvalidInComptimeContext { item, location, explanation })
-<a href=#79 id=79 data-nosnippet>79</a>        }
-<a href=#80 id=80 data-nosnippet>80</a>    }
-<a href=#81 id=81 data-nosnippet>81</a>}
-<a href=#82 id=82 data-nosnippet>82</a>
-<a href=#83 id=83 data-nosnippet>83</a><span class="doccomment">/// `pub fn aes128_encrypt&lt;let N: u32&gt;(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -&gt; [u8]`
-<a href=#84 id=84 data-nosnippet>84</a></span><span class="kw">fn </span>aes128_encrypt(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">let </span>(inputs, iv, key) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">let </span>(iv, <span class="kw">_</span>) = get_fixed_array_map(iv, get_u8)<span class="question-mark">?</span>;
-<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">let </span>(key, <span class="kw">_</span>) = get_fixed_array_map(key, get_u8)<span class="question-mark">?</span>;
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">let </span>output = acvm::blackbox_solver::aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv, key)
-<a href=#92 id=92 data-nosnippet>92</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
-<a href=#93 id=93 data-nosnippet>93</a>
-<a href=#94 id=94 data-nosnippet>94</a>    <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
-<a href=#95 id=95 data-nosnippet>95</a>}
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// Run one of the Blake hash functions.
-<a href=#98 id=98 data-nosnippet>98</a>/// ```text
-<a href=#99 id=99 data-nosnippet>99</a>/// pub fn blake2s&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
-<a href=#100 id=100 data-nosnippet>100</a>/// pub fn blake3&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
-<a href=#101 id=101 data-nosnippet>101</a>/// ```
-<a href=#102 id=102 data-nosnippet>102</a></span><span class="kw">fn </span>blake_hash(
-<a href=#103 id=103 data-nosnippet>103</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#104 id=104 data-nosnippet>104</a>    location: Location,
-<a href=#105 id=105 data-nosnippet>105</a>    f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], BlackBoxResolutionError&gt;,
-<a href=#106 id=106 data-nosnippet>106</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#107 id=107 data-nosnippet>107</a>    <span class="kw">let </span>inputs = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
-<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">let </span>output = f(<span class="kw-2">&amp;</span>inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>    <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
-<a href=#113 id=113 data-nosnippet>113</a>}
-<a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a><span class="comment">// cSpell:disable-next-line
-<a href=#116 id=116 data-nosnippet>116</a></span><span class="doccomment">/// Run one of the Secp256 signature verifications.
-<a href=#117 id=117 data-nosnippet>117</a>/// ```text
-<a href=#118 id=118 data-nosnippet>118</a>/// pub fn _verify_signature(
-<a href=#119 id=119 data-nosnippet>119</a>///     public_key_x: [u8; 32],
-<a href=#120 id=120 data-nosnippet>120</a>///     public_key_y: [u8; 32],
-<a href=#121 id=121 data-nosnippet>121</a>///     signature: [u8; 64],
-<a href=#122 id=122 data-nosnippet>122</a>///     message_hash: [u8; 32],
-<a href=#123 id=123 data-nosnippet>123</a>///     predicate: bool,
-<a href=#124 id=124 data-nosnippet>124</a>/// ) -&gt; bool
-<a href=#125 id=125 data-nosnippet>125</a></span><span class="comment">// cSpell:disable-next-line
-<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">fn </span>ecdsa_secp256_verify(
-<a href=#127 id=127 data-nosnippet>127</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#128 id=128 data-nosnippet>128</a>    location: Location,
-<a href=#129 id=129 data-nosnippet>129</a>    f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt;,
-<a href=#130 id=130 data-nosnippet>130</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#131 id=131 data-nosnippet>131</a>    <span class="kw">let </span>[pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"verify_signature predicate should be true"</span>);
-<a href=#133 id=133 data-nosnippet>133</a>
-<a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">let </span>(pub_key_x, <span class="kw">_</span>) = get_fixed_array_map(pub_key_x, get_u8)<span class="question-mark">?</span>;
-<a href=#135 id=135 data-nosnippet>135</a>    <span class="kw">let </span>(pub_key_y, <span class="kw">_</span>) = get_fixed_array_map(pub_key_y, get_u8)<span class="question-mark">?</span>;
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">let </span>(sig, <span class="kw">_</span>) = get_fixed_array_map(sig, get_u8)<span class="question-mark">?</span>;
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(msg_hash, get_u8)<span class="question-mark">?</span>;
-<a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">let </span>is_valid = f(<span class="kw-2">&amp;</span>msg_hash, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>sig)
-<a href=#140 id=140 data-nosnippet>140</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="prelude-val">Ok</span>(Value::Bool(is_valid))
-<a href=#143 id=143 data-nosnippet>143</a>}
-<a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a><span class="doccomment">/// ```text
-<a href=#146 id=146 data-nosnippet>146</a>/// fn embedded_curve_add(
-<a href=#147 id=147 data-nosnippet>147</a>///     point1: EmbeddedCurvePoint,
-<a href=#148 id=148 data-nosnippet>148</a>///     point2: EmbeddedCurvePoint,
-<a href=#149 id=149 data-nosnippet>149</a>/// ) -&gt; [EmbeddedCurvePoint; 1]
-<a href=#150 id=150 data-nosnippet>150</a>/// ```
-<a href=#151 id=151 data-nosnippet>151</a></span><span class="kw">fn </span>embedded_curve_add(
-<a href=#152 id=152 data-nosnippet>152</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#153 id=153 data-nosnippet>153</a>    return_type: Type,
-<a href=#154 id=154 data-nosnippet>154</a>    location: Location,
-<a href=#155 id=155 data-nosnippet>155</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="kw">let </span>(point1, point2, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"ec_add predicate should be true"</span>);
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">let </span>embedded_curve_point_typ = point1.<span class="number">0</span>.get_type().into_owned();
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>acvm::{
+<a href=#4 id=4 data-nosnippet>4</a>    AcirField, BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver,
+<a href=#5 id=5 data-nosnippet>5</a>};
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver; <span class="comment">// Currently locked to only bn254!
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>im::{Vector, vector};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>noirc_errors::Location;
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use crate</span>::{
+<a href=#11 id=11 data-nosnippet>11</a>    Type,
+<a href=#12 id=12 data-nosnippet>12</a>    hir::comptime::{
+<a href=#13 id=13 data-nosnippet>13</a>        InterpreterError, Value,
+<a href=#14 id=14 data-nosnippet>14</a>        errors::IResult,
+<a href=#15 id=15 data-nosnippet>15</a>        interpreter::{
+<a href=#16 id=16 data-nosnippet>16</a>            builtin::builtin_helpers::to_byte_array, builtin_helpers::check_argument_count,
+<a href=#17 id=17 data-nosnippet>17</a>        },
+<a href=#18 id=18 data-nosnippet>18</a>    },
+<a href=#19 id=19 data-nosnippet>19</a>};
+<a href=#20 id=20 data-nosnippet>20</a>
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use super</span>::{
+<a href=#22 id=22 data-nosnippet>22</a>    Interpreter,
+<a href=#23 id=23 data-nosnippet>23</a>    builtin::builtin_helpers::{
+<a href=#24 id=24 data-nosnippet>24</a>        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
+<a href=#25 id=25 data-nosnippet>25</a>        get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
+<a href=#26 id=26 data-nosnippet>26</a>        get_u32, get_u64, to_struct,
+<a href=#27 id=27 data-nosnippet>27</a>    },
+<a href=#28 id=28 data-nosnippet>28</a>};
+<a href=#29 id=29 data-nosnippet>29</a>
+<a href=#30 id=30 data-nosnippet>30</a><span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_foreign(
+<a href=#32 id=32 data-nosnippet>32</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#33 id=33 data-nosnippet>33</a>        name: <span class="kw-2">&amp;</span>str,
+<a href=#34 id=34 data-nosnippet>34</a>        arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#35 id=35 data-nosnippet>35</a>        return_type: Type,
+<a href=#36 id=36 data-nosnippet>36</a>        location: Location,
+<a href=#37 id=37 data-nosnippet>37</a>    ) -&gt; IResult&lt;Value&gt; {
+<a href=#38 id=38 data-nosnippet>38</a>        call_foreign(name, arguments, return_type, location)
+<a href=#39 id=39 data-nosnippet>39</a>    }
+<a href=#40 id=40 data-nosnippet>40</a>}
+<a href=#41 id=41 data-nosnippet>41</a>
+<a href=#42 id=42 data-nosnippet>42</a><span class="doccomment">/// Calls the given foreign function.
+<a href=#43 id=43 data-nosnippet>43</a>///
+<a href=#44 id=44 data-nosnippet>44</a>/// Similar to `evaluate_black_box` in `brillig_vm`.
+<a href=#45 id=45 data-nosnippet>45</a></span><span class="kw">fn </span>call_foreign(
+<a href=#46 id=46 data-nosnippet>46</a>    name: <span class="kw-2">&amp;</span>str,
+<a href=#47 id=47 data-nosnippet>47</a>    args: Vec&lt;(Value, Location)&gt;,
+<a href=#48 id=48 data-nosnippet>48</a>    return_type: Type,
+<a href=#49 id=49 data-nosnippet>49</a>    location: Location,
+<a href=#50 id=50 data-nosnippet>50</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="kw">match </span>name {
+<a href=#52 id=52 data-nosnippet>52</a>        <span class="string">"aes128_encrypt" </span>=&gt; aes128_encrypt(args, location),
+<a href=#53 id=53 data-nosnippet>53</a>        <span class="string">"blake2s" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake2s),
+<a href=#54 id=54 data-nosnippet>54</a>        <span class="string">"blake3" </span>=&gt; blake_hash(args, location, acvm::blackbox_solver::blake3),
+<a href=#55 id=55 data-nosnippet>55</a>        <span class="comment">// cSpell:disable-next-line
+<a href=#56 id=56 data-nosnippet>56</a>        </span><span class="string">"ecdsa_secp256k1" </span>=&gt; {
+<a href=#57 id=57 data-nosnippet>57</a>            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256k1_verify)
+<a href=#58 id=58 data-nosnippet>58</a>        }
+<a href=#59 id=59 data-nosnippet>59</a>        <span class="comment">// cSpell:disable-next-line
+<a href=#60 id=60 data-nosnippet>60</a>        </span><span class="string">"ecdsa_secp256r1" </span>=&gt; {
+<a href=#61 id=61 data-nosnippet>61</a>            ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
+<a href=#62 id=62 data-nosnippet>62</a>        }
+<a href=#63 id=63 data-nosnippet>63</a>        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location),
+<a href=#64 id=64 data-nosnippet>64</a>        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location),
+<a href=#65 id=65 data-nosnippet>65</a>        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location),
+<a href=#66 id=66 data-nosnippet>66</a>        <span class="string">"poseidon2_config_state_size" </span>=&gt; poseidon2_config_state_size(args, location),
+<a href=#67 id=67 data-nosnippet>67</a>        <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
+<a href=#68 id=68 data-nosnippet>68</a>        <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">_ </span>=&gt; {
+<a href=#70 id=70 data-nosnippet>70</a>            <span class="kw">let </span>explanation = <span class="kw">match </span>name {
+<a href=#71 id=71 data-nosnippet>71</a>                <span class="string">"and" </span>| <span class="string">"xor" </span>=&gt; <span class="string">"It should be turned into a binary operation."</span>.into(),
+<a href=#72 id=72 data-nosnippet>72</a>                <span class="string">"recursive_aggregation" </span>=&gt; <span class="string">"A proof cannot be verified at comptime."</span>.into(),
+<a href=#73 id=73 data-nosnippet>73</a>                <span class="kw">_ </span>=&gt; {
+<a href=#74 id=74 data-nosnippet>74</a>                    <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for foreign function '{name}'"</span>);
+<a href=#75 id=75 data-nosnippet>75</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::Unimplemented { item, location });
+<a href=#76 id=76 data-nosnippet>76</a>                }
+<a href=#77 id=77 data-nosnippet>77</a>            };
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>            <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Attempting to evaluate foreign function '{name}'"</span>);
+<a href=#80 id=80 data-nosnippet>80</a>            <span class="prelude-val">Err</span>(InterpreterError::InvalidInComptimeContext { item, location, explanation })
+<a href=#81 id=81 data-nosnippet>81</a>        }
+<a href=#82 id=82 data-nosnippet>82</a>    }
+<a href=#83 id=83 data-nosnippet>83</a>}
+<a href=#84 id=84 data-nosnippet>84</a>
+<a href=#85 id=85 data-nosnippet>85</a><span class="doccomment">/// `pub fn aes128_encrypt&lt;let N: u32&gt;(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -&gt; [u8]`
+<a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">fn </span>aes128_encrypt(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">let </span>(inputs, iv, key) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">let </span>(iv, <span class="kw">_</span>) = get_fixed_array_map(iv, get_u8)<span class="question-mark">?</span>;
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">let </span>(key, <span class="kw">_</span>) = get_fixed_array_map(key, get_u8)<span class="question-mark">?</span>;
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">let </span>output = acvm::blackbox_solver::aes128_encrypt(<span class="kw-2">&amp;</span>inputs, iv, key)
+<a href=#94 id=94 data-nosnippet>94</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
+<a href=#97 id=97 data-nosnippet>97</a>}
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a><span class="doccomment">/// Run one of the Blake hash functions.
+<a href=#100 id=100 data-nosnippet>100</a>/// ```text
+<a href=#101 id=101 data-nosnippet>101</a>/// pub fn blake2s&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
+<a href=#102 id=102 data-nosnippet>102</a>/// pub fn blake3&lt;let N: u32&gt;(input: [u8; N]) -&gt; [u8; 32]
+<a href=#103 id=103 data-nosnippet>103</a>/// ```
+<a href=#104 id=104 data-nosnippet>104</a></span><span class="kw">fn </span>blake_hash(
+<a href=#105 id=105 data-nosnippet>105</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#106 id=106 data-nosnippet>106</a>    location: Location,
+<a href=#107 id=107 data-nosnippet>107</a>    f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;[u8; <span class="number">32</span>], BlackBoxResolutionError&gt;,
+<a href=#108 id=108 data-nosnippet>108</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">let </span>inputs = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="kw">let </span>(inputs, <span class="kw">_</span>) = get_array_map(inputs, get_u8)<span class="question-mark">?</span>;
+<a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">let </span>output = f(<span class="kw-2">&amp;</span>inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
+<a href=#115 id=115 data-nosnippet>115</a>}
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a><span class="comment">// cSpell:disable-next-line
+<a href=#118 id=118 data-nosnippet>118</a></span><span class="doccomment">/// Run one of the Secp256 signature verifications.
+<a href=#119 id=119 data-nosnippet>119</a>/// ```text
+<a href=#120 id=120 data-nosnippet>120</a>/// pub fn _verify_signature(
+<a href=#121 id=121 data-nosnippet>121</a>///     public_key_x: [u8; 32],
+<a href=#122 id=122 data-nosnippet>122</a>///     public_key_y: [u8; 32],
+<a href=#123 id=123 data-nosnippet>123</a>///     signature: [u8; 64],
+<a href=#124 id=124 data-nosnippet>124</a>///     message_hash: [u8; 32],
+<a href=#125 id=125 data-nosnippet>125</a>///     predicate: bool,
+<a href=#126 id=126 data-nosnippet>126</a>/// ) -&gt; bool
+<a href=#127 id=127 data-nosnippet>127</a></span><span class="comment">// cSpell:disable-next-line
+<a href=#128 id=128 data-nosnippet>128</a></span><span class="kw">fn </span>ecdsa_secp256_verify(
+<a href=#129 id=129 data-nosnippet>129</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#130 id=130 data-nosnippet>130</a>    location: Location,
+<a href=#131 id=131 data-nosnippet>131</a>    f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">32</span>], <span class="kw-2">&amp;</span>[u8; <span class="number">64</span>]) -&gt; <span class="prelude-ty">Result</span>&lt;bool, BlackBoxResolutionError&gt;,
+<a href=#132 id=132 data-nosnippet>132</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="kw">let </span>[pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"verify_signature predicate should be true"</span>);
+<a href=#135 id=135 data-nosnippet>135</a>
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">let </span>(pub_key_x, <span class="kw">_</span>) = get_fixed_array_map(pub_key_x, get_u8)<span class="question-mark">?</span>;
+<a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">let </span>(pub_key_y, <span class="kw">_</span>) = get_fixed_array_map(pub_key_y, get_u8)<span class="question-mark">?</span>;
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="kw">let </span>(sig, <span class="kw">_</span>) = get_fixed_array_map(sig, get_u8)<span class="question-mark">?</span>;
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(msg_hash, get_u8)<span class="question-mark">?</span>;
+<a href=#140 id=140 data-nosnippet>140</a>
+<a href=#141 id=141 data-nosnippet>141</a>    <span class="kw">let </span>is_valid = f(<span class="kw-2">&amp;</span>msg_hash, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>sig)
+<a href=#142 id=142 data-nosnippet>142</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a>    <span class="prelude-val">Ok</span>(Value::Bool(is_valid))
+<a href=#145 id=145 data-nosnippet>145</a>}
+<a href=#146 id=146 data-nosnippet>146</a>
+<a href=#147 id=147 data-nosnippet>147</a><span class="doccomment">/// ```text
+<a href=#148 id=148 data-nosnippet>148</a>/// fn embedded_curve_add(
+<a href=#149 id=149 data-nosnippet>149</a>///     point1: EmbeddedCurvePoint,
+<a href=#150 id=150 data-nosnippet>150</a>///     point2: EmbeddedCurvePoint,
+<a href=#151 id=151 data-nosnippet>151</a>/// ) -&gt; [EmbeddedCurvePoint; 1]
+<a href=#152 id=152 data-nosnippet>152</a>/// ```
+<a href=#153 id=153 data-nosnippet>153</a></span><span class="kw">fn </span>embedded_curve_add(
+<a href=#154 id=154 data-nosnippet>154</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#155 id=155 data-nosnippet>155</a>    return_type: Type,
+<a href=#156 id=156 data-nosnippet>156</a>    location: Location,
+<a href=#157 id=157 data-nosnippet>157</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">let </span>(point1, point2, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"ec_add predicate should be true"</span>);
 <a href=#160 id=160 data-nosnippet>160</a>
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">let </span>(p1x, p1y, p1inf) = get_embedded_curve_point(point1)<span class="question-mark">?</span>;
-<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">let </span>(p2x, p2y, p2inf) = get_embedded_curve_point(point2)<span class="question-mark">?</span>;
-<a href=#163 id=163 data-nosnippet>163</a>
-<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver
-<a href=#165 id=165 data-nosnippet>165</a>        .ec_add(
-<a href=#166 id=166 data-nosnippet>166</a>            <span class="kw-2">&amp;</span>p1x,
-<a href=#167 id=167 data-nosnippet>167</a>            <span class="kw-2">&amp;</span>p1y,
-<a href=#168 id=168 data-nosnippet>168</a>            <span class="kw-2">&amp;</span>p1inf.into(),
-<a href=#169 id=169 data-nosnippet>169</a>            <span class="kw-2">&amp;</span>p2x,
-<a href=#170 id=170 data-nosnippet>170</a>            <span class="kw-2">&amp;</span>p2y,
-<a href=#171 id=171 data-nosnippet>171</a>            <span class="kw-2">&amp;</span>p2inf.into(),
-<a href=#172 id=172 data-nosnippet>172</a>            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
-<a href=#173 id=173 data-nosnippet>173</a>        </span>)
-<a href=#174 id=174 data-nosnippet>174</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
-<a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a>    <span class="prelude-val">Ok</span>(Value::Array(
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">vector!</span>[to_embedded_curve_point(x, y, inf &gt; <span class="number">0_usize</span>.into(), embedded_curve_point_typ)],
-<a href=#178 id=178 data-nosnippet>178</a>        return_type,
-<a href=#179 id=179 data-nosnippet>179</a>    ))
-<a href=#180 id=180 data-nosnippet>180</a>}
-<a href=#181 id=181 data-nosnippet>181</a>
-<a href=#182 id=182 data-nosnippet>182</a><span class="doccomment">/// ```text
-<a href=#183 id=183 data-nosnippet>183</a>/// pub fn multi_scalar_mul&lt;let N: u32&gt;(
-<a href=#184 id=184 data-nosnippet>184</a>///     points: [EmbeddedCurvePoint; N],
-<a href=#185 id=185 data-nosnippet>185</a>///     scalars: [EmbeddedCurveScalar; N],
-<a href=#186 id=186 data-nosnippet>186</a>///     predicate: bool,
-<a href=#187 id=187 data-nosnippet>187</a>/// ) -&gt; [EmbeddedCurvePoint; 1]
-<a href=#188 id=188 data-nosnippet>188</a>/// ```
-<a href=#189 id=189 data-nosnippet>189</a></span><span class="kw">fn </span>multi_scalar_mul(
-<a href=#190 id=190 data-nosnippet>190</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#191 id=191 data-nosnippet>191</a>    return_type: Type,
-<a href=#192 id=192 data-nosnippet>192</a>    location: Location,
-<a href=#193 id=193 data-nosnippet>193</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#194 id=194 data-nosnippet>194</a>    <span class="kw">let </span>(points, scalars, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#195 id=195 data-nosnippet>195</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"multi_scalar_mul predicate should be true"</span>);
-<a href=#196 id=196 data-nosnippet>196</a>
-<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">let </span>(points, <span class="kw">_</span>) = get_array_map(points, get_embedded_curve_point)<span class="question-mark">?</span>;
-<a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">let </span>(scalars, <span class="kw">_</span>) = get_array_map(scalars, get_embedded_curve_scalar)<span class="question-mark">?</span>;
-<a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="kw">let </span>points: Vec&lt;<span class="kw">_</span>&gt; = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
-<a href=#201 id=201 data-nosnippet>201</a>    <span class="kw">let </span><span class="kw-2">mut </span>scalars_lo = Vec::new();
-<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">let </span><span class="kw-2">mut </span>scalars_hi = Vec::new();
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">for </span>(lo, hi) <span class="kw">in </span>scalars {
-<a href=#204 id=204 data-nosnippet>204</a>        scalars_lo.push(lo);
-<a href=#205 id=205 data-nosnippet>205</a>        scalars_hi.push(hi);
-<a href=#206 id=206 data-nosnippet>206</a>    }
-<a href=#207 id=207 data-nosnippet>207</a>
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span>(x, y, inf) = Bn254BlackBoxSolver
-<a href=#209 id=209 data-nosnippet>209</a>        .multi_scalar_mul(
-<a href=#210 id=210 data-nosnippet>210</a>            <span class="kw-2">&amp;</span>points,
-<a href=#211 id=211 data-nosnippet>211</a>            <span class="kw-2">&amp;</span>scalars_lo,
-<a href=#212 id=212 data-nosnippet>212</a>            <span class="kw-2">&amp;</span>scalars_hi,
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
-<a href=#214 id=214 data-nosnippet>214</a>        </span>)
-<a href=#215 id=215 data-nosnippet>215</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>    <span class="kw">let </span>embedded_curve_point_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>return_type {
-<a href=#218 id=218 data-nosnippet>218</a>        Type::Array(<span class="kw">_</span>, item_type) =&gt; item_type.as_ref().clone(),
-<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">_ </span>=&gt; {
-<a href=#220 id=220 data-nosnippet>220</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-<a href=#221 id=221 data-nosnippet>221</a>                expected: <span class="string">"[EmbeddedCurvePoint; 1]"</span>.to_string(),
-<a href=#222 id=222 data-nosnippet>222</a>                actual: return_type.clone(),
-<a href=#223 id=223 data-nosnippet>223</a>                location,
-<a href=#224 id=224 data-nosnippet>224</a>            });
-<a href=#225 id=225 data-nosnippet>225</a>        }
-<a href=#226 id=226 data-nosnippet>226</a>    };
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a>    <span class="prelude-val">Ok</span>(Value::Array(
-<a href=#229 id=229 data-nosnippet>229</a>        <span class="macro">vector!</span>[to_embedded_curve_point(x, y, inf &gt; <span class="number">0_usize</span>.into(), embedded_curve_point_typ)],
-<a href=#230 id=230 data-nosnippet>230</a>        return_type,
-<a href=#231 id=231 data-nosnippet>231</a>    ))
-<a href=#232 id=232 data-nosnippet>232</a>}
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">let </span>embedded_curve_point_typ = point1.<span class="number">0</span>.get_type().into_owned();
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="kw">let </span>(p1x, p1y) = get_embedded_curve_point(point1)<span class="question-mark">?</span>;
+<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">let </span>(p2x, p2y) = get_embedded_curve_point(point2)<span class="question-mark">?</span>;
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">let </span>p1inf: FieldElement =
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">if </span>p1x.is_zero() &amp;&amp; p1y.is_zero() { FieldElement::one() } <span class="kw">else </span>{ FieldElement::zero() };
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">let </span>p2inf: FieldElement =
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">if </span>p2x.is_zero() &amp;&amp; p2y.is_zero() { FieldElement::one() } <span class="kw">else </span>{ FieldElement::zero() };
+<a href=#170 id=170 data-nosnippet>170</a>
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">let </span>(x, y, _inf) = Bn254BlackBoxSolver
+<a href=#172 id=172 data-nosnippet>172</a>        .ec_add(
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="kw-2">&amp;</span>p1x, <span class="kw-2">&amp;</span>p1y, <span class="kw-2">&amp;</span>p1inf, <span class="kw-2">&amp;</span>p2x, <span class="kw-2">&amp;</span>p2y, <span class="kw-2">&amp;</span>p2inf,
+<a href=#174 id=174 data-nosnippet>174</a>            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
+<a href=#175 id=175 data-nosnippet>175</a>        </span>)
+<a href=#176 id=176 data-nosnippet>176</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="prelude-val">Ok</span>(Value::Array(<span class="macro">vector!</span>[to_embedded_curve_point(x, y, embedded_curve_point_typ)], return_type))
+<a href=#179 id=179 data-nosnippet>179</a>}
+<a href=#180 id=180 data-nosnippet>180</a>
+<a href=#181 id=181 data-nosnippet>181</a><span class="doccomment">/// ```text
+<a href=#182 id=182 data-nosnippet>182</a>/// pub fn multi_scalar_mul&lt;let N: u32&gt;(
+<a href=#183 id=183 data-nosnippet>183</a>///     points: [EmbeddedCurvePoint; N],
+<a href=#184 id=184 data-nosnippet>184</a>///     scalars: [EmbeddedCurveScalar; N],
+<a href=#185 id=185 data-nosnippet>185</a>///     predicate: bool,
+<a href=#186 id=186 data-nosnippet>186</a>/// ) -&gt; [EmbeddedCurvePoint; 1]
+<a href=#187 id=187 data-nosnippet>187</a>/// ```
+<a href=#188 id=188 data-nosnippet>188</a></span><span class="kw">fn </span>multi_scalar_mul(
+<a href=#189 id=189 data-nosnippet>189</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#190 id=190 data-nosnippet>190</a>    return_type: Type,
+<a href=#191 id=191 data-nosnippet>191</a>    location: Location,
+<a href=#192 id=192 data-nosnippet>192</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#193 id=193 data-nosnippet>193</a>    <span class="kw">let </span>(points, scalars, predicate) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#194 id=194 data-nosnippet>194</a>    <span class="macro">assert_eq!</span>(predicate.<span class="number">0</span>, Value::Bool(<span class="bool-val">true</span>), <span class="string">"multi_scalar_mul predicate should be true"</span>);
+<a href=#195 id=195 data-nosnippet>195</a>
+<a href=#196 id=196 data-nosnippet>196</a>    <span class="kw">let </span>(points, <span class="kw">_</span>) = get_array_map(points, get_embedded_curve_point)<span class="question-mark">?</span>;
+<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">let </span>(scalars, <span class="kw">_</span>) = get_array_map(scalars, get_embedded_curve_scalar)<span class="question-mark">?</span>;
+<a href=#198 id=198 data-nosnippet>198</a>
+<a href=#199 id=199 data-nosnippet>199</a>    <span class="kw">let </span>points: Vec&lt;<span class="kw">_</span>&gt; = points
+<a href=#200 id=200 data-nosnippet>200</a>        .into_iter()
+<a href=#201 id=201 data-nosnippet>201</a>        .flat_map(|(x, y)| {
+<a href=#202 id=202 data-nosnippet>202</a>            <span class="kw">let </span>is_infinite: FieldElement =
+<a href=#203 id=203 data-nosnippet>203</a>                <span class="kw">if </span>x.is_zero() &amp;&amp; y.is_zero() { FieldElement::one() } <span class="kw">else </span>{ FieldElement::zero() };
+<a href=#204 id=204 data-nosnippet>204</a>            [x, y, is_infinite]
+<a href=#205 id=205 data-nosnippet>205</a>        })
+<a href=#206 id=206 data-nosnippet>206</a>        .collect();
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">let </span><span class="kw-2">mut </span>scalars_lo = Vec::new();
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span><span class="kw-2">mut </span>scalars_hi = Vec::new();
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">for </span>(lo, hi) <span class="kw">in </span>scalars {
+<a href=#210 id=210 data-nosnippet>210</a>        scalars_lo.push(lo);
+<a href=#211 id=211 data-nosnippet>211</a>        scalars_hi.push(hi);
+<a href=#212 id=212 data-nosnippet>212</a>    }
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a>    <span class="kw">let </span>(x, y, _inf) = Bn254BlackBoxSolver
+<a href=#215 id=215 data-nosnippet>215</a>        .multi_scalar_mul(
+<a href=#216 id=216 data-nosnippet>216</a>            <span class="kw-2">&amp;</span>points,
+<a href=#217 id=217 data-nosnippet>217</a>            <span class="kw-2">&amp;</span>scalars_lo,
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="kw-2">&amp;</span>scalars_hi,
+<a href=#219 id=219 data-nosnippet>219</a>            <span class="bool-val">true</span>, <span class="comment">// Predicate is always true as interpreter has control flow to handle false case
+<a href=#220 id=220 data-nosnippet>220</a>        </span>)
+<a href=#221 id=221 data-nosnippet>221</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">let </span>embedded_curve_point_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>return_type {
+<a href=#224 id=224 data-nosnippet>224</a>        Type::Array(<span class="kw">_</span>, item_type) =&gt; item_type.as_ref().clone(),
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">_ </span>=&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
+<a href=#227 id=227 data-nosnippet>227</a>                expected: <span class="string">"[EmbeddedCurvePoint; 1]"</span>.to_string(),
+<a href=#228 id=228 data-nosnippet>228</a>                actual: return_type.clone(),
+<a href=#229 id=229 data-nosnippet>229</a>                location,
+<a href=#230 id=230 data-nosnippet>230</a>            });
+<a href=#231 id=231 data-nosnippet>231</a>        }
+<a href=#232 id=232 data-nosnippet>232</a>    };
 <a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a><span class="doccomment">/// `poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N]`
-<a href=#235 id=235 data-nosnippet>235</a></span><span class="kw">fn </span>poseidon2_permutation(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="kw">let </span>(input, typ) = get_array_map(input, get_field)<span class="question-mark">?</span>;
-<a href=#239 id=239 data-nosnippet>239</a>
-<a href=#240 id=240 data-nosnippet>240</a>    <span class="kw">let </span>fields = Bn254BlackBoxSolver
-<a href=#241 id=241 data-nosnippet>241</a>        .poseidon2_permutation(<span class="kw-2">&amp;</span>input)
-<a href=#242 id=242 data-nosnippet>242</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
-<a href=#243 id=243 data-nosnippet>243</a>
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span>array = fields.into_iter().map(Value::field).collect();
-<a href=#245 id=245 data-nosnippet>245</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
-<a href=#246 id=246 data-nosnippet>246</a>}
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a><span class="kw">fn </span>poseidon2_config_state_size(
-<a href=#249 id=249 data-nosnippet>249</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#250 id=250 data-nosnippet>250</a>    location: Location,
-<a href=#251 id=251 data-nosnippet>251</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#252 id=252 data-nosnippet>252</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="kw">let </span>size = bn254_blackbox_solver::poseidon2_config_state_size();
-<a href=#254 id=254 data-nosnippet>254</a>    <span class="prelude-val">Ok</span>(Value::u32(size))
-<a href=#255 id=255 data-nosnippet>255</a>}
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a><span class="doccomment">/// `fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}`
-<a href=#258 id=258 data-nosnippet>258</a></span><span class="kw">fn </span>keccakf1600(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="kw">let </span>(state, typ) = get_fixed_array_map(input, get_u64)<span class="question-mark">?</span>;
-<a href=#262 id=262 data-nosnippet>262</a>
-<a href=#263 id=263 data-nosnippet>263</a>    <span class="kw">let </span>result_lanes = acvm::blackbox_solver::keccakf1600(state)
-<a href=#264 id=264 data-nosnippet>264</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="prelude-val">Ok</span>(Value::Array(<span class="macro">vector!</span>[to_embedded_curve_point(x, y, embedded_curve_point_typ)], return_type))
+<a href=#235 id=235 data-nosnippet>235</a>}
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a><span class="doccomment">/// `poseidon2_permutation&lt;let N: u32&gt;(_input: [Field; N], _state_length: u32) -&gt; [Field; N]`
+<a href=#238 id=238 data-nosnippet>238</a></span><span class="kw">fn </span>poseidon2_permutation(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#240 id=240 data-nosnippet>240</a>
+<a href=#241 id=241 data-nosnippet>241</a>    <span class="kw">let </span>(input, typ) = get_array_map(input, get_field)<span class="question-mark">?</span>;
+<a href=#242 id=242 data-nosnippet>242</a>
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">let </span>fields = Bn254BlackBoxSolver
+<a href=#244 id=244 data-nosnippet>244</a>        .poseidon2_permutation(<span class="kw-2">&amp;</span>input)
+<a href=#245 id=245 data-nosnippet>245</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>    <span class="kw">let </span>array = fields.into_iter().map(Value::field).collect();
+<a href=#248 id=248 data-nosnippet>248</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
+<a href=#249 id=249 data-nosnippet>249</a>}
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a><span class="kw">fn </span>poseidon2_config_state_size(
+<a href=#252 id=252 data-nosnippet>252</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#253 id=253 data-nosnippet>253</a>    location: Location,
+<a href=#254 id=254 data-nosnippet>254</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#255 id=255 data-nosnippet>255</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
+<a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">let </span>size = bn254_blackbox_solver::poseidon2_config_state_size();
+<a href=#257 id=257 data-nosnippet>257</a>    <span class="prelude-val">Ok</span>(Value::u32(size))
+<a href=#258 id=258 data-nosnippet>258</a>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a><span class="doccomment">/// `fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}`
+<a href=#261 id=261 data-nosnippet>261</a></span><span class="kw">fn </span>keccakf1600(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#262 id=262 data-nosnippet>262</a>    <span class="kw">let </span>input = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="kw">let </span>(state, typ) = get_fixed_array_map(input, get_u64)<span class="question-mark">?</span>;
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">let </span>array: Vector&lt;Value&gt; = result_lanes.into_iter().map(Value::u64).collect();
-<a href=#267 id=267 data-nosnippet>267</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
-<a href=#268 id=268 data-nosnippet>268</a>}
-<a href=#269 id=269 data-nosnippet>269</a>
-<a href=#270 id=270 data-nosnippet>270</a><span class="doccomment">/// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -&gt; [u32; 8]`
-<a href=#271 id=271 data-nosnippet>271</a></span><span class="kw">fn </span>sha256_compression(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#272 id=272 data-nosnippet>272</a>    <span class="kw">let </span>(input, state) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">let </span>(input, <span class="kw">_</span>) = get_fixed_array_map(input, get_u32)<span class="question-mark">?</span>;
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>state, typ) = get_fixed_array_map(state, get_u32)<span class="question-mark">?</span>;
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">let </span>result_lanes = acvm::blackbox_solver::keccakf1600(state)
+<a href=#267 id=267 data-nosnippet>267</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
+<a href=#268 id=268 data-nosnippet>268</a>
+<a href=#269 id=269 data-nosnippet>269</a>    <span class="kw">let </span>array: Vector&lt;Value&gt; = result_lanes.into_iter().map(Value::u64).collect();
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
+<a href=#271 id=271 data-nosnippet>271</a>}
+<a href=#272 id=272 data-nosnippet>272</a>
+<a href=#273 id=273 data-nosnippet>273</a><span class="doccomment">/// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -&gt; [u32; 8]`
+<a href=#274 id=274 data-nosnippet>274</a></span><span class="kw">fn </span>sha256_compression(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">let </span>(input, state) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>    acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>input);
-<a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a>    <span class="kw">let </span>state = state.into_iter().map(Value::u32).collect();
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="prelude-val">Ok</span>(Value::Array(state, typ))
-<a href=#281 id=281 data-nosnippet>281</a>}
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a><span class="doccomment">/// Decode an `EmbeddedCurvePoint` struct.
-<a href=#284 id=284 data-nosnippet>284</a>///
-<a href=#285 id=285 data-nosnippet>285</a>/// Returns `(x, y, is_infinite)`.
-<a href=#286 id=286 data-nosnippet>286</a></span><span class="kw">fn </span>get_embedded_curve_point(
-<a href=#287 id=287 data-nosnippet>287</a>    (value, location): (Value, Location),
-<a href=#288 id=288 data-nosnippet>288</a>) -&gt; IResult&lt;(FieldElement, FieldElement, bool)&gt; {
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">let </span>(fields, typ) = get_struct_fields(<span class="string">"EmbeddedCurvePoint"</span>, (value, location))<span class="question-mark">?</span>;
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">let </span>x = get_struct_field(<span class="string">"x"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">let </span>y = get_struct_field(<span class="string">"y"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
-<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">let </span>is_infinite = get_struct_field(<span class="string">"is_infinite"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_bool)<span class="question-mark">?</span>;
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="prelude-val">Ok</span>((x, y, is_infinite))
-<a href=#294 id=294 data-nosnippet>294</a>}
-<a href=#295 id=295 data-nosnippet>295</a>
-<a href=#296 id=296 data-nosnippet>296</a><span class="doccomment">/// Decode an `EmbeddedCurveScalar` struct.
-<a href=#297 id=297 data-nosnippet>297</a>///
-<a href=#298 id=298 data-nosnippet>298</a>/// Returns `(lo, hi)`.
-<a href=#299 id=299 data-nosnippet>299</a></span><span class="kw">fn </span>get_embedded_curve_scalar(
-<a href=#300 id=300 data-nosnippet>300</a>    (value, location): (Value, Location),
-<a href=#301 id=301 data-nosnippet>301</a>) -&gt; IResult&lt;(FieldElement, FieldElement)&gt; {
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">let </span>(fields, typ) = get_struct_fields(<span class="string">"EmbeddedCurveScalar"</span>, (value, location))<span class="question-mark">?</span>;
-<a href=#303 id=303 data-nosnippet>303</a>    <span class="kw">let </span>lo = get_struct_field(<span class="string">"lo"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
-<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">let </span>hi = get_struct_field(<span class="string">"hi"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="prelude-val">Ok</span>((lo, hi))
-<a href=#306 id=306 data-nosnippet>306</a>}
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a><span class="kw">fn </span>to_embedded_curve_point(
-<a href=#309 id=309 data-nosnippet>309</a>    x: FieldElement,
-<a href=#310 id=310 data-nosnippet>310</a>    y: FieldElement,
-<a href=#311 id=311 data-nosnippet>311</a>    is_infinite: bool,
-<a href=#312 id=312 data-nosnippet>312</a>    typ: Type,
-<a href=#313 id=313 data-nosnippet>313</a>) -&gt; Value {
-<a href=#314 id=314 data-nosnippet>314</a>    to_struct(
-<a href=#315 id=315 data-nosnippet>315</a>        [(<span class="string">"x"</span>, Value::field(x)), (<span class="string">"y"</span>, Value::field(y)), (<span class="string">"is_infinite"</span>, Value::Bool(is_infinite))],
-<a href=#316 id=316 data-nosnippet>316</a>        typ,
-<a href=#317 id=317 data-nosnippet>317</a>    )
-<a href=#318 id=318 data-nosnippet>318</a>}
+<a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">let </span>(input, <span class="kw">_</span>) = get_fixed_array_map(input, get_u32)<span class="question-mark">?</span>;
+<a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>state, typ) = get_fixed_array_map(state, get_u32)<span class="question-mark">?</span>;
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>    acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>input);
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>    <span class="kw">let </span>state = state.into_iter().map(Value::u32).collect();
+<a href=#283 id=283 data-nosnippet>283</a>    <span class="prelude-val">Ok</span>(Value::Array(state, typ))
+<a href=#284 id=284 data-nosnippet>284</a>}
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a><span class="doccomment">/// Decode an `EmbeddedCurvePoint` struct.
+<a href=#287 id=287 data-nosnippet>287</a>///
+<a href=#288 id=288 data-nosnippet>288</a>/// Returns `(x, y)`.
+<a href=#289 id=289 data-nosnippet>289</a></span><span class="kw">fn </span>get_embedded_curve_point(
+<a href=#290 id=290 data-nosnippet>290</a>    (value, location): (Value, Location),
+<a href=#291 id=291 data-nosnippet>291</a>) -&gt; IResult&lt;(FieldElement, FieldElement)&gt; {
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">let </span>(fields, typ) = get_struct_fields(<span class="string">"EmbeddedCurvePoint"</span>, (value, location))<span class="question-mark">?</span>;
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">let </span>x = get_struct_field(<span class="string">"x"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">let </span>y = get_struct_field(<span class="string">"y"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="prelude-val">Ok</span>((x, y))
+<a href=#296 id=296 data-nosnippet>296</a>}
+<a href=#297 id=297 data-nosnippet>297</a>
+<a href=#298 id=298 data-nosnippet>298</a><span class="doccomment">/// Decode an `EmbeddedCurveScalar` struct.
+<a href=#299 id=299 data-nosnippet>299</a>///
+<a href=#300 id=300 data-nosnippet>300</a>/// Returns `(lo, hi)`.
+<a href=#301 id=301 data-nosnippet>301</a></span><span class="kw">fn </span>get_embedded_curve_scalar(
+<a href=#302 id=302 data-nosnippet>302</a>    (value, location): (Value, Location),
+<a href=#303 id=303 data-nosnippet>303</a>) -&gt; IResult&lt;(FieldElement, FieldElement)&gt; {
+<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">let </span>(fields, typ) = get_struct_fields(<span class="string">"EmbeddedCurveScalar"</span>, (value, location))<span class="question-mark">?</span>;
+<a href=#305 id=305 data-nosnippet>305</a>    <span class="kw">let </span>lo = get_struct_field(<span class="string">"lo"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="kw">let </span>hi = get_struct_field(<span class="string">"hi"</span>, <span class="kw-2">&amp;</span>fields, <span class="kw-2">&amp;</span>typ, location, get_field)<span class="question-mark">?</span>;
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="prelude-val">Ok</span>((lo, hi))
+<a href=#308 id=308 data-nosnippet>308</a>}
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a><span class="kw">fn </span>to_embedded_curve_point(x: FieldElement, y: FieldElement, typ: Type) -&gt; Value {
+<a href=#311 id=311 data-nosnippet>311</a>    to_struct([(<span class="string">"x"</span>, Value::field(x)), (<span class="string">"y"</span>, Value::field(y))], typ)
+<a href=#312 id=312 data-nosnippet>312</a>}
+<a href=#313 id=313 data-nosnippet>313</a>
+<a href=#314 id=314 data-nosnippet>314</a><span class="attr">#[cfg(test)]
+<a href=#315 id=315 data-nosnippet>315</a></span><span class="kw">mod </span>tests {
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">use </span>acvm::acir::BlackBoxFunc;
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">use </span>noirc_errors::Location;
+<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">use </span>strum::IntoEnumIterator;
 <a href=#319 id=319 data-nosnippet>319</a>
-<a href=#320 id=320 data-nosnippet>320</a><span class="attr">#[cfg(test)]
-<a href=#321 id=321 data-nosnippet>321</a></span><span class="kw">mod </span>tests {
-<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">use </span>acvm::acir::BlackBoxFunc;
-<a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">use </span>noirc_errors::Location;
-<a href=#324 id=324 data-nosnippet>324</a>    <span class="kw">use </span>strum::IntoEnumIterator;
-<a href=#325 id=325 data-nosnippet>325</a>
-<a href=#326 id=326 data-nosnippet>326</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError::{
-<a href=#328 id=328 data-nosnippet>328</a>        ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
-<a href=#329 id=329 data-nosnippet>329</a>    };
-<a href=#330 id=330 data-nosnippet>330</a>
-<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">use </span><span class="kw">super</span>::call_foreign;
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
+<a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError::{
+<a href=#322 id=322 data-nosnippet>322</a>        ArgumentCountMismatch, InvalidInComptimeContext, Unimplemented,
+<a href=#323 id=323 data-nosnippet>323</a>    };
+<a href=#324 id=324 data-nosnippet>324</a>
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="kw">use </span><span class="kw">super</span>::call_foreign;
+<a href=#326 id=326 data-nosnippet>326</a>
+<a href=#327 id=327 data-nosnippet>327</a>    <span class="doccomment">/// Check that all `BlackBoxFunc` are covered by `call_foreign`.
+<a href=#328 id=328 data-nosnippet>328</a>    </span><span class="attr">#[test]
+<a href=#329 id=329 data-nosnippet>329</a>    </span><span class="kw">fn </span>test_blackbox_implemented() {
+<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">let </span>no_location = Location::dummy();
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">let </span><span class="kw-2">mut </span>not_implemented = Vec::new();
 <a href=#332 id=332 data-nosnippet>332</a>
-<a href=#333 id=333 data-nosnippet>333</a>    <span class="doccomment">/// Check that all `BlackBoxFunc` are covered by `call_foreign`.
-<a href=#334 id=334 data-nosnippet>334</a>    </span><span class="attr">#[test]
-<a href=#335 id=335 data-nosnippet>335</a>    </span><span class="kw">fn </span>test_blackbox_implemented() {
-<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw">let </span>no_location = Location::dummy();
-<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span><span class="kw-2">mut </span>not_implemented = Vec::new();
-<a href=#338 id=338 data-nosnippet>338</a>
-<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">for </span>blackbox <span class="kw">in </span>BlackBoxFunc::iter() {
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="comment">// There's no implementation for RANGE as it's actually a builtin function,
-<a href=#341 id=341 data-nosnippet>341</a>            // and in the comptime interpreter it's not transformed to a foreign function call
-<a href=#342 id=342 data-nosnippet>342</a>            </span><span class="kw">if </span>blackbox == BlackBoxFunc::RANGE {
-<a href=#343 id=343 data-nosnippet>343</a>                <span class="kw">continue</span>;
-<a href=#344 id=344 data-nosnippet>344</a>            }
-<a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a>            <span class="kw">let </span>name = blackbox.name();
-<a href=#347 id=347 data-nosnippet>347</a>            <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location) {
-<a href=#348 id=348 data-nosnippet>348</a>                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
-<a href=#349 id=349 data-nosnippet>349</a>                    <span class="comment">// Exists and works with no args (unlikely)
-<a href=#350 id=350 data-nosnippet>350</a>                </span>}
-<a href=#351 id=351 data-nosnippet>351</a>                <span class="prelude-val">Err</span>(ArgumentCountMismatch { .. }) =&gt; {
-<a href=#352 id=352 data-nosnippet>352</a>                    <span class="comment">// Exists but doesn't work with no args (expected)
-<a href=#353 id=353 data-nosnippet>353</a>                </span>}
-<a href=#354 id=354 data-nosnippet>354</a>                <span class="prelude-val">Err</span>(InvalidInComptimeContext { .. }) =&gt; {}
-<a href=#355 id=355 data-nosnippet>355</a>                <span class="prelude-val">Err</span>(Unimplemented { .. }) =&gt; not_implemented.push(name),
-<a href=#356 id=356 data-nosnippet>356</a>                <span class="prelude-val">Err</span>(other) =&gt; <span class="macro">panic!</span>(<span class="string">"unexpected error: {other:?}"</span>),
-<a href=#357 id=357 data-nosnippet>357</a>            }
-<a href=#358 id=358 data-nosnippet>358</a>        }
-<a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a>        <span class="macro">assert!</span>(
-<a href=#361 id=361 data-nosnippet>361</a>            not_implemented.is_empty(),
-<a href=#362 id=362 data-nosnippet>362</a>            <span class="string">"unimplemented blackbox functions: {not_implemented:?}"
-<a href=#363 id=363 data-nosnippet>363</a>        </span>);
-<a href=#364 id=364 data-nosnippet>364</a>    }
-<a href=#365 id=365 data-nosnippet>365</a>}</code></pre></div></section></main></body></html>
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">for </span>blackbox <span class="kw">in </span>BlackBoxFunc::iter() {
+<a href=#334 id=334 data-nosnippet>334</a>            <span class="comment">// There's no implementation for RANGE as it's actually a builtin function,
+<a href=#335 id=335 data-nosnippet>335</a>            // and in the comptime interpreter it's not transformed to a foreign function call
+<a href=#336 id=336 data-nosnippet>336</a>            </span><span class="kw">if </span>blackbox == BlackBoxFunc::RANGE {
+<a href=#337 id=337 data-nosnippet>337</a>                <span class="kw">continue</span>;
+<a href=#338 id=338 data-nosnippet>338</a>            }
+<a href=#339 id=339 data-nosnippet>339</a>
+<a href=#340 id=340 data-nosnippet>340</a>            <span class="kw">let </span>name = blackbox.name();
+<a href=#341 id=341 data-nosnippet>341</a>            <span class="kw">match </span>call_foreign(name, Vec::new(), Type::Unit, no_location) {
+<a href=#342 id=342 data-nosnippet>342</a>                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
+<a href=#343 id=343 data-nosnippet>343</a>                    <span class="comment">// Exists and works with no args (unlikely)
+<a href=#344 id=344 data-nosnippet>344</a>                </span>}
+<a href=#345 id=345 data-nosnippet>345</a>                <span class="prelude-val">Err</span>(ArgumentCountMismatch { .. }) =&gt; {
+<a href=#346 id=346 data-nosnippet>346</a>                    <span class="comment">// Exists but doesn't work with no args (expected)
+<a href=#347 id=347 data-nosnippet>347</a>                </span>}
+<a href=#348 id=348 data-nosnippet>348</a>                <span class="prelude-val">Err</span>(InvalidInComptimeContext { .. }) =&gt; {}
+<a href=#349 id=349 data-nosnippet>349</a>                <span class="prelude-val">Err</span>(Unimplemented { .. }) =&gt; not_implemented.push(name),
+<a href=#350 id=350 data-nosnippet>350</a>                <span class="prelude-val">Err</span>(other) =&gt; <span class="macro">panic!</span>(<span class="string">"unexpected error: {other:?}"</span>),
+<a href=#351 id=351 data-nosnippet>351</a>            }
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>        <span class="macro">assert!</span>(
+<a href=#355 id=355 data-nosnippet>355</a>            not_implemented.is_empty(),
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="string">"unimplemented blackbox functions: {not_implemented:?}"
+<a href=#357 id=357 data-nosnippet>357</a>        </span>);
+<a href=#358 id=358 data-nosnippet>358</a>    }
+<a href=#359 id=359 data-nosnippet>359</a>}</code></pre></div></section></main></body></html>
