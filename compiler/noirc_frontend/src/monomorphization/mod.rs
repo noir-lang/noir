@@ -1435,10 +1435,10 @@ impl<'interner> Monomorphizer<'interner> {
             evaluate_builtin,
         )?;
 
-        if self.function_is_oracle(func_id) {
-            if let Type::Function(_args, ret, _env, _unconstrained) = typ {
-                self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
-            }
+        if self.function_is_oracle(func_id)
+            && let Type::Function(_args, ret, _env, _unconstrained) = typ
+        {
+            self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
         }
 
         let typ = Self::convert_type(typ, location)?;
