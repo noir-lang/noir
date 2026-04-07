@@ -982,6 +982,28 @@ fn single_field_struct_extraction_is_optimal() {
     ");
 }
 
+#[test]
+fn clones_non_moved_variable_because_of_reference() {
+    // Here `let y = arr;` shouldn't be considered a move of `arr` because
+    // `z` keeps a reference to `arr`;
+    let src = "
+    unconstrained fn main(mut arr: [u32; 3], idx: u32) {
+        let z: &mut [u32; 3] = &mut arr;
+        let y = arr;
+        (*z)[idx] = 100;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
+        let z$l2 = (&mut arr$l0);
+        let y$l3 = arr$l0.clone();
+        (*z$l2)[idx$l1] = 100
+    }
+    ");
+}
+
 /// Nested array index: `arr[0][1]` on a 3D array. When the base variable has
 /// no further uses, the indexed element can be moved without cloning.
 #[test]
@@ -994,11 +1016,239 @@ fn nested_array_double_index_is_moved() {
     ";
 
     let program = get_monomorphized(src).unwrap();
+
     // No clone needed — arr is not used again and the intermediate arr[0] is a temporary
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
         let _val$l1 = arr$l0[0][1]
+    }
+    ");
+}
+
+#[test]
+fn clones_non_moved_variable_because_of_reference_even_if_unused() {
+    // Similar to the above test, but shows that even when taking a reference
+    // to a variable and never using that reference again, the variable will still
+    // be cloned instead of moved.
+    let src = "
+    unconstrained fn main(mut arr: [u32; 3], idx: u32) {
+        let _: &mut [u32; 3] = &mut arr;
+        let y = arr;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
+        let _$l2 = (&mut arr$l0);
+        let y$l3 = arr$l0.clone()
+    }
+    ");
+}
+
+#[test]
+fn clones_non_moved_variable_because_of_field_reference() {
+    // `&mut w2.arr` takes a reference to a field of `w2`, so `w2` is aliased.
+    // `let y = w2` must clone `w2` (not move) so that the subsequent write through
+    // `z` triggers copy-on-write and leaves `y` unchanged.
+    let src = "
+    struct Wrapper {
+        arr: [u32; 3],
+    }
+    unconstrained fn main(w: Wrapper, idx: u32) {
+        let mut w2: Wrapper = w;
+        let z: &mut [u32; 3] = &mut w2.arr;
+        let y: Wrapper = w2;
+        (*z)[idx] = 100;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(w$l0: ([u32; 3],), idx$l1: u32) -> () {
+        let mut w2$l2 = w$l0;
+        let z$l3 = (&mut w2$l2.0);
+        let y$l4 = w2$l2.clone();
+        (*z$l3)[idx$l1] = 100
+    }
+    ");
+}
+
+#[test]
+fn reference_passed_to_call_does_not_prevent_move() {
+    // `foo(&mut array)` passes a temporary reference that only lives for the call.
+    // After `foo` returns, `array` is no longer aliased, so the final `array` can be
+    // moved into `use_array` (no clone needed).
+    let src = "
+    unconstrained fn main(mut array: [Field; 3]) {
+        foo(&mut array);
+        use_array(array);
+    }
+
+    fn foo(_: &mut [Field; 3]) {}
+    fn use_array(_: [Field; 3]) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut array$l0: [Field; 3]) -> () {
+        foo$f1((&mut array$l0));;
+        use_array$f2(array$l0);
+    }
+    unconstrained fn foo$f1(_$l1: &mut [Field; 3]) -> () {
+    }
+    unconstrained fn use_array$f2(_$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn reference_passed_to_call_returning_reference_prevents_move() {
+    // When a call returns a reference type, the passed `&mut array` might be returned
+    // and stored in a binding that outlives the call. So `array` must be treated as
+    // aliased and subsequent copies must clone.
+    let src = "
+    unconstrained fn main(mut array: [Field; 3]) {
+        let _r: &mut [Field; 3] = identity(&mut array);
+        let y = array;
+        use_array(y);
+    }
+
+    fn identity(x: &mut [Field; 3]) -> &mut [Field; 3] { x }
+    fn use_array(_: [Field; 3]) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut array$l0: [Field; 3]) -> () {
+        let _r$l1 = identity$f1((&mut array$l0));
+        let y$l2 = array$l0.clone();
+        use_array$f2(y$l2);
+    }
+    unconstrained fn identity$f1(x$l3: &mut [Field; 3]) -> &mut [Field; 3] {
+        x$l3
+    }
+    unconstrained fn use_array$f2(_$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn reference_passed_alongside_mut_ref_to_ref_prevents_move() {
+    // `call(&mut array, &mut z)` where `z: &mut [Field; 3]` — the second argument has type
+    // `&mut &mut [Field; 3]`, so the callee could write `array`'s reference into `*z`,
+    // making `array` aliased beyond the call. Therefore `array` must be cloned on copy.
+    let src = "
+    unconstrained fn main(mut array: [Field; 3]) {
+        let mut z = &mut [1, 2, 3];
+        call(&mut array, &mut z);
+        let y = array;
+        use_array(y);
+    }
+
+    fn call(x: &mut [Field; 3], y: &mut &mut [Field; 3]) {
+        *y = x;
+    }
+    fn use_array(_: [Field; 3]) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut array$l0: [Field; 3]) -> () {
+        let mut z$l1 = (&mut [1, 2, 3]);
+        call$f1((&mut array$l0), (&mut z$l1));;
+        let y$l2 = array$l0.clone();
+        use_array$f2(y$l2);
+    }
+    unconstrained fn call$f1(x$l3: &mut [Field; 3], y$l4: &mut &mut [Field; 3]) -> () {
+        *y$l4 = x$l3
+    }
+    unconstrained fn use_array$f2(_$l5: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn reference_passed_alongside_struct_with_mut_ref_to_ref_prevents_move() {
+    // `call(&mut array, container)` where `container: Container` holds a field of type
+    // `&mut &mut [Field; 3]`. Even though the second argument is not directly `&mut &mut T`,
+    // the callee can reach the inner `&mut &mut [Field; 3]` through the struct field and
+    // write `array`'s reference into it. So `array` must be cloned on copy.
+    let src = "
+    struct Container {
+        slot: &mut &mut [Field; 3],
+    }
+    unconstrained fn main(mut array: [Field; 3]) {
+        let mut z: &mut [Field; 3] = &mut [1, 2, 3];
+        let container = Container { slot: &mut z };
+        call(&mut array, container);
+        let y = array;
+        use_array(y);
+    }
+
+    fn call(x: &mut [Field; 3], c: Container) {
+        *(c.slot) = x;
+    }
+    fn use_array(_: [Field; 3]) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut array$l0: [Field; 3]) -> () {
+        let mut z$l1 = (&mut [1, 2, 3]);
+        let container$l3 = {
+            let slot$l2 = (&mut z$l1);
+            (slot$l2)
+        };
+        call$f1((&mut array$l0), container$l3);;
+        let y$l4 = array$l0.clone();
+        use_array$f2(y$l4);
+    }
+    unconstrained fn call$f1(x$l5: &mut [Field; 3], c$l6: (&mut &mut [Field; 3],)) -> () {
+        *c$l6.0 = x$l5
+    }
+    unconstrained fn use_array$f2(_$l7: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn call_with_extract_tuple_field_args_does_not_prevent_move() {
+    // Mirrors the `try_resize` pattern in UHashMap: `insert(&mut new_map, entry.0, entry.1)`
+    // where `entry` is a tuple. The arguments `entry.0` and `entry.1` are `ExtractTupleField`
+    // expressions. Even though their types cannot be resolved as Ident/Unary, they are plain
+    // Field values — not capable of storing a reference — so the conservative fallback must NOT
+    // trigger, and `new_map` must be movable at `*dest = new_map` (no clone).
+    let src = "
+    unconstrained fn main(mut dest: [Field; 3]) {
+        let mut new_map: [Field; 3] = [0, 0, 0];
+        let entries: [(Field, Field); 2] = [(1, 2), (3, 4)];
+        for i in 0..2 {
+            let entry = entries[i];
+            insert(&mut new_map, entry.0, entry.1);
+        }
+        dest = new_map;
+    }
+
+    fn insert(map: &mut [Field; 3], key: Field, value: Field) {
+        map[0] = key + value;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut dest$l0: [Field; 3]) -> () {
+        let mut new_map$l1 = [0, 0, 0];
+        let entries$l2 = [(1, 2), (3, 4)];
+        for i$l3 in 0 .. 2 {
+            let entry$l4 = entries$l2[i$l3];
+            insert$f1((&mut new_map$l1), entry$l4.0, entry$l4.1);
+        };
+        dest$l0 = new_map$l1
+    }
+    unconstrained fn insert$f1(map$l5: &mut [Field; 3], key$l6: Field, value$l7: Field) -> () {
+        (*map$l5)[0] = (key$l6 + value$l7)
     }
     ");
 }
