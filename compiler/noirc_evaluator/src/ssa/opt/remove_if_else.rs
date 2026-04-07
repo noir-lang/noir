@@ -444,21 +444,19 @@ impl Context {
 
             Intrinsic::Hint(Hint::BlackBox) => {
                 assert_eq!(arguments.len(), results.len());
-                let arguments_types = arguments
-                    .iter()
-                    .map(|x| dfg.type_of_value(*x).into_owned())
-                    .collect::<Vec<_>>();
-                let results_types =
-                    results.iter().map(|x| dfg.type_of_value(*x).into_owned()).collect::<Vec<_>>();
-
-                assert_eq!(arguments_types, results_types);
+                for (arg, res) in arguments.iter().zip(results.iter()) {
+                    assert_eq!(
+                        *dfg.type_of_value(*arg),
+                        *dfg.type_of_value(*res),
+                    );
+                }
 
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
                     if self.vector_sizes.contains_key(argument)
-                        && matches!(arguments_types[i], Type::Vector(_))
+                        && matches!(*dfg.type_of_value(*argument), Type::Vector(_))
                     {
-                        assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                        assert!(matches!(*dfg.type_of_value(arguments[i - 1]), Type::Numeric(_)));
                         let new = results[i];
                         changes.push(SizeChange::SetTo { old: *argument, new });
                     }
