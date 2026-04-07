@@ -533,7 +533,9 @@ impl DataFlowGraph {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
             InstructionResultType::Known(typ) => f(self, typ),
-            InstructionResultType::Operand(value) => f(self, self.type_of_value(value)),
+            InstructionResultType::Operand(value) => {
+                f(self, self.type_of_value(value).into_owned());
+            }
             InstructionResultType::None => (),
             InstructionResultType::Unknown => {
                 for typ in ctrl_typevars.expect("Control typevars required but not given") {
@@ -543,9 +545,11 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the type of a given value
-    pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type().into_owned()
+    /// Returns the type of a given value.
+    /// Returns `Cow::Borrowed` for `Instruction`, `Param`, and `Global` values
+    /// (avoiding a clone), and `Cow::Owned` for small constructed types.
+    pub(crate) fn type_of_value(&self, value: ValueId) -> Cow<Type> {
+        self.values[value].get_type()
     }
 
     /// Returns the maximum possible number of bits that `value` can potentially be.
@@ -661,7 +665,7 @@ impl DataFlowGraph {
     /// If this value is an array, return the length of the array as indicated by its type.
     /// Otherwise, return None.
     pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
-        match self.type_of_value(value) {
+        match *self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
             _ => None,
         }
@@ -691,7 +695,7 @@ impl DataFlowGraph {
             }
             Instruction::Call { func, arguments } => {
                 // Handle vector intrinsics that return vectors with known capacities
-                if !matches!(self.type_of_value(value), Type::Vector(_)) {
+                if !matches!(*self.type_of_value(value), Type::Vector(_)) {
                     return None;
                 }
 
@@ -759,10 +763,10 @@ impl DataFlowGraph {
     /// A constant index less than the array length is safe
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
-        match (self.type_of_value(array), self.get_numeric_constant(index)) {
+        match (&*self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index)) => {
                 let elements_length = ElementTypesLength(assert_u32(elements.len()));
-                let semi_flattened_length = len * elements_length;
+                let semi_flattened_length = *len * elements_length;
                 index.to_u128() < u128::from(semi_flattened_length.0)
             }
             _ => false,
@@ -901,7 +905,7 @@ impl DataFlowGraph {
         {
             return ArrayOffset::None;
         }
-        match self.type_of_value(array) {
+        match *self.type_of_value(array) {
             Type::Array(_, _) => ArrayOffset::Array,
             Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,

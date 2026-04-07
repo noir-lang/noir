@@ -398,7 +398,7 @@ impl Context<'_> {
                 Type::Array(item_type, _) | Type::Vector(item_type) => item_type
                     .iter()
                     .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
                 _ => None,
             }
         } else {
@@ -1198,7 +1198,7 @@ impl Context<'_> {
     /// array containing zero length arrays has zero size, but we can still
     /// access its elements.
     pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
-        if let Type::Array(_, size) = dfg.type_of_value(array) {
+        if let Type::Array(_, size) = &*dfg.type_of_value(array) {
             size.0 == 0
         } else {
             match &dfg[array] {

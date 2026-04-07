@@ -1,5 +1,5 @@
 //! This file contains configurations for selecting particular behaviors during mutations
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) const MAX_NUMBER_OF_MUTATIONS: usize = 25;
 pub(crate) const SIZE_OF_SMALL_ARBITRARY_BUFFER: usize = 25;

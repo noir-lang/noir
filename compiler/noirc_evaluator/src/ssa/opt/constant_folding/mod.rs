@@ -239,7 +239,7 @@ fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
                     if !matches!(&dfg[*array], Value::Instruction { .. }) {
                         let typ = dfg.type_of_value(*array);
                         if typ.is_array() {
-                            result.insert(typ);
+                            result.insert(typ.into_owned());
                         }
                     }
                 }
@@ -247,7 +247,7 @@ fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
                     if !matches!(&dfg[*value], Value::Instruction { .. }) {
                         let typ = dfg.type_of_value(*value);
                         if typ.is_array() {
-                            result.insert(typ);
+                            result.insert(typ.into_owned());
                         }
                     }
                 }
@@ -256,7 +256,7 @@ fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
                         if !matches!(&dfg[*arg], Value::Instruction { .. }) {
                             let typ = dfg.type_of_value(*arg);
                             if typ.is_array() {
-                                result.insert(typ);
+                                result.insert(typ.into_owned());
                             }
                         }
                     }
@@ -600,7 +600,7 @@ impl Context {
     ) -> Vec<ValueId> {
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
+            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result).into_owned()));
 
         let call_stack = dfg.get_instruction_call_stack_id(id);
         let results = dfg.insert_instruction_and_results_if_simplified(

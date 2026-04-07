@@ -164,8 +164,12 @@ impl DefunctionalizationContext {
                     let mut arguments = arguments.clone();
                     let results = func.dfg.instruction_results(instruction_id);
                     let signature = Signature {
-                        params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                        returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        params: vecmap(&arguments, |param| {
+                            func.dfg.type_of_value(*param).into_owned()
+                        }),
+                        returns: vecmap(results, |result| {
+                            func.dfg.type_of_value(*result).into_owned()
+                        }),
                     };
 
                     // Find the correct apply function
@@ -416,8 +420,12 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
                         let results = func.dfg.instruction_results(*instruction_id);
                         dispatches.insert(Signature {
-                            params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            params: vecmap(arguments, |param| {
+                                func.dfg.type_of_value(*param).into_owned()
+                            }),
+                            returns: vecmap(results, |result| {
+                                func.dfg.type_of_value(*result).into_owned()
+                            }),
                         });
                     }
                 }

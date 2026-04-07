@@ -340,7 +340,9 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
@@ -532,7 +534,9 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
