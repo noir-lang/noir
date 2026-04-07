@@ -43,16 +43,10 @@ pub fn gen_literal(
         Type::Integer(signedness, integer_bit_size) => {
             let field = if signedness.is_signed() {
                 match integer_bit_size {
-                    Eight => i8::arbitrary(u)
-                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
-                    Sixteen => i16::arbitrary(u)
-                        .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
-                    ThirtyTwo => {
-                        i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
-                    }
-                    SixtyFour => {
-                        i64::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
-                    }
+                    Eight => Field::from(i8::arbitrary(u)?),
+                    Sixteen => Field::from(i16::arbitrary(u)?),
+                    ThirtyTwo => Field::from(i32::arbitrary(u)?),
+                    SixtyFour => Field::from(i64::arbitrary(u)?),
                     HundredTwentyEight => {
                         // `ssa_gen::FunctionContext::checked_numeric_constant` doesn't allow negative
                         // values with 128 bits, so let's stick to the positive range.
@@ -60,7 +54,7 @@ pub fn gen_literal(
                     }
                 }
             } else {
-                let f = match integer_bit_size {
+                match integer_bit_size {
                     Eight => Field::from(u32::from(u8::arbitrary(u)?)),
                     Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
                     ThirtyTwo => Field::from(u32::arbitrary(u)?),
@@ -225,8 +219,7 @@ pub fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-            };
-            ((s, false), (e, false))
+            }
         }
     };
 

@@ -18,7 +18,6 @@ use crate::{
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     recursion::TypeRecursionContext,
-    token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -305,7 +304,6 @@ impl Kind {
         match (typ.as_ref(), &value) {
             // First case: exact match, integer is already of type
             (Type::FieldElement, Integer::Field(_))
-            | (Type::Integer(Unsigned, One), Integer::U1(_))
             | (Type::Integer(Unsigned, Eight), Integer::U8(_))
             | (Type::Integer(Unsigned, Sixteen), Integer::U16(_))
             | (Type::Integer(Unsigned, ThirtyTwo), Integer::U32(_))
@@ -3190,20 +3188,19 @@ impl Type {
         }
     }
 
-    pub(crate) fn as_integer_type_suffix(&self) -> Option<IntegerTypeSuffix> {
+    pub fn integer_bit_size(&self) -> Option<u32> {
         use {IntegerBitSize::*, Signedness::*};
         match self.follow_bindings_shallow().as_ref() {
-            Type::FieldElement => Some(IntegerTypeSuffix::Field),
-            Type::Integer(Signed, Eight) => Some(IntegerTypeSuffix::I8),
-            Type::Integer(Signed, Sixteen) => Some(IntegerTypeSuffix::I16),
-            Type::Integer(Signed, ThirtyTwo) => Some(IntegerTypeSuffix::I32),
-            Type::Integer(Signed, SixtyFour) => Some(IntegerTypeSuffix::I64),
-
-            Type::Integer(Unsigned, Eight) => Some(IntegerTypeSuffix::U8),
-            Type::Integer(Unsigned, Sixteen) => Some(IntegerTypeSuffix::U16),
-            Type::Integer(Unsigned, ThirtyTwo) => Some(IntegerTypeSuffix::U32),
-            Type::Integer(Unsigned, SixtyFour) => Some(IntegerTypeSuffix::U64),
-            Type::Integer(Unsigned, HundredTwentyEight) => Some(IntegerTypeSuffix::U128),
+            Type::Integer(Signed, Eight) => Some(8),
+            Type::Integer(Signed, Sixteen) => Some(16),
+            Type::Integer(Signed, ThirtyTwo) => Some(32),
+            Type::Integer(Signed, SixtyFour) => Some(64),
+            Type::Integer(Signed, HundredTwentyEight) => Some(128),
+            Type::Integer(Unsigned, Eight) => Some(8),
+            Type::Integer(Unsigned, Sixteen) => Some(16),
+            Type::Integer(Unsigned, ThirtyTwo) => Some(32),
+            Type::Integer(Unsigned, SixtyFour) => Some(64),
+            Type::Integer(Unsigned, HundredTwentyEight) => Some(128),
             _ => None,
         }
     }

@@ -35,6 +35,7 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
@@ -1730,66 +1731,6 @@ fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
         var.force_bind(binding.clone());
     }
 }
-
-fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
-    use IntegerBitSize::*;
-    use Signedness::*;
-    use Type::*;
-
-    macro_rules! evaluate_unsigned {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_unsigned()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    macro_rules! evaluate_signed {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_signed()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    match typ {
-        FieldElement => Ok(Value::field(value)),
-        Integer(Unsigned, Eight) => {
-            evaluate_unsigned!(u8)
-        }
-        Integer(Unsigned, Sixteen) => {
-            evaluate_unsigned!(u16)
-        }
-        Integer(Unsigned, ThirtyTwo) => {
-            evaluate_unsigned!(u32)
-        }
-        Integer(Unsigned, SixtyFour) => {
-            evaluate_unsigned!(u64)
-        }
-        Integer(Unsigned, HundredTwentyEight) => {
-            evaluate_unsigned!(u128)
-        }
-        Integer(Signed, Eight) => {
-            evaluate_signed!(i8)
-        }
-        Integer(Signed, Sixteen) => {
-            evaluate_signed!(i16)
-        }
-        Integer(Signed, ThirtyTwo) => {
-            evaluate_signed!(i32)
-        }
-        Integer(Signed, SixtyFour) => {
-            evaluate_signed!(i64)
-        }
-        Integer(Signed, HundredTwentyEight) => {
-            Err(InterpreterError::TypeUnsupported { typ, location })
-        }
-        _ => Err(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
-    }
-}
-
 
 /// Bounds check the given array and index pair.
 /// This will also ensure the given arguments are in fact an array and u32.

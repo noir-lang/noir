@@ -132,7 +132,7 @@ impl Monomorphizer<'_> {
 
         let bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != 0)));
 
-        let typ = Type::Vector(Box::new(Type::Bool));
+        let typ = Type::Vector(Rc::new(Type::Bool));
         let arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
         Expression::Literal(Literal::Vector(arr_literal))
     }

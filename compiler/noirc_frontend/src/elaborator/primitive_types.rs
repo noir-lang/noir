@@ -117,7 +117,6 @@ impl PrimitiveType {
             Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen) => Some(Self::I16),
             Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo) => Some(Self::I32),
             Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour) => Some(Self::I64),
-            Type::Integer(Signedness::Unsigned, IntegerBitSize::One) => Some(Self::U1),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => Some(Self::U8),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen) => Some(Self::U16),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Some(Self::U32),
