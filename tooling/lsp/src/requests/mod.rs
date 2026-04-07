@@ -598,14 +598,20 @@ pub(crate) fn process_request<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
         fake_stdlib_workspace()
     } else {
-        resolve_workspace_for_source_path(file_path.as_path())
-            .map_err(|e| ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()))?
+        match resolve_workspace_for_source_path(file_path.as_path()) {
+            Ok(workspace) => workspace,
+            Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+            Err(e) => {
+                return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()));
+            }
+        }
     };
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
@@ -662,14 +668,18 @@ pub(crate) fn process_request_no_workspace_cache<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path())
-        .map_err(|e| ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()))?;
+    let workspace = match resolve_workspace_for_source_path(file_path.as_path()) {
+        Ok(workspace) => workspace,
+        Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+        Err(e) => return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string())),
+    };
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
