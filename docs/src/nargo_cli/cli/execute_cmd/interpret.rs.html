@@ -169,7 +169,7 @@
 <a href=#169 id=169 data-nosnippet>169</a>                .expect(<span class="string">"Could not convert field value to integer"</span>);
 <a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">match </span>numeric_value {
 <a href=#171 id=171 data-nosnippet>171</a>                NumericValue::Field(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Field should not happen here"</span>),
-<a href=#172 id=172 data-nosnippet>172</a>                NumericValue::U1(value) =&gt; Value::u1(value),
+<a href=#172 id=172 data-nosnippet>172</a>                NumericValue::U1(value) =&gt; Value::Bool(value),
 <a href=#173 id=173 data-nosnippet>173</a>                NumericValue::U8(fitted) =&gt; <span class="kw">match </span>fitted {
 <a href=#174 id=174 data-nosnippet>174</a>                    Fitted::Fit(value) =&gt; Value::u8(value),
 <a href=#175 id=175 data-nosnippet>175</a>                    Fitted::Unfit(..) =&gt; <span class="macro">panic!</span>(<span class="string">"input value does not fit in u8"</span>),
