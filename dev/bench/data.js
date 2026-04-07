@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775594440634,
+  "lastUpdate": 1775597993001,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c9e1989e1a876352d1a8711ff433256376e2d33f",
-          "message": "chore: remove dead code in type_check_operator_method (#12082)",
-          "timestamp": "2026-04-01T15:46:49Z",
-          "tree_id": "cf01dc37bc274cafbfff537bbdebb4c813432626",
-          "url": "https://github.com/noir-lang/noir/commit/c9e1989e1a876352d1a8711ff433256376e2d33f"
-        },
-        "date": 1775059760851,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168063,
-            "range": "± 888",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140157,
-            "range": "± 7773",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643972,
-            "range": "± 3359",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2639040,
             "range": "± 13648",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f190e7831f1ab79a4aaabb66ba2db3b5f48a9700",
+          "message": "feat!: remove u1 type from user-facing Noir (#11753)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-04-07T21:16:17Z",
+          "tree_id": "06127e68109bd71dbccaa1810e363085c714cee4",
+          "url": "https://github.com/noir-lang/noir/commit/f190e7831f1ab79a4aaabb66ba2db3b5f48a9700"
+        },
+        "date": 1775597936527,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169158,
+            "range": "± 176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137584,
+            "range": "± 6288",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640882,
+            "range": "± 1471",
             "unit": "ns/iter"
           }
         ]
