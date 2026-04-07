@@ -1200,8 +1200,7 @@ impl Loop {
                 // folding prediction is wrong. Large loop bodies (e.g. a 754-iteration
                 // scalar-mul loop where inc_rc removal drops useful_cost to 0) must not
                 // be force-unrolled because the transient expansion is catastrophic.
-                let safe_to_force = s.useful_cost() > 0
-                    || s.total_cost <= force_unroll_threshold;
+                let safe_to_force = s.useful_cost() > 0 || s.total_cost <= force_unroll_threshold;
 
                 ((force_unroll && safe_to_force) || s.is_small())
                     && within_iteration_limit
