@@ -42,9 +42,25 @@ impl<'a> From<&'a Instruction> for CacheKeyRef<'a> {
 impl PartialEq for CacheKeyRef<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self.0.as_ref(), other.0.as_ref()) {
-            (Instruction::Constrain(lhs1, lhs2, _), Instruction::Constrain(rhs1, rhs2, _)) => {
-                lhs1 == rhs1 && lhs2 == rhs2
-            }
+            (Instruction::Constrain(lhs1, lhs2, _), Instruction::Constrain(rhs1, rhs2, _))
+            | (
+                Instruction::ConstrainNotEqual(lhs1, rhs1, _),
+                Instruction::ConstrainNotEqual(lhs2, rhs2, _),
+            ) => lhs1 == rhs1 && lhs2 == rhs2,
+
+            (
+                Instruction::RangeCheck {
+                    value: lhs_value,
+                    max_bit_size: lhs_max_bit_size,
+                    assert_message: _,
+                },
+                Instruction::RangeCheck {
+                    value: rhs_value,
+                    max_bit_size: rhs_max_bit_size,
+                    assert_message: _,
+                },
+            ) => lhs_value == rhs_value && lhs_max_bit_size == rhs_max_bit_size,
+
             (a, b) => a == b,
         }
     }
@@ -53,9 +69,13 @@ impl PartialEq for CacheKeyRef<'_> {
 impl std::hash::Hash for CacheKeyRef<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self.0.as_ref() {
-            Instruction::Constrain(a, b, _) => {
+            Instruction::Constrain(a, b, _) | Instruction::ConstrainNotEqual(a, b, _) => {
                 a.hash(state);
                 b.hash(state);
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message: _ } => {
+                value.hash(state);
+                max_bit_size.hash(state);
             }
             other => other.hash(state),
         }
