@@ -189,7 +189,7 @@
 <a href=#189 id=189 data-nosnippet>189</a>
 <a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Returns the type of the given value.
 <a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">pub fn </span>type_of_value(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; Type {
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="self">self</span>.current_function.dfg.type_of_value(value)
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="self">self</span>.current_function.dfg.type_of_value(value).into_owned()
 <a href=#193 id=193 data-nosnippet>193</a>    }
 <a href=#194 id=194 data-nosnippet>194</a>
 <a href=#195 id=195 data-nosnippet>195</a>    <span class="doccomment">/// Insert a new block into the current function and return it.

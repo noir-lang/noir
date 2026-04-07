@@ -136,7 +136,7 @@
 <a href=#136 id=136 data-nosnippet>136</a>                    ) {
 <a href=#137 id=137 data-nosnippet>137</a>                        context.remove_current_instruction();
 <a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a>                        <span class="kw">let </span>typ = context.dfg.type_of_value(array);
+<a href=#139 id=139 data-nosnippet>139</a>                        <span class="kw">let </span>typ = context.dfg.type_of_value(array).into_owned();
 <a href=#140 id=140 data-nosnippet>140</a>                        <span class="kw">let </span>make_array = Instruction::MakeArray { elements, typ: typ.clone() };
 <a href=#141 id=141 data-nosnippet>141</a>                        <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
 <a href=#142 id=142 data-nosnippet>142</a>                        <span class="kw">let </span>ctrl_typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[typ]);

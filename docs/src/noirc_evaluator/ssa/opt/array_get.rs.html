@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>
 <a href=#161 id=161 data-nosnippet>161</a>                            <span class="kw">let </span>array_get = Instruction::ArrayGet { array: new_array, index };
 <a href=#162 id=162 data-nosnippet>162</a>                            <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
-<a href=#163 id=163 data-nosnippet>163</a>                            <span class="kw">let </span>result_typ = context.dfg.type_of_value(result);
+<a href=#163 id=163 data-nosnippet>163</a>                            <span class="kw">let </span>result_typ = context.dfg.type_of_value(result).into_owned();
 <a href=#164 id=164 data-nosnippet>164</a>                            <span class="kw">let </span>ctrl_typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[result_typ]);
 <a href=#165 id=165 data-nosnippet>165</a>                            <span class="kw">let </span>new_result = context.insert_instruction(array_get, ctrl_typevars);
 <a href=#166 id=166 data-nosnippet>166</a>                            <span class="kw">let </span>new_result = new_result.first();

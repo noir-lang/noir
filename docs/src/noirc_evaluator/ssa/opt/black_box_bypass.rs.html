@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>                <span class="kw">return</span>;
 <a href=#64 id=64 data-nosnippet>64</a>            }
 <a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a>            <span class="kw">let </span>arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(<span class="kw-2">*</span>arg));
+<a href=#66 id=66 data-nosnippet>66</a>            <span class="kw">let </span>arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(<span class="kw-2">*</span>arg).into_owned());
 <a href=#67 id=67 data-nosnippet>67</a>
 <a href=#68 id=68 data-nosnippet>68</a>            <span class="kw">if </span>!arg_types.iter().any(black_box_should_ignore) {
 <a href=#69 id=69 data-nosnippet>69</a>                <span class="kw">return</span>;

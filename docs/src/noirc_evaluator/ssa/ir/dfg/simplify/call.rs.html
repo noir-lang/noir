@@ -96,12 +96,12 @@
 <a href=#96 id=96 data-nosnippet>96</a>            }
 <a href=#97 id=97 data-nosnippet>97</a>        }
 <a href=#98 id=98 data-nosnippet>98</a>        Intrinsic::ArrayLen =&gt; {
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>length = <span class="kw">match </span>dfg.type_of_value(arguments[<span class="number">0</span>]) {
+<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>length = <span class="kw">match </span><span class="kw-2">*</span>dfg.type_of_value(arguments[<span class="number">0</span>]) {
 <a href=#100 id=100 data-nosnippet>100</a>                Type::Array(<span class="kw">_</span>, length) =&gt; {
 <a href=#101 id=101 data-nosnippet>101</a>                    dfg.make_constant(FieldElement::from(length.<span class="number">0</span>), NumericType::length_type())
 <a href=#102 id=102 data-nosnippet>102</a>                }
 <a href=#103 id=103 data-nosnippet>103</a>                Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}) =&gt; {
-<a href=#104 id=104 data-nosnippet>104</a>                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(dfg.type_of_value(arguments[<span class="number">1</span>]), Type::Vector(<span class="kw">_</span>)));
+<a href=#104 id=104 data-nosnippet>104</a>                    <span class="macro">assert!</span>(<span class="macro">matches!</span>(<span class="kw-2">*</span>dfg.type_of_value(arguments[<span class="number">1</span>]), Type::Vector(<span class="kw">_</span>)));
 <a href=#105 id=105 data-nosnippet>105</a>                    arguments[<span class="number">0</span>]
 <a href=#106 id=106 data-nosnippet>106</a>                }
 <a href=#107 id=107 data-nosnippet>107</a>                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"First argument to ArrayLen must be an array or a vector length"</span>),
@@ -377,7 +377,7 @@
 <a href=#377 id=377 data-nosnippet>377</a>        (return_type, <span class="kw-2">&amp;</span>simplified_result)
 <a href=#378 id=378 data-nosnippet>378</a>    {
 <a href=#379 id=379 data-nosnippet>379</a>        <span class="macro">assert_eq!</span>(
-<a href=#380 id=380 data-nosnippet>380</a>            dfg.type_of_value(<span class="kw-2">*</span>result),
+<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw-2">*</span>dfg.type_of_value(<span class="kw-2">*</span>result),
 <a href=#381 id=381 data-nosnippet>381</a>            expected_types,
 <a href=#382 id=382 data-nosnippet>382</a>            <span class="string">"Simplification should not alter return type"
 <a href=#383 id=383 data-nosnippet>383</a>        </span>);

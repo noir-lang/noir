@@ -116,112 +116,114 @@
 <a href=#116 id=116 data-nosnippet>116</a>                    new_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>locations);
 <a href=#117 id=117 data-nosnippet>117</a>                <span class="kw">let </span>old_results = old_function.dfg.instruction_results(old_instruction_id);
 <a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a>                <span class="kw">let </span>ctrl_typevars = instruction
-<a href=#120 id=120 data-nosnippet>120</a>                    .requires_ctrl_typevars()
-<a href=#121 id=121 data-nosnippet>121</a>                    .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(<span class="kw-2">*</span>result)));
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>                <span class="kw">let </span>new_results =
-<a href=#124 id=124 data-nosnippet>124</a>                    new_function.dfg.insert_instruction_and_results_without_simplification(
-<a href=#125 id=125 data-nosnippet>125</a>                        instruction,
-<a href=#126 id=126 data-nosnippet>126</a>                        new_block_id,
-<a href=#127 id=127 data-nosnippet>127</a>                        ctrl_typevars,
-<a href=#128 id=128 data-nosnippet>128</a>                        new_call_stack,
-<a href=#129 id=129 data-nosnippet>129</a>                    );
-<a href=#130 id=130 data-nosnippet>130</a>
-<a href=#131 id=131 data-nosnippet>131</a>                <span class="kw">for </span>(old_result, new_result) <span class="kw">in
-<a href=#132 id=132 data-nosnippet>132</a>                    </span>old_results.iter().zip_eq(new_results.results().iter())
-<a href=#133 id=133 data-nosnippet>133</a>                {
-<a href=#134 id=134 data-nosnippet>134</a>                    <span class="kw">let </span>old_result = <span class="kw-2">*</span>old_result;
-<a href=#135 id=135 data-nosnippet>135</a>                    <span class="self">self</span>.new_ids.values.insert(old_result, <span class="kw-2">*</span>new_result);
-<a href=#136 id=136 data-nosnippet>136</a>                }
-<a href=#137 id=137 data-nosnippet>137</a>            }
-<a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a>            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_block_id];
-<a href=#140 id=140 data-nosnippet>140</a>            <span class="kw">let </span><span class="kw-2">mut </span>terminator = old_block.take_terminator();
-<a href=#141 id=141 data-nosnippet>141</a>            terminator
-<a href=#142 id=142 data-nosnippet>142</a>                .map_values_mut(|value| <span class="self">self</span>.new_ids.map_value(new_function, old_function, value));
-<a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a>            terminator.mutate_blocks(|old_block| <span class="self">self</span>.new_ids.blocks[<span class="kw-2">&amp;</span>old_block]);
-<a href=#145 id=145 data-nosnippet>145</a>            <span class="kw">let </span>locations = old_function.dfg.get_call_stack(terminator.call_stack());
-<a href=#146 id=146 data-nosnippet>146</a>            <span class="kw">let </span>new_call_stack =
-<a href=#147 id=147 data-nosnippet>147</a>                new_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>locations);
-<a href=#148 id=148 data-nosnippet>148</a>            terminator.set_call_stack(new_call_stack);
-<a href=#149 id=149 data-nosnippet>149</a>            new_function.dfg.set_block_terminator(new_block_id, terminator);
-<a href=#150 id=150 data-nosnippet>150</a>        }
-<a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="comment">// Also map the values in the databus
-<a href=#153 id=153 data-nosnippet>153</a>        </span><span class="kw">let </span>old_databus = <span class="kw-2">&amp;</span>old_function.dfg.data_bus;
-<a href=#154 id=154 data-nosnippet>154</a>        new_function.dfg.data_bus = old_databus
-<a href=#155 id=155 data-nosnippet>155</a>            .map_values(|old_value| <span class="self">self</span>.new_ids.map_value(new_function, old_function, old_value));
-<a href=#156 id=156 data-nosnippet>156</a>    }
-<a href=#157 id=157 data-nosnippet>157</a>}
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a><span class="kw">impl </span>IdMaps {
-<a href=#160 id=160 data-nosnippet>160</a>    <span class="kw">fn </span>populate_blocks(
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#162 id=162 data-nosnippet>162</a>        reachable_blocks: <span class="kw">impl </span>IntoIterator&lt;Item = BasicBlockId&gt;,
-<a href=#163 id=163 data-nosnippet>163</a>        old_function: <span class="kw-2">&amp;mut </span>Function,
-<a href=#164 id=164 data-nosnippet>164</a>        new_function: <span class="kw-2">&amp;mut </span>Function,
-<a href=#165 id=165 data-nosnippet>165</a>    ) {
-<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>old_entry = old_function.entry_block();
-<a href=#167 id=167 data-nosnippet>167</a>        <span class="self">self</span>.blocks.insert(old_entry, new_function.entry_block());
-<a href=#168 id=168 data-nosnippet>168</a>
-<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">for </span>old_id <span class="kw">in </span>reachable_blocks {
-<a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">if </span>old_id != old_entry {
-<a href=#171 id=171 data-nosnippet>171</a>                <span class="kw">let </span>new_id = new_function.dfg.make_block();
-<a href=#172 id=172 data-nosnippet>172</a>                <span class="self">self</span>.blocks.insert(old_id, new_id);
-<a href=#173 id=173 data-nosnippet>173</a>            }
-<a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>            <span class="kw">let </span>new_id = <span class="self">self</span>.blocks[<span class="kw-2">&amp;</span>old_id];
-<a href=#176 id=176 data-nosnippet>176</a>            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_id];
-<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">for </span>old_parameter <span class="kw">in </span>old_block.take_parameters() {
-<a href=#178 id=178 data-nosnippet>178</a>                <span class="kw">let </span>typ = old_function.dfg.type_of_value(old_parameter);
-<a href=#179 id=179 data-nosnippet>179</a>                <span class="kw">let </span>new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
-<a href=#180 id=180 data-nosnippet>180</a>                <span class="self">self</span>.values.insert(old_parameter, new_parameter);
-<a href=#181 id=181 data-nosnippet>181</a>            }
-<a href=#182 id=182 data-nosnippet>182</a>        }
-<a href=#183 id=183 data-nosnippet>183</a>    }
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">fn </span>map_value(
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#187 id=187 data-nosnippet>187</a>        new_function: <span class="kw-2">&amp;mut </span>Function,
-<a href=#188 id=188 data-nosnippet>188</a>        old_function: <span class="kw-2">&amp;</span>Function,
-<a href=#189 id=189 data-nosnippet>189</a>        old_value: ValueId,
-<a href=#190 id=190 data-nosnippet>190</a>    ) -&gt; ValueId {
-<a href=#191 id=191 data-nosnippet>191</a>        <span class="kw">if </span>old_function.dfg.is_global(old_value) {
-<a href=#192 id=192 data-nosnippet>192</a>            <span class="comment">// Globals are computed at compile-time and thus are expected to be remain normalized
-<a href=#193 id=193 data-nosnippet>193</a>            // between SSA passes
-<a href=#194 id=194 data-nosnippet>194</a>            </span><span class="kw">return </span>old_value;
-<a href=#195 id=195 data-nosnippet>195</a>        }
-<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>old_function.dfg[old_value] {
-<a href=#197 id=197 data-nosnippet>197</a>            value @ Value::Instruction { instruction, .. } =&gt; {
-<a href=#198 id=198 data-nosnippet>198</a>                <span class="kw-2">*</span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>old_value).unwrap_or_else(|| {
-<a href=#199 id=199 data-nosnippet>199</a>                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>old_function.dfg[<span class="kw-2">*</span>instruction];
-<a href=#200 id=200 data-nosnippet>200</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}"</span>, old_function.id())
-<a href=#201 id=201 data-nosnippet>201</a>                })
-<a href=#202 id=202 data-nosnippet>202</a>            }
-<a href=#203 id=203 data-nosnippet>203</a>
-<a href=#204 id=204 data-nosnippet>204</a>            value @ Value::Param { .. } =&gt; {
-<a href=#205 id=205 data-nosnippet>205</a>                <span class="kw-2">*</span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>old_value).unwrap_or_else(|| {
-<a href=#206 id=206 data-nosnippet>206</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}"</span>)
-<a href=#207 id=207 data-nosnippet>207</a>                })
-<a href=#208 id=208 data-nosnippet>208</a>            }
-<a href=#209 id=209 data-nosnippet>209</a>
-<a href=#210 id=210 data-nosnippet>210</a>            Value::Function(id) =&gt; {
-<a href=#211 id=211 data-nosnippet>211</a>                <span class="kw">let </span>new_id = <span class="kw-2">*</span><span class="self">self</span>.function_ids.get(id).unwrap_or_else(|| {
-<a href=#212 id=212 data-nosnippet>212</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped function with id {id}"</span>)
-<a href=#213 id=213 data-nosnippet>213</a>                });
-<a href=#214 id=214 data-nosnippet>214</a>                new_function.dfg.import_function(new_id)
-<a href=#215 id=215 data-nosnippet>215</a>            }
-<a href=#216 id=216 data-nosnippet>216</a>
-<a href=#217 id=217 data-nosnippet>217</a>            Value::NumericConstant { constant, typ } =&gt; {
-<a href=#218 id=218 data-nosnippet>218</a>                new_function.dfg.make_constant(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)
-<a href=#219 id=219 data-nosnippet>219</a>            }
-<a href=#220 id=220 data-nosnippet>220</a>            Value::Intrinsic(intrinsic) =&gt; new_function.dfg.import_intrinsic(<span class="kw-2">*</span>intrinsic),
-<a href=#221 id=221 data-nosnippet>221</a>            Value::ForeignFunction(name) =&gt; new_function.dfg.import_foreign_function(name),
-<a href=#222 id=222 data-nosnippet>222</a>            Value::Global(<span class="kw">_</span>) =&gt; {
-<a href=#223 id=223 data-nosnippet>223</a>                <span class="macro">unreachable!</span>(<span class="string">"Should have handled the global case already"</span>);
-<a href=#224 id=224 data-nosnippet>224</a>            },
-<a href=#225 id=225 data-nosnippet>225</a>        }
-<a href=#226 id=226 data-nosnippet>226</a>    }
-<a href=#227 id=227 data-nosnippet>227</a>}</code></pre></div></section></main></body></html>
+<a href=#119 id=119 data-nosnippet>119</a>                <span class="kw">let </span>ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+<a href=#120 id=120 data-nosnippet>120</a>                    vecmap(old_results, |result| {
+<a href=#121 id=121 data-nosnippet>121</a>                        old_function.dfg.type_of_value(<span class="kw-2">*</span>result).into_owned()
+<a href=#122 id=122 data-nosnippet>122</a>                    })
+<a href=#123 id=123 data-nosnippet>123</a>                });
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a>                <span class="kw">let </span>new_results =
+<a href=#126 id=126 data-nosnippet>126</a>                    new_function.dfg.insert_instruction_and_results_without_simplification(
+<a href=#127 id=127 data-nosnippet>127</a>                        instruction,
+<a href=#128 id=128 data-nosnippet>128</a>                        new_block_id,
+<a href=#129 id=129 data-nosnippet>129</a>                        ctrl_typevars,
+<a href=#130 id=130 data-nosnippet>130</a>                        new_call_stack,
+<a href=#131 id=131 data-nosnippet>131</a>                    );
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a>                <span class="kw">for </span>(old_result, new_result) <span class="kw">in
+<a href=#134 id=134 data-nosnippet>134</a>                    </span>old_results.iter().zip_eq(new_results.results().iter())
+<a href=#135 id=135 data-nosnippet>135</a>                {
+<a href=#136 id=136 data-nosnippet>136</a>                    <span class="kw">let </span>old_result = <span class="kw-2">*</span>old_result;
+<a href=#137 id=137 data-nosnippet>137</a>                    <span class="self">self</span>.new_ids.values.insert(old_result, <span class="kw-2">*</span>new_result);
+<a href=#138 id=138 data-nosnippet>138</a>                }
+<a href=#139 id=139 data-nosnippet>139</a>            }
+<a href=#140 id=140 data-nosnippet>140</a>
+<a href=#141 id=141 data-nosnippet>141</a>            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_block_id];
+<a href=#142 id=142 data-nosnippet>142</a>            <span class="kw">let </span><span class="kw-2">mut </span>terminator = old_block.take_terminator();
+<a href=#143 id=143 data-nosnippet>143</a>            terminator
+<a href=#144 id=144 data-nosnippet>144</a>                .map_values_mut(|value| <span class="self">self</span>.new_ids.map_value(new_function, old_function, value));
+<a href=#145 id=145 data-nosnippet>145</a>
+<a href=#146 id=146 data-nosnippet>146</a>            terminator.mutate_blocks(|old_block| <span class="self">self</span>.new_ids.blocks[<span class="kw-2">&amp;</span>old_block]);
+<a href=#147 id=147 data-nosnippet>147</a>            <span class="kw">let </span>locations = old_function.dfg.get_call_stack(terminator.call_stack());
+<a href=#148 id=148 data-nosnippet>148</a>            <span class="kw">let </span>new_call_stack =
+<a href=#149 id=149 data-nosnippet>149</a>                new_function.dfg.call_stack_data.get_or_insert_locations(<span class="kw-2">&amp;</span>locations);
+<a href=#150 id=150 data-nosnippet>150</a>            terminator.set_call_stack(new_call_stack);
+<a href=#151 id=151 data-nosnippet>151</a>            new_function.dfg.set_block_terminator(new_block_id, terminator);
+<a href=#152 id=152 data-nosnippet>152</a>        }
+<a href=#153 id=153 data-nosnippet>153</a>
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="comment">// Also map the values in the databus
+<a href=#155 id=155 data-nosnippet>155</a>        </span><span class="kw">let </span>old_databus = <span class="kw-2">&amp;</span>old_function.dfg.data_bus;
+<a href=#156 id=156 data-nosnippet>156</a>        new_function.dfg.data_bus = old_databus
+<a href=#157 id=157 data-nosnippet>157</a>            .map_values(|old_value| <span class="self">self</span>.new_ids.map_value(new_function, old_function, old_value));
+<a href=#158 id=158 data-nosnippet>158</a>    }
+<a href=#159 id=159 data-nosnippet>159</a>}
+<a href=#160 id=160 data-nosnippet>160</a>
+<a href=#161 id=161 data-nosnippet>161</a><span class="kw">impl </span>IdMaps {
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">fn </span>populate_blocks(
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#164 id=164 data-nosnippet>164</a>        reachable_blocks: <span class="kw">impl </span>IntoIterator&lt;Item = BasicBlockId&gt;,
+<a href=#165 id=165 data-nosnippet>165</a>        old_function: <span class="kw-2">&amp;mut </span>Function,
+<a href=#166 id=166 data-nosnippet>166</a>        new_function: <span class="kw-2">&amp;mut </span>Function,
+<a href=#167 id=167 data-nosnippet>167</a>    ) {
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>old_entry = old_function.entry_block();
+<a href=#169 id=169 data-nosnippet>169</a>        <span class="self">self</span>.blocks.insert(old_entry, new_function.entry_block());
+<a href=#170 id=170 data-nosnippet>170</a>
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">for </span>old_id <span class="kw">in </span>reachable_blocks {
+<a href=#172 id=172 data-nosnippet>172</a>            <span class="kw">if </span>old_id != old_entry {
+<a href=#173 id=173 data-nosnippet>173</a>                <span class="kw">let </span>new_id = new_function.dfg.make_block();
+<a href=#174 id=174 data-nosnippet>174</a>                <span class="self">self</span>.blocks.insert(old_id, new_id);
+<a href=#175 id=175 data-nosnippet>175</a>            }
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">let </span>new_id = <span class="self">self</span>.blocks[<span class="kw-2">&amp;</span>old_id];
+<a href=#178 id=178 data-nosnippet>178</a>            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_id];
+<a href=#179 id=179 data-nosnippet>179</a>            <span class="kw">for </span>old_parameter <span class="kw">in </span>old_block.take_parameters() {
+<a href=#180 id=180 data-nosnippet>180</a>                <span class="kw">let </span>typ = old_function.dfg.type_of_value(old_parameter).into_owned();
+<a href=#181 id=181 data-nosnippet>181</a>                <span class="kw">let </span>new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
+<a href=#182 id=182 data-nosnippet>182</a>                <span class="self">self</span>.values.insert(old_parameter, new_parameter);
+<a href=#183 id=183 data-nosnippet>183</a>            }
+<a href=#184 id=184 data-nosnippet>184</a>        }
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="kw">fn </span>map_value(
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#189 id=189 data-nosnippet>189</a>        new_function: <span class="kw-2">&amp;mut </span>Function,
+<a href=#190 id=190 data-nosnippet>190</a>        old_function: <span class="kw-2">&amp;</span>Function,
+<a href=#191 id=191 data-nosnippet>191</a>        old_value: ValueId,
+<a href=#192 id=192 data-nosnippet>192</a>    ) -&gt; ValueId {
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">if </span>old_function.dfg.is_global(old_value) {
+<a href=#194 id=194 data-nosnippet>194</a>            <span class="comment">// Globals are computed at compile-time and thus are expected to be remain normalized
+<a href=#195 id=195 data-nosnippet>195</a>            // between SSA passes
+<a href=#196 id=196 data-nosnippet>196</a>            </span><span class="kw">return </span>old_value;
+<a href=#197 id=197 data-nosnippet>197</a>        }
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>old_function.dfg[old_value] {
+<a href=#199 id=199 data-nosnippet>199</a>            value @ Value::Instruction { instruction, .. } =&gt; {
+<a href=#200 id=200 data-nosnippet>200</a>                <span class="kw-2">*</span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>old_value).unwrap_or_else(|| {
+<a href=#201 id=201 data-nosnippet>201</a>                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>old_function.dfg[<span class="kw-2">*</span>instruction];
+<a href=#202 id=202 data-nosnippet>202</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}"</span>, old_function.id())
+<a href=#203 id=203 data-nosnippet>203</a>                })
+<a href=#204 id=204 data-nosnippet>204</a>            }
+<a href=#205 id=205 data-nosnippet>205</a>
+<a href=#206 id=206 data-nosnippet>206</a>            value @ Value::Param { .. } =&gt; {
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw-2">*</span><span class="self">self</span>.values.get(<span class="kw-2">&amp;</span>old_value).unwrap_or_else(|| {
+<a href=#208 id=208 data-nosnippet>208</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped value with id {old_value}: {value:?}"</span>)
+<a href=#209 id=209 data-nosnippet>209</a>                })
+<a href=#210 id=210 data-nosnippet>210</a>            }
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>            Value::Function(id) =&gt; {
+<a href=#213 id=213 data-nosnippet>213</a>                <span class="kw">let </span>new_id = <span class="kw-2">*</span><span class="self">self</span>.function_ids.get(id).unwrap_or_else(|| {
+<a href=#214 id=214 data-nosnippet>214</a>                    <span class="macro">unreachable!</span>(<span class="string">"Unmapped function with id {id}"</span>)
+<a href=#215 id=215 data-nosnippet>215</a>                });
+<a href=#216 id=216 data-nosnippet>216</a>                new_function.dfg.import_function(new_id)
+<a href=#217 id=217 data-nosnippet>217</a>            }
+<a href=#218 id=218 data-nosnippet>218</a>
+<a href=#219 id=219 data-nosnippet>219</a>            Value::NumericConstant { constant, typ } =&gt; {
+<a href=#220 id=220 data-nosnippet>220</a>                new_function.dfg.make_constant(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)
+<a href=#221 id=221 data-nosnippet>221</a>            }
+<a href=#222 id=222 data-nosnippet>222</a>            Value::Intrinsic(intrinsic) =&gt; new_function.dfg.import_intrinsic(<span class="kw-2">*</span>intrinsic),
+<a href=#223 id=223 data-nosnippet>223</a>            Value::ForeignFunction(name) =&gt; new_function.dfg.import_foreign_function(name),
+<a href=#224 id=224 data-nosnippet>224</a>            Value::Global(<span class="kw">_</span>) =&gt; {
+<a href=#225 id=225 data-nosnippet>225</a>                <span class="macro">unreachable!</span>(<span class="string">"Should have handled the global case already"</span>);
+<a href=#226 id=226 data-nosnippet>226</a>            },
+<a href=#227 id=227 data-nosnippet>227</a>        }
+<a href=#228 id=228 data-nosnippet>228</a>    }
+<a href=#229 id=229 data-nosnippet>229</a>}</code></pre></div></section></main></body></html>

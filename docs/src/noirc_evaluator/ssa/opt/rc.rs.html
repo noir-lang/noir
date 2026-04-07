@@ -89,7 +89,7 @@
 <a href=#89 id=89 data-nosnippet>89</a>
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">for </span>instruction <span class="kw">in </span>function.dfg[entry].instructions() {
 <a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">if let </span>Instruction::IncrementRc { value } = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
-<a href=#92 id=92 data-nosnippet>92</a>                <span class="kw">let </span>typ = function.dfg.type_of_value(<span class="kw-2">*</span>value);
+<a href=#92 id=92 data-nosnippet>92</a>                <span class="kw">let </span>typ = function.dfg.type_of_value(<span class="kw-2">*</span>value).into_owned();
 <a href=#93 id=93 data-nosnippet>93</a>
 <a href=#94 id=94 data-nosnippet>94</a>                <span class="comment">// We assume arrays aren't mutated until we find an array_set
 <a href=#95 id=95 data-nosnippet>95</a>                </span><span class="kw">let </span>inc_rc =

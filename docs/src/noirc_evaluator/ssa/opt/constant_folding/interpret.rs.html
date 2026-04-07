@@ -86,11 +86,11 @@
 <a href=#86 id=86 data-nosnippet>86</a><span class="doccomment">/// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
 <a href=#87 id=87 data-nosnippet>87</a></span><span class="kw">fn </span>const_ir_value_to_interpreter_value(value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; InterpreterValue {
 <a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">let </span>typ = dfg.type_of_value(value_id);
-<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">match </span>typ {
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">match </span><span class="kw-2">&amp;*</span>typ {
 <a href=#90 id=90 data-nosnippet>90</a>        Type::Numeric(numeric_type) =&gt; {
 <a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">let </span>constant =
 <a href=#92 id=92 data-nosnippet>92</a>                dfg.get_numeric_constant(value_id).expect(<span class="string">"Should have a numeric constant"</span>);
-<a href=#93 id=93 data-nosnippet>93</a>            InterpreterValue::from_constant(constant, numeric_type)
+<a href=#93 id=93 data-nosnippet>93</a>            InterpreterValue::from_constant(constant, <span class="kw-2">*</span>numeric_type)
 <a href=#94 id=94 data-nosnippet>94</a>                .expect(<span class="string">"Should be a valid constant"</span>)
 <a href=#95 id=95 data-nosnippet>95</a>        }
 <a href=#96 id=96 data-nosnippet>96</a>        Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"References cannot be constant values"</span>),
@@ -110,7 +110,7 @@
 <a href=#110 id=110 data-nosnippet>110</a>            <span class="kw">for </span>element <span class="kw">in </span>array_constant {
 <a href=#111 id=111 data-nosnippet>111</a>                elements.push(const_ir_value_to_interpreter_value(element, dfg));
 <a href=#112 id=112 data-nosnippet>112</a>            }
-<a href=#113 id=113 data-nosnippet>113</a>            InterpreterValue::vector(elements, element_types)
+<a href=#113 id=113 data-nosnippet>113</a>            InterpreterValue::vector(elements, element_types.clone())
 <a href=#114 id=114 data-nosnippet>114</a>        }
 <a href=#115 id=115 data-nosnippet>115</a>        Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"Functions cannot be constant values"</span>),
 <a href=#116 id=116 data-nosnippet>116</a>    }

@@ -164,7 +164,7 @@
 <a href=#164 id=164 data-nosnippet>164</a>
 <a href=#165 id=165 data-nosnippet>165</a>            <span class="kw">let </span>ctrl_typevars = instruction
 <a href=#166 id=166 data-nosnippet>166</a>                .requires_ctrl_typevars()
-<a href=#167 id=167 data-nosnippet>167</a>                .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>result)));
+<a href=#167 id=167 data-nosnippet>167</a>                .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>result).into_owned()));
 <a href=#168 id=168 data-nosnippet>168</a>
 <a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">let </span>new_results = <span class="self">self</span>.dfg.insert_instruction_and_results_if_simplified(
 <a href=#170 id=170 data-nosnippet>170</a>                instruction,

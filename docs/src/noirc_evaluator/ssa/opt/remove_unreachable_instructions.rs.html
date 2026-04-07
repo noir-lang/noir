@@ -300,8 +300,8 @@
 <a href=#300 id=300 data-nosnippet>300</a>                    <span class="kw">let </span>array_type = context.dfg.type_of_value(<span class="kw-2">*</span>array);
 <a href=#301 id=301 data-nosnippet>301</a>                    <span class="comment">// We can only know a guaranteed out-of-bounds access for arrays,
 <a href=#302 id=302 data-nosnippet>302</a>                    // and vectors which have been declared as a literal.
-<a href=#303 id=303 data-nosnippet>303</a>                    </span><span class="kw">let </span>len = <span class="kw">match </span>array_type {
-<a href=#304 id=304 data-nosnippet>304</a>                        Type::Array(<span class="kw">_</span>, len) =&gt; len,
+<a href=#303 id=303 data-nosnippet>303</a>                    </span><span class="kw">let </span>len = <span class="kw">match </span><span class="kw-2">&amp;*</span>array_type {
+<a href=#304 id=304 data-nosnippet>304</a>                        Type::Array(<span class="kw">_</span>, len) =&gt; <span class="kw-2">*</span>len,
 <a href=#305 id=305 data-nosnippet>305</a>                        Type::Vector(<span class="kw">_</span>) =&gt; {
 <a href=#306 id=306 data-nosnippet>306</a>                            <span class="kw">let </span><span class="prelude-val">Some</span>(Instruction::MakeArray { elements, typ }) =
 <a href=#307 id=307 data-nosnippet>307</a>                                context.dfg.get_local_or_global_instruction(<span class="kw-2">*</span>array)
@@ -423,7 +423,7 @@
 <a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="string">"attempt to calculate the remainder with a divisor of zero"</span>.to_string());
 <a href=#424 id=424 data-nosnippet>424</a>    }
 <a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>    <span class="kw">let </span>Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) <span class="kw">else </span>{
+<a href=#426 id=426 data-nosnippet>426</a>    <span class="kw">let </span>Type::Numeric(numeric_type) = <span class="kw-2">*</span>context.dfg.type_of_value(lhs) <span class="kw">else </span>{
 <a href=#427 id=427 data-nosnippet>427</a>        <span class="macro">panic!</span>(<span class="string">"Expected numeric type for binary operation"</span>);
 <a href=#428 id=428 data-nosnippet>428</a>    };
 <a href=#429 id=429 data-nosnippet>429</a>
@@ -509,7 +509,7 @@
 <a href=#509 id=509 data-nosnippet>509</a>    <span class="kw">let </span>result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
 <a href=#510 id=510 data-nosnippet>510</a>    <span class="kw">let </span><span class="kw-2">mut </span>replacements: Vec&lt;(ValueId, ValueId)&gt; = Vec::new();
 <a href=#511 id=511 data-nosnippet>511</a>    <span class="kw">for </span>(i, result_id) <span class="kw">in </span>result_ids.iter().enumerate() {
-<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>context.dfg.type_of_value(<span class="kw-2">*</span>result_id);
+<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">let </span>typ = context.dfg.type_of_value(<span class="kw-2">*</span>result_id).into_owned();
 <a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Vector(<span class="kw">_</span>)) {
 <a href=#514 id=514 data-nosnippet>514</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(len) = context.dfg.try_get_vector_capacity(<span class="kw-2">*</span>result_id) <span class="kw">else </span>{
 <a href=#515 id=515 data-nosnippet>515</a>                <span class="comment">// If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
@@ -517,7 +517,7 @@
 <a href=#517 id=517 data-nosnippet>517</a>            };
 <a href=#518 id=518 data-nosnippet>518</a>            <span class="comment">// Check if this result is preceded the semantic length.
 <a href=#519 id=519 data-nosnippet>519</a>            </span><span class="kw">let </span>follows_semantic_length = i &gt; <span class="number">0
-<a href=#520 id=520 data-nosnippet>520</a>                </span>&amp;&amp; context.dfg.type_of_value(result_ids[i - <span class="number">1</span>]) == Type::unsigned(<span class="number">32</span>)
+<a href=#520 id=520 data-nosnippet>520</a>                </span>&amp;&amp; <span class="kw-2">*</span>context.dfg.type_of_value(result_ids[i - <span class="number">1</span>]) == Type::unsigned(<span class="number">32</span>)
 <a href=#521 id=521 data-nosnippet>521</a>                &amp;&amp; <span class="macro">matches!</span>(context.instruction(), Instruction::Call { .. });
 <a href=#522 id=522 data-nosnippet>522</a>
 <a href=#523 id=523 data-nosnippet>523</a>            <span class="kw">if </span>follows_semantic_length {
@@ -528,10 +528,10 @@
 <a href=#528 id=528 data-nosnippet>528</a>            }
 <a href=#529 id=529 data-nosnippet>529</a>            replacements.push((
 <a href=#530 id=530 data-nosnippet>530</a>                <span class="kw-2">*</span>result_id,
-<a href=#531 id=531 data-nosnippet>531</a>                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+<a href=#531 id=531 data-nosnippet>531</a>                zeroed_vector_of_size(context.dfg, func_id, block_id, <span class="kw-2">&amp;</span>typ, len.to_usize()),
 <a href=#532 id=532 data-nosnippet>532</a>            ));
 <a href=#533 id=533 data-nosnippet>533</a>        } <span class="kw">else </span>{
-<a href=#534 id=534 data-nosnippet>534</a>            replacements.push((<span class="kw-2">*</span>result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+<a href=#534 id=534 data-nosnippet>534</a>            replacements.push((<span class="kw-2">*</span>result_id, zeroed_value(context.dfg, func_id, block_id, <span class="kw-2">&amp;</span>typ)));
 <a href=#535 id=535 data-nosnippet>535</a>        }
 <a href=#536 id=536 data-nosnippet>536</a>    }
 <a href=#537 id=537 data-nosnippet>537</a>
@@ -595,7 +595,7 @@
 <a href=#595 id=595 data-nosnippet>595</a>
 <a href=#596 id=596 data-nosnippet>596</a>        <span class="comment">// If it's zero, make sure that the type in the results
 <a href=#597 id=597 data-nosnippet>597</a>        </span><span class="kw">if </span>index_zero {
-<a href=#598 id=598 data-nosnippet>598</a>            <span class="kw">let </span>typ = <span class="kw">match </span>context.dfg.type_of_value(<span class="kw-2">*</span>array) {
+<a href=#598 id=598 data-nosnippet>598</a>            <span class="kw">let </span>typ = <span class="kw">match </span>context.dfg.type_of_value(<span class="kw-2">*</span>array).into_owned() {
 <a href=#599 id=599 data-nosnippet>599</a>                Type::Array(typ, <span class="kw">_</span>) | Type::Vector(typ) =&gt; typ,
 <a href=#600 id=600 data-nosnippet>600</a>                other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Array or Vector type expected; got {other:?}"</span>),
 <a href=#601 id=601 data-nosnippet>601</a>            };
@@ -604,7 +604,7 @@
 <a href=#604 id=604 data-nosnippet>604</a>            <span class="comment">// If the type doesn't agree then we should not use this any more,
 <a href=#605 id=605 data-nosnippet>605</a>            // as the type in the array will replace the type we wanted to get,
 <a href=#606 id=606 data-nosnippet>606</a>            // and cause problems further on.
-<a href=#607 id=607 data-nosnippet>607</a>            </span><span class="kw">if </span>typ[<span class="number">0</span>] != result_type {
+<a href=#607 id=607 data-nosnippet>607</a>            </span><span class="kw">if </span>typ[<span class="number">0</span>] != <span class="kw-2">*</span>result_type {
 <a href=#608 id=608 data-nosnippet>608</a>                <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#609 id=609 data-nosnippet>609</a>            }
 <a href=#610 id=610 data-nosnippet>610</a>            <span class="comment">// If the array contains a reference, then we should replace the results

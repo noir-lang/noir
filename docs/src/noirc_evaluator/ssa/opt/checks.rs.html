@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>assert_not_if_else_on_numeric(instruction: <span class="kw-2">&amp;</span>Instruction, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
 <a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">if let </span>Instruction::IfElse { then_value, .. } = instruction {
 <a href=#167 id=167 data-nosnippet>167</a>        <span class="macro">assert!</span>(
-<a href=#168 id=168 data-nosnippet>168</a>            !<span class="macro">matches!</span>(dfg.type_of_value(<span class="kw-2">*</span>then_value), Type::Numeric(<span class="kw">_</span>)),
+<a href=#168 id=168 data-nosnippet>168</a>            !<span class="macro">matches!</span>(<span class="kw-2">*</span>dfg.type_of_value(<span class="kw-2">*</span>then_value), Type::Numeric(<span class="kw">_</span>)),
 <a href=#169 id=169 data-nosnippet>169</a>            <span class="string">"IfElse on numeric values should have been handled during flattening"
 <a href=#170 id=170 data-nosnippet>170</a>        </span>);
 <a href=#171 id=171 data-nosnippet>171</a>    }

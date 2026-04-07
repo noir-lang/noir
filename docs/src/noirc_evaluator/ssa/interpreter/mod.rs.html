@@ -196,11 +196,11 @@
 <a href=#196 id=196 data-nosnippet>196</a>            <span class="kw">let </span>expected_type = func.dfg.type_of_value(id);
 <a href=#197 id=197 data-nosnippet>197</a>            <span class="kw">let </span>actual_type = value.get_type();
 <a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>            <span class="kw">if </span>expected_type != actual_type {
+<a href=#199 id=199 data-nosnippet>199</a>            <span class="kw">if </span><span class="kw-2">*</span>expected_type != actual_type {
 <a href=#200 id=200 data-nosnippet>200</a>                <span class="comment">// Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
 <a href=#201 id=201 data-nosnippet>201</a>                // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
 <a href=#202 id=202 data-nosnippet>202</a>                // Later optimization passes will fix the representation.
-<a href=#203 id=203 data-nosnippet>203</a>                </span><span class="kw">let </span>types_compatible = <span class="kw">match </span>(<span class="kw-2">&amp;</span>expected_type, <span class="kw-2">&amp;</span>actual_type) {
+<a href=#203 id=203 data-nosnippet>203</a>                </span><span class="kw">let </span>types_compatible = <span class="kw">match </span>(<span class="kw-2">&amp;*</span>expected_type, <span class="kw-2">&amp;</span>actual_type) {
 <a href=#204 id=204 data-nosnippet>204</a>                    (Type::Array(expected_elem, <span class="kw">_</span>), Type::Array(actual_elem, actual_len)) =&gt; {
 <a href=#205 id=205 data-nosnippet>205</a>                        expected_elem == actual_elem
 <a href=#206 id=206 data-nosnippet>206</a>                            &amp;&amp; expected_elem.is_empty()
@@ -1033,7 +1033,7 @@
 <a href=#1033 id=1033 data-nosnippet>1033</a>
 <a href=#1034 id=1034 data-nosnippet>1034</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(vecmap(results, |result| {
 <a href=#1035 id=1035 data-nosnippet>1035</a>                    <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(<span class="kw-2">*</span>result);
-<a href=#1036 id=1036 data-nosnippet>1036</a>                    <span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Vector(<span class="kw">_</span>)) {
+<a href=#1036 id=1036 data-nosnippet>1036</a>                    <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">*</span>typ, Type::Vector(<span class="kw">_</span>)) {
 <a href=#1037 id=1037 data-nosnippet>1037</a>                        Value::uninitialized_vector(<span class="kw-2">&amp;</span>element_types, output_len, <span class="kw-2">*</span>result)
 <a href=#1038 id=1038 data-nosnippet>1038</a>                    } <span class="kw">else </span>{
 <a href=#1039 id=1039 data-nosnippet>1039</a>                        Value::uninitialized(<span class="kw-2">&amp;</span>typ, <span class="kw-2">*</span>result)
@@ -1089,7 +1089,7 @@
 <a href=#1089 id=1089 data-nosnippet>1089</a>    }
 <a href=#1090 id=1090 data-nosnippet>1090</a>
 <a href=#1091 id=1091 data-nosnippet>1091</a>    <span class="kw">fn </span>interpret_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: ValueId) -&gt; IResult&lt;()&gt; {
-<a href=#1092 id=1092 data-nosnippet>1092</a>        <span class="kw">let </span>result_type = <span class="self">self</span>.dfg().type_of_value(result);
+<a href=#1092 id=1092 data-nosnippet>1092</a>        <span class="kw">let </span>result_type = <span class="self">self</span>.dfg().type_of_value(result).into_owned();
 <a href=#1093 id=1093 data-nosnippet>1093</a>        <span class="kw">let </span>element_type = <span class="kw">match </span>result_type {
 <a href=#1094 id=1094 data-nosnippet>1094</a>            Type::Reference(element_type) =&gt; element_type,
 <a href=#1095 id=1095 data-nosnippet>1095</a>            other =&gt; <span class="macro">unreachable!</span>(
@@ -1173,7 +1173,7 @@
 <a href=#1173 id=1173 data-nosnippet>1173</a>                <span class="comment">// Find a valid index
 <a href=#1174 id=1174 data-nosnippet>1174</a>                </span><span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
 <a href=#1175 id=1175 data-nosnippet>1175</a>                <span class="kw">for </span>(i, element) <span class="kw">in </span>array.elements.borrow().iter().enumerate() {
-<a href=#1176 id=1176 data-nosnippet>1176</a>                    <span class="kw">if </span>element.get_type() == typ {
+<a href=#1176 id=1176 data-nosnippet>1176</a>                    <span class="kw">if </span>element.get_type() == <span class="kw-2">*</span>typ {
 <a href=#1177 id=1177 data-nosnippet>1177</a>                        index = i <span class="kw">as </span>u32;
 <a href=#1178 id=1178 data-nosnippet>1178</a>                        <span class="kw">break</span>;
 <a href=#1179 id=1179 data-nosnippet>1179</a>                    }

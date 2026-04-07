@@ -219,7 +219,7 @@
 <a href=#219 id=219 data-nosnippet>219</a>    brillig_context: <span class="kw-2">&amp;</span>BrilligContext&lt;F, Registers&gt;,
 <a href=#220 id=220 data-nosnippet>220</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 <a href=#221 id=221 data-nosnippet>221</a>) -&gt; Allocated&lt;BrilligVariable, Registers&gt; {
-<a href=#222 id=222 data-nosnippet>222</a>    <span class="kw">let </span>typ = dfg.type_of_value(value_id);
+<a href=#222 id=222 data-nosnippet>222</a>    <span class="kw">let </span>typ = dfg.type_of_value(value_id).into_owned();
 <a href=#223 id=223 data-nosnippet>223</a>
 <a href=#224 id=224 data-nosnippet>224</a>    allocate_value_with_type(brillig_context, typ)
 <a href=#225 id=225 data-nosnippet>225</a>}

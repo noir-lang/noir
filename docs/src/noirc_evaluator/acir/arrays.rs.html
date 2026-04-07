@@ -398,7 +398,7 @@
 <a href=#398 id=398 data-nosnippet>398</a>                Type::Array(item_type, <span class="kw">_</span>) | Type::Vector(item_type) =&gt; item_type
 <a href=#399 id=399 data-nosnippet>399</a>                    .iter()
 <a href=#400 id=400 data-nosnippet>400</a>                    .enumerate()
-<a href=#401 id=401 data-nosnippet>401</a>                    .find_map(|(index, typ)| (result_type == <span class="kw-2">*</span>typ).then_some(index)),
+<a href=#401 id=401 data-nosnippet>401</a>                    .find_map(|(index, typ)| (<span class="kw-2">*</span>result_type == <span class="kw-2">*</span>typ).then_some(index)),
 <a href=#402 id=402 data-nosnippet>402</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#403 id=403 data-nosnippet>403</a>            }
 <a href=#404 id=404 data-nosnippet>404</a>        } <span class="kw">else </span>{
@@ -1198,7 +1198,7 @@
 <a href=#1198 id=1198 data-nosnippet>1198</a>    /// array containing zero length arrays has zero size, but we can still
 <a href=#1199 id=1199 data-nosnippet>1199</a>    /// access its elements.
 <a href=#1200 id=1200 data-nosnippet>1200</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_zero_length(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
-<a href=#1201 id=1201 data-nosnippet>1201</a>        <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, size) = dfg.type_of_value(array) {
+<a href=#1201 id=1201 data-nosnippet>1201</a>        <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, size) = <span class="kw-2">&amp;*</span>dfg.type_of_value(array) {
 <a href=#1202 id=1202 data-nosnippet>1202</a>            size.<span class="number">0 </span>== <span class="number">0
 <a href=#1203 id=1203 data-nosnippet>1203</a>        </span>} <span class="kw">else </span>{
 <a href=#1204 id=1204 data-nosnippet>1204</a>            <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[array] {

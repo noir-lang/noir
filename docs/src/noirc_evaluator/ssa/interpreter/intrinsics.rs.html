@@ -438,7 +438,7 @@
 <a href=#438 id=438 data-nosnippet>438</a>                }
 <a href=#439 id=439 data-nosnippet>439</a>
 <a href=#440 id=440 data-nosnippet>440</a>                <span class="kw">let </span>result_type = <span class="self">self</span>.dfg().type_of_value(results[<span class="number">0</span>]);
-<a href=#441 id=441 data-nosnippet>441</a>                <span class="kw">let </span>Type::Array(<span class="kw">_</span>, n) = result_type <span class="kw">else </span>{
+<a href=#441 id=441 data-nosnippet>441</a>                <span class="kw">let </span>Type::Array(<span class="kw">_</span>, n) = <span class="kw-2">&amp;*</span>result_type <span class="kw">else </span>{
 <a href=#442 id=442 data-nosnippet>442</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::UnexpectedResultType {
 <a href=#443 id=443 data-nosnippet>443</a>                        actual_type: result_type.to_string(),
 <a href=#444 id=444 data-nosnippet>444</a>                        expected_type: <span class="string">"array"</span>,
@@ -514,7 +514,7 @@
 <a href=#514 id=514 data-nosnippet>514</a>        result: ValueId,
 <a href=#515 id=515 data-nosnippet>515</a>    ) -&gt; IResults {
 <a href=#516 id=516 data-nosnippet>516</a>        <span class="kw">let </span>result_type = <span class="self">self</span>.dfg().type_of_value(result);
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>Type::Array(<span class="kw">_</span>, limb_count) = result_type <span class="kw">else </span>{
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>Type::Array(<span class="kw">_</span>, limb_count) = <span class="kw-2">&amp;*</span>result_type <span class="kw">else </span>{
 <a href=#518 id=518 data-nosnippet>518</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::TypeError {
 <a href=#519 id=519 data-nosnippet>519</a>                value_id: result,
 <a href=#520 id=520 data-nosnippet>520</a>                value: result_type.to_string(),

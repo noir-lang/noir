@@ -383,7 +383,7 @@
 <a href=#383 id=383 data-nosnippet>383</a>    ) {
 <a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>original_parameters = <span class="self">self</span>.source_function.dfg.block_parameters(source_block);
 <a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">for </span>parameter <span class="kw">in </span>original_parameters {
-<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>parameter);
+<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>parameter).into_owned();
 <a href=#387 id=387 data-nosnippet>387</a>            <span class="kw">let </span>new_parameter = <span class="self">self</span>.context.builder.add_block_parameter(target_block, typ);
 <a href=#388 id=388 data-nosnippet>388</a>            <span class="self">self</span>.values.insert(<span class="kw-2">*</span>parameter, new_parameter);
 <a href=#389 id=389 data-nosnippet>389</a>        }
@@ -582,7 +582,7 @@
 <a href=#582 id=582 data-nosnippet>582</a>        </span><span class="kw">if </span>new_results.is_empty() &amp;&amp; !old_results.is_empty() {
 <a href=#583 id=583 data-nosnippet>583</a>            <span class="kw">let </span>unreachable_block = <span class="self">self</span>.context.builder.insert_block();
 <a href=#584 id=584 data-nosnippet>584</a>            <span class="kw">for </span>old_result <span class="kw">in </span>old_results {
-<a href=#585 id=585 data-nosnippet>585</a>                <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>old_result);
+<a href=#585 id=585 data-nosnippet>585</a>                <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>old_result).into_owned();
 <a href=#586 id=586 data-nosnippet>586</a>                <span class="kw">let </span>param = <span class="self">self</span>.context.builder.add_block_parameter(unreachable_block, typ);
 <a href=#587 id=587 data-nosnippet>587</a>                <span class="self">self</span>.values.insert(<span class="kw-2">*</span>old_result, param);
 <a href=#588 id=588 data-nosnippet>588</a>            }
@@ -611,9 +611,9 @@
 <a href=#611 id=611 data-nosnippet>611</a>            .extend_call_stack(call_stack, <span class="kw-2">&amp;</span>source_call_stack);
 <a href=#612 id=612 data-nosnippet>612</a>        <span class="kw">let </span>results = <span class="self">self</span>.source_function.dfg.instruction_results(id).to_vec();
 <a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>ctrl_typevars = instruction
-<a href=#615 id=615 data-nosnippet>615</a>            .requires_ctrl_typevars()
-<a href=#616 id=616 data-nosnippet>616</a>            .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>result)));
+<a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+<a href=#615 id=615 data-nosnippet>615</a>            vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>result).into_owned())
+<a href=#616 id=616 data-nosnippet>616</a>        });
 <a href=#617 id=617 data-nosnippet>617</a>
 <a href=#618 id=618 data-nosnippet>618</a>        <span class="self">self</span>.context.builder.set_call_stack(call_stack);
 <a href=#619 id=619 data-nosnippet>619</a>

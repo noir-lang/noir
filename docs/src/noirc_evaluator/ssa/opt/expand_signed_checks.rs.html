@@ -245,7 +245,7 @@
 <a href=#245 id=245 data-nosnippet>245</a>    <span class="doccomment">/// helper function which add instructions to the block computing the absolute value of the
 <a href=#246 id=246 data-nosnippet>246</a>    /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
 <a href=#247 id=247 data-nosnippet>247</a>    </span><span class="kw">fn </span>absolute_value_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: ValueId, sign: ValueId, bit_size: u32) -&gt; ValueId {
-<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(<span class="self">self</span>.context.dfg.type_of_value(sign), Type::bool());
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="self">self</span>.context.dfg.type_of_value(sign), Type::bool());
 <a href=#249 id=249 data-nosnippet>249</a>
 <a href=#250 id=250 data-nosnippet>250</a>        <span class="comment">// We compute the absolute value of lhs
 <a href=#251 id=251 data-nosnippet>251</a>        </span><span class="kw">let </span>bit_width = FieldElement::from(<span class="number">2_u128</span>.pow(bit_size));
@@ -277,7 +277,7 @@
 <a href=#277 id=277 data-nosnippet>277</a>    ///
 <a href=#278 id=278 data-nosnippet>278</a>    /// Compared to `self.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
 <a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_safe_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>value: ValueId, typ: NumericType) -&gt; ValueId {
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">let </span>incoming_type = <span class="self">self</span>.context.dfg.type_of_value(value);
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">let </span>incoming_type = <span class="self">self</span>.context.dfg.type_of_value(value).into_owned();
 <a href=#281 id=281 data-nosnippet>281</a>
 <a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">let </span>result = <span class="kw">match </span>(<span class="kw-2">&amp;</span>incoming_type, typ) {
 <a href=#283 id=283 data-nosnippet>283</a>            <span class="comment">// Casting to field is safe
