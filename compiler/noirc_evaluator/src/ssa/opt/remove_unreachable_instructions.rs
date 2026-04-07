@@ -297,11 +297,11 @@ impl Function {
                 | Instruction::ArraySet { array, index, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    let array_type = context.dfg.type_of_value(*array).into_owned();
+                    let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays,
                     // and vectors which have been declared as a literal.
-                    let len = match array_type {
-                        Type::Array(_, len) => len,
+                    let len = match &*array_type {
+                        Type::Array(_, len) => *len,
                         Type::Vector(_) => {
                             let Some(Instruction::MakeArray { elements, typ }) =
                                 context.dfg.get_local_or_global_instruction(*array)
