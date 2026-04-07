@@ -6,7 +6,7 @@ use crate::mutations::{
     },
 };
 use noir_ssa_fuzzer::typed_value::Type;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 use std::sync::Arc;
 
 fn generate_random_reference_type(

@@ -96,12 +96,12 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            let length = match dfg.type_of_value(arguments[0]) {
+            let length = match *dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
                     dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
-                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
+                    assert!(matches!(*dfg.type_of_value(arguments[1]), Type::Vector(_)));
                     arguments[0]
                 }
                 _ => panic!("First argument to ArrayLen must be an array or a vector length"),
@@ -377,7 +377,7 @@ pub(super) fn simplify_call(
         (return_type, &simplified_result)
     {
         assert_eq!(
-            dfg.type_of_value(*result),
+            *dfg.type_of_value(*result),
             expected_types,
             "Simplification should not alter return type"
         );

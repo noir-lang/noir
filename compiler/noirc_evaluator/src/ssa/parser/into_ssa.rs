@@ -577,7 +577,7 @@ impl Translator {
 
         self.global_values.insert(identifier.name, value_id);
 
-        let typ = self.globals_function.dfg.type_of_value(value_id);
+        let typ = self.globals_function.dfg.type_of_value(value_id).into_owned();
         self.global_types.push(typ);
 
         Ok(())
