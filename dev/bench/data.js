@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775598227762,
+  "lastUpdate": 1775601437083,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4e1fb408b390e8be6eb3dd451c1d920b9c380248",
-          "message": "fix(lsp): autocomplete in type generics (#12080)",
-          "timestamp": "2026-04-01T16:06:44Z",
-          "tree_id": "59508c22439087e3a08e0d0548d3c73f5e5cd644",
-          "url": "https://github.com/noir-lang/noir/commit/4e1fb408b390e8be6eb3dd451c1d920b9c380248"
-        },
-        "date": 1775061077278,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162030,
-            "range": "± 440",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133346,
-            "range": "± 1342",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2118349,
-            "range": "± 1016",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640882,
             "range": "± 1471",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1de11522a39ef7f5de86201a1d662f9958e098ac",
+          "message": "fix: check oracle return type on any function expr, not only on calls (#12158)",
+          "timestamp": "2026-04-07T22:13:10Z",
+          "tree_id": "0d9cdce4df88b8e8b5a3e821379f7dea0b458273",
+          "url": "https://github.com/noir-lang/noir/commit/1de11522a39ef7f5de86201a1d662f9958e098ac"
+        },
+        "date": 1775601384105,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169491,
+            "range": "± 254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137078,
+            "range": "± 2825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642672,
+            "range": "± 1730",
             "unit": "ns/iter"
           }
         ]
