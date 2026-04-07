@@ -445,10 +445,7 @@ impl Context {
             Intrinsic::Hint(Hint::BlackBox) => {
                 assert_eq!(arguments.len(), results.len());
                 for (arg, res) in arguments.iter().zip(results.iter()) {
-                    assert_eq!(
-                        *dfg.type_of_value(*arg),
-                        *dfg.type_of_value(*res),
-                    );
+                    assert_eq!(*dfg.type_of_value(*arg), *dfg.type_of_value(*res),);
                 }
 
                 let mut changes = Vec::new();
