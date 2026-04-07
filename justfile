@@ -32,8 +32,8 @@ install-js-tools: install-binstall
     cargo binstall wasm-opt@0.116.1 -y {{ cargo-binstall-args }}
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
-install-playwright:
-    npx -y playwright@1.55.0 install --with-deps
+install-playwright browsers='chromium':
+    npx -y playwright@1.55.0 install --with-deps {{ browsers }}
 
 # Installs Foundry (necessary for examples)
 install-foundry:

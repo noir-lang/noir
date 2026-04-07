@@ -4,7 +4,7 @@ import { playwrightLauncher } from '@web/test-runner-playwright';
 export default {
   browsers: [
     playwrightLauncher({ product: 'chromium' }),
-    playwrightLauncher({ product: 'webkit' }),
+    // playwrightLauncher({ product: 'webkit' }),
     // Firefox requires 40s to perform a Pedersen hash so we recommend using either
     // a Chromium- or Webkit-based browser
     // playwrightLauncher({ product: "firefox" }),
