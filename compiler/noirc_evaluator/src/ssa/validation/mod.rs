@@ -13,6 +13,7 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use acvm::{
@@ -214,11 +215,11 @@ impl<'f> Validator<'f> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
 
-                let composite_type = match result_type {
+                let composite_type = match &*result_type {
                     Type::Array(composite_type, length) => {
                         let types_length =
                             ElementTypesLength(crate::brillig::assert_u32(composite_type.len()));
-                        let array_semi_flattened_length = types_length * length;
+                        let array_semi_flattened_length = types_length * *length;
                         let elements_length =
                             SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
                         if elements_length != array_semi_flattened_length {
@@ -903,18 +904,22 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Type {
+    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Cow<Type> {
         assert_arguments_length(arguments, 1, object);
 
-        self.function.dfg.type_of_value(arguments[0]).into_owned()
+        self.function.dfg.type_of_value(arguments[0])
     }
 
-    fn assert_two_arguments(&self, arguments: &[ValueId], object: &'static str) -> (Type, Type) {
+    fn assert_two_arguments(
+        &self,
+        arguments: &[ValueId],
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 2, object);
 
         (
-            self.function.dfg.type_of_value(arguments[0]).into_owned(),
-            self.function.dfg.type_of_value(arguments[1]).into_owned(),
+            self.function.dfg.type_of_value(arguments[0]),
+            self.function.dfg.type_of_value(arguments[1]),
         )
     }
 
@@ -922,13 +927,13 @@ impl<'f> Validator<'f> {
         &self,
         arguments: &[ValueId],
         object: &'static str,
-    ) -> (Type, Type, Type) {
+    ) -> (Cow<Type>, Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 3, object);
 
         (
-            self.function.dfg.type_of_value(arguments[0]).into_owned(),
-            self.function.dfg.type_of_value(arguments[1]).into_owned(),
-            self.function.dfg.type_of_value(arguments[2]).into_owned(),
+            self.function.dfg.type_of_value(arguments[0]),
+            self.function.dfg.type_of_value(arguments[1]),
+            self.function.dfg.type_of_value(arguments[2]),
         )
     }
 
@@ -937,19 +942,20 @@ impl<'f> Validator<'f> {
         assert_eq!(results.len(), 0, "Expected zero result for {object}",);
     }
 
-    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
+    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Cow<Type> {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 1, "Expected one result for {object}",);
-        self.function.dfg.type_of_value(results[0]).into_owned()
+        self.function.dfg.type_of_value(results[0])
     }
 
-    fn assert_two_results(&self, instruction: InstructionId, object: &'static str) -> (Type, Type) {
+    fn assert_two_results(
+        &self,
+        instruction: InstructionId,
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 2, "Expected two results for {object}",);
-        (
-            self.function.dfg.type_of_value(results[0]).into_owned(),
-            self.function.dfg.type_of_value(results[1]).into_owned(),
-        )
+        (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
     }
 
     /// Validates that ACIR functions are not called from unconstrained code.

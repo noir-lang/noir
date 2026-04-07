@@ -423,7 +423,7 @@ fn binary_operation_always_fails(
         return Some("attempt to calculate the remainder with a divisor of zero".to_string());
     }
 
-    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs).into_owned() else {
+    let Type::Numeric(numeric_type) = *context.dfg.type_of_value(lhs) else {
         panic!("Expected numeric type for binary operation");
     };
 
