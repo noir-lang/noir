@@ -6,8 +6,8 @@ use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
 use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::ast::{
-        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-        Program, Type,
+        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LValue,
+        LocalId, Program, Type,
     },
     shared::Visibility,
 };
@@ -242,4 +242,44 @@ fn test_recursion_limit_rewrite() {
         bar((&mut ctx_limit))
     }
     ");
+}
+
+/// `assign_ref` must set `element_type` to the inner type (`u32`), not the
+/// full reference type (`&mut u32`). Otherwise nested lvalue codegen in SSA
+/// would produce `load ref -> &mut u32` which is invalid.
+#[test]
+fn test_assign_ref_element_type() {
+    use super::expr::assign_ref;
+
+    let ref_type = Type::Reference(Rc::new(crate::program::types::U32), true);
+    let ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "r".to_string(),
+        typ: Rc::new(ref_type),
+        id: IdentId(0),
+    };
+
+    let rhs = Expression::Literal(noirc_frontend::monomorphization::ast::Literal::Integer(
+        acir::FieldElement::from(0u32),
+        crate::program::types::U32,
+        Location::dummy(),
+    ));
+
+    let assign_expr = assign_ref(ident, rhs);
+    let Expression::Assign(assign) = assign_expr else {
+        panic!("expected Assign");
+    };
+
+    let LValue::Dereference { element_type, .. } = &assign.lvalue else {
+        panic!("expected LValue::Dereference, got {:?}", assign.lvalue);
+    };
+
+    // Before the fix, element_type was `&mut u32` instead of `u32`.
+    assert_eq!(
+        *element_type,
+        crate::program::types::U32,
+        "element_type should be the inner type (u32), not the reference type (&mut u32)"
+    );
 }

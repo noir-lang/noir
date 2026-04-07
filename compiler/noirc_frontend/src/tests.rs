@@ -7,6 +7,7 @@ mod assignment;
 mod bound_checks;
 mod cast;
 mod control_flow;
+mod deeply_nested;
 mod enums;
 mod expressions;
 mod functions;
@@ -23,6 +24,7 @@ mod runtime;
 mod structs;
 mod traits;
 mod turbofish;
+mod type_mismatch;
 mod unused_items;
 mod visibility;
 
@@ -33,7 +35,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 use crate::error_reporting::{self};
-use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
 use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
@@ -447,82 +448,4 @@ fn regression_10554() {
     }
     "#;
     check_monomorphization_error(src);
-}
-
-#[test]
-fn deeply_nested_expression_overflow() {
-    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
-    // This tests the interpreter's evaluation depth limit.
-    // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
-    // We use fewer nesting levels (50) combined with recursive function calls
-    // to trigger the interpreter's EvaluationDepthOverflow error.
-    fn make_nested_expr(stem: &str) -> String {
-        let mut expr = String::from(stem);
-        for i in 2..=50 {
-            expr = format!("({expr} + {i})");
-        }
-        expr
-    }
-
-    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
-
-    let src = format!(
-        "
-      fn foo(max_depth: u32) -> u32 {{
-        {expr}
-      }}
-      fn main() {{
-          comptime {{
-              let _ = foo(5);
-          }}
-      }}
-      "
-    );
-
-    let errors = get_program_errors(&src);
-
-    for error in errors {
-        if matches!(
-            error,
-            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
-        ) {
-            return;
-        }
-    }
-
-    panic!("should have got a EvaluationDepthOverflow error");
-}
-
-#[test]
-fn deeply_nested_expression_parser_overflow() {
-    use crate::parser::ParserErrorReason;
-
-    // Build expression: (((1 + 2) + 3) + 4) ... + 200
-    // This should hit the parser's maximum recursion depth limit
-    let mut expr = String::from("1");
-    for i in 2..=200 {
-        expr = format!("({expr} + {i})");
-    }
-
-    let src = format!(
-        "
-      fn main() {{
-          comptime {{
-              let _ = {expr};
-          }}
-      }}
-      "
-    );
-
-    let errors = get_program_errors(&src);
-
-    // We should get exactly one MaximumRecursionDepthExceeded error
-    assert_eq!(errors.len(), 1, "Expected exactly one error");
-
-    let has_depth_error = matches!(
-        &errors[0],
-        CompilationError::ParseError(parser_error)
-            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
-    );
-    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
 }

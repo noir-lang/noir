@@ -174,10 +174,12 @@ impl Monomorphizer<'_> {
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
                 let element = self.zeroed_value_of_type(element_type, location);
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: vec![element; *length as usize],
+                ast::Expression::Literal(ast::Literal::Repeated {
+                    element: Box::new(element),
+                    length: *length,
+                    is_vector: false,
                     typ: ast::Type::Array(*length, element_type.clone()),
-                }))
+                })
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))

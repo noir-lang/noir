@@ -1131,8 +1131,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
-                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
-                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                     ^^^^^ Reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1155,10 +1155,10 @@ fn evaluates_builtin_zeroed() {
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
     insta::assert_snapshot!(program, @"
-fn main$f0() -> () {
-    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]
-}
-");
+    fn main$f0() -> () {
+        let _a$l0 = [(0, \"\0\0\0\"); 2]
+    }
+    ");
 }
 
 #[test]
@@ -1176,10 +1176,10 @@ fn evaluates_builtin_zeroed_function() {
         let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
     }
     fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     ");
 }
@@ -1465,7 +1465,7 @@ fn main() {{
 fn deref_of_ref_is_simplified() {
     let src = "
         unconstrained fn main() {
-            let x: Field = 5;
+            let mut x: Field = 5;
             let y = *&mut x;
             assert(y == 5);
         }
@@ -1474,7 +1474,7 @@ fn deref_of_ref_is_simplified() {
     // `*&mut x` should be simplified to just `x` during elaboration
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
-        let x$l0 = 5;
+        let mut x$l0 = 5;
         let y$l1 = x$l0;
         assert((y$l1 == 5));
     }
@@ -1499,4 +1499,57 @@ fn deref_of_immutable_ref_is_simplified() {
         assert((y$l1 == 5));
     }
     ");
+}
+
+#[test]
+fn outer_immref_to_brillig_is_accepted() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&x) };
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &Field) -> Field {
+            *x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn inner_immref_to_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&&x) };
+                                 ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &&Field) -> Field {
+            **x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn outer_immref_from_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            // Safety:
+            let y = unsafe { foo(5) };
+                             ^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                             ^^^^^^ Reference `&Field` cannot be returned from an unconstrained runtime to a constrained runtime
+            assert(*y == 5);
+        }
+
+        unconstrained fn foo(x: Field) -> &Field {
+            &x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
 }

@@ -38,6 +38,8 @@ pub enum ResolverError {
     UnconditionalRecursion { name: String, location: Location },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, location: Location },
+    #[error("Runtime variable `{name}` cannot be accessed in comptime code")]
+    RuntimeVarReferencedInComptime { name: String, location: Location },
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
@@ -235,6 +237,8 @@ pub enum ResolverError {
     ComptimeGlobalInNonComptimeCode { location: Location, name: String },
     #[error("The `{typ}` type has been removed")]
     RemovedType { location: Location, typ: String, replacement: String },
+    #[error("Recursion limit reached during elaboration")]
+    MaximumRecursionDepthExceeded { location: Location },
 }
 
 impl ResolverError {
@@ -244,6 +248,7 @@ impl ResolverError {
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::Expected { location, .. }
             | ResolverError::VariableNotDeclared { location, .. }
+            | ResolverError::RuntimeVarReferencedInComptime { location, .. }
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
@@ -318,7 +323,8 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
-            | ResolverError::RemovedType { location, .. } => *location,
+            | ResolverError::RemovedType { location, .. }
+            | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
@@ -411,6 +417,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                         *location,
                     )
                 }
+            }
+            ResolverError::RuntimeVarReferencedInComptime { name, location } => {
+                Diagnostic::simple_error(
+                    format!("variable `{name}` is a runtime variable and cannot be used in comptime code"),
+                    "this variable is not available in comptime".to_string(),
+                    *location,
+                )
             }
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
@@ -1044,6 +1057,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("`{typ}` has been removed, use `{replacement}` instead"),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::MaximumRecursionDepthExceeded { location } => {
+                Diagnostic::simple_error(
+                    "Reached the recursion limit during elaboration and type checking".into(),
+                    "Try to simplify expressions".into(),
                     *location,
                 )
             },

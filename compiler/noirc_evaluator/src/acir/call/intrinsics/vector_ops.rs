@@ -68,7 +68,7 @@ impl Context<'_> {
             // 2. Generate a DynamicArray corresponding to the new vector flattened content
             // 3. Write the elements to push to this array at the correct length
             let value_types = flat_element_types(&vector_typ);
-            let Type::Vector(vector_types) = &vector_typ else {
+            let Type::Vector(vector_types) = &*vector_typ else {
                 unreachable!("ICE: vector operation on a non vector type");
             };
 

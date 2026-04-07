@@ -206,6 +206,7 @@ impl PrimitiveType {
 }
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn instantiate_primitive_type(
         &mut self,
         primitive_type: PrimitiveType,
@@ -287,6 +288,7 @@ impl Elaborator<'_> {
     /// A tuple of:
     /// - The instantiated [Type]
     /// - A boolean indicating whether this primitive type has generics
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn instantiate_primitive_type_with_turbofish(
         &mut self,
         primitive_type: PrimitiveType,

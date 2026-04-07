@@ -48,7 +48,6 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
@@ -697,7 +696,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
-                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolved(value) => {
+                        // Enum variant globals with generics are instantiated with a Type::Forall
+                        // We need to resolve the type, but it has already been done by the elaborator
+                        if let Value::Enum(tag, fields, _) = value {
+                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
+                        } else {
+                            Ok(value.clone())
+                        }
+                    }
                     GlobalValue::Resolving => {
                         // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
                         // but the general dependency cycle detector will give a better error later on during compilation.
@@ -1185,12 +1193,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Type::apply_type_bindings(bindings);
             }
             Err(UnificationError) => {
-                let error = TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: actual_type.to_string(),
-                    expr_location: location,
-                };
-                self.elaborator.push_err(error);
+                self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
+                    &actual_type,
+                    &expected_type,
+                    location,
+                ));
             }
         }
     }
