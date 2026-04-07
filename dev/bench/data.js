@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775593006733,
+  "lastUpdate": 1775594199478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22411,48 +22411,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e",
-          "message": "fix: check mutability in `*&mut x` elaboration optimization (#12079)",
-          "timestamp": "2026-04-01T15:44:47Z",
-          "tree_id": "272cd6bfdcd2e131d4ad7a13f50e557fb5ffa294",
-          "url": "https://github.com/noir-lang/noir/commit/8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e"
-        },
-        "date": 1775059697149,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128129,
-            "range": "± 517",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113848,
-            "range": "± 1302",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3045486,
-            "range": "± 14338",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c9e1989e1a876352d1a8711ff433256376e2d33f",
           "message": "chore: remove dead code in type_check_operator_method (#12082)",
           "timestamp": "2026-04-01T15:46:49Z",
@@ -24494,6 +24452,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2639902,
             "range": "± 2252",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "48fe6a4f06c6a7e96a1cad37e595c1ce3df40188",
+          "message": "fix: missing monomorphization visit of constrain message (#12159)",
+          "timestamp": "2026-04-07T20:12:40Z",
+          "tree_id": "8b5fce81f8c49ff21eafdcafe7e76bbf0ce0379c",
+          "url": "https://github.com/noir-lang/noir/commit/48fe6a4f06c6a7e96a1cad37e595c1ce3df40188"
+        },
+        "date": 1775594138853,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167853,
+            "range": "± 3702",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137841,
+            "range": "± 1781",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2639040,
+            "range": "± 13648",
             "unit": "ns/iter"
           }
         ]
