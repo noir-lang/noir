@@ -37,11 +37,9 @@ impl Field {
             assert(bits.len() <= p.len());
             let mut ok = bits.len() != p.len();
             for i in 0..N {
-                if !ok {
-                    if (bits[N - 1 - i] != p[N - 1 - i]) {
-                        assert(p[N - 1 - i] == 1);
-                        ok = true;
-                    }
+                if !ok & (bits[N - 1 - i] != p[N - 1 - i]) {
+                    assert(p[N - 1 - i] == 1);
+                    ok = true;
                 }
             }
             assert(ok);
@@ -69,11 +67,9 @@ impl Field {
             assert(bits.len() <= p.len());
             let mut ok = bits.len() != p.len();
             for i in 0..N {
-                if !ok {
-                    if (bits[i] != p[i]) {
-                        assert(p[i] == 1);
-                        ok = true;
-                    }
+                if !ok & (bits[i] != p[i]) {
+                    assert(p[i] == 1);
+                    ok = true;
                 }
             }
             assert(ok);
@@ -106,11 +102,9 @@ impl Field {
             assert(bytes.len() <= p.len());
             let mut ok = bytes.len() != p.len();
             for i in 0..N {
-                if !ok {
-                    if (bytes[N - 1 - i] != p[N - 1 - i]) {
-                        assert(bytes[N - 1 - i] < p[N - 1 - i]);
-                        ok = true;
-                    }
+                if !ok & (bytes[N - 1 - i] != p[N - 1 - i]) {
+                    assert(bytes[N - 1 - i] < p[N - 1 - i]);
+                    ok = true;
                 }
             }
             assert(ok);
@@ -143,11 +137,9 @@ impl Field {
             assert(bytes.len() <= p.len());
             let mut ok = bytes.len() != p.len();
             for i in 0..N {
-                if !ok {
-                    if (bytes[i] != p[i]) {
-                        assert(bytes[i] < p[i]);
-                        ok = true;
-                    }
+                if !ok & (bytes[i] != p[i]) {
+                    assert(bytes[i] < p[i]);
+                    ok = true;
                 }
             }
             assert(ok);
