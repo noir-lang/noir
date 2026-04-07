@@ -9,7 +9,10 @@ use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::lsp_types;
-use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
+use async_lsp::lsp_types::{
+    DiagnosticRelatedInformation, DiagnosticTag, MessageType, Position, Range, ShowMessageParams,
+    Url,
+};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::package::{Package, PackageType};
@@ -31,7 +34,7 @@ use crate::types::{
 };
 
 use crate::{
-    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    LspError, LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
     resolve_workspace_for_source_path,
 };
 
@@ -98,8 +101,9 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let workspace = match workspace_from_document_uri(params.text_document.uri) {
-        Ok(workspace) => workspace,
+    let workspace = match workspace_from_document_uri(state, params.text_document.uri) {
+        Ok(Some(workspace)) => workspace,
+        Ok(None) => return ControlFlow::Continue(()),
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
@@ -113,7 +117,9 @@ fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri)?;
+    let Some(workspace) = workspace_from_document_uri(state, document_uri)? else {
+        return Ok(());
+    };
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         Ok(())
@@ -129,7 +135,9 @@ fn handle_on_did_change_text_document_notification(
     document_uri: Url,
     text: &str,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let Some(workspace) = workspace_from_document_uri(state, document_uri.clone())? else {
+        return Ok(());
+    };
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         process_workspace_for_single_file_change(state, &workspace, document_uri, text)
@@ -141,21 +149,102 @@ fn handle_on_did_change_text_document_notification(
 }
 
 pub(crate) fn workspace_from_document_uri(
+    state: &mut LspState,
     document_uri: Url,
-) -> Result<Workspace, async_lsp::Error> {
+) -> Result<Option<Workspace>, async_lsp::Error> {
     if document_uri.scheme() == "noir-std" {
-        Ok(fake_stdlib_workspace())
-    } else {
-        let file_path = document_uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-        })?;
-
-        Ok(workspace)
+        return Ok(Some(fake_stdlib_workspace()));
     }
+
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    match resolve_workspace_for_source_path(&file_path) {
+        Ok(workspace) => {
+            // If this workspace's Nargo.toml previously had errors, clear them now.
+            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join("Nargo.toml")) {
+                if state.toml_files_with_errors.remove(&toml_uri) {
+                    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                        uri: toml_uri,
+                        version: None,
+                        diagnostics: vec![],
+                    });
+                }
+            }
+            Ok(Some(workspace))
+        }
+        Err(LspError::ManifestError(toml_path, error)) => {
+            publish_nargo_toml_error(state, &toml_path, &error);
+            Ok(None)
+        }
+        Err(lsp_error) => {
+            Err(ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string()).into())
+        }
+    }
+}
+
+/// Publishes a diagnostic on the Nargo.toml file and sends a `window/showMessage` notification.
+fn publish_nargo_toml_error(
+    state: &mut LspState,
+    toml_path: &Path,
+    error: &nargo_toml::ManifestError,
+) {
+    let Ok(toml_uri) = Url::from_file_path(toml_path) else {
+        return;
+    };
+
+    // Compute the diagnostic range. For TOML parse errors we have a byte-offset span;
+    // for everything else we highlight the beginning of the file.
+    let range = if let nargo_toml::ManifestError::MalformedFile(toml_error) = error {
+        if let Some(span) = toml_error.span()
+            && let Ok(content) = std::fs::read_to_string(toml_path)
+        {
+            let start = byte_offset_to_position(&content, span.start);
+            let end = byte_offset_to_position(&content, span.end);
+            Range { start, end }
+        } else {
+            Range::default()
+        }
+    } else {
+        Range::default()
+    };
+
+    let diagnostic = Diagnostic {
+        range,
+        severity: Some(DiagnosticSeverity::ERROR),
+        message: error.to_string(),
+        ..Default::default()
+    };
+
+    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+        uri: toml_uri.clone(),
+        version: None,
+        diagnostics: vec![diagnostic],
+    });
+    state.toml_files_with_errors.insert(toml_uri);
+
+    let _ = state.client.show_message(ShowMessageParams {
+        typ: MessageType::ERROR,
+        message: format!("Nargo.toml error: {error}"),
+    });
+}
+
+fn byte_offset_to_position(content: &str, offset: usize) -> Position {
+    let mut line = 0u32;
+    let mut character = 0u32;
+    for (i, ch) in content.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            character = 0;
+        } else {
+            character += 1;
+        }
+    }
+    Position { line, character }
 }
 
 // Given a Noir document, find the workspace it's contained in (an assumed workspace is created if

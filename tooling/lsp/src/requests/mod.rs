@@ -604,7 +604,8 @@ where
     let workspace = if uri.scheme() == "noir-std" {
         fake_stdlib_workspace()
     } else {
-        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
+        resolve_workspace_for_source_path(file_path.as_path())
+            .map_err(|e| ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()))?
     };
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
@@ -667,7 +668,8 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path())
+        .map_err(|e| ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()))?;
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;

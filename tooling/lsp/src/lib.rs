@@ -28,7 +28,9 @@ use nargo::{
     parse_all,
     workspace::Workspace,
 };
-use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
+use nargo_toml::{
+    ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
+};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     ParsedModule,
@@ -92,6 +94,9 @@ pub enum LspError {
     /// Error while Resolving Workspace.
     #[error("Failed to Resolve Workspace - {0}")]
     WorkspaceResolutionError(String),
+    /// Error while parsing Nargo.toml.
+    #[error("{1}")]
+    ManifestError(PathBuf, ManifestError),
 }
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
@@ -109,6 +114,9 @@ pub struct LspState {
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+
+    // Tracks Nargo.toml files that currently have diagnostics published to them.
+    toml_files_with_errors: HashSet<Url>,
 }
 
 struct WorkspaceCacheData {
@@ -139,6 +147,7 @@ impl LspState {
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
+            toml_files_with_errors: HashSet::new(),
         }
     }
 }
@@ -286,7 +295,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {}: {error}", toml_path.display());
+                return Err(LspError::ManifestError(toml_path, error));
             }
         }
     }
