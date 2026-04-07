@@ -49,7 +49,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.mem2reg_simple(false);
+            function.mem2reg_simple();
         }
         self
     }
@@ -59,7 +59,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(false);
+                function.mem2reg_simple();
             }
         }
         self
@@ -82,10 +82,10 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
-        self.mem2reg_simple(false);
+        self.mem2reg_simple();
     }
 
-    fn mem2reg_simple(&mut self, _cleanup: bool) {
+    fn mem2reg_simple(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -137,14 +137,6 @@ impl Function {
             &cfg,
         );
         commit(&mut inserter, &variables, blocks);
-    }
-
-    /// Like `mem2reg_simple` but skips the cleanup pass that removes block parameters
-    /// whose arguments are all identical. This reveals whether the IDF-based placement
-    /// avoided unnecessary parameters at source, rather than relying on cleanup.
-    #[cfg(test)]
-    fn mem2reg_simple_without_cleanup(&mut self) {
-        self.mem2reg_simple(false);
     }
 }
 
@@ -597,13 +589,13 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1):
-            jmpif v0 then: b1(Field 0), else: b2(Field 0)
-          b1(v1: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
             jmp b3(Field 1)
-          b2(v2: Field):
+          b2():
             jmp b3(Field 2)
-          b3(v3: Field):
-            return v3
+          b3(v1: Field):
+            return v1
         }
         ");
     }
@@ -627,9 +619,9 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0():
-            jmp b1(Field 7)
-          b1(v0: Field):
-            return v0
+            jmp b1()
+          b1():
+            return Field 7
         }
         ");
     }
@@ -724,17 +716,17 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1(Field 1), else: b2(Field 1)
-          b1(v2: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
             jmp b5(Field 2)
-          b2(v3: Field):
-            jmpif v1 then: b3(v3), else: b4(v3)
-          b3(v4: Field):
+          b2():
+            jmpif v1 then: b3(), else: b4()
+          b3():
             jmp b5(Field 3)
-          b4(v5: Field):
-            jmp b5(v5)
-          b5(v6: Field):
-            return v6
+          b4():
+            jmp b5(Field 1)
+          b5(v2: Field):
+            return v2
         }
         ");
     }
@@ -784,13 +776,13 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1):
-            jmpif v0 then: b1(Field 5), else: b2(Field 5)
-          b1(v1: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
             jmp b3(Field 10)
-          b2(v2: Field):
-            jmp b3(v2)
-          b3(v3: Field):
-            return v3
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            return v1
         }
         ");
     }
@@ -851,17 +843,17 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1(Field 1), else: b2(Field 1)
-          b1(v2: Field):
-            jmpif v1 then: b3(v2), else: b4(v2)
-          b2(v3: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmpif v1 then: b3(), else: b4()
+          b2():
             jmp b5(Field 2)
-          b3(v4: Field):
+          b3():
             jmp b5(Field 3)
-          b4(v5: Field):
+          b4():
             jmp b5(Field 4)
-          b5(v6: Field):
-            return v6
+          b5(v2: Field):
+            return v2
         }
         ");
     }
@@ -1044,128 +1036,128 @@ brillig(inline) fn main f0 {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
-            v68 = array_get v1, index u32 4 -> u32
-            jmp b1(u32 0, v68, u32 2301)
+            v24 = array_get v1, index u32 4 -> u32
+            jmp b1(u32 0, v24, u32 2301)
           b1(v4: u32, v5: u32, v6: u32):
-            v72 = lt v4, u32 5
-            jmpif v72 then: b2(v5, v6), else: b3(v5, v6)
-          b2(v7: u32, v8: u32):
-            v142 = mul v7, v7
-            v143 = array_get v1, index v4 -> u32
-            v144 = mul v142, v143
-            v145 = sub v7, v144
-            v146 = unchecked_add v4, u32 1
-            jmp b1(v146, v145, v144)
-          b3(v9: u32, v10: u32):
-            v73 = eq v9, u32 0
-            constrain v9 == u32 0
-            jmp b4(u32 0, v9, u32 2301)
-          b4(v11: u32, v12: u32, v13: u32):
-            v74 = lt v11, u32 5
-            jmpif v74 then: b5(v12, v13), else: b6(v12, v13)
-          b5(v14: u32, v15: u32):
-            v136 = add v3, u32 2
-            v137 = array_get v0, index v11 -> u32
-            v138 = array_get v0, index v11 -> u32
-            v139 = array_get v1, index v11 -> u32
-            v140 = mul v138, v139
-            v141 = unchecked_add v11, u32 1
-            jmp b4(v141, u32 1, u32 0)
-          b6(v16: u32, v17: u32):
-            v76 = eq v16, u32 3814912846
-            constrain v16 == u32 3814912846
-            v77 = array_get v1, index u32 4 -> u32
-            jmp b7(u32 0, v77, u32 2300001)
-          b7(v18: u32, v19: u32, v20: u32):
-            v79 = lt v18, u32 5
-            jmpif v79 then: b8(v19, v20), else: b9(v19, v20)
-          b8(v21: u32, v22: u32):
-            v129 = array_get v0, index v18 -> u32
-            v130 = array_get v1, index v18 -> u32
-            v131 = mul v129, v130
-            v132 = add v21, v131
-            jmp b10(u32 0, v132, v22)
-          b9(v23: u32, v24: u32):
-            v81 = eq v23, u32 41472
-            constrain v23 == u32 41472
-            v82 = array_get v1, index u32 4 -> u32
-            jmp b13(u32 0, v82, v24)
-          b10(v25: u32, v26: u32, v27: u32):
-            v133 = lt v25, u32 3
-            jmpif v133 then: b11(v26, v27), else: b12(v26, v27)
-          b11(v28: u32, v29: u32):
-            v135 = unchecked_add v25, u32 1
-            jmp b10(v135, u32 4, u32 3)
-          b12(v30: u32, v31: u32):
-            v134 = unchecked_add v18, u32 1
-            jmp b7(v134, v30, v31)
-          b13(v32: u32, v33: u32, v34: u32):
-            v84 = lt v32, u32 3
-            jmpif v84 then: b14(v33, v34), else: b15(v33, v34)
-          b14(v35: u32, v36: u32):
-            v116 = array_get v0, index v32 -> u32
-            v117 = array_get v1, index v32 -> u32
-            v118 = mul v116, v117
-            v119 = add v35, v118
-            jmp b16(u32 0, v119, v36)
-          b15(v37: u32, v38: u32):
-            v86 = eq v37, u32 11539
-            constrain v37 == u32 11539
-            v87 = eq v37, u32 0
-            jmpif v87 then: b19(v37, v38), else: b20(v37, v38)
-          b16(v39: u32, v40: u32, v41: u32):
-            v120 = lt v39, u32 2
-            jmpif v120 then: b17(v40, v41), else: b18(v40, v41)
-          b17(v42: u32, v43: u32):
-            v122 = add v32, v39
-            v123 = array_get v0, index v122 -> u32
-            v124 = add v32, v39
-            v125 = array_get v1, index v124 -> u32
-            v126 = sub v123, v125
-            v127 = add v42, v126
-            v128 = unchecked_add v39, u32 1
-            jmp b16(v128, v127, v43)
-          b18(v44: u32, v45: u32):
-            v121 = unchecked_add v32, u32 1
-            jmp b13(v121, v44, v45)
-          b19(v46: u32, v47: u32):
-            jmp b21(v0, v46, v47)
-          b20(v48: u32, v49: u32):
-            jmp b21(v1, v48, v49)
-          b21(v50: [u32; 5], v51: u32, v52: u32):
-            v88 = array_get v50, index u32 0 -> u32
-            v89 = array_get v1, index u32 0 -> u32
-            v90 = eq v88, v89
-            constrain v88 == v89
-            jmp b22(u32 0, v51, v52)
-          b22(v53: u32, v54: u32, v55: u32):
-            v91 = lt v53, u32 5
-            jmpif v91 then: b23(v54, v55), else: b24(v54, v55)
-          b23(v56: u32, v57: u32):
-            v107 = array_get v1, index v53 -> u32
-            jmp b25(u32 0, v56, v57)
-          b24(v58: u32, v59: u32):
-            v98 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-            v101 = array_set v98, index u32 2, value Field 7
-            v103 = array_set v101, index u32 3, value Field 8
-            v104 = array_get v103, index u32 2 -> Field
-            v105 = array_get v103, index u32 3 -> Field
-            v106 = eq v105, Field 8
-            constrain v105 == Field 8
+            v28 = lt v4, u32 5
+            jmpif v28 then: b2(), else: b3()
+          b2():
+            v98 = mul v5, v5
+            v99 = array_get v1, index v4 -> u32
+            v100 = mul v98, v99
+            v101 = sub v5, v100
+            v102 = unchecked_add v4, u32 1
+            jmp b1(v102, v101, v100)
+          b3():
+            v29 = eq v5, u32 0
+            constrain v5 == u32 0
+            jmp b4(u32 0, v5, u32 2301)
+          b4(v7: u32, v8: u32, v9: u32):
+            v30 = lt v7, u32 5
+            jmpif v30 then: b5(), else: b6()
+          b5():
+            v92 = add v3, u32 2
+            v93 = array_get v0, index v7 -> u32
+            v94 = array_get v0, index v7 -> u32
+            v95 = array_get v1, index v7 -> u32
+            v96 = mul v94, v95
+            v97 = unchecked_add v7, u32 1
+            jmp b4(v97, u32 1, u32 0)
+          b6():
+            v32 = eq v8, u32 3814912846
+            constrain v8 == u32 3814912846
+            v33 = array_get v1, index u32 4 -> u32
+            jmp b7(u32 0, v33, u32 2300001)
+          b7(v10: u32, v11: u32, v12: u32):
+            v35 = lt v10, u32 5
+            jmpif v35 then: b8(), else: b9()
+          b8():
+            v85 = array_get v0, index v10 -> u32
+            v86 = array_get v1, index v10 -> u32
+            v87 = mul v85, v86
+            v88 = add v11, v87
+            jmp b10(u32 0, v88, v12)
+          b9():
+            v37 = eq v11, u32 41472
+            constrain v11 == u32 41472
+            v38 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v38)
+          b10(v13: u32, v14: u32, v15: u32):
+            v89 = lt v13, u32 3
+            jmpif v89 then: b11(), else: b12()
+          b11():
+            v91 = unchecked_add v13, u32 1
+            jmp b10(v91, u32 4, u32 3)
+          b12():
+            v90 = unchecked_add v10, u32 1
+            jmp b7(v90, v14, v15)
+          b13(v16: u32, v17: u32):
+            v40 = lt v16, u32 3
+            jmpif v40 then: b14(), else: b15()
+          b14():
+            v72 = array_get v0, index v16 -> u32
+            v73 = array_get v1, index v16 -> u32
+            v74 = mul v72, v73
+            v75 = add v17, v74
+            jmp b16(u32 0, v75)
+          b15():
+            v42 = eq v17, u32 11539
+            constrain v17 == u32 11539
+            v43 = eq v17, u32 0
+            jmpif v43 then: b19(), else: b20()
+          b16(v18: u32, v19: u32):
+            v76 = lt v18, u32 2
+            jmpif v76 then: b17(), else: b18()
+          b17():
+            v78 = add v16, v18
+            v79 = array_get v0, index v78 -> u32
+            v80 = add v16, v18
+            v81 = array_get v1, index v80 -> u32
+            v82 = sub v79, v81
+            v83 = add v19, v82
+            v84 = unchecked_add v18, u32 1
+            jmp b16(v84, v83)
+          b18():
+            v77 = unchecked_add v16, u32 1
+            jmp b13(v77, v19)
+          b19():
+            jmp b21(v0)
+          b20():
+            jmp b21(v1)
+          b21(v20: [u32; 5]):
+            v44 = array_get v20, index u32 0 -> u32
+            v45 = array_get v1, index u32 0 -> u32
+            v46 = eq v44, v45
+            constrain v44 == v45
+            jmp b22(u32 0)
+          b22(v21: u32):
+            v47 = lt v21, u32 5
+            jmpif v47 then: b23(), else: b24()
+          b23():
+            v63 = array_get v1, index v21 -> u32
+            jmp b25(u32 0)
+          b24():
+            v54 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v57 = array_set v54, index u32 2, value Field 7
+            v59 = array_set v57, index u32 3, value Field 8
+            v60 = array_get v59, index u32 2 -> Field
+            v61 = array_get v59, index u32 3 -> Field
+            v62 = eq v61, Field 8
+            constrain v61 == Field 8
             return
-          b25(v60: u32, v61: u32, v62: u32):
-            v108 = lt v60, u32 5
-            jmpif v108 then: b26(v61, v62), else: b27(v61, v62)
-          b26(v63: u32, v64: u32):
-            v111 = array_get v0, index v60 -> u32
-            v112 = eq v111, v107
-            v113 = not v112
-            constrain v112 == u1 0
-            v115 = unchecked_add v60, u32 1
-            jmp b25(v115, v63, v64)
-          b27(v65: u32, v66: u32):
-            v110 = unchecked_add v53, u32 1
-            jmp b22(v110, v65, v66)
+          b25(v22: u32):
+            v64 = lt v22, u32 5
+            jmpif v64 then: b26(), else: b27()
+          b26():
+            v67 = array_get v0, index v22 -> u32
+            v68 = eq v67, v63
+            v69 = not v68
+            constrain v68 == u1 0
+            v71 = unchecked_add v22, u32 1
+            jmp b25(v71)
+          b27():
+            v66 = unchecked_add v21, u32 1
+            jmp b22(v66)
         }
         ");
     }
@@ -1221,40 +1213,40 @@ brillig(inline) fn main f0 {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn to_le_bits f0 {
           b0(v0: Field):
-            v10 = call to_le_bits(v0) -> [u1; 32]
-            v13 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
+            v6 = call to_le_bits(v0) -> [u1; 32]
+            v9 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
             jmp b1(u32 0, u1 1)
           b1(v1: u32, v2: u1):
-            v16 = lt v1, u32 32
-            jmpif v16 then: b2(v2), else: b3(v2)
-          b2(v3: u1):
-            v17 = not v3
-            jmpif v17 then: b4(v3), else: b5(v3)
-          b3(v4: u1):
-            constrain v4 == u1 1
-            return v10
-          b4(v5: u1):
-            v19 = sub u32 31, v1
-            v20 = array_get v10, index v19 -> u1
-            v21 = sub u32 31, v1
-            v23 = lt v21, u32 254
-            constrain v23 == u1 1
-            v24 = array_get v13, index v21 -> u1
-            v25 = eq v20, v24
-            v26 = not v25
-            jmpif v26 then: b6(v5), else: b7(v5)
-          b5(v6: u1):
-            v31 = unchecked_add v1, u32 1
-            jmp b1(v31, v6)
-          b6(v7: u1):
-            v27 = sub u32 31, v1
-            v28 = lt v27, u32 254
-            constrain v28 == u1 1
-            v29 = array_get v13, index v27 -> u1
-            constrain v29 == u1 1
+            v12 = lt v1, u32 32
+            jmpif v12 then: b2(), else: b3()
+          b2():
+            v13 = not v2
+            jmpif v13 then: b4(), else: b5(v2)
+          b3():
+            constrain v2 == u1 1
+            return v6
+          b4():
+            v15 = sub u32 31, v1
+            v16 = array_get v6, index v15 -> u1
+            v17 = sub u32 31, v1
+            v19 = lt v17, u32 254
+            constrain v19 == u1 1
+            v20 = array_get v9, index v17 -> u1
+            v21 = eq v16, v20
+            v22 = not v21
+            jmpif v22 then: b6(), else: b7(v2)
+          b5(v3: u1):
+            v27 = unchecked_add v1, u32 1
+            jmp b1(v27, v3)
+          b6():
+            v23 = sub u32 31, v1
+            v24 = lt v23, u32 254
+            constrain v24 == u1 1
+            v25 = array_get v9, index v23 -> u1
+            constrain v25 == u1 1
             jmp b7(u1 1)
-          b7(v8: u1):
-            jmp b5(v8)
+          b7(v4: u1):
+            jmp b5(v4)
         }
         ");
     }
@@ -1334,21 +1326,21 @@ brillig(inline) fn main f0 {
           b0():
             jmp b1(Field 0)
           b1(v0: Field):
-            v11 = eq v0, Field 6
-            jmpif v11 then: b2(v0), else: b3(v0)
-          b2(v1: Field):
+            v4 = eq v0, Field 6
+            jmpif v4 then: b2(), else: b3()
+          b2():
             return
-          b3(v2: Field):
-            v13 = add v0, Field 1
-            jmp b4(v13, Field 0)
-          b4(v3: Field, v4: Field):
-            v15 = eq v4, Field 7
-            jmpif v15 then: b5(v3, v4), else: b6(v3, v4)
-          b5(v5: Field, v6: Field):
-            jmp b1(v5)
-          b6(v7: Field, v8: Field):
-            v16 = add v4, Field 1
-            jmp b4(v7, v16)
+          b3():
+            v6 = add v0, Field 1
+            jmp b4(Field 0)
+          b4(v1: Field):
+            v8 = eq v1, Field 7
+            jmpif v8 then: b5(), else: b6()
+          b5():
+            jmp b1(v6)
+          b6():
+            v9 = add v1, Field 1
+            jmp b4(v9)
         }
         ");
     }
@@ -1358,9 +1350,8 @@ brillig(inline) fn main f0 {
     /// The variable v1 is stored in b0 and b1. The IDF of {b0, b1} is {b3} (the merge point).
     /// Blocks b2, b4, and b5 are single-predecessor blocks that should NOT get block parameters.
     ///
-    /// We use `mem2reg_simple_without_cleanup` to verify this at source: if the IDF optimization
-    /// were removed (adding params everywhere), b2/b4/b5 would have params that cleanup would
-    /// remove — but we'd lose the O(V×B) performance benefit.
+    /// If IDF optimization were removed (adding params everywhere), b2/b4/b5 would have
+    /// unnecessary params — losing the O(V×B) performance benefit.
     #[test]
     fn idf_avoids_unnecessary_block_params() {
         let src = "
@@ -1385,11 +1376,8 @@ brillig(inline) fn main f0 {
         ";
         let mut ssa = Ssa::from_str(src).unwrap();
 
-        // Run without cleanup to reveal whether IDF placement avoids parameters at source.
         // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
-        for function in ssa.functions.values_mut() {
-            function.mem2reg_simple_without_cleanup();
-        }
+        let ssa = ssa.mem2reg_simple();
 
         // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
         // for v1 that the cleanup pass would later remove:
