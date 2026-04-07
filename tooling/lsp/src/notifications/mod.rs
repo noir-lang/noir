@@ -95,14 +95,10 @@ pub(super) fn on_did_change_watched_files(
         state.package_cache.remove(&workspace_root);
 
         // Find an open file that lives under this workspace root and trigger reprocessing.
-        let open_file_uri = state
-            .input_files
-            .keys()
-            .find(|uri| {
-                uri.strip_prefix("file://")
-                    .is_some_and(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
-            })
-            .cloned();
+        let open_file_uri = state.input_files.keys().find(|uri| {
+            uri.strip_prefix("file://")
+                .is_some_and(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
+        });
 
         if let Some(uri_string) = open_file_uri
             && let Ok(uri) = Url::parse(&uri_string)
