@@ -39,13 +39,6 @@ use crate::ssa::{
 
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
-    ///
-    /// ACIR functions have no variable limit since they benefit more from full promotion.
-    /// Brillig keeps the limit to avoid regressions in loop-heavy code.
-    ///
-    /// **Important:** This should only be used after flattening for ACIR functions.
-    /// Before flattening, use `mem2reg_simple_pre_flattening` instead to avoid
-    /// regressions from promoting variables that span too many blocks.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -64,28 +57,10 @@ impl Ssa {
         }
         self
     }
-
-    /// Run mem2reg_simple on all functions before flattening.
-    ///
-    /// Brillig functions use the standard variable limit. ACIR functions use both
-    /// a variable limit and a block span limit to avoid regressions: promoting a
-    /// variable whose declaration dominates many blocks (e.g. across an unrolled loop)
-    /// generates O(variables × blocks) extra predicate opcodes after flattening.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.mem2reg_simple_pre_flattening();
-        }
-        self
-    }
 }
 
 impl Function {
-    pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
-        self.mem2reg_simple();
-    }
-
-    fn mem2reg_simple(&mut self) {
+    pub(crate) fn mem2reg_simple(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);

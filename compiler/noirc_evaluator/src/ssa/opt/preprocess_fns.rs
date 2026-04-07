@@ -66,7 +66,7 @@ impl Ssa {
                 &callee_costs,
             );
             // Reduce the number of redundant stores/loads after unrolling
-            function.mem2reg_simple_pre_flattening();
+            function.mem2reg_simple();
             function.load_store_forwarding();
             function.remove_redundant_params();
 

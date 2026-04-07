@@ -1911,7 +1911,7 @@ impl<'f> LoopIteration<'f> {
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
-    function.mem2reg_simple_pre_flattening();
+    function.mem2reg_simple();
     // Resolves constants, but merge blocks still have 2 predecessors
     function.simplify_instructions();
     // Eliminates dead jmpif branches, collapses merge blocks
@@ -1919,7 +1919,7 @@ fn simplify_between_unrolls(function: &mut Function) {
     // Re-simplify after branch elimination
     function.simplify_instructions();
     // Do another mem2reg after simplify_cfg to aid the next unroll
-    function.mem2reg_simple_pre_flattening();
+    function.mem2reg_simple();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
