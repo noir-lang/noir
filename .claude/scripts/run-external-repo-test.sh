@@ -1,30 +1,25 @@
 #!/usr/bin/env bash
-# Run tests for an external Noir library locally, mirroring CI behavior.
+# Thin wrapper around .github/scripts/run-external-repo-tests.sh for local use.
+# Sets up the env vars the CI script expects, then delegates to it.
 #
 # Usage:
 #   ./run-external-repo-test.sh <repo> [ref] [path] [extra_nargo_args...]
 #
 # Examples:
 #   ./run-external-repo-test.sh noir-lang/noir_bigcurve
-#   ./run-external-repo-test.sh noir-lang/noir-bignum main "" "--test-threads 1"
+#   ./run-external-repo-test.sh noir-lang/noir-bignum "" "" "--test-threads 1"
 #   ./run-external-repo-test.sh AztecProtocol/aztec-packages 2b1671a noir-projects/aztec-nr
 #
 # Environment variables:
 #   NARGO       - path to nargo binary (default: nargo on PATH)
 #   CLONE_DIR   - where to clone repos (default: /tmp/external-repos)
 #   KEEP_CLONE  - set to 1 to skip re-cloning if the repo dir already exists
-#
-# Output:
-#   - Test results JSON:  /tmp/external-test-results/<repo_slug>.jsonl
-#   - Timing JSON:        /tmp/external-test-results/<repo_slug>.timing.json
-#   - Console output with clear timing summary
 
 set -eu
 
 REPO="${1:?Usage: $0 <repo> [ref] [path] [extra_nargo_args...]}"
 REF="${2:-}"
 PROJECT_PATH="${3:-}"
-# Shift past the positional args we already captured
 ARGC=$#
 if [ $ARGC -ge 3 ]; then
     shift 3
@@ -33,8 +28,8 @@ else
     EXTRA_ARGS=""
 fi
 
-NARGO="${NARGO:-nargo}"
-# Resolve to absolute path so it works after cd
+# Resolve NARGO to absolute path so it works after cd
+export NARGO="${NARGO:-nargo}"
 if [[ "$NARGO" != /* ]]; then
     if [ -f "$NARGO" ]; then
         NARGO="$(realpath "$NARGO")"
@@ -42,6 +37,8 @@ if [[ "$NARGO" != /* ]]; then
         NARGO="$(realpath "$(command -v "$NARGO")")"
     fi
 fi
+export NARGO
+
 CLONE_DIR="${CLONE_DIR:-/tmp/external-repos}"
 RESULTS_DIR="/tmp/external-test-results"
 
@@ -53,10 +50,9 @@ if [ -n "$PROJECT_PATH" ]; then
 fi
 
 mkdir -p "$RESULTS_DIR"
-OUTPUT_FILE="$RESULTS_DIR/${SLUG}.jsonl"
-TIMING_FILE="$RESULTS_DIR/${SLUG}.timing.json"
 
-# Clone or reuse the repo
+# Clone or reuse the repo (the CI script clones when CI is unset, but we
+# want persistent clones under CLONE_DIR for repeated runs)
 REPO_DIR="$CLONE_DIR/$REPO"
 if [ "${KEEP_CLONE:-0}" = "1" ] && [ -d "$REPO_DIR" ]; then
     echo "==> Reusing existing clone at $REPO_DIR"
@@ -66,7 +62,6 @@ else
     mkdir -p "$(dirname "$REPO_DIR")"
 
     if [ -n "$REF" ]; then
-        # Try shallow clone with the ref first; fall back to full clone for commit hashes
         if git clone --depth 1 --branch "$REF" "https://github.com/$REPO.git" "$REPO_DIR" 2>/dev/null; then
             true
         else
@@ -79,41 +74,27 @@ else
     fi
 fi
 
-# Enter the project directory
-WORK_DIR="$REPO_DIR"
-if [ -n "$PROJECT_PATH" ]; then
-    WORK_DIR="$REPO_DIR/$PROJECT_PATH"
+# Find the repo root (where .github/scripts lives)
+NOIR_REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+CI_SCRIPT="$NOIR_REPO_ROOT/.github/scripts/run-external-repo-tests.sh"
+
+if [ ! -f "$CI_SCRIPT" ]; then
+    echo "ERROR: Cannot find CI script at $CI_SCRIPT"
+    exit 1
 fi
-cd "$WORK_DIR"
 
-# Strip compiler_version from Nargo.toml files (just like CI does)
-set +e
-sed -i '/^compiler_version/d' Nargo.toml ./**/Nargo.toml 2>/dev/null
-set -e
+# Set env vars the CI script expects
+export CI=1  # Prevent CI script from cloning (we already did)
+export REPO_DIR="$REPO_DIR"
+export PROJECT_PATH="${PROJECT_PATH}"
+export NARGO_ARGS="${EXTRA_ARGS}"
+export OUTPUT_FILE="$RESULTS_DIR/${SLUG}.jsonl"
+export BENCHMARK_FILE="$RESULTS_DIR/${SLUG}.timing.json"
+export NAME="$SLUG"
 
-echo "==> Running tests in $WORK_DIR"
+echo "==> Delegating to $CI_SCRIPT"
 echo "    nargo: $NARGO"
-echo "    args:  --silence-warnings --skip-brillig-constraints-check --format json $EXTRA_ARGS"
+echo "    repo:  $REPO_DIR/$PROJECT_PATH"
 echo ""
 
-# Run tests with timing
-BEFORE=$SECONDS
-set +e
-$NARGO test --silence-warnings --skip-brillig-constraints-check --format json $EXTRA_ARGS 2>&1 | tee "$OUTPUT_FILE"
-TEST_EXIT=${PIPESTATUS[0]}
-set -e
-ELAPSED=$(($SECONDS - $BEFORE))
-
-# Write timing file
-jq --null-input "[{ name: \"$SLUG\", value: (\"$ELAPSED\" | tonumber), unit: \"s\" }]" > "$TIMING_FILE"
-
-echo ""
-echo "============================================"
-echo "  Test suite: $REPO${PROJECT_PATH:+/$PROJECT_PATH}"
-echo "  Exit code:  $TEST_EXIT"
-echo "  Duration:   ${ELAPSED}s"
-echo "  Results:    $OUTPUT_FILE"
-echo "  Timing:     $TIMING_FILE"
-echo "============================================"
-
-exit $TEST_EXIT
+exec "$CI_SCRIPT"
