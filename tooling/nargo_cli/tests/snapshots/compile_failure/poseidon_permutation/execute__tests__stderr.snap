@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 340
 expression: stderr
 ---
 error: the input length must equal the state size in the Poseidon2 config; expected 4, got 16

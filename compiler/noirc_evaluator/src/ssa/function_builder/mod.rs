@@ -189,7 +189,7 @@ impl FunctionBuilder {
 
     /// Returns the type of the given value.
     pub fn type_of_value(&self, value: ValueId) -> Type {
-        self.current_function.dfg.type_of_value(value)
+        self.current_function.dfg.type_of_value(value).into_owned()
     }
 
     /// Insert a new block into the current function and return it.

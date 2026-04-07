@@ -1,0 +1,6 @@
+[package]
+name = "clone_index_object_dereference_1"
+type = "bin"
+authors = [""]
+
+[dependencies]
