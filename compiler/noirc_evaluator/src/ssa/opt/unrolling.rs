@@ -154,8 +154,16 @@ impl Function {
         #[cfg(debug_assertions)]
         unroll_loops_pre_check(self);
 
-        let (mut has_unrolled, mut unroll_errors) =
-            self.try_unroll_loops(max_unroll_iterations, force_unroll_threshold, callee_costs);
+        // Build the CFG once and maintain it incrementally across all
+        // unrolling iterations, avoiding a full O(n) rebuild each time.
+        let mut cfg = ControlFlowGraph::with_function(self);
+
+        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops_with_cfg(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            Some(cfg),
+        );
 
         match self.runtime() {
             RuntimeType::Acir(_) => {
@@ -189,10 +197,14 @@ impl Function {
                 if !Loops::has_loops(self) {
                     break;
                 }
-                let (unrolled, _) = self.try_unroll_loops(
+                // Incrementally update the CFG to reflect simplification changes,
+                // rather than building from scratch inside try_unroll_loops.
+                cfg = ControlFlowGraph::with_function(self);
+                let (unrolled, _) = self.try_unroll_loops_with_cfg(
                     max_unroll_iterations,
                     force_unroll_threshold,
                     callee_costs,
+                    Some(cfg),
                 );
                 has_unrolled |= unrolled;
                 if !unrolled {
@@ -221,12 +233,37 @@ impl Function {
         force_unroll_threshold: usize,
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> (bool, Vec<RuntimeError>) {
+        self.try_unroll_loops_with_cfg(
+            max_unroll_iterations,
+            force_unroll_threshold,
+            callee_costs,
+            None,
+        )
+    }
+
+    /// Core implementation of loop unrolling that optionally accepts a pre-built CFG.
+    ///
+    /// When `existing_cfg` is `Some`, reuses it instead of building from scratch.
+    /// The CFG is maintained incrementally across inner-loop iterations: after
+    /// unrolling a batch of loops, the CFG is updated via
+    /// [`ControlFlowGraph::update_from_function`] rather than being fully rebuilt.
+    fn try_unroll_loops_with_cfg(
+        &mut self,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+        callee_costs: &HashMap<FunctionId, usize>,
+        existing_cfg: Option<ControlFlowGraph>,
+    ) -> (bool, Vec<RuntimeError>) {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
         // The reasons why loops in the above set failed to unroll.
         let mut unroll_errors = vec![];
         let mut has_unrolled = false;
+
+        // Build CFG once (or reuse the provided one). It will be updated
+        // incrementally across iterations instead of being rebuilt from scratch.
+        let mut cfg = existing_cfg.unwrap_or_else(|| ControlFlowGraph::with_function(self));
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
@@ -235,7 +272,7 @@ impl Function {
             } else {
                 LoopOrder::OutsideIn
             };
-            let mut loops = Loops::find_all(self, order);
+            let mut loops = Loops::find_all_with_cfg(self, order, cfg);
             loops.callee_costs = callee_costs.clone();
 
             // Blocks which were part of loops we unrolled. Nested loops are included in the
@@ -309,7 +346,9 @@ impl Function {
                 }
             }
 
-            // If we didn't need to refresh, we're done
+            // If we didn't need to refresh, we're done.
+            // Recover the CFG from the Loops struct for potential reuse.
+            cfg = loops.cfg;
             if !needs_refresh {
                 break;
             }
@@ -321,6 +360,10 @@ impl Function {
             if self.runtime().is_brillig() {
                 simplify_between_unrolls(self);
             }
+
+            // Incrementally update the CFG to reflect changes from unrolling
+            // and simplification, rather than rebuilding from scratch.
+            cfg.update_from_function(self);
         }
         (has_unrolled, unroll_errors)
     }
@@ -530,6 +573,41 @@ impl Loops {
                 // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
                 // This is needed because inner loops may use the induction variable from their
                 // outer loops in their loop range.
+                loops.sort_by_key(|loop_| loop_.blocks.len());
+            }
+        }
+
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree, callee_costs: HashMap::default() }
+    }
+
+    /// Like [`find_all`], but takes an existing CFG instead of building a new one.
+    ///
+    /// PostOrder and DominatorTree are still recomputed from the CFG, since they
+    /// must reflect the current graph structure. This is useful when the CFG is
+    /// being maintained incrementally across multiple analysis passes.
+    pub(crate) fn find_all_with_cfg(
+        _function: &Function,
+        order: LoopOrder,
+        cfg: ControlFlowGraph,
+    ) -> Self {
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
+        let mut loops = vec![];
+
+        for block in post_order.into_vec_reverse() {
+            for predecessor in cfg.predecessors(block) {
+                if dom_tree.dominates(block, predecessor) {
+                    loops.push(Loop::find_blocks_in_loop(block, predecessor, &cfg));
+                }
+            }
+        }
+
+        match order {
+            LoopOrder::InsideOut => {
+                loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
+            }
+            LoopOrder::OutsideIn => {
                 loops.sort_by_key(|loop_| loop_.blocks.len());
             }
         }

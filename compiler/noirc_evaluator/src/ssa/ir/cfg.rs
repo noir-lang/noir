@@ -90,6 +90,54 @@ impl ControlFlowGraph {
         self.compute_block(basic_block_id, basic_block);
     }
 
+    /// Incrementally update the CFG to match the current function state.
+    ///
+    /// Instead of rebuilding from scratch, this:
+    /// 1. Walks the reachable blocks
+    /// 2. Adds new blocks not yet in the CFG
+    /// 3. Recomputes edges for blocks whose successors changed
+    /// 4. Removes blocks that are no longer reachable
+    ///
+    /// This is cheaper than a full rebuild when most of the CFG is unchanged
+    /// (e.g. after simplification of a large function where only a few blocks changed).
+    pub(crate) fn update_from_function(&mut self, func: &Function) {
+        // Walk reachable blocks using a HashSet (cheaper than BTreeSet for large functions).
+        let mut reachable = HashSet::new();
+        let mut stack = vec![func.entry_block()];
+        while let Some(block) = stack.pop() {
+            if reachable.insert(block) {
+                stack.extend(func.dfg[block].successors());
+            }
+        }
+
+        // Add new blocks and recompute blocks whose successors changed.
+        for &block_id in &reachable {
+            if let Some(node) = self.data.get(&block_id) {
+                // Block exists in CFG — check if successors are still correct.
+                let actual_succs: BTreeSet<_> = func.dfg[block_id].successors().collect();
+                if node.successors != actual_succs {
+                    self.recompute_block(func, block_id);
+                }
+            } else {
+                // New block — add it.
+                let basic_block = &func.dfg[block_id];
+                self.compute_block(block_id, basic_block);
+            }
+        }
+
+        // Remove blocks that are no longer reachable.
+        // Invalidate all successor edges first, then remove from the map.
+        // This ordering prevents panics when a stale block's successor is
+        // another stale block that would otherwise be removed mid-iteration.
+        let stale: Vec<_> = self.data.keys().filter(|b| !reachable.contains(b)).copied().collect();
+        for &block_id in &stale {
+            self.invalidate_block_successors(block_id);
+        }
+        for block_id in stale {
+            self.data.remove(&block_id);
+        }
+    }
+
     /// Add a directed edge making `from` a predecessor of `to`.
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {
         let predecessor_node = self.data.entry(from).or_default();
