@@ -1349,7 +1349,7 @@ brillig(inline) fn main f0 {
                 return v2
             }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
         // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
         let ssa = ssa.mem2reg_simple();
