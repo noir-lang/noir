@@ -57,7 +57,6 @@ pub(super) fn on_initialized(
             .expect("serialization of DidChangeWatchedFilesRegistrationOptions should not fail"),
         ),
     };
-    #[allow(clippy::let_underscore_future)]
     drop(
         state.client.register_capability(RegistrationParams { registrations: vec![registration] }),
     );
