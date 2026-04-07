@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Post comment on force pushes
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           message: |
             Thank you for your contribution to the Noir language.

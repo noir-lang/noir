@@ -1,23 +1,23 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use acvm::FieldElement;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::{AcirField, FieldElement};
-
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     elaborator::types::SELF_TYPE_NAME,
     hir::{
+        comptime::Integer,
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     recursion::TypeRecursionContext,
-    signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
@@ -134,7 +134,9 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(SignedField, Kind),
+    ///
+    /// Integer literals without suffixes used in types are defaulted to `u32`.
+    Constant(Integer),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -232,13 +234,6 @@ impl Kind {
         Kind::Numeric(Box::new(typ))
     }
 
-    pub(crate) fn is_error(&self) -> bool {
-        match self.follow_bindings() {
-            Self::Numeric(typ) => *typ == Type::Error,
-            _ => false,
-        }
-    }
-
     pub(crate) fn u32() -> Self {
         Self::numeric(Type::u32())
     }
@@ -270,69 +265,88 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn is_normal_or_any(&self) -> bool {
+        matches!(self, Kind::Normal | Kind::Any)
+    }
+
+    fn integral_maximum_size(&self) -> Option<u128> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
     }
 
-    fn integral_minimum_size(&self) -> Option<SignedField> {
+    fn integral_minimum_size(&self) -> Option<i128> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_minimum_size(),
         }
     }
 
-    /// Ensure the given value fits in self.integral_maximum_size()
+    /// Ensure the given integer value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: SignedField,
+        value: Integer,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size)
-        {
-            return Err(TypeCheckError::OverflowingConstant {
+    ) -> Result<Integer, TypeCheckError> {
+        let Kind::Numeric(typ) = self else {
+            return Ok(value);
+        };
+
+        let (Some(minimum_size), Some(maximum_size)) =
+            (self.integral_minimum_size(), self.integral_maximum_size())
+        else {
+            return Ok(value);
+        };
+
+        use IntegerBitSize::*;
+        use Signedness::*;
+
+        match (typ.as_ref(), &value) {
+            // First case: exact match, integer is already of type
+            (Type::FieldElement, Integer::Field(_))
+            | (Type::Integer(Unsigned, One), Integer::U1(_))
+            | (Type::Integer(Unsigned, Eight), Integer::U8(_))
+            | (Type::Integer(Unsigned, Sixteen), Integer::U16(_))
+            | (Type::Integer(Unsigned, ThirtyTwo), Integer::U32(_))
+            | (Type::Integer(Unsigned, SixtyFour), Integer::U64(_))
+            | (Type::Integer(Unsigned, HundredTwentyEight), Integer::U128(_))
+            | (Type::Integer(Signed, Eight), Integer::I8(_))
+            | (Type::Integer(Signed, Sixteen), Integer::I16(_))
+            | (Type::Integer(Signed, ThirtyTwo), Integer::I32(_))
+            | (Type::Integer(Signed, SixtyFour), Integer::I64(_)) => Ok(value),
+            // Otherwise, to keep this working with the existing system, treat `Integer::Field` as
+            // a stand-in for an inferred type integer and attempt to cast it into the correct slot
+            // as long as it is within range.
+            (other, Integer::Field(value)) => {
+                if let Some(integer) = Integer::try_from_type(*value, other) {
+                    Ok(integer)
+                } else {
+                    Err(TypeCheckError::OverflowingConstant {
+                        value: Integer::Field(*value),
+                        kind: self.clone(),
+                        maximum_size,
+                        minimum_size,
+                        location,
+                    })
+                }
+            }
+            _ => Err(TypeCheckError::OverflowingConstant {
                 value,
                 kind: self.clone(),
                 maximum_size,
-                location,
-            });
-        }
-
-        if let Some(minimum_size) = self.integral_minimum_size()
-            && value < minimum_size
-        {
-            return Err(TypeCheckError::UnderflowingConstant {
-                value,
-                kind: self.clone(),
                 minimum_size,
                 location,
-            });
-        }
-
-        Ok(value)
-    }
-
-    /// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
-    /// Note that `Kind::IntegerOrField` and `Kind::Integer` resolve to types and are thus not numeric.
-    pub(crate) fn as_integer_type_suffix(&self) -> Option<IntegerTypeSuffix> {
-        match self {
-            Kind::Numeric(typ) => typ.as_integer_type_suffix(),
-            _ => None,
+            }),
         }
     }
 
-    pub(crate) fn is_normal_or_any(&self) -> bool {
-        matches!(self, Kind::Normal | Kind::Any)
-    }
-
-    /// See [`Type::has_cyclic_alias`] for more detail
-    pub(crate) fn has_cyclic_alias(&self, type_recursion_context: TypeRecursionContext) -> bool {
+    /// If this is a `Kind::Numeric`, grab the inner type.
+    /// Return `Type::Error` if this is not a numeric Kind.
+    pub(crate) fn into_numeric_type_or_error(self) -> Box<Type> {
         match self {
-            Self::Numeric(typ) => typ.has_cyclic_alias_helper(type_recursion_context),
-            Self::Any | Self::Normal | Self::Integer | Self::IntegerOrField => false,
+            Kind::Numeric(typ) => typ,
+            _ => Box::new(Type::Error),
         }
     }
 }
@@ -610,7 +624,7 @@ impl DataType {
 
         let mut fields = self.fields_raw()?.iter().enumerate();
         fields.find(|(_, field)| field.name.as_str() == field_name).map(|(i, field)| {
-            let generics = self.generics.iter().zip(generic_args);
+            let generics = self.generics.iter().zip_eq(generic_args);
             let substitutions = generics
                 .map(|(old, new)| {
                     (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
@@ -683,7 +697,7 @@ impl DataType {
 
         self.generics
             .iter()
-            .zip(generic_args)
+            .zip_eq(generic_args)
             .map(|(old, new)| {
                 (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
             })
@@ -870,7 +884,7 @@ impl TypeAlias {
         let substitutions = self
             .generics
             .iter()
-            .zip(generic_args)
+            .zip_eq(generic_args)
             .map(|(old, new)| {
                 (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
             })
@@ -1242,7 +1256,7 @@ impl std::fmt::Display for Type {
                 _ => write!(f, "{name}"),
             },
             Type::CheckedCast { to, .. } => write!(f, "{to}"),
-            Type::Constant(x, _kind) => write!(f, "{x}"),
+            Type::Constant(x) => write!(f, "{x}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
@@ -1367,6 +1381,14 @@ impl Type {
         Self::type_variable_with_kind(interner, type_var_kind)
     }
 
+    pub fn constant_field(value: FieldElement) -> Type {
+        Type::Constant(Integer::Field(value))
+    }
+
+    pub fn constant_u32(value: u32) -> Type {
+        Type::Constant(Integer::U32(value))
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -1427,6 +1449,10 @@ impl Type {
             },
             _ => false,
         }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Constant(..))
     }
 
     pub fn is_primitive(&self) -> bool {
@@ -1555,7 +1581,7 @@ impl Type {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.kind(),
-            Type::Constant(_, kind) => kind.clone(),
+            Type::Constant(int) => Kind::Numeric(Box::new(int.get_type())),
             Type::TypeVariable(var) => match &*var.borrow() {
                 TypeBinding::Bound(typ) => typ.kind(),
                 TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
@@ -1650,7 +1676,6 @@ impl Type {
                 to.has_cyclic_alias_helper(type_recursion_context.clone().recur())
                     || from.has_cyclic_alias_helper(type_recursion_context.recur())
             }
-            Type::Constant(_x, kind) => kind.has_cyclic_alias(type_recursion_context.recur()),
             Type::Forall(typevars, typ) => {
                 typevars
                     .iter()
@@ -1671,6 +1696,7 @@ impl Type {
             | Type::Bool
             | Type::Unit
             | Type::Error
+            | Type::Constant(_)
             | Type::Quoted(_) => false,
         }
     }
@@ -1818,10 +1844,7 @@ impl Type {
         self.contains_vector_helper(TypeRecursionContext::default())
     }
 
-    pub(crate) fn contains_vector_helper(
-        &self,
-        mut type_recursion_context: TypeRecursionContext,
-    ) -> bool {
+    fn contains_vector_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::Vector(_) => true,
             Type::Array(_, elem) => {
@@ -1902,105 +1925,35 @@ impl Type {
         }
     }
 
-    /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
-    pub(crate) fn contains_array(&self) -> bool {
-        self.contains_array_helper(TypeRecursionContext::default())
+    /// Check whether this type is a vector that contains a nested array-like type in its element type:
+    /// strings, arrays or other vectors.
+    pub(crate) fn contains_vector_with_nested_array(&self) -> bool {
+        self.contains_vector_with_nested_array_helper(false, TypeRecursionContext::default())
     }
 
-    fn contains_array_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
-        match self {
-            Type::Array(..) => true,
-            Type::Vector(elem) => {
-                elem.as_ref().contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Alias(alias, generics) => {
-                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
-                    alias
-                        .borrow()
-                        .get_type(generics)
-                        .contains_array_helper(type_recursion_context.recur())
-                } else {
-                    false
-                }
-            }
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
-                    if let Some(fields) = typ.get_fields(generics) {
-                        if fields.iter().any(|(_, field, _)| {
-                            field.contains_array_helper(type_recursion_context.clone().recur())
-                        }) {
-                            return true;
-                        }
-                    } else if let Some(variants) = typ.get_variants(generics)
-                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
-                            typ.contains_array_helper(type_recursion_context.clone().recur())
-                        })
-                    {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Tuple(types) => types
-                .iter()
-                .any(|typ| typ.contains_array_helper(type_recursion_context.clone().recur())),
-            Type::FmtString(_size, elem) => {
-                elem.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.contains_array_helper(type_recursion_context.recur())
-                    }
-                    TypeBinding::Unbound(_, _) => false,
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                from.contains_array_helper(type_recursion_context.clone().recur())
-                    || to.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Reference(element, _) => {
-                element.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Forall(_, typ) => typ.contains_array_helper(type_recursion_context.recur()),
-            Type::Function(_arg, _ret, env, _unconstrained) => {
-                env.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-        }
-    }
-
-    /// Check whether this type is a vector that contains a nested array in its element type.
-    pub(crate) fn is_vector_with_nested_array(&self) -> bool {
-        self.is_vector_with_nested_array_helper(TypeRecursionContext::default())
-    }
-
-    fn is_vector_with_nested_array_helper(
+    fn contains_vector_with_nested_array_helper(
         &self,
+        in_vector: bool,
         mut type_recursion_context: TypeRecursionContext,
     ) -> bool {
         match self {
-            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Vector(elem) => {
+                in_vector
+                    || elem.contains_vector_with_nested_array_helper(true, type_recursion_context)
+            }
             Type::Array(_, elem) => {
-                elem.as_ref().is_vector_with_nested_array_helper(type_recursion_context.recur())
+                in_vector
+                    || elem.as_ref().contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
             }
             Type::Alias(alias, generics) => {
                 if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
-                    alias
-                        .borrow()
-                        .get_type(generics)
-                        .is_vector_with_nested_array_helper(type_recursion_context.recur())
+                    alias.borrow().get_type(generics).contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
                 } else {
                     false
                 }
@@ -2010,7 +1963,8 @@ impl Type {
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
                         if fields.iter().any(|(_, field, _)| {
-                            field.is_vector_with_nested_array_helper(
+                            field.contains_vector_with_nested_array_helper(
+                                in_vector,
                                 type_recursion_context.clone().recur(),
                             )
                         }) {
@@ -2018,7 +1972,8 @@ impl Type {
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
                         && variants.iter().flat_map(|(_, args)| args).any(|typ| {
-                            typ.is_vector_with_nested_array_helper(
+                            typ.contains_vector_with_nested_array_helper(
+                                in_vector,
                                 type_recursion_context.clone().recur(),
                             )
                         })
@@ -2029,34 +1984,50 @@ impl Type {
                 false
             }
             Type::Tuple(types) => types.iter().any(|typ| {
-                typ.is_vector_with_nested_array_helper(type_recursion_context.clone().recur())
+                typ.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.clone().recur(),
+                )
             }),
             Type::FmtString(_size, elem) => {
-                elem.is_vector_with_nested_array_helper(type_recursion_context.recur())
+                in_vector
+                    || elem.contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.is_vector_with_nested_array_helper(type_recursion_context.recur())
-                    }
+                    TypeBinding::Bound(binding) => binding
+                        .contains_vector_with_nested_array_helper(
+                            in_vector,
+                            type_recursion_context.recur(),
+                        ),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.is_vector_with_nested_array_helper(type_recursion_context.clone().recur())
-                    || to.is_vector_with_nested_array_helper(type_recursion_context.recur())
+                from.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.clone().recur(),
+                ) || to.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.recur(),
+                )
             }
-            Type::Reference(element, _) => {
-                element.is_vector_with_nested_array_helper(type_recursion_context.recur())
-            }
-            Type::Forall(_, typ) => {
-                typ.is_vector_with_nested_array_helper(type_recursion_context.recur())
-            }
+            Type::Reference(element, _) => element.contains_vector_with_nested_array_helper(
+                in_vector,
+                type_recursion_context.recur(),
+            ),
+            Type::Forall(_, typ) => typ.contains_vector_with_nested_array_helper(
+                in_vector,
+                type_recursion_context.recur(),
+            ),
+            Type::String(_) => in_vector,
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
-            | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
             | Type::Function(..)
@@ -2416,88 +2387,68 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
-            signed_field
-                .try_to_unsigned::<u32>()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        self.evaluate_to_integer(&Kind::u32(), location).map(|int| match int {
+            Integer::U32(value) => value,
+            _ => panic!("ICE: size should have already been checked by evaluate_to_field_element"),
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_signed_field(
+    pub(crate) fn evaluate_to_integer(
         &self,
-        kind: &Kind,
+        target_kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<Integer, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
+        self.evaluate_to_integer_helper(target_kind, location, run_simplifications)
     }
 
     /// `evaluate_to_field_element` with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_signed_field_helper(
+    pub(crate) fn evaluate_to_integer_helper(
         &self,
-        kind: &Kind,
+        target_kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<SignedField, TypeCheckError> {
-        if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
-            match &*binding.borrow() {
-                TypeBinding::Bound(binding) => {
-                    if kind.unifies(&binding_kind) {
-                        return binding.evaluate_to_signed_field_helper(
-                            &binding_kind,
-                            location,
-                            run_simplifications,
-                        );
-                    }
-                }
-                TypeBinding::Unbound(..) => (),
-            }
-        }
+    ) -> Result<Integer, TypeCheckError> {
+        let this = self.follow_bindings_shallow();
 
-        match self.canonicalize_with_simplifications(run_simplifications) {
-            Type::Constant(x, constant_kind) => {
-                if kind.unifies(&constant_kind) {
-                    kind.ensure_value_fits(x, location)
+        match this.canonicalize_with_simplifications(run_simplifications) {
+            Type::Constant(x) => {
+                if target_kind.unifies(&x.numeric_kind()) {
+                    target_kind.ensure_value_fits(x, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
-                        expected_kind: constant_kind,
-                        expr_kind: kind.clone(),
+                        expected_kind: x.numeric_kind(),
+                        expr_kind: target_kind.clone(),
                         expr_location: location,
                     })
                 }
             }
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
-                if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
-                    let rhs_value = rhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
-                    op.function(lhs_value, rhs_value, &infix_kind, location)
+                if target_kind.unifies(&infix_kind) {
+                    let lhs_value =
+                        lhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
+                    op.function(lhs_value, rhs_value, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
-                        expected_kind: kind.clone(),
+                        expected_kind: target_kind.clone(),
                         expr_kind: infix_kind,
                         expr_location: location,
                     })
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_signed_field(kind, location)?;
+                let to_value = to.evaluate_to_integer(target_kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_integer_helper(target_kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -2623,7 +2574,7 @@ impl Type {
 
                 let mut replacements: TypeBindings = typevars
                     .iter()
-                    .zip(implicit_and_turbofish_bindings)
+                    .zip_eq(implicit_and_turbofish_bindings)
                     .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
                     .collect();
 
@@ -2811,7 +2762,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => self.clone(),
@@ -2860,7 +2811,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Error
             | Type::Quoted(_)
             | Type::Unit => false,
@@ -2937,7 +2888,7 @@ impl Type {
 
                 // Expect that this function should only be called on instantiated types
                 Forall(..) => unreachable!(),
-                FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
+                FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
                     this.clone()
                 }
             }
@@ -2989,7 +2940,7 @@ impl Type {
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
             Type::FieldElement
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -3083,7 +3034,7 @@ impl Type {
             }
             match typ {
                 Type::FieldElement
-                | Type::Constant(_, _)
+                | Type::Constant(_)
                 | Type::Integer(_, _)
                 | Type::Bool
                 | Type::Unit
@@ -3162,7 +3113,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<u128> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -3171,9 +3122,9 @@ impl Type {
                     max_bit_size -= 1;
                 }
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
+                Some(max)
             }
-            Type::Bool => Some(FieldElement::one()),
+            Type::Bool => Some(1),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -3192,7 +3143,7 @@ impl Type {
             },
             Type::Reference(typ, _) => typ.integral_maximum_size(),
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs).integral_maximum_size(),
-            Type::Constant(_, kind) => kind.integral_maximum_size(),
+            Type::Constant(int) => int.get_type().integral_maximum_size(),
 
             Type::Array(..)
             | Type::Vector(..)
@@ -3209,22 +3160,22 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
+    /// Returns the minimum value of this type.
+    ///
+    /// This function returns a `i128` instead of a FieldElement to avoid confusion with negative
+    /// field values being equal to large field values.
+    pub(crate) fn integral_minimum_size(&self) -> Option<i128> {
         match self.follow_bindings_shallow().as_ref() {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
                 if *sign == Signedness::Unsigned {
-                    return Some(SignedField::zero());
+                    return Some(0);
                 }
 
                 let max_bit_size = num_bits.bit_size() - 1;
-                Some(if max_bit_size == 128 {
-                    SignedField::negative(i128::MIN.abs_u128())
-                } else {
-                    SignedField::negative(1u128 << max_bit_size)
-                })
+                Some(-(1i128 << max_bit_size))
             }
-            Type::Bool => Some(SignedField::zero()),
+            Type::Bool => Some(0),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -3236,46 +3187,6 @@ impl Type {
                 }
             }
             _ => None,
-        }
-    }
-
-    /// Substitute any [`Kind::Any`] in this type, for types that hold kinds (like [`Type::Constant`])
-    /// with the given `kind`.
-    pub(crate) fn substitute_kind_any_with_kind(self, kind: &Kind) -> Type {
-        match self {
-            Type::CheckedCast { from, to } => Type::CheckedCast {
-                from: Box::new(from.substitute_kind_any_with_kind(kind)),
-                to: Box::new(to.substitute_kind_any_with_kind(kind)),
-            },
-            Type::Constant(value, constant_kind) => {
-                let kind = if let Kind::Any = constant_kind { kind.clone() } else { constant_kind };
-                Type::Constant(value, kind)
-            }
-            Type::InfixExpr(lhs, op, rhs, inverse) => Type::InfixExpr(
-                Box::new(lhs.substitute_kind_any_with_kind(kind)),
-                op,
-                Box::new(rhs.substitute_kind_any_with_kind(kind)),
-                inverse,
-            ),
-            Type::FieldElement
-            | Type::Array(..)
-            | Type::Vector(..)
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(..)
-            | Type::FmtString(..)
-            | Type::Unit
-            | Type::Tuple(..)
-            | Type::DataType(..)
-            | Type::Alias(..)
-            | Type::TypeVariable(..)
-            | Type::TraitAsType(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::Reference(..)
-            | Type::Quoted(..)
-            | Type::Forall(..)
-            | Type::Error => self,
         }
     }
 
@@ -3298,89 +3209,29 @@ impl Type {
     }
 }
 
-impl From<u8> for Type {
-    fn from(value: u8) -> Self {
-        Type::Constant(
-            value.into(),
-            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-        )
-    }
-}
-
-impl From<u32> for Type {
-    fn from(value: u32) -> Self {
-        Type::Constant(value.into(), Kind::u32())
-    }
-}
-
-impl From<SignedField> for Type {
-    fn from(value: SignedField) -> Self {
-        Type::Constant(value, Kind::numeric(Type::FieldElement))
-    }
-}
-
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: SignedField,
-        b: SignedField,
-        kind: &Kind,
+        a: Integer,
+        b: Integer,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        match kind.integral_maximum_size() {
-            None => match self {
-                BinaryTypeOperator::Addition => Ok(a + b),
-                BinaryTypeOperator::Subtraction => Ok(a - b),
-                BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
-                BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
-                }
-            },
-            Some(maximum_size) => {
-                if maximum_size.to_u128() == u128::MAX {
-                    // For u128 operations we need to use u128
-                    let a = a.to_u128();
-                    let b = b.to_u128();
+    ) -> Result<Integer, TypeCheckError> {
+        let make_error =
+            || TypeCheckError::OverflowingBinaryOp { op: self, lhs: a, rhs: b, location };
 
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    Ok(result.into())
+        match self {
+            BinaryTypeOperator::Addition => (a + b).ok_or_else(make_error),
+            BinaryTypeOperator::Subtraction => (a - b).ok_or_else(make_error),
+            BinaryTypeOperator::Multiplication => (a * b).ok_or_else(make_error),
+            BinaryTypeOperator::Division => {
+                (a / b).ok_or_else(|| TypeCheckError::DivisionByZero { lhs: a, rhs: b, location })
+            }
+            BinaryTypeOperator::Modulo => {
+                if let (Integer::Field(lhs), Integer::Field(rhs)) = (a, b) {
+                    Err(TypeCheckError::ModuloOnFields { lhs, rhs, location })
                 } else {
-                    // Every other type first in i128, allowing both positive and negative values
-                    let a = a.to_i128();
-                    let b = b.to_i128();
-
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    kind.ensure_value_fits(result.into(), location)
+                    (a % b).ok_or_else(make_error)
                 }
             }
         }
@@ -3469,7 +3320,7 @@ impl From<&Type> for PrintableType {
             }
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
-            Type::Constant(_, _) => unreachable!(),
+            Type::Constant(_) => unreachable!(),
             Type::DataType(def, args) => {
                 let data_type = def.borrow();
                 let name = data_type.name.to_string();
@@ -3587,7 +3438,7 @@ impl std::fmt::Debug for Type {
                 }
                 Ok(())
             }
-            Type::Constant(x, kind) => write!(f, "({x}: {kind})"),
+            Type::Constant(x) => write!(f, "{x:?}"),
             Type::Forall(typevars, typ) => {
                 let typevars = vecmap(typevars, |var| format!("{var:?}"));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
@@ -3709,7 +3560,7 @@ impl std::hash::Hash for Type {
                 typ.hash(state);
             }
             Type::CheckedCast { to, .. } => to.hash(state),
-            Type::Constant(value, _) => value.hash(state),
+            Type::Constant(value) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs, _) => {
                 lhs.hash(state);
@@ -3778,9 +3629,7 @@ impl PartialEq for Type {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
             (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) => **to == *other,
-            (Constant(lhs, lhs_kind), Constant(rhs, rhs_kind)) => {
-                lhs == rhs && lhs_kind == rhs_kind
-            }
+            (Constant(lhs), Constant(rhs)) => lhs == rhs,
             (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
             (InfixExpr(l_lhs, l_op, l_rhs, _), InfixExpr(r_lhs, r_op, r_rhs, _)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
@@ -3854,7 +3703,7 @@ mod tests {
     fn create_nested_array(depth: usize) -> Type {
         let mut typ = Type::FieldElement;
         for _ in 0..depth {
-            typ = Type::Array(Box::new(Type::Constant(1.into(), Kind::u32())), Box::new(typ));
+            typ = Type::Array(Box::new(Type::constant_u32(1)), Box::new(typ));
         }
         typ
     }

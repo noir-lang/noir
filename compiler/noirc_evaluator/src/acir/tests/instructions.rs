@@ -347,14 +347,18 @@ fn make_array() {
     ");
 }
 
+/// A signed-typed unchecked sub whose result feeds a truncate is an SSA invariant violation;
+/// the SSA validator must reject it before ACIR generation even starts.
 #[test]
-#[should_panic(expected = "potential underflow in subtraction when max_bit_size is 253")]
-fn truncate_underflow() {
+#[should_panic(
+    expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow"
+)]
+fn truncate_after_signed_unchecked_sub_is_rejected() {
     let src = "
     acir(inline) fn main f0 {
-      b0(v0: Field, v1: Field):
-        v2 = sub v0, v1
-        v3 = truncate v2 to 6 bits, max_bit_size: 253
+      b0(v0: i8, v1: i8):
+        v2 = unchecked_sub v0, v1
+        v3 = truncate v2 to 6 bits, max_bit_size: 9
         return v3
     }
     ";

@@ -29,13 +29,31 @@ pub(crate) fn fuzz_target(
     log::debug!("initial_witness: {:?}", data.initial_witness);
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
     let mut data = data;
+    if data.functions.is_empty() {
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: None,
+        };
+    }
+    if data.instruction_blocks.is_empty() {
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: None,
+        };
+    }
     data.functions[0].input_types = types;
     ensure_boolean_defined_in_all_functions(&mut data);
-    if data.instruction_blocks.is_empty() {
-        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
-    }
-    if data.functions.is_empty() {
-        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
+
+    if data.contains_nested_vector() {
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: Some(
+                "Nested vectors, i.e. vectors within an array or vector, are not supported".into(),
+            ),
+        };
     }
 
     if type_contains_vector_or_reference(&data.functions[0].return_type) {
@@ -73,16 +91,22 @@ pub(crate) fn fuzz_target(
                     );
                 }
                 CompareResults::LeftCompilationFailed => {
-                    panic!(
-                        "Fuzzer runtime {} failed to compile, other returned {:?}",
+                    let compile_error =
+                        fuzzer_outputs[i].get_compile_error().unwrap_or("unknown compile error");
+                    log::error!(
+                        "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[i],
+                        compile_error,
                         fuzzer_outputs[j].get_return_witnesses()
                     );
                 }
                 CompareResults::RightCompilationFailed => {
-                    panic!(
-                        "Fuzzer runtime {} failed to compile, other returned {:?}",
+                    let compile_error =
+                        fuzzer_outputs[j].get_compile_error().unwrap_or("unknown compile error");
+                    log::error!(
+                        "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[j],
+                        compile_error,
                         fuzzer_outputs[i].get_return_witnesses()
                     );
                 }

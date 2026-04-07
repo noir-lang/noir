@@ -9,6 +9,7 @@ error: Assertion failed: attempt to calculate the remainder with overflow
   │     ------------
   │
   = Call stack:
-    1. src/main.nr:2:5
+    1: main
+            at src/main.nr:2:5
 
 Failed assertion

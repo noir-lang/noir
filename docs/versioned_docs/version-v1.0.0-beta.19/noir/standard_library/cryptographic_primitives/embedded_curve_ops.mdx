@@ -22,7 +22,14 @@ the curve and returns a sum of the resulting points.
 
 Points represented as x and y coordinates [x1, y1, x2, y2, ...], scalars as low and high limbs [low1, high1, low2, high2, ...].
 
-#include_code multi_scalar_mul noir_stdlib/src/embedded_curve_ops.nr rust
+```rust title="multi_scalar_mul" showLineNumbers 
+pub fn multi_scalar_mul<let N: u32>(
+    points: [EmbeddedCurvePoint; N],
+    scalars: [EmbeddedCurveScalar; N],
+) -> EmbeddedCurvePoint
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/embedded_curve_ops.nr#L142-L147" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/embedded_curve_ops.nr#L142-L147</a></sub></sup>
+
 
 example
 
@@ -38,7 +45,11 @@ fn main(point_x: Field, point_y: Field, scalar_low: Field, scalar_high: Field) {
 Performs fixed base scalar multiplication over the embedded curve (multiplies input scalar with a generator point).
 The function accepts a single scalar on the input represented as 2 fields.
 
-#include_code fixed_base_scalar_mul noir_stdlib/src/embedded_curve_ops.nr rust
+```rust title="fixed_base_scalar_mul" showLineNumbers 
+pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/embedded_curve_ops.nr#L159-L161" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/embedded_curve_ops.nr#L159-L161</a></sub></sup>
+
 
 example
 
@@ -61,7 +72,14 @@ This function takes two `EmbeddedCurvePoint` structures as parameters, represent
 ### Returns:
 - `EmbeddedCurvePoint`: The resulting point after the addition of `point1` and `point2`.
 
-#include_code embedded_curve_add noir_stdlib/src/embedded_curve_ops.nr rust
+```rust title="embedded_curve_add" showLineNumbers 
+pub fn embedded_curve_add(
+    point1: EmbeddedCurvePoint,
+    point2: EmbeddedCurvePoint,
+) -> EmbeddedCurvePoint {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/embedded_curve_ops.nr#L172-L177" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/embedded_curve_ops.nr#L172-L177</a></sub></sup>
+
 
 example
 

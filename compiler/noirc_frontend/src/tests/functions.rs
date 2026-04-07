@@ -228,6 +228,18 @@ fn errors_on_duplicate_parameter_name() {
 }
 
 #[test]
+fn errors_on_clashing_const_generic_and_parameter_name() {
+    let src = r#"
+    pub fn foo<let N: u32>(N: u32) -> u32 { N }
+                           ^ duplicate definitions of N found
+                           ~ second definition found here
+                   ~ first definition found here
+
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn non_entry_point_main() {
     let src = r#"
     mod moo {
@@ -382,7 +394,7 @@ fn error_on_taking_string_with_non_eval_length() {
     fn main(_s: str<-1>) {
                 ^^^^^^^ Invalid type found in the entry point to a program
                 ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                    ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                    ^^ Cannot apply unary operator `-` to type `u32`
     }
     "#;
     check_errors(src);
@@ -394,13 +406,13 @@ fn error_on_returning_string_with_non_eval_length() {
     unconstrained fn main() -> pub str<-1> {
                                    ^^^^^^^ Invalid type found in the entry point to a program
                                    ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                                       ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                                       ^^ Cannot apply unary operator `-` to type `u32`
         negative_str()
     }
 
     #[oracle(negative_str)]
     unconstrained fn negative_str() -> str<-1> {}
-                                           ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                                           ^^ Cannot apply unary operator `-` to type `u32`
     "#;
     check_errors(src);
 }

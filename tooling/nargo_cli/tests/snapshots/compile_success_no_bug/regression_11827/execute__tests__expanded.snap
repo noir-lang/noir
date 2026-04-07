@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime fn foo(f: FunctionDefinition) -> Quoted {
+    let body: Expr = f.body();
+    let body: Expr = body.modify(|_: Expr| -> Option<Expr> Option::<Expr>::none());
+    f.set_body(body);
+    quote {  }
+}
+
+struct Spam {
+    eggs: u32,
+}
+
+fn main() {
+    let mut spams: [Spam] = @[Spam { eggs: 0_u32 }];
+    bar(&mut spams);
+}
+
+fn bar(spams: &mut [Spam]) {
+    {
+        spams[0_u32].eggs = spams[0_u32].eggs + 1_u32;
+    }
+}

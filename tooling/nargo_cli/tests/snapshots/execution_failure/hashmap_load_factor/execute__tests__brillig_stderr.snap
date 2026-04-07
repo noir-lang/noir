@@ -9,9 +9,13 @@ error: Assertion failed: Load factor is exceeded, consider increasing the capaci
     │                ---------
     │
     = Call stack:
-      1. src/main.nr:18:5
-      2. src/main.nr:34:5
-      3. std/collections/map.nr:514:9
-      4. std/collections/map.nr:620:16
+      1: main
+              at src/main.nr:18:5
+      2: test_load_factor
+              at src/main.nr:34:5
+      3: HashMap<K, V, N, B>::insert
+              at std/collections/map.nr:514:9
+      4: HashMap<K, V, N, B>::assert_load_factor
+              at std/collections/map.nr:620:16
 
 Failed assertion

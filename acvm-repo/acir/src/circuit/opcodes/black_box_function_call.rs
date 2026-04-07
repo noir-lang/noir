@@ -180,6 +180,7 @@ pub enum BlackBoxFuncCall<F> {
         outputs: (Witness, Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined
+    /// Coordinates (x,y) of each point must be all witnesses, or all constants.
     /// The opcode makes the following assumptions but does not enforce them because
     /// it is more efficient to do it only when required. For instance, adding two
     /// points that are on the curve it guarantee to give a point on the curve.

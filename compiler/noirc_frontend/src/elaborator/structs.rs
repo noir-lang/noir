@@ -97,12 +97,16 @@ impl Elaborator<'_> {
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
+            let previous_impl_trait_context = this
+                .impl_trait_is_disallowed
+                .replace(super::types::ImplTraitDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
                 let visibility = field.item.visibility;
                 let name = field.item.name.clone();
                 let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
+            this.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
 

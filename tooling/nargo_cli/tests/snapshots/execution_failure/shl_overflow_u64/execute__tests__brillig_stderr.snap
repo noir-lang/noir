@@ -9,6 +9,7 @@ error: Assertion failed: attempt to bit-shift with overflow
   │                   --------
   │
   = Call stack:
-    1. src/main.nr:5:19
+    1: main
+            at src/main.nr:5:19
 
 Failed assertion

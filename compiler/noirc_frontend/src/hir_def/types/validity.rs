@@ -108,7 +108,7 @@ impl Type {
                 Type::FieldElement
                 | Type::Integer(_, _)
                 | Type::Bool
-                | Type::Constant(_, _)
+                | Type::Constant(_)
                 | Type::Error => None,
 
                 Type::Unit
@@ -253,7 +253,7 @@ impl Type {
             Type::FieldElement
             | Type::Integer(_, _)
             | Type::Bool
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::InfixExpr(..)
             | Type::Error => None,
 
@@ -352,7 +352,7 @@ impl Type {
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Vector(_)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)

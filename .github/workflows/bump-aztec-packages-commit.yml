@@ -6,6 +6,7 @@ on:
     # Trigger at 8am on Mondays
     - cron: '0 8 * * 1'
 
+permissions: {}
 
 jobs:
   bump-commit:

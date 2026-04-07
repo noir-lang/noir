@@ -466,7 +466,7 @@ fn use_non_u32_generic_in_struct() {
         struct S<let N: u8> {}
 
         fn main() {
-            let _: S<3> = S {};
+            let _: S<3u8> = S {};
         }
     "#;
     assert_no_errors(src);

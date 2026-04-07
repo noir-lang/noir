@@ -502,3 +502,18 @@ fn mutually_recursive_types_with_structs_error() {
     // cSpell:enable
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+#[test]
+fn match_constructor_pattern_on_integer_gives_type_error() {
+    let src = "
+    struct S {}
+
+    fn main(x: u32, _b: S) {
+        match x {
+            S {} => (),
+            ^^^^ Expected type u32, found type S
+        }
+    }
+    ";
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}

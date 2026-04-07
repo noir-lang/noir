@@ -8,13 +8,15 @@
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -66,7 +68,7 @@ impl Elaborator<'_> {
 
         // Define metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
-            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+            trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
         {
             self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
@@ -125,6 +127,7 @@ impl Elaborator<'_> {
     ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
         self.self_type = trait_impl.methods.self_type.clone();
         self.generics = generics;
 
@@ -137,6 +140,7 @@ impl Elaborator<'_> {
         // Cleanup
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -171,11 +175,18 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, bound.trait_id);
+            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
         let mut trait_constraints =
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
+
+        // Add constraints for parent traits that have associated types.
+        let (parent_generics, parent_constraints) =
+            self.add_parent_associated_type_constraints(&trait_constraints);
+        generics.extend(parent_generics);
+        trait_constraints.extend(parent_constraints);
+
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
@@ -294,7 +305,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
                 let location = associated_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
@@ -347,6 +358,16 @@ impl Elaborator<'_> {
         let mut parameter_idents = Vec::new();
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
+
+        // Seed the parameter names with those from the constant generic parameter list, so that any function parameter
+        // that has the same name is reported as a duplicate. This is because their precedence is not obvious.
+        for generic in &func.def.generics {
+            let UnresolvedGeneric::Numeric { ident: IdentOrQuotedType::Ident(ident), .. } = generic
+            else {
+                continue;
+            };
+            parameter_names_in_list.insert(ident.as_string().clone(), ident.location());
+        }
 
         for Param { visibility, visibility_location, pattern, typ, location: _ } in
             func.parameters().iter().cloned()
@@ -486,6 +507,7 @@ impl Elaborator<'_> {
         self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
+        self.current_trait = func_meta.trait_id;
         self.reset_lvalue_index_counter();
 
         self.scopes.start_function();

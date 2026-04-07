@@ -23,18 +23,98 @@ pub(crate) enum MulTerm<F> {
 }
 
 impl ExpressionSolver {
-    /// Derives the rest of the witness in the provided expression based on the known witness values
-    /// 1. First we simplify the expression based on the known values and try to reduce the multiplication and linear terms
-    /// 2. If we end up with only the constant term;
-    ///     - if it is 0 then the opcode is solved, if not,
-    ///     - the assert_zero opcode is not satisfied and we return an error
-    /// 3. If we end up with only linear terms on the same witness 'w',
-    ///    we can regroup them and solve 'a*w+c = 0':
-    ///    - If 'a' is zero in the above expression;
-    ///      - if c is also 0 then the opcode is solved
-    ///      - if not that means the assert_zero opcode is not satisfied and we return an error
-    ///    - If 'a' is not zero, we can solve it by setting the value of w: 'w = -c/a'
+    /// Derives the rest of the witness based on known witness values in a single pass.
+    ///
+    /// For expressions with 0 or 1 multiplication terms (the common case), this avoids
+    /// allocating an intermediate `Expression` and eliminates redundant witness map lookups.
+    /// Falls back to the general evaluate-based approach for 2+ mul terms or when
+    /// linear term combining is needed.
     pub(crate) fn solve<F: AcirField>(
+        initial_witness: &mut WitnessMap<F>,
+        opcode: &Expression<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        // Evaluate the multiplication term contribution.
+        // Most expressions have 0 mul terms; at most 1 is solvable without combining.
+        let (mul_constant, mut unknown) = match opcode.mul_terms.len() {
+            0 => (F::zero(), None),
+            1 => {
+                match Self::solve_mul_term_helper(&opcode.mul_terms[0], initial_witness) {
+                    MulTerm::Solved(val) => (val, None),
+                    MulTerm::OneUnknown(coeff, witness) => {
+                        let unknown = if coeff.is_zero() { None } else { Some((coeff, witness)) };
+                        (F::zero(), unknown)
+                    }
+                    MulTerm::TooManyUnknowns => {
+                        let (c, _, _) = opcode.mul_terms[0];
+                        if c.is_zero() {
+                            // Zero-coefficient mul term contributes nothing.
+                            (F::zero(), None)
+                        } else {
+                            // Both witnesses unknown — always unsolvable for a single mul term.
+                            return Err(OpcodeResolutionError::OpcodeNotSolvable(
+                                OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                            ));
+                        }
+                    }
+                }
+            }
+            // 2+ mul terms may cancel via combining; use the general solver.
+            _ => return Self::solve_via_evaluate(initial_witness, opcode),
+        };
+
+        // Single pass over all linear terms (original + extra from partially-evaluated mul).
+        let mut sum = opcode.q_c + mul_constant;
+
+        for &(coeff, witness) in &opcode.linear_combinations {
+            if let Some(value) = initial_witness.get(&witness) {
+                sum += coeff * *value;
+            } else if !coeff.is_zero() {
+                if unknown.is_some() {
+                    // Multiple unknowns — need to try combining duplicate witnesses.
+                    return Self::solve_via_evaluate(initial_witness, opcode);
+                }
+                unknown = Some((coeff, witness));
+            }
+        }
+
+        if let Some((coeff, witness)) = unknown {
+            Self::solve_single_unknown(sum, coeff, witness, initial_witness)
+        } else {
+            Self::verify_satisfied(sum)
+        }
+    }
+
+    /// Verify that the fully-evaluated expression equals zero.
+    fn verify_satisfied<F: AcirField>(sum: F) -> Result<(), OpcodeResolutionError<F>> {
+        if sum.is_zero() {
+            Ok(())
+        } else {
+            Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Unresolved,
+                payload: None,
+            })
+        }
+    }
+
+    /// Solve `sum + coeff * witness = 0` for the witness.
+    fn solve_single_unknown<F: AcirField>(
+        sum: F,
+        coeff: F,
+        witness: Witness,
+        initial_witness: &mut WitnessMap<F>,
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        if coeff.is_zero() {
+            Self::verify_satisfied(sum)
+        } else {
+            let assignment = -quick_invert(sum, coeff);
+            insert_value(&witness, assignment, initial_witness)
+        }
+    }
+
+    /// General solver that allocates an intermediate evaluated `Expression`.
+    /// Used as a fallback when the single-pass approach cannot handle the expression
+    /// (2+ mul terms, or linear terms that need combining).
+    fn solve_via_evaluate<F: AcirField>(
         initial_witness: &mut WitnessMap<F>,
         opcode: &Expression<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
@@ -76,28 +156,29 @@ impl ExpressionSolver {
         };
 
         match (mul_result, opcode_status) {
-            (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
-                Err(OpcodeResolutionError::OpcodeNotSolvable(
-                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
-                ))
+            // Mul terms solved, one unknown in linear terms.
+            (
+                MulTerm::Solved(total_prod),
+                OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, witness)),
+            ) => Self::solve_single_unknown(
+                total_prod + partial_sum + opcode.q_c,
+                coeff,
+                witness,
+                initial_witness,
+            ),
+            // Everything solved — just verify the constraint holds.
+            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
+                Self::verify_satisfied(a + b + opcode.q_c)
             }
+            // One unknown in the mul term, linear terms fully solved.
+            (MulTerm::OneUnknown(coeff, witness), OpcodeStatus::OpcodeSatisfied(sum)) => {
+                Self::solve_single_unknown(sum + opcode.q_c, coeff, witness, initial_witness)
+            }
+            // One unknown appears in both mul and linear terms for the same witness.
+            // Combine coefficients: solve (q + b) * w = -(a + q_c)
             (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
                 if w1 == w2 {
-                    // We have one unknown so we can solve the equation
-                    let total_sum = a + opcode.q_c;
-                    if (q + b).is_zero() {
-                        if !total_sum.is_zero() {
-                            Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                                opcode_location: ErrorLocation::Unresolved,
-                                payload: None,
-                            })
-                        } else {
-                            Ok(())
-                        }
-                    } else {
-                        let assignment = -quick_invert(total_sum, q + b);
-                        insert_value(&w1, assignment, initial_witness)
-                    }
+                    Self::solve_single_unknown(a + opcode.q_c, q + b, w1, initial_witness)
                 } else {
                     // TODO(https://github.com/noir-lang/noir/issues/10191): can we be more specific with this error?
                     Err(OpcodeResolutionError::OpcodeNotSolvable(
@@ -105,62 +186,10 @@ impl ExpressionSolver {
                     ))
                 }
             }
-            (
-                MulTerm::OneUnknown(partial_prod, unknown_var),
-                OpcodeStatus::OpcodeSatisfied(sum),
-            ) => {
-                // We have one unknown in the mul term and the fan-in terms are solved.
-                // Hence the equation is solvable, since there is a single unknown
-                // The equation is: partial_prod * unknown_var + sum + qC = 0
-
-                let total_sum = sum + opcode.q_c;
-                if partial_prod.is_zero() {
-                    if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                            opcode_location: ErrorLocation::Unresolved,
-                            payload: None,
-                        })
-                    } else {
-                        Ok(())
-                    }
-                } else {
-                    let assignment = -quick_invert(total_sum, partial_prod);
-                    insert_value(&unknown_var, assignment, initial_witness)
-                }
-            }
-            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
-                // All the variables in the MulTerm are solved and the Fan-in is also solved
-                // There is nothing to solve
-                if !(a + b + opcode.q_c).is_zero() {
-                    Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                        opcode_location: ErrorLocation::Unresolved,
-                        payload: None,
-                    })
-                } else {
-                    Ok(())
-                }
-            }
-            (
-                MulTerm::Solved(total_prod),
-                OpcodeStatus::OpcodeSolvable(partial_sum, (coeff, unknown_var)),
-            ) => {
-                // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
-                // Hence the equation is solvable, since we have one unknown
-                // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
-                let total_sum = total_prod + partial_sum + opcode.q_c;
-                if coeff.is_zero() {
-                    if !total_sum.is_zero() {
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                            opcode_location: ErrorLocation::Unresolved,
-                            payload: None,
-                        })
-                    } else {
-                        Ok(())
-                    }
-                } else {
-                    let assignment = -quick_invert(total_sum, coeff);
-                    insert_value(&unknown_var, assignment, initial_witness)
-                }
+            (MulTerm::TooManyUnknowns, _) | (_, OpcodeStatus::OpcodeUnsolvable) => {
+                Err(OpcodeResolutionError::OpcodeNotSolvable(
+                    OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
+                ))
             }
         }
     }

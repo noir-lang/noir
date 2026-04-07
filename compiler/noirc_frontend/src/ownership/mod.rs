@@ -46,6 +46,7 @@ use crate::{
 use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
+mod suboptimal_cloning_tests;
 mod tests;
 
 impl Program {
@@ -193,7 +194,7 @@ impl Context {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
-                Some((should_clone, ident.typ.clone()))
+                Some((should_clone, ident.typ.as_ref().clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
             Expression::Unary(Unary {
@@ -441,7 +442,7 @@ fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),
         // array accesses will automatically dereference so we do too
-        Type::Reference(element, _) => unwrap_tuple_type(*element),
+        Type::Reference(element, _) => unwrap_tuple_type(element.as_ref().clone()),
         _ => None,
     }
 }

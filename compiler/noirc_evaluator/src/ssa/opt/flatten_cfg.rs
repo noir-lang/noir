@@ -145,6 +145,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -417,10 +418,11 @@ impl<'f> Context<'f> {
     /// Prepare the arguments for the next block to consume.
     ///
     /// Panics if we already have something prepared.
-    fn prepare_args(&mut self, args: Vec<ValueId>) {
+    pub(crate) fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
-        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
-        self.next_arguments = Some(args);
+        if !args.is_empty() {
+            self.next_arguments = Some(args);
+        }
     }
 
     /// Consume the arguments prepared by the previous block.
@@ -500,19 +502,13 @@ impl<'f> Context<'f> {
                 then_destination,
                 then_arguments,
                 else_destination,
-                else_arguments,
+                else_arguments: _,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "flatten_cfg has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "flatten_cfg has not been updated to handle jmpif arguments"
-                );
-
-                // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
+                // The `then` branch is next and we can prepare its args now, but the `else`
+                // branch's args need to be prepared only when the branch is later started.
+                let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
+                self.prepare_args(resolved);
                 self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -562,7 +558,7 @@ impl<'f> Context<'f> {
     /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
     /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
     /// and exit block of the conditional statement, so that they will be processed in this order.
-    fn if_start(
+    pub(crate) fn if_start(
         &mut self,
         condition: &ValueId,
         then_destination: &BasicBlockId,
@@ -713,7 +709,7 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
         let Some(else_branch) = cond_context.else_branch else {

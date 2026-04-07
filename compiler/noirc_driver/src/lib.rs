@@ -9,7 +9,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
-use noirc_artifacts::debug::{DebugFile, DebugInfo};
+use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
@@ -21,14 +21,16 @@ use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
     CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    MAX_UNROLL_ITERATIONS,
 };
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
+use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
+use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -190,12 +192,18 @@ pub struct CompileOptions {
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
-    /// unrolling small loops. When left empty, any change is accepted as long
-    /// as it required fewer SSA instructions.
+    /// unrolling small loops.
+    /// When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions. A value of 100 allows up to 2× growth.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Maximum iterations for Brillig loop unrolling. Loops exceeding this
+    /// will not be unrolled even if they pass the instruction threshold.
+    #[arg(long, hide = true, default_value_t = MAX_UNROLL_ITERATIONS)]
+    pub max_unroll_iterations: usize,
 
     /// Override the threshold for force-unrolling small loops.
     ///
@@ -277,6 +285,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             max_stack_frame_size: MAX_STACK_FRAME_SIZE,
             num_stack_frames: NUM_STACK_FRAMES,
@@ -321,6 +330,7 @@ impl CompileOptions {
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            max_unroll_iterations: self.max_unroll_iterations,
             force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
@@ -746,7 +756,8 @@ fn compile_contract_inner(
     if errors.is_empty() {
         let debug_infos: Vec<_> =
             functions.iter().flat_map(|function| function.debug.clone()).collect();
-        let file_map = filter_relevant_files(&debug_infos, &context.file_manager);
+        let file_map =
+            filter_relevant_files(&debug_infos, &context.file_manager, &context.parsed_files);
 
         let out_structs = contract
             .outputs
@@ -806,6 +817,7 @@ fn compile_contract_inner(
 pub fn filter_relevant_files(
     debug_symbols: &[DebugInfo],
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
 ) -> BTreeMap<FileId, DebugFile> {
     let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
         .iter()
@@ -842,10 +854,22 @@ pub fn filter_relevant_files(
     for file_id in files_with_debug_symbols {
         let file_path = file_manager.path(file_id).expect("file should exist");
         let file_source = file_manager.fetch_file(file_id).expect("file should exist");
+        let (parsed_module, _errors) = parsed_files.get(&file_id).expect("file should exist");
+        let include_comptime_items = false;
+        let mut function_locations =
+            function_locations_in_parsed_module(parsed_module, file_id, include_comptime_items);
+        let function_locations = function_locations
+            .all_in_file(file_id)
+            .map(|(name, span)| FunctionLocation { name: name.to_string(), start: span.start() })
+            .collect::<BTreeSet<_>>();
 
         file_map.insert(
             file_id,
-            DebugFile { source: file_source.to_string(), path: file_path.to_path_buf() },
+            DebugFile {
+                source: file_source.to_string(),
+                path: file_path.to_path_buf(),
+                function_locations,
+            },
         );
     }
     file_map
@@ -926,7 +950,7 @@ pub fn compile_no_check(
     };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);
-    let file_map = filter_relevant_files(&debug, &context.file_manager);
+    let file_map = filter_relevant_files(&debug, &context.file_manager, &context.parsed_files);
 
     Ok(CompiledProgram {
         hash,

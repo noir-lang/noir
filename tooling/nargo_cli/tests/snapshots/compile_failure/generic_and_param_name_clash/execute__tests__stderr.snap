@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: duplicate definitions of N found
+  ┌─ src/main.nr:3:11
+  │
+3 │ fn hi<let N: u32>(N: u32) {
+  │           -       - second definition found here
+  │           │        
+  │           first definition found here
+  │
+
+Aborting due to 1 previous error

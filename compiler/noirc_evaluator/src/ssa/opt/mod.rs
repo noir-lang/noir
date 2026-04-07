@@ -6,6 +6,7 @@
 
 mod array_get;
 mod array_set;
+mod array_set_window_optimization;
 mod as_vector_length;
 mod basic_conditional;
 mod black_box_bypass;
@@ -51,7 +52,7 @@ pub(crate) use array_get::{
 };
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
-pub use unrolling::FORCE_UNROLL_THRESHOLD;
+pub use unrolling::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 pub(crate) use unrolling::{LoopOrder, Loops};
 
 #[cfg(test)]

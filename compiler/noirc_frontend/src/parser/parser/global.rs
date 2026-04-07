@@ -181,7 +181,6 @@ mod tests {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(value.is_negative());
-        assert_eq!(value.absolute_value(), FieldElement::from(17u128));
+        assert_eq!(value, -FieldElement::from(17u128));
     }
 }

@@ -102,6 +102,21 @@ fn deny_cyclic_type_aliases() {
 }
 
 #[test]
+fn cyclic_type_alias_usage_does_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+        fn main() {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
         type A = B;
@@ -175,76 +190,60 @@ fn type_alias_to_numeric_generic() {
 }
 
 #[test]
-fn disallows_composing_numeric_type_aliases() {
+fn disallows_composing_numeric_type_aliases_as_type_syntax() {
+    // Double<Double<N>> uses type syntax (Named with generics), not expression syntax.
+    // try_into_expression rejects Named with non-empty generics.
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
+                                      ^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
-        assert(b[0] == 0);
-    }
-    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
-        let mut a = [0;Quadruple::<N>];
-        for i in 0..Quadruple::<N> {
-            a[i] = i + n;
-        }
-        a
+        let _ = Double::<1>;
+        let _ = Quadruple::<1>;
     }
     "#;
     check_errors(src);
 }
 
 #[test]
-fn disallows_numeric_type_aliases_to_expression_with_alias() {
+fn allows_composing_numeric_type_aliases_in_expression() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-                                      ^^^^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+        let b: [u32; 12] = foo::<3>();
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
-            a[i] = i + n;
+            a[i] = i;
         }
         a
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
-fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
+fn allows_composing_numeric_type_aliases_in_expression_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
-    type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
-                                      ^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
+    type Mixed<let N: u32>: u32 = N*(Double::<N>+3);
 
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+        let b: [u32; 14] = foo::<2>();
         assert(b[0] == 0);
     }
-    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
-        let mut a = [0;Quadruple::<N>];
-        for i in 0..Quadruple::<N> {
-            a[i] = i + n;
+    fn foo<let N:u32>() -> [u32;Mixed::<N>] {
+        let mut a = [0;Mixed::<N>];
+        for i in 0..Mixed::<N> {
+            a[i] = i;
         }
         a
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -516,13 +515,22 @@ fn regression_10352_slice() {
 #[test]
 fn regression_10352_trait_as_type() {
     let src = r#"
-    trait Foo<T> {}
+    struct Foo {
+        x: impl Bar,
+                ^^^ `impl Trait` is not allowed in struct field types
+                ~~~ Use a generic type parameter instead
+    }
 
-    type Alias = impl Foo<Alias>;
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {
+            self.x.bar();
+        }
+    }
 
-    fn main(_: Alias) {}
-               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
-               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    fn main(_a: Foo) {}
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
@@ -740,7 +748,7 @@ fn signed_numeric_type_alias_with_negative_operand() {
     // The expression `0 % (-1)` must be elaborated as a i32.
     // An unsigned type would cause an "attempt to subtract with overflow" errors.
     let src = r#"
-    pub type X: i32 = 0 % (-1);
+    pub type X: i32 = 0i32 % -1i32;
 
     fn main() {
         let _: i32 = X;
@@ -753,8 +761,9 @@ fn signed_numeric_type_alias_with_negative_operand() {
 fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
-    pub type X: u8 = 257;
-    ^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+    pub type X: u8 = 257u8;
+    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
@@ -769,6 +778,8 @@ fn regression_10764_trait_as_type_with_empty_trait() {
     trait Foo { }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -815,6 +826,8 @@ fn regression_10764_trait_as_type() {
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -867,10 +880,14 @@ fn regression_10764_underscore() {
 fn regression_10764_trait_as_type_impl() {
     let src = r#"
     trait Foo {
+          ^^^ unused trait Foo
+          ~~~ unused trait
         fn foo(self);
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Bar {
          ^^^ Non-enum, non-struct type used in impl
@@ -925,10 +942,223 @@ fn cannot_assign_to_numeric_type_alias() {
 }
 
 #[test]
+fn numeric_type_alias_referencing_non_numeric_type_alias() {
+    // A numeric type alias referencing a non-numeric type alias should error
+    // because `Two` is not a numeric alias.
+    let src = r#"
+    type One: u32 = Two;
+                    ^^^^ Numeric type alias expression must only reference generic parameters and constants
+    type Two = u32;
+
+    fn main(a: One) -> pub Two {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_alias_turbofish_resolves_correctly() {
+    // Turbofish on a numeric type alias should resolve to the correct value,
+    // not to a global that happens to share the same name.
+    // The alias generic should not leak and shadow the global after usage.
+    // This only makes compile-time checks, for verifying the runtime values' correctness the same logic can be found
+    // under the `test_programs/execution_success/numeric_type_alias` integration test.
+    let src = r#"
+    global N: u32 = 100;
+
+    type Alias<let N: u32>: u32 = N;
+    type Double<let N: u32>: u32 = N * 2;
+    type X: u32 = 42;
+
+    fn main() {
+        // Turbofish resolves to the supplied value, not the global
+        let a: u32 = Alias::<1>;
+        assert(a == 1);
+        // Expression body works with turbofish
+        let b: u32 = Double::<3>;
+        assert(b == 6);
+        // Numeric alias w/o generics works without turbofish
+        let c: u32 = X;
+        assert(c == 42);
+        // N should still refer to the global, not the alias generic
+        assert(N == 100);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_in_range_expression() {
+    // Numeric type alias should work in range expressions (value position)
+    let src = r#"
+    type Size<let N: u32, let M: u32>: u32 = N * M;
+
+    fn foo<let N: u32, let M: u32>() -> Field {
+        let mut s: Field = 0;
+        for i in 0..Size::<N, M> {
+            s += i as Field;
+        }
+        s
+    }
+
+    fn main() {
+        let result = foo::<2, 3>();
+        // sum of 0..6 = 0+1+2+3+4+5 = 15
+        assert(result == 15);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_with_global_constants() {
+    // Numeric type aliases should be able to reference global constants
+    let src = r#"
+    global One: u32 = 1;
+    type Two: u32 = One + One;
+
+    fn main() {
+        let a: u32 = Two;
+        assert(a == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_with_other_numeric_alias() {
+    // Numeric type aliases should be able to reference other numeric type aliases
+    // (without generics)
+    let src = r#"
+    type One: u32 = 1;
+    type Two: u32 = One + One;
+
+    fn main() {
+        let a: u32 = Two;
+        assert(a == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_struct() {
+    // A numeric type alias referencing a struct should error.
+    // The struct resolves as a named type, but fails kind-checking since it's not numeric.
+    let src = r#"
+    struct Foo { x: u32 }
+    type Bad: u32 = Foo;
+                    ^^^ Type provided when a numeric generic was expected
+                    ~~~ the numeric generic is not of type `u32`
+
+    fn main(a: Bad) -> pub Foo {
+        Foo { x: a }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_tuple_type() {
+    // A numeric type alias referencing a tuple type should error.
+    // Tuple types cannot be converted to expressions via try_into_expression.
+    let src = r#"
+    type Bad: u32 = (Field, Field);
+                    ^^^^^^^^^^^^^^^ Expected a numeric expression, but got `(Field, Field)`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_array_type() {
+    // A numeric type alias referencing an array type should error.
+    // Array types cannot be converted to expressions via try_into_expression.
+    let src = r#"
+    type Bad: u32 = [Field; 3];
+                    ^^^^^^^^^^^ Expected a numeric expression, but got `[Field; 3]`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_function() {
+    // A numeric type alias referencing a function name should error.
+    // `foo` resolves as a variable expression, but the type resolver catches it
+    // as a function rather than a type.
+    let src = r#"
+    fn foo() -> u32 { 1 }
+    type Bad: u32 = foo;
+                    ^^^ expected type, found function `foo`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
     let src = r#"
     pub type Alias = Quoted;
                      ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
     "#;
     check_errors(src);
+}
+
+/// Regression test: a type alias and a global with the same name
+#[test]
+fn type_alias_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        type Foo = u32;
+
+        fn main() {
+            let x: Foo = 20;
+            assert(x == 20);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// which can leak into subsequent elaboration phases.
+#[test]
+fn no_false_cycle_from_stale_current_item_after_type_alias() {
+    // `A` depends on `B` (real dependency).
+    // After the type-alias loop, `current_item` is left as `Alias(B)`.
+    // When `collect_traits` resolves the supertrait `Dummy<A>`, it should not
+    // record a dependency from `B` to `A` (which would create a false A↔B cycle).
+    let src = r#"
+        type A = B;
+        type B = Field;
+
+        trait Dummy<T> {}
+        trait Foo: Dummy<A> {}
+
+        fn main(_x: A) where A: Foo {}
+    "#;
+    assert_no_errors(src);
 }

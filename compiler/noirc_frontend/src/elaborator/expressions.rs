@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 use rustc_hash::FxHashSet as HashSet;
@@ -44,7 +45,6 @@ use crate::{
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
-    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -353,7 +353,7 @@ impl Elaborator<'_> {
                 let len: u32 = str.len().try_into().expect(
                     "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
                 );
-                let len = len.into();
+                let len = Type::constant_u32(len);
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
@@ -422,7 +422,7 @@ impl Elaborator<'_> {
                 });
 
                 let length: u32 = elements.len().try_into().expect("ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32");
-                let length = length.into();
+                let length = Type::constant_u32(length);
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -430,7 +430,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
@@ -488,7 +488,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let len = length.into();
+        let len = Type::constant_u32(length);
         let fmtstr_type =
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
@@ -508,6 +508,15 @@ impl Elaborator<'_> {
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
+        // Simplify `*&x` and `*&mut x` to just `x`
+        if let UnaryOp::Dereference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && matches!(inner.operator, UnaryOp::Reference { .. })
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            return self.elaborate_expression(inner.rhs);
+        }
+
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
@@ -666,9 +675,10 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            // XXX: We can check the array bounds here also, but it may be better to constant fold first
-            // and have ConstId instead of ExprId for constants
-            Type::Array(_, base_type) => *base_type,
+            Type::Array(ref size, ref base_type) => {
+                self.check_array_index_out_of_bounds(size, &index, location);
+                *base_type.clone()
+            }
             Type::Vector(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
@@ -691,6 +701,28 @@ impl Elaborator<'_> {
         (expr, typ)
     }
 
+    /// If the index expression is a constant integer literal, check that it is
+    /// within bounds for the given array length type.
+    pub(super) fn check_array_index_out_of_bounds(
+        &mut self,
+        array_size: &Type,
+        index: &ExprId,
+        location: Location,
+    ) {
+        if let HirExpression::Literal(HirLiteral::Integer(index_value)) =
+            self.interner.expression(index)
+            && let Ok(index_u32) = index_value.try_into()
+            && let Ok(array_len) = array_size.evaluate_to_u32(location)
+            && index_u32 >= array_len
+        {
+            self.push_err(TypeCheckError::ArrayIndexOutOfBounds {
+                index: index_u32,
+                array_length: array_len,
+                location,
+            });
+        }
+    }
+
     fn elaborate_call(
         &mut self,
         call: CallExpression,
@@ -707,8 +739,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(hir_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -789,8 +823,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(function_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -1704,6 +1740,27 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Validate a macro call without executing it.
+    /// Checks that the callee is a comptime function and the return type is `Quoted`.
+    fn validate_macro_call(
+        &mut self,
+        func: ExprId,
+        return_type: &Type,
+        location: Location,
+    ) -> Option<FuncId> {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), || {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
+        });
+
+        match self.try_get_comptime_function(func, location) {
+            Ok(function) => Some(function),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Call a macro function and inlines its code at the call site.
     /// This will also perform a type check to ensure that the return type is an `Expr` value.
     fn call_macro(
@@ -1713,17 +1770,7 @@ impl Elaborator<'_> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
-            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
-        });
-
-        let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function,
-            Err(error) => {
-                self.push_err(error);
-                return None;
-            }
-        };
+        let function = self.validate_macro_call(func, &return_type, location)?;
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();

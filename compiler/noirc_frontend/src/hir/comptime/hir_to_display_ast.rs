@@ -470,10 +470,10 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(value, kind) => {
+            Type::Constant(value) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    *value,
-                    kind.as_integer_type_suffix(),
+                    value.as_field(),
+                    Some(value.integer_type_suffix()),
                     Location::dummy(),
                 ))
             }
@@ -498,9 +498,11 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, kind) => {
-                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
-            }
+            Type::Constant(length) => UnresolvedTypeExpression::Constant(
+                length.as_field(),
+                Some(length.integer_type_suffix()),
+                location,
+            ),
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
@@ -553,9 +555,9 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length, kind) => {
-                        let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(*length, suffix);
+                    Type::Constant(length) => {
+                        let suffix = Some(length.integer_type_suffix());
+                        let literal = Literal::Integer(length.as_field(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

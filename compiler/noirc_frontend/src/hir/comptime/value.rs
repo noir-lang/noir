@@ -2,6 +2,7 @@
 //! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
+use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -27,7 +28,6 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    signed_field::SignedField,
     token::{FmtStrFragment, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -124,7 +124,7 @@ macro_rules! int_constructor {
 }
 
 impl Value {
-    pub fn field(x: SignedField) -> Self {
+    pub fn field(x: FieldElement) -> Self {
         Value::Integer(Integer::Field(x))
     }
 
@@ -166,7 +166,7 @@ impl Value {
                     .len()
                     .try_into()
                     .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
-                Type::String(Box::new(length.into()))
+                Type::String(Box::new(Type::constant_u32(length)))
             }
             Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
@@ -213,13 +213,14 @@ impl Value {
         location: Location,
     ) -> IResult<Expression> {
         use crate::ast::Literal::*;
+        use ExpressionKind::Literal;
         let kind = match self {
-            Value::Unit => ExpressionKind::Literal(Unit),
-            Value::Bool(value) => ExpressionKind::Literal(Bool(value)),
+            Value::Unit => Literal(Unit),
+            Value::Bool(value) => Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(&bytes);
-                ExpressionKind::Literal(Str(string.to_string()))
+                Literal(Str(string.to_string()))
             }
             Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
@@ -249,8 +250,7 @@ impl Value {
                     segment("as_ctstring"),
                 ]);
                 let string = String::from_utf8_lossy(&bytes);
-                let kind = ExpressionKind::Literal(Str(string.into_owned()));
-                let contents = Expression { kind, location };
+                let contents = Expression { kind: Literal(Str(string.into_owned())), location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -300,7 +300,7 @@ impl Value {
                     };
                     new_fragments.push(new_fragment);
                 }
-                let fmtstr = ExpressionKind::Literal(FmtStr(new_fragments, length));
+                let fmtstr = Literal(FmtStr(new_fragments, length));
                 if has_values {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
@@ -329,24 +329,31 @@ impl Value {
                 })?;
                 ExpressionKind::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let typ = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(data_type, generics) => {
-                        Type::DataType(data_type.clone(), generics.clone())
-                    }
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
+
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+                let typ = Type::DataType(data_type, generics);
 
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
                 let typ = UnresolvedType { typ, location };
-                ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    typ,
+                    fields: ordered_fields,
+                }))
             }
             value @ Value::Enum(..) => {
                 let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
@@ -355,12 +362,12 @@ impl Value {
             Value::Array(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Array(ArrayLiteral::Standard(elements)))
+                Literal(Array(ArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Vector(ArrayLiteral::Standard(elements)))
+                Literal(Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -489,21 +496,27 @@ impl Value {
                 })?;
                 HirExpression::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let Type::DataType(r#type, struct_generics) = typ.follow_bindings() else {
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
                     return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
 
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+
                 HirExpression::Constructor(HirConstructorExpression {
-                    r#type,
-                    struct_generics,
-                    fields,
+                    r#type: data_type,
+                    struct_generics: generics,
+                    fields: ordered_fields,
                 })
             }
             Value::Enum(variant_index, args, typ) => {
@@ -623,11 +636,6 @@ impl Value {
         Ok(tokens)
     }
 
-    /// Returns false for non-integral `Value`s.
-    pub(crate) fn is_integral(&self) -> bool {
-        matches!(self, Value::Integer(_))
-    }
-
     pub(crate) fn is_zero(&self) -> bool {
         use Value::*;
         match self {
@@ -677,20 +685,9 @@ impl Value {
         }
     }
 
-    /// Converts any non-negative integer `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s and negative numbers.
-    pub(crate) fn as_non_negative_signed_field(&self) -> Option<SignedField> {
+    pub(crate) fn as_integer(&self) -> Option<&Integer> {
         match self {
-            Value::Integer(int) => int.as_non_negative_field().map(SignedField::positive),
-            _ => None,
-        }
-    }
-
-    /// Converts any integral `Value` into a `SignedField`.
-    #[cfg(test)]
-    pub(crate) fn as_signed_field(&self) -> Option<SignedField> {
-        match self {
-            Value::Integer(int) => Some(int.as_signed_field()),
+            Value::Integer(int) => Some(int),
             _ => None,
         }
     }

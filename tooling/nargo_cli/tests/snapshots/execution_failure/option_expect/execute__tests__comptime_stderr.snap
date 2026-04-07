@@ -9,7 +9,9 @@ error: Should have the value 0x03
    │                -------------- Assertion failed
    │
    = Call stack:
-     1. src/main.nr:1:4
-     2. src/main.nr:7:12
+     1: ?
+             at src/main.nr:1:4
+     2: main
+             at src/main.nr:7:12
 
 Error interpreting main function

@@ -184,8 +184,9 @@ pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
         Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         // NB. function references are converted to a constant when
         // translating from SSA to Brillig (to allow for debugger
-        // instrumentation to work properly)
-        Type::Function => 32,
+        // instrumentation to work properly).
+        // They are passed to foreign functions as a Field, carrying their ID.
+        Type::Function => Type::field().bit_size(),
         typ => typ.bit_size(),
     }
 }

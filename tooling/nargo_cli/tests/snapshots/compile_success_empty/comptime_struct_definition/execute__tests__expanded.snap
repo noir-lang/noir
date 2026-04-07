@@ -19,13 +19,7 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
     assert(typ.name() == quote { MyType });
 }
 
-comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type, Quoted)] = [
-        (quote { x }, quote { i32 }.as_type(), quote { pub }),
-        (quote { y }, quote { Field }.as_type(), quote { pub(crate) }),
-    ]
-        .as_vector();
-    s.set_fields(fields);
+comptime fn check_struct_fields(s: TypeDefinition) {
     let fields: [(Quoted, Type, Quoted)] = s.fields([].as_slice());
     assert(fields[0_u32].2 == quote { pub });
     assert(fields[1_u32].2 == quote { pub(crate) });
@@ -39,18 +33,6 @@ mod foo {
 
     comptime fn attr(s: TypeDefinition) {
         assert(s.module().name() == quote { foo });
-    }
-
-    pub struct Bar<T> {}
-
-    comptime fn add_generic(s: TypeDefinition) {
-        assert(s.generics().len() == 0_u32);
-        let new_generic: Type = s.add_generic("T");
-        let generics: [(Type, Option<Type>)] = s.generics();
-        assert(generics.len() == 1_u32);
-        let (typ, numeric): (Type, Option<Type>) = generics[0_u32];
-        assert(typ == new_generic);
-        assert(numeric.is_none());
     }
 }
 

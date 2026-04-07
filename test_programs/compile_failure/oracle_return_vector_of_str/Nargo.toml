@@ -1,0 +1,6 @@
+[package]
+name = "oracle_return_vector_of_str"
+type = "bin"
+authors = [""]
+
+[dependencies]

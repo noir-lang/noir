@@ -15,6 +15,7 @@ error: QPA
    │ ╰─────────────────────────────' Assertion failed
    │  
    = Call stack:
-     1. src/main.nr:1:4
+     1: ?
+             at src/main.nr:1:4
 
 Error interpreting main function

@@ -153,7 +153,7 @@ impl ConstantAllocation {
             .iter()
             .copied()
             .reduce(|a, b| self.dominator_tree.common_dominator(a, b))
-            .unwrap_or(used_in_blocks[0]);
+            .expect("At least one block must use the constant");
 
         // If the value only contains constants, it's safe to hoist outside of any loop.
         // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.

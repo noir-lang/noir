@@ -65,20 +65,13 @@ fn multiple_brillig_calls_one_bytecode() {
     10: sp[3] = const u32 69
     11: sp[4] = const u32 1
     12: stop @[sp[3]; sp[4]]
-    13: call 21
-    14: sp[4] = field eq sp[2], sp[3]
-    15: sp[3] = const bool 0
-    16: sp[5] = bool eq sp[4], sp[3]
-    17: jump if sp[5] to 20
-    18: sp[6] = const u32 0
-    19: trap @[@1; sp[6]]
-    20: return
-    21: @4 = const u32 30790
-    22: @3 = u32 lt @0, @4
-    23: jump if @3 to 26
-    24: @1 = indirect const u64 15764276373176857197
-    25: trap @[@1; @2]
-    26: return
+    13: sp[4] = field eq sp[2], sp[3]
+    14: sp[3] = const bool 0
+    15: sp[5] = bool eq sp[4], sp[3]
+    16: jump if sp[5] to 19
+    17: sp[6] = const u32 0
+    18: trap @[@1; sp[6]]
+    19: return
     unconstrained func 1: foo
      0: @2 = const u32 1
      1: @1 = const u32 32838
@@ -93,20 +86,13 @@ fn multiple_brillig_calls_one_bytecode() {
     10: sp[3] = const u32 69
     11: sp[4] = const u32 1
     12: stop @[sp[3]; sp[4]]
-    13: call 21
-    14: sp[4] = field eq sp[2], sp[3]
-    15: sp[3] = const bool 0
-    16: sp[5] = bool eq sp[4], sp[3]
-    17: jump if sp[5] to 20
-    18: sp[6] = const u32 0
-    19: trap @[@1; sp[6]]
-    20: return
-    21: @4 = const u32 30790
-    22: @3 = u32 lt @0, @4
-    23: jump if @3 to 26
-    24: @1 = indirect const u64 15764276373176857197
-    25: trap @[@1; @2]
-    26: return
+    13: sp[4] = field eq sp[2], sp[3]
+    14: sp[3] = const bool 0
+    15: sp[5] = bool eq sp[4], sp[3]
+    16: jump if sp[5] to 19
+    17: sp[6] = const u32 0
+    18: trap @[@1; sp[6]]
+    19: return
     ");
 }
 
@@ -272,20 +258,13 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     12: sp[3] = const u32 69
     13: sp[4] = const u32 1
     14: stop @[sp[3]; sp[4]]
-    15: call 23
-    16: sp[4] = u32 eq sp[2], sp[3]
-    17: sp[3] = const bool 0
-    18: sp[5] = bool eq sp[4], sp[3]
-    19: jump if sp[5] to 22
-    20: sp[6] = const u32 0
-    21: trap @[@1; sp[6]]
-    22: return
-    23: @4 = const u32 30790
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap @[@1; @2]
-    28: return
+    15: sp[4] = u32 eq sp[2], sp[3]
+    16: sp[3] = const bool 0
+    17: sp[5] = bool eq sp[4], sp[3]
+    18: jump if sp[5] to 21
+    19: sp[6] = const u32 0
+    20: trap @[@1; sp[6]]
+    21: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -417,20 +396,13 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     12: sp[3] = const u32 69
     13: sp[4] = const u32 1
     14: stop @[sp[3]; sp[4]]
-    15: call 23
-    16: sp[4] = u32 eq sp[2], sp[3]
-    17: sp[3] = const bool 0
-    18: sp[5] = bool eq sp[4], sp[3]
-    19: jump if sp[5] to 22
-    20: sp[6] = const u32 0
-    21: trap @[@1; sp[6]]
-    22: return
-    23: @4 = const u32 30790
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap @[@1; @2]
-    28: return
+    15: sp[4] = u32 eq sp[2], sp[3]
+    16: sp[3] = const bool 0
+    17: sp[5] = bool eq sp[4], sp[3]
+    18: jump if sp[5] to 21
+    19: sp[6] = const u32 0
+    20: trap @[@1; sp[6]]
+    21: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0

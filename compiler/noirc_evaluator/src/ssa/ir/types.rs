@@ -8,7 +8,6 @@ use acvm::{
     },
 };
 use iter_extended::vecmap;
-use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -66,20 +65,16 @@ impl NumericType {
     /// Returns None if the given Field value is within the numeric limits
     /// for the current NumericType. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: FieldElement) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.is_negative() || value > SignedField::positive(max) {
-                    Some(format!("0..={max}"))
-                } else {
-                    None
-                }
+                if value > max.into() { Some(format!("0..={max}")) } else { None }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                if value > SignedField::positive(max) || value < SignedField::negative(min) {
+                if value > max.into() && value < -FieldElement::from(min) {
                     Some(format!("-{min}..={max}"))
                 } else {
                     None
@@ -111,7 +106,13 @@ impl NumericType {
                 128 => Ok(FieldElement::from(u128::MAX)),
                 _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
             },
-            other => Err(format!("Cannot get max value for type: {other}")),
+            NumericType::Signed { bit_size } => {
+                assert!(*bit_size <= 128);
+                Ok(FieldElement::from(2u128.pow(*bit_size - 1) - 1))
+            }
+            NumericType::NativeField => {
+                Err("Cannot get max value for type: NativeField".to_string())
+            }
         }
     }
 }
@@ -403,20 +404,20 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
-        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
+        assert!(u8.value_is_outside_limits(-FieldElement::from(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(255_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(256_i128.into()).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
-        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(127_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(128_i128.into()).is_some());
     }
 
     proptest! {
@@ -424,7 +425,7 @@ mod tests {
         fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
-                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+                prop_assert!(input.value_is_outside_limits(max_value).is_none());
             }
         }
     }

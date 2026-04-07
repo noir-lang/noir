@@ -571,7 +571,7 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Reference(typ, mutable) => {
                 Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
             }
-            noirc_frontend::Type::Constant(signed_field, _kind) => {
+            noirc_frontend::Type::Constant(signed_field) => {
                 Type::Constant(signed_field.to_string())
             }
             noirc_frontend::Type::InfixExpr(lhs, operator, rhs, _) => Type::InfixExpr {
@@ -646,7 +646,7 @@ impl DocItemBuilder<'_> {
             .collect::<Vec<_>>();
 
         let attributes = self.interner.function_attributes(&func_id);
-        let deprecated = attributes.get_deprecated_note();
+        let deprecated = attributes.get_deprecated().map(|(_, note)| note);
 
         let id = get_function_id(func_id, self.interner);
 
@@ -918,9 +918,6 @@ pub(crate) fn convert_primitive_type(
             PrimitiveTypeKind::FunctionDefinition
         }
         noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
-        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
-            PrimitiveTypeKind::TypeDefinition
-        }
         noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
             PrimitiveTypeKind::TraitDefinition
         }

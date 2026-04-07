@@ -12,10 +12,7 @@ fn main(expected: pub Field, first: Field, input: [Field; 20]) {
             hasher_vector[i_0] = 100_Field;
         }
     } else {
-        {
-            let i_1: u32 = expected as u32;
-            hasher_vector[i_1] = 100_Field;
-        }
+        hasher_vector[expected as u32] = 100_Field;
     };
     assert(hasher_vector[0_u32] == expected);
 }

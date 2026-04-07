@@ -164,15 +164,12 @@ impl SpillManager {
             is_permanent: false,
             is_currently_spilled: true,
         });
-        if record.is_permanent {
-            // Permanent record — preserve offset, just re-mark as spilled.
-            assert_eq!(offset, record.offset);
-            record.is_currently_spilled = true;
-        } else {
+        // Always preserve the offset, so we don't leak free slots.
+        assert_eq!(offset, record.offset, "Spill of {value_id} orphaned existing slot");
+        record.is_currently_spilled = true;
+        if !record.is_permanent {
             // Transient record from a previous spill/reload cycle — update it.
-            record.offset = offset;
             record.variable = variable;
-            record.is_currently_spilled = true;
         }
     }
 
@@ -232,6 +229,14 @@ impl SpillManager {
     /// Get the permanent spill slot offset for a value, if any.
     pub(crate) fn get_permanent_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
         self.records.get(value_id).filter(|r| r.is_permanent).map(|r| r.offset)
+    }
+
+    /// Get the spill slot offset for a value, if any.
+    ///
+    /// Unlike `get_permanent_spill_offset` this could be a permanent or a transient spill;
+    /// there should be only one at any point.
+    pub(crate) fn get_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
+        self.records.get(value_id).map(|r| r.offset)
     }
 
     /// Re-mark permanently-spilled values as currently spilled at block entry.
@@ -482,6 +487,35 @@ mod tests {
         // Attempting to spill v0 again without unmark/remove should panic
         let off2 = sm.allocate_spill_offset();
         sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "orphaned existing slot")]
+    fn record_spill_panics_on_orphaned_slot() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+
+        sm.unmark_spilled(&v0);
+
+        assert_eq!(sm.get_spill_offset(&v0), Some(off));
+
+        // Attempting to spill v0 again with a different offset should panic.
+        let off2 = sm.allocate_spill_offset();
+        sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    fn record_spill_of_unmarked_with_same_offset() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+        sm.record_spill(v0, off, test_var(1)); // Different BrilligVariable to show it's not checked.
     }
 
     #[test]

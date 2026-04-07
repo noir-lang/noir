@@ -24,8 +24,8 @@ use crate::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
+                CollectedItems, CompilationError, CompilationErrors, ModuleAttribute,
+                UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
             },
             dc_mod,
         },
@@ -146,9 +146,8 @@ impl<'context> Elaborator<'context> {
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
-            errors = vecmap(errors, |error| {
-                CompilationError::ComptimeError(reason.to_macro_error(error))
-            });
+            errors =
+                errors.map(|error| CompilationError::ComptimeError(reason.to_macro_error(error)));
         }
 
         self.errors.extend(errors);
@@ -838,8 +837,8 @@ impl<'context> Elaborator<'context> {
         value
     }
 
-    fn wrap_errors_in_macro_error(&self, errors: Vec<CompilationError>) -> Vec<CompilationError> {
-        vecmap(errors, |error| self.wrap_error_in_macro_error(error))
+    fn wrap_errors_in_macro_error(&self, errors: CompilationErrors) -> CompilationErrors {
+        errors.map(|error| self.wrap_error_in_macro_error(error))
     }
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {

@@ -16,6 +16,7 @@ use crate::ssa::ir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::brillig::MemoryAddress};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -241,9 +242,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
         // Reuse the permanent spill slot if one exists (the data is already there
-        // since SSA values are immutable), otherwise allocate a fresh slot.
-        let offset =
-            sm.get_permanent_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        // since SSA values are immutable), or the transient one if it has just been
+        // unmarked, but still available; otherwise allocate a fresh slot.
+        let offset = sm.get_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
 
         let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
         let victim_reg = victim_var.extract_register();
@@ -252,6 +253,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
+        self.variables.mark_unavailable(&victim_id);
 
         // Record the spill
         let sm = self.function_context.spill_manager.as_mut().unwrap();
@@ -508,8 +510,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let destination_block = &dfg[destination];
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
-        assert_eq!(arguments.len(), destination_block.parameters().len());
-        for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
             let arg_var = self.convert_ssa_value(*arg, dfg);
             let arg_reg = arg_var.extract_register();
 

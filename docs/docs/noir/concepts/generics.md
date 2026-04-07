@@ -45,6 +45,19 @@ impl<let N: u32> BigInt<N> {
 }
 ```
 
+Note that when constants are given as arguments to numeric generics, they default to the type `u32` if no integer suffix
+was specified. There is no type-inference for type-level integers, so if a non-`u32` type is required, an integer suffix
+is required:
+
+```rust
+fn foo<let A: u8, let B: u32, let C: i64>() {}
+
+fn main() {
+    // For any constant meant to be a different type than u32, we must specify the type on the literal
+    foo::<0u8, 2, 3i64>();
+}
+```
+
 ## In Structs
 
 Generics are useful for specifying types in structs. For example, we can specify that a field in a

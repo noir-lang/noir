@@ -5,6 +5,7 @@ use super::{
 use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize, de::Error};
 use std::collections::BTreeMap;
 
@@ -121,7 +122,7 @@ impl TomlTypes {
             }
 
             (InputValue::Vec(vector), AbiType::Tuple { fields }) => {
-                let fields = try_vecmap(vector.iter().zip(fields), |(value, typ)| {
+                let fields = try_vecmap(vector.iter().zip_eq(fields), |(value, typ)| {
                     TomlTypes::try_from_input_value(value, typ)
                 })?;
                 TomlTypes::Array(fields)
@@ -202,7 +203,7 @@ impl InputValue {
 
             (TomlTypes::Array(array), AbiType::Tuple { fields }) => {
                 let mut index = 0;
-                let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
+                let tuple_fields = try_vecmap(array.into_iter().zip_eq(fields), |(value, typ)| {
                     let sub_name = format!("{arg_name}[{index}]");
                     let value = InputValue::try_from_toml(value, typ, &sub_name);
                     index += 1;

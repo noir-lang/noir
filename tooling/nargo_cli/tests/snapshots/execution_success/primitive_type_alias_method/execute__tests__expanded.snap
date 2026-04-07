@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+type MyField = Field;
+
+type AliasOfAlias = MyField;
+
+fn main(x: Field) {
+    let expected: [u1; 8] = x.to_le_bits();
+    let bits: [u1; 8] = x.to_le_bits();
+    assert(bits == expected);
+    let bits2: [u1; 8] = x.to_le_bits();
+    assert(bits2 == expected);
+}

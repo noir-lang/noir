@@ -555,19 +555,23 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
-        resolved_turbofish.map(|resolved_turbofish| {
+        resolved_turbofish.map(|mut resolved_turbofish| {
             let direct_generic_kinds =
                 vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
                     generic.kind()
                 });
+            let expected = direct_generic_kinds.len();
+            let actual = resolved_turbofish.len();
 
-            if resolved_turbofish.len() != direct_generic_kinds.len() {
-                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                    expected_count: direct_generic_kinds.len(),
-                    actual_count: resolved_turbofish.len(),
+            if actual != expected {
+                self.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: expected,
+                    actual_count: actual,
                     location,
-                };
-                self.push_err(type_check_err);
+                });
+
+                // Pad so the result has the expected length for future checks
+                resolved_turbofish.resize(expected, Located::from(location, Type::Error));
             }
 
             self.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
@@ -692,12 +696,13 @@ impl Elaborator<'_> {
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
+        // Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
+        // may push an error for mismatched counts but still call this function.
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
 
         vecmap(kinds_with_types, |(kind, located_type)| {
             let location = located_type.location();
             let typ = located_type.contents;
-            let typ = typ.substitute_kind_any_with_kind(&kind);
             self.check_type_kind(typ, &kind, location)
         })
     }

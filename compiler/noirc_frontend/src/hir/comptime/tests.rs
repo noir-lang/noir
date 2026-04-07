@@ -16,7 +16,6 @@ use crate::hir::type_check::TypeCheckError;
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
-use crate::signed_field::SignedField;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
@@ -78,7 +77,7 @@ pub(crate) fn with_interpreter<T>(
 
     let mut interpreter = elaborator.setup_interpreter();
 
-    f(&mut interpreter, main, &errors)
+    f(&mut interpreter, main, errors.as_ref())
 }
 
 /// Evaluate a code snippet by calling the `main` function.
@@ -104,7 +103,7 @@ pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::field(SignedField::positive(3u128)));
+    assert_eq!(result, Value::field(3u128.into()));
 }
 
 #[test]

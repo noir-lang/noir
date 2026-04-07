@@ -1499,3 +1499,84 @@ fn path_inside_module_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+// Regression: macro-call validation was bypassed inside comptime blocks
+#[test]
+fn non_comptime_macro_call_in_comptime_block() {
+    let src = r#"
+    fn not_comptime() -> Field {
+        7
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            not_comptime!()
+            ^^^^^^^^^^^^^^^ This macro call is to a non-comptime function
+            ~~~~~~~~~~~~~~~ Macro calls must be to comptime functions
+            ^^^^^^^^^^^^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~~~~~~~~~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~~~~~~~~~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+// Regression: comptime fn returning non-Quoted accepted as macro in comptime block
+#[test]
+fn comptime_fn_returning_non_quoted_macro_call_in_comptime_block() {
+    let src = r#"
+    comptime fn bad_macro() -> Field {
+        42
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            bad_macro!()
+            ^^^^^^^^^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~~~~~~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~~~~~~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+// Regression: function-value macro call accepted in comptime block
+#[test]
+fn function_value_macro_call_in_comptime_block() {
+    let src = r#"
+    fn not_comptime() -> Field {
+        7
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            let f = not_comptime;
+            f!()
+            ^^^^ Invalid syntax in macro call
+            ~~~~ Macro calls must call a comptime function directly, they cannot use higher-order functions
+            ^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn match_in_comptime_errors_instead_of_panicking() {
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        comptime {
+            let foo = Foo::Bar;
+            match foo { Foo::Bar => {} }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
+        };
+    }
+    "#;
+    check_errors(src);
+}

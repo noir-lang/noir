@@ -115,6 +115,22 @@ impl Parser<'_> {
     fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
+        // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
+        // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
+                self.expected_label(ParsingRuleLabel::Expression);
+                return None;
+            };
+            let inner_kind = ExpressionKind::prefix(UnaryOp::Reference { mutable }, rhs);
+            let inner_location = self.location_since(start_location);
+            let inner = Expression { kind: inner_kind, location: inner_location };
+            let kind = ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, inner);
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
+        }
+
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
@@ -1166,9 +1182,9 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        signed_field::SignedField,
         token::Token,
     };
+    use acvm::FieldElement;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1197,7 +1213,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, Some(U32))) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
@@ -1207,7 +1223,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::negative(42_u128));
+        assert_eq!(value, -FieldElement::from(42u128));
     }
 
     #[test]
@@ -1228,7 +1244,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
@@ -1283,13 +1299,13 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
 
         let expr = exprs.remove(0);
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(2_u128));
+        assert_eq!(value, 2_u128.into());
     }
 
     #[test]
@@ -1309,7 +1325,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
     }
 
     #[test]
@@ -1575,6 +1591,81 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref() {
+        let src = "&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref_mut() {
+        let src = "&&mut foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: true }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_triple_ref() {
+        // `&&&foo` is lexed as `& && foo` (Ampersand, LogicalAnd, Ident)
+        let src = "&&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(a) = expr.kind else { panic!("Expected prefix") };
+        assert!(matches!(a.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(b) = a.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(b.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(c) = b.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(c.operator, UnaryOp::Reference { mutable: false }));
+        assert!(matches!(c.rhs.kind, ExpressionKind::Variable(..)));
+    }
+
+    #[test]
+    fn parses_ref_and_ref() {
+        // `&x & &y` must parse as `(&x) & (&y)`, not as `(&x) && y`
+        let src = "&x & &y";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert!(matches!(infix.operator.contents, BinaryOpKind::And));
+
+        let ExpressionKind::Prefix(lhs) = infix.lhs.kind else {
+            panic!("Expected prefix on lhs");
+        };
+        assert!(matches!(lhs.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(rhs) = infix.rhs.kind else {
+            panic!("Expected prefix on rhs");
+        };
+        assert!(matches!(rhs.operator, UnaryOp::Reference { mutable: false }));
     }
 
     #[test]

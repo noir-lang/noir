@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
+itertools.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
 nargo_expand.workspace = true
 nargo_doc.workspace = true

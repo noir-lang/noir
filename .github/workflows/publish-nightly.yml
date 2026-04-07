@@ -5,9 +5,13 @@ on:
     # Run a nightly release at 2 AM UTC
     - cron: "0 2 * * *"
 
+permissions: {}
+
 jobs:
   dispatch-publish-es:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Dispatch to publish-nargo
         uses: benc-uk/workflow-dispatch@v1

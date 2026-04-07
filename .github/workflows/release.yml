@@ -5,6 +5,8 @@ on:
     branches:
       - master
 
+permissions: {}
+
 jobs:
   release-please:
     name: Create Release
@@ -12,6 +14,8 @@ jobs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Run release-please
         id: release
@@ -24,6 +28,8 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v6
@@ -67,6 +73,8 @@ jobs:
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout release branch
@@ -131,7 +139,7 @@ jobs:
 
     steps:
       - name: Add warning to sticky comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           # We need to specify the PR on which to make the comment as workflow is triggered by push.
           number: ${{ fromJSON(needs.release-please.outputs.release-pr).number }}
@@ -150,6 +158,8 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
@@ -165,6 +175,8 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Dispatch to publish-es-packages
         uses: benc-uk/workflow-dispatch@v1
@@ -179,6 +191,8 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Dispatch to publish-acvm

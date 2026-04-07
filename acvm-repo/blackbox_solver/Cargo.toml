@@ -44,7 +44,6 @@ cbc = "0.1"
 
 [dev-dependencies]
 proptest.workspace = true
-num-prime = { version = "0.5", default-features = false, features = ["big-int"] }
 criterion.workspace = true
 pprof.workspace = true
 

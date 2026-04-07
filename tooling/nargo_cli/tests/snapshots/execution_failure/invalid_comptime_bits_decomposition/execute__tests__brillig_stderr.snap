@@ -9,7 +9,9 @@ error: Assertion failed: 'Field failed to decompose into specified 1 limbs'
    │                    ------------------
    │
    = Call stack:
-     1. src/main.nr:4:5
-     2. std/field/mod.nr:64:20
+     1: main
+             at src/main.nr:4:5
+     2: Field::to_be_bits
+             at std/field/mod.nr:64:20
 
 Failed assertion
