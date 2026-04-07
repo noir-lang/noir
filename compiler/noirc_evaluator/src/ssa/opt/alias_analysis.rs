@@ -73,7 +73,7 @@ impl AliasAnalysis {
 
     /// Returns true if the two addresses might refer to the same memory.
     /// Conservative: returns true (MayAlias) when uncertain.
-    pub(crate) fn may_alias(&self, addr_a: ValueId, addr_b: ValueId) -> bool {
+    pub(crate) fn may_alias(&self, addr_a: ValueId, addr_b: ValueId, dfg: &DataFlowGraph) -> bool {
         if addr_a == addr_b {
             return true;
         }
@@ -83,12 +83,11 @@ impl AliasAnalysis {
         if a_is_alloc && b_is_alloc {
             return false;
         }
+        // Different types can't alias in Noir (no type-punning or union types).
+        if dfg.type_of_value(addr_a) != dfg.type_of_value(addr_b) {
+            return false;
+        }
         true // Unknown derivation → conservative MayAlias
-    }
-
-    /// Returns true if this address originates from an `allocate` instruction.
-    pub(crate) fn is_allocation(&self, addr: ValueId) -> bool {
-        self.allocations.contains(&addr)
     }
 
     /// Returns true if this address is involved in a loop-carried alias pattern.
@@ -340,15 +339,16 @@ fn compute_known_values_at_entry(
                 Instruction::Store { address, value } => {
                     if loop_aliases.contains(address) {
                         known.clear();
-                    } else if !known.contains_key(address) && !allocations.contains(address) {
-                        // Unknown address may alias tracked addresses → clear
-                        known.clear();
                     } else {
-                        // Known/allocation address. Invalidate entries that may alias it.
+                        // Invalidate entries that may alias this store address.
                         // Two distinct allocations don't alias (NoAlias).
+                        // Different types can't alias in Noir (no type-punning).
                         let addr_is_alloc = allocations.contains(address);
+                        let addr_type = function.dfg.type_of_value(*address);
                         known.retain(|k, _| {
-                            k == address || (addr_is_alloc && allocations.contains(k))
+                            k == address
+                                || (addr_is_alloc && allocations.contains(k))
+                                || function.dfg.type_of_value(*k) != addr_type
                         });
                     }
                     known.insert(*address, *value);
