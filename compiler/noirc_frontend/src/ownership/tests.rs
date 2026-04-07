@@ -981,3 +981,29 @@ fn single_field_struct_extraction_is_optimal() {
     }
     ");
 }
+
+#[test]
+fn clone_inserted_on_index_then_collection() {
+    let src = "
+    unconstrained fn main() {
+        let a = [10];
+        foo(a)[bar(a)];
+    }
+    unconstrained fn foo(a: [u32; 1]) -> [u32; 1] { a }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [10];
+        foo$f1(a$l0)[bar$f2(a$l0.clone())];
+    }
+    unconstrained fn foo$f1(a$l1: [u32; 1]) -> [u32; 1] {
+        a$l1
+    }
+    unconstrained fn bar$f2(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
