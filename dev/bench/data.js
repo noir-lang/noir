@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775574791706,
+  "lastUpdate": 1775574870315,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4ce63e61340731da5ee710371f2f048a82dab3f1",
-          "message": "chore(deps): bump node-forge from 1.3.3 to 1.4.0 in /docs (#12032)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-01T09:16:56Z",
-          "tree_id": "04d8e0a0f43e3ec4b72967ac43dcf83c05e85959",
-          "url": "https://github.com/noir-lang/noir/commit/4ce63e61340731da5ee710371f2f048a82dab3f1"
-        },
-        "date": 1775036389189,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 161662,
-            "range": "± 418",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 132601,
-            "range": "± 2650",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2119867,
-            "range": "± 2188",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643557,
             "range": "± 4515",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "afa92cda4f39e8a02fca6c8d9ef8461afd5aa1b1",
+          "message": "chore: Remove is_infinite field (#11926)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-04-07T14:49:51Z",
+          "tree_id": "cd6b3c072ab487f920c1ce6deeeb8c0aa5003d52",
+          "url": "https://github.com/noir-lang/noir/commit/afa92cda4f39e8a02fca6c8d9ef8461afd5aa1b1"
+        },
+        "date": 1775574809334,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 159723,
+            "range": "± 502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139273,
+            "range": "± 1209",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2124393,
+            "range": "± 2626",
             "unit": "ns/iter"
           }
         ]
