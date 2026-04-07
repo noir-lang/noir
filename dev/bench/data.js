@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775594199478,
+  "lastUpdate": 1775594332945,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -29265,105 +29265,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e",
-          "message": "fix: check mutability in `*&mut x` elaboration optimization (#12079)",
-          "timestamp": "2026-04-01T15:44:47Z",
-          "tree_id": "272cd6bfdcd2e131d4ad7a13f50e557fb5ffa294",
-          "url": "https://github.com/noir-lang/noir/commit/8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e"
-        },
-        "date": 1775060588651,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 19364,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 86308,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 8739,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1056,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 957,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2140,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1271,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1387964,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1389142,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1525,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 299171,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 254779,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1302,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c9e1989e1a876352d1a8711ff433256376e2d33f",
           "message": "chore: remove dead code in type_check_operator_method (#12082)",
           "timestamp": "2026-04-01T15:46:49Z",
@@ -33993,6 +33894,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5af706783e60b08545b3395a2e9d85bc74ccd147"
         },
         "date": 1775592819961,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "48fe6a4f06c6a7e96a1cad37e595c1ce3df40188",
+          "message": "fix: missing monomorphization visit of constrain message (#12159)",
+          "timestamp": "2026-04-07T20:12:40Z",
+          "tree_id": "8b5fce81f8c49ff21eafdcafe7e76bbf0ce0379c",
+          "url": "https://github.com/noir-lang/noir/commit/48fe6a4f06c6a7e96a1cad37e595c1ce3df40188"
+        },
+        "date": 1775594279103,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
