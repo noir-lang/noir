@@ -255,6 +255,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          browsers: 'chromium webkit'
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
