@@ -403,7 +403,7 @@ impl<R: BufRead> DapFixingReader<R> {
         let mut sep = String::new();
         if self.inner.read_line(&mut sep)? == 0 {
             return Ok(false); // EOF
-        };
+        }
 
         // Read exactly content_length bytes.
         let mut content = vec![0u8; content_length];
@@ -456,12 +456,11 @@ fn fix_dap_content(content: &[u8]) -> Vec<u8> {
     let is_unit_command =
         obj.get("command").and_then(|v| v.as_str()).is_some_and(|cmd| UNIT_COMMANDS.contains(&cmd));
 
-    if is_unit_command {
-        if let Some(Value::Object(args)) = obj.get("arguments") {
-            if args.is_empty() {
-                obj.remove("arguments");
-            }
-        }
+    if is_unit_command
+        && let Some(Value::Object(args)) = obj.get("arguments")
+        && args.is_empty()
+    {
+        obj.remove("arguments");
     }
 
     serde_json::to_vec(&value).unwrap_or_else(|_| content.to_vec())
