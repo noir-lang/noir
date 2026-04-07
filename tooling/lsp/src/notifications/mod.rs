@@ -58,8 +58,9 @@ pub(super) fn on_initialized(
         ),
     };
     #[allow(clippy::let_underscore_future)]
-    let _ =
-        state.client.register_capability(RegistrationParams { registrations: vec![registration] });
+    drop(
+        state.client.register_capability(RegistrationParams { registrations: vec![registration] }),
+    );
     ControlFlow::Continue(())
 }
 
@@ -101,7 +102,7 @@ pub(super) fn on_did_change_watched_files(
         });
 
         if let Some(uri_string) = open_file_uri
-            && let Ok(uri) = Url::parse(&uri_string)
+            && let Ok(uri) = Url::parse(uri_string)
         {
             // Errors are surfaced as diagnostics on Nargo.toml
             let _ = handle_text_document_open_or_close_notification(state, uri);
