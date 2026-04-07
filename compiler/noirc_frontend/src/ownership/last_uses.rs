@@ -720,7 +720,7 @@ fn collect_use_records(
 ) {
     match expr {
         Expression::Ident(ident) => {
-            if let ast::Definition::Local(local_id) = &ident.definition {
+            if let Definition::Local(local_id) = &ident.definition {
                 records.entry(*local_id).or_default().push((ident.id, vec![]));
             }
         }
@@ -735,7 +735,7 @@ fn collect_use_records(
             path.reverse();
 
             if let Expression::Ident(ident) = current
-                && let ast::Definition::Local(local_id) = &ident.definition
+                && let Definition::Local(local_id) = &ident.definition
             {
                 records.entry(*local_id).or_default().push((ident.id, path));
                 return;
