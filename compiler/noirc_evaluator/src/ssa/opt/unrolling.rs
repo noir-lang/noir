@@ -1541,8 +1541,15 @@ impl BoilerplateStats {
     }
 
     /// Estimated Brillig-weighted cost if we unroll the loop.
+    ///
+    /// Floors per-iteration cost at 1 when the loop has any instructions at all,
+    /// so that a fully-foldable loop still reports cost proportional to its
+    /// iteration count. Without this floor, `useful_cost() == 0` makes the total
+    /// always zero, allowing `force_unroll` to approve arbitrarily large loops.
     fn unrolled_cost(&self) -> usize {
-        self.useful_cost().saturating_mul(self.iterations)
+        let per_iteration =
+            if self.useful_cost() == 0 && self.total_cost > 0 { 1 } else { self.useful_cost() };
+        per_iteration.saturating_mul(self.iterations)
     }
 
     /// Conservative estimate of unrolled cost that excludes useless_cost.
@@ -2171,10 +2178,9 @@ mod tests {
         assert_eq!(stats.useless_cost, 7);
         assert_eq!(stats.useful_cost(), 0);
         assert_eq!(stats.baseline_cost(), 15);
-        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
-        // is_small uses conservative_unrolled_cost (without useless subtraction)
-        // which is higher, but force_unroll handles this case.
-        assert_eq!(stats.unrolled_cost(), 0);
+        // useful_cost = 0 but total_cost > 0, so per-iteration cost is floored at 1.
+        // 1 * 4 = 4, still within force_unroll threshold.
+        assert_eq!(stats.unrolled_cost(), 4);
     }
 
     #[test]
@@ -2279,8 +2285,8 @@ mod tests {
         // lt(1) + array_get(3) + add(3) + unchecked_add(1) = 8
         assert_eq!(stats.useless_cost, 8);
         assert_eq!(stats.useful_cost(), 0);
-        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
-        assert_eq!(stats.unrolled_cost(), 0);
+        // useful_cost = 0 but total_cost > 0, so per-iteration cost floored at 1.
+        assert_eq!(stats.unrolled_cost(), 4);
     }
 
     /// Regression test for nested loops with an accumulator (simplified regression_4709).
@@ -2342,8 +2348,8 @@ mod tests {
         // lt(1) + add (propagated load + constant source)(1) + unchecked_add(1) = 3
         assert_eq!(stats.useless_cost, 3);
         assert_eq!(stats.useful_cost(), 0);
-        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
-        assert_eq!(stats.unrolled_cost(), 0);
+        // useful_cost = 0 but total_cost > 0, so per-iteration cost floored at 1.
+        assert_eq!(stats.unrolled_cost(), 35);
     }
 
     /// A reference passed as a block terminator argument is NOT classified
@@ -2778,48 +2784,36 @@ mod tests {
         assert_eq!(is_new_size_ok(old, new, max), ok);
     }
 
-    /// Regression test: when `useful_cost` is zero, `unrolled_cost = 0 * iterations`
-    /// is always zero, so `force_unroll` approves the loop regardless of iteration
-    /// count. This mirrors a real-world regression in `noir_bigcurve` where removing
-    /// a handful of `inc_rc` instructions dropped `useful_cost` from 3 to 0 for a
-    /// 754-iteration scalar-multiplication loop, causing the unroller to fully unroll
-    /// it and produce a ~300k-line function from ~5k lines of input.
+    /// Regression test: when `useful_cost` is zero, `unrolled_cost` previously
+    /// computed `0 * iterations = 0`, so `force_unroll` approved the loop regardless
+    /// of iteration count. This mirrors a real-world regression in `noir_bigcurve`
+    /// where removing a handful of `inc_rc` instructions dropped `useful_cost` from
+    /// 3 to 0 for a 754-iteration scalar-multiplication loop, causing the unroller
+    /// to fully unroll it and produce a ~300k-line function from ~5k lines of input.
     ///
-    /// This test uses 500 iterations with useful_cost = 0 to demonstrate the blowup:
-    /// - `unrolled_cost` = 0 (always zero when useful_cost = 0)
-    /// - `conservative_unrolled_cost` = 3500 (far above the 128 threshold)
-    /// - The unroller force-unrolls the loop because `0 <= 128`
+    /// The fix: `unrolled_cost()` now floors the per-iteration cost at 1, so a
+    /// 500-iteration loop reports unrolled_cost = 500, which exceeds the threshold.
     #[test]
-    fn force_unroll_zero_useful_cost_blowup() {
+    fn force_unroll_guards_against_zero_useful_cost_blowup() {
         let ssa = brillig_unroll_test_case_with_params("u32", "0", "500");
-        let function = ssa.main();
-        let pre_unroll_instructions: usize =
-            function.reachable_blocks().iter().map(|b| function.dfg[*b].instructions().len()).sum();
 
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 500);
         assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
-        assert_eq!(stats.unrolled_cost(), 0, "0 * 500 = 0 (the bug)");
+        // The floor of 1 per iteration prevents unrolled_cost from being zero.
+        assert_eq!(stats.unrolled_cost(), 500, "floored to 1 * 500 = 500");
         assert!(
-            stats.conservative_unrolled_cost() > FORCE_UNROLL_THRESHOLD * 20,
-            "conservative estimate ({}) should far exceed the force-unroll threshold ({})",
-            stats.conservative_unrolled_cost(),
+            stats.unrolled_cost() > FORCE_UNROLL_THRESHOLD,
+            "unrolled_cost ({}) should exceed the force-unroll threshold ({})",
+            stats.unrolled_cost(),
             FORCE_UNROLL_THRESHOLD,
         );
 
-        // The unroller force-unrolls this loop because unrolled_cost (0) <= threshold (128).
+        // The loop is NOT force-unrolled.
+        let parse_ssa = || brillig_unroll_test_case_with_params("u32", "0", "500");
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0);
-
-        let function = ssa.main();
-        let post_unroll_instructions: usize =
-            function.reachable_blocks().iter().map(|b| function.dfg[*b].instructions().len()).sum();
-
-        // The loop was unrolled, producing a massive blowup in instruction count.
-        assert!(
-            post_unroll_instructions > pre_unroll_instructions * 50,
-            "expected significant blowup: pre={pre_unroll_instructions}, post={post_unroll_instructions}",
-        );
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]
