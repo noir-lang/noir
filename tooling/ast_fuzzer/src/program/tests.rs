@@ -376,3 +376,63 @@ fn test_wrap_oracle_prints_in_functions() {
     }
     ");
 }
+
+/// Print calls in ACIR functions compile to SSA: the rewrite wraps them in
+/// unconstrained wrapper functions, which ACIR is allowed to call.
+#[test]
+fn test_acir_print_compiles_to_ssa() {
+    use super::expr;
+    use super::rewrite::wrap_oracle_prints_in_functions;
+
+    // Build: fn main() { print_oracle(true, true, "t", false); }
+    let mut ctx = Context::new(Config::default());
+
+    let oracle_call = Expression::Call(Call {
+        func: Box::new(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Oracle("print".to_string()),
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![Type::Bool, Type::Bool],
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
+            id: IdentId(0),
+        })),
+        arguments: vec![
+            expr::lit_bool(true),
+            expr::lit_bool(true),
+            Expression::Literal(Literal::Str("t".to_string())),
+            expr::lit_bool(false),
+        ],
+        return_type: Type::Unit,
+        location: Location::dummy(),
+    });
+
+    ctx.functions.insert(
+        FuncId(0),
+        Function {
+            id: FuncId(0),
+            name: "main".to_string(),
+            parameters: vec![],
+            body: oracle_call,
+            return_type: Type::Unit,
+            return_visibility: Visibility::Private,
+            unconstrained: false,
+            inline_type: InlineType::default(),
+            is_entry_point: true,
+        },
+    );
+
+    wrap_oracle_prints_in_functions(&mut ctx);
+    let program = ctx.finalize();
+
+    // Verify it compiles to SSA: ACIR main calls the Brillig wrapper.
+    let mut ssa = ssa_gen::generate_ssa(program).unwrap();
+    ssa.normalize_ids();
+    let ssa_str = ssa.print_without_locations().to_string();
+    assert!(ssa_str.contains("acir(inline) fn main"), "main should be ACIR");
+    assert!(ssa_str.contains("brillig(inline) fn print_wrapper_1"), "wrapper should be Brillig");
+}
