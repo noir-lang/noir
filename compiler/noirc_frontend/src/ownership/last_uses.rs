@@ -580,7 +580,21 @@ impl LastUseContext {
             // Adjust its loop index to be the current loop, so that `remember_use_of_variable`
             // remembers any last use, rather than clear out its current state.
             let current_index = self.loop_index();
-            if let Some((index, _)) = self.last_uses.get_mut(local_id) {
+            if let Some((index, branches)) = self.last_uses.get_mut(local_id) {
+                if *index != current_index {
+                    // The variable was declared in an outer loop scope. Any last uses already
+                    // recorded in `branches` (from code that preceded the current loop) must
+                    // NOT be treated as confirmed moves for this assignment: the loop may never
+                    // execute, and the inner-loop path context is reset to `[]` so
+                    // `extract_branch_at_path` would otherwise extract all prior uses regardless
+                    // of which outer if/match branch they appeared in.
+                    //
+                    // We clear `branches` here so that only uses introduced while processing
+                    // the RHS below can be confirmed. Those uses are always safe to confirm
+                    // because they are genuine last-accesses of the variable's old value
+                    // (the assignment immediately overwrites it).
+                    *branches = Branches::None;
+                }
                 *index = current_index;
             }
         }
@@ -588,8 +602,9 @@ impl LastUseContext {
         self.track_variables_in_expression(&assign.expression);
 
         if let Some(local_id) = variable {
-            // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
-            // From here on it acts as a newly declared variable with no history.
+            // Confirm any last uses we have on the variable at this point (which may be in
+            // `assign.expression`). From here on it acts as a newly declared variable with
+            // no history.
             if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
                 let path = self
                     .current_loop_and_branch
