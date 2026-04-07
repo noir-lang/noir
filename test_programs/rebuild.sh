@@ -48,7 +48,29 @@ process_dir() {
 export -f process_dir
 
 # Reactive `regression_7323` once enums are ready
-excluded_dirs=("workspace" "workspace_default_member" "regression_7323")
+excluded_dirs=(
+    "workspace"
+    "workspace_default_member"
+    "regression_7323"
+    # These depend on the external poseidon library which currently doesn't compile.
+    "bench_2_to_17"
+    "fold_2_to_17"
+    "fold_numeric_generic_poseidon"
+    "no_predicates_numeric_generic_poseidon"
+    "poseidon_bn254_hash_width_3"
+    "poseidonsponge_x5_254"
+    "regression_5252"
+    "regression_5615"
+    "uhashmap"
+    "bench_eddsa_poseidon"
+    "bench_poseidon_hash"
+    "bench_poseidon_hash_30"
+    "bench_poseidon_hash_100"
+    "bench_poseidon2_hash"
+    "bench_poseidon2_hash_30"
+    "bench_poseidon2_hash_100"
+    "semaphore_depth_10"
+)
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 dirs_to_process=()
@@ -71,7 +93,7 @@ else
     done
 
     for dir in $current_dir/benchmarks/*; do
-        if [[ ! -d $dir ]]; then
+        if [[ ! -d $dir ]] || [[ " ${excluded_dirs[@]} " =~ " $(basename "$dir") " ]]; then
             continue
         fi
         dirs_to_process+=("$dir")
