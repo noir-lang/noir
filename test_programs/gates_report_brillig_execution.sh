@@ -20,6 +20,16 @@ excluded_dirs=(
   "reference_counts_inliner_0"
   "reference_counts_inliner_max"
   "reference_counts_vectors_inliner_0"
+  # These depend on the external poseidon library which currently doesn't compile.
+  "bench_2_to_17"
+  "fold_2_to_17"
+  "fold_numeric_generic_poseidon"
+  "no_predicates_numeric_generic_poseidon"
+  "poseidon_bn254_hash_width_3"
+  "poseidonsponge_x5_254"
+  "regression_5252"
+  "regression_5615"
+  "uhashmap"
 )
 
 current_dir=$(pwd)
