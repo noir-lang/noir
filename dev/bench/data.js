@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775564322608,
+  "lastUpdate": 1775566245536,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4271b033dd7ef5da18df2afe223d106956eddab1",
-          "message": "chore: only install npm packages over a week old (#12064)",
-          "timestamp": "2026-03-31T17:58:57+01:00",
-          "tree_id": "7984a58733b03c0ad4a2ef515e37a80a4e70635c",
-          "url": "https://github.com/noir-lang/noir/commit/4271b033dd7ef5da18df2afe223d106956eddab1"
-        },
-        "date": 1774976486226,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171999,
-            "range": "± 1104",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142426,
-            "range": "± 5596",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647431,
-            "range": "± 12193",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2125259,
             "range": "± 4253",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "223f5db83521aa9257c56d548ba7fc4f0db1dfd7",
+          "message": "chore: cache Playwright browsers in CI and default to chromium-only (#12148)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-07T12:22:32Z",
+          "tree_id": "ee293649e52b791b7019cfa059ef2adc55256c14",
+          "url": "https://github.com/noir-lang/noir/commit/223f5db83521aa9257c56d548ba7fc4f0db1dfd7"
+        },
+        "date": 1775566191579,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169007,
+            "range": "± 402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137649,
+            "range": "± 3935",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646093,
+            "range": "± 2786",
             "unit": "ns/iter"
           }
         ]
