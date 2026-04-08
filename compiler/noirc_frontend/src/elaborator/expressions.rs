@@ -945,6 +945,15 @@ impl Elaborator<'_> {
         // lambda parameter hints.
         if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
             let _ = first_arg_type.unify(&object_type);
+
+            // If unification failed due to a reference mutability mismatch
+            // (e.g. `& self` method called on `&mut T`), unify the inner types
+            // to still bind generic type parameters.
+            if let Type::Reference(inner_expected, _) = first_arg_type
+                && let Type::Reference(inner_actual, _) = &object_type
+            {
+                let _ = inner_expected.unify(inner_actual);
+            }
         }
 
         // These arguments will be given to the desugared function call.

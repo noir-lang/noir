@@ -308,3 +308,35 @@ fn cannot_take_mut_ref_of_immutable_variable_in_deref() {
     "#;
     check_errors(src);
 }
+
+/// Regression test: calling a `& self` method on a `&mut T` value should
+/// correctly bind generic type parameters so that closure tuple destructuring works.
+#[test]
+fn calling_immutable_self_method_on_mutable_ref_binds_generic_params() {
+    let src = r#"
+    struct Wrapper<T, let N: u32> {
+        storage: [T; N],
+        len: u32,
+    }
+
+    impl<T, let N: u32> Wrapper<T, N> {
+        fn new(storage: [T; N], len: u32) -> Self {
+            Self { storage, len }
+        }
+
+        fn any<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
+            let mut ret = false;
+            for i in 0..self.len {
+                ret |= predicate(self.storage[i]);
+            }
+            ret
+        }
+    }
+
+    fn main() {
+        let w = &mut Wrapper::new([(0u32, 4 as Field), (1, 5), (2, 6)], 3);
+        assert(w.any(|(index, value)| (index == 0) & (value == 4)));
+    }
+    "#;
+    assert_no_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
