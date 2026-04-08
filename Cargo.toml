@@ -60,6 +60,9 @@ default-members = [
 ]
 resolver = "2"
 
+[patch.crates-io]
+dap = { path = "vendor/dap-0.4.1-alpha1" }
+
 [workspace.package]
 # x-release-please-start-version
 version = "1.0.0-beta.19"

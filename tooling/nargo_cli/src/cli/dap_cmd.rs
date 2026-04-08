@@ -1,6 +1,7 @@
 use clap::Args;
 use dap::errors::ServerError;
 use dap::events::OutputEventBody;
+use dap::prelude::Event;
 use dap::requests::Command;
 use dap::responses::ResponseBody;
 use dap::server::Server;
@@ -167,6 +168,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
         match req.command {
             Command::Initialize(_) => {
                 let rsp = req.success(ResponseBody::Initialize(Capabilities {
+                    supports_configuration_done_request: Some(true),
                     supports_disassemble_request: Some(true),
                     supports_instruction_breakpoints: Some(true),
                     supports_stepping_granularity: Some(true),
@@ -186,12 +188,16 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                     continue;
                 };
 
-                let project_folder = project_folder.as_str();
-                let package = additional_data.get("package").and_then(|v| v.as_str());
+                let project_folder = project_folder.clone();
+                let package = additional_data
+                    .get("package")
+                    .and_then(|v| v.as_str())
+                    .map(ToOwned::to_owned);
                 let prover_name = additional_data
                     .get("proverName")
                     .and_then(|v| v.as_str())
-                    .unwrap_or(PROVER_INPUT_FILE);
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| PROVER_INPUT_FILE.to_owned());
 
                 let generate_acir =
                     additional_data.get("generateAcir").and_then(|v| v.as_bool()).unwrap_or(false);
@@ -206,25 +212,25 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                     .and_then(|v| v.as_str())
                     .map(String::from);
 
-                eprintln!("Project folder: {project_folder}");
-                eprintln!("Package: {}", package.unwrap_or("(default)"));
-                eprintln!("Prover name: {prover_name}");
-
                 let compile_options = compile_options_for_debugging(
                     generate_acir,
                     skip_instrumentation,
                     CompileOptions::default(),
                 );
 
+                server.send_event(Event::Initialized)?;
+
+                let launch_ack = req.clone().ack()?;
+                server.respond(launch_ack)?;
+
                 match load_and_compile_project(
-                    project_folder,
-                    package,
-                    prover_name,
+                    project_folder.as_str(),
+                    package.as_deref(),
+                    prover_name.as_str(),
                     compile_options,
                     test_name,
                 ) {
                     Ok((project, test)) => {
-                        server.respond(req.ack()?)?;
                         let abi = project.compiled_program.abi.clone();
                         let debug = project.compiled_program.debug.clone();
 
@@ -232,7 +238,8 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                             &mut server,
                             project,
                             RunParams { oracle_resolver_url, raw_source_printing: None },
-                        )?;
+                        );
+                        let result = result?;
 
                         if let Some(test) = test {
                             analyze_test_result(&mut server, result, test, abi, debug)?;
@@ -240,7 +247,13 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                         break;
                     }
                     Err(LoadError::Generic(message)) => {
-                        server.respond(req.error(message.as_str()))?;
+                        server.send_event(Event::Output(OutputEventBody {
+                            category: Some(OutputEventCategory::Console),
+                            output: format!("{message}\n"),
+                            ..OutputEventBody::default()
+                        }))?;
+                        server.send_event(Event::Terminated(None))?;
+                        break;
                     }
                 }
             }
@@ -293,7 +306,7 @@ fn analyze_test_result<R: Read, W: Write>(
         TestStatus::Skipped => "* Test skipped".into(),
     };
 
-    server.send_event(dap::events::Event::Output(OutputEventBody {
+    server.send_event(Event::Output(OutputEventBody {
         category: Some(OutputEventCategory::Console),
         output: test_result_message,
         ..OutputEventBody::default()
@@ -348,4 +361,74 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     let server = Server::new(input, output);
 
     loop_uninitialized_dap(server).map_err(CliError::DapError)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Cursor, Write};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct SharedBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for SharedBuffer {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn dap_request(seq: i64, command: &str, arguments: &str) -> String {
+        let body = format!(
+            "{{\"seq\":{seq},\"type\":\"request\",\"command\":\"{command}\",\"arguments\":{arguments}}}"
+        );
+        format!("Content-Length: {}\r\n\r\n{body}", body.len())
+    }
+
+    fn parse_request(command: &str, arguments: &str) -> Command {
+        let input = dap_request(1, command, arguments);
+        let mut input = Cursor::new(input.into_bytes());
+        let output = SharedBuffer::default();
+        let mut server = Server::new(BufReader::new(&mut input), BufWriter::new(output));
+        server.poll_request().unwrap().unwrap().command
+    }
+
+    #[test]
+    fn initialize_advertises_configuration_done_support() {
+        let input = format!(
+            "{}{}",
+            dap_request(
+                1,
+                "initialize",
+                "{\"adapterID\":\"zed\",\"clientName\":\"Zed\"}"
+            ),
+            dap_request(2, "disconnect", "{}")
+        );
+
+        let mut input = Cursor::new(input.into_bytes());
+        let output = SharedBuffer::default();
+        let server = Server::new(BufReader::new(&mut input), BufWriter::new(output.clone()));
+
+        loop_uninitialized_dap(server).unwrap();
+
+        let output = String::from_utf8(output.0.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("\"supportsConfigurationDoneRequest\":true"));
+    }
+
+    #[test]
+    fn parser_accepts_configuration_done_with_empty_arguments() {
+        let command = parse_request("configurationDone", "{}");
+        assert!(matches!(command, Command::ConfigurationDone(_)));
+    }
+
+    #[test]
+    fn parser_accepts_threads_with_empty_arguments() {
+        let command = parse_request("threads", "{}");
+        assert!(matches!(command, Command::Threads(_)));
+    }
 }
