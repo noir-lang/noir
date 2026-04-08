@@ -30,7 +30,18 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
+          set -euo pipefail
           LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
+            echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
+            exit 1
+          fi
+          NUM_LIBS=$(echo "$LIBRARIES" | jq 'length')
+          if [ "$NUM_LIBS" -eq 0 ]; then
+            echo "::error::EXTERNAL_NOIR_LIBRARIES.yml parsed successfully but contains no libraries"
+            exit 1
+          fi
+          echo "Parsed $NUM_LIBS libraries from EXTERNAL_NOIR_LIBRARIES.yml"
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
