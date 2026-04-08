@@ -3966,6 +3966,7 @@ dependencies = [
  "smol_str",
  "strum",
  "strum_macros",
+ "test-case",
  "thiserror 2.0.18",
  "tracing",
 ]
