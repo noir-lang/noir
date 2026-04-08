@@ -146,12 +146,8 @@ impl PrimitiveType {
         }
     }
 
-    pub fn to_integer_or_field(self) -> Option<Type> {
+    pub fn to_unsigned_integer(self) -> Option<Type> {
         match self {
-            Self::I8 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Eight)),
-            Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
-            Self::I32 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
-            Self::I64 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
             Self::U1 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::One)),
             Self::U8 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
             Self::U16 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
@@ -160,22 +156,7 @@ impl PrimitiveType {
             Self::U128 => {
                 Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight))
             }
-            Self::Field => Some(Type::FieldElement),
-            Self::Bool
-            | Self::CtString
-            | Self::Expr
-            | Self::Fmtstr
-            | Self::FunctionDefinition
-            | Self::Module
-            | Self::Quoted
-            | Self::Str
-            | Self::TraitConstraint
-            | Self::TraitDefinition
-            | Self::TraitImpl
-            | Self::TypeDefinition
-            | Self::TypedExpr
-            | Self::Type
-            | Self::UnresolvedType => None,
+            _ => None,
         }
     }
 
