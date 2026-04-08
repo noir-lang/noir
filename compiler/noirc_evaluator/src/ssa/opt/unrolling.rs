@@ -1192,7 +1192,19 @@ impl Loop {
                 let within_iteration_limit = s.iterations <= max_unroll_iterations;
                 let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
                 let is_fully = self.is_fully_executed(&loops.cfg);
-                (force_unroll || s.is_small()) && within_iteration_limit && is_fully
+
+                // When useful_cost is 0, unrolled_cost is also 0, which would allow
+                // force_unroll for arbitrarily large loops. Guard against this by
+                // checking the per-iteration total cost: if the loop body is small,
+                // the transient code expansion from unrolling is bounded even if the
+                // folding prediction is wrong. Large loop bodies (e.g. a 754-iteration
+                // scalar-mul loop where inc_rc removal drops useful_cost to 0) must not
+                // be force-unrolled because the transient expansion is catastrophic.
+                let safe_to_force = s.useful_cost() > 0 || s.total_cost <= force_unroll_threshold;
+
+                ((force_unroll && safe_to_force) || s.is_small())
+                    && within_iteration_limit
+                    && is_fully
             },
         )
     }
@@ -2674,6 +2686,50 @@ mod tests {
         Ssa::from_str(&src).unwrap()
     }
 
+    /// Generate a loop with a large body containing `num_adds` chained add instructions.
+    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
+    /// but total_cost is high due to the many instructions.
+    fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
+        assert!(num_adds >= 1, "need at least one add");
+        let mut body_instructions = String::new();
+        // v8 = load result, v9 = first add
+        let mut next_v = 9;
+        // First add uses the loaded value (v8) and induction variable (v1)
+        body_instructions += &format!("            v{next_v} = add v8, v1\n");
+        next_v += 1;
+        // Chain more adds, each using the previous result + induction variable
+        for _ in 1..num_adds {
+            body_instructions += &format!("            v{next_v} = add v{}, v1\n", next_v - 1);
+            next_v += 1;
+        }
+        let store_val = next_v - 1;
+        let inc_v = next_v;
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: u32):
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 {iterations}
+            jmpif v5 then: b3(), else: b2()
+          b3():
+            v8 = load v2 -> u32
+{body_instructions}            store v{store_val} at v2
+            v{inc_v} = unchecked_add v1, u32 1
+            jmp b1(v{inc_v})
+          b2():
+            v6 = load v2 -> u32
+            v7 = eq v6, v0
+            constrain v6 == v0
+            return
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
+    }
+
     /// Test case from #6470:
     /// ```text
     /// unconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {
@@ -2776,6 +2832,66 @@ mod tests {
     #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
     fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
         assert_eq!(is_new_size_ok(old, new, max), ok);
+    }
+
+    /// Regression test: when `useful_cost` is zero and the loop body is small,
+    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+    /// because even if wrong, the transient expansion is bounded).
+    #[test]
+    fn force_unroll_allows_small_body_zero_useful_cost() {
+        let ssa = brillig_unroll_test_case_with_params("u32", "0", "500");
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 500);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost is small (fits within force_unroll_threshold), so safe_to_force = true.
+        assert!(
+            stats.total_cost <= FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should be within force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop IS force-unrolled because the body is small.
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        // After unrolling + simplification, no loops remain.
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
+        assert!(loops.yet_to_unroll.is_empty(), "loop should have been unrolled");
+    }
+
+    /// Regression test: when `useful_cost` is zero but the loop body is large
+    /// (total_cost > force_unroll_threshold), force_unroll is blocked. This prevents
+    /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
+    /// scalar-multiplication loop was fully unrolled into ~300k lines after
+    /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
+    #[test]
+    fn force_unroll_blocks_large_body_zero_useful_cost() {
+        // Generate a loop with a large body: 50 chained add instructions.
+        // Each checked u32 add costs 3, so body cost ≈ 50*3 + overhead > 128.
+        let num_adds = 50;
+        let iterations = 500;
+        let ssa = brillig_unroll_large_body_test_case(num_adds, iterations);
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, iterations);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost exceeds force_unroll_threshold due to the large body.
+        assert!(
+            stats.total_cost > FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should exceed force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop is NOT force-unrolled because the body is too large.
+        let parse_ssa = || brillig_unroll_large_body_test_case(num_adds, iterations);
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]

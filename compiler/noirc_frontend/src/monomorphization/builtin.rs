@@ -127,6 +127,16 @@ impl Monomorphizer<'_> {
         }
     }
 
+    fn modulus_bool_vector_literal(&self, bits: Vec<u8>, _location: Location) -> ast::Expression {
+        use ast::*;
+
+        let bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != 0)));
+
+        let typ = Type::Vector(Rc::new(Type::Bool));
+        let arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
+        Expression::Literal(Literal::Vector(arr_literal))
+    }
+
     fn modulus_vector_literal(
         &self,
         bytes: Vec<u8>,
@@ -319,7 +329,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_be_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_be(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_be_bytes(&self, location: Location) -> ast::Expression {
@@ -329,7 +339,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_le_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_le(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_le_bytes(&self, location: Location) -> ast::Expression {

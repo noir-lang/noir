@@ -154,25 +154,25 @@ projects:
   #   brillig-execution-timeout: 0.75
   #   compilation-memory-limit: 8000
   #   execution-memory-limit: 600
-  semaphore-depth-10:
-    repo: noir-lang/noir
-    path: test_programs/benchmarks/semaphore_depth_10
-    num_compile_runs: 20
-    num_execute_runs: 20
-    compilation-timeout: 2
-    execution-timeout: 0.6
-    brillig-compilation-timeout: 2
-    brillig-execution-timeout: 0.6
-    compilation-memory-limit: 450
-    execution-memory-limit: 400
-  sha512-100-bytes:
-    repo: noir-lang/noir
-    path: test_programs/benchmarks/sha512_100_bytes
-    num_compile_runs: 10
-    num_execute_runs: 20
-    compilation-timeout: 10
-    execution-timeout: 5
-    brillig-compilation-timeout: 10
-    brillig-execution-timeout: 5
-    compilation-memory-limit: 450
-    execution-memory-limit: 400
+  # semaphore-depth-10:
+  #   repo: noir-lang/noir
+  #   path: test_programs/benchmarks/semaphore_depth_10
+  #   num_compile_runs: 20
+  #   num_execute_runs: 20
+  #   compilation-timeout: 2
+  #   execution-timeout: 0.6
+  #   brillig-compilation-timeout: 2
+  #   brillig-execution-timeout: 0.6
+  #   compilation-memory-limit: 450
+  #   execution-memory-limit: 400
+  # sha512-100-bytes:
+  #   repo: noir-lang/noir
+  #   path: test_programs/benchmarks/sha512_100_bytes
+  #   num_compile_runs: 10
+  #   num_execute_runs: 20
+  #   compilation-timeout: 10
+  #   execution-timeout: 5
+  #   brillig-compilation-timeout: 10
+  #   brillig-execution-timeout: 5
+  #   compilation-memory-limit: 450
+  #   execution-memory-limit: 400

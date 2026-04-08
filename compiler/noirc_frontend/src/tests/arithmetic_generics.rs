@@ -62,18 +62,18 @@ fn checked_casts_do_not_prevent_canonicalization() {
 #[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
-        struct W<let N: u1> {}
-        
-        fn foo<let N: u1>(_x: W<N>) -> W<(0u1 * N) / (N % N)> {
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32>(_x: W<N>) -> W<(0 * N) / (N % N)> {
             W {}
         }
-        
-        fn bar<let N: u1>(_x: W<N>) -> u1 {
+
+        fn bar<let N: u32>(_x: W<N>) -> u32 {
             N
         }
-        
-        fn main() -> pub u1 {
-            let w_0: W<0u1> = W {};
+
+        fn main() -> pub u32 {
+            let w_0: W<0> = W {};
             let w: W<_> = foo(w_0);
             bar(w)
         }
@@ -89,8 +89,8 @@ fn arithmetic_generics_checked_cast_zeros() {
             panic!("Expected FailingBinaryOp, but found: {err:?}");
         };
         assert_eq!(op, &BinaryTypeOperator::Modulo);
-        assert_eq!(*lhs, Integer::U1(false));
-        assert_eq!(*rhs, Integer::U1(false));
+        assert_eq!(*lhs, Integer::U32(0));
+        assert_eq!(*rhs, Integer::U32(0));
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }
