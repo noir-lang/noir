@@ -177,6 +177,10 @@ impl Ssa {
         let no_predicates: HashMap<_, _> =
             self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
 
+        #[cfg(debug_assertions)]
+        let runtimes: HashMap<_, _> =
+            self.functions.values().map(|f| (f.id(), f.runtime())).collect();
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -186,7 +190,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
+            flatten_cfg_pre_check(function, &runtimes);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -202,12 +206,20 @@ impl Ssa {
 /// Panics if:
 ///   - Any ACIR function has at least 1 loop
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
+///   - Any ACIR function calls a non-impure brillig function with all-constant arguments.
+///     This is not a correctness issue for flattening itself, but it hints at sub-optimal
+///     simplification: the call could have been interpreted by constant folding before
+///     flattening. After flattening, results get multiplied by a predicate, turning
+///     constants into witnesses and preventing further simplification.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
+fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, RuntimeType>) {
     if function.runtime().is_acir() {
         super::checks::assert_no_loops(function);
-        super::checks::for_each_instruction(function, |instruction, _dfg| {
+        super::checks::for_each_instruction(function, |instruction, dfg| {
             super::checks::assert_not_constrain_not_equal(instruction);
+            super::checks::assert_no_constant_pure_brillig_calls(instruction, dfg, &|id| {
+                runtimes.get(&id).copied()
+            });
         });
     }
 }

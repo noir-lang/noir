@@ -15,9 +15,10 @@
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    function::Function,
+    function::{Function, FunctionId, RuntimeType},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
+    value::Value,
 };
 
 // ---------------------------------------------------------------------------
@@ -177,6 +178,45 @@ pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
         !matches!(instruction, Instruction::ArraySet { mutable: true, .. }),
         "Mutable array set instruction found"
     );
+}
+
+/// Panics if the instruction is a call to a non-impure brillig function
+/// where all arguments are constant.
+///
+/// Only non-impure functions are checked — impure brillig functions
+/// (e.g. those taking reference parameters) cannot be interpreted at
+/// compile time. Note that all brillig functions are at least
+/// `PureWithPredicate` since they return bogus values when called from
+/// ACIR with a disabled predicate.
+///
+/// `get_runtime` maps a function id to its runtime type (if known).
+pub(super) fn assert_no_constant_pure_brillig_calls(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+    get_runtime: &impl Fn(FunctionId) -> Option<RuntimeType>,
+) {
+    use crate::ssa::opt::pure::Purity;
+
+    let Instruction::Call { func, arguments } = instruction else { return };
+    let Value::Function(callee_id) = &dfg[*func] else { return };
+
+    let Some(runtime) = get_runtime(*callee_id) else { return };
+    if !runtime.is_brillig() {
+        return;
+    }
+
+    let Some(purity) = dfg.purity_of(*callee_id) else { return };
+    if purity == Purity::Impure {
+        return;
+    }
+
+    if !arguments.is_empty() && arguments.iter().all(|arg| dfg.is_constant(*arg)) {
+        panic!(
+            "Call to pure brillig function {callee_id:?} with all-constant arguments ({} args) \
+             should have been interpreted by constant folding before flattening.",
+            arguments.len()
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
