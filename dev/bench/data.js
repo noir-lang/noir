@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775656651431,
+  "lastUpdate": 1775657786279,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "590aa9a2067d0f7865499aff1e14c802068e0bb6",
-          "message": "chore: Remove HashMap (#12088)",
-          "timestamp": "2026-04-02T00:05:43Z",
-          "tree_id": "83efe8b41b71cf8712c50cbc716588af011834e1",
-          "url": "https://github.com/noir-lang/noir/commit/590aa9a2067d0f7865499aff1e14c802068e0bb6"
-        },
-        "date": 1775089800271,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168676,
-            "range": "± 303",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141075,
-            "range": "± 4051",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646322,
-            "range": "± 1738",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641414,
             "range": "± 3775",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46a5eb7441c339a10dcb72a41d37792dc9fc4084",
+          "message": "fix: remove stale u1 references from error messages (#12165)",
+          "timestamp": "2026-04-08T13:52:35Z",
+          "tree_id": "dc5b4b1db5262dac24382142a50ebe86b324d0f9",
+          "url": "https://github.com/noir-lang/noir/commit/46a5eb7441c339a10dcb72a41d37792dc9fc4084"
+        },
+        "date": 1775657731240,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168755,
+            "range": "± 907",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136962,
+            "range": "± 1743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640914,
+            "range": "± 1943",
             "unit": "ns/iter"
           }
         ]
