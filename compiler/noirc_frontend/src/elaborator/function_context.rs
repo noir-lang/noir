@@ -7,6 +7,7 @@ use crate::{
     elaborator::lints::check_integer_literal_fits_its_type,
     hir::{
         comptime::{InterpreterError, Value},
+        def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     hir_def::traits::TraitConstraint,
@@ -166,6 +167,23 @@ impl Elaborator<'_> {
     fn check_integer_literal_fit_their_type(&mut self, expr_ids: Vec<ExprId>) {
         for expr_id in expr_ids {
             if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
+                // Skip if an identical overflow error (same value and type) was
+                // already reported
+                if let TypeCheckError::IntegerLiteralDoesNotFitItsType { expr, ty, .. } = &error {
+                    let previous = self.errors.iter().any(|existing| {
+                        matches!(
+                            existing,
+                            CompilationError::TypeError(
+                                TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                                    expr: e, ty: t, ..
+                                }
+                            ) if e == expr && t == ty
+                        )
+                    });
+                    if previous {
+                        continue;
+                    }
+                }
                 self.push_err(error);
             }
         }
