@@ -503,7 +503,7 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                      ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                      ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                       ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
@@ -519,7 +519,7 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                          ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                          ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                           ~~~ Unsupported numeric generic type
     "#;
     check_errors(src);
@@ -529,7 +529,7 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         if N {
             0
@@ -558,7 +558,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
