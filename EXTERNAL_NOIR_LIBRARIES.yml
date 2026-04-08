@@ -4,7 +4,7 @@ libraries:
     repo: noir-lang/noir_check_shuffle
     timeout: 2
     critical: true
-eddsa:
+  eddsa:
     repo: noir-lang/eddsa
     timeout: 5
     critical: true
