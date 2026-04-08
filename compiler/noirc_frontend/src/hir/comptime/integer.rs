@@ -436,6 +436,9 @@ mod tests {
     use proptest::prelude::*;
 
     use super::Integer;
+    use crate::ast::IntegerBitSize;
+    use crate::shared::Signedness;
+    use crate::Type;
 
     // === Proptests: Integer arithmetic matches Rust checked arithmetic ===
 
@@ -543,8 +546,16 @@ mod tests {
         }
 
         // Field subtraction is the inverse of addition: (a - b) + b == a
+        // Explicit edge cases: (0,1) tests modular wrapping to p-1, (0,0) tests zero-zero
         #[test]
-        fn field_subtraction_is_inverse_of_addition(a: u64, b: u64) {
+        fn field_subtraction_is_inverse_of_addition(
+            (a, b) in prop_oneof![
+                Just((0u64, 1u64)),
+                Just((0u64, 0u64)),
+                Just((1u64, 1u64)),
+                (any::<u64>(), any::<u64>()),
+            ]
+        ) {
             let fa = Integer::Field(FieldElement::from(a as u128));
             let fb = Integer::Field(FieldElement::from(b as u128));
             let result = (fa - fb).unwrap();
@@ -553,8 +564,11 @@ mod tests {
         }
 
         // Field negation is the additive inverse: (-a) + a == 0
+        // Explicit edge case: negation of zero should be zero
         #[test]
-        fn field_negation_is_additive_inverse(a: u64) {
+        fn field_negation_is_additive_inverse(
+            a in prop_oneof![Just(0u64), any::<u64>()]
+        ) {
             let fa = Integer::Field(FieldElement::from(a as u128));
             let neg_a = (-fa).unwrap();
             let check = (neg_a + fa).unwrap();
@@ -565,6 +579,55 @@ mod tests {
         #[test]
         fn field_is_never_negative(a: u64) {
             assert!(!Integer::Field(FieldElement::from(a as u128)).is_negative());
+        }
+
+        // Round-trip: Integer -> as_field -> try_from_type -> same Integer
+        // Tests that negative signed values survive the field encoding round-trip.
+        #[test]
+        fn i8_try_from_type_roundtrips(a: i8) {
+            let integer = Integer::I8(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::Eight);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i16_try_from_type_roundtrips(a: i16) {
+            let integer = Integer::I16(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i32_try_from_type_roundtrips(a: i32) {
+            let integer = Integer::I32(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i64_try_from_type_roundtrips(a: i64) {
+            let integer = Integer::I64(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn u8_try_from_type_roundtrips(a: u8) {
+            let integer = Integer::U8(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn field_try_from_type_roundtrips(a: u64) {
+            let integer = Integer::Field(FieldElement::from(a as u128));
+            let field = integer.as_field();
+            assert_eq!(Integer::try_from_type(field, &Type::FieldElement), Some(integer));
         }
     }
 
