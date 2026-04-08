@@ -1451,7 +1451,16 @@ impl FunctionContext<'_> {
                     // By doing this in the SSA we might be able to optimize this away later.
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                    self.codegen_access_check(zero, arguments[0]);
+                    let length = self.make_array_index(arguments[0]);
+                    let is_non_empty = self.builder.insert_binary(zero, BinaryOp::Lt, length);
+                    let true_const = self.builder.numeric_constant(true, NumericType::bool());
+                    self.builder.insert_constrain(
+                        is_non_empty,
+                        true_const,
+                        Some(ConstrainError::from(
+                            "Attempt to pop from an empty vector".to_owned(),
+                        )),
+                    );
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
