@@ -53,6 +53,18 @@ struct LastUseContext {
     /// Current loop nesting depth.
     loop_depth: usize,
 
+    /// Variables unconditionally reassigned in the current scope.
+    ///
+    /// A variable is in this set only if it is reassigned on ALL paths through the
+    /// current scope. The `if`/`match` handlers enforce this via intersection of each
+    /// branch's killed set.
+    ///
+    /// Used by loop truncation: normally, pending last uses for variables declared
+    /// outside a loop are truncated (the loop may execute multiple times, so moving
+    /// would consume the value). But if a variable is killed inside the loop, its value
+    /// is freshly created and consumed each iteration, so pending uses can survive.
+    killed: HashSet<LocalId>,
+
     /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
     ///
     /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
@@ -78,6 +90,7 @@ impl Context {
             confirmed_moves: HashMap::default(),
             declaration_depth: HashMap::default(),
             loop_depth: 0,
+            killed: HashSet::default(),
             referenced_variables: HashSet::default(),
         };
 
@@ -166,7 +179,11 @@ impl LastUseContext {
             Expression::Semi(expr) => self.find_last_uses_in_expression(expr),
             Expression::Clone(_) => unreachable!("last_uses is called before clones are inserted"),
             Expression::Drop(_) => unreachable!("last_uses is called before drops are inserted"),
-            Expression::Break | Expression::Continue => (),
+            Expression::Break | Expression::Continue => {
+                // break/continue can skip assignments that were processed earlier in
+                // the reverse traversal, making those assignments conditional.
+                self.killed.clear();
+            }
         }
     }
 
@@ -216,6 +233,9 @@ impl LastUseContext {
         let pending_lengths: HashMap<LocalId, usize> =
             self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
 
+        // Kills inside the loop don't propagate outward (the loop may execute 0 times).
+        let saved_killed = std::mem::take(&mut self.killed);
+
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
         for expr in body_exprs.iter().rev() {
@@ -223,23 +243,28 @@ impl LastUseContext {
         }
         self.loop_depth = loop_body_depth - 1;
 
-        // Variables declared outside this loop cannot be moved inside it.
-        // Truncate their pending uses back to the pre-loop lengths.
+        // Variables declared outside this loop cannot be moved inside it — unless
+        // they are unconditionally reassigned (killed) within the loop body, in which
+        // case their value is freshly created and consumed each iteration.
         for (id, uses) in &mut self.pending_last_uses {
             let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
-            if decl_depth < loop_body_depth {
+            if decl_depth < loop_body_depth && !self.killed.contains(id) {
                 let before_len = pending_lengths.get(id).copied().unwrap_or(0);
                 uses.truncate(before_len);
             }
         }
+
+        self.killed = saved_killed;
     }
 
     fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {
         let saved_seen = self.seen.clone();
+        let saved_killed = self.killed.clone();
 
         // Process the then-branch
         self.find_last_uses_in_expression(&if_expr.consequence);
         let mut merged = std::mem::replace(&mut self.seen, saved_seen.clone());
+        let then_killed = std::mem::replace(&mut self.killed, saved_killed.clone());
 
         // Process the else-branch, or use saved_seen for the implicit "do nothing" path
         if let Some(alt) = &if_expr.alternative {
@@ -248,6 +273,9 @@ impl LastUseContext {
         } else {
             merged.extend(&saved_seen);
         }
+
+        // A variable is killed only if it is reassigned on ALL paths
+        self.killed.retain(|id| then_killed.contains(id));
 
         self.seen = merged;
 
@@ -260,27 +288,44 @@ impl LastUseContext {
         // that references a variable defined earlier. The last-use analysis for that variable
         // happens at its actual use sites.
         let saved_seen = self.seen.clone();
+        let saved_killed = self.killed.clone();
         let mut merged = HashSet::default();
+        let mut all_killed: Option<HashSet<LocalId>> = None;
 
         for case in &match_expr.cases {
             self.seen = saved_seen.clone();
+            self.killed = saved_killed.clone();
             for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
             self.find_last_uses_in_expression(&case.branch);
             merged.extend(&self.seen);
+            match &mut all_killed {
+                None => all_killed = Some(self.killed.clone()),
+                Some(acc) => acc.retain(|id| self.killed.contains(id)),
+            }
         }
 
         if let Some(default_case) = &match_expr.default_case {
             self.seen = saved_seen;
+            self.killed = saved_killed.clone();
             self.find_last_uses_in_expression(default_case);
             merged.extend(&self.seen);
+            match &mut all_killed {
+                None => all_killed = Some(self.killed.clone()),
+                Some(acc) => acc.retain(|id| self.killed.contains(id)),
+            }
         } else {
             // No default case: conservatively include saved_seen
             merged.extend(&saved_seen);
+            // No default path kills nothing new
+            if let Some(acc) = &mut all_killed {
+                acc.retain(|id| saved_killed.contains(id));
+            }
         }
 
         self.seen = merged;
+        self.killed = all_killed.unwrap_or(saved_killed);
     }
 
     fn find_last_uses_in_call(&mut self, call: &ast::Call) {
@@ -323,6 +368,7 @@ impl LastUseContext {
         if let ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) =
             &assign.lvalue
         {
+            self.killed.insert(*local_id);
             self.seen.remove(local_id);
             let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
 
