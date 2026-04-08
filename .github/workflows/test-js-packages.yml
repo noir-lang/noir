@@ -30,7 +30,10 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })') || LIBRARIES="[]"
+          if [ -z "$LIBRARIES" ]; then
+            LIBRARIES="[]"
+          fi
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -593,6 +596,7 @@ jobs:
 
   external-repo-checks:
     needs: [build-binaries, critical-library-list]
+    if: ${{ needs.critical-library-list.outputs.libraries != '[]' && needs.critical-library-list.outputs.libraries != '' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
