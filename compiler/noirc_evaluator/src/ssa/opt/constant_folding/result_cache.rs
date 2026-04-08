@@ -37,7 +37,9 @@ impl InstructionResultCache {
         predicate: Option<ValueId>,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
-        let results_for_instruction = self.0.get(instruction)?;
+        let normalized = Self::normalize_for_cache(instruction);
+        let key = normalized.as_ref().unwrap_or(instruction);
+        let results_for_instruction = self.0.get(key)?;
 
         let cached_results = results_for_instruction.get(&predicate)?.get(
             block,
@@ -71,12 +73,35 @@ impl InstructionResultCache {
         block: BasicBlockId,
         results: Vec<ValueId>,
     ) {
+        let instruction = Self::normalize_for_cache(&instruction).unwrap_or(instruction);
         self.0
             .entry(instruction)
             .or_default()
             .entry(predicate)
             .or_default()
             .cache(block, dom, results);
+    }
+
+    /// Strips error messages from constraint instructions so that constrains asserting
+    /// the same condition are deduplicated regardless of whether they carry a message.
+    /// Returns `None` if no normalization is needed.
+    fn normalize_for_cache(instruction: &Instruction) -> Option<Instruction> {
+        match instruction {
+            Instruction::Constrain(lhs, rhs, Some(_)) => {
+                Some(Instruction::Constrain(*lhs, *rhs, None))
+            }
+            Instruction::ConstrainNotEqual(lhs, rhs, Some(_)) => {
+                Some(Instruction::ConstrainNotEqual(*lhs, *rhs, None))
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message: Some(_) } => {
+                Some(Instruction::RangeCheck {
+                    value: *value,
+                    max_bit_size: *max_bit_size,
+                    assert_message: None,
+                })
+            }
+            _ => None,
+        }
     }
 
     pub(super) fn remove(

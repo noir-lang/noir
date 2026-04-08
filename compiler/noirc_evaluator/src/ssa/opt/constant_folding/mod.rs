@@ -15,6 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
@@ -26,7 +27,10 @@ use crate::ssa::{
     interpreter::{Interpreter, InterpreterOptions},
     ir::{
         basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
+        dfg::{
+            DataFlowGraph,
+            simplify::{SimplifyResult, simplify},
+        },
         dom::DominatorTree,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
@@ -500,6 +504,34 @@ impl Context {
             }
         }
 
+        // Pre-simplify the instruction to determine its effective form after simplification.
+        // If the simplified form differs from the resolved instruction, check it against the
+        // cache as well. This catches duplicates that only become visible after simplification
+        // (e.g. `constrain v3 == u1 0` simplifying to `constrain v0 == Field 1` which matches
+        // an already-cached constrain with a different error message).
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(&old_results, |result| dfg.type_of_value(*result)));
+        let call_stack = dfg.get_instruction_call_stack_id(id);
+        let simplify_result = simplify(&instruction, dfg, block, ctrl_typevars, call_stack);
+        let effective_instruction = Self::get_effective_instruction(&instruction, &simplify_result);
+        if *effective_instruction != instruction {
+            let eff_predicate =
+                self.cache_predicate(*side_effects_enabled_var, &effective_instruction, dfg);
+            if let Some(CacheResult::Cached { results: cached, .. }) = self
+                .cached_instruction_results
+                .get(dfg, dom, id, &effective_instruction, eff_predicate, target_block)
+            {
+                if old_results.is_empty() || old_results != cached {
+                    if runtime_is_brillig {
+                        Self::increase_rc(id, cached, target_block, dfg);
+                    }
+                    self.values_to_replace.batch_insert(&old_results, cached);
+                    return;
+                }
+            }
+        }
+
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = if runtime_is_brillig {
             Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
@@ -511,6 +543,7 @@ impl Context {
                     Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
                 })
         };
+
         // If the target_block is distinct than the original block
         // that means that the current instruction is not added in the original block
         // so it is deduplicated by the one in the target block.
@@ -585,6 +618,32 @@ impl Context {
             resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
         instruction
+    }
+
+    /// Returns the effective instruction for cache lookup after pre-simplification.
+    ///
+    /// When simplification transforms an instruction into a different (but equivalent) single
+    /// instruction, we should use that simplified form for cache lookups. This ensures we catch
+    /// duplicates that only become visible after simplification.
+    ///
+    /// For cases where simplification produces multiple instructions (e.g. decomposing a constrain),
+    /// or completely removes/replaces the instruction with values, we fall back to the original
+    /// instruction since those cases are handled differently.
+    fn get_effective_instruction<'a>(
+        instruction: &'a Instruction,
+        simplify_result: &'a SimplifyResult,
+    ) -> Cow<'a, Instruction> {
+        match simplify_result {
+            SimplifyResult::SimplifiedToInstruction(simplified) if simplified != instruction => {
+                Cow::Borrowed(simplified)
+            }
+            SimplifyResult::SimplifiedToInstructionMultiple(simplified)
+                if simplified.len() == 1 && simplified[0] != *instruction =>
+            {
+                Cow::Borrowed(&simplified[0])
+            }
+            _ => Cow::Borrowed(instruction),
+        }
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -1173,22 +1232,18 @@ mod test {
 
         let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
 
-        // The `array_get` instruction after `enable_side_effects v1` is deduplicated
-        // with the one under `enable_side_effects v0` because it doesn't require a predicate,
-        // but the `array_set` is not, because it does require a predicate, and the subsequent
-        // `array_get` uses a different input, so it's not a duplicate of anything.
+        // Pre-simplification allows array_gets to be deduplicated even when they read through an
+        // array_set at a different index: `array_get (array_set v2, idx 1, _), idx 0` simplifies
+        // to `array_get v2, idx 0` which matches the cached result. The constrains then become
+        // trivial (`v4 == v4`) and are removed.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: [Field; 2]):
             enable_side_effects v0
             v4 = array_get v2, index u32 0 -> u32
             v7 = array_set v2, index u32 1, value u32 2
-            v8 = array_get v2, index u32 0 -> u32
-            constrain v4 == v8
             enable_side_effects v1
-            v9 = array_set v2, index u32 1, value u32 2
-            v10 = array_get v2, index u32 0 -> u32
-            constrain v4 == v10
+            v8 = array_set v2, index u32 1, value u32 2
             enable_side_effects v0
             return
         }
@@ -3303,5 +3358,42 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(DEFAULT_MAX_ITER));
+    }
+
+    /// Regression test for #12012: a constrain with an error message followed by an
+    /// equivalent constrain that only becomes visible after simplification.
+    /// The duplicate should be removed.
+    #[test]
+    fn duplicate_constrain_after_simplification() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = eq v0, Field 1
+                v3 = not v2
+                enable_side_effects v3
+                constrain v0 == Field 1, \"Index out of bounds\"
+                v5 = eq u32 0, u32 0
+                v6 = unchecked_mul v5, v3
+                constrain v6 == u1 0
+                enable_side_effects u1 1
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+
+        // The simplified `constrain v0 == Field 1` should be deduplicated
+        // against the existing one with the error message.
+        assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = eq v0, Field 1
+                v3 = not v2
+                enable_side_effects v3
+                constrain v0 == Field 1, "Index out of bounds"
+                enable_side_effects u1 1
+                return
+            }
+        "#);
     }
 }
