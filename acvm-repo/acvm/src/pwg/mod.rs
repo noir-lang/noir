@@ -501,10 +501,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 })
             }
             Opcode::MemoryOp { block_id, op } => {
-                let solver = self
-                    .block_solvers
-                    .get_mut(block_id)
-                    .expect("Memory block should have been initialized before use");
+                let Some(solver) = self.block_solvers.get_mut(block_id) else {
+                    return ACVMStatus::Failure(OpcodeResolutionError::OpcodeNotSolvable(
+                        OpcodeNotSolvable::MissingMemoryBlock(block_id.0),
+                    ));
+                };
                 solver.solve_memory_op(op, &mut self.witness_map)
             }
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
