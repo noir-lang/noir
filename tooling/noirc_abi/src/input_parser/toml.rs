@@ -166,8 +166,32 @@ impl InputValue {
 
             (
                 TomlTypes::Integer(integer),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+                AbiType::Integer { sign: crate::Sign::Unsigned, width },
             ) => {
+                let integer = i128::from(integer);
+                if integer < 0 {
+                    return Err(InputParserError::InputUnderflowsMinimum {
+                        arg_name: arg_name.into(),
+                        value: integer.to_string(),
+                        min: "0".into(),
+                    });
+                }
+                assert!(
+                    *width <= 64,
+                    "u{width} values larger than u64 must be provided as strings"
+                );
+                let max: i128 = (1i128 << width) - 1;
+                if integer > max {
+                    return Err(InputParserError::InputOverflowsMaximum {
+                        arg_name: arg_name.into(),
+                        value: integer.to_string(),
+                        max: max.to_string(),
+                    });
+                }
+                InputValue::Field(FieldElement::from(integer))
+            }
+
+            (TomlTypes::Integer(integer), AbiType::Field | AbiType::Boolean) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
