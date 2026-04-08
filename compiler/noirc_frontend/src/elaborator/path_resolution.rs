@@ -44,8 +44,8 @@ pub(crate) enum PathResolutionItem {
     TraitAssociatedType(TraitAssociatedTypeId),
 
     // These are values
-    /// A reference to a global value.
-    Global(GlobalId),
+    /// A reference to a global value, optionally with turbofish generics from the parent type
+    Global(GlobalId, Option<(TypeId, Option<Turbofish>)>),
     /// A function call on a module, for example `some::module::function()`.
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
@@ -120,7 +120,7 @@ impl PathResolutionItem {
                 let trait_ = interner.get_trait(associated_type.trait_id);
                 format!("associated type `{}::{}`", trait_.name, associated_type.name)
             }
-            PathResolutionItem::Global(id) => {
+            PathResolutionItem::Global(id, _) => {
                 let global = interner.get_global_definition(*id);
                 format!("global `{}`", global.name)
             }
@@ -1103,7 +1103,15 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::TraitAssociatedTypeId(id) => PathResolutionItem::TraitAssociatedType(id),
-        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
+        ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(
+            global_id,
+            match intermediate_item {
+                IntermediatePathResolutionItem::Type(type_id, generics) => {
+                    Some((type_id, generics))
+                }
+                _ => None,
+            },
+        ),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
             IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),
             IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),

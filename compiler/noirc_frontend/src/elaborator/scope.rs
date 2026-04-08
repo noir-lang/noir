@@ -122,7 +122,7 @@ impl Elaborator<'_> {
 
         let expected = "value";
         match item {
-            PathResolutionItem::Global(global) => {
+            PathResolutionItem::Global(global, _) => {
                 let global = self.interner.get_global(global);
                 let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
                 Ok(item_as_value)

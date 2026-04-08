@@ -807,7 +807,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let (actual_type, expected_arg_types, variant_index) = match &resolution {
-            PathResolutionItem::Global(id) => {
+            PathResolutionItem::Global(id, _) => {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);

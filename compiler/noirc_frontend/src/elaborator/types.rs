@@ -952,7 +952,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
-            Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
+            Ok(PathResolution { item: PathResolutionItem::Global(id, _), errors }) => {
                 self.push_errors(errors);
 
                 if let Some(current_item) = self.current_item {

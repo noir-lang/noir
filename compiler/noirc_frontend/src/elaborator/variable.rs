@@ -266,6 +266,22 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::expecting_other_error(message, location));
             }
 
+            // For globals (e.g. no-arg enum variants like `E::<u32>::A`), bind the
+            // turbofish type generics to the forall type variables of the global's type.
+            if !type_generics.is_empty()
+                && let Some(def_id) = definition_id
+            {
+                let typ = self.interner.definition_type(def_id);
+                if let Type::Forall(typevars, _) = &typ {
+                    for (type_var, type_generic) in typevars.iter().zip(type_generics) {
+                        bindings.insert(
+                            type_var.id(),
+                            (type_var.clone(), type_var.kind(), type_generic),
+                        );
+                    }
+                }
+            }
+
             None
         };
 
@@ -522,6 +538,11 @@ impl Elaborator<'_> {
                 };
                 (generics, None)
             }
+            PathResolutionItem::Global(_, Some((struct_id, generics))) => {
+                let generics =
+                    self.resolve_struct_id_turbofish_generics(struct_id, generics, &mut errors);
+                (generics, None)
+            }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
             | PathResolutionItem::Module(..)
@@ -530,7 +551,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
-            | PathResolutionItem::Global(..)
+            | PathResolutionItem::Global(_, None)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
         };
