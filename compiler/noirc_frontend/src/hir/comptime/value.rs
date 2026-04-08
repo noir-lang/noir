@@ -128,10 +128,6 @@ impl Value {
         Value::Integer(Integer::Field(x))
     }
 
-    pub fn u1(x: bool) -> Self {
-        Value::Integer(Integer::U1(x))
-    }
-
     int_constructor!(u8, U8);
     int_constructor!(u16, U16);
     int_constructor!(u32, U32);

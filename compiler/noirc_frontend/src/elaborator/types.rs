@@ -550,6 +550,19 @@ impl Elaborator<'_> {
 
         let location = path.location;
 
+        // Check for removed types and give a helpful error message
+        if path.segments.len() == 1 {
+            let name = path.segments[0].ident.as_str();
+            if name == "u1" || name == "i1" {
+                self.push_err(ResolverError::RemovedType {
+                    location,
+                    typ: name.to_string(),
+                    replacement: "bool".to_string(),
+                });
+                return Type::Error;
+            }
+        }
+
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {

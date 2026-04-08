@@ -104,3 +104,14 @@ fn cast_numeric_to_bool_comptime() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn u1_type_is_removed() {
+    let src = r#"
+        fn main() {
+            let _x: u1 = 0;
+                    ^^ `u1` has been removed, use `bool` instead
+        }
+    "#;
+    check_errors(src);
+}

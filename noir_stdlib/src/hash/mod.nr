@@ -139,9 +139,7 @@ fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
-pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
-    assert_eq(input.len(), state_len);
-
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
     static_assert(
         N == POSEIDON2_CONFIG_STATE_SIZE,
         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
@@ -232,15 +230,6 @@ impl Hash for Field {
         H: Hasher,
     {
         H::write(state, self);
-    }
-}
-
-impl Hash for u1 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self as Field);
     }
 }
 

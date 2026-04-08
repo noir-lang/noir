@@ -1434,7 +1434,15 @@ impl<'interner> Monomorphizer<'interner> {
             None,
             evaluate_builtin,
         )?;
+
+        if self.function_is_oracle(func_id)
+            && let Type::Function(_args, ret, _env, _unconstrained) = typ
+        {
+            self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
+        }
+
         let typ = Self::convert_type(typ, location)?;
+
         let is_closure_type = self.is_closure_type(&typ);
         let location = Some(location);
         let id = self.next_ident_id();
@@ -2105,7 +2113,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         let crossing_runtime_boundaries =
             !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
-        let is_oracle = self.function_is_oracle(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2149,10 +2156,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         if crossing_runtime_boundaries {
             self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
-        }
-
-        if is_oracle {
-            self.check_return_type_returned_from_oracle(&return_type, location)?;
         }
 
         let return_type = Self::convert_type(&return_type, location)?;
@@ -2892,21 +2895,10 @@ impl<'interner> Monomorphizer<'interner> {
         matches!(typ, Type::Function(_, _, _, true))
     }
 
-    fn function_is_oracle(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
-            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
-        {
-            return self
-                .interner
-                .function_modifiers(&func_id)
-                .attributes
-                .function
-                .as_ref()
-                .is_some_and(|(attribute, _)| {
-                    matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
-                });
-        }
-        false
+    fn function_is_oracle(&self, func_id: node_interner::FuncId) -> bool {
+        self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
+            |(attribute, _)| matches!(attribute.kind, FunctionAttributeKind::Oracle(..)),
+        )
     }
 }
 

@@ -264,10 +264,10 @@ pub mod stdlib_src {
         pub fn modulus_num_bits() -> u64 {}
 
         #[builtin(modulus_be_bits)]
-        pub fn modulus_be_bits() -> [u1] {}
+        pub fn modulus_be_bits() -> [bool] {}
 
         #[builtin(modulus_le_bits)]
-        pub fn modulus_le_bits() -> [u1] {}
+        pub fn modulus_le_bits() -> [bool] {}
 
         #[builtin(modulus_be_bytes)]
         pub fn modulus_be_bytes() -> [u8] {}

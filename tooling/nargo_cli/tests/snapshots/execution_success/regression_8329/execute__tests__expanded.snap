@@ -2,16 +2,16 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: u1, y: u1, z: u1) -> pub u1 {
-    let p: u1 = y - z;
-    if p != 0_u1 {
-        let a: u1 = x / z;
-        let b: u1 = a - z;
-        if b != 0_u1 {
-            let _: u1 = a / b;
+fn main(x: u8, y: u8, z: u8) -> pub u8 {
+    let p: u8 = y - z;
+    if p != 0_u8 {
+        let a: u8 = x / z;
+        let b: u8 = a - z;
+        if b != 0_u8 {
+            let _: u8 = a / b;
         }
     };
-    let u: u1 = x - z;
-    let v: u1 = y - u;
+    let u: u8 = x - z;
+    let v: u8 = y - u;
     v
 }
