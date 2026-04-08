@@ -2,7 +2,6 @@ use crate::ast::{PathKind, PathSegment};
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
-use fm::FileId;
 use noirc_artifacts::debug::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
@@ -53,7 +52,7 @@ impl Default for DebugInstrumenter {
 }
 
 impl DebugInstrumenter {
-    pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
         module.items.iter_mut().for_each(|item| {
             match &mut item.kind {
                 // Instrument top-level functions of a module
@@ -64,7 +63,7 @@ impl DebugInstrumenter {
                     contents: contract_module,
                     ..
                 }) => {
-                    self.instrument_module(contract_module, file);
+                    self.instrument_module(contract_module);
                 }
                 _ => (),
             }
