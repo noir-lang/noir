@@ -52,8 +52,6 @@ excluded_dirs=(
     "workspace"
     "workspace_default_member"
     "regression_7323"
-    # bench_eddsa_poseidon depends on the archived ec library
-    "bench_eddsa_poseidon"
     "sha512_100_bytes"
 )
 current_dir=$(pwd)
