@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775652837164,
+  "lastUpdate": 1775653069946,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22141,48 +22141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b37a537af473989f519b25a6d38594ee37fd5f60",
-          "message": "fix(lsp): don't zip_eq in inlay hints (#12081)",
-          "timestamp": "2026-04-01T17:10:52Z",
-          "tree_id": "eccbba0b9424d6638bdd9bde8db8938b8d8b4eeb",
-          "url": "https://github.com/noir-lang/noir/commit/b37a537af473989f519b25a6d38594ee37fd5f60"
-        },
-        "date": 1775065227276,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168864,
-            "range": "± 2702",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139902,
-            "range": "± 5152",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647476,
-            "range": "± 2929",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "279aafbe81a0a976912fc4df6a73cc52f3c42298",
           "message": "fix: avoid nondeterminism when reporting \"Type annotation needed\" (#12087)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
           "timestamp": "2026-04-01T18:50:08Z",
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643070,
             "range": "± 2431",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "717a85da43993aa00bf5840a15c1f6069cfed5a8",
+          "message": "chore: mark libraries as compiling, remove ec from test suite (#12166)",
+          "timestamp": "2026-04-08T12:33:10Z",
+          "tree_id": "ba99e109df3e7820d65c5314fdb9bd122ed75f29",
+          "url": "https://github.com/noir-lang/noir/commit/717a85da43993aa00bf5840a15c1f6069cfed5a8"
+        },
+        "date": 1775653014343,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127843,
+            "range": "± 371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113466,
+            "range": "± 396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041841,
+            "range": "± 3331",
             "unit": "ns/iter"
           }
         ]
