@@ -1062,7 +1062,7 @@ impl NodeInterner {
                     && let Some(existing_methods) =
                         self.methods.get(&key).and_then(|m| m.get(&method_name))
                     && let Some((existing_method, existing_type)) =
-                        existing_methods.find_overlapping_method(&typ, self)
+                        existing_methods.find_overlapping_method(&method_id, &typ, self)
                 {
                     let prev_location = self.function_ident(&existing_method).location();
                     let location = self.function_ident(&method_id).location();
