@@ -122,7 +122,7 @@
 <a href=#122 id=122 data-nosnippet>122</a>    <span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UnsupportedNumericGenericType) -&gt; Diagnostic {
 <a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>message = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="kw-2">&amp;</span>error.name {
 <a href=#124 id=124 data-nosnippet>124</a>            <span class="macro">format!</span>(
-<a href=#125 id=125 data-nosnippet>125</a>                <span class="string">"{name} has a type of {}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."</span>,
+<a href=#125 id=125 data-nosnippet>125</a>                <span class="string">"{name} has a type of {}. The only supported numeric generic types are integers and `Field`."</span>,
 <a href=#126 id=126 data-nosnippet>126</a>                error.typ
 <a href=#127 id=127 data-nosnippet>127</a>            )
 <a href=#128 id=128 data-nosnippet>128</a>        } <span class="kw">else </span>{
