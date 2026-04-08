@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775653625888,
+  "lastUpdate": 1775656137420,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "279aafbe81a0a976912fc4df6a73cc52f3c42298",
-          "message": "fix: avoid nondeterminism when reporting \"Type annotation needed\" (#12087)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-04-01T18:50:08Z",
-          "tree_id": "1942fb8170841bf47d9891c758de9e349a0a3efb",
-          "url": "https://github.com/noir-lang/noir/commit/279aafbe81a0a976912fc4df6a73cc52f3c42298"
-        },
-        "date": 1775071061954,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127921,
-            "range": "± 1592",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114049,
-            "range": "± 1410",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042990,
-            "range": "± 47695",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041841,
             "range": "± 3331",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "79532ad48717a0a7c6a2bcf77a11ed5ec6bf1ae0",
+          "message": "chore: update poseidon library to v0.3.0 and re-enable tests (#12167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-08T13:25:19Z",
+          "tree_id": "cb4e7739a4aed7d092c1d1ca12648bc7fed25332",
+          "url": "https://github.com/noir-lang/noir/commit/79532ad48717a0a7c6a2bcf77a11ed5ec6bf1ae0"
+        },
+        "date": 1775656081083,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168670,
+            "range": "± 299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137301,
+            "range": "± 1849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2641414,
+            "range": "± 3775",
             "unit": "ns/iter"
           }
         ]
