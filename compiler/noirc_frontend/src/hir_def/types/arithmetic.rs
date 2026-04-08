@@ -587,7 +587,7 @@ mod proptests {
                     bit_size => bit_size,
                 };
                 let typ = Type::Integer(Signedness::Signed, bit_size);
-                let minimum_size: i128 = typ.integral_maximum_size().unwrap().try_into().unwrap();
+                let minimum_size: i128 = typ.integral_minimum_size().unwrap();
                 let maximum_size: i128 = typ.integral_maximum_size().unwrap().try_into().unwrap();
                 (typ, arbitrary_i128_field_element(minimum_size, maximum_size).boxed())
             }),

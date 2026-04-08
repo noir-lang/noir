@@ -429,3 +429,176 @@ impl std::ops::Neg for Integer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use acvm::{AcirField, FieldElement};
+    use proptest::prelude::*;
+
+    use super::Integer;
+
+    // === Proptests: Integer arithmetic matches Rust checked arithmetic ===
+
+    proptest! {
+        #[test]
+        fn i8_add_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) + Integer::I8(b), a.checked_add(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_sub_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) - Integer::I8(b), a.checked_sub(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_mul_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) * Integer::I8(b), a.checked_mul(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_div_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) / Integer::I8(b), a.checked_div(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_rem_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) % Integer::I8(b), a.checked_rem(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_neg_matches_rust(a: i8) {
+            assert_eq!(-Integer::I8(a), a.checked_neg().map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_lt_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a).lt(&Integer::I8(b)), Some(a < b));
+        }
+
+        #[test]
+        fn i8_lte_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a).lte(&Integer::I8(b)), Some(a <= b));
+        }
+
+        #[test]
+        fn i32_add_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) + Integer::I32(b), a.checked_add(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_sub_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) - Integer::I32(b), a.checked_sub(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_mul_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) * Integer::I32(b), a.checked_mul(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_div_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) / Integer::I32(b), a.checked_div(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn u8_add_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) + Integer::U8(b), a.checked_add(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_sub_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) - Integer::U8(b), a.checked_sub(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_mul_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) * Integer::U8(b), a.checked_mul(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_neg_always_none(a: u8) {
+            assert_eq!(-Integer::U8(a), None);
+        }
+
+        #[test]
+        fn i8_is_negative_matches_rust(a: i8) {
+            assert_eq!(Integer::I8(a).is_negative(), a < 0);
+        }
+
+        #[test]
+        fn u8_is_negative_always_false(a: u8) {
+            assert!(!Integer::U8(a).is_negative());
+        }
+
+        #[test]
+        fn i8_as_field_twos_complement_matches_rust(a: i8) {
+            // Two's complement: reinterpret i8 as u8
+            let expected = FieldElement::from(a as u8 as u128);
+            assert_eq!(Integer::I8(a).as_field_twos_complement(), expected);
+        }
+
+        #[test]
+        fn positive_i8_as_field_equals_twos_complement(a in 0i8..=i8::MAX) {
+            assert_eq!(Integer::I8(a).as_field(), Integer::I8(a).as_field_twos_complement());
+        }
+
+        // Field subtraction is the inverse of addition: (a - b) + b == a
+        #[test]
+        fn field_subtraction_is_inverse_of_addition(a: u64, b: u64) {
+            let fa = Integer::Field(FieldElement::from(a as u128));
+            let fb = Integer::Field(FieldElement::from(b as u128));
+            let result = (fa - fb).unwrap();
+            let check = (result + fb).unwrap();
+            assert_eq!(check, fa);
+        }
+
+        // Field negation is the additive inverse: (-a) + a == 0
+        #[test]
+        fn field_negation_is_additive_inverse(a: u64) {
+            let fa = Integer::Field(FieldElement::from(a as u128));
+            let neg_a = (-fa).unwrap();
+            let check = (neg_a + fa).unwrap();
+            assert_eq!(check, Integer::Field(FieldElement::zero()));
+        }
+
+        // Field values are never considered negative
+        #[test]
+        fn field_is_never_negative(a: u64) {
+            assert!(!Integer::Field(FieldElement::from(a as u128)).is_negative());
+        }
+    }
+
+    // === Type mismatch returns None ===
+
+    #[test]
+    fn type_mismatch_returns_none() {
+        let a = Integer::I8(1);
+        let b = Integer::I16(1);
+        assert_eq!(a + b, None);
+        assert_eq!(a - b, None);
+        assert_eq!(a * b, None);
+        assert_eq!(a / b, None);
+        assert_eq!(a.lt(&b), None);
+
+        let c = Integer::U8(1);
+        let d = Integer::I8(1);
+        assert_eq!(c + d, None);
+    }
+
+    // === Field-specific tests (not equivalent to Rust arithmetic) ===
+
+    #[test]
+    fn field_division_by_zero() {
+        let a = Integer::Field(FieldElement::from(5u64));
+        let b = Integer::Field(FieldElement::zero());
+        // Field division always "succeeds" (FieldElement handles it internally)
+        assert!((a / b).is_some());
+    }
+
+    #[test]
+    fn field_remainder_rejected() {
+        let a = Integer::Field(FieldElement::from(10u64));
+        let b = Integer::Field(FieldElement::from(3u64));
+        assert_eq!(a % b, None);
+    }
+}
