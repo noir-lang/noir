@@ -1049,3 +1049,33 @@ fn impl_for_generic_struct_with_numeric_and_type_generic() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn field_numeric_generic() {
+    let src = r#"
+    global TEN: Field = 10;
+    global FORTY_TWO: Field = 42;
+
+    pub struct FieldStruct<let N: Field> {
+        inner: Field,
+    }
+
+    impl<let N: Field> FieldStruct<N> {
+        fn new(inner: Field) -> Self {
+            FieldStruct { inner: inner + N }
+        }
+    }
+
+    fn field_generic_function<let N: Field>() -> Field {
+        N
+    }
+
+    fn main() {
+        let s: FieldStruct<TEN> = FieldStruct::new(20);
+        assert(s.inner == 30);
+        let val: Field = field_generic_function::<FORTY_TWO>();
+        assert(val == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
