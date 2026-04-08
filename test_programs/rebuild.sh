@@ -52,7 +52,6 @@ excluded_dirs=(
     "workspace"
     "workspace_default_member"
     "regression_7323"
-    "sha512_100_bytes"
 )
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
