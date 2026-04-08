@@ -620,6 +620,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
         // If we're resuming execution after resolving a foreign call then
         // there will be a cached `BrilligSolver` to avoid recomputation.
+        if id.as_usize() >= self.unconstrained_functions.len() {
+            return Err(OpcodeResolutionError::BrilligFunctionFailed {
+                function_id: *id,
+                call_stack: vec![OpcodeLocation::Acir(self.instruction_pointer())],
+                payload: None,
+            });
+        }
         let mut solver: BrilligSolver<'_, F, B> = match self.brillig_solver.take() {
             Some(solver) => solver,
             None => BrilligSolver::new_call(
@@ -701,6 +708,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             return StepResult::Status(self.handle_opcode_resolution(resolution));
         }
 
+        if id.as_usize() >= self.unconstrained_functions.len() {
+            return StepResult::Status(self.handle_opcode_resolution(Err(
+                OpcodeResolutionError::BrilligFunctionFailed {
+                    function_id: *id,
+                    call_stack: vec![OpcodeLocation::Acir(self.instruction_pointer())],
+                    payload: None,
+                },
+            )));
+        }
         let solver = BrilligSolver::new_call(
             witness,
             &self.block_solvers,
