@@ -394,11 +394,11 @@ fn associated_constant_mul_of_other_constants() {
 fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     let src = "
     trait Bar {
-        let N: u32;
+        let N: Field;
     }
 
     impl Bar for Field {
-        let N: u32 = 42;
+        let N: Field = 42_Field;
     }
 
     trait Foo {
@@ -2065,13 +2065,13 @@ fn associated_type_diamond_ambiguity_on_generic() {
 fn associated_constant_type_mismatch_does_not_crash() {
     let src = r#"
     trait Serialize {
-        let N: u32;
+        let N: Field;
     }
 
     impl Serialize for Field {
-        let N: u64 = 1;
-            ^ The numeric generic is not of type `u32`
-            ~ expected `u32`, found `u64`
+        let N: u32 = 1;
+            ^ The numeric generic is not of type `Field`
+            ~ expected `Field`, found `u32`
     }
 
     fn main() {

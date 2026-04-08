@@ -129,9 +129,9 @@ fn numeric_generic_as_return_type() {
         fn zeroed<T>(self) -> T;
     }
 
-    fn foo<T, let I: u32>(x: T) -> I where T: Zeroed {
-                                   ^ Expected type, found numeric generic
-                                   ~ not a type
+    fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
+                                     ^ Expected type, found numeric generic
+                                     ~ not a type
        ^^^ unused function foo
        ~~~ unused function
         x.zeroed()
@@ -304,6 +304,42 @@ fn numeric_generic_u16_array_size() {
     check_errors(src);
 }
 
+#[test]
+fn numeric_generic_field_larger_than_u32() {
+    let src = r#"
+        global A: Field = 4294967297;
+
+        fn foo<let A: Field>() { }
+
+        fn main() {
+            let _ = foo::<A>();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_field_arithmetic_larger_than_u32() {
+    let src = r#"
+        struct Foo<let F: Field> {}
+
+        fn size<let F: Field>(_x: Foo<F>) -> Field {
+            F
+        }
+
+        // 2^32 - 1
+        global A: Field = 4294967295;
+
+        fn foo<let A: Field>() -> Foo<A + A> {
+            Foo {}
+        }
+
+        fn main() {
+            let _ = size(foo::<A>());
+        }
+    "#;
+    assert_no_errors(src);
+}
 
 #[test]
 fn constant_used_with_numeric_generic() {
@@ -469,7 +505,7 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                      ^^^ N has a type of Foo. The only supported numeric generic types are unsigned integers (`u8`, `u16`, `u32`, `u64`).
+                      ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                       ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
@@ -485,7 +521,7 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                          ^^^ N has a type of Foo. The only supported numeric generic types are unsigned integers (`u8`, `u16`, `u32`, `u64`).
+                          ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                           ~~~ Unsupported numeric generic type
     "#;
     check_errors(src);
@@ -495,7 +531,7 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are unsigned integers (`u8`, `u16`, `u32`, `u64`).
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         if N {
             0
@@ -510,10 +546,10 @@ fn bool_numeric_generic() {
 #[test]
 fn numeric_generic_binary_operation_type_mismatch() {
     let src = r#"
-    pub fn foo<let N: u32>() -> bool {
+    pub fn foo<let N: Field>() -> bool {
         let mut check: bool = true;
         check = N;
-                ^ Cannot assign an expression of type u32 to a value of type bool
+                ^ Cannot assign an expression of type Field to a value of type bool
         check
     }
     "#;
@@ -524,7 +560,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are unsigned integers (`u8`, `u16`, `u32`, `u64`).
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
@@ -1021,6 +1057,11 @@ fn impl_for_generic_struct_with_numeric_and_type_generic() {
 #[test_case("u32")]
 #[test_case("u64")]
 #[test_case("u128")]
+#[test_case("i8")]
+#[test_case("i16")]
+#[test_case("i32")]
+#[test_case("i64")]
+#[test_case("Field")]
 fn numeric_generic_type(typ: &str) {
     let src = format!(
         r#"

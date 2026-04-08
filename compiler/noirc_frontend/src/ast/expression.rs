@@ -99,7 +99,7 @@ impl IdentOrQuotedType {
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error(
-    "`{typ}` is not a supported type for a numeric generic. The only supported types are unsigned integers"
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers and fields"
 )]
 pub struct UnsupportedNumericGenericType {
     pub name: Option<String>,
@@ -141,12 +141,12 @@ impl UnresolvedGeneric {
             && path.segments.len() == 1
             && let Some(primitive_type) =
                 PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-            && let Some(typ) = primitive_type.to_unsigned_integer()
+            && let Some(typ) = primitive_type.to_integer_or_field()
         {
             return Ok(typ);
         }
 
-        // Only unsigned integers are supported for numeric kinds
+        // Only fields and integers are supported for numeric kinds
         let name = self.ident().ident().map(|name| name.to_string());
         let type_string = typ.typ.to_string();
         Err(UnsupportedNumericGenericType { name, typ: type_string, location: typ.location })

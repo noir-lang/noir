@@ -994,7 +994,7 @@ impl ModCollector<'_> {
             && path.segments.len() == 1
             && let Some(primitive_type) =
                 PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-            && let Some(typ) = primitive_type.to_unsigned_integer()
+            && let Some(typ) = primitive_type.to_integer_or_field()
         {
             return typ;
         }

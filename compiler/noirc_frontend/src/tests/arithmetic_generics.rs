@@ -96,7 +96,87 @@ fn arithmetic_generics_checked_cast_zeros() {
     }
 }
 
+#[test]
+fn arithmetic_generics_checked_cast_indirect_zeros() {
+    let source = r#"
+        struct W<let N: Field> {}
+        
+        fn foo<let N: Field>(_x: W<N>) -> W<(N - N) % (N - N)> {
+            W {}
+        }
+        
+        fn bar<let N: Field>(_x: W<N>) -> Field {
+            N
+        }
+        
+        fn main() {
+            let w_0: W<0Field> = W {};
+            let w = foo(w_0);
+            let _ = bar(w);
+        }
+    "#;
 
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
+
+    // Expect a CheckedCast (0 % 0) failure
+    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
+        monomorphization_error
+    {
+        match err {
+            TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
+                assert_eq!(lhs.clone(), FieldElement::zero());
+                assert_eq!(rhs.clone(), FieldElement::zero());
+            }
+            _ => panic!("expected ModuloOnFields, but found: {err:?}"),
+        }
+    } else {
+        panic!("unexpected error: {monomorphization_error:?}");
+    }
+}
+
+#[test]
+fn global_numeric_generic_larger_than_u32() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6125
+    let source = r#"
+    global A: Field = 4294967297;
+    
+    fn foo<let A: Field>() { }
+    
+    fn main() {
+        let _ = foo::<A>();
+    }
+    "#;
+    assert_no_errors(source);
+}
+
+#[test]
+fn global_arithmetic_generic_larger_than_u32() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6126
+    let source = r#"
+    struct Foo<let F: Field> {}
+    
+    impl<let F: Field> Foo<F> {
+        fn size(self) -> Field {
+            let _ = self;
+            F
+        }
+    }
+    
+    // 2^32 - 1
+    global A: Field = 4294967295;
+    
+    // Avoiding overflow succeeds:
+    // fn foo<let A: Field>() -> Foo<A> {
+    fn foo<let A: Field>() -> Foo<A + A> {
+        Foo {}
+    }
+    
+    fn main() {
+        let _ = foo::<A>().size();
+    }
+    "#;
+    assert_no_errors(source);
+}
 
 #[test]
 fn arithmetic_generics_rounding_pass() {

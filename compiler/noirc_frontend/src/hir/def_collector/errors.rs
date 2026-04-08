@@ -122,7 +122,7 @@ impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
         let message = if let Some(name) = &error.name {
             format!(
-                "{name} has a type of {}. The only supported numeric generic types are unsigned integers (`u8`, `u16`, `u32`, `u64`).",
+                "{name} has a type of {}. The only supported numeric generic types are integers and `Field`.",
                 error.typ
             )
         } else {
