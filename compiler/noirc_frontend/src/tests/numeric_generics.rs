@@ -1,3 +1,5 @@
+use test_case::test_case;
+
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
@@ -1050,7 +1052,17 @@ fn impl_for_generic_struct_with_numeric_and_type_generic() {
     assert_no_errors(src);
 }
 
-fn numeric_generic_type_test(typ: &str) {
+#[test_case("u8")]
+#[test_case("u16")]
+#[test_case("u32")]
+#[test_case("u64")]
+#[test_case("u128")]
+#[test_case("i8")]
+#[test_case("i16")]
+#[test_case("i32")]
+#[test_case("i64")]
+#[test_case("Field")]
+fn numeric_generic_type(typ: &str) {
     let src = format!(
         r#"
     global TEN: {typ} = 10 as {typ};
@@ -1078,54 +1090,4 @@ fn numeric_generic_type_test(typ: &str) {
     "#,
     );
     assert_no_errors(&src);
-}
-
-#[test]
-fn u8_numeric_generic() {
-    numeric_generic_type_test("u8");
-}
-
-#[test]
-fn u16_numeric_generic() {
-    numeric_generic_type_test("u16");
-}
-
-#[test]
-fn u32_numeric_generic() {
-    numeric_generic_type_test("u32");
-}
-
-#[test]
-fn u64_numeric_generic() {
-    numeric_generic_type_test("u64");
-}
-
-#[test]
-fn u128_numeric_generic() {
-    numeric_generic_type_test("u128");
-}
-
-#[test]
-fn i8_numeric_generic() {
-    numeric_generic_type_test("i8");
-}
-
-#[test]
-fn i16_numeric_generic() {
-    numeric_generic_type_test("i16");
-}
-
-#[test]
-fn i32_numeric_generic() {
-    numeric_generic_type_test("i32");
-}
-
-#[test]
-fn i64_numeric_generic() {
-    numeric_generic_type_test("i64");
-}
-
-#[test]
-fn field_numeric_generic() {
-    numeric_generic_type_test("Field");
 }
