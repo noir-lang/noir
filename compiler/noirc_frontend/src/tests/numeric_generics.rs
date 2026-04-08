@@ -1050,32 +1050,82 @@ fn impl_for_generic_struct_with_numeric_and_type_generic() {
     assert_no_errors(src);
 }
 
+fn numeric_generic_type_test(typ: &str) {
+    let src = format!(
+        r#"
+    global TEN: {typ} = 10 as {typ};
+
+    pub struct MyStruct<let N: {typ}> {{
+        inner: {typ},
+    }}
+
+    impl<let N: {typ}> MyStruct<N> {{
+        fn new(inner: {typ}) -> Self {{
+            MyStruct {{ inner: inner + N }}
+        }}
+    }}
+
+    fn generic_function<let N: {typ}>() -> {typ} {{
+        N
+    }}
+
+    fn main() {{
+        let s: MyStruct<TEN> = MyStruct::new(20 as {typ});
+        assert(s.inner == 30 as {typ});
+        let val: {typ} = generic_function::<TEN>();
+        assert(val == 10 as {typ});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+#[test]
+fn u8_numeric_generic() {
+    numeric_generic_type_test("u8");
+}
+
+#[test]
+fn u16_numeric_generic() {
+    numeric_generic_type_test("u16");
+}
+
+#[test]
+fn u32_numeric_generic() {
+    numeric_generic_type_test("u32");
+}
+
+#[test]
+fn u64_numeric_generic() {
+    numeric_generic_type_test("u64");
+}
+
+#[test]
+fn u128_numeric_generic() {
+    numeric_generic_type_test("u128");
+}
+
+#[test]
+fn i8_numeric_generic() {
+    numeric_generic_type_test("i8");
+}
+
+#[test]
+fn i16_numeric_generic() {
+    numeric_generic_type_test("i16");
+}
+
+#[test]
+fn i32_numeric_generic() {
+    numeric_generic_type_test("i32");
+}
+
+#[test]
+fn i64_numeric_generic() {
+    numeric_generic_type_test("i64");
+}
+
 #[test]
 fn field_numeric_generic() {
-    let src = r#"
-    global TEN: Field = 10;
-    global FORTY_TWO: Field = 42;
-
-    pub struct FieldStruct<let N: Field> {
-        inner: Field,
-    }
-
-    impl<let N: Field> FieldStruct<N> {
-        fn new(inner: Field) -> Self {
-            FieldStruct { inner: inner + N }
-        }
-    }
-
-    fn field_generic_function<let N: Field>() -> Field {
-        N
-    }
-
-    fn main() {
-        let s: FieldStruct<TEN> = FieldStruct::new(20);
-        assert(s.inner == 30);
-        let val: Field = field_generic_function::<FORTY_TWO>();
-        assert(val == 42);
-    }
-    "#;
-    assert_no_errors(src);
+    numeric_generic_type_test("Field");
 }
