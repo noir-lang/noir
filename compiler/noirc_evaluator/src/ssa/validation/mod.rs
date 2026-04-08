@@ -266,7 +266,7 @@ impl<'f> Validator<'f> {
             }
             Instruction::Store { address, value } => {
                 let address_type = dfg.type_of_value(*address);
-                let Type::Reference(address_value_type) = &*address_type else {
+                let Type::Reference(address_value_type, _) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
 
@@ -332,7 +332,9 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if *argument_type != parameter_type {
+                    if *argument_type != parameter_type
+                        && !is_mut_ref_to_immut_ref(&argument_type, &parameter_type)
+                    {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -1007,7 +1009,7 @@ impl<'f> Validator<'f> {
         for arg_id in arguments {
             let arg_type = self.function.dfg.type_of_value(*arg_id);
             let has_unsupported_ref = match &*arg_type {
-                Type::Reference(inner) => inner.contains_reference(),
+                Type::Reference(inner, _) => inner.contains_reference(),
                 _ => arg_type.contains_reference(),
             };
             if has_unsupported_ref {
@@ -1121,6 +1123,15 @@ impl<'f> Validator<'f> {
 pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     let mut validator = Validator::new(function, ssa);
     validator.run();
+}
+
+/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
+/// A mutable reference is compatible with an immutable reference parameter.
+fn is_mut_ref_to_immut_ref(arg: &Type, param: &Type) -> bool {
+    matches!(
+        (arg, param),
+        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
+    )
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {

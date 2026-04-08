@@ -149,7 +149,7 @@ impl Value {
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
-            Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
+            Value::Reference(reference) => Type::Reference(reference.element_type.clone(), true),
             Value::ArrayOrVector(array) if array.is_vector => {
                 Type::Vector(array.element_types.clone())
             }
@@ -304,7 +304,7 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => {
+            Type::Reference(element_type, _) => {
                 // Initialize the reference to a default value, so that if we execute a
                 // Load instruction when side effects are disabled, we don't get an error.
                 let value = Self::uninitialized(element_type, id);

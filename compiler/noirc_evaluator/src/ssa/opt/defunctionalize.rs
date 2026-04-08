@@ -784,7 +784,9 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
+        Type::Reference(element_type, _) => {
+            function_builder.insert_allocate((**element_type).clone())
+        }
         Type::Function => {
             unreachable!(
                 "ICE: Any function passed as a value should have already been converted to a field type"
@@ -835,8 +837,8 @@ fn defunctionalize_post_check(func: &Function) {
 fn replacement_type(typ: &Type) -> Option<Type> {
     match typ {
         Type::Function => Some(Type::field()),
-        Type::Reference(typ) => {
-            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        Type::Reference(typ, mutable) => {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ), *mutable))
         }
         Type::Numeric(_) => None,
         Type::Array(items, size) => {

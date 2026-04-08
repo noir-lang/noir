@@ -434,7 +434,7 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable: _ } => {
+            UnaryOp::Reference { mutable } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
@@ -445,7 +445,8 @@ impl FunctionContext<'_> {
                         value::Value::Normal(value) => {
                             let rhs_type =
                                 self.builder.current_function.dfg.type_of_value(value).into_owned();
-                            let alloc = self.builder.insert_allocate(rhs_type);
+                            let alloc =
+                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }

@@ -689,3 +689,104 @@ fn repeated_nested_array() {
     }
     ");
 }
+
+#[test]
+fn immutable_ref_does_not_allocate() {
+    // When passing an immutable reference (&[Field; 3]) to a function,
+    // the compiler should not emit allocate + store since the data
+    // cannot be modified through an immutable reference.
+    let src = "
+    fn main(array: [Field; 3]) {
+        foo(&array);
+    }
+
+    fn foo(_arr: &[Field; 3]) {}
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    // Immutable references now correctly show &[Field; 3] instead of &mut [Field; 3]
+    // in the SSA IR, distinguishing them from mutable references.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v1 = allocate -> &[Field; 3]
+        store v0 at v1
+        call f1(v1)
+        return
+    }
+    acir(inline) fn foo f1 {
+      b0(v0: &[Field; 3]):
+        return
+    }
+    ");
+}
+
+#[test]
+fn mut_ref_and_immutable_ref_to_same_data() {
+    // jfecher's concern: if foo takes &mut and & to the same data,
+    // the immutable ref should observe mutations through the mutable ref.
+    // Check what the monomorphized AST and SSA look like for this pattern.
+    let src = "
+    fn foo(x: &mut [Field; 3], y: &[Field; 3]) {
+        x[0] = 42;
+        assert(y[0] == 42);
+    }
+
+    fn main() {
+        let mut arr = [0; 3];
+        foo(&mut arr, &arr);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // Monomorphized AST correctly distinguishes &mut vs & in types.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let mut arr$l0 = [0; 3];
+        foo$f1((&mut arr$l0), (&arr$l0));
+    }
+    fn foo$f1(x$l1: &mut [Field; 3], y$l2: &[Field; 3]) -> () {
+        (*x$l1)[0] = 42;
+        assert(((*y$l2)[0] == 42));
+    }
+    ");
+}
+
+#[test]
+fn mut_ref_and_immutable_ref_to_same_data_ssa() {
+    let src = "
+    fn foo(x: &mut [Field; 3], y: &[Field; 3]) {
+        x[0] = 42;
+        assert(y[0] == 42);
+    }
+
+    fn main() {
+        let mut arr = [0; 3];
+        foo(&mut arr, &arr);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Both x and y alias the same allocate (v2). y is now correctly typed as
+    // &[Field; 3] (immutable) while x is &mut [Field; 3]. Both point to the
+    // same memory, so mutations through x are visible through y.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+        v2 = allocate -> &mut [Field; 3]
+        store v1 at v2
+        call f1(v2, v2)
+        return
+    }
+    acir(inline) fn foo f1 {
+      b0(v0: &mut [Field; 3], v1: &[Field; 3]):
+        v2 = load v0 -> [Field; 3]
+        v5 = array_set v2, index u32 0, value Field 42
+        store v5 at v0
+        v6 = load v1 -> [Field; 3]
+        v7 = array_get v6, index u32 0 -> Field
+        v8 = eq v7, Field 42
+        constrain v7 == Field 42
+        return
+    }
+    ");
+}

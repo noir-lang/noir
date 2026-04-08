@@ -206,6 +206,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                             && expected_elem.is_empty()
                             && actual_len.to_usize() == 0
                     }
+                    // Reference mutability doesn't affect runtime behavior —
+                    // the interpreter treats &T and &mut T identically.
+                    (Type::Reference(expected_elem, _), Type::Reference(actual_elem, _)) => {
+                        expected_elem == actual_elem
+                    }
                     _ => false,
                 };
 
@@ -1091,7 +1096,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
         let result_type = self.dfg().type_of_value(result).into_owned();
         let element_type = match result_type {
-            Type::Reference(element_type) => element_type,
+            Type::Reference(element_type, _) => element_type,
             other => unreachable!(
                 "Result of allocate should always be a reference type, but found {other}"
             ),
