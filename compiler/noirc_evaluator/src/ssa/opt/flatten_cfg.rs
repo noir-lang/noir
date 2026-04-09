@@ -2272,9 +2272,11 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         // With v0 = false, the else branch returns v0 = false.
         // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
-        let false_value = InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
+        let false_value =
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
         let inputs = vec![false_value.clone()];
-        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
         assert_eq!(result.unwrap(), vec![false_value]);
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
