@@ -233,7 +233,7 @@ fn differing_merge_cost(
     for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
-            if typ.is_numeric() || matches!(*typ, Type::Reference(_)) {
+            if typ.is_numeric() || matches!(*typ, Type::Reference(..)) {
                 cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
                 // Array/slice: conditional memory copy (~20 opcodes)
