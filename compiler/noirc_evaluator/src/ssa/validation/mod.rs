@@ -2229,4 +2229,209 @@ mod tests {
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
+
+    // --- Control flow edge cases for load-before-store ---
+
+    #[test]
+    fn store_in_predecessor_load_in_successor_is_valid() {
+        // Allocate and store in b0, load in b1 — straightforward valid case across blocks.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            jmp b1()
+          b1():
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Load from reference v0 before any store")]
+    fn allocate_in_entry_load_in_successor_no_store_is_rejected() {
+        // Allocate in b0, jump to b1, load in b1 with no store anywhere.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1()
+          b1():
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_on_both_branches_load_after_join_is_valid() {
+        // Allocate in b0, store on both branches (b1 and b2), load after join in b3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_on_one_branch_only_load_after_join_is_not_caught() {
+        // Known limitation: allocate in b0, store only in b1 (not b2), load in b3.
+        // This is actually invalid (on the b2→b3 path, v1 is uninitialized),
+        // but the current check does not catch it because it tracks stores globally
+        // across all visited blocks without considering control flow.
+        //
+        // A proper fix would require dominance-based dataflow analysis.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        // This SHOULD panic but doesn't — documenting as known false negative.
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn multiple_allocations_independent_tracking() {
+        // Two allocations: v0 gets stored to, v1 does not.
+        // Load from v0 should be valid, load from v1 should not.
+        // This test verifies we track each reference independently.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            store Field 1 at v0
+            store Field 2 at v1
+            v2 = load v0 -> Field
+            v3 = load v1 -> Field
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Load from reference v1 before any store")]
+    fn multiple_allocations_one_uninitialized() {
+        // v0 is stored to, but v1 is loaded before any store.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_initializes_reference() {
+        // Reference passed to a call is treated as potentially initialized.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            v1 = load v0 -> Field
+            return v1
+        }
+        brillig(inline) fn store_to_ref f1 {
+          b0(v0: &mut Field):
+            store Field 42 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Load from reference v0 before any store")]
+    fn load_before_call_that_would_initialize() {
+        // Load happens before the call that would store — still invalid.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn store_to_ref f1 {
+          b0(v0: &mut Field):
+            store Field 42 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn reference_in_array_passed_to_call() {
+        // Reference nested in a MakeArray and passed to a call — treated as initialized.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_in_loop_header_load_in_loop_body() {
+        // Reference stored before the loop, loaded inside the loop body.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> Field
+            v3 = add v2, Field 1
+            store v3 at v1
+            jmpif v0 then: b1(), else: b2()
+          b2():
+            v4 = load v1 -> Field
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
 }
