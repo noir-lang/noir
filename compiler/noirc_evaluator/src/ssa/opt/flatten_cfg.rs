@@ -2646,8 +2646,25 @@ mod merge_provenance_tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
+        let flattened = ssa.flatten_cfg();
+        // The result must be equivalent to v0, not a constant 1. The inner
+        // merge IfElse(v0, 1, v0*(1-v0), 0) simplifies to v0 during insertion,
+        // but provenance must not be stored for it to avoid false collapses.
+        assert_ssa_snapshot!(flattened, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects u1 1
+            v4 = unchecked_mul v0, u1 1
+            return v4
+        }
+        ");
+
         // With v0 = false, the else branch returns v0 = false.
         // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
+        let ssa = Ssa::from_str(src).unwrap();
         let inputs = vec![Value::from_constant(0_u128.into(), NumericType::bool()).unwrap()];
         assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
     }
