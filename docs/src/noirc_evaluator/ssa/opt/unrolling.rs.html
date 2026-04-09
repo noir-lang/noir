@@ -1923,7 +1923,7 @@
 <a href=#1923 id=1923 data-nosnippet>1923</a><span class="doccomment">/// Unrolling leaves some duplicate instructions which can potentially be removed.
 <a href=#1924 id=1924 data-nosnippet>1924</a></span><span class="kw">fn </span>simplify_between_unrolls(function: <span class="kw-2">&amp;mut </span>Function) {
 <a href=#1925 id=1925 data-nosnippet>1925</a>    <span class="comment">// Do a mem2reg after the last unroll to aid simplify_cfg
-<a href=#1926 id=1926 data-nosnippet>1926</a>    </span>function.mem2reg_simple_pre_flattening();
+<a href=#1926 id=1926 data-nosnippet>1926</a>    </span>function.mem2reg_simple();
 <a href=#1927 id=1927 data-nosnippet>1927</a>    <span class="comment">// Resolves constants, but merge blocks still have 2 predecessors
 <a href=#1928 id=1928 data-nosnippet>1928</a>    </span>function.simplify_instructions();
 <a href=#1929 id=1929 data-nosnippet>1929</a>    <span class="comment">// Eliminates dead jmpif branches, collapses merge blocks
@@ -1931,7 +1931,7 @@
 <a href=#1931 id=1931 data-nosnippet>1931</a>    <span class="comment">// Re-simplify after branch elimination
 <a href=#1932 id=1932 data-nosnippet>1932</a>    </span>function.simplify_instructions();
 <a href=#1933 id=1933 data-nosnippet>1933</a>    <span class="comment">// Do another mem2reg after simplify_cfg to aid the next unroll
-<a href=#1934 id=1934 data-nosnippet>1934</a>    </span>function.mem2reg_simple_pre_flattening();
+<a href=#1934 id=1934 data-nosnippet>1934</a>    </span>function.mem2reg_simple();
 <a href=#1935 id=1935 data-nosnippet>1935</a>}
 <a href=#1936 id=1936 data-nosnippet>1936</a>
 <a href=#1937 id=1937 data-nosnippet>1937</a><span class="doccomment">/// Decide if the new bytecode size is acceptable, compared to the original.
