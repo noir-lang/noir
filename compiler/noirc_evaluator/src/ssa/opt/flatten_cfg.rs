@@ -2075,8 +2075,10 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         // With v0 = false, the else branch returns v0 = false.
         // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
-        let inputs = vec![InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap()];
-        let (ssa, _) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        let false_value = InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
+        let inputs = vec![false_value.clone()];
+        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![false_value]);
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -2084,8 +2086,7 @@ mod tests {
             v1 = not v0
             v2 = unchecked_mul v0, v1
             enable_side_effects u1 1
-            v4 = unchecked_mul v0, u1 1
-            return v4
+            return v0
         }
         ");
     }
