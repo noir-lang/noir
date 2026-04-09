@@ -2032,7 +2032,7 @@
 <a href=#2032 id=2032 data-nosnippet>2032</a>        }
 <a href=#2033 id=2033 data-nosnippet>2033</a>        "#</span>;
 <a href=#2034 id=2034 data-nosnippet>2034</a>
-<a href=#2035 id=2035 data-nosnippet>2035</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
+<a href=#2035 id=2035 data-nosnippet>2035</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#2036 id=2036 data-nosnippet>2036</a>
 <a href=#2037 id=2037 data-nosnippet>2037</a>        <span class="kw">let </span><span class="kw-2">mut </span>variants = find_variants(<span class="kw-2">&amp;</span>ssa);
 <a href=#2038 id=2038 data-nosnippet>2038</a>        <span class="kw">let </span>((<span class="kw">_</span>, caller_runtime), variants) = variants.pop_last().unwrap();
