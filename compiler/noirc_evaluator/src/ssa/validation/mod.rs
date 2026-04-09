@@ -201,11 +201,11 @@ impl<'f> Validator<'f> {
             return;
         }
         // Check if this value is a MakeArray containing references
-        if let Value::Instruction { instruction, .. } = &dfg[value] {
-            if let Instruction::MakeArray { elements, .. } = &dfg[*instruction] {
-                for element in elements.iter() {
-                    self.mark_reference_args_initialized(*element);
-                }
+        if let Value::Instruction { instruction, .. } = &dfg[value]
+            && let Instruction::MakeArray { elements, .. } = &dfg[*instruction]
+        {
+            for element in elements {
+                self.mark_reference_args_initialized(*element);
             }
         }
     }
