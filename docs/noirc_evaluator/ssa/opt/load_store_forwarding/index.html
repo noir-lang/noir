@@ -7,7 +7,7 @@
 intervening load, the first store is dead and can be removed.</li>
 </ul>
 <p>This pass does not track values across block boundaries (that is handled by
-<code>mem2reg_simple</code> which promotes variables to block parameters). It is designed
+<code>mem2reg</code> which promotes variables to block parameters). It is designed
 to be fast on large, single-block ACIR functions that result from inlining,
 unrolling, and flattening.</p>
 <h3 id="alias-handling"><a class="doc-anchor" href="#alias-handling">§</a>Alias handling</h3>

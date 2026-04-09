@@ -3,7 +3,7 @@
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;, <a class="type" href="../../../../noirc_errors/call_stack/type.CallStack.html" title="type noirc_errors::call_stack::CallStack">CallStack</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Get all arguments of the jump into the loop header from the pre-header block.</p>
 <p>The first argument is the induction variable (must be a numeric constant).
-Additional arguments are promoted mutable variables (e.g. from mem2reg_simple).
+Additional arguments are promoted mutable variables (e.g. from mem2reg).
 Returns <code>Err</code> if the block does not end with a <code>Jmp</code>, has no arguments, or the
 first argument is not a numeric constant.</p>
 </div></details></section></div></main></body></html>

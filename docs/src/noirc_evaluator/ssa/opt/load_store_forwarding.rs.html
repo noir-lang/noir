@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>//!   intervening load, the first store is dead and can be removed.
 <a href=#8 id=8 data-nosnippet>8</a>//!
 <a href=#9 id=9 data-nosnippet>9</a>//! This pass does not track values across block boundaries (that is handled by
-<a href=#10 id=10 data-nosnippet>10</a>//! `mem2reg_simple` which promotes variables to block parameters). It is designed
+<a href=#10 id=10 data-nosnippet>10</a>//! `mem2reg` which promotes variables to block parameters). It is designed
 <a href=#11 id=11 data-nosnippet>11</a>//! to be fast on large, single-block ACIR functions that result from inlining,
 <a href=#12 id=12 data-nosnippet>12</a>//! unrolling, and flattening.
 <a href=#13 id=13 data-nosnippet>13</a>//!
@@ -113,7 +113,7 @@
 <a href=#113 id=113 data-nosnippet>113</a>///    in a later iteration, making the per-block "clear-on-unknown-store"
 <a href=#114 id=114 data-nosnippet>114</a>///    heuristic insufficient.
 <a href=#115 id=115 data-nosnippet>115</a>///
-<a href=#116 id=116 data-nosnippet>116</a>/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg_simple`
+<a href=#116 id=116 data-nosnippet>116</a>/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg`
 <a href=#117 id=117 data-nosnippet>117</a>///    has already promoted a `store ref at ref` to a block parameter, the
 <a href=#118 id=118 data-nosnippet>118</a>///    aliasing is implicit. A reference-typed loop header parameter and the
 <a href=#119 id=119 data-nosnippet>119</a>///    corresponding jmp arguments from within the loop body create the same
@@ -138,7 +138,7 @@
 <a href=#138 id=138 data-nosnippet>138</a>        }
 <a href=#139 id=139 data-nosnippet>139</a>
 <a href=#140 id=140 data-nosnippet>140</a>        <span class="comment">// Form 2: reference-typed block parameters on the loop header.
-<a href=#141 id=141 data-nosnippet>141</a>        // If mem2reg_simple promoted `store ref at ref` to a block parameter,
+<a href=#141 id=141 data-nosnippet>141</a>        // If mem2reg promoted `store ref at ref` to a block parameter,
 <a href=#142 id=142 data-nosnippet>142</a>        // the corresponding jmp arguments from within the loop carry the alias.
 <a href=#143 id=143 data-nosnippet>143</a>        </span><span class="kw">let </span>header = loop_info.header;
 <a href=#144 id=144 data-nosnippet>144</a>        <span class="kw">let </span>header_params = function.dfg[header].parameters();

@@ -42,7 +42,7 @@ used as loop bounds, into a form which loop unrolling may better identify.</li>
 <p>Conditions:</p>
 <ul>
 <li>Pre-condition: The first block parameter of each loop header is the induction variable.
-Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg_simple).</li>
+Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).</li>
 <li>Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).</li>
 <li>Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.</li>

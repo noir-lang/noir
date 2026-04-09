@@ -8,7 +8,7 @@ in a later iteration, making the per-block “clear-on-unknown-store”
 heuristic insufficient.</p>
 </li>
 <li>
-<p><strong>Reference-typed block parameters on loop headers</strong>: If <code>mem2reg_simple</code>
+<p><strong>Reference-typed block parameters on loop headers</strong>: If <code>mem2reg</code>
 has already promoted a <code>store ref at ref</code> to a block parameter, the
 aliasing is implicit. A reference-typed loop header parameter and the
 corresponding jmp arguments from within the loop body create the same

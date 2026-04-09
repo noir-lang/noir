@@ -37,7 +37,7 @@
 <a href=#37 id=37 data-nosnippet>37</a>//!
 <a href=#38 id=38 data-nosnippet>38</a>//! Conditions:
 <a href=#39 id=39 data-nosnippet>39</a>//!   - Pre-condition: The first block parameter of each loop header is the induction variable.
-<a href=#40 id=40 data-nosnippet>40</a>//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg_simple).
+<a href=#40 id=40 data-nosnippet>40</a>//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
 <a href=#41 id=41 data-nosnippet>41</a>//!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
 <a href=#42 id=42 data-nosnippet>42</a>//!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 <a href=#43 id=43 data-nosnippet>43</a>//!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
@@ -737,8 +737,8 @@
 <a href=#737 id=737 data-nosnippet>737</a>            <span class="kw">_ </span>=&gt; {
 <a href=#738 id=738 data-nosnippet>738</a>                <span class="comment">// Certain patterns can cause other instructions to be hoisted into the loop
 <a href=#739 id=739 data-nosnippet>739</a>                // header, or at least what looks to be the loop header.
-<a href=#740 id=740 data-nosnippet>740</a>                // `func_1` in `regression_mem2reg_unknown_array_aliases` is one such example
-<a href=#741 id=741 data-nosnippet>741</a>                // if `mem2reg_simple` is performed on it before unrolling.
+<a href=#740 id=740 data-nosnippet>740</a>                // `func_1` in `regression_mem2regunknown_array_aliases` is one such example
+<a href=#741 id=741 data-nosnippet>741</a>                // if `mem2reg` is performed on it before unrolling.
 <a href=#742 id=742 data-nosnippet>742</a>                </span><span class="prelude-val">None
 <a href=#743 id=743 data-nosnippet>743</a>            </span>}
 <a href=#744 id=744 data-nosnippet>744</a>        }
@@ -888,7 +888,7 @@
 <a href=#888 id=888 data-nosnippet>888</a>
 <a href=#889 id=889 data-nosnippet>889</a>        <span class="comment">// Collect all header parameters before mutably borrowing context.
 <a href=#890 id=890 data-nosnippet>890</a>        // The first parameter is the induction variable; additional parameters are
-<a href=#891 id=891 data-nosnippet>891</a>        // promoted mutable variables (e.g. from mem2reg_simple).
+<a href=#891 id=891 data-nosnippet>891</a>        // promoted mutable variables (e.g. from mem2reg).
 <a href=#892 id=892 data-nosnippet>892</a>        </span><span class="kw">let </span>header_params: Vec&lt;ValueId&gt; = context.dfg()[loop_header_id].parameters().to_vec();
 <a href=#893 id=893 data-nosnippet>893</a>
 <a href=#894 id=894 data-nosnippet>894</a>        <span class="comment">// Map each header parameter to the corresponding argument value from the previous iteration
@@ -1629,7 +1629,7 @@
 <a href=#1629 id=1629 data-nosnippet>1629</a><span class="doccomment">/// Get all arguments of the jump into the loop header from the pre-header block.
 <a href=#1630 id=1630 data-nosnippet>1630</a>///
 <a href=#1631 id=1631 data-nosnippet>1631</a>/// The first argument is the induction variable (must be a numeric constant).
-<a href=#1632 id=1632 data-nosnippet>1632</a>/// Additional arguments are promoted mutable variables (e.g. from mem2reg_simple).
+<a href=#1632 id=1632 data-nosnippet>1632</a>/// Additional arguments are promoted mutable variables (e.g. from mem2reg).
 <a href=#1633 id=1633 data-nosnippet>1633</a>/// Returns `Err` if the block does not end with a `Jmp`, has no arguments, or the
 <a href=#1634 id=1634 data-nosnippet>1634</a>/// first argument is not a numeric constant.
 <a href=#1635 id=1635 data-nosnippet>1635</a></span><span class="kw">fn </span>get_header_arguments(
@@ -1674,7 +1674,7 @@
 <a href=#1674 id=1674 data-nosnippet>1674</a>
 <a href=#1675 id=1675 data-nosnippet>1675</a>    <span class="doccomment">/// All back-edge arguments (and the block they were found in) for the next loop iteration.
 <a href=#1676 id=1676 data-nosnippet>1676</a>    /// The first element is the new induction variable; additional elements are promoted
-<a href=#1677 id=1677 data-nosnippet>1677</a>    /// mutable variables (e.g. from mem2reg_simple).
+<a href=#1677 id=1677 data-nosnippet>1677</a>    /// mutable variables (e.g. from mem2reg).
 <a href=#1678 id=1678 data-nosnippet>1678</a>    /// This is None until we visit the block which jumps back to the start of the
 <a href=#1679 id=1679 data-nosnippet>1679</a>    /// loop, at which point we record the arguments and the block they were found in.
 <a href=#1680 id=1680 data-nosnippet>1680</a>    </span>induction_value: <span class="prelude-ty">Option</span>&lt;(BasicBlockId, Vec&lt;ValueId&gt;)&gt;,
@@ -1923,7 +1923,7 @@
 <a href=#1923 id=1923 data-nosnippet>1923</a><span class="doccomment">/// Unrolling leaves some duplicate instructions which can potentially be removed.
 <a href=#1924 id=1924 data-nosnippet>1924</a></span><span class="kw">fn </span>simplify_between_unrolls(function: <span class="kw-2">&amp;mut </span>Function) {
 <a href=#1925 id=1925 data-nosnippet>1925</a>    <span class="comment">// Do a mem2reg after the last unroll to aid simplify_cfg
-<a href=#1926 id=1926 data-nosnippet>1926</a>    </span>function.mem2reg_simple();
+<a href=#1926 id=1926 data-nosnippet>1926</a>    </span>function.mem2reg();
 <a href=#1927 id=1927 data-nosnippet>1927</a>    <span class="comment">// Resolves constants, but merge blocks still have 2 predecessors
 <a href=#1928 id=1928 data-nosnippet>1928</a>    </span>function.simplify_instructions();
 <a href=#1929 id=1929 data-nosnippet>1929</a>    <span class="comment">// Eliminates dead jmpif branches, collapses merge blocks
@@ -1931,7 +1931,7 @@
 <a href=#1931 id=1931 data-nosnippet>1931</a>    <span class="comment">// Re-simplify after branch elimination
 <a href=#1932 id=1932 data-nosnippet>1932</a>    </span>function.simplify_instructions();
 <a href=#1933 id=1933 data-nosnippet>1933</a>    <span class="comment">// Do another mem2reg after simplify_cfg to aid the next unroll
-<a href=#1934 id=1934 data-nosnippet>1934</a>    </span>function.mem2reg_simple();
+<a href=#1934 id=1934 data-nosnippet>1934</a>    </span>function.mem2reg();
 <a href=#1935 id=1935 data-nosnippet>1935</a>}
 <a href=#1936 id=1936 data-nosnippet>1936</a>
 <a href=#1937 id=1937 data-nosnippet>1937</a><span class="doccomment">/// Decide if the new bytecode size is acceptable, compared to the original.
@@ -3194,13 +3194,13 @@
 <a href=#3194 id=3194 data-nosnippet>3194</a>        </span>);
 <a href=#3195 id=3195 data-nosnippet>3195</a>    }
 <a href=#3196 id=3196 data-nosnippet>3196</a>
-<a href=#3197 id=3197 data-nosnippet>3197</a>    <span class="doccomment">/// Regression test: after mem2reg_simple, loop headers can have multiple parameters
+<a href=#3197 id=3197 data-nosnippet>3197</a>    <span class="doccomment">/// Regression test: after mem2reg, loop headers can have multiple parameters
 <a href=#3198 id=3198 data-nosnippet>3198</a>    /// (induction variable + promoted mutable variables). Blocks outside the loop (like
 <a href=#3199 id=3199 data-nosnippet>3199</a>    /// the exit block b3) reference these header params directly. After unrolling, these
 <a href=#3200 id=3200 data-nosnippet>3200</a>    /// references must remain valid.
 <a href=#3201 id=3201 data-nosnippet>3201</a>    </span><span class="attr">#[test]
 <a href=#3202 id=3202 data-nosnippet>3202</a>    </span><span class="kw">fn </span>unroll_loop_with_multi_param_header() {
-<a href=#3203 id=3203 data-nosnippet>3203</a>        <span class="comment">// Simplified main from vector_loop after mem2reg_simple.
+<a href=#3203 id=3203 data-nosnippet>3203</a>        <span class="comment">// Simplified main from vector_loop after mem2reg.
 <a href=#3204 id=3204 data-nosnippet>3204</a>        // b1 has 3 params: v1 (induction), v2 (promoted u32), v3 (promoted [Field]).
 <a href=#3205 id=3205 data-nosnippet>3205</a>        // b3 (exit) references v2 and v3 from b1 directly.
 <a href=#3206 id=3206 data-nosnippet>3206</a>        </span><span class="kw">let </span>src = <span class="string">"
@@ -3259,7 +3259,7 @@
 <a href=#3259 id=3259 data-nosnippet>3259</a>    /// the loop should still be identified as small enough to unroll.
 <a href=#3260 id=3260 data-nosnippet>3260</a>    /// This is the SSA for the `brillig_cow_assign` integration test post mem2reg.
 <a href=#3261 id=3261 data-nosnippet>3261</a>    </span><span class="attr">#[test]
-<a href=#3262 id=3262 data-nosnippet>3262</a>    </span><span class="kw">fn </span>test_brillig_unroll_after_mem2reg_simple() {
+<a href=#3262 id=3262 data-nosnippet>3262</a>    </span><span class="kw">fn </span>test_brillig_unroll_after_mem2reg() {
 <a href=#3263 id=3263 data-nosnippet>3263</a>        <span class="kw">let </span>src = <span class="string">"
 <a href=#3264 id=3264 data-nosnippet>3264</a>            brillig(inline) predicate_pure fn main f0 {
 <a href=#3265 id=3265 data-nosnippet>3265</a>                b0():
@@ -3291,7 +3291,7 @@
 <a href=#3291 id=3291 data-nosnippet>3291</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#3292 id=3292 data-nosnippet>3292</a>        <span class="kw">let _ </span>= ssa.interpret(<span class="macro">vec!</span>[]).unwrap();
 <a href=#3293 id=3293 data-nosnippet>3293</a>
-<a href=#3294 id=3294 data-nosnippet>3294</a>        <span class="comment">// After mem2reg_simple, no loads/stores remain — the cost model must recognize
+<a href=#3294 id=3294 data-nosnippet>3294</a>        <span class="comment">// After mem2reg, no loads/stores remain — the cost model must recognize
 <a href=#3295 id=3295 data-nosnippet>3295</a>        // the loop-internal terminator costs as boilerplate.
 <a href=#3296 id=3296 data-nosnippet>3296</a>        </span><span class="kw">let </span>stats = loop0_stats(<span class="kw-2">&amp;</span>ssa);
 <a href=#3297 id=3297 data-nosnippet>3297</a>        <span class="macro">assert_eq!</span>(
@@ -3361,7 +3361,7 @@
 <a href=#3361 id=3361 data-nosnippet>3361</a>        "</span>);
 <a href=#3362 id=3362 data-nosnippet>3362</a>    }
 <a href=#3363 id=3363 data-nosnippet>3363</a>
-<a href=#3364 id=3364 data-nosnippet>3364</a>    <span class="doccomment">/// Regression test: after mem2reg_simple promotes loads/stores to block parameters,
+<a href=#3364 id=3364 data-nosnippet>3364</a>    <span class="doccomment">/// Regression test: after mem2reg promotes loads/stores to block parameters,
 <a href=#3365 id=3365 data-nosnippet>3365</a>    /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
 <a href=#3366 id=3366 data-nosnippet>3366</a>    /// block parameters. Without this, nested loops over constant 2D arrays won't see
 <a href=#3367 id=3367 data-nosnippet>3367</a>    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
@@ -3777,7 +3777,7 @@
 <a href=#3777 id=3777 data-nosnippet>3777</a>
 <a href=#3778 id=3778 data-nosnippet>3778</a>    <span class="kw">use super</span>::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 <a href=#3779 id=3779 data-nosnippet>3779</a>
-<a href=#3780 id=3780 data-nosnippet>3780</a>    <span class="doccomment">/// Regression test for vector_loop: after mem2reg_simple promotes the vector length
+<a href=#3780 id=3780 data-nosnippet>3780</a>    <span class="doccomment">/// Regression test for vector_loop: after mem2reg promotes the vector length
 <a href=#3781 id=3781 data-nosnippet>3781</a>    /// allocation to a block parameter, the iterative unrolling must still resolve the
 <a href=#3782 id=3782 data-nosnippet>3782</a>    /// sum loop's bound to a constant through the vector_push_back simplification chain.
 <a href=#3783 id=3783 data-nosnippet>3783</a>    ///
@@ -3846,7 +3846,7 @@
 <a href=#3846 id=3846 data-nosnippet>3846</a>        "</span>;
 <a href=#3847 id=3847 data-nosnippet>3847</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#3848 id=3848 data-nosnippet>3848</a>
-<a href=#3849 id=3849 data-nosnippet>3849</a>        <span class="comment">// let ssa = ssa.mem2reg_simple().load_store_forwarding().simplify_cfg().mem2reg_simple();
+<a href=#3849 id=3849 data-nosnippet>3849</a>        <span class="comment">// let ssa = ssa.mem2reg().load_store_forwarding().simplify_cfg().mem2reg();
 <a href=#3850 id=3850 data-nosnippet>3850</a>        // println!("{}", ssa.print_with(None));
 <a href=#3851 id=3851 data-nosnippet>3851</a>        // This should successfully unroll all loops, including the sum loop whose bound
 <a href=#3852 id=3852 data-nosnippet>3852</a>        // depends on the vector length accumulated through vector_push_back calls.
