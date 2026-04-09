@@ -283,6 +283,28 @@ pub(crate) fn simplify(
             // TODO: We could check to see if `then_condition == inner_else_condition`
             // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
+            // IfElse conditions are always boolean, so not(cond) * cond = 0.
+            // When else_value == then_condition, the else term vanishes and
+            // the result is just then_condition * then_value.
+            if else_value == then_condition {
+                let mul = Instruction::binary(
+                    BinaryOp::Mul { unchecked: true },
+                    then_condition,
+                    then_value,
+                );
+                return SimplifiedToInstruction(mul);
+            }
+            // Symmetric case: when then_value == else_condition, the then term
+            // vanishes and the result is just else_condition * else_value.
+            if then_value == else_condition {
+                let mul = Instruction::binary(
+                    BinaryOp::Mul { unchecked: true },
+                    else_condition,
+                    else_value,
+                );
+                return SimplifiedToInstruction(mul);
+            }
+
             if matches!(&typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
                     dfg,

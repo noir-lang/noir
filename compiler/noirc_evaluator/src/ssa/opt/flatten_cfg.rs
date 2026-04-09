@@ -2084,9 +2084,8 @@ mod tests {
             v1 = not v0
             v2 = unchecked_mul v0, v1
             enable_side_effects u1 1
-            v4 = unchecked_mul v1, v0
-            v5 = unchecked_add v0, v4
-            return v5
+            v4 = unchecked_mul v0, u1 1
+            return v4
         }
         ");
     }
