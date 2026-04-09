@@ -587,7 +587,7 @@
 <a href=#587 id=587 data-nosnippet>587</a>                    bit_size =&gt; bit_size,
 <a href=#588 id=588 data-nosnippet>588</a>                };
 <a href=#589 id=589 data-nosnippet>589</a>                <span class="kw">let </span>typ = Type::Integer(Signedness::Signed, bit_size);
-<a href=#590 id=590 data-nosnippet>590</a>                <span class="kw">let </span>minimum_size: i128 = typ.integral_maximum_size().unwrap().try_into().unwrap();
+<a href=#590 id=590 data-nosnippet>590</a>                <span class="kw">let </span>minimum_size: i128 = typ.integral_minimum_size().unwrap();
 <a href=#591 id=591 data-nosnippet>591</a>                <span class="kw">let </span>maximum_size: i128 = typ.integral_maximum_size().unwrap().try_into().unwrap();
 <a href=#592 id=592 data-nosnippet>592</a>                (typ, arbitrary_i128_field_element(minimum_size, maximum_size).boxed())
 <a href=#593 id=593 data-nosnippet>593</a>            }),
