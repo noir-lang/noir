@@ -233,13 +233,8 @@ impl Function {
             }
 
             // Filter the block's parameter list.
-            let old_params = self.dfg[block].take_parameters();
-            let new_params: Vec<ValueId> = old_params
-                .into_iter()
-                .zip(&keep_list)
-                .filter_map(|(p, &k)| k.then_some(p))
-                .collect();
-            self.dfg[block].set_parameters(new_params);
+            let mut keep_list_iter = keep_list.iter().copied();
+            self.dfg[block].parameters_mut().retain(|_| keep_list_iter.next().unwrap());
 
             // Strip corresponding arguments from predecessor terminators.
             for pred in cfg.predecessors(block) {
@@ -293,12 +288,8 @@ fn remove_terminator_args(
     keep_list: &[bool],
 ) {
     let remove_args = |args: &mut Vec<ValueId>| {
-        let mut i = 0;
-        args.retain(|_| {
-            let keep = keep_list[i];
-            i += 1;
-            keep
-        });
+        let mut keep_list_iter = keep_list.iter().copied();
+        args.retain(|_| keep_list_iter.next().unwrap());
     };
 
     let terminator = pred_block.unwrap_terminator_mut();
