@@ -50,7 +50,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.mem2reg_simple(true);
+            function.mem2reg_simple();
         }
         self
     }
@@ -60,7 +60,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(true);
+                function.mem2reg_simple();
             }
         }
         self
@@ -83,10 +83,10 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
-        self.mem2reg_simple(true);
+        self.mem2reg_simple();
     }
 
-    fn mem2reg_simple(&mut self, cleanup: bool) {
+    fn mem2reg_simple(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -137,18 +137,8 @@ impl Function {
             &block_states,
             &cfg,
         );
-        if cleanup {
-            remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
-        }
+        remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
         commit(&mut inserter, &variables, blocks);
-    }
-
-    /// Like `mem2reg_simple` but skips the cleanup pass that removes block parameters
-    /// whose arguments are all identical. This reveals whether the IDF-based placement
-    /// avoided unnecessary parameters at source, rather than relying on cleanup.
-    #[cfg(test)]
-    fn mem2reg_simple_without_cleanup(&mut self) {
-        self.mem2reg_simple(false);
     }
 }
 
@@ -1476,10 +1466,7 @@ brillig(inline) fn main f0 {
     ///
     /// The variable v1 is stored in b0 and b1. The IDF of {b0, b1} is {b3} (the merge point).
     /// Blocks b2, b4, and b5 are single-predecessor blocks that should NOT get block parameters.
-    ///
-    /// We use `mem2reg_simple_without_cleanup` to verify this at source: if the IDF optimization
-    /// were removed (adding params everywhere), b2/b4/b5 would have params that cleanup would
-    /// remove — but we'd lose the O(V×B) performance benefit.
+    /// Only b3 gets a parameter — the minimal correct placement.
     #[test]
     fn idf_avoids_unnecessary_block_params() {
         let src = "
@@ -1502,27 +1489,11 @@ brillig(inline) fn main f0 {
                 return v2
             }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg_simple();
 
-        // Run without cleanup to reveal whether IDF placement avoids parameters at source.
-        // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
-        for function in ssa.functions.values_mut() {
-            function.mem2reg_simple_without_cleanup();
-        }
-
-        // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
-        // for v1 that the cleanup pass would later remove:
-        //
-        //   b2(v_unnecessary_1: Field):      ← param added then cleaned up
-        //     jmp b3(Field 0)
-        //   b3(v3: Field):
-        //     jmp b4(v3)
-        //   b4(v_unnecessary_2: Field):      ← param added then cleaned up
-        //     jmp b5(v_unnecessary_2)
-        //   b5(v_unnecessary_3: Field):      ← param added then cleaned up
-        //     return v_unnecessary_3
-        //
-        // With IDF, only b3 gets a parameter — the minimal correct placement:
+        // Only b3 gets a block parameter (the merge of b1 and b2).
+        // b2, b4, and b5 are single-predecessor blocks with no extra params.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1):
