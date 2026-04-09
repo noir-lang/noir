@@ -48,6 +48,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     opt::{LoopOrder, Loops},
@@ -322,8 +323,15 @@ fn forward_loads_and_stores_in_block(
                     // extract inner references and write through them.
                     let is_simple_ref = matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
                     if is_simple_ref {
-                        known_values.remove(&value);
-                        last_loads.remove(&value);
+                        let is_mutable = matches!(&*typ, Type::Reference(_, true));
+                        if is_mutable {
+                            // Mutable ref: callee can write through it, invalidate known value.
+                            known_values.remove(&value);
+                            last_loads.remove(&value);
+                        }
+                        // Immutable refs (&T): callee cannot write, so known_values
+                        // and last_loads survive. But the callee may read (so the
+                        // store isn't dead) and the address escapes (could be aliased).
                         last_stores.remove(&value);
                         local_allocations.remove(&value);
                     } else if typ.contains_reference() {
@@ -954,5 +962,99 @@ mod tests {
         ";
         // v0 and v1 could alias, so load v0 after store to v1 must NOT be forwarded.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn immutable_ref_passed_to_call_forwards_load() {
+        // An immutable reference (&Field) parameter passed to a call cannot be
+        // written through, so the load-to-load entry should survive the call.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // v2 should forward to v1 via load-to-load (call doesn't invalidate &Field).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn mutable_ref_passed_to_call_does_not_forward() {
+        // Regression: a mutable reference passed to a call must still invalidate
+        // the load-to-load entry since the callee can write through it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn immutable_ref_store_not_dead_across_call() {
+        // A store to an address before passing it (as &Field) to a call is NOT dead
+        // — the callee may read through it. last_stores must still be invalidated.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            store Field 42 at v0
+            call f1(v0)
+            store Field 99 at v0
+            v1 = load v0 -> Field
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The first store (Field 42) must NOT be eliminated as dead — the call reads it.
+        // The known value (Field 42) survives the call, and the second store updates it.
+        // The load forwards to Field 99.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            store Field 42 at v0
+            call f1(v0)
+            store Field 99 at v0
+            return Field 99
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ");
     }
 }
