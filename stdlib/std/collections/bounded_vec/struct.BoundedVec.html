@@ -222,7 +222,7 @@ equal to the <code>MaxLen</code> parameter this vector was initialized with.</p>
 <span class="kw">assert</span>(v.max_len() == <span class="number">5</span>);
 v.push(<span class="number">10</span>);
 <span class="kw">assert</span>(v.max_len() == <span class="number">5</span>);</code></pre></div>
-</div><code id="storage" class="code-header">pub fn <a href="#storage"><span class="fn">storage</span></a>(&mut self: &Self) -> [T; MaxLen]</code>
+</div><code id="storage" class="code-header">pub fn <a href="#storage"><span class="fn">storage</span></a>(self) -> [T; MaxLen]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the internal array within this vector.</p>
