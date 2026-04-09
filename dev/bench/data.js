@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775765921817,
+  "lastUpdate": 1775766065130,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22136,48 +22136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "28d61db0d80c50c0aa79bb4da351b41a3b28d8de",
-          "message": "fix: ssa interpreter unchecked sub was checked (#12113)",
-          "timestamp": "2026-04-03T14:01:25Z",
-          "tree_id": "7f78e46a647fcbac944df179a8c77ebe98e8fb7c",
-          "url": "https://github.com/noir-lang/noir/commit/28d61db0d80c50c0aa79bb4da351b41a3b28d8de"
-        },
-        "date": 1775226266157,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167942,
-            "range": "± 442",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140121,
-            "range": "± 321",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645964,
-            "range": "± 2412",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -24229,6 +24187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641237,
             "range": "± 8923",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "96b567a45156d66ab5fd6274d1e6439c4d2931cc",
+          "message": "chore: Tests for generic inference through references and auto-borrow (#12209)",
+          "timestamp": "2026-04-09T19:57:58Z",
+          "tree_id": "a9869426dc2e2bcb1c50b7759e3fb96c1bd19957",
+          "url": "https://github.com/noir-lang/noir/commit/96b567a45156d66ab5fd6274d1e6439c4d2931cc"
+        },
+        "date": 1775766009622,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127487,
+            "range": "± 606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112950,
+            "range": "± 723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3039124,
+            "range": "± 28597",
             "unit": "ns/iter"
           }
         ]
