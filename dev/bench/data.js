@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775767173842,
+  "lastUpdate": 1775767359487,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22141,48 +22141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "5939e7b2db1a78634b59f24c9223b4d2e02415bc",
-          "message": "fix: check dominators when removing truncate instructions (#12095)",
-          "timestamp": "2026-04-03T19:16:07Z",
-          "tree_id": "fb2801888cad7fda76c6d0dffb7b79749f423ead",
-          "url": "https://github.com/noir-lang/noir/commit/5939e7b2db1a78634b59f24c9223b4d2e02415bc"
-        },
-        "date": 1775245376688,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168075,
-            "range": "± 866",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140787,
-            "range": "± 4385",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645568,
-            "range": "± 6284",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b8fc4f29f0ef39125932304f4370bb0e6d3f9bc4",
           "message": "chore: handle missing error in codegen_if (#12099)",
           "timestamp": "2026-04-03T19:16:27Z",
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2124878,
             "range": "± 1025",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7245cf85ebc68f441b93e0c20d4498de6bd9d877",
+          "message": "fix: Fix cycle in lookup_associated_type_in_parent_impls (#12160)",
+          "timestamp": "2026-04-09T20:15:22Z",
+          "tree_id": "9162ab4c8a0976c4802b2bfec8efd47fcbb80d8f",
+          "url": "https://github.com/noir-lang/noir/commit/7245cf85ebc68f441b93e0c20d4498de6bd9d877"
+        },
+        "date": 1775767295445,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168751,
+            "range": "± 254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137467,
+            "range": "± 982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642206,
+            "range": "± 2251",
             "unit": "ns/iter"
           }
         ]
