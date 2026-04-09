@@ -41,7 +41,7 @@
 //!
 //! ## Pipeline placement
 //!
-//! Chained after every `mem2reg_simple` call in the pipeline. `mem2reg_simple` is likely to generate
+//! Chained after every `mem2reg` call in the pipeline. `mem2reg` is likely to generate
 //! redundant parameters when promoting memory variables.  
 
 use itertools::Itertools;

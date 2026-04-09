@@ -1537,7 +1537,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple();
+        let ssa = ssa.flatten_cfg().mem2reg();
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1922,7 +1922,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -1987,7 +1987,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2029,7 +2029,7 @@ mod tests {
 
         let ssa = ssa
             .flatten_cfg()
-            .mem2reg_simple()
+            .mem2reg()
             .remove_if_else()
             .unwrap()
             .fold_constants(1)
@@ -2200,7 +2200,7 @@ mod tests {
 
     /// Regression test: when JmpIf's else_destination IS the exit/merge block
     /// (no separate else block), the else_arguments carry the "no-change" value
-    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// directly to the merge. This is the pattern mem2reg produces when
     /// the else branch has no stores (just falls through to the merge block).
     #[test]
     fn flatten_jmpif_else_args_to_exit_block() {
@@ -2382,10 +2382,8 @@ mod merge_provenance_tests {
         let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
         let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
 
-        let promoted_flat =
-            promoted_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
-        let store_load_flat =
-            store_load_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
+        let promoted_flat = promoted_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
+        let store_load_flat = store_load_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
 
         let count = |ssa: &Ssa| -> usize {
             let main = ssa.main();

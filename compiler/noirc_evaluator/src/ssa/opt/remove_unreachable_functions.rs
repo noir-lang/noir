@@ -10,7 +10,7 @@
 //! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
 //!   Even if not immediately called, it may later be dynamically loaded and invoked.
 //!   This marking is conservative but ensures correctness. We should instead rely on
-//!   [crate::ssa::opt::mem2reg_simple] for resolving loads/stores.
+//!   [crate::ssa::opt::mem2reg] for resolving loads/stores.
 //! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
 //! The pass builds a call graph based upon the definition of reachability above.

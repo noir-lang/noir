@@ -7,7 +7,7 @@
 //!   intervening load, the first store is dead and can be removed.
 //!
 //! This pass does not track values across block boundaries (that is handled by
-//! `mem2reg_simple` which promotes variables to block parameters). It is designed
+//! `mem2reg` which promotes variables to block parameters). It is designed
 //! to be fast on large, single-block ACIR functions that result from inlining,
 //! unrolling, and flattening.
 //!
@@ -113,7 +113,7 @@ impl Function {
 ///    in a later iteration, making the per-block "clear-on-unknown-store"
 ///    heuristic insufficient.
 ///
-/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg_simple`
+/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg`
 ///    has already promoted a `store ref at ref` to a block parameter, the
 ///    aliasing is implicit. A reference-typed loop header parameter and the
 ///    corresponding jmp arguments from within the loop body create the same
@@ -138,7 +138,7 @@ fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
         }
 
         // Form 2: reference-typed block parameters on the loop header.
-        // If mem2reg_simple promoted `store ref at ref` to a block parameter,
+        // If mem2reg promoted `store ref at ref` to a block parameter,
         // the corresponding jmp arguments from within the loop carry the alias.
         let header = loop_info.header;
         let header_params = function.dfg[header].parameters();
