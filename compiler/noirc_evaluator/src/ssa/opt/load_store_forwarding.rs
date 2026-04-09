@@ -39,6 +39,7 @@
 //! loop-alias heuristic can be replaced with precise alias queries.
 //!
 //! [#12005]: https://github.com/noir-lang/noir/issues/12005
+#![allow(unused)]
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -56,7 +57,7 @@ use crate::ssa::{
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn load_store_forwarding(mut self) -> Ssa {
+    fn load_store_forwarding(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.load_store_forwarding();
         }
@@ -67,7 +68,7 @@ impl Ssa {
 impl Function {
     /// Runs load/store forwarding on this function by iterating all blocks in reverse
     /// post-order and applying per-block forwarding and dead store elimination.
-    pub(crate) fn load_store_forwarding(&mut self) {
+    fn load_store_forwarding(&mut self) {
         let loop_aliases = analyze_loop_aliases(self);
 
         let mut inserter = FunctionInserter::new(self);
