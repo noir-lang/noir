@@ -124,6 +124,15 @@ pub(super) fn simplify_binary(
                     return SimplifyResult::SimplifiedTo(rhs);
                 }
             }
+            // b * (not b) = 0 or (not b) * b = 0 when b is boolean
+            if dfg.get_value_max_num_bits(lhs) == 1 && dfg.get_value_max_num_bits(rhs) == 1 {
+                let lhs_is_not_of_rhs = matches!(&dfg[lhs], super::Value::Instruction { instruction, .. } if matches!(&dfg[*instruction], Instruction::Not(v) if *v == rhs));
+                let rhs_is_not_of_lhs = matches!(&dfg[rhs], super::Value::Instruction { instruction, .. } if matches!(&dfg[*instruction], Instruction::Not(v) if *v == lhs));
+                if lhs_is_not_of_rhs || rhs_is_not_of_lhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+            }
             // (b*x)*b = b*x if b is boolean
             if dfg.get_value_max_num_bits(rhs) == 1
                 && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
@@ -353,6 +362,48 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u8):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_bool_mul_not_to_zero() {
+        // v0 * (not v0) = 0
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            return u1 0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_not_bool_mul_to_zero() {
+        // (not v0) * v0 = 0
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = unchecked_mul v1, v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            return u1 0
         }
         ");
     }
