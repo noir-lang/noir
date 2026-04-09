@@ -2032,7 +2032,7 @@ mod tests {
         }
         "#;
 
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
         let mut variants = find_variants(&ssa);
         let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
