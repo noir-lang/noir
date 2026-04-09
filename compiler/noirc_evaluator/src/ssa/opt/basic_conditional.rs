@@ -690,7 +690,7 @@ mod tests {
     }
 
     /// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
-    /// (as emitted by mem2reg_simple). Both branches receive a promoted variable value
+    /// (as emitted by mem2reg). Both branches receive a promoted variable value
     /// as a block parameter. The optimization should still fire and produce merged output.
     #[test]
     fn jmpif_with_then_and_else_args_diamond() {
