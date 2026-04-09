@@ -292,6 +292,7 @@ mod tests {
             function_builder::FunctionBuilder,
             ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
             opt::{
+                DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
                 FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding,
                 flatten_cfg::branch_analysis::find_branch_ends, inlining,
             },
@@ -654,6 +655,8 @@ mod tests {
             max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Vec::new(),
             ssa_logging_hide_unchanged: false,
         };

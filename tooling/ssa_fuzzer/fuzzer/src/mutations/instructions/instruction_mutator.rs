@@ -34,7 +34,7 @@ use crate::mutations::{
     instructions::argument_mutator::numeric_argument_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 /// Return new random instruction
 struct RandomMutation;

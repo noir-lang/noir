@@ -1,0 +1,6 @@
+[package]
+name = "local_module_does_not_conflict_with_debugger"
+type = "bin"
+authors = [""]
+
+[dependencies]

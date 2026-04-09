@@ -359,7 +359,7 @@ fn derive_pedersen_generators_requires_constant_input() {
     acir(inline) fn main f0 {
       b0(v0: u32, v1: u32):
         separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-        v2 = call derive_pedersen_generators(separator, v1) -> [(Field, Field, u1); 1]
+        v2 = call derive_pedersen_generators(separator, v1) -> [(Field, Field); 1]
         return v2
     }
     "#;
