@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775747461569,
+  "lastUpdate": 1775757698487,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22136,48 +22136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6c53b58d92c6e062ccb846bf45377737b13c23bd",
-          "message": "feat: Allow immrefs to go from acir to brillig (#12035)",
-          "timestamp": "2026-04-02T20:08:28Z",
-          "tree_id": "83e8a9359fbe8821d3e4ee78bae622002f146f57",
-          "url": "https://github.com/noir-lang/noir/commit/6c53b58d92c6e062ccb846bf45377737b13c23bd"
-        },
-        "date": 1775162201596,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167955,
-            "range": "± 509",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139370,
-            "range": "± 2798",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646290,
-            "range": "± 2796",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24229,6 +24187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642065,
             "range": "± 2050",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "60821b136f103c57dc26b1d588f1785ec26f181b",
+          "message": "chore: Rename mem2reg_simple to mem2reg (#12216)",
+          "timestamp": "2026-04-09T17:36:06Z",
+          "tree_id": "e98bc4d479357c6e89a4cf62324b472b89033089",
+          "url": "https://github.com/noir-lang/noir/commit/60821b136f103c57dc26b1d588f1785ec26f181b"
+        },
+        "date": 1775757643542,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169605,
+            "range": "± 378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138710,
+            "range": "± 3726",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644527,
+            "range": "± 43584",
             "unit": "ns/iter"
           }
         ]
