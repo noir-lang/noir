@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775667187078,
+  "lastUpdate": 1775732182090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22146,48 +22146,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "49c7691e5fc97906d0feb83998035f81d24c5762",
-          "message": "fix: don't simplify `x | MAX` if x is signed (#12100)",
-          "timestamp": "2026-04-02T15:43:27Z",
-          "tree_id": "4121e25ac1ee243313746726443fc55fe96ee30e",
-          "url": "https://github.com/noir-lang/noir/commit/49c7691e5fc97906d0feb83998035f81d24c5762"
-        },
-        "date": 1775149558429,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167720,
-            "range": "± 968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139734,
-            "range": "± 351",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646381,
-            "range": "± 1532",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "3a0508e52031b6064a1233d91ec118367d067aed",
           "message": "feat: clarify type mismatch errors when base names are equal (#12074)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
           "timestamp": "2026-04-02T16:01:42Z",
@@ -24229,6 +24187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643817,
             "range": "± 5057",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5cc82dc07e791c5d89660d9fc0ba762e8cc57409",
+          "message": "fix(ssa): prevent false merge collapses when inner IfElse simplifies to its condition (#12189)",
+          "timestamp": "2026-04-09T10:30:05Z",
+          "tree_id": "0f7e0ddeebec63d2b20898ffbd0db2f8e339a9c0",
+          "url": "https://github.com/noir-lang/noir/commit/5cc82dc07e791c5d89660d9fc0ba762e8cc57409"
+        },
+        "date": 1775732127868,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169374,
+            "range": "± 1155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136916,
+            "range": "± 8604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640265,
+            "range": "± 5712",
             "unit": "ns/iter"
           }
         ]
