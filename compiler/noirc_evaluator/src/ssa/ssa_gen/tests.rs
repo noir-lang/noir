@@ -790,3 +790,51 @@ fn mut_ref_and_immutable_ref_to_same_data_ssa() {
     }
     ");
 }
+
+#[test]
+fn immutable_ref_no_inc_rc_in_brillig() {
+    // When cloning an immutable reference to an array in unconstrained code,
+    // we should NOT emit inc_rc since the data behind an immutable reference
+    // cannot be modified, making reference counting unnecessary.
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        foo(&arr);
+    }
+
+    unconstrained fn foo(x: &[Field; 3]) {
+        bar(*x);
+    }
+
+    unconstrained fn bar(a: [Field; 3]) {
+        assert(a[0] == 1);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // The `inc_rc` on v1 loaded from immutable ref v0 should be skipped.
+    // Since v0 is &[Field; 3] (immutable), the underlying data cannot be modified,
+    // so reference counting is unnecessary.
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v4 = allocate -> &[Field; 3]
+        store v3 at v4
+        call f1(v4)
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: &[Field; 3]):
+        v1 = load v0 -> [Field; 3]
+        call f2(v1)
+        return
+    }
+    brillig(inline) fn bar f2 {
+      b0(v0: [Field; 3]):
+        v2 = array_get v0, index u32 0 -> Field
+        v4 = eq v2, Field 1
+        constrain v2 == Field 1
+        return
+    }
+    ");
+}

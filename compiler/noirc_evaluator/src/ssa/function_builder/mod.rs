@@ -383,14 +383,24 @@ impl FunctionBuilder {
 
     /// Insert an instruction to increment an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
+    ///
+    /// Skipped for values loaded from immutable references since the data behind
+    /// an immutable reference cannot be modified, making reference counting unnecessary.
     pub fn insert_inc_rc(&mut self, value: ValueId) {
-        self.insert_instruction(Instruction::IncrementRc { value }, None);
+        if !self.value_is_loaded_from_immutable_ref(value) {
+            self.insert_instruction(Instruction::IncrementRc { value }, None);
+        }
     }
 
     /// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
+    ///
+    /// Skipped for values loaded from immutable references since the data behind
+    /// an immutable reference cannot be modified, making reference counting unnecessary.
     pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
-        self.insert_instruction(Instruction::DecrementRc { value }, None);
+        if !self.value_is_loaded_from_immutable_ref(value) {
+            self.insert_instruction(Instruction::DecrementRc { value }, None);
+        }
     }
 
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
@@ -548,6 +558,20 @@ impl FunctionBuilder {
                 }
                 Some(value)
             }
+        }
+    }
+
+    /// Check if a value was produced by loading from an immutable reference.
+    fn value_is_loaded_from_immutable_ref(&self, value: ValueId) -> bool {
+        if let Some(Instruction::Load { address }) =
+            self.current_function.dfg.get_local_or_global_instruction(value)
+        {
+            matches!(
+                self.current_function.dfg.type_of_value(*address).as_ref(),
+                Type::Reference(_, false)
+            )
+        } else {
+            false
         }
     }
 
