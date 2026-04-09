@@ -621,20 +621,19 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        // mem2reg_simple leaves redundant params; remove_redundant_params cleans them up.
-        let ssa = ssa.mem2reg_simple().remove_redundant_params();
+        let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0(v0: u1):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                jmp b3()
-              b2():
-                jmp b3()
-              b3():
-                return Field 1
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 1)
+          b3(v1: Field):
+            return v1
+        }
+        ");
     }
 
     #[test]
@@ -1244,9 +1243,7 @@ brillig(inline) fn main f0 {
             }";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // The loop back-edge passes the parameter to itself, so all non-self
-        // arguments are identical — remove_redundant_params handles this.
-        let ssa = ssa.mem2reg_simple().remove_redundant_params();
+        let ssa = ssa.mem2reg_simple();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u1):
