@@ -2152,5 +2152,4 @@ mod tests {
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
-
 }
