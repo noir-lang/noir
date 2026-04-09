@@ -474,12 +474,12 @@
 <a href=#474 id=474 data-nosnippet>474</a>        Type::Vector(<span class="kw">_</span>) =&gt; {
 <a href=#475 id=475 data-nosnippet>475</a>            <span class="macro">panic!</span>(<span class="string">"zeroed_value() does not support vectors, use zeroed_vector_of_size() instead"</span>);
 <a href=#476 id=476 data-nosnippet>476</a>        }
-<a href=#477 id=477 data-nosnippet>477</a>        Type::Reference(element_type) =&gt; {
+<a href=#477 id=477 data-nosnippet>477</a>        Type::Reference(element_type, mutable) =&gt; {
 <a href=#478 id=478 data-nosnippet>478</a>            <span class="comment">// The result of the instruction is a reference; Allocate creates a reference,
 <a href=#479 id=479 data-nosnippet>479</a>            // but if we tried to Load from it we would get an error, so follow it with a
 <a href=#480 id=480 data-nosnippet>480</a>            // Store of a default value.
 <a href=#481 id=481 data-nosnippet>481</a>            </span><span class="kw">let </span>instruction = Instruction::Allocate;
-<a href=#482 id=482 data-nosnippet>482</a>            <span class="kw">let </span>reference_type = Type::Reference(Arc::new((<span class="kw-2">**</span>element_type).clone()));
+<a href=#482 id=482 data-nosnippet>482</a>            <span class="kw">let </span>reference_type = Type::Reference(Arc::new((<span class="kw-2">**</span>element_type).clone()), <span class="kw-2">*</span>mutable);
 <a href=#483 id=483 data-nosnippet>483</a>
 <a href=#484 id=484 data-nosnippet>484</a>            <span class="kw">let </span>reference_id = dfg
 <a href=#485 id=485 data-nosnippet>485</a>                .insert_instruction_and_results(

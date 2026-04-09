@@ -134,7 +134,7 @@
 <a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// Recursively unwrap references and mark any contained arrays as mutated.
 <a href=#135 id=135 data-nosnippet>135</a>    </span><span class="kw">fn </span>mark_each_contained_array_as_mutated(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) {
 <a href=#136 id=136 data-nosnippet>136</a>        <span class="kw">match </span>typ {
-<a href=#137 id=137 data-nosnippet>137</a>            Type::Reference(element) =&gt; <span class="self">self</span>.mark_each_contained_array_as_mutated(element),
+<a href=#137 id=137 data-nosnippet>137</a>            Type::Reference(element, <span class="kw">_</span>) =&gt; <span class="self">self</span>.mark_each_contained_array_as_mutated(element),
 <a href=#138 id=138 data-nosnippet>138</a>            Type::Array(element_types, <span class="kw">_</span>) | Type::Vector(element_types) =&gt; {
 <a href=#139 id=139 data-nosnippet>139</a>                <span class="comment">// Mark the array type we have found as being possibly mutated
 <a href=#140 id=140 data-nosnippet>140</a>                </span><span class="self">self</span>.mark_as_mutated(typ);

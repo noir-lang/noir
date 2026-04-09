@@ -616,7 +616,7 @@
 <a href=#616 id=616 data-nosnippet>616</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Only Param type values should appear in block parameters"</span>);
 <a href=#617 id=617 data-nosnippet>617</a>            };
 <a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">match </span>param_type {
-<a href=#619 id=619 data-nosnippet>619</a>                Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Vector(..) | Type::Reference(<span class="kw">_</span>) =&gt; {
+<a href=#619 id=619 data-nosnippet>619</a>                Type::Numeric(<span class="kw">_</span>) | Type::Array(..) | Type::Vector(..) | Type::Reference(..) =&gt; {
 <a href=#620 id=620 data-nosnippet>620</a>                    <span class="comment">// Simple parameters and arrays are passed as already filled registers.
 <a href=#621 id=621 data-nosnippet>621</a>                    // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
 <a href=#622 id=622 data-nosnippet>622</a>                    // For vectors, two registers are passed, the pointer to the data and a register holding the size of the vector.
@@ -1080,7 +1080,7 @@
 <a href=#1080 id=1080 data-nosnippet>1080</a>        (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
 <a href=#1081 id=1081 data-nosnippet>1081</a>            <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
 <a href=#1082 id=1082 data-nosnippet>1082</a>        }
-<a href=#1083 id=1083 data-nosnippet>1083</a>        (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
+<a href=#1083 id=1083 data-nosnippet>1083</a>        (<span class="kw">_</span>, Type::Reference(..)) | (Type::Reference(..), <span class="kw">_</span>) =&gt; {
 <a href=#1084 id=1084 data-nosnippet>1084</a>            <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
 <a href=#1085 id=1085 data-nosnippet>1085</a>        }
 <a href=#1086 id=1086 data-nosnippet>1086</a>        (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {

@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="kw">for </span>((a, b), param) <span class="kw">in </span>then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
 <a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">if </span>a != b {
 <a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>typ = dfg.type_of_value(<span class="kw-2">*</span>param);
-<a href=#236 id=236 data-nosnippet>236</a>            <span class="kw">if </span>typ.is_numeric() || <span class="macro">matches!</span>(<span class="kw-2">*</span>typ, Type::Reference(<span class="kw">_</span>)) {
+<a href=#236 id=236 data-nosnippet>236</a>            <span class="kw">if </span>typ.is_numeric() || <span class="macro">matches!</span>(<span class="kw-2">*</span>typ, Type::Reference(..)) {
 <a href=#237 id=237 data-nosnippet>237</a>                cost += <span class="number">1</span>; <span class="comment">// SingleAddr: one ConditionalMov in Brillig
 <a href=#238 id=238 data-nosnippet>238</a>            </span>} <span class="kw">else </span>{
 <a href=#239 id=239 data-nosnippet>239</a>                <span class="comment">// Array/slice: conditional memory copy (~20 opcodes)

@@ -77,7 +77,7 @@
 <a href=#77 id=77 data-nosnippet>77</a>)]
 <a href=#78 id=78 data-nosnippet>78</a></span><span class="kw">pub enum </span>Type {
 <a href=#79 id=79 data-nosnippet>79</a>    Numeric(NumericType),
-<a href=#80 id=80 data-nosnippet>80</a>    Reference(Arc&lt;Type&gt;),
+<a href=#80 id=80 data-nosnippet>80</a>    Reference(Arc&lt;Type&gt;, <span class="comment">/* mutable */ </span>bool),
 <a href=#81 id=81 data-nosnippet>81</a>    Array(Arc&lt;Vec&lt;Type&gt;&gt;, u32),
 <a href=#82 id=82 data-nosnippet>82</a>    Vector(Arc&lt;Vec&lt;Type&gt;&gt;),
 <a href=#83 id=83 data-nosnippet>83</a>}
@@ -95,7 +95,7 @@
 <a href=#95 id=95 data-nosnippet>95</a>            Type::Numeric(numeric_type) =&gt; numeric_type.bit_length(),
 <a href=#96 id=96 data-nosnippet>96</a>            Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type unexpected"</span>),
 <a href=#97 id=97 data-nosnippet>97</a>            Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Vector type unexpected"</span>),
-<a href=#98 id=98 data-nosnippet>98</a>            Type::Reference(value_type) =&gt; value_type.bit_length(),
+<a href=#98 id=98 data-nosnippet>98</a>            Type::Reference(value_type, <span class="kw">_</span>) =&gt; value_type.bit_length(),
 <a href=#99 id=99 data-nosnippet>99</a>        }
 <a href=#100 id=100 data-nosnippet>100</a>    }
 <a href=#101 id=101 data-nosnippet>101</a>
@@ -104,12 +104,12 @@
 <a href=#104 id=104 data-nosnippet>104</a>    }
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">pub fn </span>is_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Reference(<span class="kw">_</span>))
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Reference(..))
 <a href=#108 id=108 data-nosnippet>108</a>    }
 <a href=#109 id=109 data-nosnippet>109</a>
 <a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">pub fn </span>type_contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#112 id=112 data-nosnippet>112</a>            Type::Reference(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#112 id=112 data-nosnippet>112</a>            Type::Reference(..) =&gt; <span class="bool-val">true</span>,
 <a href=#113 id=113 data-nosnippet>113</a>            Type::Array(element_types, <span class="kw">_</span>) =&gt; {
 <a href=#114 id=114 data-nosnippet>114</a>                element_types.iter().any(|t| t.type_contains_reference())
 <a href=#115 id=115 data-nosnippet>115</a>            }
@@ -126,7 +126,7 @@
 <a href=#126 id=126 data-nosnippet>126</a>                element_types.iter().any(|element| element.contains_vector_element())
 <a href=#127 id=127 data-nosnippet>127</a>            }
 <a href=#128 id=128 data-nosnippet>128</a>            Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#129 id=129 data-nosnippet>129</a>            Type::Reference(element) =&gt; element.contains_vector_element(),
+<a href=#129 id=129 data-nosnippet>129</a>            Type::Reference(element, <span class="kw">_</span>) =&gt; element.contains_vector_element(),
 <a href=#130 id=130 data-nosnippet>130</a>            Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
 <a href=#131 id=131 data-nosnippet>131</a>        }
 <a href=#132 id=132 data-nosnippet>132</a>    }
@@ -136,7 +136,7 @@
 <a href=#136 id=136 data-nosnippet>136</a>            Type::Array(element_types, <span class="kw">_</span>) | Type::Vector(element_types) =&gt; {
 <a href=#137 id=137 data-nosnippet>137</a>                element_types.iter().any(|element| element.contains_vector_element())
 <a href=#138 id=138 data-nosnippet>138</a>            }
-<a href=#139 id=139 data-nosnippet>139</a>            Type::Reference(element) =&gt; element.is_nested_vector(),
+<a href=#139 id=139 data-nosnippet>139</a>            Type::Reference(element, <span class="kw">_</span>) =&gt; element.is_nested_vector(),
 <a href=#140 id=140 data-nosnippet>140</a>            Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
 <a href=#141 id=141 data-nosnippet>141</a>        }
 <a href=#142 id=142 data-nosnippet>142</a>    }
@@ -166,7 +166,7 @@
 <a href=#166 id=166 data-nosnippet>166</a>
 <a href=#167 id=167 data-nosnippet>167</a>    <span class="kw">pub fn </span>unwrap_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
 <a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#169 id=169 data-nosnippet>169</a>            Type::Reference(value_type) =&gt; value_type.as_ref().clone(),
+<a href=#169 id=169 data-nosnippet>169</a>            Type::Reference(value_type, <span class="kw">_</span>) =&gt; value_type.as_ref().clone(),
 <a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected Reference, found {self:?}"</span>),
 <a href=#171 id=171 data-nosnippet>171</a>        }
 <a href=#172 id=172 data-nosnippet>172</a>    }
@@ -275,8 +275,8 @@
 <a href=#275 id=275 data-nosnippet>275</a>                Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
 <a href=#276 id=276 data-nosnippet>276</a>                length.<span class="number">0</span>,
 <a href=#277 id=277 data-nosnippet>277</a>            ),
-<a href=#278 id=278 data-nosnippet>278</a>            SsaType::Reference(element_type) =&gt; {
-<a href=#279 id=279 data-nosnippet>279</a>                Type::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))
+<a href=#278 id=278 data-nosnippet>278</a>            SsaType::Reference(element_type, mutable) =&gt; {
+<a href=#279 id=279 data-nosnippet>279</a>                Type::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()), mutable)
 <a href=#280 id=280 data-nosnippet>280</a>            }
 <a href=#281 id=281 data-nosnippet>281</a>            SsaType::Vector(element_types) =&gt; {
 <a href=#282 id=282 data-nosnippet>282</a>                Type::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
@@ -294,8 +294,8 @@
 <a href=#294 id=294 data-nosnippet>294</a>                Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
 <a href=#295 id=295 data-nosnippet>295</a>                SemanticLength(length),
 <a href=#296 id=296 data-nosnippet>296</a>            ),
-<a href=#297 id=297 data-nosnippet>297</a>            Type::Reference(element_type) =&gt; {
-<a href=#298 id=298 data-nosnippet>298</a>                SsaType::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()))
+<a href=#297 id=297 data-nosnippet>297</a>            Type::Reference(element_type, mutable) =&gt; {
+<a href=#298 id=298 data-nosnippet>298</a>                SsaType::Reference(Arc::new((<span class="kw-2">*</span>element_type).clone().into()), mutable)
 <a href=#299 id=299 data-nosnippet>299</a>            }
 <a href=#300 id=300 data-nosnippet>300</a>            Type::Vector(element_types) =&gt; {
 <a href=#301 id=301 data-nosnippet>301</a>                SsaType::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))

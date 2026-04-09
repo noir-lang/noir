@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>        Type::Array(items, length) =&gt; {
 <a href=#155 id=155 data-nosnippet>155</a>            AbiType::Array { length: length.<span class="number">0</span>, typ: Box::new(abi_type_from_multi_ssa(items)) }
 <a href=#156 id=156 data-nosnippet>156</a>        }
-<a href=#157 id=157 data-nosnippet>157</a>        Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"refs do not appear in SSA ABI"</span>),
+<a href=#157 id=157 data-nosnippet>157</a>        Type::Reference(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"refs do not appear in SSA ABI"</span>),
 <a href=#158 id=158 data-nosnippet>158</a>        Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"functions do not appear in SSA ABI"</span>),
 <a href=#159 id=159 data-nosnippet>159</a>        Type::Vector(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"vectors do not appear in SSA ABI"</span>),
 <a href=#160 id=160 data-nosnippet>160</a>    }

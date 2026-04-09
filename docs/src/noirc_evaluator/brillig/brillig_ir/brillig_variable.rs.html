@@ -166,7 +166,7 @@
 <a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
 <a href=#167 id=167 data-nosnippet>167</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_to_heap_value_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; HeapValueType {
 <a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">match </span>typ {
-<a href=#169 id=169 data-nosnippet>169</a>        Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) | Type::Function =&gt; HeapValueType::Simple(
+<a href=#169 id=169 data-nosnippet>169</a>        Type::Numeric(<span class="kw">_</span>) | Type::Reference(..) | Type::Function =&gt; HeapValueType::Simple(
 <a href=#170 id=170 data-nosnippet>170</a>            BitSize::try_from_u32::&lt;FieldElement&gt;(get_bit_size_from_ssa_type(typ)).unwrap(),
 <a href=#171 id=171 data-nosnippet>171</a>        ),
 <a href=#172 id=172 data-nosnippet>172</a>        Type::Array(elem_type, size) =&gt; HeapValueType::Array {
@@ -181,7 +181,7 @@
 <a href=#181 id=181 data-nosnippet>181</a>
 <a href=#182 id=182 data-nosnippet>182</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_bit_size_from_ssa_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; u32 {
 <a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">match </span>typ {
-<a href=#184 id=184 data-nosnippet>184</a>        Type::Reference(<span class="kw">_</span>) =&gt; BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+<a href=#184 id=184 data-nosnippet>184</a>        Type::Reference(..) =&gt; BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 <a href=#185 id=185 data-nosnippet>185</a>        <span class="comment">// NB. function references are converted to a constant when
 <a href=#186 id=186 data-nosnippet>186</a>        // translating from SSA to Brillig (to allow for debugger
 <a href=#187 id=187 data-nosnippet>187</a>        // instrumentation to work properly).

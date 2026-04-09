@@ -579,7 +579,7 @@
 <a href=#579 id=579 data-nosnippet>579</a>    <span class="doccomment">/// True if the type of this value is Type::Reference.
 <a href=#580 id=580 data-nosnippet>580</a>    /// Using this method over type_of_value avoids cloning the value's type.
 <a href=#581 id=581 data-nosnippet>581</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_is_reference(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; bool {
-<a href=#582 id=582 data-nosnippet>582</a>        <span class="macro">matches!</span>(<span class="self">self</span>.values[value].get_type().as_ref(), Type::Reference(<span class="kw">_</span>))
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="macro">matches!</span>(<span class="self">self</span>.values[value].get_type().as_ref(), Type::Reference(..))
 <a href=#583 id=583 data-nosnippet>583</a>    }
 <a href=#584 id=584 data-nosnippet>584</a>
 <a href=#585 id=585 data-nosnippet>585</a>    <span class="doccomment">/// Returns all of result values which are attached to this instruction.

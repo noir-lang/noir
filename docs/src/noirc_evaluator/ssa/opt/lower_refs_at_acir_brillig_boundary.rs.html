@@ -125,7 +125,7 @@
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">if </span>!callee.runtime().is_brillig() {
 <a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#127 id=127 data-nosnippet>127</a>    }
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">if </span>!arguments.iter().any(|<span class="kw-2">&amp;</span>arg| <span class="macro">matches!</span>(<span class="kw-2">*</span>function.dfg.type_of_value(arg), Type::Reference(<span class="kw">_</span>)))
+<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">if </span>!arguments.iter().any(|<span class="kw-2">&amp;</span>arg| <span class="macro">matches!</span>(<span class="kw-2">*</span>function.dfg.type_of_value(arg), Type::Reference(..)))
 <a href=#129 id=129 data-nosnippet>129</a>    {
 <a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#131 id=131 data-nosnippet>131</a>    }
@@ -177,7 +177,7 @@
 <a href=#177 id=177 data-nosnippet>177</a>    args: <span class="kw-2">&amp;mut </span>[ValueId],
 <a href=#178 id=178 data-nosnippet>178</a>) {
 <a href=#179 id=179 data-nosnippet>179</a>    <span class="kw">for </span>arg <span class="kw">in </span>args {
-<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span>Type::Reference(inner_type) = function.dfg.type_of_value(<span class="kw-2">*</span>arg).into_owned() <span class="kw">else </span>{
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span>Type::Reference(inner_type, <span class="kw">_</span>) = function.dfg.type_of_value(<span class="kw-2">*</span>arg).into_owned() <span class="kw">else </span>{
 <a href=#181 id=181 data-nosnippet>181</a>            <span class="kw">continue</span>;
 <a href=#182 id=182 data-nosnippet>182</a>        };
 <a href=#183 id=183 data-nosnippet>183</a>        <span class="kw">let </span>load = function.dfg.insert_instruction_and_results_without_simplification(
@@ -210,7 +210,7 @@
 <a href=#210 id=210 data-nosnippet>210</a>    <span class="comment">// Change each reference parameter to a non-reference parameter holding its element type.
 <a href=#211 id=211 data-nosnippet>211</a>    </span><span class="kw">let </span>params = vecmap(callee_param_types, |typ| {
 <a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>param_type = <span class="kw">match </span>typ {
-<a href=#213 id=213 data-nosnippet>213</a>            Type::Reference(inner) =&gt; (<span class="kw-2">**</span>inner).clone(),
+<a href=#213 id=213 data-nosnippet>213</a>            Type::Reference(inner, <span class="kw">_</span>) =&gt; (<span class="kw-2">**</span>inner).clone(),
 <a href=#214 id=214 data-nosnippet>214</a>            <span class="kw">_ </span>=&gt; typ.clone(),
 <a href=#215 id=215 data-nosnippet>215</a>        };
 <a href=#216 id=216 data-nosnippet>216</a>        builder.add_parameter(param_type)
@@ -218,8 +218,8 @@
 <a href=#218 id=218 data-nosnippet>218</a>
 <a href=#219 id=219 data-nosnippet>219</a>    <span class="comment">// Build the argument list for the inner call.
 <a href=#220 id=220 data-nosnippet>220</a>    </span><span class="kw">let </span>inner_args = vecmap(params.iter().copied().enumerate(), |(pos, param_val)| {
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">if let </span>Type::Reference(inner) = <span class="kw-2">&amp;</span>callee_param_types[pos] {
-<a href=#222 id=222 data-nosnippet>222</a>            <span class="kw">let </span>alloc = builder.insert_allocate(inner.as_ref().clone());
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">if let </span>Type::Reference(inner, mutable) = <span class="kw-2">&amp;</span>callee_param_types[pos] {
+<a href=#222 id=222 data-nosnippet>222</a>            <span class="kw">let </span>alloc = builder.insert_allocate_with_mutability(inner.as_ref().clone(), <span class="kw-2">*</span>mutable);
 <a href=#223 id=223 data-nosnippet>223</a>            builder.insert_store(alloc, param_val);
 <a href=#224 id=224 data-nosnippet>224</a>            alloc
 <a href=#225 id=225 data-nosnippet>225</a>        } <span class="kw">else </span>{

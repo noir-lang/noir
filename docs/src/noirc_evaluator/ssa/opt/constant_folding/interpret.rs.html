@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>            InterpreterValue::from_constant(constant, <span class="kw-2">*</span>numeric_type)
 <a href=#94 id=94 data-nosnippet>94</a>                .expect(<span class="string">"Should be a valid constant"</span>)
 <a href=#95 id=95 data-nosnippet>95</a>        }
-<a href=#96 id=96 data-nosnippet>96</a>        Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"References cannot be constant values"</span>),
+<a href=#96 id=96 data-nosnippet>96</a>        Type::Reference(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"References cannot be constant values"</span>),
 <a href=#97 id=97 data-nosnippet>97</a>        Type::Array(element_types, <span class="kw">_</span>) =&gt; {
 <a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">let </span>(array_constant, <span class="kw">_</span>) =
 <a href=#99 id=99 data-nosnippet>99</a>                dfg.get_array_constant(value_id).expect(<span class="string">"Should have an array constant"</span>);
@@ -161,6 +161,6 @@
 <a href=#161 id=161 data-nosnippet>161</a>            dfg[block_id].instructions_mut().push(instruction_id);
 <a href=#162 id=162 data-nosnippet>162</a>            dfg.instruction_result::&lt;<span class="number">1</span>&gt;(instruction_id)[<span class="number">0</span>]
 <a href=#163 id=163 data-nosnippet>163</a>        }
-<a href=#164 id=164 data-nosnippet>164</a>        Type::Function | Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot be a constant value"</span>),
+<a href=#164 id=164 data-nosnippet>164</a>        Type::Function | Type::Reference(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot be a constant value"</span>),
 <a href=#165 id=165 data-nosnippet>165</a>    }
 <a href=#166 id=166 data-nosnippet>166</a>}</code></pre></div></section></main></body></html>

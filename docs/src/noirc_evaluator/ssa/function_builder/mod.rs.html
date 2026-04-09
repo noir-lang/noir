@@ -254,382 +254,392 @@
 <a href=#254 id=254 data-nosnippet>254</a>    /// given amount of field elements. Returns the result of the allocate instruction,
 <a href=#255 id=255 data-nosnippet>255</a>    /// which is always a Reference to the allocated data.
 <a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">pub fn </span>insert_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, element_type: Type) -&gt; ValueId {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span>reference_type = Type::Reference(Arc::new(element_type));
-<a href=#258 id=258 data-nosnippet>258</a>        <span class="self">self</span>.insert_instruction(Instruction::Allocate, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[reference_type])).first()
-<a href=#259 id=259 data-nosnippet>259</a>    }
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="kw">pub fn </span>set_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
-<a href=#262 id=262 data-nosnippet>262</a>        <span class="self">self</span>.call_stack = <span class="self">self</span>.current_function.dfg.call_stack_data.add_location_to_root(location);
-<a href=#263 id=263 data-nosnippet>263</a>        <span class="self">self
-<a href=#264 id=264 data-nosnippet>264</a>    </span>}
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">pub fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
-<a href=#267 id=267 data-nosnippet>267</a>        <span class="self">self</span>.call_stack = call_stack;
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="self">self
-<a href=#269 id=269 data-nosnippet>269</a>    </span>}
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="self">self</span>.insert_allocate_with_mutability(element_type, <span class="bool-val">true</span>)
+<a href=#258 id=258 data-nosnippet>258</a>    }
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="doccomment">/// Like `insert_allocate`, but allows specifying whether the resulting reference
+<a href=#261 id=261 data-nosnippet>261</a>    /// is mutable (`&amp;mut T`) or immutable (`&amp;T`).
+<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">pub fn </span>insert_allocate_with_mutability(
+<a href=#263 id=263 data-nosnippet>263</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#264 id=264 data-nosnippet>264</a>        element_type: Type,
+<a href=#265 id=265 data-nosnippet>265</a>        mutable: bool,
+<a href=#266 id=266 data-nosnippet>266</a>    ) -&gt; ValueId {
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>reference_type = Type::Reference(Arc::new(element_type), mutable);
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="self">self</span>.insert_instruction(Instruction::Allocate, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[reference_type])).first()
+<a href=#269 id=269 data-nosnippet>269</a>    }
 <a href=#270 id=270 data-nosnippet>270</a>
-<a href=#271 id=271 data-nosnippet>271</a>    <span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="self">self</span>.current_function.dfg.get_call_stack(<span class="self">self</span>.call_stack)
-<a href=#273 id=273 data-nosnippet>273</a>    }
-<a href=#274 id=274 data-nosnippet>274</a>
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="doccomment">/// Insert a Load instruction at the end of the current block, loading from the given address
-<a href=#276 id=276 data-nosnippet>276</a>    /// which should point to a previous Allocate instruction. Note that this is limited to loading
-<a href=#277 id=277 data-nosnippet>277</a>    /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
-<a href=#278 id=278 data-nosnippet>278</a>    /// Returns the element that was loaded.
-<a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">pub fn </span>insert_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, type_to_load: Type) -&gt; ValueId {
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="self">self</span>.insert_instruction(Instruction::Load { address }, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[type_to_load])).first()
-<a href=#281 id=281 data-nosnippet>281</a>    }
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="doccomment">/// Insert a Store instruction at the end of the current block, storing the given element
-<a href=#284 id=284 data-nosnippet>284</a>    /// at the given address. Expects that the address points somewhere
-<a href=#285 id=285 data-nosnippet>285</a>    /// within a previous Allocate instruction.
-<a href=#286 id=286 data-nosnippet>286</a>    </span><span class="kw">pub fn </span>insert_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="self">self</span>.insert_instruction(Instruction::Store { address, value }, <span class="prelude-val">None</span>);
-<a href=#288 id=288 data-nosnippet>288</a>    }
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="doccomment">/// Insert a binary instruction at the end of the current block.
-<a href=#291 id=291 data-nosnippet>291</a>    /// Returns the result of the binary instruction.
-<a href=#292 id=292 data-nosnippet>292</a>    </span><span class="kw">pub fn </span>insert_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -&gt; ValueId {
-<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-<a href=#294 id=294 data-nosnippet>294</a>        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
-<a href=#295 id=295 data-nosnippet>295</a>    }
-<a href=#296 id=296 data-nosnippet>296</a>
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="doccomment">/// Insert a not instruction at the end of the current block.
-<a href=#298 id=298 data-nosnippet>298</a>    /// Returns the result of the instruction.
-<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">pub fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="self">self</span>.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
-<a href=#301 id=301 data-nosnippet>301</a>    }
-<a href=#302 id=302 data-nosnippet>302</a>
-<a href=#303 id=303 data-nosnippet>303</a>    <span class="doccomment">/// Insert a cast instruction at the end of the current block.
-<a href=#304 id=304 data-nosnippet>304</a>    /// Returns the result of the cast instruction.
-<a href=#305 id=305 data-nosnippet>305</a>    </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
-<a href=#306 id=306 data-nosnippet>306</a>        validate_numeric_type(<span class="kw-2">&amp;</span>typ);
-<a href=#307 id=307 data-nosnippet>307</a>        <span class="self">self</span>.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
-<a href=#308 id=308 data-nosnippet>308</a>    }
-<a href=#309 id=309 data-nosnippet>309</a>
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="doccomment">/// Insert a truncate instruction at the end of the current block.
-<a href=#311 id=311 data-nosnippet>311</a>    /// Returns the result of the truncate instruction.
-<a href=#312 id=312 data-nosnippet>312</a>    </span><span class="kw">pub fn </span>insert_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, bit_size: u32, max_bit_size: u32) -&gt; ValueId {
-<a href=#313 id=313 data-nosnippet>313</a>        <span class="self">self</span>.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, <span class="prelude-val">None</span>)
-<a href=#314 id=314 data-nosnippet>314</a>            .first()
-<a href=#315 id=315 data-nosnippet>315</a>    }
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a>    <span class="doccomment">/// Insert a constrain instruction at the end of the current block.
-<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">pub fn </span>insert_constrain(
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#320 id=320 data-nosnippet>320</a>        lhs: ValueId,
-<a href=#321 id=321 data-nosnippet>321</a>        rhs: ValueId,
-<a href=#322 id=322 data-nosnippet>322</a>        assert_message: <span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
-<a href=#323 id=323 data-nosnippet>323</a>    ) {
-<a href=#324 id=324 data-nosnippet>324</a>        <span class="self">self</span>.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), <span class="prelude-val">None</span>);
+<a href=#271 id=271 data-nosnippet>271</a>    <span class="kw">pub fn </span>set_location(<span class="kw-2">&amp;mut </span><span class="self">self</span>, location: Location) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="self">self</span>.call_stack = <span class="self">self</span>.current_function.dfg.call_stack_data.add_location_to_root(location);
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="self">self
+<a href=#274 id=274 data-nosnippet>274</a>    </span>}
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>    <span class="kw">pub fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) -&gt; <span class="kw-2">&amp;mut </span>FunctionBuilder {
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="self">self</span>.call_stack = call_stack;
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="self">self
+<a href=#279 id=279 data-nosnippet>279</a>    </span>}
+<a href=#280 id=280 data-nosnippet>280</a>
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">pub fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CallStack {
+<a href=#282 id=282 data-nosnippet>282</a>        <span class="self">self</span>.current_function.dfg.get_call_stack(<span class="self">self</span>.call_stack)
+<a href=#283 id=283 data-nosnippet>283</a>    }
+<a href=#284 id=284 data-nosnippet>284</a>
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="doccomment">/// Insert a Load instruction at the end of the current block, loading from the given address
+<a href=#286 id=286 data-nosnippet>286</a>    /// which should point to a previous Allocate instruction. Note that this is limited to loading
+<a href=#287 id=287 data-nosnippet>287</a>    /// a single value. Loading multiple values (such as a tuple) will require multiple loads.
+<a href=#288 id=288 data-nosnippet>288</a>    /// Returns the element that was loaded.
+<a href=#289 id=289 data-nosnippet>289</a>    </span><span class="kw">pub fn </span>insert_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, type_to_load: Type) -&gt; ValueId {
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="self">self</span>.insert_instruction(Instruction::Load { address }, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[type_to_load])).first()
+<a href=#291 id=291 data-nosnippet>291</a>    }
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="doccomment">/// Insert a Store instruction at the end of the current block, storing the given element
+<a href=#294 id=294 data-nosnippet>294</a>    /// at the given address. Expects that the address points somewhere
+<a href=#295 id=295 data-nosnippet>295</a>    /// within a previous Allocate instruction.
+<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">pub fn </span>insert_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
+<a href=#297 id=297 data-nosnippet>297</a>        <span class="self">self</span>.insert_instruction(Instruction::Store { address, value }, <span class="prelude-val">None</span>);
+<a href=#298 id=298 data-nosnippet>298</a>    }
+<a href=#299 id=299 data-nosnippet>299</a>
+<a href=#300 id=300 data-nosnippet>300</a>    <span class="doccomment">/// Insert a binary instruction at the end of the current block.
+<a href=#301 id=301 data-nosnippet>301</a>    /// Returns the result of the binary instruction.
+<a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">pub fn </span>insert_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -&gt; ValueId {
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
+<a href=#305 id=305 data-nosnippet>305</a>    }
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="doccomment">/// Insert a not instruction at the end of the current block.
+<a href=#308 id=308 data-nosnippet>308</a>    /// Returns the result of the instruction.
+<a href=#309 id=309 data-nosnippet>309</a>    </span><span class="kw">pub fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="self">self</span>.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
+<a href=#311 id=311 data-nosnippet>311</a>    }
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="doccomment">/// Insert a cast instruction at the end of the current block.
+<a href=#314 id=314 data-nosnippet>314</a>    /// Returns the result of the cast instruction.
+<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
+<a href=#316 id=316 data-nosnippet>316</a>        validate_numeric_type(<span class="kw-2">&amp;</span>typ);
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="self">self</span>.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="doccomment">/// Insert a truncate instruction at the end of the current block.
+<a href=#321 id=321 data-nosnippet>321</a>    /// Returns the result of the truncate instruction.
+<a href=#322 id=322 data-nosnippet>322</a>    </span><span class="kw">pub fn </span>insert_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, bit_size: u32, max_bit_size: u32) -&gt; ValueId {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="self">self</span>.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, <span class="prelude-val">None</span>)
+<a href=#324 id=324 data-nosnippet>324</a>            .first()
 <a href=#325 id=325 data-nosnippet>325</a>    }
 <a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="doccomment">/// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
-<a href=#328 id=328 data-nosnippet>328</a>    </span><span class="kw">pub fn </span>insert_range_check(
+<a href=#327 id=327 data-nosnippet>327</a>    <span class="doccomment">/// Insert a constrain instruction at the end of the current block.
+<a href=#328 id=328 data-nosnippet>328</a>    </span><span class="kw">pub fn </span>insert_constrain(
 <a href=#329 id=329 data-nosnippet>329</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#330 id=330 data-nosnippet>330</a>        value: ValueId,
-<a href=#331 id=331 data-nosnippet>331</a>        max_bit_size: u32,
-<a href=#332 id=332 data-nosnippet>332</a>        assert_message: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#330 id=330 data-nosnippet>330</a>        lhs: ValueId,
+<a href=#331 id=331 data-nosnippet>331</a>        rhs: ValueId,
+<a href=#332 id=332 data-nosnippet>332</a>        assert_message: <span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
 <a href=#333 id=333 data-nosnippet>333</a>    ) {
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="self">self</span>.insert_instruction(
-<a href=#335 id=335 data-nosnippet>335</a>            Instruction::RangeCheck { value, max_bit_size, assert_message },
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="prelude-val">None</span>,
-<a href=#337 id=337 data-nosnippet>337</a>        );
-<a href=#338 id=338 data-nosnippet>338</a>    }
-<a href=#339 id=339 data-nosnippet>339</a>
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Insert a call instruction at the end of the current block and return
-<a href=#341 id=341 data-nosnippet>341</a>    /// the results of the call.
-<a href=#342 id=342 data-nosnippet>342</a>    </span><span class="kw">pub fn </span>insert_call(
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#344 id=344 data-nosnippet>344</a>        func: ValueId,
-<a href=#345 id=345 data-nosnippet>345</a>        arguments: Vec&lt;ValueId&gt;,
-<a href=#346 id=346 data-nosnippet>346</a>        result_types: Vec&lt;Type&gt;,
-<a href=#347 id=347 data-nosnippet>347</a>    ) -&gt; Cow&lt;[ValueId]&gt; {
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="self">self</span>.insert_instruction(Instruction::Call { func, arguments }, <span class="prelude-val">Some</span>(result_types)).results()
-<a href=#349 id=349 data-nosnippet>349</a>    }
-<a href=#350 id=350 data-nosnippet>350</a>
-<a href=#351 id=351 data-nosnippet>351</a>    <span class="doccomment">/// Insert an instruction to extract an element from an array
-<a href=#352 id=352 data-nosnippet>352</a>    </span><span class="kw">pub fn </span>insert_array_get(
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="self">self</span>.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), <span class="prelude-val">None</span>);
+<a href=#335 id=335 data-nosnippet>335</a>    }
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="doccomment">/// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
+<a href=#338 id=338 data-nosnippet>338</a>    </span><span class="kw">pub fn </span>insert_range_check(
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#340 id=340 data-nosnippet>340</a>        value: ValueId,
+<a href=#341 id=341 data-nosnippet>341</a>        max_bit_size: u32,
+<a href=#342 id=342 data-nosnippet>342</a>        assert_message: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#343 id=343 data-nosnippet>343</a>    ) {
+<a href=#344 id=344 data-nosnippet>344</a>        <span class="self">self</span>.insert_instruction(
+<a href=#345 id=345 data-nosnippet>345</a>            Instruction::RangeCheck { value, max_bit_size, assert_message },
+<a href=#346 id=346 data-nosnippet>346</a>            <span class="prelude-val">None</span>,
+<a href=#347 id=347 data-nosnippet>347</a>        );
+<a href=#348 id=348 data-nosnippet>348</a>    }
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="doccomment">/// Insert a call instruction at the end of the current block and return
+<a href=#351 id=351 data-nosnippet>351</a>    /// the results of the call.
+<a href=#352 id=352 data-nosnippet>352</a>    </span><span class="kw">pub fn </span>insert_call(
 <a href=#353 id=353 data-nosnippet>353</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#354 id=354 data-nosnippet>354</a>        array: ValueId,
-<a href=#355 id=355 data-nosnippet>355</a>        index: ValueId,
-<a href=#356 id=356 data-nosnippet>356</a>        element_type: Type,
-<a href=#357 id=357 data-nosnippet>357</a>    ) -&gt; ValueId {
-<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
-<a href=#359 id=359 data-nosnippet>359</a>        <span class="self">self</span>.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
-<a href=#360 id=360 data-nosnippet>360</a>    }
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>    <span class="doccomment">/// Insert an instruction to create a new array with the given index replaced with a new value
-<a href=#363 id=363 data-nosnippet>363</a>    </span><span class="kw">pub fn </span>insert_array_set(
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#365 id=365 data-nosnippet>365</a>        array: ValueId,
-<a href=#366 id=366 data-nosnippet>366</a>        index: ValueId,
-<a href=#367 id=367 data-nosnippet>367</a>        value: ValueId,
-<a href=#368 id=368 data-nosnippet>368</a>        mutable: bool,
-<a href=#369 id=369 data-nosnippet>369</a>    ) -&gt; ValueId {
-<a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">let </span>instruction = Instruction::ArraySet { array, index, value, mutable };
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
-<a href=#372 id=372 data-nosnippet>372</a>    }
-<a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="doccomment">/// Insert an instruction to increment an array's reference count. This only has an effect
-<a href=#375 id=375 data-nosnippet>375</a>    /// in unconstrained code where arrays are reference counted and copy on write.
-<a href=#376 id=376 data-nosnippet>376</a>    </span><span class="kw">pub fn </span>insert_inc_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
-<a href=#377 id=377 data-nosnippet>377</a>        <span class="self">self</span>.insert_instruction(Instruction::IncrementRc { value }, <span class="prelude-val">None</span>);
-<a href=#378 id=378 data-nosnippet>378</a>    }
-<a href=#379 id=379 data-nosnippet>379</a>
-<a href=#380 id=380 data-nosnippet>380</a>    <span class="doccomment">/// Insert an instruction to decrement an array's reference count. This only has an effect
-<a href=#381 id=381 data-nosnippet>381</a>    /// in unconstrained code where arrays are reference counted and copy on write.
-<a href=#382 id=382 data-nosnippet>382</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_dec_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
-<a href=#383 id=383 data-nosnippet>383</a>        <span class="self">self</span>.insert_instruction(Instruction::DecrementRc { value }, <span class="prelude-val">None</span>);
-<a href=#384 id=384 data-nosnippet>384</a>    }
-<a href=#385 id=385 data-nosnippet>385</a>
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="doccomment">/// Insert an enable_side_effects_if instruction. These are normally only automatically
-<a href=#387 id=387 data-nosnippet>387</a>    /// inserted during the flattening pass when branching is removed.
-<a href=#388 id=388 data-nosnippet>388</a>    </span><span class="kw">pub fn </span>insert_enable_side_effects_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) {
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="self">self</span>.insert_instruction(Instruction::EnableSideEffectsIf { condition }, <span class="prelude-val">None</span>);
-<a href=#390 id=390 data-nosnippet>390</a>    }
-<a href=#391 id=391 data-nosnippet>391</a>
-<a href=#392 id=392 data-nosnippet>392</a>    <span class="doccomment">/// Insert a `make_array` instruction to create a new array or vector.
-<a href=#393 id=393 data-nosnippet>393</a>    /// Returns the new array value. Expects `typ` to be an array or vector type.
-<a href=#394 id=394 data-nosnippet>394</a>    </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: im::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
-<a href=#395 id=395 data-nosnippet>395</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Vector(<span class="kw">_</span>)));
-<a href=#396 id=396 data-nosnippet>396</a>        <span class="self">self</span>.insert_instruction(Instruction::MakeArray { elements, typ }, <span class="prelude-val">None</span>).first()
-<a href=#397 id=397 data-nosnippet>397</a>    }
-<a href=#398 id=398 data-nosnippet>398</a>
-<a href=#399 id=399 data-nosnippet>399</a>    <span class="doccomment">/// Terminates the current block with the given terminator instruction
-<a href=#400 id=400 data-nosnippet>400</a>    /// if the current block does not already have a terminator instruction.
-<a href=#401 id=401 data-nosnippet>401</a>    </span><span class="kw">fn </span>terminate_block_with(<span class="kw-2">&amp;mut </span><span class="self">self</span>, terminator: TerminatorInstruction) {
-<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">if </span><span class="self">self</span>.current_function.dfg[<span class="self">self</span>.current_block].terminator().is_none() {
-<a href=#403 id=403 data-nosnippet>403</a>            <span class="self">self</span>.current_function.dfg.set_block_terminator(<span class="self">self</span>.current_block, terminator);
-<a href=#404 id=404 data-nosnippet>404</a>        }
-<a href=#405 id=405 data-nosnippet>405</a>    }
-<a href=#406 id=406 data-nosnippet>406</a>
-<a href=#407 id=407 data-nosnippet>407</a>    <span class="doccomment">/// Terminate the current block with a jmp instruction to jmp to the given
-<a href=#408 id=408 data-nosnippet>408</a>    /// block with the given arguments.
-<a href=#409 id=409 data-nosnippet>409</a>    </span><span class="kw">pub fn </span>terminate_with_jmp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: BasicBlockId, arguments: Vec&lt;ValueId&gt;) {
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
-<a href=#411 id=411 data-nosnippet>411</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Jmp {
-<a href=#412 id=412 data-nosnippet>412</a>            destination,
-<a href=#413 id=413 data-nosnippet>413</a>            arguments,
-<a href=#414 id=414 data-nosnippet>414</a>            call_stack,
-<a href=#415 id=415 data-nosnippet>415</a>        });
-<a href=#416 id=416 data-nosnippet>416</a>    }
-<a href=#417 id=417 data-nosnippet>417</a>
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="doccomment">/// Terminate the current block with a jmpif instruction to jmp with the given arguments
-<a href=#419 id=419 data-nosnippet>419</a>    /// block with the given arguments.
-<a href=#420 id=420 data-nosnippet>420</a>    </span><span class="kw">pub fn </span>terminate_with_jmpif(
-<a href=#421 id=421 data-nosnippet>421</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#422 id=422 data-nosnippet>422</a>        condition: ValueId,
-<a href=#423 id=423 data-nosnippet>423</a>        then_destination: BasicBlockId,
-<a href=#424 id=424 data-nosnippet>424</a>        then_arguments: Vec&lt;ValueId&gt;,
-<a href=#425 id=425 data-nosnippet>425</a>        else_destination: BasicBlockId,
-<a href=#426 id=426 data-nosnippet>426</a>        else_arguments: Vec&lt;ValueId&gt;,
-<a href=#427 id=427 data-nosnippet>427</a>    ) {
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
-<a href=#429 id=429 data-nosnippet>429</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::JmpIf {
-<a href=#430 id=430 data-nosnippet>430</a>            condition,
-<a href=#431 id=431 data-nosnippet>431</a>            then_destination,
-<a href=#432 id=432 data-nosnippet>432</a>            then_arguments,
-<a href=#433 id=433 data-nosnippet>433</a>            else_destination,
-<a href=#434 id=434 data-nosnippet>434</a>            else_arguments,
-<a href=#435 id=435 data-nosnippet>435</a>            call_stack,
-<a href=#436 id=436 data-nosnippet>436</a>        });
-<a href=#437 id=437 data-nosnippet>437</a>    }
-<a href=#438 id=438 data-nosnippet>438</a>
-<a href=#439 id=439 data-nosnippet>439</a>    <span class="doccomment">/// Terminate the current block with a jmpif instruction to jmp with the given arguments
-<a href=#440 id=440 data-nosnippet>440</a>    /// block with no arguments.
-<a href=#441 id=441 data-nosnippet>441</a>    </span><span class="kw">pub fn </span>terminate_with_jmpif_no_args(
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#443 id=443 data-nosnippet>443</a>        condition: ValueId,
-<a href=#444 id=444 data-nosnippet>444</a>        then_destination: BasicBlockId,
-<a href=#445 id=445 data-nosnippet>445</a>        else_destination: BasicBlockId,
-<a href=#446 id=446 data-nosnippet>446</a>    ) {
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="self">self</span>.terminate_with_jmpif(
-<a href=#448 id=448 data-nosnippet>448</a>            condition,
-<a href=#449 id=449 data-nosnippet>449</a>            then_destination,
-<a href=#450 id=450 data-nosnippet>450</a>            Vec::new(),
-<a href=#451 id=451 data-nosnippet>451</a>            else_destination,
-<a href=#452 id=452 data-nosnippet>452</a>            Vec::new(),
-<a href=#453 id=453 data-nosnippet>453</a>        );
-<a href=#454 id=454 data-nosnippet>454</a>    }
-<a href=#455 id=455 data-nosnippet>455</a>
-<a href=#456 id=456 data-nosnippet>456</a>    <span class="doccomment">/// Terminate the current block with a return instruction
-<a href=#457 id=457 data-nosnippet>457</a>    </span><span class="kw">pub fn </span>terminate_with_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_values: Vec&lt;ValueId&gt;) {
-<a href=#458 id=458 data-nosnippet>458</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
-<a href=#460 id=460 data-nosnippet>460</a>    }
-<a href=#461 id=461 data-nosnippet>461</a>
-<a href=#462 id=462 data-nosnippet>462</a>    <span class="doccomment">/// Terminate the current block with an unreachable instruction
-<a href=#463 id=463 data-nosnippet>463</a>    </span><span class="kw">pub fn </span>terminate_with_unreachable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
-<a href=#466 id=466 data-nosnippet>466</a>    }
-<a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>    <span class="doccomment">/// Returns a ValueId pointing to the given function or imports the function
-<a href=#469 id=469 data-nosnippet>469</a>    /// into the current function if it was not already, and returns that ID.
-<a href=#470 id=470 data-nosnippet>470</a>    </span><span class="kw">pub fn </span>import_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FunctionId) -&gt; ValueId {
-<a href=#471 id=471 data-nosnippet>471</a>        <span class="self">self</span>.current_function.dfg.import_function(function)
-<a href=#472 id=472 data-nosnippet>472</a>    }
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>    <span class="doccomment">/// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
-<a href=#475 id=475 data-nosnippet>475</a>    /// into the current function if it was not already, and returns that ID.
-<a href=#476 id=476 data-nosnippet>476</a>    </span><span class="kw">pub fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str) -&gt; ValueId {
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="self">self</span>.current_function.dfg.import_foreign_function(function)
-<a href=#478 id=478 data-nosnippet>478</a>    }
-<a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>    <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
-<a href=#481 id=481 data-nosnippet>481</a>    /// Returns None if there is no intrinsic matching the given name.
-<a href=#482 id=482 data-nosnippet>482</a>    </span><span class="kw">pub fn </span>import_intrinsic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-<a href=#483 id=483 data-nosnippet>483</a>        Intrinsic::lookup(name).map(|intrinsic| <span class="self">self</span>.import_intrinsic_id(intrinsic))
-<a href=#484 id=484 data-nosnippet>484</a>    }
-<a href=#485 id=485 data-nosnippet>485</a>
-<a href=#486 id=486 data-nosnippet>486</a>    <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
-<a href=#487 id=487 data-nosnippet>487</a>    </span><span class="kw">pub fn </span>import_intrinsic_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, intrinsic: Intrinsic) -&gt; ValueId {
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="self">self</span>.current_function.dfg.import_intrinsic(intrinsic)
-<a href=#489 id=489 data-nosnippet>489</a>    }
-<a href=#490 id=490 data-nosnippet>490</a>
-<a href=#491 id=491 data-nosnippet>491</a>    <span class="kw">pub fn </span>get_intrinsic_from_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;Intrinsic&gt; {
-<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">match </span><span class="self">self</span>.current_function.dfg[value] {
-<a href=#493 id=493 data-nosnippet>493</a>            Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic),
-<a href=#494 id=494 data-nosnippet>494</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#495 id=495 data-nosnippet>495</a>        }
-<a href=#496 id=496 data-nosnippet>496</a>    }
-<a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a>    <span class="doccomment">/// Insert instructions to increment the reference count of any array(s) stored
-<a href=#499 id=499 data-nosnippet>499</a>    /// within the given value. If the given value is not an array and does not contain
-<a href=#500 id=500 data-nosnippet>500</a>    /// any arrays, this does nothing.
-<a href=#501 id=501 data-nosnippet>501</a>    ///
-<a href=#502 id=502 data-nosnippet>502</a>    /// Returns the ID of the array that was affected, if any.
-<a href=#503 id=503 data-nosnippet>503</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-<a href=#504 id=504 data-nosnippet>504</a>        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">true</span>)
-<a href=#505 id=505 data-nosnippet>505</a>    }
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a>    <span class="doccomment">/// Insert instructions to decrement the reference count of any array(s) stored
-<a href=#508 id=508 data-nosnippet>508</a>    /// within the given value. If the given value is not an array and does not contain
-<a href=#509 id=509 data-nosnippet>509</a>    /// any arrays, this does nothing.
-<a href=#510 id=510 data-nosnippet>510</a>    ///
-<a href=#511 id=511 data-nosnippet>511</a>    /// Returns the ID of the array that was affected, if any.
-<a href=#512 id=512 data-nosnippet>512</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">false</span>)
-<a href=#514 id=514 data-nosnippet>514</a>    }
-<a href=#515 id=515 data-nosnippet>515</a>
-<a href=#516 id=516 data-nosnippet>516</a>    <span class="doccomment">/// Increment or decrement the given value's reference count if it is an array.
-<a href=#517 id=517 data-nosnippet>517</a>    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
-<a href=#518 id=518 data-nosnippet>518</a>    /// are ignored outside of unconstrained code.
-<a href=#519 id=519 data-nosnippet>519</a>    ///
-<a href=#520 id=520 data-nosnippet>520</a>    /// If there is an `original` value it indicates that we're now decrementing it,
-<a href=#521 id=521 data-nosnippet>521</a>    /// but that should only happen if it hasn't been changed by an `array_set` in
-<a href=#522 id=522 data-nosnippet>522</a>    /// the meantime, which in itself would make sure its RC is decremented.
-<a href=#523 id=523 data-nosnippet>523</a>    ///
-<a href=#524 id=524 data-nosnippet>524</a>    /// Returns the ID of the array that was affected, if any.
-<a href=#525 id=525 data-nosnippet>525</a>    </span><span class="kw">fn </span>update_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, increment: bool) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">if </span><span class="self">self</span>.current_function.runtime().is_acir() {
-<a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#528 id=528 data-nosnippet>528</a>        }
-<a href=#529 id=529 data-nosnippet>529</a>        <span class="kw">match </span><span class="self">self</span>.type_of_value(value) {
-<a href=#530 id=530 data-nosnippet>530</a>            Type::Numeric(<span class="kw">_</span>) | Type::Function | Type::Reference(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#531 id=531 data-nosnippet>531</a>            Type::Array(..) | Type::Vector(..) =&gt; {
-<a href=#532 id=532 data-nosnippet>532</a>                <span class="comment">// If there are nested arrays or vectors, we wait until ArrayGet
-<a href=#533 id=533 data-nosnippet>533</a>                // is issued to increment the count of that array.
-<a href=#534 id=534 data-nosnippet>534</a>                </span><span class="kw">if </span>increment {
-<a href=#535 id=535 data-nosnippet>535</a>                    <span class="self">self</span>.insert_inc_rc(value);
-<a href=#536 id=536 data-nosnippet>536</a>                } <span class="kw">else </span>{
-<a href=#537 id=537 data-nosnippet>537</a>                    <span class="self">self</span>.insert_dec_rc(value);
-<a href=#538 id=538 data-nosnippet>538</a>                }
-<a href=#539 id=539 data-nosnippet>539</a>                <span class="prelude-val">Some</span>(value)
-<a href=#540 id=540 data-nosnippet>540</a>            }
-<a href=#541 id=541 data-nosnippet>541</a>        }
-<a href=#542 id=542 data-nosnippet>542</a>    }
-<a href=#543 id=543 data-nosnippet>543</a>
-<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">pub fn </span>record_error_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, selector: ErrorSelector, typ: HirType) {
-<a href=#545 id=545 data-nosnippet>545</a>        <span class="self">self</span>.error_types.insert(selector, typ);
-<a href=#546 id=546 data-nosnippet>546</a>    }
-<a href=#547 id=547 data-nosnippet>547</a>}
-<a href=#548 id=548 data-nosnippet>548</a>
-<a href=#549 id=549 data-nosnippet>549</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>FunctionBuilder {
-<a href=#550 id=550 data-nosnippet>550</a>    <span class="kw">type </span>Output = Value;
-<a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ValueId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
-<a href=#554 id=554 data-nosnippet>554</a>    }
-<a href=#555 id=555 data-nosnippet>555</a>}
-<a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>FunctionBuilder {
-<a href=#558 id=558 data-nosnippet>558</a>    <span class="kw">type </span>Output = Instruction;
-<a href=#559 id=559 data-nosnippet>559</a>
-<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
-<a href=#562 id=562 data-nosnippet>562</a>    }
-<a href=#563 id=563 data-nosnippet>563</a>}
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a><span class="kw">impl </span>std::ops::Index&lt;BasicBlockId&gt; <span class="kw">for </span>FunctionBuilder {
-<a href=#566 id=566 data-nosnippet>566</a>    <span class="kw">type </span>Output = BasicBlock;
-<a href=#567 id=567 data-nosnippet>567</a>
-<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
-<a href=#570 id=570 data-nosnippet>570</a>    }
-<a href=#571 id=571 data-nosnippet>571</a>}
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a><span class="kw">fn </span>validate_numeric_type(typ: <span class="kw-2">&amp;</span>NumericType) {
-<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
-<a href=#575 id=575 data-nosnippet>575</a>        NumericType::Signed { bit_size } =&gt; <span class="kw">match </span>bit_size {
-<a href=#576 id=576 data-nosnippet>576</a>            <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>=&gt; (),
-<a href=#577 id=577 data-nosnippet>577</a>            <span class="kw">_ </span>=&gt; {
-<a href=#578 id=578 data-nosnippet>578</a>                <span class="macro">panic!</span>(
-<a href=#579 id=579 data-nosnippet>579</a>                    <span class="string">"Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, or 64."
-<a href=#580 id=580 data-nosnippet>580</a>                </span>);
-<a href=#581 id=581 data-nosnippet>581</a>            }
-<a href=#582 id=582 data-nosnippet>582</a>        },
-<a href=#583 id=583 data-nosnippet>583</a>        NumericType::Unsigned { bit_size } =&gt; <span class="kw">match </span>bit_size {
-<a href=#584 id=584 data-nosnippet>584</a>            <span class="number">1 </span>| <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>| <span class="number">128 </span>=&gt; (),
-<a href=#585 id=585 data-nosnippet>585</a>            <span class="kw">_ </span>=&gt; {
-<a href=#586 id=586 data-nosnippet>586</a>                <span class="macro">panic!</span>(
-<a href=#587 id=587 data-nosnippet>587</a>                    <span class="string">"Invalid bit size for unsigned numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64, or 128."
-<a href=#588 id=588 data-nosnippet>588</a>                </span>);
-<a href=#589 id=589 data-nosnippet>589</a>            }
-<a href=#590 id=590 data-nosnippet>590</a>        },
-<a href=#591 id=591 data-nosnippet>591</a>        NumericType::NativeField =&gt; (),
-<a href=#592 id=592 data-nosnippet>592</a>    }
-<a href=#593 id=593 data-nosnippet>593</a>}
-<a href=#594 id=594 data-nosnippet>594</a>
-<a href=#595 id=595 data-nosnippet>595</a><span class="attr">#[cfg(test)]
-<a href=#596 id=596 data-nosnippet>596</a></span><span class="kw">mod </span>tests {
-<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">use </span>std::sync::Arc;
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="kw">use </span>acvm::{
-<a href=#600 id=600 data-nosnippet>600</a>        FieldElement,
-<a href=#601 id=601 data-nosnippet>601</a>        acir::{AcirField, brillig::lengths::SemanticLength},
-<a href=#602 id=602 data-nosnippet>602</a>    };
-<a href=#603 id=603 data-nosnippet>603</a>
-<a href=#604 id=604 data-nosnippet>604</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
-<a href=#605 id=605 data-nosnippet>605</a>        instruction::{Endian, Intrinsic},
-<a href=#606 id=606 data-nosnippet>606</a>        map::Id,
-<a href=#607 id=607 data-nosnippet>607</a>        types::{NumericType, Type},
-<a href=#608 id=608 data-nosnippet>608</a>    };
-<a href=#609 id=609 data-nosnippet>609</a>
-<a href=#610 id=610 data-nosnippet>610</a>    <span class="kw">use </span><span class="kw">super</span>::FunctionBuilder;
-<a href=#611 id=611 data-nosnippet>611</a>
-<a href=#612 id=612 data-nosnippet>612</a>    <span class="attr">#[test]
-<a href=#613 id=613 data-nosnippet>613</a>    </span><span class="kw">fn </span>insert_constant_call() {
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="comment">// `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
-<a href=#615 id=615 data-nosnippet>615</a>        // let x = 7;
-<a href=#616 id=616 data-nosnippet>616</a>        // let bits: [u1; 8] = x.to_le_bits();
-<a href=#617 id=617 data-nosnippet>617</a>        </span><span class="kw">let </span>func_id = Id::test_new(<span class="number">0</span>);
-<a href=#618 id=618 data-nosnippet>618</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"func"</span>.into(), func_id);
-<a href=#619 id=619 data-nosnippet>619</a>        <span class="kw">let </span>one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
-<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">let </span>zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
+<a href=#354 id=354 data-nosnippet>354</a>        func: ValueId,
+<a href=#355 id=355 data-nosnippet>355</a>        arguments: Vec&lt;ValueId&gt;,
+<a href=#356 id=356 data-nosnippet>356</a>        result_types: Vec&lt;Type&gt;,
+<a href=#357 id=357 data-nosnippet>357</a>    ) -&gt; Cow&lt;[ValueId]&gt; {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="self">self</span>.insert_instruction(Instruction::Call { func, arguments }, <span class="prelude-val">Some</span>(result_types)).results()
+<a href=#359 id=359 data-nosnippet>359</a>    }
+<a href=#360 id=360 data-nosnippet>360</a>
+<a href=#361 id=361 data-nosnippet>361</a>    <span class="doccomment">/// Insert an instruction to extract an element from an array
+<a href=#362 id=362 data-nosnippet>362</a>    </span><span class="kw">pub fn </span>insert_array_get(
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#364 id=364 data-nosnippet>364</a>        array: ValueId,
+<a href=#365 id=365 data-nosnippet>365</a>        index: ValueId,
+<a href=#366 id=366 data-nosnippet>366</a>        element_type: Type,
+<a href=#367 id=367 data-nosnippet>367</a>    ) -&gt; ValueId {
+<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
+<a href=#369 id=369 data-nosnippet>369</a>        <span class="self">self</span>.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+<a href=#370 id=370 data-nosnippet>370</a>    }
+<a href=#371 id=371 data-nosnippet>371</a>
+<a href=#372 id=372 data-nosnippet>372</a>    <span class="doccomment">/// Insert an instruction to create a new array with the given index replaced with a new value
+<a href=#373 id=373 data-nosnippet>373</a>    </span><span class="kw">pub fn </span>insert_array_set(
+<a href=#374 id=374 data-nosnippet>374</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#375 id=375 data-nosnippet>375</a>        array: ValueId,
+<a href=#376 id=376 data-nosnippet>376</a>        index: ValueId,
+<a href=#377 id=377 data-nosnippet>377</a>        value: ValueId,
+<a href=#378 id=378 data-nosnippet>378</a>        mutable: bool,
+<a href=#379 id=379 data-nosnippet>379</a>    ) -&gt; ValueId {
+<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>instruction = Instruction::ArraySet { array, index, value, mutable };
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
+<a href=#382 id=382 data-nosnippet>382</a>    }
+<a href=#383 id=383 data-nosnippet>383</a>
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="doccomment">/// Insert an instruction to increment an array's reference count. This only has an effect
+<a href=#385 id=385 data-nosnippet>385</a>    /// in unconstrained code where arrays are reference counted and copy on write.
+<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">pub fn </span>insert_inc_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="self">self</span>.insert_instruction(Instruction::IncrementRc { value }, <span class="prelude-val">None</span>);
+<a href=#388 id=388 data-nosnippet>388</a>    }
+<a href=#389 id=389 data-nosnippet>389</a>
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="doccomment">/// Insert an instruction to decrement an array's reference count. This only has an effect
+<a href=#391 id=391 data-nosnippet>391</a>    /// in unconstrained code where arrays are reference counted and copy on write.
+<a href=#392 id=392 data-nosnippet>392</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_dec_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) {
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="self">self</span>.insert_instruction(Instruction::DecrementRc { value }, <span class="prelude-val">None</span>);
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// Insert an enable_side_effects_if instruction. These are normally only automatically
+<a href=#397 id=397 data-nosnippet>397</a>    /// inserted during the flattening pass when branching is removed.
+<a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">pub fn </span>insert_enable_side_effects_if(<span class="kw-2">&amp;mut </span><span class="self">self</span>, condition: ValueId) {
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="self">self</span>.insert_instruction(Instruction::EnableSideEffectsIf { condition }, <span class="prelude-val">None</span>);
+<a href=#400 id=400 data-nosnippet>400</a>    }
+<a href=#401 id=401 data-nosnippet>401</a>
+<a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// Insert a `make_array` instruction to create a new array or vector.
+<a href=#403 id=403 data-nosnippet>403</a>    /// Returns the new array value. Expects `typ` to be an array or vector type.
+<a href=#404 id=404 data-nosnippet>404</a>    </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: im::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Vector(<span class="kw">_</span>)));
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="self">self</span>.insert_instruction(Instruction::MakeArray { elements, typ }, <span class="prelude-val">None</span>).first()
+<a href=#407 id=407 data-nosnippet>407</a>    }
+<a href=#408 id=408 data-nosnippet>408</a>
+<a href=#409 id=409 data-nosnippet>409</a>    <span class="doccomment">/// Terminates the current block with the given terminator instruction
+<a href=#410 id=410 data-nosnippet>410</a>    /// if the current block does not already have a terminator instruction.
+<a href=#411 id=411 data-nosnippet>411</a>    </span><span class="kw">fn </span>terminate_block_with(<span class="kw-2">&amp;mut </span><span class="self">self</span>, terminator: TerminatorInstruction) {
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">if </span><span class="self">self</span>.current_function.dfg[<span class="self">self</span>.current_block].terminator().is_none() {
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="self">self</span>.current_function.dfg.set_block_terminator(<span class="self">self</span>.current_block, terminator);
+<a href=#414 id=414 data-nosnippet>414</a>        }
+<a href=#415 id=415 data-nosnippet>415</a>    }
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Terminate the current block with a jmp instruction to jmp to the given
+<a href=#418 id=418 data-nosnippet>418</a>    /// block with the given arguments.
+<a href=#419 id=419 data-nosnippet>419</a>    </span><span class="kw">pub fn </span>terminate_with_jmp(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: BasicBlockId, arguments: Vec&lt;ValueId&gt;) {
+<a href=#420 id=420 data-nosnippet>420</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Jmp {
+<a href=#422 id=422 data-nosnippet>422</a>            destination,
+<a href=#423 id=423 data-nosnippet>423</a>            arguments,
+<a href=#424 id=424 data-nosnippet>424</a>            call_stack,
+<a href=#425 id=425 data-nosnippet>425</a>        });
+<a href=#426 id=426 data-nosnippet>426</a>    }
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>    <span class="doccomment">/// Terminate the current block with a jmpif instruction to jmp with the given arguments
+<a href=#429 id=429 data-nosnippet>429</a>    /// block with the given arguments.
+<a href=#430 id=430 data-nosnippet>430</a>    </span><span class="kw">pub fn </span>terminate_with_jmpif(
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#432 id=432 data-nosnippet>432</a>        condition: ValueId,
+<a href=#433 id=433 data-nosnippet>433</a>        then_destination: BasicBlockId,
+<a href=#434 id=434 data-nosnippet>434</a>        then_arguments: Vec&lt;ValueId&gt;,
+<a href=#435 id=435 data-nosnippet>435</a>        else_destination: BasicBlockId,
+<a href=#436 id=436 data-nosnippet>436</a>        else_arguments: Vec&lt;ValueId&gt;,
+<a href=#437 id=437 data-nosnippet>437</a>    ) {
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::JmpIf {
+<a href=#440 id=440 data-nosnippet>440</a>            condition,
+<a href=#441 id=441 data-nosnippet>441</a>            then_destination,
+<a href=#442 id=442 data-nosnippet>442</a>            then_arguments,
+<a href=#443 id=443 data-nosnippet>443</a>            else_destination,
+<a href=#444 id=444 data-nosnippet>444</a>            else_arguments,
+<a href=#445 id=445 data-nosnippet>445</a>            call_stack,
+<a href=#446 id=446 data-nosnippet>446</a>        });
+<a href=#447 id=447 data-nosnippet>447</a>    }
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>    <span class="doccomment">/// Terminate the current block with a jmpif instruction to jmp with the given arguments
+<a href=#450 id=450 data-nosnippet>450</a>    /// block with no arguments.
+<a href=#451 id=451 data-nosnippet>451</a>    </span><span class="kw">pub fn </span>terminate_with_jmpif_no_args(
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#453 id=453 data-nosnippet>453</a>        condition: ValueId,
+<a href=#454 id=454 data-nosnippet>454</a>        then_destination: BasicBlockId,
+<a href=#455 id=455 data-nosnippet>455</a>        else_destination: BasicBlockId,
+<a href=#456 id=456 data-nosnippet>456</a>    ) {
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="self">self</span>.terminate_with_jmpif(
+<a href=#458 id=458 data-nosnippet>458</a>            condition,
+<a href=#459 id=459 data-nosnippet>459</a>            then_destination,
+<a href=#460 id=460 data-nosnippet>460</a>            Vec::new(),
+<a href=#461 id=461 data-nosnippet>461</a>            else_destination,
+<a href=#462 id=462 data-nosnippet>462</a>            Vec::new(),
+<a href=#463 id=463 data-nosnippet>463</a>        );
+<a href=#464 id=464 data-nosnippet>464</a>    }
+<a href=#465 id=465 data-nosnippet>465</a>
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="doccomment">/// Terminate the current block with a return instruction
+<a href=#467 id=467 data-nosnippet>467</a>    </span><span class="kw">pub fn </span>terminate_with_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_values: Vec&lt;ValueId&gt;) {
+<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
+<a href=#469 id=469 data-nosnippet>469</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
+<a href=#470 id=470 data-nosnippet>470</a>    }
+<a href=#471 id=471 data-nosnippet>471</a>
+<a href=#472 id=472 data-nosnippet>472</a>    <span class="doccomment">/// Terminate the current block with an unreachable instruction
+<a href=#473 id=473 data-nosnippet>473</a>    </span><span class="kw">pub fn </span>terminate_with_unreachable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#474 id=474 data-nosnippet>474</a>        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
+<a href=#476 id=476 data-nosnippet>476</a>    }
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="doccomment">/// Returns a ValueId pointing to the given function or imports the function
+<a href=#479 id=479 data-nosnippet>479</a>    /// into the current function if it was not already, and returns that ID.
+<a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">pub fn </span>import_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FunctionId) -&gt; ValueId {
+<a href=#481 id=481 data-nosnippet>481</a>        <span class="self">self</span>.current_function.dfg.import_function(function)
+<a href=#482 id=482 data-nosnippet>482</a>    }
+<a href=#483 id=483 data-nosnippet>483</a>
+<a href=#484 id=484 data-nosnippet>484</a>    <span class="doccomment">/// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+<a href=#485 id=485 data-nosnippet>485</a>    /// into the current function if it was not already, and returns that ID.
+<a href=#486 id=486 data-nosnippet>486</a>    </span><span class="kw">pub fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str) -&gt; ValueId {
+<a href=#487 id=487 data-nosnippet>487</a>        <span class="self">self</span>.current_function.dfg.import_foreign_function(function)
+<a href=#488 id=488 data-nosnippet>488</a>    }
+<a href=#489 id=489 data-nosnippet>489</a>
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
+<a href=#491 id=491 data-nosnippet>491</a>    /// Returns None if there is no intrinsic matching the given name.
+<a href=#492 id=492 data-nosnippet>492</a>    </span><span class="kw">pub fn </span>import_intrinsic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+<a href=#493 id=493 data-nosnippet>493</a>        Intrinsic::lookup(name).map(|intrinsic| <span class="self">self</span>.import_intrinsic_id(intrinsic))
+<a href=#494 id=494 data-nosnippet>494</a>    }
+<a href=#495 id=495 data-nosnippet>495</a>
+<a href=#496 id=496 data-nosnippet>496</a>    <span class="doccomment">/// Retrieve a value reference to the given intrinsic operation.
+<a href=#497 id=497 data-nosnippet>497</a>    </span><span class="kw">pub fn </span>import_intrinsic_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, intrinsic: Intrinsic) -&gt; ValueId {
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="self">self</span>.current_function.dfg.import_intrinsic(intrinsic)
+<a href=#499 id=499 data-nosnippet>499</a>    }
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">pub fn </span>get_intrinsic_from_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;Intrinsic&gt; {
+<a href=#502 id=502 data-nosnippet>502</a>        <span class="kw">match </span><span class="self">self</span>.current_function.dfg[value] {
+<a href=#503 id=503 data-nosnippet>503</a>            Value::Intrinsic(intrinsic) =&gt; <span class="prelude-val">Some</span>(intrinsic),
+<a href=#504 id=504 data-nosnippet>504</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#505 id=505 data-nosnippet>505</a>        }
+<a href=#506 id=506 data-nosnippet>506</a>    }
+<a href=#507 id=507 data-nosnippet>507</a>
+<a href=#508 id=508 data-nosnippet>508</a>    <span class="doccomment">/// Insert instructions to increment the reference count of any array(s) stored
+<a href=#509 id=509 data-nosnippet>509</a>    /// within the given value. If the given value is not an array and does not contain
+<a href=#510 id=510 data-nosnippet>510</a>    /// any arrays, this does nothing.
+<a href=#511 id=511 data-nosnippet>511</a>    ///
+<a href=#512 id=512 data-nosnippet>512</a>    /// Returns the ID of the array that was affected, if any.
+<a href=#513 id=513 data-nosnippet>513</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">true</span>)
+<a href=#515 id=515 data-nosnippet>515</a>    }
+<a href=#516 id=516 data-nosnippet>516</a>
+<a href=#517 id=517 data-nosnippet>517</a>    <span class="doccomment">/// Insert instructions to decrement the reference count of any array(s) stored
+<a href=#518 id=518 data-nosnippet>518</a>    /// within the given value. If the given value is not an array and does not contain
+<a href=#519 id=519 data-nosnippet>519</a>    /// any arrays, this does nothing.
+<a href=#520 id=520 data-nosnippet>520</a>    ///
+<a href=#521 id=521 data-nosnippet>521</a>    /// Returns the ID of the array that was affected, if any.
+<a href=#522 id=522 data-nosnippet>522</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decrement_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+<a href=#523 id=523 data-nosnippet>523</a>        <span class="self">self</span>.update_array_reference_count(value, <span class="bool-val">false</span>)
+<a href=#524 id=524 data-nosnippet>524</a>    }
+<a href=#525 id=525 data-nosnippet>525</a>
+<a href=#526 id=526 data-nosnippet>526</a>    <span class="doccomment">/// Increment or decrement the given value's reference count if it is an array.
+<a href=#527 id=527 data-nosnippet>527</a>    /// If it is not an array, this does nothing. Note that inc_rc and dec_rc instructions
+<a href=#528 id=528 data-nosnippet>528</a>    /// are ignored outside of unconstrained code.
+<a href=#529 id=529 data-nosnippet>529</a>    ///
+<a href=#530 id=530 data-nosnippet>530</a>    /// If there is an `original` value it indicates that we're now decrementing it,
+<a href=#531 id=531 data-nosnippet>531</a>    /// but that should only happen if it hasn't been changed by an `array_set` in
+<a href=#532 id=532 data-nosnippet>532</a>    /// the meantime, which in itself would make sure its RC is decremented.
+<a href=#533 id=533 data-nosnippet>533</a>    ///
+<a href=#534 id=534 data-nosnippet>534</a>    /// Returns the ID of the array that was affected, if any.
+<a href=#535 id=535 data-nosnippet>535</a>    </span><span class="kw">fn </span>update_array_reference_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, increment: bool) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+<a href=#536 id=536 data-nosnippet>536</a>        <span class="kw">if </span><span class="self">self</span>.current_function.runtime().is_acir() {
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#538 id=538 data-nosnippet>538</a>        }
+<a href=#539 id=539 data-nosnippet>539</a>        <span class="kw">match </span><span class="self">self</span>.type_of_value(value) {
+<a href=#540 id=540 data-nosnippet>540</a>            Type::Numeric(<span class="kw">_</span>) | Type::Function | Type::Reference(..) =&gt; <span class="prelude-val">None</span>,
+<a href=#541 id=541 data-nosnippet>541</a>            Type::Array(..) | Type::Vector(..) =&gt; {
+<a href=#542 id=542 data-nosnippet>542</a>                <span class="comment">// If there are nested arrays or vectors, we wait until ArrayGet
+<a href=#543 id=543 data-nosnippet>543</a>                // is issued to increment the count of that array.
+<a href=#544 id=544 data-nosnippet>544</a>                </span><span class="kw">if </span>increment {
+<a href=#545 id=545 data-nosnippet>545</a>                    <span class="self">self</span>.insert_inc_rc(value);
+<a href=#546 id=546 data-nosnippet>546</a>                } <span class="kw">else </span>{
+<a href=#547 id=547 data-nosnippet>547</a>                    <span class="self">self</span>.insert_dec_rc(value);
+<a href=#548 id=548 data-nosnippet>548</a>                }
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="prelude-val">Some</span>(value)
+<a href=#550 id=550 data-nosnippet>550</a>            }
+<a href=#551 id=551 data-nosnippet>551</a>        }
+<a href=#552 id=552 data-nosnippet>552</a>    }
+<a href=#553 id=553 data-nosnippet>553</a>
+<a href=#554 id=554 data-nosnippet>554</a>    <span class="kw">pub fn </span>record_error_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, selector: ErrorSelector, typ: HirType) {
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="self">self</span>.error_types.insert(selector, typ);
+<a href=#556 id=556 data-nosnippet>556</a>    }
+<a href=#557 id=557 data-nosnippet>557</a>}
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a><span class="kw">impl </span>std::ops::Index&lt;ValueId&gt; <span class="kw">for </span>FunctionBuilder {
+<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">type </span>Output = Value;
+<a href=#561 id=561 data-nosnippet>561</a>
+<a href=#562 id=562 data-nosnippet>562</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: ValueId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
+<a href=#564 id=564 data-nosnippet>564</a>    }
+<a href=#565 id=565 data-nosnippet>565</a>}
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a><span class="kw">impl </span>std::ops::Index&lt;InstructionId&gt; <span class="kw">for </span>FunctionBuilder {
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">type </span>Output = Instruction;
+<a href=#569 id=569 data-nosnippet>569</a>
+<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InstructionId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
+<a href=#572 id=572 data-nosnippet>572</a>    }
+<a href=#573 id=573 data-nosnippet>573</a>}
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a><span class="kw">impl </span>std::ops::Index&lt;BasicBlockId&gt; <span class="kw">for </span>FunctionBuilder {
+<a href=#576 id=576 data-nosnippet>576</a>    <span class="kw">type </span>Output = BasicBlock;
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, id: BasicBlockId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.current_function.dfg[id]
+<a href=#580 id=580 data-nosnippet>580</a>    }
+<a href=#581 id=581 data-nosnippet>581</a>}
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a><span class="kw">fn </span>validate_numeric_type(typ: <span class="kw-2">&amp;</span>NumericType) {
+<a href=#584 id=584 data-nosnippet>584</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
+<a href=#585 id=585 data-nosnippet>585</a>        NumericType::Signed { bit_size } =&gt; <span class="kw">match </span>bit_size {
+<a href=#586 id=586 data-nosnippet>586</a>            <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>=&gt; (),
+<a href=#587 id=587 data-nosnippet>587</a>            <span class="kw">_ </span>=&gt; {
+<a href=#588 id=588 data-nosnippet>588</a>                <span class="macro">panic!</span>(
+<a href=#589 id=589 data-nosnippet>589</a>                    <span class="string">"Invalid bit size for signed numeric type: {bit_size}. Expected one of 8, 16, 32, or 64."
+<a href=#590 id=590 data-nosnippet>590</a>                </span>);
+<a href=#591 id=591 data-nosnippet>591</a>            }
+<a href=#592 id=592 data-nosnippet>592</a>        },
+<a href=#593 id=593 data-nosnippet>593</a>        NumericType::Unsigned { bit_size } =&gt; <span class="kw">match </span>bit_size {
+<a href=#594 id=594 data-nosnippet>594</a>            <span class="number">1 </span>| <span class="number">8 </span>| <span class="number">16 </span>| <span class="number">32 </span>| <span class="number">64 </span>| <span class="number">128 </span>=&gt; (),
+<a href=#595 id=595 data-nosnippet>595</a>            <span class="kw">_ </span>=&gt; {
+<a href=#596 id=596 data-nosnippet>596</a>                <span class="macro">panic!</span>(
+<a href=#597 id=597 data-nosnippet>597</a>                    <span class="string">"Invalid bit size for unsigned numeric type: {bit_size}. Expected one of 1, 8, 16, 32, 64, or 128."
+<a href=#598 id=598 data-nosnippet>598</a>                </span>);
+<a href=#599 id=599 data-nosnippet>599</a>            }
+<a href=#600 id=600 data-nosnippet>600</a>        },
+<a href=#601 id=601 data-nosnippet>601</a>        NumericType::NativeField =&gt; (),
+<a href=#602 id=602 data-nosnippet>602</a>    }
+<a href=#603 id=603 data-nosnippet>603</a>}
+<a href=#604 id=604 data-nosnippet>604</a>
+<a href=#605 id=605 data-nosnippet>605</a><span class="attr">#[cfg(test)]
+<a href=#606 id=606 data-nosnippet>606</a></span><span class="kw">mod </span>tests {
+<a href=#607 id=607 data-nosnippet>607</a>    <span class="kw">use </span>std::sync::Arc;
+<a href=#608 id=608 data-nosnippet>608</a>
+<a href=#609 id=609 data-nosnippet>609</a>    <span class="kw">use </span>acvm::{
+<a href=#610 id=610 data-nosnippet>610</a>        FieldElement,
+<a href=#611 id=611 data-nosnippet>611</a>        acir::{AcirField, brillig::lengths::SemanticLength},
+<a href=#612 id=612 data-nosnippet>612</a>    };
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href=#615 id=615 data-nosnippet>615</a>        instruction::{Endian, Intrinsic},
+<a href=#616 id=616 data-nosnippet>616</a>        map::Id,
+<a href=#617 id=617 data-nosnippet>617</a>        types::{NumericType, Type},
+<a href=#618 id=618 data-nosnippet>618</a>    };
+<a href=#619 id=619 data-nosnippet>619</a>
+<a href=#620 id=620 data-nosnippet>620</a>    <span class="kw">use </span><span class="kw">super</span>::FunctionBuilder;
 <a href=#621 id=621 data-nosnippet>621</a>
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="kw">let </span>to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
-<a href=#623 id=623 data-nosnippet>623</a>        <span class="kw">let </span>input = builder.field_constant(FieldElement::from(<span class="number">7_u128</span>));
-<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">let </span>length = builder.field_constant(FieldElement::from(<span class="number">8_u128</span>));
-<a href=#625 id=625 data-nosnippet>625</a>        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), SemanticLength(<span class="number">8</span>))];
-<a href=#626 id=626 data-nosnippet>626</a>        <span class="kw">let </span>call_results =
-<a href=#627 id=627 data-nosnippet>627</a>            builder.insert_call(to_bits_id, <span class="macro">vec!</span>[input, length], result_types).into_owned();
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span>vector = builder.current_function.dfg.get_array_constant(call_results[<span class="number">0</span>]).unwrap().<span class="number">0</span>;
-<a href=#630 id=630 data-nosnippet>630</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">0</span>], one);
-<a href=#631 id=631 data-nosnippet>631</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">1</span>], one);
-<a href=#632 id=632 data-nosnippet>632</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">2</span>], one);
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">3</span>], zero);
-<a href=#634 id=634 data-nosnippet>634</a>    }
-<a href=#635 id=635 data-nosnippet>635</a>}</code></pre></div></section></main></body></html>
+<a href=#622 id=622 data-nosnippet>622</a>    <span class="attr">#[test]
+<a href=#623 id=623 data-nosnippet>623</a>    </span><span class="kw">fn </span>insert_constant_call() {
+<a href=#624 id=624 data-nosnippet>624</a>        <span class="comment">// `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
+<a href=#625 id=625 data-nosnippet>625</a>        // let x = 7;
+<a href=#626 id=626 data-nosnippet>626</a>        // let bits: [u1; 8] = x.to_le_bits();
+<a href=#627 id=627 data-nosnippet>627</a>        </span><span class="kw">let </span>func_id = Id::test_new(<span class="number">0</span>);
+<a href=#628 id=628 data-nosnippet>628</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"func"</span>.into(), func_id);
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span>one = builder.numeric_constant(FieldElement::one(), NumericType::bool());
+<a href=#630 id=630 data-nosnippet>630</a>        <span class="kw">let </span>zero = builder.numeric_constant(FieldElement::zero(), NumericType::bool());
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">let </span>to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>input = builder.field_constant(FieldElement::from(<span class="number">7_u128</span>));
+<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">let </span>length = builder.field_constant(FieldElement::from(<span class="number">8_u128</span>));
+<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), SemanticLength(<span class="number">8</span>))];
+<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let </span>call_results =
+<a href=#637 id=637 data-nosnippet>637</a>            builder.insert_call(to_bits_id, <span class="macro">vec!</span>[input, length], result_types).into_owned();
+<a href=#638 id=638 data-nosnippet>638</a>
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>vector = builder.current_function.dfg.get_array_constant(call_results[<span class="number">0</span>]).unwrap().<span class="number">0</span>;
+<a href=#640 id=640 data-nosnippet>640</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">0</span>], one);
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">1</span>], one);
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">2</span>], one);
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="macro">assert_eq!</span>(vector[<span class="number">3</span>], zero);
+<a href=#644 id=644 data-nosnippet>644</a>    }
+<a href=#645 id=645 data-nosnippet>645</a>}</code></pre></div></section></main></body></html>

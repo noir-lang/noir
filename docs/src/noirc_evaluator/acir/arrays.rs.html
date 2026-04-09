@@ -717,7 +717,7 @@
 <a href=#717 id=717 data-nosnippet>717</a>                }
 <a href=#718 id=718 data-nosnippet>718</a>                <span class="prelude-val">Ok</span>(AcirValue::Array(values))
 <a href=#719 id=719 data-nosnippet>719</a>            }
-<a href=#720 id=720 data-nosnippet>720</a>            Type::Reference(reference_type) =&gt; {
+<a href=#720 id=720 data-nosnippet>720</a>            Type::Reference(reference_type, <span class="kw">_</span>) =&gt; {
 <a href=#721 id=721 data-nosnippet>721</a>                <span class="self">self</span>.array_get_value(reference_type.as_ref(), block_id, var_index)
 <a href=#722 id=722 data-nosnippet>722</a>            }
 <a href=#723 id=723 data-nosnippet>723</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected an array or numeric but got {ssa_type:?}"</span>),
@@ -744,7 +744,7 @@
 <a href=#744 id=744 data-nosnippet>744</a>                <span class="prelude-val">Ok</span>(AcirValue::Array(values))
 <a href=#745 id=745 data-nosnippet>745</a>            }
 <a href=#746 id=746 data-nosnippet>746</a>            Type::Vector(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(AcirValue::Array(im::Vector::new())),
-<a href=#747 id=747 data-nosnippet>747</a>            Type::Reference(reference_type) =&gt; <span class="self">self</span>.array_zero_value(reference_type.as_ref()),
+<a href=#747 id=747 data-nosnippet>747</a>            Type::Reference(reference_type, <span class="kw">_</span>) =&gt; <span class="self">self</span>.array_zero_value(reference_type.as_ref()),
 <a href=#748 id=748 data-nosnippet>748</a>            Type::Function =&gt; {
 <a href=#749 id=749 data-nosnippet>749</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: unexpected Function type in array_zero_value"</span>)
 <a href=#750 id=750 data-nosnippet>750</a>            }
