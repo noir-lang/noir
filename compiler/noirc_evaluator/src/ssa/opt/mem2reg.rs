@@ -38,21 +38,21 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Run mem2reg_simple on all functions (both ACIR and Brillig).
+    /// Run mem2reg on all functions (both ACIR and Brillig).
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn mem2reg_simple(mut self) -> Ssa {
+    pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.mem2reg_simple();
+            function.mem2reg();
         }
         self
     }
 
-    /// Run mem2reg_simple only on Brillig functions.
+    /// Run mem2reg only on Brillig functions.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
+    pub(crate) fn mem2reg_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple();
+                function.mem2reg();
             }
         }
         self
@@ -60,7 +60,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn mem2reg_simple(&mut self) {
+    pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -423,7 +423,7 @@ fn collect_eligible_variables_and_def_sites(
     let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
-    // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg_simple.
+    // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
     let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
@@ -527,7 +527,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -559,7 +559,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -589,7 +589,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         // Expect the allocate/load/store to be removed and the constant propagated to the return.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -621,7 +621,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
           b0(v0: u1):
@@ -651,7 +651,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
             brillig(inline) fn func f0 {
               b0():
@@ -685,7 +685,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         // Should handle merging from three different paths
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -722,7 +722,7 @@ mod tests {
                 return v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::mem2reg_simple);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -745,7 +745,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         // b2 path should pass the initial value (Field 5), b1 passes (Field 10)
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -776,7 +776,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         // Only the last store should matter
         assert_ssa_snapshot!(ssa, @r"
             brillig(inline) fn func f0 {
@@ -812,7 +812,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         // Should properly merge all three stores: from b2, b3, b4
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn func f0 {
@@ -1006,7 +1006,7 @@ brillig(inline) fn main f0 {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
@@ -1183,7 +1183,7 @@ brillig(inline) fn main f0 {
             }";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn to_le_bits f0 {
           b0(v0: Field):
@@ -1243,7 +1243,7 @@ brillig(inline) fn main f0 {
             }";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -1292,7 +1292,7 @@ brillig(inline) fn main f0 {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -1349,7 +1349,7 @@ brillig(inline) fn main f0 {
         let ssa = Ssa::from_str(src).unwrap();
 
         // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
-        let ssa = ssa.mem2reg_simple();
+        let ssa = ssa.mem2reg();
 
         // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
         // for v1 that the cleanup pass would later remove:
