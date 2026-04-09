@@ -19,7 +19,6 @@
 //! For blocks not in the IDF (the common case in unrolled code with single-predecessor chains),
 //! the variable's value is inherited directly from the predecessor's exit state. This avoids
 //! the O(variables × blocks) cost of adding block parameters everywhere.
-use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 
@@ -40,17 +39,10 @@ use crate::ssa::{
 
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
-    ///
-    /// ACIR functions have no variable limit since they benefit more from full promotion.
-    /// Brillig keeps the limit to avoid regressions in loop-heavy code.
-    ///
-    /// **Important:** This should only be used after flattening for ACIR functions.
-    /// Before flattening, use `mem2reg_simple_pre_flattening` instead to avoid
-    /// regressions from promoting variables that span too many blocks.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.mem2reg_simple(true);
+            function.mem2reg_simple();
         }
         self
     }
@@ -60,33 +52,15 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(true);
+                function.mem2reg_simple();
             }
-        }
-        self
-    }
-
-    /// Run mem2reg_simple on all functions before flattening.
-    ///
-    /// Brillig functions use the standard variable limit. ACIR functions use both
-    /// a variable limit and a block span limit to avoid regressions: promoting a
-    /// variable whose declaration dominates many blocks (e.g. across an unrolled loop)
-    /// generates O(variables × blocks) extra predicate opcodes after flattening.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.mem2reg_simple_pre_flattening();
         }
         self
     }
 }
 
 impl Function {
-    pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
-        self.mem2reg_simple(true);
-    }
-
-    fn mem2reg_simple(&mut self, cleanup: bool) {
+    pub(crate) fn mem2reg_simple(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -137,18 +111,7 @@ impl Function {
             &block_states,
             &cfg,
         );
-        if cleanup {
-            remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
-        }
         commit(&mut inserter, &variables, blocks);
-    }
-
-    /// Like `mem2reg_simple` but skips the cleanup pass that removes block parameters
-    /// whose arguments are all identical. This reveals whether the IDF-based placement
-    /// avoided unnecessary parameters at source, rather than relying on cleanup.
-    #[cfg(test)]
-    fn mem2reg_simple_without_cleanup(&mut self) {
-        self.mem2reg_simple(false);
     }
 }
 
@@ -361,45 +324,6 @@ fn add_terminator_arguments(
     }
 }
 
-/// For every block, remove any block parameters whose arguments (from predecessors' terminators) are all identical
-fn remove_params_from_blocks_with_identical_terminator_args(
-    blocks: &[BasicBlockId],
-    inserter: &mut FunctionInserter,
-    cfg: &ControlFlowGraph,
-) {
-    // Sort blocks such that we remove parameters from blocks with multiple predecessors last.
-    // This helps remove some dependency on block ordering for optimizations. E.g. the
-    // `read_only_loop` test requires 2 passes of mem2reg_simple without this.
-    let mut blocks = blocks.to_vec();
-    blocks.sort_unstable_by_key(|block| cfg.predecessors(*block).len());
-
-    for block in blocks {
-        remove_params_from_block_with_identical_terminator_args(block, inserter, cfg);
-    }
-}
-
-/// Removes block parameters whose arguments (from predecessors' terminators) are all identical
-fn remove_params_from_block_with_identical_terminator_args(
-    block: BasicBlockId,
-    inserter: &mut FunctionInserter,
-    cfg: &ControlFlowGraph,
-) {
-    let parameters = inserter.function.dfg.block_parameters(block).to_vec();
-
-    // Mask of whether each parameter has non-identical arguments,
-    // E.g. if parameter 2's arguments are all identical, then `mask[2]` would be false
-    let mask = keep_argument_mask(inserter, cfg, block, &parameters);
-
-    // Remove unneeded parameters from the block
-    retain_items_from_mask(inserter.function.dfg[block].parameters_mut(), &mask);
-
-    // And remove the corresponding parameter's arguments from each predecessor
-    for predecessor in cfg.predecessors(block) {
-        let arguments = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
-        retain_items_from_mask(arguments, &mask);
-    }
-}
-
 /// Mapping from a variable to its value at a point in time.
 type StateVec = BTreeMap<ValueId, ValueId>;
 
@@ -414,75 +338,6 @@ impl BlockState {
             // To save memory, `exit_states` only contains the value if it changed within the block.
             // So we have to check `entry_states` for the value if it went unchanged.
             .unwrap_or_else(|| &self.entry_state[&variable])
-    }
-}
-
-/// Return a mask indicating whether to keep or remove the corresponding parameter.
-///
-/// For a given parameter at index i, index i of the resulting mask is false (indicating to remove the parameter)
-/// if all arguments passed to that parameter from predecessor blocks are identical.
-///
-/// Each parameter that should be removed will be mapped to its single argument's value.
-fn keep_argument_mask(
-    inserter: &mut FunctionInserter,
-    cfg: &ControlFlowGraph,
-    block: BasicBlockId,
-    parameters: &[ValueId],
-) -> Vec<bool> {
-    let entry = inserter.function.entry_block();
-    if block == entry {
-        // Entry block has no predecessors, so keep all parameters
-        return vec![true; parameters.len()];
-    }
-
-    vecmap(parameters.iter().enumerate(), |(i, parameter)| {
-        let mut args = cfg
-            .predecessors(block)
-            .map(|predecessor| get_terminator_args(&inserter.function.dfg, predecessor, block)[i])
-            .map(|arg| inserter.resolve(arg))
-            // Filtering here optimizes away cases where we have the parameter changed in one block
-            // and unchanged in another (argument can only equal parameter in the case of back-edges)
-            .filter(|arg| arg != parameter);
-
-        let first_arg = args
-            .next()
-            .expect("Entry block is excluded so there should always be >= 1 predecessor");
-
-        // keep the parameter if the arguments do not all match
-        // unwrap safety: for all multi-predecessor blocks, each predecessor should end in a jmp, not jmpif
-        let keep_param = !args.all(|arg| arg == first_arg);
-        if !keep_param {
-            // All arguments are identical, so the choice to map to the first is arbitrary
-            // Do not `inserter.resolve()` this parameter! We want the original block parameter, but it
-            // may already be mapped away in the inserter.
-            inserter.map_value(*parameter, first_arg);
-        }
-        keep_param
-    })
-}
-
-/// Get the terminator arguments for block `block` jumping to block `jmp_target`.
-/// The `jmp_target` is relevant if `block` terminates in a jmpif terminator and may jmp to
-/// multiple blocks. Panics if the given block does not have block arguments.
-fn get_terminator_args(
-    dfg: &DataFlowGraph,
-    block: BasicBlockId,
-    jmp_target: BasicBlockId,
-) -> &[ValueId] {
-    match dfg[block].unwrap_terminator() {
-        TerminatorInstruction::Jmp { arguments, .. } => arguments,
-        TerminatorInstruction::JmpIf {
-            then_destination, then_arguments, else_arguments, ..
-        } => {
-            if jmp_target == *then_destination {
-                then_arguments
-            } else {
-                else_arguments
-            }
-        }
-        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
-        ),
     }
 }
 
@@ -509,15 +364,6 @@ fn get_terminator_args_mut(
             "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
         ),
     }
-}
-
-/// For each index i of `items`, keep `items[i]` iff `mask[i]`
-fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
-    debug_assert_eq!(items.len(), mask.len());
-    let mut mask_iter = mask.iter();
-    items.retain(|_| *mask_iter.next().unwrap());
-    // Reclaim some memory, important in larger programs
-    items.shrink_to_fit();
 }
 
 /// Abstractly interpret a block, collecting the value of each reference at the end of a block.
@@ -746,13 +592,13 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Expect the allocate/load/store to be removed and the constant propagated to the return.
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0():
-                jmp b1()
-              b1():
-                return Field 7
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0():
+            jmp b1()
+          b1():
+            return Field 7
+        }
+        ");
     }
 
     #[test]
@@ -776,19 +622,18 @@ mod tests {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg_simple();
-        // Both predecessors pass the same value, so the parameter should be removed and the value folded.
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0(v0: u1):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                jmp b3()
-              b2():
-                jmp b3()
-              b3():
-                return Field 1
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 1)
+          b3(v1: Field):
+            return v1
+        }
+        ");
     }
 
     #[test]
@@ -843,21 +688,21 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Should handle merging from three different paths
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0(v0: u1, v1: u1):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                jmp b5(Field 2)
-              b2():
-                jmpif v1 then: b3(), else: b4()
-              b3():
-                jmp b5(Field 3)
-              b4():
-                jmp b5(Field 1)
-              b5(v2: Field):
-                return v2
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b5(Field 2)
+          b2():
+            jmpif v1 then: b3(), else: b4()
+          b3():
+            jmp b5(Field 3)
+          b4():
+            jmp b5(Field 1)
+          b5(v2: Field):
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -903,17 +748,17 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // b2 path should pass the initial value (Field 5), b1 passes (Field 10)
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0(v0: u1):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                jmp b3(Field 10)
-              b2():
-                jmp b3(Field 5)
-              b3(v1: Field):
-                return v1
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 10)
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            return v1
+        }
+        ");
     }
 
     #[test]
@@ -970,21 +815,21 @@ mod tests {
         let ssa = ssa.mem2reg_simple();
         // Should properly merge all three stores: from b2, b3, b4
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0(v0: u1, v1: u1):
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                jmpif v1 then: b3(), else: b4()
-              b2():
-                jmp b5(Field 2)
-              b3():
-                jmp b5(Field 3)
-              b4():
-                jmp b5(Field 4)
-              b5(v2: Field):
-                return v2
-            }
-            ");
+        brillig(inline) fn func f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmpif v1 then: b3(), else: b4()
+          b2():
+            jmp b5(Field 2)
+          b3():
+            jmp b5(Field 3)
+          b4():
+            jmp b5(Field 4)
+          b5(v2: Field):
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -1477,9 +1322,8 @@ brillig(inline) fn main f0 {
     /// The variable v1 is stored in b0 and b1. The IDF of {b0, b1} is {b3} (the merge point).
     /// Blocks b2, b4, and b5 are single-predecessor blocks that should NOT get block parameters.
     ///
-    /// We use `mem2reg_simple_without_cleanup` to verify this at source: if the IDF optimization
-    /// were removed (adding params everywhere), b2/b4/b5 would have params that cleanup would
-    /// remove — but we'd lose the O(V×B) performance benefit.
+    /// If IDF optimization were removed (adding params everywhere), b2/b4/b5 would have
+    /// unnecessary params — losing the O(V×B) performance benefit.
     #[test]
     fn idf_avoids_unnecessary_block_params() {
         let src = "
@@ -1502,13 +1346,10 @@ brillig(inline) fn main f0 {
                 return v2
             }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Run without cleanup to reveal whether IDF placement avoids parameters at source.
         // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
-        for function in ssa.functions.values_mut() {
-            function.mem2reg_simple_without_cleanup();
-        }
+        let ssa = ssa.mem2reg_simple();
 
         // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
         // for v1 that the cleanup pass would later remove:
