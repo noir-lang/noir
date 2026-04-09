@@ -1,10 +1,7 @@
-fn main(mut a: bool) -> pub bool {
+fn main(a: bool) -> pub (bool, bool) {
     if a {
-        for _i in 0..1 {
-            a = if a { true } else { false };
-        }
-        true
+        ((false <= a), a)
     } else {
-        a
+        (false, true)
     }
 }
