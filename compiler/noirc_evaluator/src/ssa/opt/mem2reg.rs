@@ -1,16 +1,9 @@
-//! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
-//!
-//! The goal is for this new, simpler to eventually replace our existing mem2reg algorithm in `ssa/opt/mem2reg.rs`.
-//! The pre-existing pass however can optimize in more/different cases than this pass. For example,
-//! it can still optimize out stores/loads in some cases even when the reference is aliased. That
-//! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
-//! replace the old pass with this one plus any other, separate passes needed for the features
-//! unhandled here (such as alias analysis).
+//! Mem2reg algorithm adapted from the paper: <https://dl.acm.org/doi/pdf/10.1145/115372.115320>
 //!
 //! ## Block parameter placement
 //!
 //! When a variable is stored in multiple blocks, this pass places block parameters only at the
-//! **iterated dominance frontier** (IDF) of those definition sites. This is the minimal set of
+//! iterated dominance frontier (IDF) of those definition sites. This is the minimal set of
 //! blocks where values from different control-flow paths could merge, following the standard
 //! algorithm from Cytron et al. (1991). For variables stored in a single block, the dominance
 //! frontier is often empty, meaning no block parameters are needed at all — the value simply
