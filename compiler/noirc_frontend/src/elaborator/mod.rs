@@ -323,6 +323,10 @@ pub struct Elaborator<'context> {
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
 
+    /// When set, visibility checks during path resolution use this module
+    /// instead of the default importing module.
+    pub(crate) caller_module: Option<ModuleId>,
+
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
@@ -439,6 +443,7 @@ impl<'context> Elaborator<'context> {
             in_comptime_context: false,
             in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
+            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
