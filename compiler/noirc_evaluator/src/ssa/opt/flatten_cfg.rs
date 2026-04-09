@@ -875,8 +875,16 @@ impl<'f> Context<'f> {
             // the next outer condition. Provenance is also consumed (removed) on
             // use by `try_collapse_merge`, preventing stale entries from matching
             // at unrelated merge points. Skip when the IfElse simplified to an
-            // existing value (e.g. then_value == else_value).
-            if collapsed.is_none() && result != then_value && result != else_value {
+            // existing value (e.g. then_value == else_value). Also skip when the
+            // merge simplified to the condition or the original branch arguments,
+            // since those are pre-existing values and attaching provenance to them
+            // would cause try_collapse_merge to incorrectly treat them as inner
+            // IfElse results in subsequent merges.
+            let simplified_to_existing = result == then_value
+                || result == else_value
+                || result == then_condition
+                || result == else_condition;
+            if collapsed.is_none() && !simplified_to_existing {
                 self.merge_provenance.insert(
                     result,
                     MergeProvenance { then_condition, then_value, else_condition, else_value },
@@ -2408,10 +2416,9 @@ mod merge_provenance_tests {
             v7 = not v1
             v8 = unchecked_mul v0, v7
             enable_side_effects v0
-            v9 = not v4
-            v10 = not v0
+            v9 = not v0
             enable_side_effects u1 1
-            v12 = unchecked_mul v0, v4
+            v11 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
             constrain v0 == u1 1
@@ -2470,14 +2477,12 @@ mod merge_provenance_tests {
             v5 = unchecked_mul v0, v4
             enable_side_effects v0
             v6 = not v0
-            enable_side_effects u1 1
-            v8 = not v3
             enable_side_effects v2
-            v9 = not v2
+            v7 = not v2
             enable_side_effects u1 1
-            v10 = unchecked_mul v9, v3
-            v11 = unchecked_add v2, v10
-            constrain v11 == u1 1
+            v9 = unchecked_mul v7, v3
+            v10 = unchecked_add v2, v9
+            constrain v10 == u1 1
             return
         }
         ");
@@ -2592,6 +2597,48 @@ mod merge_provenance_tests {
             v15 = mul v13, Field 200
             v16 = add v14, v15
             return v16
+        }
+        ");
+    }
+
+    /// Regression test: when a merge simplifies to the condition value itself
+    /// (e.g. IfElse(c, 1, !c, 0) → c), provenance must NOT be recorded for it.
+    /// Otherwise, a subsequent merge that uses the same condition as a
+    /// then_arg will incorrectly collapse via try_collapse_merge.
+    ///
+    /// Pattern: `if a { (false <= a, a) } else { (false, true) }`
+    /// With a=false, first return is 0, second should be 1.
+    /// The first merge IfElse(a, 1, !a, 0) simplifies to `a`.
+    /// If provenance is recorded for `a`, the second merge (then_arg=a, else_arg=1)
+    /// will incorrectly collapse because provenance's then_value(=1) matches else_arg(=1).
+    #[test]
+    fn no_collapse_when_merge_simplifies_to_condition() {
+        // if v0 { (1, v0) } else { (0, 1) }
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b3(u1 1, v0)
+              b2():
+                jmp b3(u1 0, u1 1)
+              b3(v1: u1, v2: u1):
+                return v1, v2
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The first merge IfElse(v0, 1, !v0, 0) simplifies to v0.
+        // The second merge must NOT collapse — it should produce v0 + !v0 = 1.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = unchecked_add v0, v1
+            return v0, v3
         }
         ");
     }
