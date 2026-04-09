@@ -2077,6 +2077,17 @@ mod tests {
         // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
         let inputs = vec![InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap()];
         let (ssa, _) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
-        assert_ssa_snapshot!(ssa, @"");
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects u1 1
+            v4 = unchecked_mul v1, v0
+            v5 = unchecked_add v0, v4
+            return v5
+        }
+        ");
     }
 }
