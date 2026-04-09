@@ -1,6 +1,8 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
+use acvm::{
+    AcirField, BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver,
+};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
 use noirc_errors::Location;
@@ -20,8 +22,8 @@ use super::{
     Interpreter,
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_bool, get_field, get_fixed_array_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_struct,
+        get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
+        get_u32, get_u64, to_struct,
     },
 };
 
@@ -158,25 +160,22 @@ fn embedded_curve_add(
 
     let embedded_curve_point_typ = point1.0.get_type().into_owned();
 
-    let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
-    let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
+    let (p1x, p1y) = get_embedded_curve_point(point1)?;
+    let (p2x, p2y) = get_embedded_curve_point(point2)?;
 
-    let (x, y, inf) = Bn254BlackBoxSolver
+    let p1inf: FieldElement =
+        if p1x.is_zero() && p1y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
+    let p2inf: FieldElement =
+        if p2x.is_zero() && p2y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
+
+    let (x, y, _inf) = Bn254BlackBoxSolver
         .ec_add(
-            &p1x,
-            &p1y,
-            &p1inf.into(),
-            &p2x,
-            &p2y,
-            &p2inf.into(),
+            &p1x, &p1y, &p1inf, &p2x, &p2y, &p2inf,
             true, // Predicate is always true as interpreter has control flow to handle false case
         )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(Value::Array(
-        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
-        return_type,
-    ))
+    Ok(Value::Array(vector![to_embedded_curve_point(x, y, embedded_curve_point_typ)], return_type))
 }
 
 /// ```text
@@ -197,7 +196,14 @@ fn multi_scalar_mul(
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;
 
-    let points: Vec<_> = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
+    let points: Vec<_> = points
+        .into_iter()
+        .flat_map(|(x, y)| {
+            let is_infinite: FieldElement =
+                if x.is_zero() && y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
+            [x, y, is_infinite]
+        })
+        .collect();
     let mut scalars_lo = Vec::new();
     let mut scalars_hi = Vec::new();
     for (lo, hi) in scalars {
@@ -205,7 +211,7 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, inf) = Bn254BlackBoxSolver
+    let (x, y, _inf) = Bn254BlackBoxSolver
         .multi_scalar_mul(
             &points,
             &scalars_lo,
@@ -225,10 +231,7 @@ fn multi_scalar_mul(
         }
     };
 
-    Ok(Value::Array(
-        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
-        return_type,
-    ))
+    Ok(Value::Array(vector![to_embedded_curve_point(x, y, embedded_curve_point_typ)], return_type))
 }
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
@@ -282,15 +285,14 @@ fn sha256_compression(arguments: Vec<(Value, Location)>, location: Location) -> 
 
 /// Decode an `EmbeddedCurvePoint` struct.
 ///
-/// Returns `(x, y, is_infinite)`.
+/// Returns `(x, y)`.
 fn get_embedded_curve_point(
     (value, location): (Value, Location),
-) -> IResult<(FieldElement, FieldElement, bool)> {
+) -> IResult<(FieldElement, FieldElement)> {
     let (fields, typ) = get_struct_fields("EmbeddedCurvePoint", (value, location))?;
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
-    let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x, y, is_infinite))
+    Ok((x, y))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -305,16 +307,8 @@ fn get_embedded_curve_scalar(
     Ok((lo, hi))
 }
 
-fn to_embedded_curve_point(
-    x: FieldElement,
-    y: FieldElement,
-    is_infinite: bool,
-    typ: Type,
-) -> Value {
-    to_struct(
-        [("x", Value::field(x)), ("y", Value::field(y)), ("is_infinite", Value::Bool(is_infinite))],
-        typ,
-    )
+fn to_embedded_curve_point(x: FieldElement, y: FieldElement, typ: Type) -> Value {
+    to_struct([("x", Value::field(x)), ("y", Value::field(y))], typ)
 }
 
 #[cfg(test)]

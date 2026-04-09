@@ -15,7 +15,7 @@ mod tests {
     use noirc_artifacts::program::CompiledProgram;
     use noirc_driver::CompileOptions;
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
-    use rand::Rng;
+    use rand::RngExt;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,

@@ -62,7 +62,6 @@
 <li><a href="primitive.Type.html">Type</a></div></li>
 <li><a href="primitive.TypeDefinition.html">TypeDefinition</a></div></li>
 <li><a href="primitive.TypedExpr.html">TypedExpr</a></div></li>
-<li><a href="primitive.u1.html">u1</a></div></li>
 <li><a href="primitive.u128.html">u128</a></div></li>
 <li><a href="primitive.u16.html">u16</a></div></li>
 <li><a href="primitive.u32.html">u32</a></div></li>
@@ -85,6 +84,10 @@
 <h1>Function <span class="fn">static_assert</span></h1>
 <pre><code>pub fn static_assert&lt;T&gt;(predicate: <a href="../std/primitive.bool.html" class="primitive">bool</a>, message: T)</code></pre>
 
+<div class="comments">
+<p>Asserts that the given value is both true and known at compile-time.
+The message can be a string, a format string, or any value, as long as it is known at compile-time</p>
+</div>
 </main>
 </span>
 </body>

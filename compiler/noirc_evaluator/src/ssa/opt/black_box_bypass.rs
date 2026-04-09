@@ -63,7 +63,7 @@ impl Function {
                 return;
             }
 
-            let arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(*arg));
+            let arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(*arg).into_owned());
 
             if !arg_types.iter().any(black_box_should_ignore) {
                 return;

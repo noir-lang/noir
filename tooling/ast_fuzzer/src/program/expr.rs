@@ -43,7 +43,6 @@ pub fn gen_literal(
         Type::Integer(signedness, integer_bit_size) => {
             let field = if signedness.is_signed() {
                 match integer_bit_size {
-                    One => Field::from(bool::arbitrary(u)?),
                     Eight => Field::from(i8::arbitrary(u)?),
                     Sixteen => Field::from(i16::arbitrary(u)?),
                     ThirtyTwo => Field::from(i32::arbitrary(u)?),
@@ -56,7 +55,6 @@ pub fn gen_literal(
                 }
             } else {
                 match integer_bit_size {
-                    One => Field::from(bool::arbitrary(u)?),
                     Eight => Field::from(u32::from(u8::arbitrary(u)?)),
                     Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
                     ThirtyTwo => Field::from(u32::arbitrary(u)?),
@@ -180,7 +178,9 @@ pub fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
+                HundredTwentyEight => {
+                    unreachable!("invalid bit size for range: {integer_bit_size} (signed)")
+                }
             }
         } else {
             match integer_bit_size {
@@ -219,7 +219,6 @@ pub fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                One => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
             }
         }
     };
@@ -322,9 +321,12 @@ pub fn assign_ident(ident: Ident, expr: Expression) -> Expression {
 
 /// Assign a value to a mutable reference.
 pub fn assign_ref(ident: Ident, expr: Expression) -> Expression {
-    let typ = ident.typ.as_ref().clone();
+    let element_type = match ident.typ.as_ref() {
+        Type::Reference(inner, _) => inner.as_ref().clone(),
+        other => other.clone(),
+    };
     let lvalue = LValue::Ident(ident);
-    let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
+    let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type };
     Expression::Assign(Assign { lvalue, expression: Box::new(expr) })
 }
 

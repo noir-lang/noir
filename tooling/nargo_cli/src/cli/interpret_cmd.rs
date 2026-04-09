@@ -221,6 +221,7 @@ fn compile_into_program(
             main_id,
             &mut context.def_interner,
             &context.debug_instrumenter,
+            context.debug_crate_id,
             force_unconstrained,
         )
     } else {

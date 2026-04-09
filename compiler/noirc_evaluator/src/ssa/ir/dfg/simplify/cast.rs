@@ -23,7 +23,7 @@ pub(super) fn simplify_cast(
         dfg.type_of_value(value)
     );
 
-    if Type::Numeric(dst_typ) == dfg.type_of_value(value) {
+    if Type::Numeric(dst_typ) == *dfg.type_of_value(value) {
         return SimplifiedTo(value);
     }
 
@@ -61,21 +61,44 @@ pub(super) fn simplify_cast(
                 SimplifiedTo(dfg.make_constant(truncated, dst_typ))
             }
             (
-                NumericType::NativeField
-                | NumericType::Unsigned { .. }
-                | NumericType::Signed { .. },
+                NumericType::NativeField | NumericType::Unsigned { .. },
                 NumericType::Signed { bit_size },
             ) => {
                 // `IntegerConstant::from_numeric_constant` cannot handle i128
                 if bit_size == 128 {
                     return None;
                 }
+
                 // Field/Unsigned -> signed
                 // We could only simplify to signed when we are below the maximum integer of the destination type.
                 // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
                 let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
                 if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
+                } else {
+                    None
+                }
+            }
+            (NumericType::Signed { .. }, NumericType::Signed { bit_size }) => {
+                // `IntegerConstant::from_numeric_constant` cannot handle i128
+                if bit_size == 128 {
+                    return None;
+                }
+
+                // When going from signed to signed, we first need to interpret the constant as the signed source type,
+                // and then convert it to the signed destination type.
+                // For example, when going from `i8 -1` to `i16`, `i8 -1` is represented as the FieldElement 255,
+                // and it would be incorrect to use `IntegerConstant::from_numeric_constant(constant, dst_typ)` as
+                // that would give `i16 255` instead of the desired `i16 -1`.
+                if let Some(src_constant) =
+                    IntegerConstant::from_numeric_constant(constant, src_typ)
+                {
+                    let dst_constant = IntegerConstant::Signed {
+                        value: src_constant.apply(|v| v, |v| v as i128),
+                        bit_size,
+                    };
+                    let (dst_constant, dst_typ) = dst_constant.into_numeric_constant();
+                    SimplifiedTo(dfg.make_constant(dst_constant, dst_typ))
                 } else {
                     None
                 }
@@ -184,6 +207,86 @@ mod tests {
             v2 = unchecked_add v0, v1
             v3 = cast v2 as i64
             return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i8_minus_1_to_i16() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast i8 -1 as i16
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i16 -1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i16_minus_1_to_i8() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast i16 -1 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 -1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_field_4_to_i8() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 4 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 4
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_field_255_to_i8() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 255 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            return i8 -1
         }
         ");
     }

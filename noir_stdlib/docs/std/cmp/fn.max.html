@@ -37,6 +37,14 @@
 <div class="where-clause">where
     T: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></pre>
 
+<div class="comments">
+<p>Compares and returns the maximum of two values.</p>
+<p>Returns the second argument if the comparison determines them to be equal.</p>
+<h2>Examples</h2>
+<pre><code><span class="kw">use</span> std::cmp;
+
+<span class="kw">assert_eq</span>(cmp::max(<span class="number">1</span>, <span class="number">2</span>), <span class="number">2</span>);
+<span class="kw">assert_eq</span>(cmp::max(<span class="number">2</span>, <span class="number">2</span>), <span class="number">2</span>);</code></pre></div>
 </main>
 </span>
 </body>

@@ -5,7 +5,6 @@ use std::str::FromStr;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnstableFeature {
     Enums,
-    Ownership,
     TraitAsType,
 }
 
@@ -13,7 +12,6 @@ impl std::fmt::Display for UnstableFeature {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Enums => write!(f, "enums"),
-            Self::Ownership => write!(f, "ownership"),
             Self::TraitAsType => write!(f, "trait_as_type"),
         }
     }
@@ -25,7 +23,6 @@ impl FromStr for UnstableFeature {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "enums" => Ok(Self::Enums),
-            "ownership" => Ok(Self::Ownership),
             "trait_as_type" => Ok(Self::TraitAsType),
             other => Err(format!("Unknown unstable feature '{other}'")),
         }

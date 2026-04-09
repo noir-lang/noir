@@ -70,7 +70,7 @@
 //!    an equality with `c`:
 //! ```text
 //! constrain v0
-//! ============
+//! ---- becomes ----
 //! v1 = mul v0, c
 //! v2 = eq v1, c
 //! constrain v2
@@ -92,7 +92,7 @@
 //!   jmp b3(v2)
 //! b3(v3: Field):
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   v3 = mul v0, v1
 //!   v4 = not v0
@@ -121,7 +121,7 @@
 //!   jmp b3
 //! b3():
 //!   ... b3 instructions ...
-//! =========================
+//! --------- becomes --------
 //! b0():
 //!   v1 = allocate -> &mut Field
 //!   store Field 3 at v1     // no prior value so we do not load & merge
@@ -223,6 +223,11 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
     }
 }
 
+/// Mutable context threaded through the CFG flattening pass.
+///
+/// Holds the function inserter, the pre-modification CFG, branch-end map, and all
+/// bookkeeping needed to merge stores and conditions as branches are inlined one by
+/// one into `target_block`.
 pub(crate) struct Context<'f> {
     pub(crate) inserter: FunctionInserter<'f>,
 
@@ -262,6 +267,11 @@ pub(crate) struct Context<'f> {
     /// helps simplifications.
     not_instructions: HashMap<ValueId, ValueId>,
 
+    /// Maps merge result ValueId to the provenance of the IfElse that produced it.
+    /// Used to detect and collapse redundant nested merges in `inline_branch_end`.
+    /// See [`Context::try_collapse_merge`] for the four patterns this enables.
+    merge_provenance: HashMap<ValueId, MergeProvenance>,
+
     /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
     ///
     /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
@@ -271,6 +281,22 @@ pub(crate) struct Context<'f> {
     pub(crate) no_predicate: bool,
 }
 
+/// Tracks the origin of a merge result to collapse redundant nested merges.
+///
+/// When nested `jmpif` blocks thread the same value through their else-arguments,
+/// the outer merge is redundant. For example:
+///   `IfElse(c1, IfElse(c2, x, _, y), _, y)` collapses to `IfElse(c2, x, NOT(c2), y)`
+/// because both the inner and outer merges default to the same value `y`.
+///
+/// See [`Context::try_collapse_merge`] for all four supported patterns.
+struct MergeProvenance {
+    then_condition: ValueId,
+    then_value: ValueId,
+    else_condition: ValueId,
+    else_value: ValueId,
+}
+
+/// State for one side (then or else) of a conditional being flattened.
 #[derive(Clone)]
 struct ConditionalBranch {
     /// Contains the last processed block during the processing of the branch.
@@ -281,6 +307,10 @@ struct ConditionalBranch {
     condition: ValueId,
 }
 
+/// All bookkeeping for a single `jmpif` that is currently being flattened.
+///
+/// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
+/// its join point is reached.
 struct ConditionalContext {
     /// Condition from the conditional statement
     condition: ValueId,
@@ -302,6 +332,9 @@ struct ConditionalContext {
     predicated_values: HashMap<ValueId, ValueId>,
     /// The allocations accumulated before processing the branch.
     local_allocations: HashSet<ValueId>,
+    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
+    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    jmpif_else_arguments: Option<Vec<ValueId>>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -325,6 +358,11 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 pub(crate) type WorkList = IndexSet<BasicBlockId>;
 
 impl<'f> Context<'f> {
+    /// Creates a new flattening context.
+    ///
+    /// `cfg` must be computed from `function` before any modifications are made.
+    /// `branch_ends` maps each branch-start block to its join/exit block.
+    /// `target_block` is the single block into which all instructions will be inlined.
     pub(crate) fn new(
         function: &'f mut Function,
         cfg: ControlFlowGraph,
@@ -339,6 +377,7 @@ impl<'f> Context<'f> {
             next_arguments: None,
             local_allocations: HashSet::default(),
             not_instructions: HashMap::default(),
+            merge_provenance: HashMap::default(),
             target_block,
             no_predicate: false,
         }
@@ -502,14 +541,21 @@ impl<'f> Context<'f> {
                 then_destination,
                 then_arguments,
                 else_destination,
-                else_arguments: _,
+                else_arguments,
                 call_stack,
             } => {
                 // The `then` branch is next and we can prepare its args now, but the `else`
                 // branch's args need to be prepared only when the branch is later started.
                 let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
                 self.prepare_args(resolved);
-                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    else_arguments,
+                    &block,
+                    *call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // If the destination is already on the work list, it means it's an exit block in an if-then-else,
@@ -563,6 +609,7 @@ impl<'f> Context<'f> {
         condition: &ValueId,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
+        else_arguments: &[ValueId],
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
@@ -575,6 +622,11 @@ impl<'f> Context<'f> {
             last_block: None,
         };
         let local_allocations = std::mem::take(&mut self.local_allocations);
+        let jmpif_else_arguments = if *else_destination == self.branch_ends[if_entry] {
+            Some(vecmap(else_arguments, |v| self.inserter.resolve(*v)))
+        } else {
+            None
+        };
         let cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: *if_entry,
@@ -584,7 +636,15 @@ impl<'f> Context<'f> {
             call_stack,
             predicated_values: HashMap::default(),
             local_allocations,
+            jmpif_else_arguments,
         };
+        // Clear merge provenance from previous conditionals at this nesting level.
+        // Provenance from a previous conditional's merges must not be re-used by
+        // the current conditional's merge, as the conditions would be from an
+        // unrelated context. Provenance from INNER merges (created by deeper
+        // inline_branch_end calls within the current conditional's branches) will
+        // be freshly recorded and available when this conditional's merge runs.
+        self.merge_provenance.clear();
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
 
@@ -637,6 +697,63 @@ impl<'f> Context<'f> {
         let not = self.insert_instruction(Instruction::Not(condition), call_stack);
         self.not_instructions.insert(condition, not);
         not
+    }
+
+    /// Attempt to collapse a redundant nested merge where one value is shared.
+    ///
+    /// When nested `jmpif` blocks thread the same value through their arguments,
+    /// the outer merge is redundant. This detects four patterns:
+    ///
+    /// **Group 1 — shared else_value (y):**
+    /// - `IfElse(c1, IfElse(c2, x, _, y), _, y)` → `IfElse(c2, x, NOT(c2), y)`
+    /// - `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`
+    ///
+    /// **Group 2 — shared then_value (x):**
+    /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
+    /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
+    ///
+    /// Returns `(new_then_condition, new_then_value, new_else_value)` if collapsible.
+    fn try_collapse_merge(
+        &mut self,
+        then_arg: ValueId,
+        else_arg: ValueId,
+    ) -> Option<(ValueId, ValueId, ValueId)> {
+        // Check then_arg provenance
+        if let Some(prov) = self.merge_provenance.get(&then_arg) {
+            let prov_else = self.inserter.resolve(prov.else_value);
+            let prov_then = self.inserter.resolve(prov.then_value);
+            if prov_else == else_arg {
+                // Group 1: IfElse(c1, IfElse(c2, x, _, y), _, y) → IfElse(c2, x, _, y)
+                let result = (prov.then_condition, prov_then, else_arg);
+                self.merge_provenance.remove(&then_arg);
+                return Some(result);
+            }
+            if prov_then == else_arg {
+                // Group 2: IfElse(c1, IfElse(_, x, c2e, z), _, x) → IfElse(c2e, z, _, x)
+                let result = (prov.else_condition, prov_else, else_arg);
+                self.merge_provenance.remove(&then_arg);
+                return Some(result);
+            }
+        }
+        // Check else_arg provenance (safe because merge_provenance is cleared at
+        // each jmpif entry, so only provenance from the current conditional survives).
+        if let Some(prov) = self.merge_provenance.get(&else_arg) {
+            let prov_else = self.inserter.resolve(prov.else_value);
+            let prov_then = self.inserter.resolve(prov.then_value);
+            if prov_else == then_arg {
+                // Group 1: IfElse(c1, y, _, IfElse(c2, x, _, y)) → IfElse(c2, x, _, y)
+                let result = (prov.then_condition, prov_then, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+            if prov_then == then_arg {
+                // Group 2: IfElse(c1, x, _, IfElse(_, x, c2e, z)) → IfElse(c2e, z, _, x)
+                let result = (prov.else_condition, prov_else, then_arg);
+                self.merge_provenance.remove(&else_arg);
+                return Some(result);
+            }
+        }
+        None
     }
 
     /// Switch context the 'exit' block of a conditional statement:
@@ -692,11 +809,16 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        let mut else_args = Vec::new();
-        if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
-            else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-        }
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
+            args.clone()
+        } else if cond_context.else_branch.is_some() {
+            let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
+            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+        } else {
+            Vec::new()
+        };
 
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
@@ -719,18 +841,57 @@ impl<'f> Context<'f> {
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
-            let instruction = Instruction::IfElse {
-                then_condition: cond_context.then_branch.condition,
-                then_value: then_arg,
-                else_condition: else_branch.condition,
-                else_value: else_arg,
-            };
             let call_stack = cond_context.call_stack;
-            self.inserter
+
+            // Try to collapse a redundant nested merge. When the inner merge's
+            // else_value (or then_value) matches the outer merge's corresponding
+            // argument, the two merges can be combined into one.
+            let collapsed = self.try_collapse_merge(then_arg, else_arg);
+            let (then_condition, then_value, else_condition, else_value) =
+                if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
+                    // For the collapsed merge, the then_condition is the inner's
+                    // condition which already incorporates all outer conditions.
+                    // The correct else_condition is NOT(then_condition).
+                    let inner_else_cond = self.not_instruction(
+                        inner_then_cond,
+                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
+                    );
+                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
+                } else {
+                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
+                };
+
+            let instruction =
+                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+            let result = self
+                .inserter
                 .function
                 .dfg
                 .insert_instruction_and_results(instruction, block, None, call_stack)
-                .first()
+                .first();
+
+            // Record provenance only for non-collapsed merges — collapsed results
+            // carry conditions from an inner nesting level that may not be "under"
+            // the next outer condition. Provenance is also consumed (removed) on
+            // use by `try_collapse_merge`, preventing stale entries from matching
+            // at unrelated merge points. Skip when the IfElse simplified to an
+            // existing value (e.g. then_value == else_value, or one of the conditions).
+            // If we don't skip conditions, an inner merge that simplifies to its
+            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+            // to v0, causing false collapses at outer merges that use v0 as an argument.
+            if collapsed.is_none()
+                && result != then_condition
+                && result != then_value
+                && result != else_condition
+                && result != else_value
+            {
+                self.merge_provenance.insert(
+                    result,
+                    MergeProvenance { then_condition, then_value, else_condition, else_value },
+                );
+            }
+
+            result
         });
 
         self.prepare_args(args);
@@ -864,7 +1025,7 @@ impl<'f> Context<'f> {
                     // If the reference was allocated before this condition took effect, then we must only
                     // overwrite it if the condition is true.
                     // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
-                    let typ = self.inserter.function.dfg.type_of_value(value);
+                    let typ = self.inserter.function.dfg.type_of_value(value).into_owned();
                     let load = Instruction::Load { address };
                     let previous_value = self
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
@@ -1376,7 +1537,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg();
+        let ssa = ssa.flatten_cfg().mem2reg_simple();
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1385,44 +1546,44 @@ mod tests {
         };
 
         let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+        assert_eq!(merged_values, vec![1, 2, 3, 5, 6]);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
-            v2 = allocate -> &mut Field
             enable_side_effects v0
-            v3 = not v0
-            v4 = cast v0 as Field
-            v5 = cast v3 as Field
-            v7 = mul v4, Field 2
-            v8 = add v7, v5
-            v9 = unchecked_mul v0, v1
-            enable_side_effects v9
-            v10 = not v9
-            v11 = cast v9 as Field
+            v2 = not v0
+            v3 = cast v0 as Field
+            v4 = cast v2 as Field
+            v6 = mul v3, Field 2
+            v8 = mul v4, Field 1
+            v9 = add v6, v8
+            v10 = unchecked_mul v0, v1
+            enable_side_effects v10
+            v11 = not v10
             v12 = cast v10 as Field
-            v14 = mul v11, Field 5
-            v15 = mul v12, v8
-            v16 = add v14, v15
-            v17 = not v1
-            v18 = unchecked_mul v0, v17
-            enable_side_effects v18
-            v19 = not v18
-            v20 = cast v18 as Field
+            v13 = cast v11 as Field
+            v15 = mul v12, Field 5
+            v16 = mul v13, v9
+            v17 = add v15, v16
+            v18 = not v1
+            v19 = unchecked_mul v0, v18
+            enable_side_effects v19
+            v20 = not v19
             v21 = cast v19 as Field
-            v23 = mul v20, Field 6
-            v24 = mul v21, v16
-            v25 = add v23, v24
+            v22 = cast v20 as Field
+            v24 = mul v21, Field 6
+            v25 = mul v22, v17
+            v26 = add v24, v25
             enable_side_effects v0
-            enable_side_effects v3
-            v26 = cast v3 as Field
-            v27 = cast v0 as Field
-            v29 = mul v26, Field 3
-            v30 = mul v27, v25
-            v31 = add v29, v30
+            enable_side_effects v2
+            v27 = cast v2 as Field
+            v28 = cast v0 as Field
+            v30 = mul v27, Field 3
+            v31 = mul v28, v26
+            v32 = add v30, v31
             enable_side_effects u1 1
-            return v31
+            return v32
         }
         ");
     }
@@ -1761,7 +1922,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
 
         let main = ssa.main();
 
@@ -1782,8 +1943,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut u32
-            v1 = allocate -> &mut u32
             enable_side_effects u1 1
             return u32 200
         }
@@ -1828,21 +1987,20 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut Field
             enable_side_effects v0
-            v2 = not v0
-            v3 = cast v0 as Field
-            v4 = cast v2 as Field
-            v6 = mul v3, Field 2
-            v7 = mul v4, v3
-            v8 = add v6, v7
+            v1 = not v0
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v5 = mul v2, Field 2
+            v6 = mul v3, v2
+            v7 = add v5, v6
             enable_side_effects u1 1
-            return v8
+            return v7
         }
         ");
     }
@@ -1871,7 +2029,7 @@ mod tests {
 
         let ssa = ssa
             .flatten_cfg()
-            .mem2reg()
+            .mem2reg_simple()
             .remove_if_else()
             .unwrap()
             .fold_constants(1)
@@ -1881,14 +2039,18 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
+            v2 = not v0
             enable_side_effects u1 1
-            v3 = cast v0 as Field
+            v4 = cast v0 as Field
+            v5 = cast v2 as Field
             enable_side_effects v0
             enable_side_effects u1 1
-            v5 = mul v3, Field 2
-            v6 = make_array [v5] : [Field; 1]
+            v7 = mul v4, Field 2
+            v8 = mul v5, v4
+            v9 = add v7, v8
+            v10 = make_array [v9] : [Field; 1]
             enable_side_effects u1 1
-            return v6
+            return v10
         }
         ");
     }
@@ -2036,6 +2198,41 @@ mod tests {
         ");
     }
 
+    /// Regression test: when JmpIf's else_destination IS the exit/merge block
+    /// (no separate else block), the else_arguments carry the "no-change" value
+    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// the else branch has no stores (just falls through to the merge block).
+    #[test]
+    fn flatten_jmpif_else_args_to_exit_block() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2(Field 5)
+              b1():
+                jmp b2(Field 10)
+              b2(v1: Field):
+                return v1
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // Should produce: if v0 then 10 else 5
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 10
+            v8 = mul v4, Field 5
+            v9 = add v6, v8
+            return v9
+        }
+        ");
+    }
+
     /// Regression test: when an inner IfElse simplifies to its own condition
     /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
     /// value. Otherwise the outer merge sees the provenance on v0 and
@@ -2087,6 +2284,377 @@ mod tests {
             v2 = unchecked_mul v0, v1
             enable_side_effects u1 1
             return v0
+        }
+        ");
+    }
+}
+
+/// Tests for the merge provenance collapse optimization (issue #12106).
+///
+/// When nested `jmpif` blocks thread the same value through their else-arguments,
+/// `flatten_cfg` can collapse the double merge into a single one. These tests verify
+/// the collapse fires correctly, chains across nesting levels, and — critically — that
+/// provenance does not leak across unrelated conditionals.
+#[cfg(test)]
+mod merge_provenance_tests {
+    use crate::{assert_ssa_snapshot, ssa::Ssa};
+
+    /// Regression test for #12106: promoted block params with jmpif else_arguments
+    /// should produce the same (or fewer) instructions as the equivalent store/load
+    /// pattern after flattening + cleanup.
+    ///
+    /// The pattern is 3 iterations of: `if !ok { if bit[i] { ok = true } }`
+    /// where `ok` is threaded through else_arguments.
+    #[test]
+    fn collapse_nested_merge_shared_else_value() {
+        // Promoted version: `ok` threaded through block params with jmpif else_arguments.
+        let promoted_src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b2(u1 0)
+              b1():
+                jmp b2(u1 1)
+              b2(v3: u1):
+                v4 = not v3
+                jmpif v4 then: b3(), else: b6(v3)
+              b3():
+                jmpif v1 then: b4(), else: b5(v3)
+              b4():
+                jmp b5(u1 1)
+              b5(v5: u1):
+                jmp b6(v5)
+              b6(v6: u1):
+                v7 = not v6
+                jmpif v7 then: b7(), else: b10(v6)
+              b7():
+                jmpif v2 then: b8(), else: b9(v6)
+              b8():
+                jmp b9(u1 1)
+              b9(v8: u1):
+                jmp b10(v8)
+              b10(v9: u1):
+                constrain v9 == u1 1
+                return
+            }
+        ";
+
+        // Store/load version: same semantics using allocate/store/load.
+        let store_load_src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                v3 = allocate -> &mut u1
+                store u1 0 at v3
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store u1 1 at v3
+                jmp b2()
+              b2():
+                v4 = load v3 -> u1
+                v5 = not v4
+                jmpif v5 then: b3(), else: b6()
+              b3():
+                jmpif v1 then: b4(), else: b5()
+              b4():
+                store u1 1 at v3
+                jmp b5()
+              b5():
+                jmp b6()
+              b6():
+                v6 = load v3 -> u1
+                v7 = not v6
+                jmpif v7 then: b7(), else: b10()
+              b7():
+                jmpif v2 then: b8(), else: b9()
+              b8():
+                store u1 1 at v3
+                jmp b9()
+              b9():
+                jmp b10()
+              b10():
+                v8 = load v3 -> u1
+                constrain v8 == u1 1
+                return
+            }
+        ";
+
+        let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
+        let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
+
+        let promoted_flat =
+            promoted_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
+        let store_load_flat =
+            store_load_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
+
+        let count = |ssa: &Ssa| -> usize {
+            let main = ssa.main();
+            main.dfg[main.entry_block()].instructions().len()
+        };
+
+        let promoted_count = count(&promoted_flat);
+        let store_load_count = count(&store_load_flat);
+
+        // After the merge-collapse optimization, the promoted version should produce
+        // the same number of instructions (or fewer) as the store/load version.
+        assert!(
+            promoted_count <= store_load_count,
+            "Expected promoted ({promoted_count}) <= store/load ({store_load_count}).\n\
+             Promoted:\n{promoted_flat}\nStore/load:\n{store_load_flat}"
+        );
+
+        assert_ssa_snapshot!(promoted_flat, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v4 = not v0
+            enable_side_effects v4
+            v5 = unchecked_mul v4, v1
+            enable_side_effects v5
+            enable_side_effects v4
+            enable_side_effects u1 1
+            v6 = not v5
+            v7 = unchecked_mul v6, v0
+            v8 = unchecked_add v5, v7
+            v9 = not v8
+            enable_side_effects v9
+            v10 = unchecked_mul v9, v2
+            enable_side_effects v10
+            enable_side_effects v9
+            enable_side_effects u1 1
+            v11 = not v10
+            v12 = unchecked_mul v11, v8
+            v13 = unchecked_add v10, v12
+            constrain v13 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Test that the merge collapse chains correctly across 3+ nesting levels.
+    /// Each level threads the same else-value, so all intermediate merges collapse.
+    #[test]
+    fn collapse_nested_merge_chains_across_levels() {
+        // 3-deep nesting: if c0 { if c1 { if c2 { ok = true } } }
+        // with ok threaded through all else branches.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b2(u1 0)
+              b1():
+                jmpif v1 then: b3(), else: b4(u1 0)
+              b3():
+                jmpif v2 then: b5(), else: b6(u1 0)
+              b5():
+                jmp b6(u1 1)
+              b6(v3: u1):
+                jmp b4(v3)
+              b4(v4: u1):
+                jmp b2(v4)
+              b2(v5: u1):
+                constrain v5 == u1 1
+                return
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The innermost merge (v0*v1*v2) collapses with the middle merge,
+        // producing a single condition v0*v1*v2 = v4 for the "set to 1" path.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = unchecked_mul v3, v2
+            enable_side_effects v4
+            v5 = not v2
+            v6 = unchecked_mul v3, v5
+            enable_side_effects v3
+            v7 = not v1
+            v8 = unchecked_mul v0, v7
+            enable_side_effects v0
+            v9 = not v0
+            enable_side_effects u1 1
+            v11 = unchecked_mul v0, v4
+            constrain v0 == u1 1
+            constrain v2 == u1 1
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Regression test: collapsed merge provenance must NOT leak to subsequent
+    /// unrelated conditionals.
+    ///
+    /// Pattern: two sequential conditionals sharing the same default value.
+    ///   1st: `if v0 { if v1 { x = 1 } }` — collapses to `x = v0 AND v1`
+    ///   2nd: `if v2 { x = 1 }`           — should produce `x = v2 OR (v0 AND v1)`
+    ///
+    /// If collapsed provenance leaked, the 2nd merge would incorrectly collapse
+    /// to `x = v0 AND v1`, dropping the v2 contribution entirely.
+    /// With inputs (v0=0, v1=0, v2=1) the correct result is 1, but the buggy
+    /// result would be 0, failing the constraint.
+    #[test]
+    fn collapsed_provenance_does_not_leak_to_subsequent_conditional() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b4(u1 0)
+              b1():
+                jmpif v1 then: b2(), else: b3(u1 0)
+              b2():
+                jmp b3(u1 1)
+              b3(v3: u1):
+                jmp b4(v3)
+              b4(v4: u1):
+                jmpif v2 then: b5(), else: b6(v4)
+              b5():
+                jmp b6(u1 1)
+              b6(v5: u1):
+                constrain v5 == u1 1
+                return
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The second merge (v2 branch) must still reference v2 via the
+        // `unchecked_mul v9, v3` and `unchecked_add v2, v10` instructions.
+        // If collapsed provenance leaked, v2 would be absent and the constrain
+        // would only check `v0 AND v1`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v0, v4
+            enable_side_effects v0
+            v6 = not v0
+            enable_side_effects v2
+            v7 = not v2
+            enable_side_effects u1 1
+            v9 = unchecked_mul v7, v3
+            v10 = unchecked_add v2, v9
+            constrain v10 == u1 1
+            return
+        }
+        ");
+    }
+
+    /// Test that merges with non-matching values are NOT collapsed.
+    /// Uses Field values so there are 3 distinct constants (no boolean overlap).
+    #[test]
+    fn no_collapse_when_values_differ() {
+        // Inner: then=30, else=20. Outer: else=10. No values match, no collapse.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b4(Field 10)
+              b1():
+                jmpif v1 then: b2(), else: b3(Field 20)
+              b2():
+                jmp b3(Field 30)
+              b3(v2: Field):
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // All three values differ, so both inner and outer merges are preserved
+        // (two mul+add pairs: one for the inner merge, one for the outer merge).
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as Field
+            v6 = cast v4 as Field
+            v8 = mul v5, Field 30
+            v10 = mul v6, Field 20
+            v11 = add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = cast v0 as Field
+            v15 = cast v12 as Field
+            v16 = mul v14, v11
+            v18 = mul v15, Field 10
+            v19 = add v16, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Regression test: non-collapsed merge provenance must not leak to a
+    /// subsequent unrelated conditional.
+    ///
+    /// Pattern:
+    ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
+    ///   2nd: `if v1 { y = R } else { y = Field 200 }`
+    ///
+    /// R has provenance {else_value = Field 200}. The second conditional also has
+    /// else_arg = Field 200, which would match R's provenance. If provenance
+    /// leaked, the second merge would incorrectly collapse to
+    /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
+    ///
+    /// With inputs (v0=1, v1=0) the correct result is Field 200, but the buggy
+    /// result would be Field 100.
+    #[test]
+    fn non_collapsed_provenance_does_not_leak_to_subsequent_conditional() {
+        // First conditional produces R = if_else(v0, 100, !v0, 200).
+        // Second conditional passes R through its then-branch so R appears
+        // as then_arg with its provenance still live.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2(Field 200)
+              b1():
+                jmp b2(Field 100)
+              b2(v2: Field):
+                jmpif v1 then: b3(), else: b4(Field 200)
+              b3():
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The second merge (lines v12–v16) must use v1 as its condition,
+        // producing v1*v10 + !v1*200. If provenance leaked from the first
+        // conditional, it would incorrectly collapse to v0*100 + !v0*200.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects u1 1
+            v4 = cast v0 as Field
+            v5 = cast v2 as Field
+            v7 = mul v4, Field 100
+            v9 = mul v5, Field 200
+            v10 = add v7, v9
+            enable_side_effects v1
+            v11 = not v1
+            enable_side_effects u1 1
+            v12 = cast v1 as Field
+            v13 = cast v11 as Field
+            v14 = mul v12, v10
+            v15 = mul v13, Field 200
+            v16 = add v14, v15
+            return v16
         }
         ");
     }
