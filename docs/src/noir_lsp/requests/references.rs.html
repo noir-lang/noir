@@ -113,7 +113,7 @@
 <a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">let </span>two_lib = Url::from_file_path(workspace_dir.join(<span class="string">"two/src/lib.nr"</span>)).unwrap();
 <a href=#114 id=114 data-nosnippet>114</a>
 <a href=#115 id=115 data-nosnippet>115</a>        <span class="comment">// We call this to open the document, so that the entire workspace is analyzed
-<a href=#116 id=116 data-nosnippet>116</a>        </span><span class="kw">let </span>workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
+<a href=#116 id=116 data-nosnippet>116</a>        </span><span class="kw">let </span>workspace = workspace_from_document_uri(<span class="kw-2">&amp;mut </span>state, one_lib.clone()).unwrap().unwrap();
 <a href=#117 id=117 data-nosnippet>117</a>
 <a href=#118 id=118 data-nosnippet>118</a>        notifications::process_workspace(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>workspace).unwrap();
 <a href=#119 id=119 data-nosnippet>119</a>

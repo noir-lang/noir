@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["DidChangeConfiguration","DidChangeTextDocument","DidCloseTextDocument","DidOpenTextDocument","DidSaveTextDocument","Exit","Initialized"],"struct":["NargoUpdateTests"]};
+window.SIDEBAR_ITEMS = {"enum":["DidChangeConfiguration","DidChangeTextDocument","DidChangeWatchedFiles","DidCloseTextDocument","DidOpenTextDocument","DidSaveTextDocument","Exit","Initialized"],"struct":["NargoUpdateTests"]};
