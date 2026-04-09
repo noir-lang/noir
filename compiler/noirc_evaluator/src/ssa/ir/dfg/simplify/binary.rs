@@ -125,9 +125,7 @@ pub(super) fn simplify_binary(
                 }
             }
             // b * (not b) = 0 or (not b) * b = 0 when b is boolean
-            if dfg.get_value_max_num_bits(lhs) == 1
-                && dfg.get_value_max_num_bits(rhs) == 1
-            {
+            if dfg.get_value_max_num_bits(lhs) == 1 && dfg.get_value_max_num_bits(rhs) == 1 {
                 let lhs_is_not_of_rhs = matches!(&dfg[lhs], super::Value::Instruction { instruction, .. } if matches!(&dfg[*instruction], Instruction::Not(v) if *v == rhs));
                 let rhs_is_not_of_lhs = matches!(&dfg[rhs], super::Value::Instruction { instruction, .. } if matches!(&dfg[*instruction], Instruction::Not(v) if *v == lhs));
                 if lhs_is_not_of_rhs || rhs_is_not_of_lhs {
