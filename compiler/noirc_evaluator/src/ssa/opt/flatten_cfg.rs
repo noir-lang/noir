@@ -2239,7 +2239,15 @@ mod tests {
 /// provenance does not leak across unrelated conditionals.
 #[cfg(test)]
 mod merge_provenance_tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            ir::types::NumericType,
+            opt::assert_pass_does_not_affect_execution,
+        },
+    };
 
     /// Regression test for #12106: promoted block params with jmpif else_arguments
     /// should produce the same (or fewer) instructions as the equivalent store/load
@@ -2638,22 +2646,9 @@ mod merge_provenance_tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_cfg();
-        // The result must be equivalent to v0, not a constant 1. The inner
-        // merge IfElse(v0, 1, v0*(1-v0), 0) simplifies to v0 during insertion,
-        // but provenance must not be stored for it to avoid false collapses.
-        // The outer merge computes v0*1 + (1-v0)*v0 = v0 (correct for booleans).
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v1 = not v0
-            v2 = unchecked_mul v0, v1
-            enable_side_effects u1 1
-            v4 = unchecked_mul v1, v0
-            v5 = unchecked_add v0, v4
-            return v5
-        }
-        ");
+        // With v0 = false, the else branch returns v0 = false.
+        // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
+        let inputs = vec![Value::from_constant(0_u128.into(), NumericType::bool()).unwrap()];
+        assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
     }
 }
