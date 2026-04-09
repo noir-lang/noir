@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775766484896,
+  "lastUpdate": 1775766613167,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22141,48 +22141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "294a558edffa82075bda63d3ce8fb82f15920869",
-          "message": "feat(ssa): Collapse redundant nested merges when flattening   (#12116)",
-          "timestamp": "2026-04-03T16:09:28Z",
-          "tree_id": "1cf9922be9def352e472792fe2f02fe8beb8b268",
-          "url": "https://github.com/noir-lang/noir/commit/294a558edffa82075bda63d3ce8fb82f15920869"
-        },
-        "date": 1775234206299,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169255,
-            "range": "± 551",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140461,
-            "range": "± 4868",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645973,
-            "range": "± 2145",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2d3e6c60c0b61bfe6907cf303383c445f5adde8e",
           "message": "feat(ssa): Iterative dominance frontiers for mem2reg_simple (Cytron et. al 1991)  (#12091)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
           "timestamp": "2026-04-03T17:44:40Z",
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039124,
             "range": "± 28597",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "67b9d67c04bc67e39fe75a0cf066e3d3a1354736",
+          "message": "chore: add missing tests for signed/field numeric generics and fix proptest bug (#12168)",
+          "timestamp": "2026-04-09T20:06:04Z",
+          "tree_id": "59f52a47030f45f5d22bcea725f0e181a74a22da",
+          "url": "https://github.com/noir-lang/noir/commit/67b9d67c04bc67e39fe75a0cf066e3d3a1354736"
+        },
+        "date": 1775766550062,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 158895,
+            "range": "± 645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139151,
+            "range": "± 572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2125853,
+            "range": "± 6731",
             "unit": "ns/iter"
           }
         ]
