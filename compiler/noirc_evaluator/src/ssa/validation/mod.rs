@@ -51,11 +51,20 @@ struct Validator<'f> {
     // If they occurred before the value being cast to a smaller type
     // Stores: A set of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
+
+    // Tracks references produced by Allocate that have not yet been stored to.
+    // A Load from one of these is invalid (reading uninitialized memory).
+    uninitialized_references: HashSet<ValueId>,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default() }
+        Self {
+            function,
+            ssa,
+            range_checks: HashMap::default(),
+            uninitialized_references: HashSet::default(),
+        }
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -150,6 +159,54 @@ impl<'f> Validator<'f> {
 
         if return_blocks.len() > 1 {
             panic!("Function {} has multiple return blocks {return_blocks:?}", self.function.id())
+        }
+    }
+
+    /// Validates that loads from references only occur after at least one store to that reference.
+    /// An allocate produces an uninitialized reference — loading from it before any store is invalid.
+    fn validate_load_after_store(&mut self, instruction: InstructionId) {
+        let dfg = &self.function.dfg;
+        match &dfg[instruction] {
+            Instruction::Allocate => {
+                let result = dfg.instruction_results(instruction)[0];
+                self.uninitialized_references.insert(result);
+            }
+            Instruction::Store { address, .. } => {
+                self.uninitialized_references.remove(address);
+            }
+            Instruction::Load { address } => {
+                if self.uninitialized_references.contains(address) {
+                    panic!(
+                        "Load from reference {address} before any store — \
+                         reading uninitialized memory"
+                    );
+                }
+            }
+            Instruction::Call { arguments, .. } => {
+                // A call may store to any reference passed as an argument,
+                // so treat all reference arguments as potentially initialized.
+                for arg in arguments {
+                    self.mark_reference_args_initialized(*arg);
+                }
+            }
+            _ => (),
+        }
+    }
+
+    /// If `value` is an uninitialized reference, mark it as initialized.
+    /// Also recurses into array values to handle references nested in arrays.
+    fn mark_reference_args_initialized(&mut self, value: ValueId) {
+        let dfg = &self.function.dfg;
+        if self.uninitialized_references.remove(&value) {
+            return;
+        }
+        // Check if this value is a MakeArray containing references
+        if let Value::Instruction { instruction, .. } = &dfg[value] {
+            if let Instruction::MakeArray { elements, .. } = &dfg[*instruction] {
+                for element in elements.iter() {
+                    self.mark_reference_args_initialized(*element);
+                }
+            }
         }
     }
 
@@ -1105,6 +1162,7 @@ impl<'f> Validator<'f> {
 
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
+                self.validate_load_after_store(*instruction);
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
@@ -2138,6 +2196,35 @@ mod tests {
             jmp b1(u8 0)
           b1(v0: u32):
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Load from reference v0 before any store")]
+    fn load_before_store_is_rejected() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = load v0 -> Field
+            store Field 42 at v0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn load_after_store_is_valid() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v1 = load v0 -> Field
+            return v1
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
