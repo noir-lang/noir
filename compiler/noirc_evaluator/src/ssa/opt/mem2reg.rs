@@ -54,9 +54,6 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        #[cfg(debug_assertions)]
-        mem2reg_pre_check(self);
-
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -108,41 +105,6 @@ impl Function {
             &cfg,
         );
         commit(&mut inserter, &variables, blocks);
-    }
-}
-
-/// Pre-check condition for [Function::mem2reg].
-///
-/// Panics if any `JmpIf` terminator has `then_destination == else_destination` with
-/// matching argument lists — an observationally redundant shape that `simplify_cfg`
-/// is supposed to fold into a plain `jmp`. mem2reg's terminator-argument wiring
-/// depends on `simplify_cfg` having canonicalized such terminators away; the
-/// pre-check documents that dependency and catches regressions on paths that run
-/// mem2reg before `simplify_cfg` (e.g. the `mem2reg_brillig` calls that run at
-/// positions 1 and 2 of the primary pass pipeline, before the first `simplify_cfg`).
-///
-/// A `JmpIf` whose destinations match but whose argument vectors *differ* is legal
-/// (the condition selects between two argument lists) and mem2reg handles it
-/// correctly.
-#[cfg(debug_assertions)]
-fn mem2reg_pre_check(function: &Function) {
-    for block in function.reachable_blocks() {
-        if let Some(TerminatorInstruction::JmpIf {
-            then_destination,
-            then_arguments,
-            else_destination,
-            else_arguments,
-            ..
-        }) = function.dfg[block].terminator()
-            && *then_destination == *else_destination
-        {
-            assert_ne!(
-                then_arguments, else_arguments,
-                "mem2reg precondition violated: JmpIf in block {block} has same \
-                 destination and matching arguments — should have been folded by \
-                 simplify_cfg"
-            );
-        }
     }
 }
 
