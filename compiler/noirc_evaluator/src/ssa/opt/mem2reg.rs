@@ -54,6 +54,9 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
+        #[cfg(debug_assertions)]
+        mem2reg_pre_check(self);
+
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -105,6 +108,40 @@ impl Function {
             &cfg,
         );
         commit(&mut inserter, &variables, blocks);
+    }
+}
+
+/// Pre-check condition for [Function::mem2reg].
+///
+/// Panics if any `JmpIf` terminator has `then_destination == else_destination` *and*
+/// matching argument lists. Such a terminator is observationally redundant — the
+/// condition has no effect — and is supposed to be folded into a `jmp` by
+/// `simplify_cfg`. This is enforced by the main SSA validator, but the pre-check
+/// guards against paths that bypass validation (e.g. `mem2reg_brillig` calls that
+/// run before the first `simplify_cfg` in the pipeline).
+///
+/// Note that a `JmpIf` whose destinations match but whose argument lists *differ*
+/// is legal — the condition meaningfully selects between the two argument lists —
+/// and mem2reg handles that case correctly via `get_terminator_args_mut`.
+#[cfg(debug_assertions)]
+fn mem2reg_pre_check(function: &Function) {
+    for block in function.reachable_blocks() {
+        if let Some(TerminatorInstruction::JmpIf {
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            ..
+        }) = function.dfg[block].terminator()
+            && *then_destination == *else_destination
+        {
+            assert_ne!(
+                then_arguments, else_arguments,
+                "mem2reg precondition violated: JmpIf in block {block} has same \
+                 destination and matching arguments — should have been folded by \
+                 simplify_cfg"
+            );
+        }
     }
 }
 
@@ -1391,9 +1428,14 @@ brillig(inline) fn main f0 {
     /// Regression for a jmpif whose `then_destination` and `else_destination` point
     /// at the same successor block. mem2reg must wire the promoted value to *both*
     /// edges, not just `then_arguments`. Before the fix, the else-edge was left
-    /// empty, producing a successor with N parameters but an edge carrying N-1
-    /// arguments — malformed SSA. See the previous commit for a snapshot of
-    /// the buggy output.
+    /// with one fewer argument than the then-edge, producing a successor with N
+    /// parameters but an else-edge carrying N-1 arguments — malformed SSA.
+    ///
+    /// The input uses *differing* existing arguments on the same-target jmpif
+    /// (`b3(Field 200)` vs `b3(Field 300)`). That shape is legal — the condition
+    /// meaningfully selects between the two argument lists — so the test does not
+    /// need to bypass validation or the mem2reg pre-check. See the first commit on
+    /// this branch for a snapshot of the buggy empty-args output this fix replaced.
     #[test]
     fn jmpif_same_target_wires_both_edges() {
         let src = "
@@ -1404,13 +1446,14 @@ brillig(inline) fn main f0 {
                 jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 10 at v1
-                jmp b3()
+                jmp b3(Field 100)
               b2():
                 store Field 20 at v1
-                jmpif v0 then: b3(), else: b3()
-              b3():
-                v2 = load v1 -> Field
-                return v2
+                jmpif v0 then: b3(Field 200), else: b3(Field 300)
+              b3(v2: Field):
+                v3 = load v1 -> Field
+                v4 = add v2, v3
+                return v4
             }";
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -1420,11 +1463,12 @@ brillig(inline) fn main f0 {
           b0(v0: u1):
             jmpif v0 then: b1(), else: b2()
           b1():
-            jmp b3(Field 10)
+            jmp b3(Field 100, Field 10)
           b2():
-            jmpif v0 then: b3(Field 20), else: b3(Field 20)
-          b3(v1: Field):
-            return v1
+            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300, Field 20)
+          b3(v1: Field, v2: Field):
+            v8 = add v1, v2
+            return v8
         }
         ");
     }
