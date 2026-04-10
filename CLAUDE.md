@@ -55,6 +55,12 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 - **Elaboration** (`compiler/noirc_frontend/src/elaborator/`) combines name resolution and type checking in a single pass.
 - PRs are **squash-merged** into `master`.
 
+### Code Comments
+
+A code comment must stand on its own when read against the post-change state of the file. Do not reference transitions between states ("was a `debug_assert!`, now a plain `assert!`"), the current task or fix ("added for the Y flow"), or what the code used to do. That context belongs in the commit message and PR description, where it naturally lives alongside the diff. In the code it rots the moment the PR stops being recent, leaving a reader with a narrative they cannot verify.
+
+Test: imagine cherry-picking this file into a fresh repository with no git history. If the comment would still make sense to that reader, keep it. If it only makes sense to someone who remembers the change that introduced it, move it to the commit message.
+
 ## Build & Development Commands
 
 The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
