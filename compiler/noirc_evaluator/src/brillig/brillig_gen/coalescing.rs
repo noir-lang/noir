@@ -179,7 +179,7 @@ impl CoalescingMap {
     /// Returns true if other partners are still alive (register must not be freed).
     /// Returns false if this was the last live member (caller should free the register).
     pub(crate) fn decrement_live_count(&mut self, value_id: &ValueId) -> bool {
-        let Some(&group_id) = self.groups.get(value_id) else {
+        let Some(group_id) = self.groups.remove(value_id) else {
             return false;
         };
         self.group_live_counts[group_id] -= 1;
