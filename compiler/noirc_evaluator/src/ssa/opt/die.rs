@@ -595,6 +595,7 @@ mod tests {
                 jmp b1(v5)
               b1(v1: Field):
                 v6 = allocate -> &mut Field
+                store Field 0 at v6
                 v7 = load v6 -> Field
                 v8 = allocate -> &mut Field
                 store Field 1 at v8
@@ -610,19 +611,21 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field):
             v3 = add v0, Field 2
             jmp b1(v3)
           b1(v1: Field):
             v4 = allocate -> &mut Field
-            store Field 1 at v4
-            v6 = load v4 -> Field
-            v7 = add v6, Field 1
-            v8 = add v1, Field 2
-            call assert_constant(v7)
-            return v8
+            store Field 0 at v4
+            v6 = allocate -> &mut Field
+            store Field 1 at v6
+            v8 = load v6 -> Field
+            v9 = add v8, Field 1
+            v10 = add v1, Field 2
+            call assert_constant(v9)
+            return v10
         }
         ");
     }
