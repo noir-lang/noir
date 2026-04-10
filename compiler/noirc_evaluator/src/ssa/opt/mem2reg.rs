@@ -305,12 +305,15 @@ fn add_terminator_arguments(
 
         for predecessor in cfg.predecessors(block) {
             let pred_state = &block_states[&predecessor];
-            let args = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
+            let mut edges = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
             for address in block_state.entry_state.keys() {
                 // Only wire arguments for IDF blocks (those with block parameters).
                 // Declaration blocks and inherited-value blocks don't have params to wire.
                 if block != variables[address] && param_locations[address].contains(&block) {
-                    args.push(pred_state.get_exit_value(*address));
+                    let value = pred_state.get_exit_value(*address);
+                    for args in &mut edges {
+                        args.push(value);
+                    }
                 }
             }
         }
@@ -334,24 +337,33 @@ impl BlockState {
     }
 }
 
-/// Get the terminator arguments for block `block` jumping to block `jmp_target`.
-/// The `jmp_target` is relevant if `block` terminates in a jmpif terminator and may jmp to
-/// multiple blocks. Panics if the given block does not have block arguments.
+/// Get the terminator argument lists for every edge from `block` to `jmp_target`.
+///
+/// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
+/// same successor, in which case both argument vectors are returned so the caller can
+/// wire each edge. Panics if the given block does not terminate in a Jmp or JmpIf.
 fn get_terminator_args_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     jmp_target: BasicBlockId,
-) -> &mut Vec<ValueId> {
+) -> Vec<&mut Vec<ValueId>> {
     match dfg[block].unwrap_terminator_mut() {
-        TerminatorInstruction::Jmp { arguments, .. } => arguments,
+        TerminatorInstruction::Jmp { arguments, .. } => vec![arguments],
         TerminatorInstruction::JmpIf {
-            then_destination, then_arguments, else_arguments, ..
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            ..
         } => {
+            let mut edges = Vec::new();
             if jmp_target == *then_destination {
-                then_arguments
-            } else {
-                else_arguments
+                edges.push(then_arguments);
             }
+            if jmp_target == *else_destination {
+                edges.push(else_arguments);
+            }
+            edges
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
             "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
@@ -1410,7 +1422,7 @@ brillig(inline) fn main f0 {
           b1():
             jmp b3(Field 100, Field 10)
           b2():
-            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300)
+            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300, Field 20)
           b3(v1: Field, v2: Field):
             v8 = add v1, v2
             return v8
