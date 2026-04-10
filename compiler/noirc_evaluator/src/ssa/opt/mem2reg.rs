@@ -1374,4 +1374,48 @@ brillig(inline) fn main f0 {
         }
         ");
     }
+
+    /// Regression for a jmpif whose `then_destination` and `else_destination` point
+    /// at the same successor block. mem2reg must wire the promoted value to *both*
+    /// edges, not just `then_arguments`.
+    ///
+    /// NOTE: the snapshot in this commit captures the *buggy* output —
+    /// `b3(Field 20)` on the then-edge but `b3()` on the else-edge, even though
+    /// `b3` has one parameter. The next commit fixes the bug and updates the
+    /// snapshot. This commit exists so git history preserves the fingerprint
+    /// of what the bug looked like.
+    #[test]
+    fn jmpif_same_target_wires_both_edges() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 1 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3()
+              b2():
+                store Field 20 at v1
+                jmpif v0 then: b3(), else: b3()
+              b3():
+                v2 = load v1 -> Field
+                return v2
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 10)
+          b2():
+            jmpif v0 then: b3(Field 20), else: b3()
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
 }
