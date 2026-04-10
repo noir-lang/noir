@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Branches"],"fn":["arg_can_store_reference","base_ident_of_field_access","type_can_store_reference","type_contains_reference"],"struct":["BranchId","IfOrMatchId","LastUseContext"],"type":["BranchesPath"]};
+window.SIDEBAR_ITEMS = {"fn":["arg_can_store_reference","base_ident_of_field_access","type_can_store_reference","type_contains_reference"],"struct":["LastUseContext"]};
