@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 381
 expression: expanded_code
 ---
 pub struct Poseidon2Sponge {
@@ -22,7 +23,7 @@ fn absorb_full_permutations<let NUM_ITEMS: u32, let MAX_PERMUTATIONS: u32>(
             for j in 0_u32..3_u32 {
                 sponge.state[j] = sponge.state[j] + sponge.cache[j];
             }
-            sponge.state = std::hash::poseidon2_permutation(sponge.state, 4_u32);
+            sponge.state = std::hash::poseidon2_permutation(sponge.state);
             sponge.cache[0_u32] = input[chunk_base_index + 2_u32];
         }
     }

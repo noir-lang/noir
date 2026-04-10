@@ -679,13 +679,27 @@ impl AstPrinter {
         match lvalue {
             LValue::Ident(ident) => write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition)),
             LValue::Index { array, index, .. } => {
+                let array_is_dereference = matches!(array.as_ref(), LValue::Dereference { .. });
+                if array_is_dereference {
+                    write!(f, "(")?;
+                }
                 self.print_lvalue(array, f)?;
+                if array_is_dereference {
+                    write!(f, ")")?;
+                }
                 write!(f, "[")?;
                 self.print_expr(index, f)?;
                 write!(f, "]")
             }
             LValue::MemberAccess { object, field_index } => {
+                let object_is_dereference = matches!(object.as_ref(), LValue::Dereference { .. });
+                if object_is_dereference {
+                    write!(f, "(")?;
+                }
                 self.print_lvalue(object, f)?;
+                if object_is_dereference {
+                    write!(f, ")")?;
+                }
                 write!(f, ".{field_index}")
             }
             LValue::Dereference { reference, .. } => {
@@ -693,7 +707,14 @@ impl AstPrinter {
                 self.print_lvalue(reference, f)
             }
             LValue::Clone(lvalue) => {
+                let lvalue_is_dereference = matches!(lvalue.as_ref(), LValue::Dereference { .. });
+                if self.show_clone_and_drop && lvalue_is_dereference {
+                    write!(f, "(")?;
+                }
                 self.print_lvalue(lvalue, f)?;
+                if self.show_clone_and_drop && lvalue_is_dereference {
+                    write!(f, ")")?;
+                }
                 if self.show_clone_and_drop {
                     write!(f, ".clone()")?;
                 }

@@ -7,7 +7,7 @@
 //!   intervening load, the first store is dead and can be removed.
 //!
 //! This pass does not track values across block boundaries (that is handled by
-//! `mem2reg_simple` which promotes variables to block parameters). It is designed
+//! `mem2reg` which promotes variables to block parameters). It is designed
 //! to be fast on large, single-block ACIR functions that result from inlining,
 //! unrolling, and flattening.
 //!

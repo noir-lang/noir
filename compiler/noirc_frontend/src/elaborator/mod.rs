@@ -1136,7 +1136,7 @@ pub mod test_utils {
         };
 
         let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), false);
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

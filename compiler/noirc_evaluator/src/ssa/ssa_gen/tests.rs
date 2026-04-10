@@ -689,3 +689,43 @@ fn repeated_nested_array() {
     }
     ");
 }
+
+#[test]
+fn mut_ref_and_immutable_ref_to_same_data_ssa() {
+    let src = "
+    fn foo(x: &mut [Field; 3], y: &[Field; 3]) {
+        x[0] = 42;
+        assert(y[0] == 42);
+    }
+
+    fn main() {
+        let mut arr = [0; 3];
+        foo(&mut arr, &arr);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Both x and y alias the same allocate (v2). y is now correctly typed as
+    // &[Field; 3] (immutable) while x is &mut [Field; 3]. Both point to the
+    // same memory, so mutations through x are visible through y.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v1 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+        v2 = allocate -> &mut [Field; 3]
+        store v1 at v2
+        call f1(v2, v2)
+        return
+    }
+    acir(inline) fn foo f1 {
+      b0(v0: &mut [Field; 3], v1: &[Field; 3]):
+        v2 = load v0 -> [Field; 3]
+        v5 = array_set v2, index u32 0, value Field 42
+        store v5 at v0
+        v6 = load v1 -> [Field; 3]
+        v7 = array_get v6, index u32 0 -> Field
+        v8 = eq v7, Field 42
+        constrain v7 == Field 42
+        return
+    }
+    ");
+}

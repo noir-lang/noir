@@ -159,6 +159,11 @@ pub struct Monomorphizer<'interner> {
 
     debug_type_tracker: DebugTypeTracker,
 
+    /// The CrateId of the `__debug` crate, used to verify that debug patching
+    /// only applies to functions from the debug crate (not user-defined functions
+    /// that happen to share the same name).
+    debug_crate_id: Option<crate::graph::CrateId>,
+
     /// Indicate that we are currently monomorphizing an unconstrained function, which causes
     /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
@@ -198,7 +203,7 @@ pub fn monomorphize(
     interner: &mut NodeInterner,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
+    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -209,10 +214,12 @@ pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
     debug_instrumenter: &DebugInstrumenter,
+    debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
+    let mut monomorphizer =
+        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
     monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
@@ -223,6 +230,7 @@ impl<'interner> Monomorphizer<'interner> {
     pub fn new(
         interner: &'interner mut NodeInterner,
         debug_type_tracker: DebugTypeTracker,
+        debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
     ) -> Self {
         Monomorphizer {
@@ -240,6 +248,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
+            debug_crate_id,
             in_unconstrained_function: force_unconstrained,
             force_unconstrained,
         }
@@ -1434,7 +1443,15 @@ impl<'interner> Monomorphizer<'interner> {
             None,
             evaluate_builtin,
         )?;
+
+        if self.function_is_oracle(func_id)
+            && let Type::Function(_args, ret, _env, _unconstrained) = typ
+        {
+            self.check_return_type_returned_from_oracle(ret.as_ref(), location)?;
+        }
+
         let typ = Self::convert_type(typ, location)?;
+
         let is_closure_type = self.is_closure_type(&typ);
         let location = Some(location);
         let id = self.next_ident_id();
@@ -2105,7 +2122,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         let crossing_runtime_boundaries =
             !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
-        let is_oracle = self.function_is_oracle(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2149,10 +2165,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         if crossing_runtime_boundaries {
             self.check_return_type_crossing_runtime_boundaries(&return_type, location)?;
-        }
-
-        if is_oracle {
-            self.check_return_type_returned_from_oracle(&return_type, location)?;
         }
 
         let return_type = Self::convert_type(&return_type, location)?;
@@ -2892,21 +2904,10 @@ impl<'interner> Monomorphizer<'interner> {
         matches!(typ, Type::Function(_, _, _, true))
     }
 
-    fn function_is_oracle(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
-            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
-        {
-            return self
-                .interner
-                .function_modifiers(&func_id)
-                .attributes
-                .function
-                .as_ref()
-                .is_some_and(|(attribute, _)| {
-                    matches!(attribute.kind, FunctionAttributeKind::Oracle(..))
-                });
-        }
-        false
+    fn function_is_oracle(&self, func_id: node_interner::FuncId) -> bool {
+        self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
+            |(attribute, _)| matches!(attribute.kind, FunctionAttributeKind::Oracle(..)),
+        )
     }
 }
 

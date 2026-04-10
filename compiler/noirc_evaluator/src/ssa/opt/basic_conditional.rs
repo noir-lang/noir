@@ -233,7 +233,7 @@ fn differing_merge_cost(
     for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
-            if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
+            if typ.is_numeric() || matches!(*typ, Type::Reference(..)) {
                 cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
                 // Array/slice: conditional memory copy (~20 opcodes)
@@ -690,7 +690,7 @@ mod tests {
     }
 
     /// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
-    /// (as emitted by mem2reg_simple). Both branches receive a promoted variable value
+    /// (as emitted by mem2reg). Both branches receive a promoted variable value
     /// as a block parameter. The optimization should still fire and produce merged output.
     #[test]
     fn jmpif_with_then_and_else_args_diamond() {

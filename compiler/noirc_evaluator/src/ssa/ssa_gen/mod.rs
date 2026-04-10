@@ -18,6 +18,8 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
+use acvm::acir::BlackBoxFunc;
+
 use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
@@ -432,7 +434,7 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable: _ } => {
+            UnaryOp::Reference { mutable } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
@@ -441,8 +443,10 @@ impl FunctionContext<'_> {
                 Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let rhs_type = self.builder.current_function.dfg.type_of_value(value);
-                            let alloc = self.builder.insert_allocate(rhs_type);
+                            let rhs_type =
+                                self.builder.current_function.dfg.type_of_value(value).into_owned();
+                            let alloc =
+                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -1266,7 +1270,147 @@ impl FunctionContext<'_> {
         // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
+
+        // EC blackbox functions expect 3-field points (x, y, is_infinite) but the Noir types
+        // only have 2 fields (x, y). Expand the arguments and strip the result here so the
+        // rest of the SSA pipeline sees the 3-field representation.
+        if let Some(Intrinsic::BlackBox(bb_func)) = self.builder.get_intrinsic_from_value(function)
+        {
+            match bb_func {
+                BlackBoxFunc::MultiScalarMul => {
+                    return Ok(self.codegen_msm_call(function, arguments, call.location));
+                }
+                BlackBoxFunc::EmbeddedCurveAdd => {
+                    return Ok(self.codegen_ec_add_call(function, arguments, call.location));
+                }
+                _ => {}
+            }
+        }
+
         Ok(self.insert_call(function, arguments, &call.return_type, call.location))
+    }
+
+    /// Generate SSA for a `multi_scalar_mul` blackbox call.
+    ///
+    /// Expands the 2-field points array `[(Field, Field); N]` to 3-field
+    /// `[(Field, Field, u1); N]` by computing `is_infinite = (x == 0) & (y == 0)`,
+    /// then strips `is_infinite` from the 3-field result.
+    fn codegen_msm_call(
+        &mut self,
+        function: ValueId,
+        arguments: Vec<ValueId>,
+        location: Location,
+    ) -> Values {
+        // arguments: [points_array, scalars_array, predicate]
+        // points_array is [(Field, Field); N] — we need [(Field, Field, u1); N]
+        let points_array = arguments[0];
+        let points_type = self.builder.current_function.dfg.type_of_value(points_array);
+
+        let n = match &*points_type {
+            Type::Array(_, len) => len.0,
+            _ => unreachable!("ICE: MSM points argument must be an array"),
+        };
+
+        let zero = self.builder.field_constant(0u128);
+
+        // Build expanded points array with is_infinite for each point
+        let mut expanded_elements = im::Vector::new();
+        for i in 0..n {
+            let idx_x = self.builder.length_constant(u128::from(i) * 2);
+            let idx_y = self.builder.length_constant(u128::from(i) * 2 + 1);
+            let x = self.builder.insert_array_get(points_array, idx_x, Type::field());
+            let y = self.builder.insert_array_get(points_array, idx_y, Type::field());
+
+            let x_is_zero = self.builder.insert_binary(x, BinaryOp::Eq, zero);
+            let y_is_zero = self.builder.insert_binary(y, BinaryOp::Eq, zero);
+            let is_infinite =
+                self.builder.insert_binary(x_is_zero, BinaryOp::Mul { unchecked: true }, y_is_zero);
+
+            expanded_elements.push_back(x);
+            expanded_elements.push_back(y);
+            expanded_elements.push_back(is_infinite);
+        }
+
+        let expanded_type = Type::Array(
+            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+            acvm::acir::brillig::lengths::SemanticLength(n),
+        );
+        let expanded_points = self.builder.insert_make_array(expanded_elements, expanded_type);
+
+        // Call with expanded points; result type is [(Field, Field, u1); 1]
+        let result_types = vec![Type::Array(
+            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+            acvm::acir::brillig::lengths::SemanticLength(1),
+        )];
+        let call_args = vec![expanded_points, arguments[1], arguments[2]];
+        let results =
+            self.builder.set_location(location).insert_call(function, call_args, result_types);
+        let result_with_inf = results[0];
+
+        // Extract x, y from the 3-field result and build a 2-field result
+        let idx_0 = self.builder.length_constant(0u128);
+        let idx_1 = self.builder.length_constant(1u128);
+        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
+        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
+
+        let result_type = Type::Array(
+            std::sync::Arc::new(vec![Type::field(), Type::field()]),
+            acvm::acir::brillig::lengths::SemanticLength(1),
+        );
+        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
+        result.into()
+    }
+
+    /// Generate SSA for an `embedded_curve_add` blackbox call.
+    ///
+    /// Expands from 5 arguments `(x1, y1, x2, y2, predicate)` to 7 arguments
+    /// `(x1, y1, is_inf1, x2, y2, is_inf2, predicate)` by computing `is_infinite`,
+    /// then strips `is_infinite` from the 3-field result.
+    fn codegen_ec_add_call(
+        &mut self,
+        function: ValueId,
+        arguments: Vec<ValueId>,
+        location: Location,
+    ) -> Values {
+        // arguments: [x1, y1, x2, y2, predicate]
+        let (x1, y1, x2, y2, predicate) =
+            (arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+
+        let zero = self.builder.field_constant(0u128);
+
+        // Compute is_infinite for each point
+        let x1_is_zero = self.builder.insert_binary(x1, BinaryOp::Eq, zero);
+        let y1_is_zero = self.builder.insert_binary(y1, BinaryOp::Eq, zero);
+        let is_inf1 =
+            self.builder.insert_binary(x1_is_zero, BinaryOp::Mul { unchecked: true }, y1_is_zero);
+
+        let x2_is_zero = self.builder.insert_binary(x2, BinaryOp::Eq, zero);
+        let y2_is_zero = self.builder.insert_binary(y2, BinaryOp::Eq, zero);
+        let is_inf2 =
+            self.builder.insert_binary(x2_is_zero, BinaryOp::Mul { unchecked: true }, y2_is_zero);
+
+        // Call with expanded arguments; result type is [(Field, Field, u1); 1]
+        let result_types = vec![Type::Array(
+            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+            acvm::acir::brillig::lengths::SemanticLength(1),
+        )];
+        let call_args = vec![x1, y1, is_inf1, x2, y2, is_inf2, predicate];
+        let results =
+            self.builder.set_location(location).insert_call(function, call_args, result_types);
+        let result_with_inf = results[0];
+
+        // Extract x, y from the 3-field result and build a 2-field result
+        let idx_0 = self.builder.length_constant(0u128);
+        let idx_1 = self.builder.length_constant(1u128);
+        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
+        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
+
+        let result_type = Type::Array(
+            std::sync::Arc::new(vec![Type::field(), Type::field()]),
+            acvm::acir::brillig::lengths::SemanticLength(1),
+        );
+        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
+        result.into()
     }
 
     fn codegen_intrinsic_call_checks(

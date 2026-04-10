@@ -204,7 +204,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let element_type =
+            self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -228,10 +229,13 @@ impl<'a> FunctionContext<'a> {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
-            // A mutable reference wraps each element into a reference.
+            // A reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::Reference(element, _) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
+            ast::Type::Reference(element, mutable) => {
+                let mutable = *mutable;
+                Self::map_type_helper(element, &mut |typ| {
+                    f(Type::Reference(Arc::new(typ), mutable))
+                })
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -283,10 +287,10 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
-            ast::Type::Reference(element, _) => {
+            ast::Type::Reference(element, mutable) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Arc::new(element))
+                Type::Reference(Arc::new(element), *mutable)
             }
         }
     }

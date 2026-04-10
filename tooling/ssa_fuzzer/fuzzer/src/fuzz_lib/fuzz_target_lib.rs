@@ -10,7 +10,7 @@ use noirc_evaluator::ssa::ir::function::RuntimeType;
 fn type_contains_vector_or_reference(type_: &Type) -> bool {
     match type_ {
         Type::Vector(_) => true,
-        Type::Reference(_) => true,
+        Type::Reference(..) => true,
         Type::Array(arr, _) => arr.iter().any(type_contains_vector_or_reference),
         Type::Numeric(_) => false,
     }

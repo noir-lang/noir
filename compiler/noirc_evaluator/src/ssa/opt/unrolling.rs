@@ -37,7 +37,7 @@
 //!
 //! Conditions:
 //!   - Pre-condition: The first block parameter of each loop header is the induction variable.
-//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg_simple).
+//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
 //!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
@@ -452,7 +452,7 @@ impl Loops {
     /// which we can use to check whether we were able to unroll all blocks.
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
@@ -737,8 +737,8 @@ impl Loop {
             _ => {
                 // Certain patterns can cause other instructions to be hoisted into the loop
                 // header, or at least what looks to be the loop header.
-                // `func_1` in `regression_mem2reg_unknown_array_aliases` is one such example
-                // if `mem2reg_simple` is performed on it before unrolling.
+                // `func_1` in `regression_mem2regunknown_array_aliases` is one such example
+                // if `mem2reg` is performed on it before unrolling.
                 None
             }
         }
@@ -888,7 +888,7 @@ impl Loop {
 
         // Collect all header parameters before mutably borrowing context.
         // The first parameter is the induction variable; additional parameters are
-        // promoted mutable variables (e.g. from mem2reg_simple).
+        // promoted mutable variables (e.g. from mem2reg).
         let header_params: Vec<ValueId> = context.dfg()[loop_header_id].parameters().to_vec();
 
         // Map each header parameter to the corresponding argument value from the previous iteration
@@ -1192,7 +1192,19 @@ impl Loop {
                 let within_iteration_limit = s.iterations <= max_unroll_iterations;
                 let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
                 let is_fully = self.is_fully_executed(&loops.cfg);
-                (force_unroll || s.is_small()) && within_iteration_limit && is_fully
+
+                // When useful_cost is 0, unrolled_cost is also 0, which would allow
+                // force_unroll for arbitrarily large loops. Guard against this by
+                // checking the per-iteration total cost: if the loop body is small,
+                // the transient code expansion from unrolling is bounded even if the
+                // folding prediction is wrong. Large loop bodies (e.g. a 754-iteration
+                // scalar-mul loop where inc_rc removal drops useful_cost to 0) must not
+                // be force-unrolled because the transient expansion is catastrophic.
+                let safe_to_force = s.useful_cost() > 0 || s.total_cost <= force_unroll_threshold;
+
+                ((force_unroll && safe_to_force) || s.is_small())
+                    && within_iteration_limit
+                    && is_fully
             },
         )
     }
@@ -1617,7 +1629,7 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
 /// Get all arguments of the jump into the loop header from the pre-header block.
 ///
 /// The first argument is the induction variable (must be a numeric constant).
-/// Additional arguments are promoted mutable variables (e.g. from mem2reg_simple).
+/// Additional arguments are promoted mutable variables (e.g. from mem2reg).
 /// Returns `Err` if the block does not end with a `Jmp`, has no arguments, or the
 /// first argument is not a numeric constant.
 fn get_header_arguments(
@@ -1662,7 +1674,7 @@ struct LoopIteration<'f> {
 
     /// All back-edge arguments (and the block they were found in) for the next loop iteration.
     /// The first element is the new induction variable; additional elements are promoted
-    /// mutable variables (e.g. from mem2reg_simple).
+    /// mutable variables (e.g. from mem2reg).
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
@@ -1911,7 +1923,7 @@ impl<'f> LoopIteration<'f> {
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
-    function.mem2reg_simple_pre_flattening();
+    function.mem2reg();
     // Resolves constants, but merge blocks still have 2 predecessors
     function.simplify_instructions();
     // Eliminates dead jmpif branches, collapses merge blocks
@@ -1919,7 +1931,7 @@ fn simplify_between_unrolls(function: &mut Function) {
     // Re-simplify after branch elimination
     function.simplify_instructions();
     // Do another mem2reg after simplify_cfg to aid the next unroll
-    function.mem2reg_simple_pre_flattening();
+    function.mem2reg();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
@@ -2674,6 +2686,50 @@ mod tests {
         Ssa::from_str(&src).unwrap()
     }
 
+    /// Generate a loop with a large body containing `num_adds` chained add instructions.
+    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
+    /// but total_cost is high due to the many instructions.
+    fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
+        assert!(num_adds >= 1, "need at least one add");
+        let mut body_instructions = String::new();
+        // v8 = load result, v9 = first add
+        let mut next_v = 9;
+        // First add uses the loaded value (v8) and induction variable (v1)
+        body_instructions += &format!("            v{next_v} = add v8, v1\n");
+        next_v += 1;
+        // Chain more adds, each using the previous result + induction variable
+        for _ in 1..num_adds {
+            body_instructions += &format!("            v{next_v} = add v{}, v1\n", next_v - 1);
+            next_v += 1;
+        }
+        let store_val = next_v - 1;
+        let inc_v = next_v;
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: u32):
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 {iterations}
+            jmpif v5 then: b3(), else: b2()
+          b3():
+            v8 = load v2 -> u32
+{body_instructions}            store v{store_val} at v2
+            v{inc_v} = unchecked_add v1, u32 1
+            jmp b1(v{inc_v})
+          b2():
+            v6 = load v2 -> u32
+            v7 = eq v6, v0
+            constrain v6 == v0
+            return
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
+    }
+
     /// Test case from #6470:
     /// ```text
     /// unconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {
@@ -2776,6 +2832,66 @@ mod tests {
     #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
     fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
         assert_eq!(is_new_size_ok(old, new, max), ok);
+    }
+
+    /// Regression test: when `useful_cost` is zero and the loop body is small,
+    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+    /// because even if wrong, the transient expansion is bounded).
+    #[test]
+    fn force_unroll_allows_small_body_zero_useful_cost() {
+        let ssa = brillig_unroll_test_case_with_params("u32", "0", "500");
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 500);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost is small (fits within force_unroll_threshold), so safe_to_force = true.
+        assert!(
+            stats.total_cost <= FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should be within force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop IS force-unrolled because the body is small.
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        // After unrolling + simplification, no loops remain.
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
+        assert!(loops.yet_to_unroll.is_empty(), "loop should have been unrolled");
+    }
+
+    /// Regression test: when `useful_cost` is zero but the loop body is large
+    /// (total_cost > force_unroll_threshold), force_unroll is blocked. This prevents
+    /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
+    /// scalar-multiplication loop was fully unrolled into ~300k lines after
+    /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
+    #[test]
+    fn force_unroll_blocks_large_body_zero_useful_cost() {
+        // Generate a loop with a large body: 50 chained add instructions.
+        // Each checked u32 add costs 3, so body cost ≈ 50*3 + overhead > 128.
+        let num_adds = 50;
+        let iterations = 500;
+        let ssa = brillig_unroll_large_body_test_case(num_adds, iterations);
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, iterations);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost exceeds force_unroll_threshold due to the large body.
+        assert!(
+            stats.total_cost > FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should exceed force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop is NOT force-unrolled because the body is too large.
+        let parse_ssa = || brillig_unroll_large_body_test_case(num_adds, iterations);
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]
@@ -3078,13 +3194,13 @@ mod tests {
         );
     }
 
-    /// Regression test: after mem2reg_simple, loop headers can have multiple parameters
+    /// Regression test: after mem2reg, loop headers can have multiple parameters
     /// (induction variable + promoted mutable variables). Blocks outside the loop (like
     /// the exit block b3) reference these header params directly. After unrolling, these
     /// references must remain valid.
     #[test]
     fn unroll_loop_with_multi_param_header() {
-        // Simplified main from vector_loop after mem2reg_simple.
+        // Simplified main from vector_loop after mem2reg.
         // b1 has 3 params: v1 (induction), v2 (promoted u32), v3 (promoted [Field]).
         // b3 (exit) references v2 and v3 from b1 directly.
         let src = "
@@ -3143,7 +3259,7 @@ mod tests {
     /// the loop should still be identified as small enough to unroll.
     /// This is the SSA for the `brillig_cow_assign` integration test post mem2reg.
     #[test]
-    fn test_brillig_unroll_after_mem2reg_simple() {
+    fn test_brillig_unroll_after_mem2reg() {
         let src = "
             brillig(inline) predicate_pure fn main f0 {
                 b0():
@@ -3175,7 +3291,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.interpret(vec![]).unwrap();
 
-        // After mem2reg_simple, no loads/stores remain — the cost model must recognize
+        // After mem2reg, no loads/stores remain — the cost model must recognize
         // the loop-internal terminator costs as boilerplate.
         let stats = loop0_stats(&ssa);
         assert_eq!(
@@ -3245,7 +3361,7 @@ mod tests {
         ");
     }
 
-    /// Regression test: after mem2reg_simple promotes loads/stores to block parameters,
+    /// Regression test: after mem2reg promotes loads/stores to block parameters,
     /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
     /// block parameters. Without this, nested loops over constant 2D arrays won't see
     /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
@@ -3661,7 +3777,7 @@ mod upper_loop_bound_resolution {
 
     use super::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
 
-    /// Regression test for vector_loop: after mem2reg_simple promotes the vector length
+    /// Regression test for vector_loop: after mem2reg promotes the vector length
     /// allocation to a block parameter, the iterative unrolling must still resolve the
     /// sum loop's bound to a constant through the vector_push_back simplification chain.
     ///
@@ -3730,7 +3846,7 @@ mod upper_loop_bound_resolution {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        // let ssa = ssa.mem2reg_simple().load_store_forwarding().simplify_cfg().mem2reg_simple();
+        // let ssa = ssa.mem2reg().load_store_forwarding().simplify_cfg().mem2reg();
         // println!("{}", ssa.print_with(None));
         // This should successfully unroll all loops, including the sum loop whose bound
         // depends on the vector length accumulated through vector_push_back calls.
