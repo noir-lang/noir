@@ -1004,6 +1004,57 @@ fn clones_non_moved_variable_because_of_reference() {
     ");
 }
 
+#[test]
+fn clone_inserted_on_index_then_collection() {
+    let src = "
+    unconstrained fn main() {
+        let a = [10];
+        foo(a)[bar(a)];
+    }
+    unconstrained fn foo(a: [u32; 1]) -> [u32; 1] { a }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [10];
+        foo$f1(a$l0)[bar$f2(a$l0.clone())];
+    }
+    unconstrained fn foo$f1(a$l1: [u32; 1]) -> [u32; 1] {
+        a$l1
+    }
+    unconstrained fn bar$f2(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
+
+#[test]
+fn clone_inserted_on_index_then_collection_in_lvalue() {
+    let src = "
+    unconstrained fn main() {
+        let mut a = [10];
+        a[bar(a)] = 20;
+    }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut a$l0 = [10];
+        {
+            let i_0$l1 = bar$f1(a$l0.clone());
+            a$l0[i_0$l1] = 20
+        }
+    }
+    unconstrained fn bar$f1(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
+
 /// Nested array index: `arr[0][1]` on a 3D array. When the base variable has
 /// no further uses, the indexed element can be moved without cloning.
 #[test]
@@ -1425,6 +1476,63 @@ fn does_not_clone_disjoint_path_among_overlapping_paths() {
     unconstrained fn foo$f1(_$l1: [Field; 1]) -> () {
     }
     unconstrained fn foo$f2(_$l2: ([Field; 1], [Field; 1])) -> () {
+    }
+    ");
+}
+
+/// Mixed whole-variable use and field extractions. `foo(tuple)` uses the whole
+/// variable so its clone is correct. `tuple.0.0` is disjoint from all other
+/// extraction paths so it gets moved. `tuple.1.1` overlaps with `tuple.1.1.1`
+/// (prefix) so it still needs a clone.
+#[test]
+fn does_not_clone_disjoint_path_with_mixed_whole_and_field_uses() {
+    let src = "
+    unconstrained fn main() {
+        let tuple = (([1], [2]), ([3], ([4], [5])));
+        foo(tuple);
+        foo(tuple.0.0);
+        foo(tuple.1.1);
+        foo(tuple.1.1.1);
+    }
+
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let tuple$l0 = (([1], [2]), ([3], ([4], [5])));
+        foo$f1(tuple$l0.clone());;
+        foo$f2(tuple$l0.0.0);;
+        foo$f3(tuple$l0.1.1.clone());;
+        foo$f2(tuple$l0.1.1.1);
+    }
+    unconstrained fn foo$f1(_$l1: (([Field; 1], [Field; 1]), ([Field; 1], ([Field; 1], [Field; 1])))) -> () {
+    }
+    unconstrained fn foo$f2(_$l2: [Field; 1]) -> () {
+    }
+    unconstrained fn foo$f3(_$l3: ([Field; 1], [Field; 1])) -> () {
+    }
+    ");
+}
+
+/// `x.0.0` and `x.1` access completely disjoint top-level fields — no clone needed.
+#[test]
+fn does_not_clone_disjoint_nested_and_shallow_field_extraction() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), [3]);
+        let _a = x.0.0;
+        let _b = x.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), [3]);
+        let _a$l1 = x$l0.0.0;
+        let _b$l2 = x$l0.1
     }
     ");
 }

@@ -65,8 +65,7 @@ pub fn pedersen_commitment_with_separator<let N: u32>(
 ) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
-        // we use the unsafe version because the multi_scalar_mul will constrain the scalars.
-        points[i] = from_field_unsafe(input[i]);
+        points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     multi_scalar_mul(generators, points)
@@ -89,7 +88,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
         derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
 
     for i in 0..N {
-        scalars[i] = from_field_unsafe(input[i]);
+        scalars[i] = EmbeddedCurveScalar::from_field(input[i]);
         generators[i] = domain_generators[i];
     }
     scalars[N] = EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field };
@@ -117,27 +116,6 @@ fn __derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {}
-
-#[field(bn254)]
-// Decompose the input 'bn254 scalar' into two 128 bits limbs.
-// It is called 'unsafe' because it does not assert the limbs are 128 bits
-// Assuming the limbs are 128 bits:
-// Assert the decomposition does not overflow the field size.
-fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
-    // Safety: xlo and xhi decomposition is checked below
-    let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
-    // Check that the decomposition is correct
-    assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
-    // Check that the decomposition does not overflow the field size
-    let (a, b) = if xhi == crate::field::bn254::PHI {
-        (xlo, crate::field::bn254::PLO)
-    } else {
-        (xhi, crate::field::bn254::PHI)
-    };
-    crate::field::bn254::assert_lt(a, b);
-
-    EmbeddedCurveScalar { lo: xlo, hi: xhi }
-}
 
 pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
     static_assert(

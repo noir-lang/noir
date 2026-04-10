@@ -308,3 +308,158 @@ fn cannot_take_mut_ref_of_immutable_variable_in_deref() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn generic_inference_through_mutable_reference() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_mut_ref<let N: u32>(foo: &mut Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    fn main() {
+        let mut foo = Foo { data: [1, 2, 3] };
+        assert(by_mut_ref(&mut foo) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_mutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &mut Foo<N> is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_mut_ref<let N: u32>(foo: &mut Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_mut_ref(foo) == 1);
+               ^^^^^^^^^^ Type annotation needed
+               ~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `by_mut_ref`
+                          ^^^ Expected type &mut Foo<_>, found type Foo<3>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &mut Foo is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo {
+        data: Field,
+    }
+
+    fn by_mut_ref(foo: &mut Foo) -> Field {
+        foo.data
+    }
+
+    fn main() {
+        let foo = Foo { data: 1 };
+        assert(by_mut_ref(foo) == 1);
+                          ^^^ Expected type &mut Foo, found type Foo
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_ref<let N: u32>(foo: &Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    unconstrained fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_ref(&foo) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference_multiple_numeric_generics() {
+    let src = r#"
+    struct PublicCall<let M: u32, let N: u32, T> {
+        name: str<M>,
+        args: [Field; N],
+        _phantom: T,
+    }
+
+    struct Caller {}
+
+    impl Caller {
+        unconstrained fn call<let M: u32, let N: u32, T>(_self: Caller, _call: &PublicCall<M, N, T>) {}
+    }
+
+    unconstrained fn main() {
+        let caller = Caller {};
+        let pc = PublicCall { name: "hello", args: [1, 2, 3], _phantom: 0 as Field };
+        caller.call(&pc);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &Foo<N> is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_ref<let N: u32>(foo: &Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    unconstrained fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_ref(foo) == 1);
+               ^^^^^^ Type annotation needed
+               ~~~~~~ Could not determine the value of the generic argument `N` declared on the function `by_ref`
+                      ^^^ Expected type &Foo<_>, found type Foo<3>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_inference_through_mutable_reference_method_auto_ref() {
+    let src = r#"
+    struct Caller {}
+
+    struct PublicCall<let M: u32, let N: u32> {
+        name: str<M>,
+        args: [Field; N],
+    }
+
+    impl Caller {
+        fn call<let M: u32, let N: u32>(_self: Caller, _call: &mut PublicCall<M, N>) {}
+    }
+
+    fn main() {
+        let caller = Caller {};
+        let mut pc = PublicCall { name: "hello", args: [1, 2, 3] };
+        caller.call(&mut pc);
+    }
+    "#;
+    assert_no_errors(src);
+}

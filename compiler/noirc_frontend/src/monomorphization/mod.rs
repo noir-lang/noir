@@ -159,6 +159,11 @@ pub struct Monomorphizer<'interner> {
 
     debug_type_tracker: DebugTypeTracker,
 
+    /// The CrateId of the `__debug` crate, used to verify that debug patching
+    /// only applies to functions from the debug crate (not user-defined functions
+    /// that happen to share the same name).
+    debug_crate_id: Option<crate::graph::CrateId>,
+
     /// Indicate that we are currently monomorphizing an unconstrained function, which causes
     /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
@@ -198,7 +203,7 @@ pub fn monomorphize(
     interner: &mut NodeInterner,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), force_unconstrained)
+    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -209,10 +214,12 @@ pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
     debug_instrumenter: &DebugInstrumenter,
+    debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
+    let mut monomorphizer =
+        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
     monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
@@ -223,6 +230,7 @@ impl<'interner> Monomorphizer<'interner> {
     pub fn new(
         interner: &'interner mut NodeInterner,
         debug_type_tracker: DebugTypeTracker,
+        debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
     ) -> Self {
         Monomorphizer {
@@ -240,6 +248,7 @@ impl<'interner> Monomorphizer<'interner> {
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
+            debug_crate_id,
             in_unconstrained_function: force_unconstrained,
             force_unconstrained,
         }
