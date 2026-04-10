@@ -248,9 +248,12 @@ impl FunctionContext<'_> {
         }
     }
 
-    /// Codegen an identifier, automatically loading its value if it is mutable.
+    /// Codegen an identifier. Returns unevaluated `Value::Mutable` wrappers for mutable
+    /// locals — consumers call `.eval()` (or `into_value_list()`, `codegen_non_tuple_expression()`,
+    /// etc.) when they actually need the loaded values. This avoids eagerly loading all fields
+    /// of a mutable struct when only one field is subsequently accessed.
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
-        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
+        self.codegen_ident_reference(ident)
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
@@ -1240,6 +1243,23 @@ impl FunctionContext<'_> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
+        // Optimization: for ExtractTupleField(Dereference(x), N), extract the field's
+        // reference first, then dereference only that field. This avoids loading all
+        // fields of a struct through &mut self when only one field is needed.
+        if let Expression::Unary(unary) = tuple {
+            if matches!(unary.operator, UnaryOp::Dereference { .. }) && !unary.skip {
+                if let ast::Type::Tuple(fields) = &unary.result_type {
+                    let field_type = &fields[field_index];
+                    let references = self.codegen_expression(&unary.rhs)?;
+                    let field_ref = Self::get_field(references, field_index);
+                    return Ok(self.dereference(&field_ref, field_type));
+                }
+            }
+        }
+
+        // For mutable locals (Ident case), codegen_expression returns unevaluated
+        // Mutable values. get_field extracts just the needed field, so only that
+        // field's allocation is loaded when the caller evaluates the result.
         let tuple = self.codegen_expression(tuple)?;
         Ok(Self::get_field(tuple, field_index))
     }
