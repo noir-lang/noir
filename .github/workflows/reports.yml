@@ -65,6 +65,7 @@ jobs:
       contents: read
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
+      has_projects: ${{ steps.get_bench_projects.outputs.has_projects }}
 
     steps:
       - name: Checkout
@@ -73,9 +74,14 @@ jobs:
       - name: Build list of projects
         id: get_bench_projects
         run: |
-          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects | to_entries | map(.value + { name: .key })')
+          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '(.projects // {}) | to_entries | map(.value + { name: .key })')
           echo "projects=$PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
+          if [ "$PROJECTS" = "[]" ]; then
+            echo "has_projects=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_projects=true" >> $GITHUB_OUTPUT
+          fi
 
   build-nargo:
     runs-on: ubuntu-22.04
@@ -190,7 +196,7 @@ jobs:
       - name: Add gates diff to sticky comment
         # We don't run this step on external PRs
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3
+        uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3
         with:
           # delete the comment in case changes no longer impact circuit sizes
           delete: ${{ !steps.gates_diff.outputs.markdown }}
@@ -243,7 +249,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3
+        uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3
         with:
           header: brillig
           # delete the comment in case changes no longer impact brillig bytecode sizes
@@ -297,7 +303,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3
+        uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3
         with:
           header: brillig_execution
           # delete the comment in case changes no longer impact brillig bytecode sizes
@@ -588,10 +594,11 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -634,10 +641,11 @@ jobs:
 
   upload_elaboration_reports:
     name: Upload elaboration reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -680,10 +688,11 @@ jobs:
 
   upload_execution_reports:
     name: Upload execution reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -726,10 +735,11 @@ jobs:
 
   upload_artifact_reports:
     name: Upload artifact reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -772,10 +782,11 @@ jobs:
 
   upload_opcode_reports:
     name: Upload opcode reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -818,10 +829,11 @@ jobs:
 
   upload_brillig_compilation_reports:
     name: Upload Brillig compilation reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -864,10 +876,11 @@ jobs:
 
   upload_brillig_execution_reports:
     name: Upload Brillig execution reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -910,10 +923,11 @@ jobs:
 
   upload_brillig_artifact_reports:
     name: Upload Brillig artifact reports
-    needs: [external_repo_reports]
+    needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -956,10 +970,11 @@ jobs:
 
   upload_compilation_memory_report:
     name: Upload compilation memory report
-    needs: [generate_memory_report, external_repo_memory_report]
+    needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1007,10 +1022,11 @@ jobs:
 
   upload_execution_memory_report:
     name: Upload execution memory report
-    needs: [generate_memory_report, external_repo_memory_report]
+    needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    if: always()
+    # but only if there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1088,5 +1104,6 @@ jobs:
               exit 0
           fi
         env:
-          # We treat any skipped or failing jobs as a failure for the workflow as a whole.
-          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+          # We treat any failing or cancelled jobs as a failure for the workflow as a whole.
+          # Note: skipped is not treated as failure because upload jobs are intentionally skipped when there are no benchmark projects.
+          FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}

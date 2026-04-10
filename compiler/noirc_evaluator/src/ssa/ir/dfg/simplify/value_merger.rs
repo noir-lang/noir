@@ -87,7 +87,7 @@ impl<'a> ValueMerger<'a> {
             return Ok(then_value);
         }
 
-        match self.dfg.type_of_value(then_value) {
+        match &*self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Ok(Self::merge_numeric_values(
                 self.dfg,
                 self.block,
@@ -97,16 +97,20 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             )),
             typ @ Type::Array(_, _) => {
+                let typ = typ.clone();
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Vector(_) => self.merge_vector_values(
-                typ,
-                then_condition,
-                else_condition,
-                then_value,
-                else_value,
-            ),
-            Type::Reference(_) => {
+            typ @ Type::Vector(_) => {
+                let typ = typ.clone();
+                self.merge_vector_values(
+                    typ,
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                )
+            }
+            Type::Reference(..) => {
                 let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }

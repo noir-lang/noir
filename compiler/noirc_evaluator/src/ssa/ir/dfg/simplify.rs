@@ -67,6 +67,32 @@ impl SimplifyResult {
     }
 }
 
+/// Simplify the product `a * b`, returning `SimplifiedTo(a)` if b is 1,
+/// `SimplifiedTo(zero)` if b is 0, or `SimplifiedToInstruction(mul)` otherwise.
+/// This avoids emitting a mul instruction that would not be further simplified
+/// when the result of `simplify` is `SimplifiedToInstruction`.
+fn simplify_product(dfg: &DataFlowGraph, a: ValueId, b: ValueId) -> SimplifyResult {
+    if let Some(constant) = dfg.get_numeric_constant(b) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(a);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(b);
+        }
+    }
+    if let Some(constant) = dfg.get_numeric_constant(a) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(b);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(a);
+        }
+    }
+    SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+        BinaryOp::Mul { unchecked: true },
+        a,
+        b,
+    ))
+}
+
 /// Try to simplify this instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 ///
@@ -122,7 +148,7 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, SemanticLength(1)))
+            if matches!(*array_or_vector_type, Type::Array(_, SemanticLength(1)))
                 && array_or_vector_type.element_size() == ElementTypesLength(1)
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
@@ -283,7 +309,19 @@ pub(crate) fn simplify(
             // TODO: We could check to see if `then_condition == inner_else_condition`
             // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
-            if matches!(&typ, Type::Numeric(_)) {
+            // IfElse conditions are always boolean, so not(cond) * cond = 0.
+            // When else_value == then_condition, the else term vanishes and
+            // the result is just then_condition * then_value.
+            if else_value == then_condition {
+                return simplify_product(dfg, then_condition, then_value);
+            }
+            // Symmetric case: when then_value == else_condition, the then term
+            // vanishes and the result is just else_condition * else_value.
+            if then_value == else_condition {
+                return simplify_product(dfg, else_condition, else_value);
+            }
+
+            if matches!(&*typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
                     dfg,
                     block,

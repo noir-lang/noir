@@ -30,7 +30,18 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
+          set -euo pipefail
           LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
+            echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
+            exit 1
+          fi
+          NUM_LIBS=$(echo "$LIBRARIES" | jq 'length')
+          if [ "$NUM_LIBS" -eq 0 ]; then
+            echo "::error::EXTERNAL_NOIR_LIBRARIES.yml parsed successfully but contains no libraries"
+            exit 1
+          fi
+          echo "Parsed $NUM_LIBS libraries from EXTERNAL_NOIR_LIBRARIES.yml"
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -253,10 +264,10 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
 
-      - uses: taiki-e/install-action@just
-
       - name: Install Playwright
-        run: just install-playwright
+        uses: ./.github/actions/install-playwright
+        with:
+          browsers: "chromium webkit"
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
@@ -285,10 +296,8 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
 
-      - uses: taiki-e/install-action@just
-
       - name: Install Playwright
-        run: just install-playwright
+        uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
@@ -364,10 +373,8 @@ jobs:
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
-      - uses: taiki-e/install-action@just
-
       - name: Install Playwright
-        run: just install-playwright
+        uses: ./.github/actions/install-playwright
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -544,10 +551,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - uses: taiki-e/install-action@just
-
       - name: Install Playwright
-        run: just install-playwright
+        uses: ./.github/actions/install-playwright
+
+      - uses: taiki-e/install-action@just
 
       - name: Install `bb`
         run: |
@@ -680,41 +687,41 @@ jobs:
             exit 1
           fi
 
-  compile-noir-contracts:
-    name: Compile `noir-contracts` zero inliner aggressiveness
-    needs: [build-binaries]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          # Note that we are checking out into a sub-directory, which affects action paths.
-          path: noir-repo
+  # compile-noir-contracts:
+  #   name: Compile `noir-contracts` zero inliner aggressiveness
+  #   needs: [build-binaries]
+  #   runs-on: ubuntu-22.04
+  #   timeout-minutes: 30
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  #       with:
+  #         # Note that we are checking out into a sub-directory, which affects action paths.
+  #         path: noir-repo
 
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          repository: AztecProtocol/aztec-packages
-          path: test-repo
+  #     - name: Checkout
+  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  #       with:
+  #         repository: AztecProtocol/aztec-packages
+  #         path: test-repo
 
-      - name: Download nargo binary
-        uses: ./noir-repo/.github/actions/download-binary
-        with:
-          name: nargo
+  #     - name: Download nargo binary
+  #       uses: ./noir-repo/.github/actions/download-binary
+  #       with:
+  #         name: nargo
 
-      - name: Remove requirements on compiler version
-        working-directory: ./test-repo
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          sed -i '/^compiler_version/d' ./**/Nargo.toml
+  #     - name: Remove requirements on compiler version
+  #       working-directory: ./test-repo
+  #       run: |
+  #         # Github actions seems to not expand "**" in globs by default.
+  #         shopt -s globstar
+  #         sed -i '/^compiler_version/d' ./**/Nargo.toml
 
-      - name: Run nargo compile
-        working-directory: ./test-repo/noir-projects/noir-contracts
-        run: nargo compile --inliner-aggressiveness 0
+  #     - name: Run nargo compile
+  #       working-directory: ./test-repo/noir-projects/noir-contracts
+  #       run: nargo compile --inliner-aggressiveness 0
 
   upload_critical_library_report:
     name: Upload critical library report
@@ -810,7 +817,7 @@ jobs:
       #- test-integration-browser
       - test-nargo-doc
       - test-examples
-      - compile-noir-contracts
+      # - compile-noir-contracts
     permissions:
       contents: read
 

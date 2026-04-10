@@ -1,4 +1,4 @@
-fn main(x: u1, y: u1, z: u1) -> pub u1 {
+fn main(x: u8, y: u8, z: u8) -> pub u8 {
     let p = y - z;
     if p != 0 {
         let a = x / z;

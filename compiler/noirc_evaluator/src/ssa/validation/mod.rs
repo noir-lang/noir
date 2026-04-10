@@ -13,6 +13,7 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use acvm::{
@@ -78,7 +79,7 @@ impl<'f> Validator<'f> {
             _ => return,
         };
 
-        if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
+        if !matches!(*dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
 
@@ -165,7 +166,7 @@ impl<'f> Validator<'f> {
                     "Left-hand side and right-hand side of `{operator}` must have the same type"
                 );
 
-                if lhs_type == Type::field()
+                if *lhs_type == Type::field()
                     && matches!(
                         operator,
                         BinaryOp::Lt
@@ -182,7 +183,7 @@ impl<'f> Validator<'f> {
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
-                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                if !matches!(*index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
@@ -214,11 +215,11 @@ impl<'f> Validator<'f> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
 
-                let composite_type = match result_type {
+                let composite_type = match &*result_type {
                     Type::Array(composite_type, length) => {
                         let types_length =
                             ElementTypesLength(crate::brillig::assert_u32(composite_type.len()));
-                        let array_semi_flattened_length = types_length * length;
+                        let array_semi_flattened_length = types_length * *length;
                         let elements_length =
                             SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
                         if elements_length != array_semi_flattened_length {
@@ -255,7 +256,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &element_type != expected_type {
+                    if &*element_type != expected_type {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {}, got {}",
                             expected_type, element_type
@@ -265,12 +266,12 @@ impl<'f> Validator<'f> {
             }
             Instruction::Store { address, value } => {
                 let address_type = dfg.type_of_value(*address);
-                let Type::Reference(address_value_type) = address_type else {
+                let Type::Reference(address_value_type, _) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if *address_value_type != value_type {
+                if **address_value_type != *value_type {
                     panic!(
                         "Store address type {} does not match value type {}",
                         address_value_type, value_type
@@ -287,7 +288,7 @@ impl<'f> Validator<'f> {
                         operator: BinaryOp::Sub { unchecked: true },
                         ..
                     }) = &dfg[*instruction]
-                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
                     panic!(
                         "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
@@ -331,7 +332,9 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if argument_type != parameter_type {
+                    if *argument_type != parameter_type
+                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
+                    {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -617,13 +620,12 @@ impl<'f> Validator<'f> {
                     assert_array(&result_type, "DerivePedersenGenerators result");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected derive_pedersen_generators result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
-                assert_field(&result_elements[0], "embedded_curve_add result x");
-                assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
+                assert_field(&result_elements[0], "derive_pedersen_generators result x");
+                assert_field(&result_elements[1], "derive_pedersen_generators result y");
             }
             Intrinsic::FieldLessThan => {
                 // fn __field_less_than(x: Field, y: Field) -> bool {}
@@ -671,7 +673,7 @@ impl<'f> Validator<'f> {
                 let value_typ = dfg.type_of_value(arguments[0]);
                 assert!(
                     matches!(
-                        value_typ,
+                        *value_typ,
                         Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
                     ),
                     "Bitwise operation performed on non-integer type"
@@ -903,13 +905,17 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Type {
+    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Cow<Type> {
         assert_arguments_length(arguments, 1, object);
 
         self.function.dfg.type_of_value(arguments[0])
     }
 
-    fn assert_two_arguments(&self, arguments: &[ValueId], object: &'static str) -> (Type, Type) {
+    fn assert_two_arguments(
+        &self,
+        arguments: &[ValueId],
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 2, object);
 
         (
@@ -922,7 +928,7 @@ impl<'f> Validator<'f> {
         &self,
         arguments: &[ValueId],
         object: &'static str,
-    ) -> (Type, Type, Type) {
+    ) -> (Cow<Type>, Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 3, object);
 
         (
@@ -937,13 +943,17 @@ impl<'f> Validator<'f> {
         assert_eq!(results.len(), 0, "Expected zero result for {object}",);
     }
 
-    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
+    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Cow<Type> {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 1, "Expected one result for {object}",);
         self.function.dfg.type_of_value(results[0])
     }
 
-    fn assert_two_results(&self, instruction: InstructionId, object: &'static str) -> (Type, Type) {
+    fn assert_two_results(
+        &self,
+        instruction: InstructionId,
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 2, "Expected two results for {object}",);
         (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
@@ -998,8 +1008,8 @@ impl<'f> Validator<'f> {
         // ACIR->Brillig boundary. Nested or container references (&&T, [&T; N], etc.) may not.
         for arg_id in arguments {
             let arg_type = self.function.dfg.type_of_value(*arg_id);
-            let has_unsupported_ref = match &arg_type {
-                Type::Reference(inner) => inner.contains_reference(),
+            let has_unsupported_ref = match &*arg_type {
+                Type::Reference(inner, _) => inner.contains_reference(),
                 _ => arg_type.contains_reference(),
             };
             if has_unsupported_ref {
@@ -1056,7 +1066,7 @@ impl<'f> Validator<'f> {
                     "Entry block cannot be the target of a jump"
                 );
                 assert_eq!(
-                    condition_type,
+                    *condition_type,
                     Type::bool(),
                     "JmpIf conditions should have boolean type"
                 );
@@ -1113,6 +1123,15 @@ impl<'f> Validator<'f> {
 pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     let mut validator = Validator::new(function, ssa);
     validator.run();
+}
+
+/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
+/// A mutable reference is compatible with an immutable reference parameter.
+fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
+    matches!(
+        (arg, param),
+        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
+    )
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {

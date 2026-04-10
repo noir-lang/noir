@@ -1,3 +1,5 @@
+use test_case::test_case;
+
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
@@ -64,12 +66,12 @@ fn struct_array_len() {
 #[test]
 fn for_loop_over_array() {
     let src = r#"
-        fn hello<let N: u32>(_array: [u1; N]) {
+        fn hello<let N: u32>(_array: [bool; N]) {
             for _ in 0..N {}
         }
 
         fn main() {
-            let array: [u1; 2] = [0, 1];
+            let array: [bool; 2] = [false, true];
             hello(array);
         }
     "#;
@@ -503,7 +505,7 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                      ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                      ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                       ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
@@ -519,7 +521,7 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                          ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                          ^^^ N has a type of Foo. The only supported numeric generic types are integers and `Field`.
                           ~~~ Unsupported numeric generic type
     "#;
     check_errors(src);
@@ -529,7 +531,7 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         if N {
             0
@@ -558,7 +560,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ^^^^ N has a type of bool. The only supported numeric generic types are integers and `Field`.
                        ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
@@ -1048,4 +1050,85 @@ fn impl_for_generic_struct_with_numeric_and_type_generic() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test_case("u8")]
+#[test_case("u16")]
+#[test_case("u32")]
+#[test_case("u64")]
+#[test_case("u128")]
+#[test_case("i8")]
+#[test_case("i16")]
+#[test_case("i32")]
+#[test_case("i64")]
+#[test_case("Field")]
+fn numeric_generic_type(typ: &str) {
+    let src = format!(
+        r#"
+    global TEN: {typ} = 10 as {typ};
+
+    pub struct MyStruct<let N: {typ}> {{
+        inner: {typ},
+    }}
+
+    impl<let N: {typ}> MyStruct<N> {{
+        fn new(inner: {typ}) -> Self {{
+            MyStruct {{ inner: inner + N }}
+        }}
+    }}
+
+    fn generic_function<let N: {typ}>() -> {typ} {{
+        N
+    }}
+
+    fn main() {{
+        let s: MyStruct<TEN> = MyStruct::new(20 as {typ});
+        assert(s.inner == 30 as {typ});
+        let val: {typ} = generic_function::<TEN>();
+        assert(val == 10 as {typ});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+#[test]
+fn signed_numeric_generic_in_trait_and_where_clause() {
+    let src = r#"
+    trait HasValue<let N: i32> {
+        fn value(self) -> i32;
+    }
+
+    struct Wrapper {}
+
+    impl<let N: i32> HasValue<N> for Wrapper {
+        fn value(self) -> i32 { N }
+    }
+
+    fn extract_value<T, let N: i32>(t: T) -> i32 where T: HasValue<N> {
+        t.value()
+    }
+
+    fn main() {
+        let w = Wrapper {};
+        let _ = extract_value::<Wrapper, 10i32>(w);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test_case("i8", "-1i8", "-1")]
+#[test_case("i32", "-5i32", "-5")]
+#[test_case("i64", "-100i64", "-100")]
+fn signed_numeric_generic_negative_turbofish(typ: &str, literal: &str, expected: &str) {
+    let src = format!(
+        r#"
+    pub fn foo<let N: {typ}>() -> {typ} {{ N }}
+
+    fn main() {{
+        assert(foo::<{literal}>() == {expected});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
 }

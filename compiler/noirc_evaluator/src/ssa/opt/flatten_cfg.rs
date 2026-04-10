@@ -875,8 +875,16 @@ impl<'f> Context<'f> {
             // the next outer condition. Provenance is also consumed (removed) on
             // use by `try_collapse_merge`, preventing stale entries from matching
             // at unrelated merge points. Skip when the IfElse simplified to an
-            // existing value (e.g. then_value == else_value).
-            if collapsed.is_none() && result != then_value && result != else_value {
+            // existing value (e.g. then_value == else_value, or one of the conditions).
+            // If we don't skip conditions, an inner merge that simplifies to its
+            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+            // to v0, causing false collapses at outer merges that use v0 as an argument.
+            if collapsed.is_none()
+                && result != then_condition
+                && result != then_value
+                && result != else_condition
+                && result != else_value
+            {
                 self.merge_provenance.insert(
                     result,
                     MergeProvenance { then_condition, then_value, else_condition, else_value },
@@ -1017,7 +1025,7 @@ impl<'f> Context<'f> {
                     // If the reference was allocated before this condition took effect, then we must only
                     // overwrite it if the condition is true.
                     // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
-                    let typ = self.inserter.function.dfg.type_of_value(value);
+                    let typ = self.inserter.function.dfg.type_of_value(value).into_owned();
                     let load = Instruction::Load { address };
                     let previous_value = self
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
@@ -1222,11 +1230,14 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
+            interpreter::value::Value as InterpreterValue,
             ir::{
                 dfg::DataFlowGraph,
                 instruction::{Instruction, TerminatorInstruction},
+                types::NumericType,
                 value::{Value, ValueId},
             },
+            opt::assert_pass_does_not_affect_execution,
         },
     };
 
@@ -1526,7 +1537,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple();
+        let ssa = ssa.flatten_cfg().mem2reg();
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1911,7 +1922,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -1976,7 +1987,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2018,7 +2029,7 @@ mod tests {
 
         let ssa = ssa
             .flatten_cfg()
-            .mem2reg_simple()
+            .mem2reg()
             .remove_if_else()
             .unwrap()
             .fold_constants(1)
@@ -2189,7 +2200,7 @@ mod tests {
 
     /// Regression test: when JmpIf's else_destination IS the exit/merge block
     /// (no separate else block), the else_arguments carry the "no-change" value
-    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// directly to the merge. This is the pattern mem2reg produces when
     /// the else branch has no stores (just falls through to the merge block).
     #[test]
     fn flatten_jmpif_else_args_to_exit_block() {
@@ -2218,6 +2229,63 @@ mod tests {
             v8 = mul v4, Field 5
             v9 = add v6, v8
             return v9
+        }
+        ");
+    }
+
+    /// Regression test: when an inner IfElse simplifies to its own condition
+    /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
+    /// value. Otherwise the outer merge sees the provenance on v0 and
+    /// incorrectly collapses.
+    ///
+    /// Pattern:
+    ///   if v0 {
+    ///       // inner: if v0 { 1 } else { 0 } -- simplifies to v0 itself
+    ///       result = 1  // b6 ignores inner merge, passes constant
+    ///   } else {
+    ///       result = v0
+    ///   }
+    ///
+    /// Correct result: v0 (returns v0=0 for false input, 1 for true).
+    /// Bug: provenance on v0 causes outer merge to collapse to `not(v0*not(v0))` = 1 always.
+    #[test]
+    fn no_collapse_when_inner_merge_simplifies_to_condition() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmpif v0 then: b4(), else: b5()
+              b2():
+                jmp b3(v0)
+              b3(v1: u1):
+                return v1
+              b4():
+                jmp b6(u1 1)
+              b5():
+                jmp b6(u1 0)
+              b6(v2: u1):
+                jmp b3(u1 1)
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // With v0 = false, the else branch returns v0 = false.
+        // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
+        let false_value =
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
+        let inputs = vec![false_value.clone()];
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![false_value]);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects u1 1
+            return v0
         }
         ");
     }
@@ -2314,10 +2382,8 @@ mod merge_provenance_tests {
         let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
         let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
 
-        let promoted_flat =
-            promoted_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
-        let store_load_flat =
-            store_load_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
+        let promoted_flat = promoted_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
+        let store_load_flat = store_load_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
 
         let count = |ssa: &Ssa| -> usize {
             let main = ssa.main();
@@ -2408,10 +2474,9 @@ mod merge_provenance_tests {
             v7 = not v1
             v8 = unchecked_mul v0, v7
             enable_side_effects v0
-            v9 = not v4
-            v10 = not v0
+            v9 = not v0
             enable_side_effects u1 1
-            v12 = unchecked_mul v0, v4
+            v11 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
             constrain v0 == u1 1
@@ -2470,14 +2535,12 @@ mod merge_provenance_tests {
             v5 = unchecked_mul v0, v4
             enable_side_effects v0
             v6 = not v0
-            enable_side_effects u1 1
-            v8 = not v3
             enable_side_effects v2
-            v9 = not v2
+            v7 = not v2
             enable_side_effects u1 1
-            v10 = unchecked_mul v9, v3
-            v11 = unchecked_add v2, v10
-            constrain v11 == u1 1
+            v9 = unchecked_mul v7, v3
+            v10 = unchecked_add v2, v9
+            constrain v10 == u1 1
             return
         }
         ");

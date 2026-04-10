@@ -758,7 +758,9 @@ impl<'f> LoopInvariantContext<'f> {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
-                if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
+                if let (Type::Array(_, len), Some(upper_bound)) =
+                    (array_typ.into_owned(), upper_bound)
+                {
                     upper_bound.apply(|i| i <= len.0.into(), |i| i <= len.0.into())
                 } else {
                     // We're dealing with a loop that doesn't have a fixed upper bound.

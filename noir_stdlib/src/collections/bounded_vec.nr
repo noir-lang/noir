@@ -246,7 +246,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(57);
     /// assert(v.storage() == [57, 0, 0, 0, 0]);
     /// ```
-    pub fn storage(&self) -> [T; MaxLen] {
+    pub fn storage(self) -> [T; MaxLen] {
         self.storage
     }
 
