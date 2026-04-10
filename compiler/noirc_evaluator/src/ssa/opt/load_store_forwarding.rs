@@ -261,10 +261,33 @@ fn forward_loads_and_stores_in_block(
                     known_values.retain(|addr, _| !can_alias(addr));
                     last_loads.retain(|addr, _| !can_alias(addr));
                     last_stores.retain(|addr, _| !can_alias(addr));
-                } else if let Some(prev_store) = last_stores.get(&address) {
-                    // Previous store to this known/local address with no intervening
-                    // load is dead.
-                    instructions_to_remove.insert(*prev_store);
+                } else {
+                    // Store to a known or locally-allocated address.
+                    //
+                    // Non-local addresses of the same type (e.g. extracted via
+                    // array_get with a dynamic index) may alias this address at
+                    // runtime. Invalidate their entries in all three maps to
+                    // prevent stale forwarding or incorrect dead-store elimination.
+                    let store_type = inserter.function.dfg.type_of_value(address);
+                    let is_non_local_alias = |addr: &ValueId| {
+                        *addr != address
+                            && !local_allocations.contains(addr)
+                            && inserter.function.dfg.type_of_value(*addr) == store_type
+                    };
+
+                    // Dead-store elimination: only safe when no non-local same-typed
+                    // address has been loaded through (a load via an alias makes the
+                    // prior store live).
+                    let has_aliased_load = last_loads.keys().any(|addr| is_non_local_alias(addr));
+                    if !has_aliased_load {
+                        if let Some(prev_store) = last_stores.get(&address) {
+                            instructions_to_remove.insert(*prev_store);
+                        }
+                    }
+
+                    known_values.retain(|addr, _| !is_non_local_alias(addr));
+                    last_loads.retain(|addr, _| !is_non_local_alias(addr));
+                    last_stores.retain(|addr, _| !is_non_local_alias(addr));
                 }
 
                 // A store supersedes any prior load from this address.
@@ -953,6 +976,66 @@ mod tests {
         }
         ";
         // v0 and v1 could alias, so load v0 after store to v1 must NOT be forwarded.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn load_to_load_not_forwarded_through_array_get_alias() {
+        // Regression test for #12225: load-to-load forwarding bug via dynamic array_get.
+        //
+        // v1 and v2 are local allocations whose addresses are placed in an array.
+        // v4 = array_get v3, index v_idx (variable index) may alias v1 at runtime.
+        //
+        // After recording last_loads[v4] = v5 from the first load, the store of
+        // Field 99 to v1 must also invalidate last_loads[v4], since v4 could alias
+        // v1 at runtime. Otherwise the second load of v4 is incorrectly forwarded
+        // to the stale pre-store result v5.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v_idx: u32):
+            v1 = allocate -> &mut Field
+            store Field 42 at v1
+            v2 = allocate -> &mut Field
+            store Field 7 at v2
+            v3 = make_array [v1, v2] : [&mut Field; 2]
+            v4 = array_get v3, index v_idx -> &mut Field
+            v5 = load v4 -> Field
+            store Field 99 at v1
+            v6 = load v4 -> Field
+            return v5, v6
+        }
+        ";
+        // With v_idx = 0: v4 aliases v1, so v6 must be 99, not the stale 42.
+        // The pass must not forward v6 to v5, and must not eliminate the store
+        // of Field 42 (it is read through the alias in v5 = load v4).
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn store_to_load_not_forwarded_through_stale_alias_entry() {
+        // Variant of #12225: store-to-load forwarding via stale known_values entry.
+        //
+        // If we first store through v4 (the array_get alias), known_values[v4] is
+        // recorded. A subsequent store to v1 (which v4 may alias) must invalidate
+        // known_values[v4]; otherwise a load of v4 after the store to v1 would
+        // incorrectly forward the stale value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v_idx: u32):
+            v1 = allocate -> &mut Field
+            store Field 42 at v1
+            v2 = allocate -> &mut Field
+            store Field 7 at v2
+            v3 = make_array [v1, v2] : [&mut Field; 2]
+            v4 = array_get v3, index v_idx -> &mut Field
+            store Field 55 at v4
+            store Field 99 at v1
+            v5 = load v4 -> Field
+            return v5
+        }
+        ";
+        // With v_idx = 0: v4 aliases v1. After `store 99 at v1`, loading v4 must
+        // see 99, not the stale 55 from `store 55 at v4`.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 }
