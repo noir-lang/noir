@@ -22,11 +22,11 @@
 //!
 //! ## Field-path-aware optimization
 //!
-//! After the main reverse-order analysis, a separate lightweight post-processing pass scans
-//! the function body (in reverse) to find variables accessed exclusively through
-//! `ExtractTupleField` with disjoint field paths (e.g. `x.0` and `x.1`). For these
-//! variables, all field-path uses are marked as moves, since disjoint paths cannot alias.
-//! This optimization adds zero overhead to the main tracking pass.
+//! The reverse traversal also tracks `ExtractTupleField` access paths. When a variable
+//! is accessed only through field paths (e.g. `x.0` and `x.1`), and all those paths are
+//! pairwise disjoint, each access is treated as a last use of its respective field —
+//! eliminating unnecessary clones. A bare use of the variable (without field extraction)
+//! "poisons" the tracking, falling back to whole-variable behavior.
 
 use crate::ast::UnaryOp;
 use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
@@ -55,6 +55,16 @@ struct LastUseContext {
     /// Current loop nesting depth.
     loop_depth: usize,
 
+    /// For each variable that has only been accessed through `ExtractTupleField` chains,
+    /// the set of field paths seen so far (i.e., paths from later uses in forward order).
+    /// If a variable is accessed bare (without field extraction), it is removed from this
+    /// map ("poisoned"), disabling the field-path optimization for it.
+    ///
+    /// This map is never saved/restored across branches — it accumulates globally, which
+    /// is conservative and correct: paths from any branch count as "later" for code that
+    /// precedes the branch point.
+    field_paths_seen: HashMap<LocalId, Vec<FieldPath>>,
+
     /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
     ///
     /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
@@ -80,6 +90,7 @@ impl Context {
             confirmed_moves: HashMap::default(),
             declaration_depth: HashMap::default(),
             loop_depth: 0,
+            field_paths_seen: HashMap::default(),
             referenced_variables: HashSet::default(),
         };
 
@@ -87,13 +98,7 @@ impl Context {
             context.declare_variable(*parameter);
         }
         context.find_last_uses_in_expression(&function.body);
-        let mut moves = context.into_variables_to_move();
-
-        // Post-process: find additional moves for disjoint field-path accesses.
-        // This is a separate lightweight pass that adds zero overhead to the main analysis.
-        add_field_disjoint_moves(&function.body, &mut moves);
-
-        moves
+        context.into_variables_to_move()
     }
 }
 
@@ -102,12 +107,44 @@ impl LastUseContext {
         self.declaration_depth.insert(id, self.loop_depth);
     }
 
-    /// Record a use of a local variable. If this is the first encounter in the
-    /// reverse traversal (i.e. the last use in forward order), add it to pending_last_uses.
+    /// Record a bare use of a local variable (not through `ExtractTupleField`).
+    /// If this is the first encounter in the reverse traversal (i.e. the last use
+    /// in forward order), add it to pending_last_uses.
+    ///
+    /// A bare use "poisons" field-path tracking for this variable — any earlier
+    /// field-path uses cannot be treated as disjoint moves.
     fn use_variable(&mut self, id: LocalId, ident_id: IdentId) {
+        self.field_paths_seen.remove(&id);
         if self.seen.insert(id) {
             self.pending_last_uses.entry(id).or_default().push(ident_id);
         }
+    }
+
+    /// Record a use of a local variable through an `ExtractTupleField` chain with
+    /// the given field path (e.g. `x.0.1` has path `[0, 1]`).
+    ///
+    /// If this is the first encounter → it's a last use, just like `use_variable`.
+    /// If the variable was already seen, but only through disjoint field paths →
+    /// this is also treated as a last use (the fields don't alias).
+    /// If there was a bare use or an overlapping path → not a last use.
+    fn use_variable_with_field_path(&mut self, id: LocalId, ident_id: IdentId, path: FieldPath) {
+        if self.seen.insert(id) {
+            // First encounter in the reverse traversal — always a last use.
+            self.pending_last_uses.entry(id).or_default().push(ident_id);
+            self.field_paths_seen.insert(id, vec![path]);
+        } else if let Some(paths) = self.field_paths_seen.get_mut(&id) {
+            // Variable was seen before, but only through field paths.
+            // If this path is disjoint from all previously seen paths, it's also a last use.
+            if paths.iter().all(|p| field_paths_are_disjoint(&path, p)) {
+                self.pending_last_uses.entry(id).or_default().push(ident_id);
+            }
+            // Always record the path for future disjointness checks,
+            // even if this use wasn't disjoint (overlapping paths constrain later checks).
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+        // else: variable had a bare use (not in field_paths_seen) — no optimization possible.
     }
 
     /// Collect all last uses, excluding variables that have been aliased via references.
@@ -162,8 +199,8 @@ impl LastUseContext {
                     self.find_last_uses_in_expression(elem);
                 }
             }
-            Expression::ExtractTupleField(tuple, _) => {
-                self.find_last_uses_in_expression(tuple);
+            Expression::ExtractTupleField(_, _) => {
+                self.find_last_uses_in_extract_tuple_field(expr);
             }
             Expression::Call(call) => self.find_last_uses_in_call(call),
             Expression::Let(let_expr) => self.find_last_uses_in_let(let_expr),
@@ -184,6 +221,27 @@ impl LastUseContext {
     fn find_last_uses_in_ident(&mut self, ident: &ast::Ident) {
         if let Definition::Local(local_id) = &ident.definition {
             self.use_variable(*local_id, ident.id);
+        }
+    }
+
+    /// Walk an `ExtractTupleField` chain (e.g. `x.0.1`) to extract the full field path,
+    /// then record the use with field-path tracking for the disjoint move optimization.
+    fn find_last_uses_in_extract_tuple_field(&mut self, expr: &Expression) {
+        let mut path = Vec::new();
+        let mut current = expr;
+        while let Expression::ExtractTupleField(inner, index) = current {
+            path.push(*index);
+            current = inner;
+        }
+        path.reverse();
+
+        if let Expression::Ident(ident) = current
+            && let Definition::Local(local_id) = &ident.definition
+        {
+            self.use_variable_with_field_path(*local_id, ident.id, path);
+        } else {
+            // Base is not a local ident (e.g. a call result) — recurse normally.
+            self.find_last_uses_in_expression(current);
         }
     }
 
@@ -335,6 +393,7 @@ impl LastUseContext {
             &assign.lvalue
         {
             self.seen.remove(local_id);
+            self.field_paths_seen.remove(local_id);
             let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
 
             self.find_last_uses_in_expression(&assign.expression);
@@ -469,180 +528,13 @@ fn type_contains_reference(typ: &ast::Type) -> bool {
     }
 }
 
-// --- Field-path disjoint move optimization ---
-//
-// Post-processing pass that identifies additional moves for variables accessed
-// exclusively through disjoint `ExtractTupleField` paths.
-
 /// A field access path through `ExtractTupleField` chains.
 /// For example, `x.0.1` has path `[0, 1]`. A bare use of `x` has an empty path `[]`.
 type FieldPath = Vec<usize>;
 
-/// Post-processing pass that identifies additional moves for variables accessed
-/// exclusively through disjoint `ExtractTupleField` paths.
-///
-/// This walks the expression tree in **reverse** order (consistent with the main
-/// last-use analysis), collecting `(IdentId, field_path)` for each variable use.
-/// Because we traverse in reverse, the first encounter of each field path is the
-/// last use in forward order. For each non-move field-path use that is disjoint
-/// from all earlier-encountered (i.e. later in forward order) paths of the same
-/// variable, it adds the use to the move set.
-fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<IdentId>>) {
-    // Collect all uses per variable in reverse order: (IdentId, field_path)
-    let mut use_records: HashMap<LocalId, Vec<(IdentId, FieldPath)>> = HashMap::default();
-    collect_use_records_rev(body, &mut use_records);
-
-    // Moves identified by the main last-use analysis. Since IdentIds are unique per use-site,
-    // a move added for one variable can never appear in another variable's records, so we can
-    // safely precompute this set once rather than rebuilding it per variable.
-    let prior_moves: HashSet<IdentId> = moves.values().flat_map(|v| v.iter().copied()).collect();
-
-    let mut new_moves: Vec<(LocalId, IdentId)> = Vec::new();
-
-    for (local_id, records) in &use_records {
-        // Records are in reverse order. Walk forward through them (which is reverse program
-        // order), maintaining the set of unique field paths seen so far (i.e. paths that
-        // appear later in program order). Each candidate is checked against at most U unique
-        // paths, where U is bounded by the struct/tuple arity — typically very small.
-        let mut later_paths: Vec<&FieldPath> = Vec::new();
-
-        for (ident_id, path) in records {
-            if path.is_empty() {
-                // Bare use — no earlier use (in forward order) can be disjoint from this.
-                break;
-            }
-
-            // Check if this use can be moved (disjoint from all later field paths).
-            // Skip uses already marked as moves — but still track their paths below,
-            // since later candidates need to check disjointness against them.
-            if !prior_moves.contains(ident_id)
-                && later_paths.iter().all(|later| field_paths_are_disjoint(path, later))
-            {
-                new_moves.push((*local_id, *ident_id));
-            }
-
-            if !later_paths.contains(&path) {
-                later_paths.push(path);
-            }
-        }
-    }
-
-    for (local_id, ident_id) in new_moves {
-        moves.entry(local_id).or_default().push(ident_id);
-    }
-}
-
-/// Walk the expression tree in **reverse** order (matching the main last-use traversal),
-/// recording each variable use with its `ExtractTupleField` access path (empty for bare idents).
-fn collect_use_records_rev(
-    expr: &Expression,
-    records: &mut HashMap<LocalId, Vec<(IdentId, FieldPath)>>,
-) {
-    match expr {
-        Expression::Ident(ident) => {
-            if let Definition::Local(local_id) = &ident.definition {
-                records.entry(*local_id).or_default().push((ident.id, vec![]));
-            }
-        }
-        Expression::ExtractTupleField(_, _) => {
-            // Walk the ExtractTupleField chain to extract the full path
-            let mut path = Vec::new();
-            let mut current = expr;
-            while let Expression::ExtractTupleField(inner, index) = current {
-                path.push(*index);
-                current = inner;
-            }
-            path.reverse();
-
-            if let Expression::Ident(ident) = current
-                && let Definition::Local(local_id) = &ident.definition
-            {
-                records.entry(*local_id).or_default().push((ident.id, path));
-                return;
-            }
-            // Base is not a local ident — recurse into it
-            collect_use_records_rev(current, records);
-        }
-        Expression::Literal(literal) => match literal {
-            Literal::FmtStr(_, _, captures) => collect_use_records_rev(captures, records),
-            Literal::Array(array) | Literal::Vector(array) => {
-                for element in array.contents.iter().rev() {
-                    collect_use_records_rev(element, records);
-                }
-            }
-            Literal::Repeated { element, .. } => collect_use_records_rev(element, records),
-            _ => {}
-        },
-        Expression::Block(exprs) => {
-            for e in exprs.iter().rev() {
-                collect_use_records_rev(e, records);
-            }
-        }
-        Expression::Unary(unary) => collect_use_records_rev(&unary.rhs, records),
-        Expression::Binary(binary) => {
-            collect_use_records_rev(&binary.rhs, records);
-            collect_use_records_rev(&binary.lhs, records);
-        }
-        Expression::Index(index) => {
-            collect_use_records_rev(&index.collection, records);
-            collect_use_records_rev(&index.index, records);
-        }
-        Expression::Cast(cast) => collect_use_records_rev(&cast.lhs, records),
-        Expression::For(for_expr) => {
-            collect_use_records_rev(&for_expr.block, records);
-            collect_use_records_rev(&for_expr.end_range, records);
-            collect_use_records_rev(&for_expr.start_range, records);
-        }
-        Expression::Loop(body) => collect_use_records_rev(body, records),
-        Expression::While(while_expr) => {
-            collect_use_records_rev(&while_expr.body, records);
-            collect_use_records_rev(&while_expr.condition, records);
-        }
-        Expression::If(if_expr) => {
-            if let Some(alt) = &if_expr.alternative {
-                collect_use_records_rev(alt, records);
-            }
-            collect_use_records_rev(&if_expr.consequence, records);
-            collect_use_records_rev(&if_expr.condition, records);
-        }
-        Expression::Match(match_expr) => {
-            if let Some(default_case) = &match_expr.default_case {
-                collect_use_records_rev(default_case, records);
-            }
-            for case in match_expr.cases.iter().rev() {
-                collect_use_records_rev(&case.branch, records);
-            }
-        }
-        Expression::Tuple(elements) => {
-            for e in elements.iter().rev() {
-                collect_use_records_rev(e, records);
-            }
-        }
-        Expression::Call(call) => {
-            for arg in call.arguments.iter().rev() {
-                collect_use_records_rev(arg, records);
-            }
-            collect_use_records_rev(&call.func, records);
-        }
-        Expression::Let(let_expr) => collect_use_records_rev(&let_expr.expression, records),
-        Expression::Constrain(boolean, _, msg) => {
-            if let Some(msg) = msg {
-                collect_use_records_rev(&msg.0, records);
-            }
-            collect_use_records_rev(boolean, records);
-        }
-        Expression::Assign(assign) => {
-            collect_use_records_rev(&assign.expression, records);
-        }
-        Expression::Semi(expr) => collect_use_records_rev(expr, records),
-        Expression::Clone(_) | Expression::Drop(_) => {}
-        Expression::Break | Expression::Continue => {}
-    }
-}
-
 /// Two field paths are disjoint if they diverge at some position.
 ///
-/// A path that is a prefix of another is not disjoint.
+/// A path that is a prefix of another is not disjoint (e.g. `[0]` and `[0, 1]` overlap).
 /// An empty path (bare variable use) is never disjoint from anything.
 fn field_paths_are_disjoint(a: &[usize], b: &[usize]) -> bool {
     if a.is_empty() || b.is_empty() {
