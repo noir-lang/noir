@@ -103,7 +103,7 @@ fn collect_allocations(function: &Function, blocks: &[BasicBlockId]) -> HashSet<
 
 /// Returns true if two addresses might refer to the same memory.
 ///
-/// Conservative: returns true (MayAlias) when uncertain.
+/// Conservative: returns true when uncertain.
 /// - Same ValueId -> always alias.
 /// - Different reference types -> never alias.
 /// - Both from different `allocate` instructions -> never alias.
