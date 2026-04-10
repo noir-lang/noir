@@ -100,7 +100,19 @@ cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs:
 - **Do NOT use `cargo insta review`** — it launches an interactive TUI that cannot be used from a CLI agent. Instead, read `.snap.new` files directly to review before accepting.
 - `cargo insta accept` — accept all pending snapshots non-interactively
-- `cargo insta accept --filter <pattern>` — accept specific snapshots
+- `cargo insta accept --snapshot <pattern>` — accept specific snapshots
+- `cargo insta test --accept -p <crate> --test-runner cargo-test -- <test_name>` — run a single test and accept its pending snapshot in one step, needed when the snapshot hasn't been generated yet since `cargo insta accept` alone only applies already-pending snapshots
+
+##### Bug-fix PRs with snapshot-based regression tests
+
+When fixing a bug that is caught by a snapshot assertion, split the work into **two commits** on the feature branch:
+
+1. **Red commit** — add the regression test and accept the *buggy* snapshot (the output produced by the broken code). This commit exists purely so git history preserves a machine-readable fingerprint of what the bug looked like.
+2. **Green commit** — apply the code fix, re-run the test, and accept the updated snapshot.
+
+Do not squash these two commits locally. If the PR is squash-merged into `master` the record is lost from `master`, but it is still preserved in the PR's commit list on GitHub, which is good enough.
+
+This only applies when the regression test uses a snapshot assertion. For regression tests that assert on concrete values (e.g. `assert_eq!`), a single red-then-green commit is fine — the failing assertion's expected/actual values already document the bug.
 
 #### Testing (JavaScript/TypeScript)
 
