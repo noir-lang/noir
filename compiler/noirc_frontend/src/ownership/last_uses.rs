@@ -87,11 +87,20 @@ impl Context {
             context.declare_variable(*parameter);
         }
         context.find_last_uses_in_expression(&function.body);
+
+        // Extract data needed by the field-disjoint pass before consuming context.
+        let referenced_variables = context.referenced_variables.clone();
+        let declaration_depth = context.declaration_depth.clone();
         let mut moves = context.into_variables_to_move();
 
         // Post-process: find additional moves for disjoint field-path accesses.
         // Kept as a separate pass for clarity — the traversal is fast.
-        add_field_disjoint_moves(&function.body, &mut moves);
+        add_field_disjoint_moves(
+            &function.body,
+            &mut moves,
+            &referenced_variables,
+            &declaration_depth,
+        );
 
         moves
     }
@@ -482,15 +491,24 @@ type FieldPath = Vec<usize>;
 /// exclusively through disjoint `ExtractTupleField` paths.
 ///
 /// This walks the expression tree in **reverse** order (consistent with the main
-/// last-use analysis), collecting `(IdentId, field_path)` for each variable use.
-/// Because we traverse in reverse, the first encounter of each field path is the
-/// last use in forward order. For each non-move field-path use that is disjoint
-/// from all earlier-encountered (i.e. later in forward order) paths of the same
-/// variable, it adds the use to the move set.
-fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<IdentId>>) {
-    // Collect all uses per variable in reverse order: (IdentId, field_path)
-    let mut use_records: HashMap<LocalId, Vec<(IdentId, FieldPath)>> = HashMap::default();
-    collect_use_records_rev(body, &mut use_records);
+/// last-use analysis), collecting `(IdentId, field_path, loop_depth)` for each
+/// variable use. Because we traverse in reverse, the first encounter of each
+/// field path is the last use in forward order. For each non-move field-path use
+/// that is disjoint from all earlier-encountered (i.e. later in forward order)
+/// paths of the same variable, it adds the use to the move set.
+///
+/// Safety constraints inherited from the main analysis:
+/// - Variables aliased via references (`referenced_variables`) are never moved.
+/// - Uses inside a loop where the variable was declared outside are never moved.
+fn add_field_disjoint_moves(
+    body: &Expression,
+    moves: &mut HashMap<LocalId, Vec<IdentId>>,
+    referenced_variables: &HashSet<LocalId>,
+    declaration_depth: &HashMap<LocalId, usize>,
+) {
+    // Collect all uses per variable in reverse order: (IdentId, field_path, loop_depth)
+    let mut use_records: HashMap<LocalId, Vec<(IdentId, FieldPath, usize)>> = HashMap::default();
+    collect_use_records_rev(body, &mut use_records, 0);
 
     // Moves identified by the main last-use analysis. Since IdentIds are unique per use-site,
     // a move added for one variable can never appear in another variable's records, so we can
@@ -500,13 +518,21 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
     let mut new_moves: Vec<(LocalId, IdentId)> = Vec::new();
 
     for (local_id, records) in &use_records {
+        // Skip variables that are aliased via references — the main pass already
+        // removed all their moves, and we must not re-add them.
+        if referenced_variables.contains(local_id) {
+            continue;
+        }
+
+        let var_depth = declaration_depth.get(local_id).copied().unwrap_or(0);
+
         // Records are in reverse order. Walk forward through them (which is reverse program
         // order), maintaining the set of unique field paths seen so far (i.e. paths that
         // appear later in program order). Each candidate is checked against at most U unique
         // paths, where U is bounded by the struct/tuple arity — typically very small.
         let mut later_paths: Vec<&FieldPath> = Vec::new();
 
-        for (ident_id, path) in records {
+        for (ident_id, path, use_depth) in records {
             if path.is_empty() {
                 // Bare use — no earlier use (in forward order) can be disjoint from this.
                 break;
@@ -515,7 +541,10 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
             // Check if this use can be moved (disjoint from all later field paths).
             // Skip uses already marked as moves — but still track their paths below,
             // since later candidates need to check disjointness against them.
+            // Also skip uses inside a loop where the variable was declared outside —
+            // the loop may execute multiple times, so moving would be unsound.
             if !prior_moves.contains(ident_id)
+                && *use_depth <= var_depth
                 && later_paths.iter().all(|later| field_paths_are_disjoint(path, later))
             {
                 new_moves.push((*local_id, *ident_id));
@@ -533,15 +562,17 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
 }
 
 /// Walk the expression tree in **reverse** order (matching the main last-use traversal),
-/// recording each variable use with its `ExtractTupleField` access path (empty for bare idents).
+/// recording each variable use with its `ExtractTupleField` access path (empty for bare idents)
+/// and the current loop depth.
 fn collect_use_records_rev(
     expr: &Expression,
-    records: &mut HashMap<LocalId, Vec<(IdentId, FieldPath)>>,
+    records: &mut HashMap<LocalId, Vec<(IdentId, FieldPath, usize)>>,
+    loop_depth: usize,
 ) {
     match expr {
         Expression::Ident(ident) => {
             if let Definition::Local(local_id) = &ident.definition {
-                records.entry(*local_id).or_default().push((ident.id, vec![]));
+                records.entry(*local_id).or_default().push((ident.id, vec![], loop_depth));
             }
         }
         Expression::ExtractTupleField(_, _) => {
@@ -557,84 +588,90 @@ fn collect_use_records_rev(
             if let Expression::Ident(ident) = current
                 && let Definition::Local(local_id) = &ident.definition
             {
-                records.entry(*local_id).or_default().push((ident.id, path));
+                records.entry(*local_id).or_default().push((ident.id, path, loop_depth));
                 return;
             }
             // Base is not a local ident — recurse into it
-            collect_use_records_rev(current, records);
+            collect_use_records_rev(current, records, loop_depth);
         }
         Expression::Literal(literal) => match literal {
-            Literal::FmtStr(_, _, captures) => collect_use_records_rev(captures, records),
+            Literal::FmtStr(_, _, captures) => {
+                collect_use_records_rev(captures, records, loop_depth)
+            }
             Literal::Array(array) | Literal::Vector(array) => {
                 for element in array.contents.iter().rev() {
-                    collect_use_records_rev(element, records);
+                    collect_use_records_rev(element, records, loop_depth);
                 }
             }
-            Literal::Repeated { element, .. } => collect_use_records_rev(element, records),
+            Literal::Repeated { element, .. } => {
+                collect_use_records_rev(element, records, loop_depth)
+            }
             _ => {}
         },
         Expression::Block(exprs) => {
             for e in exprs.iter().rev() {
-                collect_use_records_rev(e, records);
+                collect_use_records_rev(e, records, loop_depth);
             }
         }
-        Expression::Unary(unary) => collect_use_records_rev(&unary.rhs, records),
+        Expression::Unary(unary) => collect_use_records_rev(&unary.rhs, records, loop_depth),
         Expression::Binary(binary) => {
-            collect_use_records_rev(&binary.rhs, records);
-            collect_use_records_rev(&binary.lhs, records);
+            collect_use_records_rev(&binary.rhs, records, loop_depth);
+            collect_use_records_rev(&binary.lhs, records, loop_depth);
         }
         Expression::Index(index) => {
-            collect_use_records_rev(&index.collection, records);
-            collect_use_records_rev(&index.index, records);
+            collect_use_records_rev(&index.collection, records, loop_depth);
+            collect_use_records_rev(&index.index, records, loop_depth);
         }
-        Expression::Cast(cast) => collect_use_records_rev(&cast.lhs, records),
+        Expression::Cast(cast) => collect_use_records_rev(&cast.lhs, records, loop_depth),
         Expression::For(for_expr) => {
-            collect_use_records_rev(&for_expr.block, records);
-            collect_use_records_rev(&for_expr.end_range, records);
-            collect_use_records_rev(&for_expr.start_range, records);
+            collect_use_records_rev(&for_expr.block, records, loop_depth + 1);
+            collect_use_records_rev(&for_expr.end_range, records, loop_depth);
+            collect_use_records_rev(&for_expr.start_range, records, loop_depth);
         }
-        Expression::Loop(body) => collect_use_records_rev(body, records),
+        Expression::Loop(body) => collect_use_records_rev(body, records, loop_depth + 1),
         Expression::While(while_expr) => {
-            collect_use_records_rev(&while_expr.body, records);
-            collect_use_records_rev(&while_expr.condition, records);
+            collect_use_records_rev(&while_expr.body, records, loop_depth + 1);
+            collect_use_records_rev(&while_expr.condition, records, loop_depth + 1);
         }
         Expression::If(if_expr) => {
             if let Some(alt) = &if_expr.alternative {
-                collect_use_records_rev(alt, records);
+                collect_use_records_rev(alt, records, loop_depth);
             }
-            collect_use_records_rev(&if_expr.consequence, records);
-            collect_use_records_rev(&if_expr.condition, records);
+            collect_use_records_rev(&if_expr.consequence, records, loop_depth);
+            collect_use_records_rev(&if_expr.condition, records, loop_depth);
         }
         Expression::Match(match_expr) => {
             if let Some(default_case) = &match_expr.default_case {
-                collect_use_records_rev(default_case, records);
+                collect_use_records_rev(default_case, records, loop_depth);
             }
             for case in match_expr.cases.iter().rev() {
-                collect_use_records_rev(&case.branch, records);
+                collect_use_records_rev(&case.branch, records, loop_depth);
             }
         }
         Expression::Tuple(elements) => {
             for e in elements.iter().rev() {
-                collect_use_records_rev(e, records);
+                collect_use_records_rev(e, records, loop_depth);
             }
         }
         Expression::Call(call) => {
             for arg in call.arguments.iter().rev() {
-                collect_use_records_rev(arg, records);
+                collect_use_records_rev(arg, records, loop_depth);
             }
-            collect_use_records_rev(&call.func, records);
+            collect_use_records_rev(&call.func, records, loop_depth);
         }
-        Expression::Let(let_expr) => collect_use_records_rev(&let_expr.expression, records),
+        Expression::Let(let_expr) => {
+            collect_use_records_rev(&let_expr.expression, records, loop_depth)
+        }
         Expression::Constrain(boolean, _, msg) => {
             if let Some(msg) = msg {
-                collect_use_records_rev(&msg.0, records);
+                collect_use_records_rev(&msg.0, records, loop_depth);
             }
-            collect_use_records_rev(boolean, records);
+            collect_use_records_rev(boolean, records, loop_depth);
         }
         Expression::Assign(assign) => {
-            collect_use_records_rev(&assign.expression, records);
+            collect_use_records_rev(&assign.expression, records, loop_depth);
         }
-        Expression::Semi(expr) => collect_use_records_rev(expr, records),
+        Expression::Semi(expr) => collect_use_records_rev(expr, records, loop_depth),
         Expression::Clone(_) | Expression::Drop(_) => {}
         Expression::Break | Expression::Continue => {}
     }

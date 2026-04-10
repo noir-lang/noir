@@ -1559,15 +1559,15 @@ fn disjoint_field_extraction_inside_for_loop_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: t.0 is moved instead of cloned inside the loop.
-    // After fix, t.0 should have .clone() inside the loop.
+    // t.0 must be cloned inside the loop (variable declared outside, loop may run multiple times).
+    // t.1 is moved after the loop (disjoint from t.0, last use).
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr1$l0 = [1, 2];
         let arr2$l1 = [3, 4];
         let t$l2 = (arr1$l0, arr2$l1);
         for _$l3 in 0 .. 5 {
-            foo$f1(t$l2.0);
+            foo$f1(t$l2.0.clone());
         };
         foo$f1(t$l2.1);
     }
@@ -1594,14 +1594,13 @@ fn disjoint_field_extraction_inside_while_loop_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: t.0 is moved instead of cloned inside the while loop.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(cond$l0: bool) -> () {
         let arr1$l1 = [1, 2];
         let arr2$l2 = [3, 4];
         let t$l3 = (arr1$l1, arr2$l2);
         while cond$l0 {
-            foo$f1(t$l3.0);;
+            foo$f1(t$l3.0.clone());;
             break
         };
         foo$f1(t$l3.1);
@@ -1629,14 +1628,13 @@ fn disjoint_field_extraction_inside_loop_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: t.0 is moved instead of cloned inside the loop.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr1$l0 = [1, 2];
         let arr2$l1 = [3, 4];
         let t$l2 = (arr1$l0, arr2$l1);
         loop {
-            foo$f1(t$l2.0);;
+            foo$f1(t$l2.0.clone());;
             break
         };
         foo$f1(t$l2.1);
@@ -1660,12 +1658,11 @@ fn disjoint_field_in_for_range_with_field_in_body_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: t.0 is moved inside the loop instead of cloned.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let t$l0 = ([1, 2], 0, 5);
         for _$l1 in t$l0.1 .. t$l0.2 {
-            foo$f1(t$l0.0);
+            foo$f1(t$l0.0.clone());
         }
     }
     unconstrained fn foo$f1(_$l2: [Field; 2]) -> () {
@@ -1689,14 +1686,13 @@ fn disjoint_field_extraction_of_referenced_variable_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: t.0 and t.1 are both moved instead of cloned.
-    // t is aliased via &mut, so all field extractions should clone.
+    // t is aliased via &mut, so all field extractions must clone.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(mut arr1$l0: [Field; 2], mut arr2$l1: [Field; 2]) -> () {
         let mut t$l2 = (arr1$l0, arr2$l1);
         let _r$l3 = (&mut t$l2);
-        let _a$l4 = t$l2.0;
-        let _b$l5 = t$l2.1
+        let _a$l4 = t$l2.0.clone();
+        let _b$l5 = t$l2.1.clone()
     }
     ");
 }
@@ -1718,8 +1714,7 @@ fn disjoint_field_extraction_of_field_referenced_variable_should_clone() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // BUG: p.first and p.second are moved instead of cloned.
-    // p is aliased via &mut p.first.
+    // p is aliased via &mut p.first — all field extractions must clone.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(arr1$l0: [Field; 2], arr2$l1: [Field; 2]) -> () {
         let mut p$l4 = {
@@ -1728,8 +1723,8 @@ fn disjoint_field_extraction_of_field_referenced_variable_should_clone() {
             (first$l2, second$l3)
         };
         let _r$l5 = (&mut p$l4.0);
-        let _a$l6 = p$l4.0;
-        let _b$l7 = p$l4.1
+        let _a$l6 = p$l4.0.clone();
+        let _b$l7 = p$l4.1.clone()
     }
     ");
 }
