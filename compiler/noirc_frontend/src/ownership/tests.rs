@@ -1536,3 +1536,28 @@ fn does_not_clone_disjoint_nested_and_shallow_field_extraction() {
     }
     ");
 }
+
+/// Extracting disjoint fields from a dynamically-indexed array element.
+/// `arr[i].0` and `arr[j].1` extract different fields — the `DynamicIndex`
+/// path step preserves the field suffix so `Field(0)` vs `Field(1)` proves
+/// disjointness.
+#[test]
+fn does_not_clone_disjoint_fields_after_dynamic_index() {
+    let src = "
+    unconstrained fn main(i: u32, j: u32) {
+        let arr = [([1, 2], [3, 4]), ([5, 6], [7, 8])];
+        let _a = arr[i].0;
+        let _b = arr[j].1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // No clone needed — .0 and .1 are disjoint fields regardless of i and j
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> () {
+        let arr$l2 = [([1, 2], [3, 4]), ([5, 6], [7, 8])];
+        let _a$l3 = arr$l2[i$l0].0;
+        let _b$l4 = arr$l2[j$l1].1
+    }
+    ");
+}

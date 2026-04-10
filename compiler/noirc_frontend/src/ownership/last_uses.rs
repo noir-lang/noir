@@ -474,9 +474,25 @@ fn type_contains_reference(typ: &ast::Type) -> bool {
 // Post-processing pass that identifies additional moves for variables accessed
 // exclusively through disjoint `ExtractTupleField` paths.
 
-/// A field access path through `ExtractTupleField` chains.
-/// For example, `x.0.1` has path `[0, 1]`. A bare use of `x` has an empty path `[]`.
-type FieldPath = Vec<usize>;
+/// A single step in an access path from a base variable to a sub-component.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum PathStep {
+    /// Tuple/struct field extraction: `.N`
+    Field(usize),
+    /// Array index with a known constant value: `[N]`
+    ConstIndex(u128),
+    /// Array index with a dynamic (runtime) expression.
+    /// Two `DynamicIndex` steps at the same position are treated as potentially aliasing,
+    /// but the step preserves the access path so that earlier or later steps in the path
+    /// can still prove disjointness. For example, `arr[i].0` vs `arr[j].1` have paths
+    /// `[DynamicIndex, Field(0)]` and `[DynamicIndex, Field(1)]` — disjoint at position 1.
+    DynamicIndex,
+}
+
+/// An access path through `ExtractTupleField` and constant-index `Index` chains.
+/// For example, `x.0.1` has path `[Field(0), Field(1)]`, `arr[0]` has path `[ConstIndex(0)]`,
+/// and a bare use of `x` has an empty path `[]`.
+type FieldPath = Vec<PathStep>;
 
 /// Post-processing pass that identifies additional moves for variables accessed
 /// exclusively through disjoint `ExtractTupleField` paths.
@@ -533,7 +549,7 @@ fn add_field_disjoint_moves(body: &Expression, moves: &mut HashMap<LocalId, Vec<
 }
 
 /// Walk the expression tree in **reverse** order (matching the main last-use traversal),
-/// recording each variable use with its `ExtractTupleField` access path (empty for bare idents).
+/// recording each variable use with its access path (empty for bare idents).
 fn collect_use_records_rev(
     expr: &Expression,
     records: &mut HashMap<LocalId, Vec<(IdentId, FieldPath)>>,
@@ -545,23 +561,17 @@ fn collect_use_records_rev(
             }
         }
         Expression::ExtractTupleField(_, _) => {
-            // Walk the ExtractTupleField chain to extract the full path
-            let mut path = Vec::new();
-            let mut current = expr;
-            while let Expression::ExtractTupleField(inner, index) = current {
-                path.push(*index);
-                current = inner;
-            }
-            path.reverse();
+            // Walk the ExtractTupleField/Index chain to extract the full access path
+            let (base, path) = collect_access_chain(expr, records);
 
-            if let Expression::Ident(ident) = current
+            if let Expression::Ident(ident) = base
                 && let Definition::Local(local_id) = &ident.definition
             {
                 records.entry(*local_id).or_default().push((ident.id, path));
                 return;
             }
             // Base is not a local ident — recurse into it
-            collect_use_records_rev(current, records);
+            collect_use_records_rev(base, records);
         }
         Expression::Literal(literal) => match literal {
             Literal::FmtStr(_, _, captures) => collect_use_records_rev(captures, records),
@@ -584,6 +594,12 @@ fn collect_use_records_rev(
             collect_use_records_rev(&binary.lhs, records);
         }
         Expression::Index(index) => {
+            // Track collection and index sub-expressions independently.
+            // Index path steps (ConstIndex/DynamicIndex) are only recorded when an Index
+            // appears inside an ExtractTupleField chain (e.g. `arr[i].field`), which is
+            // handled by collect_access_chain. Recording index steps at the top level
+            // would create deeper paths that conflict (as prefixes) with shallower
+            // field paths on the same variable.
             collect_use_records_rev(&index.collection, records);
             collect_use_records_rev(&index.index, records);
         }
@@ -640,18 +656,79 @@ fn collect_use_records_rev(
     }
 }
 
-/// Two field paths are disjoint if they diverge at some position.
+/// Walk an access chain of `ExtractTupleField` and `Index` operations, building
+/// the access path in reverse (callers must reverse it). Returns the base expression
+/// and the path. Any `Index` sub-expressions encountered along the way are recorded
+/// into `records` so they are not lost.
+fn collect_access_chain<'a>(
+    expr: &'a Expression,
+    records: &mut HashMap<LocalId, Vec<(IdentId, FieldPath)>>,
+) -> (&'a Expression, FieldPath) {
+    let mut path = Vec::new();
+    let mut current = expr;
+
+    loop {
+        match current {
+            Expression::ExtractTupleField(inner, index) => {
+                path.push(PathStep::Field(*index));
+                current = inner;
+            }
+            Expression::Index(index) => {
+                if let Some(const_val) = try_extract_constant_index(&index.index) {
+                    path.push(PathStep::ConstIndex(const_val));
+                } else {
+                    path.push(PathStep::DynamicIndex);
+                }
+                // The index sub-expression itself may contain variable uses
+                collect_use_records_rev(&index.index, records);
+                current = &index.collection;
+            }
+            _ => break,
+        }
+    }
+    path.reverse();
+    (current, path)
+}
+
+/// Try to extract a compile-time constant integer from an expression.
+fn try_extract_constant_index(expr: &Expression) -> Option<u128> {
+    use acvm::AcirField;
+    if let Expression::Literal(Literal::Integer(value, _, _)) = expr {
+        value.try_into_u128()
+    } else {
+        None
+    }
+}
+
+/// Two access paths are disjoint if they diverge at some position with
+/// steps that are guaranteed not to alias.
 ///
+/// An empty path (whole-variable use) is never disjoint from anything.
 /// A path that is a prefix of another is not disjoint.
-/// An empty path (bare variable use) is never disjoint from anything.
-fn field_paths_are_disjoint(a: &[usize], b: &[usize]) -> bool {
+///
+/// `Field(a)` vs `Field(b)` where `a != b` → disjoint (different tuple fields).
+/// `ConstIndex(a)` vs `ConstIndex(b)` where `a != b` → disjoint (different array slots).
+/// `Field` vs `ConstIndex` → disjoint (structurally different access types cannot alias).
+/// `DynamicIndex` vs `DynamicIndex` → NOT disjoint (could be the same runtime index).
+/// `DynamicIndex` vs `ConstIndex(n)` → NOT disjoint (the dynamic value could equal `n`).
+fn field_paths_are_disjoint(a: &[PathStep], b: &[PathStep]) -> bool {
     if a.is_empty() || b.is_empty() {
         return false;
     }
     for (x, y) in a.iter().zip(b.iter()) {
-        if x != y {
-            return true;
+        match (x, y) {
+            _ if x == y => continue,
+            // Different field indices → disjoint
+            (PathStep::Field(_), PathStep::Field(_)) => return true,
+            // Different constant indices → disjoint
+            (PathStep::ConstIndex(_), PathStep::ConstIndex(_)) => return true,
+            // Field vs ConstIndex → structurally different access, disjoint
+            (PathStep::Field(_), PathStep::ConstIndex(_))
+            | (PathStep::ConstIndex(_), PathStep::Field(_)) => return true,
+            // DynamicIndex could alias any index → not provably disjoint
+            (PathStep::DynamicIndex, _) | (_, PathStep::DynamicIndex) => return false,
         }
     }
+    // One is a prefix of the other (or they're equal)
     false
 }
