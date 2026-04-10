@@ -22,11 +22,11 @@
 //!
 //! ## Field-path-aware optimization
 //!
-//! After the main reverse-order analysis, a separate lightweight post-processing pass scans
-//! the function body (in reverse) to find variables accessed exclusively through
+//! After the main reverse-order analysis, a separate post-processing pass scans the
+//! function body (in reverse) to find variables accessed exclusively through
 //! `ExtractTupleField` with disjoint field paths (e.g. `x.0` and `x.1`). For these
 //! variables, all field-path uses are marked as moves, since disjoint paths cannot alias.
-//! This optimization adds zero overhead to the main tracking pass.
+//! This is kept as a separate pass for clarity — the traversal is lightweight and fast.
 
 use crate::ast::UnaryOp;
 use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
@@ -90,7 +90,7 @@ impl Context {
         let mut moves = context.into_variables_to_move();
 
         // Post-process: find additional moves for disjoint field-path accesses.
-        // This is a separate lightweight pass that adds zero overhead to the main analysis.
+        // Kept as a separate pass for clarity — the traversal is lightweight and fast.
         add_field_disjoint_moves(&function.body, &mut moves);
 
         moves
