@@ -218,10 +218,10 @@ fn analyze_loop_aliases(function: &Function, loops: &Loops) -> HashSet<ValueId> 
                         let instruction = &function.dfg[*instruction_id];
                         match compute_addresses_modified_by_call(instruction, &function.dfg, |v| v)
                         {
-                            Some(addrs) => {
+                            Some(addresses) => {
                                 // Simple reference arguments: these addresses are
                                 // potentially aliased across iterations.
-                                aliases.extend(addrs);
+                                aliases.extend(addresses);
                             }
                             None => {
                                 // Could modify anything (double-refs, containers).
@@ -382,8 +382,8 @@ fn compute_known_values_at_entry(
         // If this block is a loop header, invalidate addresses stored in the loop body.
         // Without this, the pre-loop value would be forwarded through the loop exit,
         // ignoring writes from the loop body that execute before the exit is reached.
-        if let Some(stored_addrs) = loop_stored_addresses.get(&block) {
-            for addr in stored_addrs {
+        if let Some(stored_addresses) = loop_stored_addresses.get(&block) {
+            for addr in stored_addresses {
                 known.remove(addr);
             }
         }
@@ -411,8 +411,8 @@ fn compute_known_values_at_entry(
                 }
                 Instruction::Call { .. } => {
                     match compute_addresses_modified_by_call(instruction, &function.dfg, |v| v) {
-                        Some(addrs) => {
-                            for addr in &addrs {
+                        Some(addresses) => {
+                            for addr in &addresses {
                                 known.remove(addr);
                             }
                         }
@@ -465,8 +465,8 @@ fn collect_loop_stored_addresses(
                     Instruction::Call { .. } => {
                         match compute_addresses_modified_by_call(instruction, &function.dfg, |v| v)
                         {
-                            Some(addrs) => {
-                                stored_addresses.extend(addrs);
+                            Some(addresses) => {
+                                stored_addresses.extend(addresses);
                             }
                             None => {
                                 stored_addresses.extend(allocations.iter().copied());

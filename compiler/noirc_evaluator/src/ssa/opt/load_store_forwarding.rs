@@ -193,8 +193,8 @@ fn forward_loads_and_stores_in_block(
                     &inserter.function.dfg,
                     |v| inserter.resolve(v),
                 ) {
-                    Some(addrs) => {
-                        for addr in &addrs {
+                    Some(addresses) => {
+                        for addr in &addresses {
                             known_values.remove(addr);
                             last_loads.remove(addr);
                             last_stores.remove(addr);
