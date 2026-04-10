@@ -24,11 +24,6 @@ impl Default for Field {
     }
 }
 
-impl Default for u1 {
-    fn default() -> u1 {
-        0
-    }
-}
 impl Default for u8 {
     fn default() -> u8 {
         0

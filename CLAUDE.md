@@ -67,7 +67,24 @@ cargo build -p noirc_frontend        # Build a specific crate
 cargo build --release                # Release build
 ```
 
-### Testing (Rust / Noir)
+### Testing philosophy
+
+**Red-green-refactor is the law.** Every feature and bug fix follows this cycle strictly:
+
+1. **Red** — Write a failing test first. Run it. Watch it fail. If it doesn't fail, your test is wrong. The failure message must clearly describe what's broken — if you can't tell what went wrong from the output, rewrite the assertion.
+2. **Green** — Write the minimum code to make the test pass. Not the "right" code. Not the "clean" code. The *least* code that turns red to green. Resist the urge to generalize.
+3. **Refactor** — Now clean up. Extract helpers, rename, restructure — but only while tests stay green. If a refactor breaks a test, you went too far. Back up.
+4. **Harden** — Ask: "what would break this?" Add that case. Repeat until you can't think of anything. Edge cases, error paths, boundary values, concurrent access.
+
+Tests are never "done" — they grow with the system. The test file is the primary development artifact, not the implementation.
+
+- Run the related tests after every change — **every** change.
+- A PR without a failing-then-passing test is incomplete. No exceptions.
+- When debugging, write a test that reproduces the bug **before** fixing it. The test is proof the bug existed and proof it's gone.
+- **Never skip tests. Always fix.** If a refactor breaks tests, fix the tests — don't `t.Skip("TODO")` them. Broken tests that get skipped are invisible debt. If fixing requires significant rework, that's a signal the tests were brittle (testing implementation details instead of behavior). Reflect on why and write better tests.
+- **Tests should survive refactors.** Test observable behavior (output SSA, return values/side-effects), not internal implementation (what state is stored in internal context variable). If changing an internal detail breaks 5 tests, those 5 tests were coupled to internals.
+
+#### Testing (Rust / Noir)
 
 ```bash
 just test                                              # Full test suite (uses cargo nextest)
@@ -85,7 +102,7 @@ Integration tests use `insta` for snapshot testing. When adding new tests or cha
 - `cargo insta accept` — accept all pending snapshots non-interactively
 - `cargo insta accept --filter <pattern>` — accept specific snapshots
 
-### Testing (JavaScript/TypeScript)
+#### Testing (JavaScript/TypeScript)
 
 **Never run `yarn test` from the project root — always cd into a specific package first.**
 

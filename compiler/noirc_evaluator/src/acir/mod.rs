@@ -668,7 +668,7 @@ impl<'a> Context<'a> {
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
         assert!(
-            !matches!(*dfg.type_of_value(value_id), Type::Reference(_)),
+            !matches!(*dfg.type_of_value(value_id), Type::Reference(..)),
             "convert_value: did not expect a Reference type"
         );
 
@@ -819,7 +819,7 @@ impl<'a> Context<'a> {
             (_, Type::Function) | (Type::Function, _) => {
                 unreachable!("all functions should be inlined")
             }
-            (_, Type::Reference(_)) | (Type::Reference(_), _) => {
+            (_, Type::Reference(..)) | (Type::Reference(..), _) => {
                 unreachable!("References are invalid in binary operations")
             }
             (_, Type::Array(..)) | (Type::Array(..), _) => {

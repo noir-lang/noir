@@ -474,12 +474,12 @@ fn zeroed_value(
         Type::Vector(_) => {
             panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
-        Type::Reference(element_type) => {
+        Type::Reference(element_type, mutable) => {
             // The result of the instruction is a reference; Allocate creates a reference,
             // but if we tried to Load from it we would get an error, so follow it with a
             // Store of a default value.
             let instruction = Instruction::Allocate;
-            let reference_type = Type::Reference(Arc::new((**element_type).clone()));
+            let reference_type = Type::Reference(Arc::new((**element_type).clone()), *mutable);
 
             let reference_id = dfg
                 .insert_instruction_and_results(

@@ -149,8 +149,9 @@ pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
-    /// A reference to some value, such as an array
-    Reference(Arc<Type>),
+    /// A reference to some value, such as an array.
+    /// The bool indicates whether this is a mutable reference (`true` = `&mut`, `false` = `&`).
+    Reference(Arc<Type>, /* mutable */ bool),
 
     /// An immutable array value with the given element type and length
     Array(Arc<CompositeType>, SemanticLength),
@@ -267,7 +268,7 @@ impl Type {
             }
             Type::Vector(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(element) => element.contains_vector_element(),
+            Type::Reference(element, _) => element.contains_vector_element(),
             Type::Function => false,
         }
     }
@@ -311,14 +312,14 @@ impl Type {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Vector(_) => true,
-            Type::Reference(element) => element.contains_an_array(),
+            Type::Reference(element, _) => element.contains_an_array(),
         }
     }
 
     pub(crate) fn first(&self) -> Type {
         match self {
             Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
+            Type::Reference(typ, _) => typ.first(),
             Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
@@ -326,7 +327,7 @@ impl Type {
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
-            Type::Reference(_) => true,
+            Type::Reference(..) => true,
             Type::Numeric(_) | Type::Function => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
@@ -337,7 +338,7 @@ impl Type {
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {
-            Type::Reference(element_type) => element_type.contains_function(),
+            Type::Reference(element_type, _) => element_type.contains_function(),
             Type::Function => true,
             Type::Numeric(_) => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
@@ -349,7 +350,7 @@ impl Type {
     /// If this is a reference type, return the type it references.
     pub(crate) fn reference_element_type(&self) -> Option<&Type> {
         match self {
-            Type::Reference(element_type) => Some(element_type.as_ref()),
+            Type::Reference(element_type, _) => Some(element_type.as_ref()),
             _ => None,
         }
     }
@@ -364,7 +365,8 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, true) => write!(f, "&mut {element}"),
+            Type::Reference(element, false) => write!(f, "&{element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 if elements.len() == 1 {

@@ -346,7 +346,11 @@ impl Elaborator<'_> {
                 }
 
                 if let Some(trait_id) = self.current_trait
-                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(trait_id, name)
+                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                        trait_id,
+                        name,
+                        &mut BTreeSet::new(),
+                    )
                 {
                     return Some(typ);
                 }
@@ -402,7 +406,12 @@ impl Elaborator<'_> {
         &self,
         trait_id: TraitId,
         name: &str,
+        visited: &mut BTreeSet<TraitId>,
     ) -> Option<Type> {
+        if !visited.insert(trait_id) {
+            return None;
+        }
+
         let the_trait = self.interner.get_trait(trait_id);
         let parent_bounds = the_trait.trait_bounds.clone();
         let self_type = self.self_type.as_ref()?;
@@ -449,7 +458,7 @@ impl Elaborator<'_> {
 
             // Recurse into grandparent traits
             if let Some(typ) =
-                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name)
+                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name, visited)
             {
                 return Some(typ);
             }
@@ -549,6 +558,19 @@ impl Elaborator<'_> {
         }
 
         let location = path.location;
+
+        // Check for removed types and give a helpful error message
+        if path.segments.len() == 1 {
+            let name = path.segments[0].ident.as_str();
+            if name == "u1" || name == "i1" {
+                self.push_err(ResolverError::RemovedType {
+                    location,
+                    typ: name.to_string(),
+                    replacement: "bool".to_string(),
+                });
+                return Type::Error;
+            }
+        }
 
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
