@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub (Field, Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        let result_call_input: Field = foo_call_input();
+        let result_call_return: Field = foo_call_return();
+        (result_call_input, result_call_return)
+    }
+}
+
+unconstrained fn foo_call_input() -> Field {
+    bar_call_input(&mut 3405691582_Field, 3735928559_Field)
+}
+
+unconstrained fn make_alias(val: &mut Field, container: &mut &mut Field) {
+    *container = val;
+}
+
+unconstrained fn bar_call_input(mut a: &mut Field, mut b: Field) -> Field {
+    let mut i: Field = 0_Field;
+    loop {
+        if i == 2_Field { break; };
+        i = i + 1_Field;
+        b = 3735928559_Field;
+        b = *a;
+        make_alias(&mut b, &mut a);
+    }
+    b
+}
+
+unconstrained fn foo_call_return() -> Field {
+    bar_call_return(&mut 3405691582_Field, 3735928559_Field)
+}
+
+unconstrained fn identity(r: &mut Field) -> &mut Field {
+    r
+}
+
+unconstrained fn bar_call_return(mut a: &mut Field, mut b: Field) -> Field {
+    let mut i: Field = 0_Field;
+    loop {
+        if i == 2_Field { break; };
+        i = i + 1_Field;
+        b = 3735928559_Field;
+        b = *a;
+        a = identity(&mut b);
+    }
+    b
+}

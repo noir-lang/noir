@@ -1360,11 +1360,11 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // === Issue reproduction tests (milestone 49 audit) ===
+    // === Regression tests for milestone 49 audit ===
 
-    // Issue #12217: carried aliases don't take call inputs into account
+    // Regression for https://github.com/noir-lang/noir/issues/12217
     #[test]
-    fn issue_12217_loop_carried_alias_via_call() {
+    fn loop_carried_alias_via_call() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1391,9 +1391,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12219: carried aliases don't take call returned references into account
+    // Regression for https://github.com/noir-lang/noir/issues/12219
     #[test]
-    fn issue_12219_loop_carried_alias_via_call_return() {
+    fn loop_carried_alias_via_call_return() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1420,9 +1420,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12220: carried aliases don't take array_get into account
+    // Regression for https://github.com/noir-lang/noir/issues/12220
     #[test]
-    fn issue_12220_loop_carried_alias_via_array_get() {
+    fn loop_carried_alias_via_array_get() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_idx: u32):
@@ -1445,9 +1445,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12221: carried aliases don't take jmpif into account
+    // Regression for https://github.com/noir-lang/noir/issues/12221
     #[test]
-    fn issue_12221_loop_carried_alias_via_jmpif() {
+    fn loop_carried_alias_via_jmpif() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_cond: u1):
@@ -1472,9 +1472,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12222: carried aliases misses nested references in Form 1
+    // Regression for https://github.com/noir-lang/noir/issues/12222
     #[test]
-    fn issue_12222_loop_carried_alias_array_containing_refs() {
+    fn loop_carried_alias_array_containing_refs() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1498,9 +1498,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12223: carried aliases misses nested references in Form 2
+    // Regression for https://github.com/noir-lang/noir/issues/12223
     #[test]
-    fn issue_12223_loop_carried_alias_array_header_param() {
+    fn loop_carried_alias_array_header_param() {
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1520,9 +1520,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12225: load-to-load incorrectly deduplicated when array_get alias exists
+    // Regression for https://github.com/noir-lang/noir/issues/12225
     #[test]
-    fn issue_12225_load_to_load_array_get_alias() {
+    fn load_to_load_array_get_alias() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v_idx: u32):
@@ -1541,9 +1541,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12230: load does not mark aliased stores as used
+    // Regression for https://github.com/noir-lang/noir/issues/12230
     #[test]
-    fn issue_12230_aliased_load_prevents_dead_store() {
+    fn aliased_load_prevents_dead_store() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field):
@@ -1556,9 +1556,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12231: local allocations aliases should be tracked
+    // Regression for https://github.com/noir-lang/noir/issues/12231
     #[test]
-    fn issue_12231_local_allocation_alias() {
+    fn local_allocation_alias() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field, v1: u1):
@@ -1574,9 +1574,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12232: Load ignore loop carried aliases (test 1: dead store)
+    // Regression for https://github.com/noir-lang/noir/issues/12232 (dead store variant)
     #[test]
-    fn issue_12232_loop_aliased_load_dead_store() {
+    fn loop_aliased_load_dead_store() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field):
@@ -1595,9 +1595,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
-    // Issue #12232: Load ignore loop carried aliases (test 2: load forwarding)
+    // Regression for https://github.com/noir-lang/noir/issues/12232 (load forwarding variant)
     #[test]
-    fn issue_12232_loop_aliased_load_forwarding() {
+    fn loop_aliased_load_forwarding() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field):

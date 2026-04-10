@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[loop_carried_aliases_through_jmpif] Circuit output: 0xdeadbeef
