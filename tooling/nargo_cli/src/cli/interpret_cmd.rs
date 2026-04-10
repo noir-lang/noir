@@ -408,8 +408,7 @@ fn compare_and_update_snapshot(
 ) -> Option<String> {
     let discrepancy = previous_snapshot.as_ref().and_then(|previous_snapshot| {
         let output_changed = previous_snapshot.print_output != current_snapshot.print_output;
-        let result_changed = compare_results
-            && previous_snapshot.result != &current_snapshot.result;
+        let result_changed = compare_results && previous_snapshot.result != current_snapshot.result;
 
         if !output_changed && !result_changed {
             return None;
