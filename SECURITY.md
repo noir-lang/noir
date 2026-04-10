@@ -22,4 +22,13 @@ To report a vulnerability, [create a security advisory](https://github.com/noir-
 
 ### Filling out the Reporting Form
 
-You may refer to GitHub's [best practices for writing repository security advisories](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/best-practices-for-writing-repository-security-advisories).
+You would be presented with a form when creating a security advisory:
+
+- For _Affected products - Ecosystem_, choose _Other_ and input _Noir_
+- For _Severity_, follow either the [_CVSS scoring_](https://docs.github.com/en/code-security/concepts/vulnerability-reporting-and-management/about-the-github-advisory-database#cvss-levels) or the simplified table below:
+
+    | Severity | Impact: High | Impact: Medium | Impact: Low |
+    | :--- | :--- | :--- | :--- |
+    | **Likelihood: High** | Critical | High | Medium |
+    | **Likelihood: Medium** | High | Medium | Low |
+    | **Likelihood: Low** | Medium | Low | Low |
