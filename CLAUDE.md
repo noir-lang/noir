@@ -102,6 +102,17 @@ Integration tests use `insta` for snapshot testing. When adding new tests or cha
 - `cargo insta accept` — accept all pending snapshots non-interactively
 - `cargo insta accept --filter <pattern>` — accept specific snapshots
 
+##### Bug-fix PRs with snapshot-based regression tests
+
+When fixing a bug that is caught by a snapshot assertion, split the work into **two commits** on the feature branch:
+
+1. **Red commit** — add the regression test and accept the *buggy* snapshot (the output produced by the broken code). Include a doc comment on the test explaining that this snapshot captures broken output and that the next commit fixes it. This commit exists purely so git history preserves a machine-readable fingerprint of what the bug looked like.
+2. **Green commit** — apply the code fix, re-run the test (it will now fail because the output changed), accept the new snapshot, and update the test's doc comment to remove the "this is buggy" caveat and point to the previous commit for the buggy fingerprint.
+
+Do not squash these two commits locally. If the PR is squash-merged into `master` the record is lost from `master`, but it is still preserved in the PR's commit list on GitHub, which is good enough.
+
+This only applies when the regression test uses a snapshot assertion. For regression tests that assert on concrete values (e.g. `assert_eq!`), a single red-then-green commit is fine — the failing assertion's expected/actual values already document the bug.
+
 #### Testing (JavaScript/TypeScript)
 
 **Never run `yarn test` from the project root — always cd into a specific package first.**
