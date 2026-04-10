@@ -1004,6 +1004,57 @@ fn clones_non_moved_variable_because_of_reference() {
     ");
 }
 
+#[test]
+fn clone_inserted_on_index_then_collection() {
+    let src = "
+    unconstrained fn main() {
+        let a = [10];
+        foo(a)[bar(a)];
+    }
+    unconstrained fn foo(a: [u32; 1]) -> [u32; 1] { a }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [10];
+        foo$f1(a$l0)[bar$f2(a$l0.clone())];
+    }
+    unconstrained fn foo$f1(a$l1: [u32; 1]) -> [u32; 1] {
+        a$l1
+    }
+    unconstrained fn bar$f2(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
+
+#[test]
+fn clone_inserted_on_index_then_collection_in_lvalue() {
+    let src = "
+    unconstrained fn main() {
+        let mut a = [10];
+        a[bar(a)] = 20;
+    }
+    unconstrained fn bar(_a: [u32; 1]) -> u32 { 0 }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut a$l0 = [10];
+        {
+            let i_0$l1 = bar$f1(a$l0.clone());
+            a$l0[i_0$l1] = 20
+        }
+    }
+    unconstrained fn bar$f1(_a$l2: [u32; 1]) -> u32 {
+        0
+    }
+    ");
+}
+
 /// Nested array index: `arr[0][1]` on a 3D array. When the base variable has
 /// no further uses, the indexed element can be moved without cloning.
 #[test]

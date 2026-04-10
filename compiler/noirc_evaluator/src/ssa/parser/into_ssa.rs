@@ -331,7 +331,13 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
+                // The parsed type is the full reference type (e.g. &mut u32).
+                // insert_allocate_with_mutability expects the element type and mutability separately.
+                let value_id = if let Type::Reference(element, mutable) = typ {
+                    self.builder.insert_allocate_with_mutability(element.as_ref().clone(), mutable)
+                } else {
+                    self.builder.insert_allocate(typ)
+                };
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {

@@ -46,13 +46,6 @@ struct LastUseContext {
     /// confirmed because the assignment kills the old value — these survive loop truncation.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
 
-    /// Loop depth at which each variable was declared.
-    /// 0 = function body (not in any loop).
-    declaration_depth: HashMap<LocalId, usize>,
-
-    /// Current loop nesting depth.
-    loop_depth: usize,
-
     /// Variables unconditionally reassigned in the current scope.
     ///
     /// A variable is in this set only if it is reassigned on ALL paths through the
@@ -64,6 +57,13 @@ struct LastUseContext {
     /// would consume the value). But if a variable is killed inside the loop, its value
     /// is freshly created and consumed each iteration, so pending uses can survive.
     killed: HashSet<LocalId>,
+
+    /// Loop depth at which each variable was declared.
+    /// 0 = function body (not in any loop).
+    declaration_depth: HashMap<LocalId, usize>,
+
+    /// Current loop nesting depth.
+    loop_depth: usize,
 
     /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
     ///
@@ -147,8 +147,11 @@ impl LastUseContext {
                 self.find_last_uses_in_expression(&binary.lhs);
             }
             Expression::Index(index) => {
-                self.find_last_uses_in_expression(&index.index);
+                // SSA codegen evaluates the index before the collection, so in forward
+                // order the collection is used *after* the index. Reverse that here: visit
+                // the collection first so it (not the index) becomes the last use.
                 self.find_last_uses_in_expression(&index.collection);
+                self.find_last_uses_in_expression(&index.index);
             }
             Expression::Cast(cast) => self.find_last_uses_in_expression(&cast.lhs),
             Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
@@ -409,8 +412,11 @@ impl LastUseContext {
                 }
             }
             ast::LValue::Index { array, index, .. } => {
-                self.find_last_uses_in_expression(index);
+                // As in the rvalue Index case, SSA codegen evaluates the index before
+                // touching the array in an lvalue position, so visit the array first in
+                // the reverse traversal to make it the last use.
                 self.find_last_uses_in_lvalue(array, true);
+                self.find_last_uses_in_expression(index);
             }
             ast::LValue::MemberAccess { object, .. } => {
                 self.find_last_uses_in_lvalue(object, true);
