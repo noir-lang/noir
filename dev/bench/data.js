@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775767887389,
+  "lastUpdate": 1775816267796,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b8fc4f29f0ef39125932304f4370bb0e6d3f9bc4",
-          "message": "chore: handle missing error in codegen_if (#12099)",
-          "timestamp": "2026-04-03T19:16:27Z",
-          "tree_id": "92b347e31af709967a17e3f3cc46ada1da89853e",
-          "url": "https://github.com/noir-lang/noir/commit/b8fc4f29f0ef39125932304f4370bb0e6d3f9bc4"
-        },
-        "date": 1775245463532,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162346,
-            "range": "± 565",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 132624,
-            "range": "± 2068",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2118405,
-            "range": "± 916",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642206,
             "range": "± 2251",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d538b9300fa83228fa8ab30495a773d9f7011eca",
+          "message": "fix(ownership): Consider the index to be the first and collection to be the last use (#12149)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-04-10T09:53:06Z",
+          "tree_id": "24b1dd7cb1bd069f15bc8762020247c910fc2328",
+          "url": "https://github.com/noir-lang/noir/commit/d538b9300fa83228fa8ab30495a773d9f7011eca"
+        },
+        "date": 1775816208423,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 159434,
+            "range": "± 369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138533,
+            "range": "± 1196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2124261,
+            "range": "± 880",
             "unit": "ns/iter"
           }
         ]
