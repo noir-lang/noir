@@ -757,11 +757,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         if self.variables.is_allocated(dead_variable) {
                             self.variables.mark_unavailable(dead_variable);
                         }
-                    } else if self
-                        .function_context
-                        .coalescing
-                        .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
-                    {
+                    } else if self.function_context.coalescing.decrement_live_count(dead_variable) {
                         // This value shares a register with a coalescing partner that is
                         // still alive. We must not deallocate the register yet; it will
                         // be freed when the partner dies (or at block boundary cleanup).

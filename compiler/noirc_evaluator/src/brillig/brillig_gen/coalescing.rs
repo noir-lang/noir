@@ -44,8 +44,8 @@ pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
     /// Maps each coalesced value to its connected component group ID.
     groups: HashMap<ValueId, usize>,
-    /// All members of each connected component group.
-    group_members: Vec<Vec<ValueId>>,
+    /// Number of live values remaining in each connected component group.
+    group_live_counts: Vec<usize>,
 }
 
 impl CoalescingMap {
@@ -157,9 +157,9 @@ impl CoalescingMap {
             }
         }
 
-        let (groups, group_members) = connected_components(&coalesced);
+        let (groups, group_live_counts) = connected_components(&coalesced);
 
-        Self { coalesced, groups, group_members }
+        Self { coalesced, groups, group_live_counts }
     }
 
     /// Forward-only lookup: if `value_id` is a coalesced arg, returns the param
@@ -175,22 +175,15 @@ impl CoalescingMap {
         self.coalesced.contains_key(value_id)
     }
 
-    /// Check whether any value sharing a register with `value_id` through
-    /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
-    ///
-    /// Coalescing can create transitive chains (e.g., `v1 -> v2 -> v3 -> v_root`)
-    /// where all values share the same register. This method checks ALL values
-    /// in the connected component, not just direct neighbors, to avoid premature
-    /// register deallocation.
-    pub(crate) fn has_live_partner(
-        &self,
-        value_id: &ValueId,
-        is_alive: impl Fn(&ValueId) -> bool,
-    ) -> bool {
+    /// Decrement the live count for this value's coalescing group.
+    /// Returns true if other partners are still alive (register must not be freed).
+    /// Returns false if this was the last live member (caller should free the register).
+    pub(crate) fn decrement_live_count(&mut self, value_id: &ValueId) -> bool {
         let Some(&group_id) = self.groups.get(value_id) else {
             return false;
         };
-        self.group_members[group_id].iter().any(|member| member != value_id && is_alive(member))
+        self.group_live_counts[group_id] -= 1;
+        self.group_live_counts[group_id] > 0
     }
 
     #[cfg(test)]
@@ -681,5 +674,54 @@ mod tests {
             !second_coalesced,
             "second param must not coalesce: v1 is already a param-side target"
         );
+    }
+
+    #[test]
+    fn decrement_live_count_returns_true_while_partners_remain() {
+        // Chain: v1 (arg-side) -> v2 (param) -> v3 (param-side passthrough)
+        // All three share one register via connected components.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1(v1)
+          b1(v2: Field):
+            jmp b2(v2)
+          b2(v3: Field):
+            return v3
+        }
+        ";
+        let (mut coalescing, _ssa) = build_coalescing(src);
+        assert_eq!(coalescing.len(), 2); // v1->v2 and v3->v2
+
+        // All three values are in the same group (live count = 3).
+        // First death: partners remain.
+        let v1 = ValueId::new(1);
+        assert!(coalescing.decrement_live_count(&v1), "2 partners still alive");
+
+        // Second death: one partner remains.
+        let v2 = ValueId::new(2);
+        assert!(coalescing.decrement_live_count(&v2), "1 partner still alive");
+
+        // Third death: last member, register can be freed.
+        let v3 = ValueId::new(3);
+        assert!(!coalescing.decrement_live_count(&v3), "last member — free register");
+    }
+
+    #[test]
+    fn decrement_live_count_non_coalesced_returns_false() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1(v1)
+          b1(v2: Field):
+            return v2
+        }
+        ";
+        let (mut coalescing, _ssa) = build_coalescing(src);
+        // v0 is a function param, not part of any coalescing group.
+        let v0 = ValueId::new(0);
+        assert!(!coalescing.decrement_live_count(&v0), "non-coalesced value returns false");
     }
 }
