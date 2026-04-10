@@ -596,7 +596,7 @@ fn collect_use_records_rev(
         }
         Expression::Literal(literal) => match literal {
             Literal::FmtStr(_, _, captures) => {
-                collect_use_records_rev(captures, records, loop_depth)
+                collect_use_records_rev(captures, records, loop_depth);
             }
             Literal::Array(array) | Literal::Vector(array) => {
                 for element in array.contents.iter().rev() {
@@ -604,7 +604,7 @@ fn collect_use_records_rev(
                 }
             }
             Literal::Repeated { element, .. } => {
-                collect_use_records_rev(element, records, loop_depth)
+                collect_use_records_rev(element, records, loop_depth);
             }
             _ => {}
         },
@@ -660,7 +660,7 @@ fn collect_use_records_rev(
             collect_use_records_rev(&call.func, records, loop_depth);
         }
         Expression::Let(let_expr) => {
-            collect_use_records_rev(&let_expr.expression, records, loop_depth)
+            collect_use_records_rev(&let_expr.expression, records, loop_depth);
         }
         Expression::Constrain(boolean, _, msg) => {
             if let Some(msg) = msg {
