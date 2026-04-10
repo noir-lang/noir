@@ -134,8 +134,11 @@ impl LastUseContext {
                 self.find_last_uses_in_expression(&binary.lhs);
             }
             Expression::Index(index) => {
-                self.find_last_uses_in_expression(&index.index);
+                // SSA codegen evaluates the index before the collection, so in forward
+                // order the collection is used *after* the index. Reverse that here: visit
+                // the collection first so it (not the index) becomes the last use.
                 self.find_last_uses_in_expression(&index.collection);
+                self.find_last_uses_in_expression(&index.index);
             }
             Expression::Cast(cast) => self.find_last_uses_in_expression(&cast.lhs),
             Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
@@ -363,8 +366,11 @@ impl LastUseContext {
                 }
             }
             ast::LValue::Index { array, index, .. } => {
-                self.find_last_uses_in_expression(index);
+                // As in the rvalue Index case, SSA codegen evaluates the index before
+                // touching the array in an lvalue position, so visit the array first in
+                // the reverse traversal to make it the last use.
                 self.find_last_uses_in_lvalue(array, true);
+                self.find_last_uses_in_expression(index);
             }
             ast::LValue::MemberAccess { object, .. } => {
                 self.find_last_uses_in_lvalue(object, true);
