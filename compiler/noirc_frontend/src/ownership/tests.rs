@@ -1536,3 +1536,399 @@ fn does_not_clone_disjoint_nested_and_shallow_field_extraction() {
     }
     ");
 }
+
+// --- Edge cases: field-disjoint optimization + loops ---
+
+/// BUG: Disjoint field extraction inside a for loop where the variable is
+/// declared outside. The main last-use analysis correctly prevents moves
+/// inside loops, but the field-disjoint post-pass overrides this.
+/// `t.0` should be cloned inside the loop (may execute multiple times).
+#[test]
+fn disjoint_field_extraction_inside_for_loop_should_clone() {
+    let src = "
+    unconstrained fn main() {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, arr2);
+        for _ in 0..5 {
+            foo(t.0);
+        }
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: t.0 is moved instead of cloned inside the loop.
+    // After fix, t.0 should have .clone() inside the loop.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr1$l0 = [1, 2];
+        let arr2$l1 = [3, 4];
+        let t$l2 = (arr1$l0, arr2$l1);
+        for _$l3 in 0 .. 5 {
+            foo$f1(t$l2.0);
+        };
+        foo$f1(t$l2.1);
+    }
+    unconstrained fn foo$f1(_$l4: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Same bug with while loops.
+#[test]
+fn disjoint_field_extraction_inside_while_loop_should_clone() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, arr2);
+        while cond {
+            foo(t.0);
+            break;
+        }
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: t.0 is moved instead of cloned inside the while loop.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let arr1$l1 = [1, 2];
+        let arr2$l2 = [3, 4];
+        let t$l3 = (arr1$l1, arr2$l2);
+        while cond$l0 {
+            foo$f1(t$l3.0);;
+            break
+        };
+        foo$f1(t$l3.1);
+    }
+    unconstrained fn foo$f1(_$l4: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Same bug with `loop` expressions.
+#[test]
+fn disjoint_field_extraction_inside_loop_should_clone() {
+    let src = "
+    unconstrained fn main() {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, arr2);
+        loop {
+            foo(t.0);
+            break;
+        }
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: t.0 is moved instead of cloned inside the loop.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr1$l0 = [1, 2];
+        let arr2$l1 = [3, 4];
+        let t$l2 = (arr1$l0, arr2$l1);
+        loop {
+            foo$f1(t$l2.0);;
+            break
+        };
+        foo$f1(t$l2.1);
+    }
+    unconstrained fn foo$f1(_$l3: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Same bug: field used in loop body, another field used as for-range bounds.
+#[test]
+fn disjoint_field_in_for_range_with_field_in_body_should_clone() {
+    let src = "
+    unconstrained fn main() {
+        let t = ([1, 2], 0, 5);
+        for _ in t.1..t.2 {
+            foo(t.0);
+        }
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: t.0 is moved inside the loop instead of cloned.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let t$l0 = ([1, 2], 0, 5);
+        for _$l1 in t$l0.1 .. t$l0.2 {
+            foo$f1(t$l0.0);
+        }
+    }
+    unconstrained fn foo$f1(_$l2: [Field; 2]) -> () {
+    }
+    ");
+}
+
+// --- Edge cases: field-disjoint optimization + references ---
+
+/// BUG: Variable aliased via `&mut` should prevent all moves, but the
+/// field-disjoint post-pass re-adds moves for disjoint field paths.
+#[test]
+fn disjoint_field_extraction_of_referenced_variable_should_clone() {
+    let src = "
+    unconstrained fn main(mut arr1: [Field; 2], mut arr2: [Field; 2]) {
+        let mut t = (arr1, arr2);
+        let _r = &mut t;
+        let _a = t.0;
+        let _b = t.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: t.0 and t.1 are both moved instead of cloned.
+    // t is aliased via &mut, so all field extractions should clone.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut arr1$l0: [Field; 2], mut arr2$l1: [Field; 2]) -> () {
+        let mut t$l2 = (arr1$l0, arr2$l1);
+        let _r$l3 = (&mut t$l2);
+        let _a$l4 = t$l2.0;
+        let _b$l5 = t$l2.1
+    }
+    ");
+}
+
+/// BUG: Variable aliased via `&mut field` should also prevent moves.
+#[test]
+fn disjoint_field_extraction_of_field_referenced_variable_should_clone() {
+    let src = "
+    struct Pair {
+        first: [Field; 2],
+        second: [Field; 2],
+    }
+    unconstrained fn main(arr1: [Field; 2], arr2: [Field; 2]) {
+        let mut p = Pair { first: arr1, second: arr2 };
+        let _r = &mut p.first;
+        let _a = p.first;
+        let _b = p.second;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // BUG: p.first and p.second are moved instead of cloned.
+    // p is aliased via &mut p.first.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr1$l0: [Field; 2], arr2$l1: [Field; 2]) -> () {
+        let mut p$l4 = {
+            let first$l2 = arr1$l0;
+            let second$l3 = arr2$l1;
+            (first$l2, second$l3)
+        };
+        let _r$l5 = (&mut p$l4.0);
+        let _a$l6 = p$l4.0;
+        let _b$l7 = p$l4.1
+    }
+    ");
+}
+
+// --- Edge cases: field-disjoint optimization + control flow (correctly handled) ---
+
+/// Disjoint fields in different if/else branches. Both are last uses (one per
+/// branch), so moving both is correct — only one branch executes at runtime.
+#[test]
+fn disjoint_field_extraction_in_different_if_branches() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, arr2);
+        if cond {
+            foo(t.0);
+        } else {
+            foo(t.1);
+        }
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let arr1$l1 = [1, 2];
+        let arr2$l2 = [3, 4];
+        let t$l3 = (arr1$l1, arr2$l2);
+        if cond$l0 {
+            foo$f1(t$l3.0);
+        } else {
+            foo$f1(t$l3.1);
+        }
+    }
+    unconstrained fn foo$f1(_$l4: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Field extraction in then-branch with disjoint field used after the if.
+/// `t.0` in the then branch is disjoint from `t.1` after — both can move.
+#[test]
+fn disjoint_field_extraction_in_if_branch_with_use_after() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, arr2);
+        if cond {
+            foo(t.0);
+        }
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let arr1$l1 = [1, 2];
+        let arr2$l2 = [3, 4];
+        let t$l3 = (arr1$l1, arr2$l2);
+        if cond$l0 {
+            foo$f1(t$l3.0);
+        };
+        foo$f1(t$l3.1);
+    }
+    unconstrained fn foo$f1(_$l4: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Variable declared inside a loop: field moves are safe since each iteration
+/// creates a fresh value.
+#[test]
+fn variable_declared_inside_loop_with_disjoint_fields_can_move() {
+    let src = "
+    unconstrained fn main() {
+        for _ in 0..5 {
+            let t = ([1, 2], [3, 4]);
+            foo(t.0);
+            foo(t.1);
+        }
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // Both fields can be moved — t is fresh each iteration.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        for _$l0 in 0 .. 5 {
+            let t$l1 = ([1, 2], [3, 4]);
+            foo$f1(t$l1.0);;
+            foo$f1(t$l1.1);
+        }
+    }
+    unconstrained fn foo$f1(_$l2: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Same field used inside and outside a loop; a different field only after.
+/// The in-loop use correctly clones. The post-loop uses are both moves.
+#[test]
+fn same_field_used_in_loop_other_field_outside() {
+    let src = "
+    unconstrained fn main() {
+        let t = ([1, 2], [3, 4]);
+        for _ in 0..5 {
+            foo(t.0);
+        }
+        foo(t.0);
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let t$l0 = ([1, 2], [3, 4]);
+        for _$l1 in 0 .. 5 {
+            foo$f1(t$l0.0.clone());
+        };
+        foo$f1(t$l0.0);;
+        foo$f1(t$l0.1);
+    }
+    unconstrained fn foo$f1(_$l2: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Disjoint fields in different match arms — each arm is exclusive,
+/// so moving one field per arm is safe.
+#[test]
+fn disjoint_fields_in_match_arms() {
+    let src = "
+    unconstrained fn main(x: u32) {
+        let t = ([1, 2], [3, 4], [5, 6]);
+        let _: () = match x {
+            0 => { foo(t.0); },
+            1 => { foo(t.1); },
+            _ => { foo(t.2); },
+        };
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(x$l0: u32) -> () {
+        let t$l1 = ([1, 2], [3, 4], [5, 6]);
+        let _$l4 = {
+            let internal variable$l2 = x$l0;
+            match $2 {
+                0 => {
+                    foo$f1(t$l1.0);
+                },
+                1 => {
+                    foo$f1(t$l1.1);
+                },
+                _ => {
+                    let _$l3 = internal variable$l2;
+                    {
+                        foo$f1(t$l1.2);
+                    }
+                },
+            }
+        }
+    }
+    unconstrained fn foo$f1(_$l5: [Field; 2]) -> () {
+    }
+    ");
+}
+
+/// Disjoint field used in a constrain expression. `t.0[0]` extracts a scalar
+/// Field (no clone needed), `t.1` is moved (disjoint).
+#[test]
+fn disjoint_field_used_in_constrain() {
+    let src = "
+    unconstrained fn main() {
+        let t = ([1, 2], [3, 4]);
+        assert(t.0[0] == 1);
+        foo(t.1);
+    }
+    fn foo<T>(_: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let t$l0 = ([1, 2], [3, 4]);
+        assert((t$l0.0[0] == 1));;
+        foo$f1(t$l0.1);
+    }
+    unconstrained fn foo$f1(_$l1: [Field; 2]) -> () {
+    }
+    ");
+}
