@@ -179,53 +179,101 @@ fn collect_allocations(function: &Function, blocks: &[BasicBlockId]) -> HashSet<
 
 /// Identify addresses involved in loop-carried alias patterns.
 ///
-/// A loop-carried alias occurs in two forms:
+/// A loop-carried alias occurs when a reference stored in iteration N can be
+/// loaded and used as an address in iteration N+1. Rather than enumerating
+/// specific instruction patterns, we check three broad categories:
 ///
-/// 1. **Store of a reference inside a loop** (`store ref_value at ref_address`):
-///    The stored reference can alias a local variable that gets re-initialized
-///    in a later iteration, making the "clear-on-unknown-store" heuristic
-///    insufficient.
+/// 1. **Store of a reference-containing value inside a loop**: Catches direct
+///    reference stores (`store ref at ref`) AND arrays/tuples containing
+///    references (`store [&mut Field; 2] at slot`).
 ///
-/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg_simple`
-///    has already promoted a `store ref at ref` to a block parameter, the
-///    aliasing is implicit. A reference-typed loop header parameter and the
-///    corresponding jmp arguments from within the loop body create the same
-///    cross-iteration aliasing.
+/// 2. **Reference-containing block parameters on ANY block in the loop**: If
+///    `mem2reg_simple` has promoted a store to a block parameter, or if a jmpif
+///    passes a reference to a non-header block, the aliasing is implicit through
+///    jmp/jmpif arguments.
+///
+/// 3. **Calls in the loop body**: A call that receives double-references or
+///    containers holding references can create aliases between its arguments.
+///    A call that returns a reference may alias its inputs.
 fn analyze_loop_aliases(function: &Function, loops: &Loops) -> HashSet<ValueId> {
     let mut aliases: HashSet<ValueId> = HashSet::default();
     for loop_info in &loops.yet_to_unroll {
-        // Form 1: store of a reference inside a loop block.
+        // Form 1: store of a reference-containing value inside a loop block.
+        // Uses contains_reference() instead of value_is_reference() to also
+        // catch arrays/tuples that hold references (e.g. [&mut Field; 2]).
         for block_id in &loop_info.blocks {
             let block = &function.dfg[*block_id];
             for instruction_id in block.instructions() {
-                if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
-                    && function.dfg.value_is_reference(*value)
-                {
-                    aliases.insert(*address);
-                    aliases.insert(*value);
+                match &function.dfg[*instruction_id] {
+                    Instruction::Store { address, value }
+                        if function.dfg.type_of_value(*value).contains_reference() =>
+                    {
+                        aliases.insert(*address);
+                        aliases.insert(*value);
+                    }
+                    // Form 3: calls in the loop body.
+                    // A call that takes double-refs or containers can create aliases
+                    // between its arguments. A call returning a reference may alias inputs.
+                    Instruction::Call { .. } => {
+                        let instruction = &function.dfg[*instruction_id];
+                        match compute_addresses_modified_by_call(instruction, &function.dfg, |v| v)
+                        {
+                            Some(addrs) => {
+                                // Simple reference arguments: these addresses are
+                                // potentially aliased across iterations.
+                                aliases.extend(addrs);
+                            }
+                            None => {
+                                // Could modify anything (double-refs, containers).
+                                // Conservatively mark all same-loop allocations.
+                                for inner_block_id in &loop_info.blocks {
+                                    for iid in function.dfg[*inner_block_id].instructions() {
+                                        if matches!(function.dfg[*iid], Instruction::Allocate) {
+                                            let result = function.dfg.instruction_results(*iid)[0];
+                                            aliases.insert(result);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Call return values that are references may alias inputs.
+                        for &result in function.dfg.instruction_results(*instruction_id) {
+                            if function.dfg.type_of_value(result).contains_reference() {
+                                aliases.insert(result);
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
 
-        // Form 2: reference-typed block parameters on the loop header.
-        let header = loop_info.header;
-        let header_params = function.dfg[header].parameters();
-        let ref_param_indices: Vec<usize> = header_params
-            .iter()
-            .enumerate()
-            .filter(|(_, param)| function.dfg.value_is_reference(**param))
-            .map(|(idx, param)| {
-                aliases.insert(*param);
-                idx
-            })
-            .collect();
+        // Form 2: reference-containing block parameters on ANY block in the loop
+        // (not just the header). This catches jmpif passing references to
+        // non-header blocks within the loop.
+        for block_id in &loop_info.blocks {
+            let params = function.dfg[*block_id].parameters();
+            let ref_param_indices: Vec<usize> = params
+                .iter()
+                .enumerate()
+                .filter(|(_, param)| function.dfg.type_of_value(**param).contains_reference())
+                .map(|(idx, param)| {
+                    aliases.insert(*param);
+                    idx
+                })
+                .collect();
 
-        if !ref_param_indices.is_empty() {
-            for block_id in &loop_info.blocks {
-                let block = &function.dfg[*block_id];
-                match block.terminator() {
+            if ref_param_indices.is_empty() {
+                continue;
+            }
+
+            // Find all jmp/jmpif within the loop that target this block and
+            // add their reference-typed arguments to aliases.
+            for source_block_id in &loop_info.blocks {
+                let source_block = &function.dfg[*source_block_id];
+                match source_block.terminator() {
                     Some(TerminatorInstruction::Jmp { destination, arguments, .. })
-                        if *destination == header =>
+                        if *destination == *block_id =>
                     {
                         for &idx in &ref_param_indices {
                             if let Some(arg) = arguments.get(idx) {
@@ -240,14 +288,14 @@ fn analyze_loop_aliases(function: &Function, loops: &Loops) -> HashSet<ValueId> 
                         else_arguments,
                         ..
                     }) => {
-                        if *then_destination == header {
+                        if *then_destination == *block_id {
                             for &idx in &ref_param_indices {
                                 if let Some(arg) = then_arguments.get(idx) {
                                     aliases.insert(*arg);
                                 }
                             }
                         }
-                        if *else_destination == header {
+                        if *else_destination == *block_id {
                             for &idx in &ref_param_indices {
                                 if let Some(arg) = else_arguments.get(idx) {
                                     aliases.insert(*arg);
@@ -430,7 +478,7 @@ fn collect_loop_stored_addresses(
             }
         }
         if !stored_addresses.is_empty() {
-            result.insert(loop_info.header, stored_addresses);
+            result.entry(loop_info.header).or_default().extend(stored_addresses);
         }
     }
 

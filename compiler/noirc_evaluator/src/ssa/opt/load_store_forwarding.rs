@@ -147,7 +147,23 @@ fn forward_loads_and_stores_in_block(
                 last_stores.insert(address, instruction_id);
             }
             Instruction::Load { address } => {
+                let is_loop_aliased = alias_analysis.is_loop_aliased(*address);
                 let address = inserter.resolve(*address);
+                let dfg = &inserter.function.dfg;
+
+                // If loading from a loop-aliased address and the result is a
+                // reference, the loaded reference could alias any same-typed
+                // address across iterations. Invalidate same-typed caches
+                // (analogous to how the store handler treats loop-aliased stores).
+                if is_loop_aliased {
+                    let result = dfg.instruction_results(instruction_id)[0];
+                    let result_type = dfg.type_of_value(result);
+                    if result_type.contains_reference() {
+                        known_values.retain(|k, _| dfg.type_of_value(*k) != result_type);
+                        last_loads.retain(|k, _| dfg.type_of_value(*k) != result_type);
+                        last_stores.retain(|k, _| dfg.type_of_value(*k) != result_type);
+                    }
+                }
 
                 if let Some(value) = known_values.get(&address) {
                     // Store-to-load: we know the value from a prior store.
@@ -166,7 +182,10 @@ fn forward_loads_and_stores_in_block(
                     last_loads.insert(address, result);
                 }
 
-                last_stores.remove(&address);
+                // A load from address X "uses" any store to an address that
+                // may_alias(X). Those stores must not be eliminated as dead.
+                let dfg = &inserter.function.dfg;
+                last_stores.retain(|k, _| !alias_analysis.may_alias(address, *k, dfg));
             }
             Instruction::Call { .. } => {
                 match alias_analysis.addresses_modified_by_call(
@@ -1338,6 +1357,263 @@ mod tests {
         }
         ";
         // v0 and v1 could alias, so load v0 after store to v1 must NOT be forwarded.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // === Issue reproduction tests (milestone 49 audit) ===
+
+    // Issue #12217: carried aliases don't take call inputs into account
+    #[test]
+    fn issue_12217_loop_carried_alias_via_call() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v3
+            call f1(v3, v2)
+            jmp b1()
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut Field, v1: &mut &mut Field):
+            store v0 at v1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12219: carried aliases don't take call returned references into account
+    #[test]
+    fn issue_12219_loop_carried_alias_via_call_return() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v3
+            v7 = call f1(v3) -> &mut Field
+            store v7 at v2
+            jmp b1()
+        }
+
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12220: carried aliases don't take array_get into account
+    #[test]
+    fn issue_12220_loop_carried_alias_via_array_get() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field, v_idx: u32):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v3
+            v8 = make_array [v3, v0] : [&mut Field; 2]
+            v9 = array_get v8, index v_idx -> &mut Field
+            store v9 at v2
+            jmp b1()
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12221: carried aliases don't take jmpif into account
+    #[test]
+    fn issue_12221_loop_carried_alias_via_jmpif() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field, v_cond: u1):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v3
+            jmpif v_cond then: b2(v3), else: b3()
+          b2(v7: &mut Field):
+            store v7 at v2
+            jmp b1()
+          b3():
+            jmp b1()
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12222: carried aliases misses nested references in Form 1
+    #[test]
+    fn issue_12222_loop_carried_alias_array_containing_refs() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field):
+            v2 = allocate -> &mut [&mut Field; 2]
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            v4 = make_array [v0, v0] : [&mut Field; 2]
+            store v4 at v2
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> [&mut Field; 2]
+            v6 = array_get v5, index u32 0 -> &mut Field
+            v7 = load v6 -> Field
+            store v7 at v3
+            v8 = make_array [v3, v0] : [&mut Field; 2]
+            store v8 at v2
+            jmp b1()
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12223: carried aliases misses nested references in Form 2
+    #[test]
+    fn issue_12223_loop_carried_alias_array_header_param() {
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field):
+            v2 = allocate -> &mut Field
+            store v1 at v2
+            v3 = make_array [v0, v0] : [&mut Field; 2]
+            jmp b1(v3)
+          b1(v_arr: [&mut Field; 2]):
+            store Field 3735928559 at v2
+            v5 = array_get v_arr, index u32 0 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v2
+            v8 = make_array [v2, v0] : [&mut Field; 2]
+            jmp b1(v8)
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12225: load-to-load incorrectly deduplicated when array_get alias exists
+    #[test]
+    fn issue_12225_load_to_load_array_get_alias() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v_idx: u32):
+            v1 = allocate -> &mut Field
+            store Field 42 at v1
+            v2 = allocate -> &mut Field
+            store Field 7 at v2
+            v3 = make_array [v1, v2] : [&mut Field; 2]
+            v4 = array_get v3, index v_idx -> &mut Field
+            v5 = load v4 -> Field
+            store Field 99 at v1
+            v6 = load v4 -> Field
+            return v5, v6
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12230: load does not mark aliased stores as used
+    #[test]
+    fn issue_12230_aliased_load_prevents_dead_store() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            store Field 1 at v0
+            v2 = load v1 -> Field
+            store Field 2 at v0
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12231: local allocations aliases should be tracked
+    #[test]
+    fn issue_12231_local_allocation_alias() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = allocate -> &mut Field
+            v3 = not v1
+            v4 = if v1 then v0 else (if v3) v2
+            store Field 0 at v4
+            store Field 1 at v2
+            v5 = load v4 -> Field
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12232: Load ignore loop carried aliases (test 1: dead store)
+    #[test]
+    fn issue_12232_loop_aliased_load_dead_store() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            jmp b1()
+          b1():
+            store Field 1 at v0
+            v3 = load v1 -> &mut Field
+            store Field 2 at v0
+            v4 = load v3 -> Field
+            store v3 at v1
+            jmp b1()
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    // Issue #12232: Load ignore loop carried aliases (test 2: load forwarding)
+    #[test]
+    fn issue_12232_loop_aliased_load_forwarding() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            jmp b1()
+          b1():
+            store Field 1 at v0
+            v3 = load v1 -> &mut Field
+            v4 = load v3 -> Field
+            store Field 2 at v0
+            v5 = load v3 -> Field
+            store v3 at v1
+            jmp b1()
+        }
+        ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 }
