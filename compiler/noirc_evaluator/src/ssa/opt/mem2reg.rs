@@ -1374,4 +1374,47 @@ brillig(inline) fn main f0 {
         }
         ");
     }
+
+    /// Regression for a `JmpIf` whose `then_destination` and `else_destination` point
+    /// at the same successor block. When `mem2reg` introduces a new block parameter at
+    /// that successor, it must wire the promoted value onto both edges of the `JmpIf`.
+    /// The input uses differing existing arguments on the same-target `JmpIf`
+    /// (`b3(Field 200)` vs `b3(Field 300)`) so that the condition is semantically
+    /// meaningful and the shape appears in valid SSA.
+    #[test]
+    fn jmpif_same_target_wires_both_edges() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 1 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3(Field 100)
+              b2():
+                store Field 20 at v1
+                jmpif v0 then: b3(Field 200), else: b3(Field 300)
+              b3(v2: Field):
+                v3 = load v1 -> Field
+                v4 = add v2, v3
+                return v4
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 100, Field 10)
+          b2():
+            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300)
+          b3(v1: Field, v2: Field):
+            v8 = add v1, v2
+            return v8
+        }
+        ");
+    }
 }
