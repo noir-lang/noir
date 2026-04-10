@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775840789314,
+  "lastUpdate": 1775848481609,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9405c29ea97d88a567f0b96090565c245d3fe9c4",
-          "message": "fix: incorrect cast between signed integers simplification (#12104)",
-          "timestamp": "2026-04-03T19:23:33Z",
-          "tree_id": "0b9bdf028dca1b71a9d466f7afa09a38616dad4a",
-          "url": "https://github.com/noir-lang/noir/commit/9405c29ea97d88a567f0b96090565c245d3fe9c4"
-        },
-        "date": 1775246777936,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 161718,
-            "range": "± 884",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133404,
-            "range": "± 6410",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2120631,
-            "range": "± 2424",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640515,
             "range": "± 24179",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97fda06efa4ee3bb11b8243701117a003d0105de",
+          "message": "chore(docs): Document snapshot-test conventions and fix cargo insta flags (#12238)",
+          "timestamp": "2026-04-10T18:50:38Z",
+          "tree_id": "0704eee0deb3be206528b938736ca2c9ef429b21",
+          "url": "https://github.com/noir-lang/noir/commit/97fda06efa4ee3bb11b8243701117a003d0105de"
+        },
+        "date": 1775848427822,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169562,
+            "range": "± 406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138350,
+            "range": "± 639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645670,
+            "range": "± 2128",
             "unit": "ns/iter"
           }
         ]
