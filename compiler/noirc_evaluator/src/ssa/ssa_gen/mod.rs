@@ -1246,15 +1246,15 @@ impl FunctionContext<'_> {
         // Optimization: for ExtractTupleField(Dereference(x), N), extract the field's
         // reference first, then dereference only that field. This avoids loading all
         // fields of a struct through &mut self when only one field is needed.
-        if let Expression::Unary(unary) = tuple {
-            if matches!(unary.operator, UnaryOp::Dereference { .. }) && !unary.skip {
-                if let ast::Type::Tuple(fields) = &unary.result_type {
-                    let field_type = &fields[field_index];
-                    let references = self.codegen_expression(&unary.rhs)?;
-                    let field_ref = Self::get_field(references, field_index);
-                    return Ok(self.dereference(&field_ref, field_type));
-                }
-            }
+        if let Expression::Unary(unary) = tuple
+            && matches!(unary.operator, UnaryOp::Dereference { .. })
+            && !unary.skip
+            && let ast::Type::Tuple(fields) = &unary.result_type
+        {
+            let field_type = &fields[field_index];
+            let references = self.codegen_expression(&unary.rhs)?;
+            let field_ref = Self::get_field(references, field_index);
+            return Ok(self.dereference(&field_ref, field_type));
         }
 
         // For mutable locals (Ident case), codegen_expression returns unevaluated
