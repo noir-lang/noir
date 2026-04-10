@@ -91,9 +91,19 @@ Backend circuit size: 2902
 
 This ends up taking off another ~250 gates from our circuit! We've ended up with more ACIR opcodes than before but they're easier for the backend to prove (resulting in fewer gates).
 
-Note that in order to invoke unconstrained functions we need to wrap them in an `unsafe` block,
-to make it clear that the call is unconstrained.
-Furthermore, a warning is emitted unless the `unsafe` block is commented with a `// Safety: ...` comment explaining why it is fine to call the unconstrained function. Note that either the `unsafe` block can be commented this way or the statement it exists in (like in the `let` example above).
+## Unsafe Blocks
+
+Calling an unconstrained function from constrained code requires wrapping the call in an `unsafe { ... }` block. This makes it explicit that the result is not automatically constrained and that the programmer takes responsibility for adding the necessary constraints.
+
+```rust
+// Safety: 'result' is constrained below by the assert
+let result = unsafe { my_unconstrained_fn(x) };
+assert(result == expected);
+```
+
+The compiler emits a warning unless the `unsafe` block is accompanied by a `// Safety: ...` comment explaining why it is safe to call the unconstrained function. The comment can be placed either on the `unsafe` block itself or on the enclosing statement (such as the `let` binding in the example above).
+
+`unsafe` does not disable any other compiler checks -- it only permits calling unconstrained functions. All other type checking, visibility rules, and constraint generation remain in effect.
 
 Generally we want to use brillig whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in brillig and then assert that if you square the result you get back your number.
 

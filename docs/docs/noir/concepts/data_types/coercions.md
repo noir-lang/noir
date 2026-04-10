@@ -1,16 +1,67 @@
 ---
-title: Type Coercions
+title: Type Casting and Coercions
 description:
-  Noir's various type coercions
+  Noir's explicit type casts and implicit type coercions
 keywords:
   [
     noir,
     types,
     coercions,
     casts,
+    as,
   ]
 sidebar_position: 11
 ---
+
+## Type Casting
+
+You can explicitly convert between numeric types using the `as` keyword:
+
+```rust
+let x: u32 = 100;
+let y: u8 = x as u8;       // Cast u32 to u8 (truncates if value exceeds u8 range)
+let z: Field = x as Field;  // Cast u32 to Field
+```
+
+### Valid casts
+
+The `as` keyword can be used to cast between the following types:
+
+| From | To | Notes |
+|------|----|-------|
+| Any integer | Any other integer | Truncates to fit the target bit size |
+| Any unsigned integer | `Field` | Always safe, no truncation |
+| `Field` | Any integer | Truncates to fit the target bit size |
+
+### Restrictions
+
+- **Signed integers cannot be cast to `Field`** -- this will produce a compiler error. Convert to an unsigned integer first if needed.
+- **Non-numeric types** (arrays, strings, structs, tuples, etc.) cannot be cast to or from numeric types.
+- **Casting to `bool`** is not supported.
+
+### Example
+
+```rust
+fn main() {
+    let big: u32 = 300;
+    let small = big as u8;    // Truncates: 300 does not fit in u8
+    
+    let field_val: Field = 42;
+    let as_u64 = field_val as u64;
+    
+    let unsigned: u32 = 5;
+    let as_field = unsigned as Field;  // Ok: unsigned to Field
+    
+    // let signed: i32 = -1;
+    // let bad = signed as Field;  // Error: cannot cast signed integer to Field
+}
+```
+
+### Performance note
+
+Integer casts generate range check constraints in the compiled circuit. Using `Field` values directly where possible can avoid these extra constraints.
+
+## Type Coercions
 
 When one type is required in Noir code but a different type is given, the compiler will typically issue
 a type error. There are a few cases however where the compiler will instead automatically perform a

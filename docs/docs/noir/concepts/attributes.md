@@ -77,6 +77,13 @@ fn slow_function() {}
 fn fast_function() {}
 ```
 
+To change the warning into a hard error, `deny` can be specified on the attribute:
+
+```rust
+#[deprecated(deny, "don't use this!")]
+fn broken() {}
+```
+
 ### `field`
 
 Can be used on functions to enable conditional compilation of code depending on the field size.
@@ -120,6 +127,126 @@ Marks the functions for fuzzing. See [Fuzzer](../../tooling/fuzzer.md) for more 
 
 Mark a function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) for more details.
 
+### `fold`
+
+Marks a function for ACIR fold optimization. The compiler will generate a separate circuit for this function which is then recursively verified at runtime. This can reduce total circuit size when a function is called multiple times or contains a large number of constraints.
+
+Example:
+
+```rust
+#[fold]
+fn expensive_computation(x: Field) -> Field {
+    // ... many constraints ...
+    x
+}
+```
+
+### `inline_always`
+
+Forces the compiler to always inline this function at its call sites. This can improve performance by avoiding function call overhead, at the cost of increased circuit size.
+
+Since constrained calls are always inlined, this will only ever have any effect in unconstrained code.
+
+Example:
+
+```rust
+#[inline_always]
+fn small_helper(x: Field) -> Field {
+    x + 1
+}
+```
+
+### `inline_never`
+
+Prevents the compiler from inlining this function. This can be useful to keep circuit size manageable when a function is called from many places.
+
+Since constrained calls are always inlined, this will only ever have any effect in unconstrained code.
+
+Example:
+
+```rust
+#[inline_never]
+fn large_function(x: Field) -> Field {
+    // ... complex logic ...
+    x
+}
+```
+
+### `no_predicates`
+
+Disables predicate optimization for this function's ACIR output. This can be useful when the predicate optimization would produce incorrect results for certain foreign function patterns.
+
+This will have no effect in unconstrained code.
+
+### `export`
+
+Marks a function for export in compiled artifacts. This is primarily used inside `contract` blocks to indicate that a function should be accessible externally.
+
+### `must_use`
+
+Produces a warning if the return value of this function call is unused. Optionally takes a message string explaining why the value should be used.
+
+Example:
+
+```rust
+#[must_use]
+fn important_result() -> Field {
+    42
+}
+
+#[must_use = "the new vector is returned, the original is not modified"]
+fn push(vec: [Field], value: Field) -> [Field] {
+    // ...
+}
+```
+
+### `abi`
+
+Tags a struct or global for inclusion in a contract's ABI with the given tag name. Used inside `contract` blocks to indicate which types should appear in the compiled artifact's interface.
+
+Example:
+
+```rust
+#[abi(events)]
+struct Transfer {
+    from: Field,
+    to: Field,
+    amount: Field,
+}
+```
+
+### `contract_library_method`
+
+Marks a function inside a `contract` block as a helper method rather than a contract entry point. Functions with this attribute will not be included as callable endpoints in the compiled contract artifact.
+
+### `varargs`
+
+Allows a comptime attribute function to accept a variable number of arguments. See [Compile-time Code](./comptime.md) for more details.
+
+### `derive`
+
+Derives trait implementations for a struct using comptime macros. Multiple traits can be derived at once by separating them with commas. See [Compile-time Code](./comptime.md#example-derive) for more details.
+
+Example:
+
+```rust
+#[derive(Default, Eq, Ord)]
+struct MyStruct {
+    field1: u32,
+    field2: Field,
+}
+```
+
 ### `test`
 
 Marks the function as a unit test. See [Tests](../../tooling/tests.md) for more details.
+
+### Inner Attributes
+
+Inner attributes apply to the enclosing module rather than the item that follows. They use the syntax `#![attribute]`:
+
+```rust
+#![allow(unused_variables)]
+```
+
+Inner attributes support `#[allow(...)]`, `#[deprecated]`, and custom meta attributes, using the same syntax as outer attributes but prefixed with `!`.
