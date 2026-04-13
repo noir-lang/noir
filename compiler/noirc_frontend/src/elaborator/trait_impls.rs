@@ -465,7 +465,7 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    constraints_unify(impl_constraint, &override_trait_constraint).is_ok()
+                    constraints_unify(impl_constraint, &override_trait_constraint).is_some()
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -1062,15 +1062,9 @@ impl Elaborator<'_> {
 /// Returns true if the impl-level `where` constraint and the method-level
 /// override constraint refer to the same trait on the same type with the same
 /// trait generics. Note that no type bindings are committed on success.
+///
+/// Returns a `Option` so we can use `?` without `try` blocks being stable
 fn constraints_unify(
-    impl_constraint: &TraitConstraint,
-    override_constraint: &TraitConstraint,
-) -> bool {
-    constraints_unify_helper(impl_constraint, override_constraint).is_some()
-}
-
-/// Helper so we can use `?` without `try` blocks being stable
-fn constraints_unify_helper(
     impl_constraint: &TraitConstraint,
     override_constraint: &TraitConstraint,
 ) -> Option<()> {
