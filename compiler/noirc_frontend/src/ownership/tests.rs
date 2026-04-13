@@ -1344,6 +1344,38 @@ fn no_confirmed_move_for_assignment_in_dead_loop() {
 }
 
 #[test]
+fn no_confirmed_move_before_loop_when_variable_will_be_used_in_loop() {
+    // `x` is first seen inside the loop (in reverse), a fact which should prevent
+    // it from being moved into `y` without a clone.
+    let src = "
+    unconstrained fn main(arr: [Field; 3]) {
+        let mut x = arr;
+        let mut y = x;
+        y[0] = 100;
+        for _ in 0 .. 2 {
+            use_var(x);
+        };
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` in `let y = x` must be cloned otherwise the `x` in the loop would see the modification.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr$l0: [Field; 3]) -> () {
+        let mut x$l1 = arr$l0;
+        let mut y$l2 = x$l1.clone();
+        y$l2[0] = 100;
+        for _$l3 in 0 .. 2 {
+            use_var$f1(x$l1.clone());
+        }
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
 fn no_confirmed_move_for_assignment_in_unreachable_branch() {
     // `x = [1,2,3]` is reachable only through an `if false` branch; `let y = x`
     // must still clone.
