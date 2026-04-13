@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776078940467,
+  "lastUpdate": 1776079326544,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f4ead98d92f514ef4d30a625d7c54709b02b08d1",
-          "message": "fix(ssa): Aliasing issues in load/store forwarding (#12125)",
-          "timestamp": "2026-04-03T22:22:56Z",
-          "tree_id": "6252e03a0a732e3bd1c49c250da99f7b81eb8efd",
-          "url": "https://github.com/noir-lang/noir/commit/f4ead98d92f514ef4d30a625d7c54709b02b08d1"
-        },
-        "date": 1775256607367,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 162015,
-            "range": "± 401",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 133294,
-            "range": "± 4042",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2118250,
-            "range": "± 1276",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644949,
             "range": "± 11229",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c2a4b293a1a9c6ecd8d923c2c711d392f1165941",
+          "message": "chore: bump external pinned commits (#12249)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: AztecBot <tech@aztec-labs.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-13T12:18:40+01:00",
+          "tree_id": "fe26c226d63c20e504c3398dc2e943f51f1476a5",
+          "url": "https://github.com/noir-lang/noir/commit/c2a4b293a1a9c6ecd8d923c2c711d392f1165941"
+        },
+        "date": 1776079273425,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168150,
+            "range": "± 441",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137632,
+            "range": "± 6328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2639476,
+            "range": "± 10684",
             "unit": "ns/iter"
           }
         ]
