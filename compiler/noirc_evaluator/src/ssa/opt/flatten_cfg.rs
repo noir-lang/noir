@@ -140,6 +140,7 @@
 //!   ... b3 instructions ...
 //! ```
 
+use num_traits::Zero;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -1201,6 +1202,13 @@ impl<'f> Context<'f> {
             let array = self.inserter.resolve(array);
             let index = self.inserter.resolve(index);
             let value = self.inserter.resolve(value);
+
+            if let Some(length) = self.inserter.function.dfg.try_get_array_length(array)
+                && length.to_usize().is_zero()
+            {
+                // Any index we tried for safe merging would be unsafe.
+                return None;
+            }
 
             chain.push((index, value, mutable));
 
@@ -2657,6 +2665,37 @@ mod tests {
         "#);
         // EXPECTED after fix: array_set should NOT be under the predicate,
         // so it survives remove_unreachable and the constrain resolves correctly.
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_zero_length_array() {
+        let src = "
+          acir(inline) impure fn main f0 {
+            b0(v0: u1, v1: u32):
+              v3 = make_array [] : [u32; 0]
+              jmpif v0 then: b1(), else: b2(v3)
+            b1():
+              v5 = array_set v3, index v1, value u32 10
+              jmp b2(v5)
+            b2(v2: [u32; 0]):
+              return v2
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [] : [u32; 0]
+            enable_side_effects v0
+            v4 = array_set v2, index v1, value u32 10
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v2
+            return v7
+        }
+        ");
     }
 
     #[test]
