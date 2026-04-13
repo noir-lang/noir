@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775848982276,
+  "lastUpdate": 1776070493601,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22131,48 +22131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "af9360745081128244039b4f882697a1f827bd7f",
-          "message": "chore: error instead of panic in case of missing inputs (#12110)",
-          "timestamp": "2026-04-03T19:23:55Z",
-          "tree_id": "f37139a5e77ec09d29b0e0a2e15e457533e98133",
-          "url": "https://github.com/noir-lang/noir/commit/af9360745081128244039b4f882697a1f827bd7f"
-        },
-        "date": 1775246944432,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168184,
-            "range": "± 485",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140907,
-            "range": "± 516",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645792,
-            "range": "± 3877",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24224,6 +24182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645670,
             "range": "± 2128",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jjaa1012@gmail.com",
+            "name": "Wonjae Choi",
+            "username": "0xwonj"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3964f5f2026cd682e25359cf4208fb1ae649fcdc",
+          "message": "fix(cli): fail when interpret output or results change across SSA passes (#12138)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-04-13T08:31:55Z",
+          "tree_id": "d7e506c83f3e41bbc466261c992cbea2f98e4fdd",
+          "url": "https://github.com/noir-lang/noir/commit/3964f5f2026cd682e25359cf4208fb1ae649fcdc"
+        },
+        "date": 1776070437586,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168475,
+            "range": "± 713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137702,
+            "range": "± 2955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644135,
+            "range": "± 43179",
             "unit": "ns/iter"
           }
         ]
