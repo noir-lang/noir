@@ -1533,7 +1533,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::Integer(Integer::U1(_)) => |i| Value::Integer(Integer::U1(i == 1)),
                 Value::Integer(Integer::U8(_)) => |i| Value::Integer(Integer::U8(i as u8)),
                 Value::Integer(Integer::U16(_)) => |i| Value::Integer(Integer::U16(i as u16)),
                 Value::Integer(Integer::U32(_)) => |i| Value::Integer(Integer::U32(i as u32)),
@@ -1793,9 +1792,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::i64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::Integer(Integer::U1(_)) => {
-                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" })
-            }
             Value::Integer(Integer::U8(_)) => {
                 Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" })
             }
@@ -1823,7 +1819,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::Integer(Integer::I16(value)) => Ok(Value::i16(!value)),
             Value::Integer(Integer::I32(value)) => Ok(Value::i32(!value)),
             Value::Integer(Integer::I64(value)) => Ok(Value::i64(!value)),
-            Value::Integer(Integer::U1(value)) => Ok(Value::u1(!value)),
             Value::Integer(Integer::U8(value)) => Ok(Value::u8(!value)),
             Value::Integer(Integer::U16(value)) => Ok(Value::u16(!value)),
             Value::Integer(Integer::U32(value)) => Ok(Value::u32(!value)),
@@ -1855,7 +1850,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U1(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U32(value)) => Some(u128::from(value)),

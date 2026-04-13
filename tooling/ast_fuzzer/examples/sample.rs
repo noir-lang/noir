@@ -5,7 +5,7 @@
 //! ```
 use arbitrary::Unstructured;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
-use rand::RngCore;
+use rand::Rng;
 
 fn main() {
     let data = {

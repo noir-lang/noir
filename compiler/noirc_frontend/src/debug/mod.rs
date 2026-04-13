@@ -1,9 +1,7 @@
-use crate::ast::PathSegment;
-use crate::parse_program;
+use crate::ast::{PathKind, PathSegment};
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::token::FunctionAttributeKind;
 use crate::{ast, ast::Path, parser::ItemKind};
-use fm::FileId;
 use noirc_artifacts::debug::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
@@ -54,7 +52,7 @@ impl Default for DebugInstrumenter {
 }
 
 impl DebugInstrumenter {
-    pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
         module.items.iter_mut().for_each(|item| {
             match &mut item.kind {
                 // Instrument top-level functions of a module
@@ -65,15 +63,11 @@ impl DebugInstrumenter {
                     contents: contract_module,
                     ..
                 }) => {
-                    self.instrument_module(contract_module, file);
+                    self.instrument_module(contract_module);
                 }
                 _ => (),
             }
         });
-
-        // this part absolutely must happen after ast traversal above
-        // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, file);
     }
 
     fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
@@ -527,31 +521,6 @@ impl DebugInstrumenter {
             _ => {} // Constrain, Error
         }
     }
-
-    fn insert_state_set_oracle(&self, module: &mut ParsedModule, file: FileId) {
-        let member_assigns = (1..=MAX_MEMBER_ASSIGN_DEPTH)
-            .map(|i| format!["__debug_member_assign_{i}"])
-            .collect::<Vec<String>>()
-            .join(",\n");
-        let (program, errors) = parse_program(
-            &format!(
-                r#"
-            use __debug::{{
-                __debug_var_assign,
-                __debug_var_drop,
-                __debug_fn_enter,
-                __debug_fn_exit,
-                __debug_dereference_assign,
-                {member_assigns},
-            }};"#
-            ),
-            file,
-        );
-        if !errors.is_empty() {
-            panic!("errors parsing internal oracle definitions: {errors:?}")
-        }
-        module.items.extend(program.items);
-    }
 }
 
 pub fn build_debug_crate_file() -> String {
@@ -660,14 +629,25 @@ pub fn build_debug_crate_file() -> String {
     .join("\n")
 }
 
+/// Build a fully-qualified path `::__debug::{name}` so that debug function calls
+/// bypass any user-defined modules or functions with conflicting names.
+fn debug_fn_path(name: &str, location: Location) -> Path {
+    Path {
+        segments: vec![
+            PathSegment::from(ident("__debug", location)),
+            PathSegment::from(ident(name, location)),
+        ],
+        kind: PathKind::Absolute,
+        location,
+        kind_location: location,
+    }
+}
+
 fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Statement {
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(Path::plain(
-                vec![PathSegment::from(ident("__debug_var_assign", location))],
-                location,
-            )),
+            kind: ast::ExpressionKind::Variable(debug_fn_path("__debug_var_assign", location)),
             location,
         }),
         is_macro_call: false,
@@ -679,10 +659,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(Path::plain(
-                vec![PathSegment::from(ident("__debug_var_drop", location))],
-                location,
-            )),
+            kind: ast::ExpressionKind::Variable(debug_fn_path("__debug_var_drop", location)),
             location,
         }),
         is_macro_call: false,
@@ -703,8 +680,8 @@ fn build_assign_member_stmt(
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(Path::plain(
-                vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
+            kind: ast::ExpressionKind::Variable(debug_fn_path(
+                &format!["__debug_member_assign_{arity}"],
                 location,
             )),
             location,
@@ -723,8 +700,8 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(Path::plain(
-                vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
+            kind: ast::ExpressionKind::Variable(debug_fn_path(
+                &format!["__debug_fn_{fname}"],
                 location,
             )),
             location,

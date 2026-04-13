@@ -331,7 +331,7 @@ impl FuzzerBuilder {
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
         let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable), true))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {

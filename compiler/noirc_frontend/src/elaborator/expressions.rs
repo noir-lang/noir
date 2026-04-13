@@ -390,7 +390,6 @@ impl Elaborator<'_> {
             Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
             Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
-            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
             Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
             Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
@@ -1360,24 +1359,6 @@ impl Elaborator<'_> {
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
 
-        // `Field as u1` is not supported directly by the backend. Insert an intermediate
-        // cast to u8 to transform it into: `(Field as u8) as u1`.
-        let lhs_could_be_field = match lhs_type.follow_bindings() {
-            Type::FieldElement => true,
-            Type::TypeVariable(ref var) => var.is_integer_or_field(),
-            _ => false,
-        };
-        let lhs = if lhs_could_be_field
-            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
-        {
-            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            let cast_to_u8 =
-                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
-            self.interner.push_expr_full(cast_to_u8, location, u8_type)
-        } else {
-            lhs
-        };
-
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -1386,12 +1367,29 @@ impl Elaborator<'_> {
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
-        let is_ord =
-            infix.operator.contents.is_comparator() && !infix.operator.contents.is_equality();
         let operator = HirBinaryOp::new(infix.operator, file);
+        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+    }
+
+    /// Complete infix elaboration given pre-elaborated operands.
+    ///
+    /// This is the shared core of [`Self::elaborate_infix`] and the op-assign desugaring in
+    /// [`Self::elaborate_assign_op`], which needs to supply an already-elaborated lhs to avoid
+    /// evaluating index sub-expressions twice.
+    pub(super) fn finish_infix(
+        &mut self,
+        lhs: ExprId,
+        lhs_type: Type,
+        operator: HirBinaryOp,
+        rhs: ExprId,
+        rhs_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
+        let is_ord = operator.kind.is_comparator() && !operator.kind.is_equality();
+
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,

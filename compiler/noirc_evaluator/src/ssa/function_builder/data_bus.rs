@@ -195,7 +195,7 @@ impl FunctionBuilder {
                     }
                 }
             }
-            Type::Reference(_) => {
+            Type::Reference(..) => {
                 unreachable!("Attempted to add invalid type (reference) to databus")
             }
             Type::Vector(_) => unreachable!("Attempted to add invalid type (vector) to databus"),

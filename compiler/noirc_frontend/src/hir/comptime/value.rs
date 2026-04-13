@@ -128,10 +128,6 @@ impl Value {
         Value::Integer(Integer::Field(x))
     }
 
-    pub fn u1(x: bool) -> Self {
-        Value::Integer(Integer::U1(x))
-    }
-
     int_constructor!(u8, U8);
     int_constructor!(u16, U16);
     int_constructor!(u32, U32);
@@ -340,7 +336,9 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
@@ -532,7 +530,9 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;

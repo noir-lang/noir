@@ -1,12 +1,8 @@
-define: &AZ_COMMIT 650d7492dabd582d6290a611ce4e96adbc6f9521
+define: &AZ_COMMIT e88ecdf581dbb7ade7bdc883d7da2ba86137f8e0
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
     timeout: 2
-    critical: true
-  ec:
-    repo: noir-lang/ec
-    timeout: 5
     critical: true
   eddsa:
     repo: noir-lang/eddsa

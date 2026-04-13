@@ -208,9 +208,7 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { location: Location },
-    #[error(
-        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
-    )]
+    #[error("Cannot pass a reference from an unconstrained runtime to an constrained runtime")]
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { location: Location },

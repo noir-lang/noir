@@ -164,7 +164,7 @@ impl SimpleOptimizationContext<'_, '_> {
 
             let ctrl_typevars = instruction
                 .requires_ctrl_typevars()
-                .then(|| vecmap(&results, |result| self.dfg.type_of_value(*result)));
+                .then(|| vecmap(&results, |result| self.dfg.type_of_value(*result).into_owned()));
 
             let new_results = self.dfg.insert_instruction_and_results_if_simplified(
                 instruction,
