@@ -1545,11 +1545,10 @@ fn no_confirmed_move_for_dead_code_after_break() {
 }
 
 #[test]
-fn no_confirmed_move_for_variable_reassigned_in_the_loop() {
+fn confirmed_move_for_variable_reassigned_in_the_loop() {
     // Same as no_confirmed_move_for_dead_code_after_break, without the `break`.
-    // `x = [4,5,6]` is not dead. The earlier `let mut y = x`
-    // doesn't need to clone `x` because `x = [4,5,6]` will execute,
-    // however the compiler doesn't prove this and cloning still happens.
+    // `x = [4,5,6]` is not dead; the earlier `let mut y = x`
+    // doesn't need to clone `x` because `x = [4,5,6]` will execute.
     let src = "
     unconstrained fn main(arr: [Field; 3]) {
         let mut x = arr;
@@ -1568,7 +1567,7 @@ fn no_confirmed_move_for_variable_reassigned_in_the_loop() {
     fn use_var<T>(_x: T) {}
     ";
     let program = get_monomorphized(src).unwrap();
-    // `x` in `let mut y = x` is still cloned.
+    // `x` in `let mut y = x` doesn't get cloned.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(arr$l0: [Field; 3]) -> () {
         let mut x$l1 = arr$l0;
@@ -1576,7 +1575,7 @@ fn no_confirmed_move_for_variable_reassigned_in_the_loop() {
         while (i$l2 < 3) {
             i$l2 = (i$l2 + 1);
             x$l1 = x$l1;
-            let mut y$l3 = x$l1.clone();
+            let mut y$l3 = x$l1;
             y$l3[0] = 100;
             use_var$f1(y$l3);;
             x$l1 = [4, 5, 6]
