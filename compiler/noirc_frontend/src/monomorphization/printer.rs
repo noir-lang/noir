@@ -277,6 +277,8 @@ impl AstPrinter {
             }
             Literal::Bool(x) => x.fmt(f),
             Literal::Str(s) => {
+                // This is just for display purposes so a lossy conversion is okay
+                let s = String::from_utf8_lossy(s);
                 if s.contains("\"") {
                     write!(f, "r#\"{s}\"#")
                 } else {
