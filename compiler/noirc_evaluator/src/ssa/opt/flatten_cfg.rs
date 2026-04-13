@@ -987,10 +987,12 @@ impl<'f> Context<'f> {
             };
             let array_type = dfg.type_of_value(base_array);
             let offset = match array_type.as_ref() {
-                Type::Array(element_types, _) | Type::Vector(element_types) => {
-                    element_types.iter().position(|t| *t == typ).unwrap_or(0) as u128
-                }
-                _ => 0,
+                Type::Array(element_types, _) | Type::Vector(element_types) => element_types
+                    .iter()
+                    .position(|t| *t == typ)
+                    .expect("ICE: cannot find element with type {typ}")
+                    as u128,
+                other => unreachable!("ICE: unexpected array/vector type: {other}"),
             };
             let fallback =
                 self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
@@ -1155,6 +1157,16 @@ impl<'f> Context<'f> {
         protect_array_set: bool,
         is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
+        // If the condition along which we would merge is a constant 1 or 0,
+        // then the simplification of the `IfElse` is easier than what we do here.
+        // This also prevents an edge case: when we know that both the _then_ and the
+        // _else_ condition are 0, then SSA will get the item at index 0, which could
+        // have a different type than expected, causing type mismatches in simplification.
+        // We look for a safe fallback index for the _else_ condition, but not the _then_.
+        if self.inserter.function.dfg.get_numeric_constant(then_condition).is_some() {
+            return None;
+        }
+
         // Walk backwards through a chain of ArraySet instructions from then_value,
         // collecting (index, value, mutable) at each step, until we find else_value
         // as the base array.
@@ -2770,6 +2782,42 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_skipped_when_condition_is_const() {
+        // Test that conditional array_set creates still uses IfElse if the condition is 0 or 1.
+        let src = "
+        g0 = u1 1
+
+        acir(inline) fn main f0 {
+          b0(v1: [Field; 4]):
+            jmpif g0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 2, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, we should see the result be simplified to the the updated array,
+        // with no merging using either IfElse or scalars.
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = u1 1
+
+        acir(inline) fn main f0 {
+          b0(v1: [Field; 4]):
+            enable_side_effects u1 1
+            v4 = array_set v1, index u32 2, value Field 42
+            enable_side_effects u1 1
+            return v4
+        }
+        ");
     }
 
     #[test]
