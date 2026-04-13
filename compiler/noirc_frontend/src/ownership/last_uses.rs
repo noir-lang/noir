@@ -247,10 +247,6 @@ impl LastUseContext {
         }
         self.loop_depth = loop_body_depth - 1;
 
-        // Variables declared outside this loop cannot be moved inside it.
-        // Truncate their pending uses back to the pre-loop lengths, and restore
-        // their `seen` state — an assignment inside the loop must not punch a hole
-        // in `seen` that misleads the traversal of code before the loop.
         // Variables declared outside this loop cannot be moved inside it — unless
         // they are unconditionally reassigned (killed) within the loop body, in which
         // case their value is freshly created and consumed each iteration.
