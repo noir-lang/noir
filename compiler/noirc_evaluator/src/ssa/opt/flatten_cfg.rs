@@ -164,6 +164,9 @@ use crate::ssa::{
 
 mod branch_analysis;
 
+/// Maximum depth of a chain of array sets to use when trying to find a matching base array.
+const MAX_ARRAY_SET_CHAIN_DEPTH: usize = 100;
+
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
     /// single block containing all instructions and no more control-flow.
@@ -1100,15 +1103,13 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
-        const MAX_CHAIN_DEPTH: usize = 100;
-
         // Walk backwards through a chain of ArraySet instructions from value,
         // collecting (index, value, mutable) at each step, until we find an ArraySet
         // whose base was loaded from the same address.
         let mut chain = Vec::new();
         let mut current = value;
 
-        for _ in 0..MAX_CHAIN_DEPTH {
+        for _ in 0..MAX_ARRAY_SET_CHAIN_DEPTH {
             if self.inserter.function.dfg.is_global(current) {
                 return None;
             }
@@ -1196,8 +1197,6 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
-        const MAX_CHAIN_DEPTH: usize = 100;
-
         // Walk backwards through a chain of ArraySet instructions from then_value,
         // collecting (index, value, mutable) at each step, until we find else_value
         // as the base array.
@@ -1211,7 +1210,7 @@ impl<'f> Context<'f> {
         let mut chain = Vec::new();
         let mut current = then_value;
 
-        for _ in 0..MAX_CHAIN_DEPTH {
+        for _ in 0..MAX_ARRAY_SET_CHAIN_DEPTH {
             // Global values have their instructions in the global DFG, not the function's DFG.
             // They are always MakeArray, never ArraySet, so skip them.
             if self.inserter.function.dfg.is_global(current) {
