@@ -787,7 +787,7 @@
 <a href=#787 id=787 data-nosnippet>787</a>            HirLiteral::Unit =&gt; <span class="prelude-val">Ok</span>(Value::Unit),
 <a href=#788 id=788 data-nosnippet>788</a>            HirLiteral::Bool(value) =&gt; <span class="prelude-val">Ok</span>(Value::Bool(value)),
 <a href=#789 id=789 data-nosnippet>789</a>            HirLiteral::Integer(value) =&gt; <span class="self">self</span>.evaluate_field_as_integer(value, id),
-<a href=#790 id=790 data-nosnippet>790</a>            HirLiteral::Str(string) =&gt; <span class="prelude-val">Ok</span>(Value::String(Rc::new(string.bytes().collect()))),
+<a href=#790 id=790 data-nosnippet>790</a>            HirLiteral::Str(string) =&gt; <span class="prelude-val">Ok</span>(Value::String(Rc::new(string))),
 <a href=#791 id=791 data-nosnippet>791</a>            HirLiteral::FmtStr(fragments, captures, length) =&gt; {
 <a href=#792 id=792 data-nosnippet>792</a>                <span class="self">self</span>.evaluate_format_string(fragments, captures, length, id)
 <a href=#793 id=793 data-nosnippet>793</a>            }

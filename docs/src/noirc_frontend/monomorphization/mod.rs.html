@@ -2730,7 +2730,7 @@
 <a href=#2730 id=2730 data-nosnippet>2730</a>            HirMatch::Failure { .. } =&gt; {
 <a href=#2731 id=2731 data-nosnippet>2731</a>                <span class="kw">let </span>false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(<span class="bool-val">false</span>)));
 <a href=#2732 id=2732 data-nosnippet>2732</a>                <span class="kw">let </span>msg = <span class="string">"match failure"</span>;
-<a href=#2733 id=2733 data-nosnippet>2733</a>                <span class="kw">let </span>msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
+<a href=#2733 id=2733 data-nosnippet>2733</a>                <span class="kw">let </span>msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.as_bytes().to_vec()));
 <a href=#2734 id=2734 data-nosnippet>2734</a>
 <a href=#2735 id=2735 data-nosnippet>2735</a>                <span class="kw">let </span>length: u32 = msg.len().try_into().expect(
 <a href=#2736 id=2736 data-nosnippet>2736</a>                    <span class="string">"ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32"</span>,
@@ -3268,5 +3268,5 @@
 <a href=#3268 id=3268 data-nosnippet>3268</a>    <span class="kw">let </span>abi_as_string =
 <a href=#3269 id=3269 data-nosnippet>3269</a>        serde_json::to_string(<span class="kw-2">&amp;</span>printable_type).expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
 <a href=#3270 id=3270 data-nosnippet>3270</a>
-<a href=#3271 id=3271 data-nosnippet>3271</a>    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+<a href=#3271 id=3271 data-nosnippet>3271</a>    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string.into_bytes())));
 <a href=#3272 id=3272 data-nosnippet>3272</a>}</code></pre></div></section></main></body></html>
