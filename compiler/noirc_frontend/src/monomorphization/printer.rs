@@ -279,11 +279,7 @@ impl AstPrinter {
             Literal::Str(s) => {
                 // This is just for display purposes so a lossy conversion is okay
                 let s = String::from_utf8_lossy(s);
-                if s.contains("\"") {
-                    write!(f, "r#\"{s}\"#")
-                } else {
-                    write!(f, "\"{s}\"")
-                }
+                if s.contains("\"") { write!(f, "r#\"{s}\"#") } else { write!(f, "\"{s}\"") }
             }
             Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
