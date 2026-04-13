@@ -113,7 +113,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nargo
           path: ./dist/*
@@ -149,7 +149,7 @@ jobs:
           cp ./target/release/noir-inspector ./dist/noir-inspector
 
       - name: Upload artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: noir-inspector
           path: ./dist/*
@@ -333,7 +333,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: in_progress_compilation_mem_report
           path: memory_report.json
@@ -347,7 +347,7 @@ jobs:
           mv memory_report.json ../memory_report.json
 
       - name: Upload execution memory report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: in_progress_execution_mem_report
           path: memory_report.json
@@ -422,7 +422,7 @@ jobs:
           PROJECT_NAME: ${{ matrix.name }}
 
       - name: Upload compilation report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -535,7 +535,7 @@ jobs:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.compilation_report.outputs.report_name }}
           path: ${{ steps.compilation_report.outputs.report_path }}
@@ -560,7 +560,7 @@ jobs:
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.execution_report.outputs.report_name }}
           path: ${{ steps.execution_report.outputs.report_path }}
