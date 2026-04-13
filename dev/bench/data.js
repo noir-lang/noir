@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776084579878,
+  "lastUpdate": 1776098176241,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22141,48 +22141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "89f0a75390ede7f78cb8f0d4f4837d5c4ecb9052",
-          "message": "fix: desugar op-assign during elaboration to avoid double evaluation of lvalues (#12123)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
-          "timestamp": "2026-04-06T16:08:41Z",
-          "tree_id": "df1dcb5414cf5708bfc7b2c4cac31918ea47b151",
-          "url": "https://github.com/noir-lang/noir/commit/89f0a75390ede7f78cb8f0d4f4837d5c4ecb9052"
-        },
-        "date": 1775493181526,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169213,
-            "range": "± 268",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141353,
-            "range": "± 1144",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648123,
-            "range": "± 2477",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24234,6 +24192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646057,
             "range": "± 2195",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c24a5a1a7d3d25a1cceb83896d8ce7e5ffa4104d",
+          "message": "chore: refactor spilling a value in a dedicated function (#12252)",
+          "timestamp": "2026-04-13T16:11:40Z",
+          "tree_id": "d1ffbcaeaf3f702ba92825a2ada51fb1214c47b7",
+          "url": "https://github.com/noir-lang/noir/commit/c24a5a1a7d3d25a1cceb83896d8ce7e5ffa4104d"
+        },
+        "date": 1776098113979,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 159348,
+            "range": "± 463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138849,
+            "range": "± 1965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2123459,
+            "range": "± 971",
             "unit": "ns/iter"
           }
         ]
