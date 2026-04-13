@@ -1585,11 +1585,11 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            interpreter::value::Value as InterpreterValue,
+            interpreter::value::{ArrayValue, Value as InterpreterValue},
             ir::{
                 dfg::DataFlowGraph,
                 instruction::{Instruction, TerminatorInstruction},
-                types::NumericType,
+                types::{NumericType, Type},
                 value::{Value, ValueId},
             },
             opt::assert_pass_does_not_affect_execution,
@@ -2688,7 +2688,7 @@ mod tests {
     }
 
     #[test]
-    fn conditional_array_set_scalar_merge() {
+    fn conditional_array_set_scalar_merge_safe_index() {
         // Test that conditional array_set creates scalar IfElse, not array IfElse at join point.
         // The array_set should be transformed to:
         //   1. array_get the original value at the index
@@ -2730,6 +2730,86 @@ mod tests {
             return v13
         }
         ");
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_non_safe_index() {
+        // Test that conditional array_set creates scalar IfElse, not array IfElse at join point.
+        // Similar to conditional_array_set_scalar_merge_safe_index, but we don't know if the index
+        // might cause out-of-bounds error.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4], v4: u32):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index v4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.flatten_cfg();
+
+        // After flattening, the array_set merge should be optimized to a scalar merge.
+        // The fallback index defaults to 0, but because it's used to read _and_ write,
+        // it should not change the outcome.
+        assert_ssa_snapshot!(&mut ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4], v2: u32):
+            enable_side_effects v0
+            v4 = array_set v1, index v2, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = cast v0 as u32
+            v8 = cast v5 as u32
+            v9 = unchecked_mul v7, v2
+            v10 = array_get v1, index v9 -> Field
+            v11 = cast v0 as Field
+            v12 = cast v5 as Field
+            v13 = mul v11, Field 42
+            v14 = mul v12, v10
+            v15 = add v13, v14
+            v16 = array_set v1, index v9, value v15
+            return v16
+        }
+        ");
+
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        for cond in [false, true] {
+            let args = vec![
+                Value::bool(cond),
+                Value::array(
+                    vec![
+                        Value::field(FieldElement::from(1)),
+                        Value::field(FieldElement::from(2)),
+                        Value::field(FieldElement::from(3)),
+                        Value::field(FieldElement::from(4)),
+                    ],
+                    vec![Type::field()],
+                ),
+                Value::u32(3),
+            ];
+
+            let result = ssa.interpret(args.clone()).expect("flattened array merge should pass");
+
+            assert_eq!(result.len(), 1);
+
+            if !cond {
+                assert_eq!(result[0], args[1]);
+            } else {
+                match &result[0] {
+                    Value::ArrayOrVector(ArrayValue { elements, .. }) => {
+                        assert_eq!(elements.borrow()[3], Value::field(FieldElement::from(42)))
+                    }
+                    other => panic!("unexpected value: {other}"),
+                }
+            }
+        }
     }
 
     #[test]
