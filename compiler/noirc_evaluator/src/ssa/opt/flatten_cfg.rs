@@ -1082,65 +1082,22 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
-        // Walk backwards through a chain of ArraySet instructions from value,
-        // collecting (index, value, mutable) at each step, until we find an ArraySet
-        // whose base was loaded from the same address.
-        let mut chain = Vec::new();
-        let mut current = value;
+        // Each array_set is emitted under `enable_side_effects u1 1` so that
+        // `remove_unreachable_instructions` won't zero it out. ArraySet has
+        // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
+        // already accounts for the condition, and array_set in ACIR is
+        // protected by memory ops (predicated_index/predicated_store_value).
+        let protect_array_set = true;
 
-        for _ in 0..MAX_ARRAY_SET_CHAIN_DEPTH {
-            if self.inserter.function.dfg.is_global(current) {
-                return None;
-            }
-
-            let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[current]
-            else {
-                return None;
-            };
-
-            let Instruction::ArraySet { array, index, value: new_val, mutable } =
-                self.inserter.function.dfg[*instruction].clone()
-            else {
-                return None;
-            };
-
-            let array = self.inserter.resolve(array);
-            let index = self.inserter.resolve(index);
-            let new_val = self.inserter.resolve(new_val);
-
-            chain.push((index, new_val, mutable));
-
-            if self.was_loaded_from_address(array, address) {
-                // Found the base - emit merged array_sets in forward order (innermost first)
-                chain.reverse();
-                let else_condition = self.not_instruction(condition, call_stack);
-
-                let mut result = previous_value;
-                for (idx, val, mutable) in chain {
-                    // Each array_set is emitted under `enable_side_effects u1 1` so that
-                    // `remove_unreachable_instructions` won't zero it out. ArraySet has
-                    // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
-                    // already accounts for the condition, and array_set in ACIR is
-                    // protected by memory ops (predicated_index/predicated_store_value).
-                    result = self.create_merged_array_set(
-                        result,
-                        idx,
-                        val,
-                        condition,
-                        else_condition,
-                        mutable,
-                        call_stack,
-                        true, // protect_array_set
-                    );
-                }
-
-                return Some(result);
-            }
-
-            current = array;
-        }
-
-        None
+        self.try_optimize_array_set_merge_inner(
+            value,
+            previous_value,
+            condition,
+            |this| this.not_instruction(condition, call_stack),
+            call_stack,
+            protect_array_set,
+            |this, array| this.was_loaded_from_address(array, address),
+        )
     }
 
     /// Check if a value was the result of loading from a specific address.
@@ -1175,6 +1132,28 @@ impl<'f> Context<'f> {
         then_condition: ValueId,
         else_condition: ValueId,
         call_stack: CallStackId,
+    ) -> Option<ValueId> {
+        self.try_optimize_array_set_merge_inner(
+            then_value,
+            else_value,
+            then_condition,
+            |_| else_condition,
+            call_stack,
+            false,
+            |_, array| array == else_value,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_optimize_array_set_merge_inner(
+        &mut self,
+        then_value: ValueId,
+        else_value: ValueId,
+        then_condition: ValueId,
+        mut else_condition: impl FnMut(&mut Self) -> ValueId,
+        call_stack: CallStackId,
+        protect_array_set: bool,
+        is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
         // Walk backwards through a chain of ArraySet instructions from then_value,
         // collecting (index, value, mutable) at each step, until we find else_value
@@ -1213,9 +1192,11 @@ impl<'f> Context<'f> {
 
             chain.push((index, value, mutable));
 
-            if array == else_value {
+            if is_base_array(self, array) {
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
+                // Lazily create the else condition, now that we know the optimization is possible.
+                let else_condition = else_condition(self);
                 let mut result = else_value;
                 for (idx, val, mutable) in chain {
                     result = self.create_merged_array_set(
@@ -1226,7 +1207,7 @@ impl<'f> Context<'f> {
                         else_condition,
                         mutable,
                         call_stack,
-                        false,
+                        protect_array_set,
                     );
                 }
                 return Some(result);
