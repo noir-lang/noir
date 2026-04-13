@@ -2778,7 +2778,7 @@ mod tests {
             } else {
                 match &result[0] {
                     Value::ArrayOrVector(ArrayValue { elements, .. }) => {
-                        assert_eq!(elements.borrow()[3], Value::field(FieldElement::from(42)))
+                        assert_eq!(elements.borrow()[3], Value::field(FieldElement::from(42)));
                     }
                     other => panic!("unexpected value: {other}"),
                 }
