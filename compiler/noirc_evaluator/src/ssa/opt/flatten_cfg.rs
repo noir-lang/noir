@@ -977,9 +977,7 @@ impl<'f> Context<'f> {
         // the original value (IfElse selects else_value), making it a no-op.
         // For constant in-bounds indices, no safe index is needed (avoids opcode overhead).
         let dfg = &self.inserter.function.dfg;
-        let is_known_safe =
-            dfg.get_numeric_constant(index).is_some() && dfg.is_safe_index(index, base_array);
-        let safe_index = if is_known_safe {
+        let safe_index = if dfg.is_safe_index(index, base_array) {
             index
         } else {
             // The fallback must be a valid index of the correct type to avoid type
