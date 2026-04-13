@@ -1466,3 +1466,48 @@ fn no_confirmed_move_for_outer_use_before_loop_with_self_assignment() {
     }
     ");
 }
+
+#[test]
+fn no_confirmed_move_for_dead_code_after_break() {
+    // `x = [4,5,6]` is dead code after `break`. The earlier `let mut y = x`
+    // must clone `x` because `x = [4,5,6]` never actually executes.
+    let src = "
+    unconstrained fn main(arr: [Field; 3]) {
+        let mut x = arr;
+        let mut i = 0;
+        while (i < 3) {
+            i += 1;
+            x = x;
+            let mut y = x;
+            y[0] = 100;
+            use_var(y);
+            break;
+            x = [4, 5, 6];
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` in `let mut y = x` must be cloned — the dead `x = [4,5,6]` after break
+    // must NOT cause it to be treated as a confirmed move.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr$l0: [Field; 3]) -> () {
+        let mut x$l1 = arr$l0;
+        let mut i$l2 = 0;
+        while (i$l2 < 3) {
+            i$l2 = (i$l2 + 1);
+            x$l1 = x$l1;
+            let mut y$l3 = x$l1.clone();
+            y$l3[0] = 100;
+            use_var$f1(y$l3);;
+            break;
+            x$l1 = [4, 5, 6]
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
