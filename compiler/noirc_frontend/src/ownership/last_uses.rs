@@ -218,6 +218,7 @@ impl LastUseContext {
     fn find_last_uses_in_loop_body(&mut self, body_exprs: &[&Expression]) {
         let pending_lengths: HashMap<LocalId, usize> =
             self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
+        let saved_seen = self.seen.clone();
 
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
@@ -227,12 +228,21 @@ impl LastUseContext {
         self.loop_depth = loop_body_depth - 1;
 
         // Variables declared outside this loop cannot be moved inside it.
-        // Truncate their pending uses back to the pre-loop lengths.
+        // Truncate their pending uses back to the pre-loop lengths, and restore
+        // their `seen` state — an assignment inside the loop must not punch a hole
+        // in `seen` that misleads the traversal of code before the loop.
         for (id, uses) in &mut self.pending_last_uses {
             let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
             if decl_depth < loop_body_depth {
                 let before_len = pending_lengths.get(id).copied().unwrap_or(0);
                 uses.truncate(before_len);
+            }
+        }
+        // Reinsert anything we have seen before, so nothing before the loop becomes a new last use.
+        for id in &saved_seen {
+            let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
+            if decl_depth < loop_body_depth {
+                self.seen.insert(*id);
             }
         }
     }
