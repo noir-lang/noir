@@ -967,7 +967,7 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         mutable: bool,
         call_stack: CallStackId,
-        protect_array_set: bool,
+        mut protect_array_set: bool,
     ) -> ValueId {
         let typ = self.inserter.function.dfg.type_of_value(new_value).into_owned();
 
@@ -1004,6 +1004,11 @@ impl<'f> Context<'f> {
                 call_stack,
             )
         };
+
+        // We can skip emitting `enable_side_effects u1 1` if the wouldn't have no additional effect.
+        if self.no_predicate || self.get_last_condition().is_none() {
+            protect_array_set = false;
+        }
 
         if protect_array_set {
             let one =
