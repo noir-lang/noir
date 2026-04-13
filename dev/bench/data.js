@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776102197968,
+  "lastUpdate": 1776107279005,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22151,48 +22151,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "784afa24c27b43cacbd28015028e7d2312b000ef",
-          "message": "fix(fmt): indent block inside index assignment (#12133)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
-          "timestamp": "2026-04-06T17:35:02Z",
-          "tree_id": "2183d7f5fc1381b1b8a3c2e1a93d0652e39e9b19",
-          "url": "https://github.com/noir-lang/noir/commit/784afa24c27b43cacbd28015028e7d2312b000ef"
-        },
-        "date": 1775498281977,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128745,
-            "range": "± 1145",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113812,
-            "range": "± 2773",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3045150,
-            "range": "± 6074",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "c09ce9a7dbec1708a8b167fad7411ece61d8b9ea",
           "message": "chore: simpler `function_is_unconstrained` check (#12136)",
           "timestamp": "2026-04-06T20:51:15Z",
@@ -24234,6 +24192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040569,
             "range": "± 2198",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "55a01b24e39a27a64107293be03342910e3032f2",
+          "message": "fix(docs): update sgn0 signature from u1 to bool (#12250)",
+          "timestamp": "2026-04-13T18:44:13Z",
+          "tree_id": "cae38e896319d1b013eb0454137c82b145592e8f",
+          "url": "https://github.com/noir-lang/noir/commit/55a01b24e39a27a64107293be03342910e3032f2"
+        },
+        "date": 1776107225326,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168957,
+            "range": "± 591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138362,
+            "range": "± 2216",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645026,
+            "range": "± 2303",
             "unit": "ns/iter"
           }
         ]
