@@ -1018,4 +1018,27 @@ mod tests {
         // the stale Field 0.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
+
+    #[test]
+    fn regression_12234_loop_alias_lost_through_if_else() {
+        // v5 might alias v3, which is a loop alias, but IfElse does not
+        // propagate the loop-alias property. The store to v2 before the
+        // load must not be eliminated.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            jmp b1(v0)
+          b1(v3: &mut Field):
+            v4 = not v1
+            v5 = if v1 then v0 else (if v4) v3
+            store Field 1 at v2
+            v6 = load v5 -> Field
+            store Field 2 at v2
+            return v6
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
 }
