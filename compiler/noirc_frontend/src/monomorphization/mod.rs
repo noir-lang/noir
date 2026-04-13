@@ -2730,7 +2730,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirMatch::Failure { .. } => {
                 let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
                 let msg = "match failure";
-                let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
+                let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.as_bytes().to_vec()));
 
                 let length: u32 = msg.len().try_into().expect(
                     "ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32",
@@ -3268,5 +3268,5 @@ fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Express
     let abi_as_string =
         serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
 
-    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string.into_bytes())));
 }

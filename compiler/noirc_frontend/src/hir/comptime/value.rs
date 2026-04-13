@@ -484,8 +484,7 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
             Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+                HirExpression::Literal(HirLiteral::Str(Rc::unwrap_or_clone(bytes)))
             }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
