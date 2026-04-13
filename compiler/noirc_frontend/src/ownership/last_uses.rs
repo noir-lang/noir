@@ -382,7 +382,6 @@ impl LastUseContext {
         if let ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) =
             &assign.lvalue
         {
-            self.killed.insert(*local_id);
             self.seen.remove(local_id);
             let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
 
@@ -396,6 +395,9 @@ impl LastUseContext {
             {
                 let confirmed: Vec<_> = uses.drain(pending_before..).collect();
                 self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
+            } else {
+                // x does not appear in RHS: fresh value, safe to treat as killed
+                self.killed.insert(*local_id);
             }
             return;
         }
