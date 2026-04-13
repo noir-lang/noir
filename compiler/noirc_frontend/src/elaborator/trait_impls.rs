@@ -465,11 +465,7 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.typ == override_trait_constraint.typ
-                        && impl_constraint.trait_bound.trait_id
-                            == override_trait_constraint.trait_bound.trait_id
-                        && impl_constraint.trait_bound.trait_generics
-                            == override_trait_constraint.trait_bound.trait_generics
+                    constraints_unify(impl_constraint, &override_trait_constraint).is_ok()
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -1061,4 +1057,50 @@ impl Elaborator<'_> {
             wildcard_allowed,
         )
     }
+}
+
+/// Returns true if the impl-level `where` constraint and the method-level
+/// override constraint refer to the same trait on the same type with the same
+/// trait generics. Note that no type bindings are committed on success.
+fn constraints_unify(
+    impl_constraint: &TraitConstraint,
+    override_constraint: &TraitConstraint,
+) -> bool {
+    constraints_unify_helper(impl_constraint, override_constraint).is_some()
+}
+
+/// Helper so we can use `?` without `try` blocks being stable
+fn constraints_unify_helper(
+    impl_constraint: &TraitConstraint,
+    override_constraint: &TraitConstraint,
+) -> Option<()> {
+    // This just lets us early-return `None` for `false` conditions
+    let require = |cond: bool| cond.then_some(());
+
+    require(impl_constraint.trait_bound.trait_id != override_constraint.trait_bound.trait_id)?;
+
+    let mut bindings = TypeBindings::default();
+    impl_constraint.typ.try_unify(&override_constraint.typ, &mut bindings).ok()?;
+
+    let impl_generics = &impl_constraint.trait_bound.trait_generics;
+    let override_generics = &override_constraint.trait_bound.trait_generics;
+
+    require(impl_generics.ordered.len() != override_generics.ordered.len())?;
+
+    let generics = impl_generics.ordered.iter().zip(&override_generics.ordered);
+    for (impl_generic, override_generic) in generics {
+        impl_generic.try_unify(override_generic, &mut bindings).ok()?;
+    }
+
+    require(impl_generics.named.len() != override_generics.named.len())?;
+
+    let named_override_generics = &override_generics.named;
+    for impl_named in &impl_generics.named {
+        let override_named = named_override_generics
+            .iter()
+            .find(|named| named.name.as_str() == impl_named.name.as_str())?;
+
+        impl_named.typ.try_unify(&override_named.typ, &mut bindings).ok()?;
+    }
+    Some(())
 }
