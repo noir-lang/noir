@@ -1513,7 +1513,7 @@ impl FunctionContext<'_> {
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
-            let message = String::from_utf8_lossy(&static_string).into_owned();
+            let message = String::from_utf8_lossy(static_string).into_owned();
             Ok(Some(ConstrainError::StaticString(message)))
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
