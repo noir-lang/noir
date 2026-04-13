@@ -278,7 +278,7 @@ impl LastUseContext {
         // Process the then-branch
         self.find_last_uses_in_expression(&if_expr.consequence);
         let mut merged = std::mem::replace(&mut self.seen, saved_seen.clone());
-        let then_killed = std::mem::replace(&mut self.killed, saved_killed.clone());
+        let then_killed = std::mem::replace(&mut self.killed, saved_killed);
 
         // Process the else-branch, or use saved_seen for the implicit "do nothing" path
         if let Some(alt) = &if_expr.alternative {
