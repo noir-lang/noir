@@ -51,7 +51,9 @@ fn helper(mut x: i32) {
 
 ## Non-local mutability
 
-Non-local mutability can be achieved through the [mutable reference type `&mut T`](./data_types/references.md):
+Non-local mutability can be achieved through the [mutable reference type `&mut T`](./data_types/references.md). Noir also supports immutable references (`&T`) for read-only access — see [References](./data_types/references.md) for details on both reference types.
+
+Mutable references are created with `&mut`:
 
 ```rust
 fn set_to_zero(x: &mut Field) {
