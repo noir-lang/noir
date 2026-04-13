@@ -1,10 +1,11 @@
-define: &AZ_COMMIT 2b1671a7594b69edaf765018d3aeb0b777a3f459
+define: &AZ_COMMIT e88ecdf581dbb7ade7bdc883d7da2ba86137f8e0
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 3.0
     execution-timeout: 0.08
     brillig-compilation-timeout: 3.0
@@ -15,7 +16,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 3
     execution-timeout: 0.04
     brillig-compilation-timeout: 3
@@ -26,7 +28,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 10
     compilation-timeout: 15
     execution-timeout: 0.35
     brillig-compilation-timeout: 10
@@ -38,7 +41,8 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 30
     brillig-compilation-timeout: 30
     brillig-execution-timeout: 0.01
@@ -48,7 +52,8 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx
     cannot_execute: true
-    num_runs: 1
+    num_compile_runs: 1
+    num_execute_runs: 1
     compilation-timeout: 250
     brillig-compilation-timeout: 250
     brillig-execution-timeout: 0.01
@@ -57,7 +62,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
-    num_runs: 1
+    num_compile_runs: 1
+    num_execute_runs: 1
     compilation-timeout: 250
     execution-timeout: 40
     brillig-compilation-timeout: 250
@@ -68,7 +74,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-merge
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 20
     execution-timeout: 0.75
     brillig-compilation-timeout: 20
@@ -80,7 +87,8 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     cannot_execute_brillig: true
-    num_runs: 1
+    num_compile_runs: 1
+    num_execute_runs: 5
     compilation-timeout: 500
     execution-timeout: 35
     brillig-compilation-timeout: 500
@@ -91,7 +99,8 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
     cannot_execute_brillig: true
-    num_runs: 1
+    num_compile_runs: 1
+    num_execute_runs: 5
     compilation-timeout: 525
     execution-timeout: 35
     brillig-compilation-timeout: 525
@@ -101,7 +110,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 4
     execution-timeout: 0.01
     brillig-compilation-timeout: 4
@@ -112,7 +122,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-root
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 5
     compilation-timeout: 5
     execution-timeout: 0.6
     brillig-compilation-timeout: 2
@@ -123,7 +134,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-private
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 10
     compilation-timeout: 50
     execution-timeout: 0.75
     brillig-compilation-timeout: 30
@@ -134,7 +146,8 @@ projects:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
-    num_runs: 5
+    num_compile_runs: 5
+    num_execute_runs: 10
     compilation-timeout: 150
     execution-timeout: 0.75
     brillig-compilation-timeout: 120
@@ -144,7 +157,8 @@ projects:
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
-    num_runs: 20
+    num_compile_runs: 20
+    num_execute_runs: 20
     compilation-timeout: 2
     execution-timeout: 0.6
     brillig-compilation-timeout: 2
@@ -154,7 +168,8 @@ projects:
   sha512-100-bytes:
     repo: noir-lang/noir
     path: test_programs/benchmarks/sha512_100_bytes
-    num_runs: 10
+    num_compile_runs: 10
+    num_execute_runs: 20
     compilation-timeout: 10
     execution-timeout: 5
     brillig-compilation-timeout: 10

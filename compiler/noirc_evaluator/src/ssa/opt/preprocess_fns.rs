@@ -67,6 +67,8 @@ impl Ssa {
             );
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
+            function.load_store_forwarding();
+            function.remove_redundant_params();
 
             // Try to reduce the number of blocks.
             function.simplify_function();
@@ -78,7 +80,7 @@ impl Ssa {
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
         // Remove leftover instructions.
-        Ok(ssa.dead_instruction_elimination_pre_flattening())
+        Ok(ssa.dead_instruction_elimination())
     }
 }
 

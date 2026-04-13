@@ -383,7 +383,7 @@ impl<'function> PerFunctionContext<'function> {
     ) {
         let original_parameters = self.source_function.dfg.block_parameters(source_block);
         for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let typ = self.source_function.dfg.type_of_value(*parameter).into_owned();
             let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
             self.values.insert(*parameter, new_parameter);
         }
@@ -582,7 +582,7 @@ impl<'function> PerFunctionContext<'function> {
         if new_results.is_empty() && !old_results.is_empty() {
             let unreachable_block = self.context.builder.insert_block();
             for old_result in old_results {
-                let typ = self.source_function.dfg.type_of_value(*old_result);
+                let typ = self.source_function.dfg.type_of_value(*old_result).into_owned();
                 let param = self.context.builder.add_block_parameter(unreachable_block, typ);
                 self.values.insert(*old_result, param);
             }
@@ -611,9 +611,9 @@ impl<'function> PerFunctionContext<'function> {
             .extend_call_stack(call_stack, &source_call_stack);
         let results = self.source_function.dfg.instruction_results(id).to_vec();
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
+        let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+            vecmap(&results, |result| self.source_function.dfg.type_of_value(*result).into_owned())
+        });
 
         self.context.builder.set_call_stack(call_stack);
 

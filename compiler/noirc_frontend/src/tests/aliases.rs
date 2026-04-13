@@ -515,13 +515,22 @@ fn regression_10352_slice() {
 #[test]
 fn regression_10352_trait_as_type() {
     let src = r#"
-    trait Foo<T> {}
+    struct Foo {
+        x: impl Bar,
+                ^^^ `impl Trait` is not allowed in struct field types
+                ~~~ Use a generic type parameter instead
+    }
 
-    type Alias = impl Foo<Alias>;
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {
+            self.x.bar();
+        }
+    }
 
-    fn main(_: Alias) {}
-               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
-               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    fn main(_a: Foo) {}
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
@@ -607,7 +616,7 @@ fn regression_10352_immutable_reference() {
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -729,7 +738,7 @@ fn regression_10763_immutable() {
         fn foo(self) { }
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -769,6 +778,8 @@ fn regression_10764_trait_as_type_with_empty_trait() {
     trait Foo { }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -815,6 +826,8 @@ fn regression_10764_trait_as_type() {
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -867,10 +880,14 @@ fn regression_10764_underscore() {
 fn regression_10764_trait_as_type_impl() {
     let src = r#"
     trait Foo {
+          ^^^ unused trait Foo
+          ~~~ unused trait
         fn foo(self);
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Bar {
          ^^^ Non-enum, non-struct type used in impl
@@ -1110,6 +1127,18 @@ fn type_alias_takes_priority_over_global_with_same_name() {
             let x: Foo = 20;
             assert(x == 20);
         }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
     "#;
     assert_no_errors(src);
 }

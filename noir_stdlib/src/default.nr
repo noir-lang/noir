@@ -1,5 +1,8 @@
 use crate::meta::derive_via;
 
+/// Return an implementation-defined default value for the given type.
+/// This is most often a zeroed value or an empty container, but there
+/// are no actual restrictions on what an implementation could return.
 #[derive_via(derive_default)]
 // docs:start:default-trait
 pub trait Default {
@@ -21,11 +24,6 @@ impl Default for Field {
     }
 }
 
-impl Default for u1 {
-    fn default() -> u1 {
-        0
-    }
-}
 impl Default for u8 {
     fn default() -> u8 {
         0

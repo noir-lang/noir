@@ -2,6 +2,8 @@ use crate::cmp::{Eq, Ord, Ordering};
 use crate::default::Default;
 use crate::hash::{Hash, Hasher};
 
+/// Represents a value of type T or its absence.
+/// Use `Option::some(value)` to construct a value or `Option::none()` to record the absence of one.
 pub struct Option<T> {
     _is_some: bool,
     _value: T,
@@ -19,12 +21,12 @@ impl<T> Option<T> {
     }
 
     /// True if this Option is None
-    pub fn is_none(self) -> bool {
+    pub fn is_none(&self) -> bool {
         !self._is_some
     }
 
     /// True if this Option is Some
-    pub fn is_some(self) -> bool {
+    pub fn is_some(&self) -> bool {
         self._is_some
     }
 

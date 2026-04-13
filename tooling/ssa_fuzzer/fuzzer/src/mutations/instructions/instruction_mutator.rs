@@ -34,7 +34,7 @@ use crate::mutations::{
     instructions::argument_mutator::numeric_argument_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 /// Return new random instruction
 struct RandomMutation;
@@ -241,6 +241,11 @@ impl InstructionArgumentsMutation {
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
                 let idx = rng.random_range(0..u64_indices.len());
                 mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+            }
+            Instruction::Poseidon2Permutation { field_indices, load_elements_of_array } => {
+                let idx = rng.random_range(0..field_indices.len());
+                mutate_usize(&mut field_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
             }
             Instruction::Sha256Compression {

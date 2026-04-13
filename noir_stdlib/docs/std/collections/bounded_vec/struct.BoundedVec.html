@@ -104,7 +104,7 @@ via a type signature:</p>
     <span class="kw">let</span> <span class="kw">mut</span> v3 = BoundedVec::new();
     v3.push(<span class="number">5</span>);
 }</code></pre></div>
-</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
+</div><code id="get" class="code-header">pub fn <a href="#get"><span class="fn">get</span></a>(&mut self: &Self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retrieves an element from the vector at the given index, starting from zero.</p>
@@ -116,7 +116,7 @@ will issue a constraint failure.</p>
     <span class="kw">let</span> last = v.get(v.len() - <span class="number">1</span>);
     <span class="kw">assert</span>(first != last);
 }</code></pre></div>
-</div><code id="get_unchecked" class="code-header">pub fn <a href="#get_unchecked"><span class="fn">get_unchecked</span></a>(self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
+</div><code id="get_unchecked" class="code-header">pub fn <a href="#get_unchecked"><span class="fn">get_unchecked</span></a>(&mut self: &Self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retrieves an element from the vector at the given index, starting from zero, without
@@ -189,7 +189,7 @@ v.push(<span class="number">2</span>);
 
 <span class="comment">// Panics with failed assertion "push out of bounds"</span>
 v.push(<span class="number">3</span>);</code></pre></div>
-</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the current length of this vector</p>
@@ -208,7 +208,7 @@ v.push(<span class="number">400</span>);
 <span class="kw">let</span> _ = v.pop();
 <span class="kw">let</span> _ = v.pop();
 <span class="kw">assert</span>(v.len() == <span class="number">2</span>);</code></pre></div>
-</div><code id="max_len" class="code-header">pub fn <a href="#max_len"><span class="fn">max_len</span></a>(_self: Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="max_len" class="code-header">pub fn <a href="#max_len"><span class="fn">max_len</span></a>(_self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum length of this vector. This is always
@@ -311,7 +311,7 @@ v.extend_from_array([<span class="number">2</span>, <span class="number">4</span
 
 <span class="kw">let</span> all_even = !v.any(|elem: u32| elem % <span class="number">2</span> != <span class="number">0</span>);
 <span class="kw">assert</span>(all_even);</code></pre></div>
-</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
+</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(&mut self: &Self, f: fn[Env](T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new vector of equal size by calling a closure on each element in this vector.</p>
@@ -321,7 +321,7 @@ v.extend_from_array([<span class="number">2</span>, <span class="number">4</span
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">8</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(&mut self: &Self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;U, MaxLen&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new vector of equal size by calling a closure on each element
@@ -332,7 +332,7 @@ in this vector, along with its index.</p>
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>, <span class="number">11</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(&mut self: &Self, f: fn[Env](T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Calls a closure on each element in this vector.</p>
@@ -343,7 +343,7 @@ vec.for_each(|value| result.push(value * <span class="number">2</span>));
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">8</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
-</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(&mut self: &Self, f: fn[Env](<a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Calls a closure on each element in this vector, along with its index.</p>

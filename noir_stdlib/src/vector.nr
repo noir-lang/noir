@@ -47,6 +47,8 @@ impl<T> [T] {
         self
     }
 
+    /// Converts this vector into an array of length N.
+    /// Panics if the length of this vector is not N.
     pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
@@ -57,8 +59,8 @@ impl<T> [T] {
         array
     }
 
-    // Apply a function to each element of the vector, returning a new vector
-    // containing the mapped elements.
+    /// Apply a function to each element of the vector, returning a new vector
+    /// containing the mapped elements.
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {
         let mut ret = [].as_vector();
         for elem in self {
@@ -67,8 +69,8 @@ impl<T> [T] {
         ret
     }
 
-    // Apply a function to each element of the vector with its index, returning a
-    // new vector containing the mapped elements.
+    /// Apply a function to each element of the vector with its index, returning a
+    /// new vector containing the mapped elements.
     pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
         let mut ret = [].as_vector();
         let mut index = 0;
@@ -79,14 +81,14 @@ impl<T> [T] {
         ret
     }
 
-    // Apply a function to each element of the vector
+    /// Apply a function to each element of the vector
     pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
         for elem in self {
             f(elem);
         }
     }
 
-    // Apply a function to each element of the vector with its index
+    /// Apply a function to each element of the vector with its index
     pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
         let mut index = 0;
         for elem in self {
@@ -95,9 +97,9 @@ impl<T> [T] {
         }
     }
 
-    // Apply a function to each element of the vector and an accumulator value,
-    // returning the final accumulated value. This function is also sometimes
-    // called `foldl`, `fold_left`, `reduce`, or `inject`.
+    /// Apply a function to each element of the vector and an accumulator value,
+    /// returning the final accumulated value. This function is also sometimes
+    /// called `foldl`, `fold_left`, `reduce`, or `inject`.
     pub fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
         for elem in self {
             accumulator = f(accumulator, elem);
@@ -105,9 +107,9 @@ impl<T> [T] {
         accumulator
     }
 
-    // Apply a function to each element of the vector and an accumulator value,
-    // returning the final accumulated value. Unlike fold, reduce uses the first
-    // element of the given vector as its starting accumulator value.
+    /// Apply a function to each element of the vector and an accumulator value,
+    /// returning the final accumulated value. Unlike fold, reduce uses the first
+    /// element of the given vector as its starting accumulator value.
     pub fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1..self.len() {
@@ -116,8 +118,8 @@ impl<T> [T] {
         accumulator
     }
 
-    // Returns a new vector containing only elements for which the given predicate
-    // returns true.
+    /// Returns a new vector containing only elements for which the given predicate
+    /// returns true.
     pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
         let mut ret = [].as_vector();
         for elem in self {
@@ -128,7 +130,7 @@ impl<T> [T] {
         ret
     }
 
-    // Flatten each element in the vector into one value, separated by `separator`.
+    /// Flatten each element in the vector into one value, separated by `separator`.
     pub fn join(self, separator: T) -> T
     where
         T: Append,
@@ -146,7 +148,7 @@ impl<T> [T] {
         ret
     }
 
-    // Returns true if all elements in the vector satisfy the predicate
+    /// Returns true if all elements in the vector satisfy the predicate
     pub fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = true;
         for elem in self {
@@ -155,7 +157,7 @@ impl<T> [T] {
         ret
     }
 
-    // Returns true if any element in the vector satisfies the predicate
+    /// Returns true if any element in the vector satisfies the predicate
     pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         for elem in self {

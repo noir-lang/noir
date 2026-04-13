@@ -459,7 +459,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Bool => Type::Primitive(PrimitiveTypeKind::Bool),
             noirc_frontend::Type::Integer(signedness, bit_size) => match signedness {
                 Signedness::Unsigned => match bit_size {
-                    IntegerBitSize::One => Type::Primitive(PrimitiveTypeKind::U1),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::U8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::U16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::U32),
@@ -467,7 +466,6 @@ impl DocItemBuilder<'_> {
                     IntegerBitSize::HundredTwentyEight => Type::Primitive(PrimitiveTypeKind::U128),
                 },
                 Signedness::Signed => match bit_size {
-                    IntegerBitSize::One => panic!("There is no signed 1-bit integer"),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::I8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::I16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::I32),
@@ -620,7 +618,7 @@ impl DocItemBuilder<'_> {
         let comments = self.doc_comments(ReferenceId::Function(func_id));
         let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
-            let is_self = self.pattern_is_self(pattern);
+            let is_self = pattern.is_self(self.interner);
 
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
             let mut mut_ref = false;
@@ -844,17 +842,6 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
-        match pattern {
-            HirPattern::Identifier(ident) => {
-                let definition = self.interner.definition(ident.id);
-                definition.name == "self"
-            }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
-        }
-    }
-
     fn get_module_def_id_name(&self, id: ModuleDefId) -> String {
         match id {
             ModuleDefId::ModuleId(module_id) => {
@@ -894,7 +881,6 @@ pub(crate) fn convert_primitive_type(
     match primitive_type {
         noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
         noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
-        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
         noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
         noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
         noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,

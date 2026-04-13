@@ -45,6 +45,7 @@ impl Elaborator<'_> {
     /// Defines function metadata for all functions, impl methods, and trait impl methods.
     /// This is the first pass of function elaboration that extracts type signatures and
     /// resolves generics before the function bodies are elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_metas(
         &mut self,
         functions: &mut [UnresolvedFunctions],
@@ -76,6 +77,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for a set of functions with optional extra trait constraints.
     /// This is used for both standalone functions and methods within impls/trait impls.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_functions(
         &mut self,
         function_set: &mut UnresolvedFunctions,
@@ -91,6 +93,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within an impl block.
     /// Resolves the self type and adds it to scope for method resolution.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_impl(
         &mut self,
         self_type: &UnresolvedType,
@@ -119,6 +122,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within a trait impl.
     /// This handles trait resolution, generics, associated types, and constraint checking.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_trait_impl(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -152,6 +156,7 @@ impl Elaborator<'_> {
     ///
     /// Prerequisite: any implicit generics from enclosing impls have already been added
     /// to scope via [Self::add_generics].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_meta(
         &mut self,
         func: &mut NoirFunction,
@@ -287,6 +292,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (generics, associated_generics_trait_constraints) where generics contains
     /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
+    #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
         &mut self,
         func_generics: &UnresolvedGenerics,
@@ -340,6 +346,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (parameters, parameter_types, parameter_idents) where generics and
     /// trait_constraints may be extended due to `impl Trait` desugaring.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_parameters(
         &mut self,
         func: &NoirFunction,
@@ -456,6 +463,7 @@ impl Elaborator<'_> {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
         self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
@@ -484,6 +492,7 @@ impl Elaborator<'_> {
     /// This is the second pass of function elaboration that processes the function body,
     /// resolves all expressions and statements, performs type checking, and verifies
     /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =

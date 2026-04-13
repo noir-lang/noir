@@ -48,7 +48,6 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
@@ -697,7 +696,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
-                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolved(value) => {
+                        // Enum variant globals with generics are instantiated with a Type::Forall
+                        // We need to resolve the type, but it has already been done by the elaborator
+                        if let Value::Enum(tag, fields, _) = value {
+                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
+                        } else {
+                            Ok(value.clone())
+                        }
+                    }
                     GlobalValue::Resolving => {
                         // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
                         // but the general dependency cycle detector will give a better error later on during compilation.
@@ -1185,12 +1193,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Type::apply_type_bindings(bindings);
             }
             Err(UnificationError) => {
-                let error = TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: actual_type.to_string(),
-                    expr_location: location,
-                };
-                self.elaborator.push_err(error);
+                self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
+                    &actual_type,
+                    &expected_type,
+                    location,
+                ));
             }
         }
     }
@@ -1526,7 +1533,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::Integer(Integer::U1(_)) => |i| Value::Integer(Integer::U1(i == 1)),
                 Value::Integer(Integer::U8(_)) => |i| Value::Integer(Integer::U8(i as u8)),
                 Value::Integer(Integer::U16(_)) => |i| Value::Integer(Integer::U16(i as u16)),
                 Value::Integer(Integer::U32(_)) => |i| Value::Integer(Integer::U32(i as u32)),
@@ -1786,9 +1792,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::i64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::Integer(Integer::U1(_)) => {
-                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" })
-            }
             Value::Integer(Integer::U8(_)) => {
                 Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" })
             }
@@ -1816,7 +1819,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::Integer(Integer::I16(value)) => Ok(Value::i16(!value)),
             Value::Integer(Integer::I32(value)) => Ok(Value::i32(!value)),
             Value::Integer(Integer::I64(value)) => Ok(Value::i64(!value)),
-            Value::Integer(Integer::U1(value)) => Ok(Value::u1(!value)),
             Value::Integer(Integer::U8(value)) => Ok(Value::u8(!value)),
             Value::Integer(Integer::U16(value)) => Ok(Value::u16(!value)),
             Value::Integer(Integer::U32(value)) => Ok(Value::u32(!value)),
@@ -1848,7 +1850,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U1(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U32(value)) => Some(u128::from(value)),

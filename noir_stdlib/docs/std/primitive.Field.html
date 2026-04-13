@@ -141,10 +141,10 @@ Smaller integer types (e.g. <code>u64</code>) incur extra range constraints.</p>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^{bit_size}</code>.</p>
 </div>
-</div><code id="to_le_bits" class="code-header">pub fn <a href="#to_le_bits"><span class="fn">to_le_bits</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.u1.html" class="primitive">u1</a>; N]</code>
+</div><code id="to_le_bits" class="code-header">pub fn <a href="#to_le_bits"><span class="fn">to_le_bits</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.bool.html" class="primitive">bool</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Decomposes <code>self</code> into its little endian bit decomposition as a <code>[u1; N]</code> array.
+<p>Decomposes <code>self</code> into its little endian bit decomposition as a <code>[bool; N]</code> array.
 This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
@@ -152,10 +152,10 @@ be able to represent the original <code>Field</code>.</p>
 <h4>Safety</h4>
 <p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p>
 </div>
-</div><code id="to_be_bits" class="code-header">pub fn <a href="#to_be_bits"><span class="fn">to_be_bits</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.u1.html" class="primitive">u1</a>; N]</code>
+</div><code id="to_be_bits" class="code-header">pub fn <a href="#to_be_bits"><span class="fn">to_be_bits</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.bool.html" class="primitive">bool</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Decomposes <code>self</code> into its big endian bit decomposition as a <code>[u1; N]</code> array.
+<p>Decomposes <code>self</code> into its big endian bit decomposition as a <code>[bool; N]</code> array.
 This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
@@ -187,7 +187,7 @@ and no more than the number of bytes required to represent the field modulus</p>
 </div>
 </div><code id="pow_32" class="code-header">pub fn <a href="#pow_32"><span class="fn">pow_32</span></a>(self, exponent: Self) -> Self</code>
 
-<code id="sgn0" class="code-header">pub fn <a href="#sgn0"><span class="fn">sgn0</span></a>(self) -> <a href="../std/primitive.u1.html" class="primitive">u1</a></code>
+<code id="sgn0" class="code-header">pub fn <a href="#sgn0"><span class="fn">sgn0</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <code id="lt" class="code-header">pub fn <a href="#lt"><span class="fn">lt</span></a>(self, another: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 

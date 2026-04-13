@@ -4,13 +4,13 @@ use noirc_errors::{Location, Span};
 use crate::{
     BinaryTypeOperator, ParsedModule,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
-        Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
-        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
-        UnresolvedGeneric, UseTree, UseTreeKind,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem,
+        TypeImpl, UnresolvedGeneric, UseTree, UseTreeKind,
     },
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
@@ -306,6 +306,10 @@ pub trait Visitor {
     }
 
     fn visit_assign_statement(&mut self, _: &AssignStatement) -> bool {
+        true
+    }
+
+    fn visit_assign_op_statement(&mut self, _: &AssignOpStatement) -> bool {
         true
     }
 
@@ -1229,6 +1233,9 @@ impl Statement {
             StatementKind::Assign(assign_statement) => {
                 assign_statement.accept(visitor);
             }
+            StatementKind::AssignOp(assign_op_statement) => {
+                assign_op_statement.accept(visitor);
+            }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
             }
@@ -1294,6 +1301,19 @@ impl ConstrainExpression {
 impl AssignStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_assign_statement(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.lvalue.accept(visitor);
+        self.expression.accept(visitor);
+    }
+}
+
+impl AssignOpStatement {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_assign_op_statement(self) {
             self.accept_children(visitor);
         }
     }

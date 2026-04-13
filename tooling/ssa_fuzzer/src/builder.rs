@@ -331,7 +331,7 @@ impl FuzzerBuilder {
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
         let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable), true))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
@@ -568,6 +568,41 @@ impl FuzzerBuilder {
             .import_intrinsic("keccakf1600")
             .expect("keccakf1600 intrinsic should be available");
         let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U64)]), 25);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a poseidon2 permutation intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of field values to permute
+    ///
+    /// # Returns
+    /// An array of field values representing the poseidon2 permutation
+    pub fn insert_poseidon2_permutation(&mut self, input: TypedValue) -> TypedValue {
+        match &input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(
+                    matches!(type_of_array[0], Type::Numeric(NumericType::Field)),
+                    "poseidon2_permutation requires an array of fields as input, but received {type_of_array:?}"
+                );
+                assert!(
+                    *array_size == 4,
+                    "poseidon2_permutation requires an array of 4 fields as input, but received {array_size}"
+                );
+            }
+            _ => unreachable!("poseidon2_permutation requires an array as input"),
+        }
+        let return_type = input.type_of_variable.clone();
+        let intrinsic = self
+            .builder
+            .import_intrinsic("poseidon2_permutation")
+            .expect("poseidon2_permutation intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id],

@@ -164,8 +164,12 @@ impl DefunctionalizationContext {
                     let mut arguments = arguments.clone();
                     let results = func.dfg.instruction_results(instruction_id);
                     let signature = Signature {
-                        params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                        returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        params: vecmap(&arguments, |param| {
+                            func.dfg.type_of_value(*param).into_owned()
+                        }),
+                        returns: vecmap(results, |result| {
+                            func.dfg.type_of_value(*result).into_owned()
+                        }),
                     };
 
                     // Find the correct apply function
@@ -416,8 +420,12 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
                         let results = func.dfg.instruction_results(*instruction_id);
                         dispatches.insert(Signature {
-                            params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                            params: vecmap(arguments, |param| {
+                                func.dfg.type_of_value(*param).into_owned()
+                            }),
+                            returns: vecmap(results, |result| {
+                                func.dfg.type_of_value(*result).into_owned()
+                            }),
                         });
                     }
                 }
@@ -776,7 +784,9 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
+        Type::Reference(element_type, _) => {
+            function_builder.insert_allocate((**element_type).clone())
+        }
         Type::Function => {
             unreachable!(
                 "ICE: Any function passed as a value should have already been converted to a field type"
@@ -827,8 +837,8 @@ fn defunctionalize_post_check(func: &Function) {
 fn replacement_type(typ: &Type) -> Option<Type> {
     match typ {
         Type::Function => Some(Type::field()),
-        Type::Reference(typ) => {
-            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        Type::Reference(typ, mutable) => {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ), *mutable))
         }
         Type::Numeric(_) => None,
         Type::Array(items, size) => {
@@ -2022,7 +2032,7 @@ mod tests {
         }
         "#;
 
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
         let mut variants = find_variants(&ssa);
         let ((_, caller_runtime), variants) = variants.pop_last().unwrap();

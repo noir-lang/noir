@@ -398,8 +398,8 @@ pub enum BrilligOpcode<F> {
     JumpIf { condition: MemoryAddress, location: Label },
     /// Sets the program counter to the value of `location`.
     Jump { location: Label },
-    /// Copies calldata after the `offset_address` with length indicated by `size_address`
-    /// to the specified `destination_address`.
+    /// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
+    /// to the specified `destination_address` in the memory.
     CalldataCopy {
         destination_address: MemoryAddress,
         size_address: MemoryAddress,
