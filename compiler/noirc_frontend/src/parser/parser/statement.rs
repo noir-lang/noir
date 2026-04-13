@@ -158,6 +158,20 @@ impl Parser<'_> {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
                     let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
+                    if self.eat(Token::Assign) {
+                        let expression = self.parse_expression_or_error();
+                        return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                    }
+
+                    if let Some(op) = self.next_is_op_assign() {
+                        let expression = self.parse_expression_or_error();
+                        return Some(StatementKind::AssignOp(AssignOpStatement {
+                            lvalue,
+                            op,
+                            expression,
+                        }));
+                    }
+
                     self.eat_or_error(Token::Assign);
                     let expression = self.parse_expression_or_error();
                     return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
@@ -213,7 +227,7 @@ impl Parser<'_> {
         None
     }
 
-    fn next_is_op_assign(&mut self) -> Option<AssignOp> {
+    pub(super) fn next_is_op_assign(&mut self) -> Option<AssignOp> {
         let start_location = self.current_token_location;
         let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
@@ -745,6 +759,44 @@ mod tests {
         let StatementKind::AssignOp(_) = statement.kind else {
             panic!("Expected AssignOp");
         };
+    }
+
+    #[test]
+    fn parses_op_assignment_for_interned_lvalue() {
+        use acvm::FieldElement;
+        use noirc_errors::Location;
+
+        use crate::{
+            ast::{AssignOpKind, Ident, Path},
+            node_interner::NodeInterner,
+            token::{LocatedToken, Token, Tokens},
+        };
+
+        let location = Location::dummy();
+        let mut interner = NodeInterner::default();
+        let lvalue = LValue::Path(Path::from_ident(Ident::new("x".to_string(), location)));
+        let interned = interner.push_lvalue(lvalue);
+
+        let parser = Parser::for_tokens(Tokens(vec![
+            LocatedToken::new(Token::InternedLValue(interned), location),
+            LocatedToken::new(Token::Plus, location),
+            LocatedToken::new(Token::Assign, location),
+            LocatedToken::new(Token::Int(FieldElement::from(1u128), None), location),
+        ]));
+        let (statement, warnings) = parser
+            .parse_result(Parser::parse_statement_or_error)
+            .expect("Expected successful parse");
+        expect_no_errors(&warnings);
+
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected AssignOp");
+        };
+        let LValue::Interned(id, _) = assign_op.lvalue else {
+            panic!("Expected interned lvalue");
+        };
+        assert_eq!(id, interned);
+        assert!(matches!(assign_op.op.contents, AssignOpKind::Add));
+        assert_eq!(assign_op.expression.to_string(), "1");
     }
 
     #[test]
