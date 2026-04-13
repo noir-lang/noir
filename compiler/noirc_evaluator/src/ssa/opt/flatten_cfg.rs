@@ -931,7 +931,8 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Create an array with a merged value at a single index.
+    /// Create an array with a merged value at a single index, with an option to protect
+    /// the final `array_set` from `remove_unreachable_instructions`.
     ///
     /// This is the core optimization for conditional array modifications. Instead of
     /// merging entire arrays (O(n) in remove_if_else), we merge just the scalar value
@@ -942,31 +943,6 @@ impl<'f> Context<'f> {
     /// merged = if then_condition { new_value } else { original }
     /// result = array_set(base_array, index, merged)
     /// ```
-    #[allow(clippy::too_many_arguments)]
-    fn create_merged_array_set(
-        &mut self,
-        base_array: ValueId,
-        index: ValueId,
-        new_value: ValueId,
-        then_condition: ValueId,
-        else_condition: ValueId,
-        mutable: bool,
-        call_stack: CallStackId,
-    ) -> ValueId {
-        self.create_merged_array_set_inner(
-            base_array,
-            index,
-            new_value,
-            then_condition,
-            else_condition,
-            mutable,
-            false,
-            call_stack,
-        )
-    }
-
-    /// Inner implementation of `create_merged_array_set` with an option to protect
-    /// the final `array_set` from `remove_unreachable_instructions`.
     ///
     /// When `protect_array_set` is true, the entire merge sequence (array_get, IfElse,
     /// array_set) is emitted under `enable_side_effects u1 1`:
@@ -982,7 +958,7 @@ impl<'f> Context<'f> {
     /// When the condition is false, this reads/writes at index 0 with the original value,
     /// producing a no-op. When true, it uses the real index.
     #[allow(clippy::too_many_arguments)]
-    fn create_merged_array_set_inner(
+    fn create_merged_array_set(
         &mut self,
         base_array: ValueId,
         index: ValueId,
@@ -990,8 +966,8 @@ impl<'f> Context<'f> {
         then_condition: ValueId,
         else_condition: ValueId,
         mutable: bool,
-        protect_array_set: bool,
         call_stack: CallStackId,
+        protect_array_set: bool,
     ) -> ValueId {
         let typ = self.inserter.function.dfg.type_of_value(new_value).into_owned();
 
@@ -1143,15 +1119,15 @@ impl<'f> Context<'f> {
                     // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
                     // already accounts for the condition, and array_set in ACIR is
                     // protected by memory ops (predicated_index/predicated_store_value).
-                    result = self.create_merged_array_set_inner(
+                    result = self.create_merged_array_set(
                         result,
                         idx,
                         val,
                         condition,
                         else_condition,
                         mutable,
-                        true, // protect_array_set
                         call_stack,
+                        true, // protect_array_set
                     );
                 }
 
@@ -1247,6 +1223,7 @@ impl<'f> Context<'f> {
                         else_condition,
                         mutable,
                         call_stack,
+                        false,
                     );
                 }
                 return Some(result);
