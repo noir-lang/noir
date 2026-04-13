@@ -1586,3 +1586,49 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     }
     ");
 }
+
+#[test]
+fn no_confirmed_move_for_variable_reassigned_in_loop_in_disabled_if() {
+    // Same as confirmed_move_for_variable_reassigned_in_the_loop,
+    // but the reassignment is disabled, which should prevent the kill.
+    let src = "
+    unconstrained fn main(arr: [Field; 3]) {
+        let mut x = arr;
+        let mut i = 0;
+        while (i < 3) {
+            i += 1;
+            x = x;
+            let mut y = x;
+            y[0] = 100;
+            use_var(y);
+            if false {
+                x = [4, 5, 6];
+            }
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` in `let mut y = x` gets the clone.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr$l0: [Field; 3]) -> () {
+        let mut x$l1 = arr$l0;
+        let mut i$l2 = 0;
+        while (i$l2 < 3) {
+            i$l2 = (i$l2 + 1);
+            x$l1 = x$l1;
+            let mut y$l3 = x$l1.clone();
+            y$l3[0] = 100;
+            use_var$f1(y$l3);;
+            if false {
+                x$l1 = [4, 5, 6]
+            }
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
