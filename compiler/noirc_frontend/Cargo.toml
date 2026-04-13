@@ -42,6 +42,7 @@ base64.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
 insta.workspace = true
+test-case.workspace = true
 
 [features]
 bn254 = []

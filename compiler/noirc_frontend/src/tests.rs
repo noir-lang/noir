@@ -361,7 +361,7 @@ fn get_error_line_span_and_message(
     Some((span, error))
 }
 
-fn report_all(
+pub(crate) fn report_all(
     context: &Context,
     diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,

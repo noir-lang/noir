@@ -461,6 +461,7 @@ pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
     let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
     let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
     add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
+    context.debug_crate_id = Some(debug_crate_id);
 }
 
 // Adds the file from the file system at `Path` to the crate graph
@@ -919,6 +920,7 @@ pub fn compile_no_check(
             main_function,
             &mut context.def_interner,
             &context.debug_instrumenter,
+            context.debug_crate_id,
             force_unconstrained,
         )?
     } else {

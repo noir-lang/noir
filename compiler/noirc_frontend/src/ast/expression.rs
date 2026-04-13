@@ -99,7 +99,7 @@ impl IdentOrQuotedType {
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error(
-    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers and fields"
 )]
 pub struct UnsupportedNumericGenericType {
     pub name: Option<String>,
