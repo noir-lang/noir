@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776101913564,
+  "lastUpdate": 1776101915911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -24253,105 +24253,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "a90eb429f025999a247e96f3c6b03f5267ea0648",
-          "message": "fix(lsp): correct self param when generating trait impl stub (#12098)",
-          "timestamp": "2026-04-02T15:28:44Z",
-          "tree_id": "a8c7d59cc0e2ee13ec3d5909df4164b4cc0403eb",
-          "url": "https://github.com/noir-lang/noir/commit/a90eb429f025999a247e96f3c6b03f5267ea0648"
-        },
-        "date": 1775148259141,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1041.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2237.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 513.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 250.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 254.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 311.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 389.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30650.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30667.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 414.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 5416.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4718.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 190.7,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 495,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 478.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "49c7691e5fc97906d0feb83998035f81d24c5762",
           "message": "fix: don't simplify `x | MAX` if x is signed (#12100)",
           "timestamp": "2026-04-02T15:43:27Z",
@@ -28901,6 +28802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 4708.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 189.7,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 495.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 477.8,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0ad55559cebd4fa6d67f8d80323ece389305bdb9",
+          "message": "fix(ssa): Simplify LSF to only run on single block functions (#12243)",
+          "timestamp": "2026-04-13T17:02:17Z",
+          "tree_id": "641f3ef10bf2cc966ea0329539347a9ba76359bd",
+          "url": "https://github.com/noir-lang/noir/commit/0ad55559cebd4fa6d67f8d80323ece389305bdb9"
+        },
+        "date": 1776101853414,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1022.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2241.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 509.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 249.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 253.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 310.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 390.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30657.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30683.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 415.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5410,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4708.6,
             "unit": "KB"
           },
           {
