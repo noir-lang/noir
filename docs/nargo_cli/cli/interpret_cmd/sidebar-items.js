@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_into_program","flatten_databus_value","flatten_databus_values","interpret_ssa","msg_matches","print_and_interpret_ssa","print_ssa","run"],"struct":["InterpretCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["compare_and_update_snapshot","compile_into_program","flatten_databus_value","flatten_databus_values","interpret_ssa","msg_matches","print_and_interpret_ssa","print_ssa","run"],"struct":["InterpretCommand","PassSnapshot","TeeWriter"]};
