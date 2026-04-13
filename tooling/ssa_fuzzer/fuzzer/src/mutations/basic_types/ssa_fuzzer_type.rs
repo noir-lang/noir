@@ -6,7 +6,7 @@ use crate::mutations::{
     },
 };
 use noir_ssa_fuzzer::typed_value::Type;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 use std::sync::Arc;
 
 fn generate_random_reference_type(
@@ -14,7 +14,10 @@ fn generate_random_reference_type(
     config: GenerateTypeConfig,
     vector_allowed: bool,
 ) -> Type {
-    Type::Reference(Arc::new(generate_random_ssa_fuzzer_type_internal(rng, config, vector_allowed)))
+    Type::Reference(
+        Arc::new(generate_random_ssa_fuzzer_type_internal(rng, config, vector_allowed)),
+        true,
+    )
 }
 
 fn generate_random_array_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {

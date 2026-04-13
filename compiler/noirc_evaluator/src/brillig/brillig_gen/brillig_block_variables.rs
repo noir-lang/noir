@@ -219,7 +219,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
-    let typ = dfg.type_of_value(value_id);
+    let typ = dfg.type_of_value(value_id).into_owned();
 
     allocate_value_with_type(brillig_context, typ)
 }
@@ -230,7 +230,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => brillig_context
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => brillig_context
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
