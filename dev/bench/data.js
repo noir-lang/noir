@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776115947122,
+  "lastUpdate": 1776116025017,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22141,48 +22141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a8d68a65cd68104b5b8bf53143fd0b39efa956be",
-          "message": "chore(deps): bump similar-asserts from 1.7.0 to 2.0.0 (#12142)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-07T11:32:14Z",
-          "tree_id": "16919dbeb73fe42166957e9749171ee3bf6ddd92",
-          "url": "https://github.com/noir-lang/noir/commit/a8d68a65cd68104b5b8bf53143fd0b39efa956be"
-        },
-        "date": 1775563152399,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 159096,
-            "range": "± 466",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139073,
-            "range": "± 1752",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2125259,
-            "range": "± 4253",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -24234,6 +24192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640712,
             "range": "± 1417",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6eec42489ce41bec4b61cb3fa8f234c78b26a549",
+          "message": "chore(docs): Remove documentation of u1 type (#12273)",
+          "timestamp": "2026-04-13T21:07:37Z",
+          "tree_id": "afef5b6c4ccd84d41b3fa5dd91c0731bf3f1769d",
+          "url": "https://github.com/noir-lang/noir/commit/6eec42489ce41bec4b61cb3fa8f234c78b26a549"
+        },
+        "date": 1776115969822,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167942,
+            "range": "± 766",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138646,
+            "range": "± 278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640905,
+            "range": "± 2141",
             "unit": "ns/iter"
           }
         ]
