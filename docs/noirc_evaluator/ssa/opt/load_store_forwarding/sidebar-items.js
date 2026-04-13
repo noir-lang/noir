@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["analyze_loop_aliases","forward_loads_and_stores_in_block"]};
+window.SIDEBAR_ITEMS = {"fn":["collect_allocations","forward_loads_and_stores_in_block","may_alias"]};
