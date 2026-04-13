@@ -218,7 +218,7 @@ impl LastUseContext {
     fn find_last_uses_in_loop_body(&mut self, body_exprs: &[&Expression]) {
         let pending_lengths: HashMap<LocalId, usize> =
             self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
-        let seen_before = self.seen.clone();
+        let saved_seen = self.seen.clone();
 
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
@@ -239,8 +239,9 @@ impl LastUseContext {
             }
         }
         // Reinsert anything we have seen before, so nothing before the loop becomes a new last use.
-        for id in &seen_before {
-            if self.declaration_depth.get(id).copied().unwrap_or(0) < loop_body_depth {
+        for id in &saved_seen {
+            let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
+            if decl_depth < loop_body_depth {
                 self.seen.insert(*id);
             }
         }
