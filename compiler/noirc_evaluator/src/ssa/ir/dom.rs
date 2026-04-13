@@ -165,7 +165,7 @@ impl DominatorTree {
     #[cfg(test)]
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
+        let post_order = PostOrder::with_cfg(&cfg);
         Self::with_cfg_and_post_order(&cfg, &post_order)
     }
 

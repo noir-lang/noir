@@ -110,7 +110,7 @@ impl<'a> ValueMerger<'a> {
                     else_value,
                 )
             }
-            Type::Reference(_) => {
+            Type::Reference(..) => {
                 let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }

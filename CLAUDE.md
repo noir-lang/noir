@@ -55,6 +55,12 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 - **Elaboration** (`compiler/noirc_frontend/src/elaborator/`) combines name resolution and type checking in a single pass.
 - PRs are **squash-merged** into `master`.
 
+### Code Comments
+
+A code comment must stand on its own when read against the post-change state of the file. Do not reference transitions between states ("was a `debug_assert!`, now a plain `assert!`"), the current task or fix ("added for the Y flow"), or what the code used to do. That context belongs in the commit message and PR description, where it naturally lives alongside the diff. In the code it rots the moment the PR stops being recent, leaving a reader with a narrative they cannot verify.
+
+Test: imagine cherry-picking this file into a fresh repository with no git history. If the comment would still make sense to that reader, keep it. If it only makes sense to someone who remembers the change that introduced it, move it to the commit message.
+
 ## Build & Development Commands
 
 The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
@@ -67,7 +73,24 @@ cargo build -p noirc_frontend        # Build a specific crate
 cargo build --release                # Release build
 ```
 
-### Testing (Rust / Noir)
+### Testing philosophy
+
+**Red-green-refactor is the law.** Every feature and bug fix follows this cycle strictly:
+
+1. **Red** — Write a failing test first. Run it. Watch it fail. If it doesn't fail, your test is wrong. The failure message must clearly describe what's broken — if you can't tell what went wrong from the output, rewrite the assertion.
+2. **Green** — Write the minimum code to make the test pass. Not the "right" code. Not the "clean" code. The *least* code that turns red to green. Resist the urge to generalize.
+3. **Refactor** — Now clean up. Extract helpers, rename, restructure — but only while tests stay green. If a refactor breaks a test, you went too far. Back up.
+4. **Harden** — Ask: "what would break this?" Add that case. Repeat until you can't think of anything. Edge cases, error paths, boundary values, concurrent access.
+
+Tests are never "done" — they grow with the system. The test file is the primary development artifact, not the implementation.
+
+- Run the related tests after every change — **every** change.
+- A PR without a failing-then-passing test is incomplete. No exceptions.
+- When debugging, write a test that reproduces the bug **before** fixing it. The test is proof the bug existed and proof it's gone.
+- **Never skip tests. Always fix.** If a refactor breaks tests, fix the tests — don't `t.Skip("TODO")` them. Broken tests that get skipped are invisible debt. If fixing requires significant rework, that's a signal the tests were brittle (testing implementation details instead of behavior). Reflect on why and write better tests.
+- **Tests should survive refactors.** Test observable behavior (output SSA, return values/side-effects), not internal implementation (what state is stored in internal context variable). If changing an internal detail breaks 5 tests, those 5 tests were coupled to internals.
+
+#### Testing (Rust / Noir)
 
 ```bash
 just test                                              # Full test suite (uses cargo nextest)
@@ -83,9 +106,21 @@ cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs:
 - **Do NOT use `cargo insta review`** — it launches an interactive TUI that cannot be used from a CLI agent. Instead, read `.snap.new` files directly to review before accepting.
 - `cargo insta accept` — accept all pending snapshots non-interactively
-- `cargo insta accept --filter <pattern>` — accept specific snapshots
+- `cargo insta accept --snapshot <pattern>` — accept specific snapshots
+- `cargo insta test --accept -p <crate> --test-runner cargo-test -- <test_name>` — run a single test and accept its pending snapshot in one step, needed when the snapshot hasn't been generated yet since `cargo insta accept` alone only applies already-pending snapshots
 
-### Testing (JavaScript/TypeScript)
+##### Bug-fix PRs with snapshot-based regression tests
+
+When fixing a bug that is caught by a snapshot assertion, split the work into **two commits** on the feature branch:
+
+1. **Red commit** — add the regression test and accept the *buggy* snapshot (the output produced by the broken code). This commit exists purely so git history preserves a machine-readable fingerprint of what the bug looked like.
+2. **Green commit** — apply the code fix, re-run the test, and accept the updated snapshot.
+
+Do not squash these two commits locally. If the PR is squash-merged into `master` the record is lost from `master`, but it is still preserved in the PR's commit list on GitHub, which is good enough.
+
+This only applies when the regression test uses a snapshot assertion. For regression tests that assert on concrete values (e.g. `assert_eq!`), a single red-then-green commit is fine — the failing assertion's expected/actual values already document the bug.
+
+#### Testing (JavaScript/TypeScript)
 
 **Never run `yarn test` from the project root — always cd into a specific package first.**
 
