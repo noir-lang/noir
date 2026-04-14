@@ -385,6 +385,7 @@ impl Context {
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         rewrite::remove_unreachable_functions(self);
         rewrite::add_recursion_limit(self, u)?;
+        rewrite::wrap_oracle_prints_in_functions(self);
         Ok(())
     }
 

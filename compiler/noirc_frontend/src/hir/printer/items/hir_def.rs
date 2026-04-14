@@ -673,7 +673,8 @@ impl ItemPrinter<'_, '_> {
                 self.push_str("_");
                 self.push_str(&typ.to_string());
             }
-            HirLiteral::Str(string) => {
+            HirLiteral::Str(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
                 self.push_str(&format!("{string:?}"));
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
