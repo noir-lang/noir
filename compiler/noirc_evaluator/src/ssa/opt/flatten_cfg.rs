@@ -850,7 +850,6 @@ impl<'f> Context<'f> {
                 then_arg,
                 else_arg,
                 cond_context.then_branch.condition,
-                else_branch.condition,
                 cond_context.call_stack,
             ) {
                 return optimized;
@@ -1096,7 +1095,6 @@ impl<'f> Context<'f> {
             value,
             previous_value,
             condition,
-            |this| this.not_instruction(condition, call_stack),
             call_stack,
             protect_array_set,
             |this, array| this.was_loaded_from_address(array, address),
@@ -1133,14 +1131,12 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
         then_condition: ValueId,
-        else_condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
         self.try_optimize_array_set_merge_inner(
             then_value,
             else_value,
             then_condition,
-            |_| else_condition,
             call_stack,
             false,
             |_, array| array == else_value,
@@ -1153,18 +1149,19 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
         then_condition: ValueId,
-        mut else_condition: impl FnMut(&mut Self) -> ValueId,
         call_stack: CallStackId,
         protect_array_set: bool,
         is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
         // If the condition along which we would merge is a constant 1 or 0,
         // then the simplification of the `IfElse` is easier than what we do here.
-        // This also prevents an edge case: when we know that both the _then_ and the
-        // _else_ condition are 0, then SSA will get the item at index 0, which could
-        // have a different type than expected, causing type mismatches in simplification.
-        // We look for a safe fallback index for the _else_ condition, but not the _then_.
-        if self.inserter.function.dfg.get_numeric_constant(then_condition).is_some() {
+        if self
+            .inserter
+            .function
+            .dfg
+            .get_numeric_constant(self.inserter.resolve(then_condition))
+            .is_some()
+        {
             return None;
         }
 
@@ -1215,8 +1212,17 @@ impl<'f> Context<'f> {
             if is_base_array(self, array) {
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
+
                 // Lazily create the else condition, now that we know the optimization is possible.
-                let else_condition = else_condition(self);
+                // The `then_condition` and `else_condition` of a branch can both be zero at the same time,
+                // in which case we might have both _then_ and _fallback_ indexes become 0.
+                // This might happen later, if we have inlining evaluate side effects to known constants.
+                // The element type in slot 0 might be different then what the result requires;
+                // if that happens, then the compiler might crash, trying to multiply values of different types.
+                // Because of this we must use a fallback that is actually 1 when the `then` is 0,
+                // so we always use an explicit negation.
+                let else_condition = self.not_instruction(then_condition, call_stack);
+
                 let mut result = else_value;
                 for (idx, val, mutable) in chain {
                     result = self.create_merged_array_set(
@@ -2821,6 +2827,92 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_non_binary_cond() {
+        // Similar to conditional_array_set_scalar_merge_safe_index and
+        // conditional_array_set_scalar_merge_non_safe_index, but using
+        // a compound condition of `v0 & v1` and a mixed type array.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v9 = make_array [u1 0, u32 0, u1 1, u32 1] : [(u1, u32); 2]
+            jmpif v0 then: b1(), else: b2(v9)
+          b1():
+            jmpif v1 then: b3(), else: b4(v9)
+          b2(v3: [(u1, u32); 2]):
+            return v3
+          b3():
+            v11 = unchecked_mul v2, u32 2
+            v12 = array_get v9, index v11 -> u1
+            v13 = unchecked_add v11, u32 1
+            v14 = cast v13 as u64
+            v16 = lt v14, u64 4
+            constrain v16 == u1 1, "Index out of bounds"
+            v17 = array_set v9, index v13, value u32 2
+            jmp b4(v17)
+          b4(v4: [(u1, u32); 2]):
+            jmp b2(v4)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.flatten_cfg();
+
+        // After flattening, we should see two merges happen:
+        // * 1st under `enable_side_effects v0`
+        // * 2nd under `enable_side_effects u1 1`
+        // We can see that `v19 = v0 * v18` and `v18 = v0 * v1`;
+        // if we used `else_branch.condition` in the 1st merge, then it would merge
+        // the index and value as e.g. `v24 = v8 * x + v19 * y`, where `z` will be 0
+        // if v0 was 0. This can lead to `array_get v7, index v24 -> u32` returning a `u1`.
+        // Instead of v19 we want to see is merging with `v20 = not v8`, which won't be 0 at the same time.
+        assert_ssa_snapshot!(&mut ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v7 = make_array [u1 0, u32 0, u1 1, u32 1] : [(u1, u32); 2]
+            enable_side_effects v0
+            v8 = unchecked_mul v0, v1
+            enable_side_effects v8
+            v10 = unchecked_mul v2, u32 2
+            v11 = array_get v7, index v10 -> u1
+            v12 = unchecked_add v10, u32 1
+            v13 = cast v12 as u64
+            v15 = lt v13, u64 4
+            v16 = unchecked_mul v15, v8
+            constrain v16 == v8, "Index out of bounds"
+            v17 = array_set v7, index v12, value u32 2
+            v18 = not v1
+            v19 = unchecked_mul v0, v18
+            enable_side_effects v0
+            v20 = not v8
+            v21 = cast v8 as u32
+            v22 = cast v20 as u32
+            v23 = unchecked_mul v21, v12
+            v24 = unchecked_add v23, v22
+            v25 = array_get v7, index v24 -> u32`
+            v26 = cast v8 as u32
+            v27 = cast v20 as u32
+            v28 = unchecked_mul v26, u32 2
+            v29 = unchecked_mul v27, v25
+            v30 = unchecked_add v28, v29
+            v31 = array_set v7, index v24, value v30
+            v32 = not v0
+            enable_side_effects u1 1
+            v33 = cast v0 as u32
+            v34 = cast v32 as u32
+            v35 = unchecked_mul v33, v24
+            v36 = unchecked_add v35, v34
+            v37 = array_get v7, index v36 -> u32
+            v38 = cast v0 as u32
+            v39 = cast v32 as u32
+            v40 = unchecked_mul v38, v30
+            v41 = unchecked_mul v39, v37
+            v42 = unchecked_add v40, v41
+            v43 = array_set v7, index v36, value v42
+            return v43
+        }
+        "#);
     }
 
     #[test]
