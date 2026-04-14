@@ -283,6 +283,12 @@ pub(crate) struct Context<'f> {
     ///
     /// It can also be set to true when no instruction is known to fail.
     pub(crate) no_predicate: bool,
+
+    /// These array sets are collected during `array_set` merge optimizations; if they are
+    /// not used by anything at the end of flattening, we can remove them completely,
+    /// because they have been replaced by an optimized merged array. Doing it during
+    /// flattening rather than leaving it to DIE means we avoid leaving a constraint behind.
+    superseded_array_sets: HashSet<InstructionId>,
 }
 
 /// Tracks the origin of a merge result to collapse redundant nested merges.
@@ -384,6 +390,7 @@ impl<'f> Context<'f> {
             merge_provenance: HashMap::default(),
             target_block,
             no_predicate: false,
+            superseded_array_sets: HashSet::default(),
         }
     }
 
@@ -416,6 +423,7 @@ impl<'f> Context<'f> {
         }
         assert!(self.next_arguments.is_none(), "no leftover arguments");
         self.inserter.map_data_bus_in_place();
+        self.remove_superseded_array_sets();
     }
 
     /// Returns the updated condition so that
@@ -1177,6 +1185,7 @@ impl<'f> Context<'f> {
         // we emit O(chain_length) merged array_sets.
         let mut chain = Vec::new();
         let mut current = then_value;
+        let mut superseded = Vec::new();
 
         for _ in 0..MAX_ARRAY_SET_CHAIN_DEPTH {
             // Global values have their instructions in the global DFG, not the function's DFG.
@@ -1199,6 +1208,9 @@ impl<'f> Context<'f> {
             let array = self.inserter.resolve(array);
             let index = self.inserter.resolve(index);
             let value = self.inserter.resolve(value);
+
+            // We can potentially remove this instruction at the end.
+            superseded.push(*instruction);
 
             // Preserve the call stack of the original instruction, rather than collapse all new instructions into the condition.
             let current_call_stack = self.inserter.function.dfg.get_value_call_stack_id(current);
@@ -1239,6 +1251,10 @@ impl<'f> Context<'f> {
                         protect_array_set,
                     );
                 }
+
+                // Remember the potentially superseded chain.
+                self.superseded_array_sets.extend(superseded);
+
                 return Some(result);
             }
 
@@ -1563,6 +1579,59 @@ impl<'f> Context<'f> {
             Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
             call_stack,
         )
+    }
+
+    /// At the end of flattening, remove any potentially superseded `array_set` where
+    /// the result isn't used by any other instruction.
+    ///
+    /// We could leave this to the DIE pass, but that doesn't know that we have replaced
+    /// these with another `array_set` using the same index, and while it will remove them,
+    /// it leaves behind an OOB check to preserve the outcome of the circuit. Since we know
+    /// that if the first instruction fails, there is a second instruction that will fail
+    /// the same way, we can save these extra constraints by removing the unused `array_set`
+    /// instructions altogether here.
+    fn remove_superseded_array_sets(&mut self) {
+        if self.superseded_array_sets.is_empty() {
+            return;
+        }
+
+        let block_id = self.target_block;
+        let dfg = &self.inserter.function.dfg;
+
+        // Seed used-values from the terminator and the databus.
+        let mut used = HashSet::default();
+        dfg[block_id].unwrap_terminator().for_each_value(|v| {
+            used.insert(v);
+        });
+        if let Some(data) = dfg.data_bus.return_data {
+            used.insert(data);
+        }
+
+        // Backward walk: non-superseded instructions contribute to `used`;
+        // superseded instructions are removed only when their result is not in `used`.
+        let mut to_remove = HashSet::default();
+        for &id in dfg[block_id].instructions().iter().rev() {
+            let keep = if !self.superseded_array_sets.contains(&id) {
+                true
+            } else {
+                let results = dfg.instruction_results(id);
+                // Keep if the result is externally used
+                results.iter().any(|r| used.contains(r))
+            };
+            if keep {
+                dfg[id].for_each_value(|v| {
+                    used.insert(v);
+                });
+            } else {
+                to_remove.insert(id);
+            }
+        }
+
+        if !to_remove.is_empty() {
+            self.inserter.function.dfg[block_id]
+                .instructions_mut()
+                .retain(|id| !to_remove.contains(id));
+        }
     }
 }
 
@@ -2737,17 +2806,16 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: [Field; 4]):
             enable_side_effects v0
-            v4 = array_set v1, index u32 2, value Field 42
-            v5 = not v0
+            v2 = not v0
             enable_side_effects u1 1
-            v7 = array_get v1, index u32 2 -> Field
-            v8 = cast v0 as Field
-            v9 = cast v5 as Field
-            v10 = mul v8, Field 42
-            v11 = mul v9, v7
-            v12 = add v10, v11
-            v13 = array_set v1, index u32 2, value v12
-            return v13
+            v5 = array_get v1, index u32 2 -> Field
+            v6 = cast v0 as Field
+            v7 = cast v2 as Field
+            v9 = mul v6, Field 42
+            v10 = mul v7, v5
+            v11 = add v9, v10
+            v12 = array_set v1, index u32 2, value v11
+            return v12
         }
         ");
     }
@@ -2780,20 +2848,19 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: [Field; 4], v2: u32):
             enable_side_effects v0
-            v4 = array_set v1, index v2, value Field 42
-            v5 = not v0
+            v3 = not v0
             enable_side_effects u1 1
-            v7 = cast v0 as u32
-            v8 = cast v5 as u32
-            v9 = unchecked_mul v7, v2
-            v10 = array_get v1, index v9 -> Field
-            v11 = cast v0 as Field
-            v12 = cast v5 as Field
-            v13 = mul v11, Field 42
-            v14 = mul v12, v10
-            v15 = add v13, v14
-            v16 = array_set v1, index v9, value v15
-            return v16
+            v5 = cast v0 as u32
+            v6 = cast v3 as u32
+            v7 = unchecked_mul v5, v2
+            v8 = array_get v1, index v7 -> Field
+            v9 = cast v0 as Field
+            v10 = cast v3 as Field
+            v12 = mul v9, Field 42
+            v13 = mul v10, v8
+            v14 = add v12, v13
+            v15 = array_set v1, index v7, value v14
+            return v15
         }
         ");
 
@@ -2884,36 +2951,34 @@ mod tests {
             v15 = lt v13, u64 4
             v16 = unchecked_mul v15, v8
             constrain v16 == v8, "Index out of bounds"
-            v17 = array_set v7, index v12, value u32 2
-            v18 = not v1
-            v19 = unchecked_mul v0, v18
+            v17 = not v1
+            v18 = unchecked_mul v0, v17
             enable_side_effects v0
-            v20 = not v8
-            v21 = cast v8 as u32
-            v22 = cast v20 as u32
-            v23 = unchecked_mul v21, v12
-            v24 = unchecked_add v23, v22
-            v25 = array_get v7, index v24 -> u32`
-            v26 = cast v8 as u32
-            v27 = cast v20 as u32
-            v28 = unchecked_mul v26, u32 2
-            v29 = unchecked_mul v27, v25
-            v30 = unchecked_add v28, v29
-            v31 = array_set v7, index v24, value v30
-            v32 = not v0
+            v19 = not v8
+            v20 = cast v8 as u32
+            v21 = cast v19 as u32
+            v22 = unchecked_mul v20, v12
+            v23 = unchecked_add v22, v21
+            v24 = array_get v7, index v23 -> u32
+            v25 = cast v8 as u32
+            v26 = cast v19 as u32
+            v27 = unchecked_mul v25, u32 2
+            v28 = unchecked_mul v26, v24
+            v29 = unchecked_add v27, v28
+            v30 = not v0
             enable_side_effects u1 1
-            v33 = cast v0 as u32
-            v34 = cast v32 as u32
-            v35 = unchecked_mul v33, v24
-            v36 = unchecked_add v35, v34
-            v37 = array_get v7, index v36 -> u32
-            v38 = cast v0 as u32
-            v39 = cast v32 as u32
-            v40 = unchecked_mul v38, v30
-            v41 = unchecked_mul v39, v37
-            v42 = unchecked_add v40, v41
-            v43 = array_set v7, index v36, value v42
-            return v43
+            v31 = cast v0 as u32
+            v32 = cast v30 as u32
+            v33 = unchecked_mul v31, v23
+            v34 = unchecked_add v33, v32
+            v35 = array_get v7, index v34 -> u32
+            v36 = cast v0 as u32
+            v37 = cast v30 as u32
+            v38 = unchecked_mul v36, v29
+            v39 = unchecked_mul v37, v35
+            v40 = unchecked_add v38, v39
+            v41 = array_set v7, index v34, value v40
+            return v41
         }
         "#);
     }
@@ -2950,6 +3015,49 @@ mod tests {
             v4 = array_set v1, index u32 2, value Field 42
             enable_side_effects u1 1
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_merge_removes_superseded_instructions() {
+        let src = "
+          acir(inline) predicate_pure fn main f0 {
+            b0(v0: [u32; 5], v1: u32):
+              v4 = lt v1, u32 3
+              jmpif v4 then: b1(), else: b2(v0)
+            b1():
+              v6 = array_set v0, index v1, value u32 10
+              jmp b2(v6)
+            b2(v2: [u32; 5]):
+              v8 = array_get v2, index u32 4 -> u32
+              constrain v8 == u32 111
+              return
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 5], v1: u32):
+            v3 = lt v1, u32 3
+            enable_side_effects v3
+            v4 = not v3
+            enable_side_effects u1 1
+            v6 = cast v3 as u32
+            v7 = cast v4 as u32
+            v8 = unchecked_mul v6, v1
+            v9 = array_get v0, index v8 -> u32
+            v10 = cast v3 as u32
+            v11 = cast v4 as u32
+            v13 = unchecked_mul v10, u32 10
+            v14 = unchecked_mul v11, v9
+            v15 = unchecked_add v13, v14
+            v16 = array_set v0, index v8, value v15
+            v18 = array_get v16, index u32 4 -> u32
+            constrain v18 == u32 111
+            return
         }
         ");
     }
