@@ -131,6 +131,8 @@ Mark a function as _oracle_; meaning it is an external unconstrained function, i
 
 Marks a function for ACIR fold optimization. The compiler will generate a separate circuit for this function which is then recursively verified at runtime. This can reduce total circuit size when a function is called multiple times or contains a large number of constraints.
 
+Note that this requires the backend supports folding multiple circuits.
+
 Example:
 
 ```rust
@@ -177,6 +179,8 @@ fn large_function(x: Field) -> Field {
 Disables predicate optimization for this function's ACIR output. This can be useful when the predicate optimization would produce incorrect results for certain foreign function patterns.
 
 This will have no effect in unconstrained code.
+
+See [../../explainers/explainer-writing-noir.md] for more detail.
 
 ### `export`
 
