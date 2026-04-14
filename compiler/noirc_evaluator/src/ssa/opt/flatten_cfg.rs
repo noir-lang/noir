@@ -1149,7 +1149,7 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
         then_condition: ValueId,
-        call_stack: CallStackId,
+        condition_call_stack: CallStackId,
         protect_array_set: bool,
         is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
@@ -1200,6 +1200,9 @@ impl<'f> Context<'f> {
             let index = self.inserter.resolve(index);
             let value = self.inserter.resolve(value);
 
+            // Preserve the call stack of the original instruction, rather than collapse all new instructions into the condition.
+            let current_call_stack = self.inserter.function.dfg.get_value_call_stack_id(current);
+
             if let Some(length) = self.inserter.function.dfg.try_get_array_length(array)
                 && length.to_usize().is_zero()
             {
@@ -1207,7 +1210,7 @@ impl<'f> Context<'f> {
                 return None;
             }
 
-            chain.push((index, value, mutable));
+            chain.push((index, value, mutable, current_call_stack));
 
             if is_base_array(self, array) {
                 // Found the base - emit merged array_sets in forward order (innermost first)
@@ -1221,10 +1224,10 @@ impl<'f> Context<'f> {
                 // if that happens, then the compiler might crash, trying to multiply values of different types.
                 // Because of this we must use a fallback that is actually 1 when the `then` is 0,
                 // so we always use an explicit negation.
-                let else_condition = self.not_instruction(then_condition, call_stack);
+                let else_condition = self.not_instruction(then_condition, condition_call_stack);
 
                 let mut result = else_value;
-                for (idx, val, mutable) in chain {
+                for (idx, val, mutable, call_stack) in chain {
                     result = self.create_merged_array_set(
                         result,
                         idx,
