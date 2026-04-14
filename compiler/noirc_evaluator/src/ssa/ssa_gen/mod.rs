@@ -341,7 +341,7 @@ impl FunctionContext<'_> {
 
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = self.codegen_string(&string);
+                let string = self.codegen_string(string.as_bytes());
                 let field_count = self
                     .builder
                     .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
@@ -360,8 +360,8 @@ impl FunctionContext<'_> {
         try_vecmap(elements, |element| self.codegen_expression(element))
     }
 
-    fn codegen_string(&mut self, string: &str) -> Values {
-        let elements = vecmap(string.as_bytes(), |byte| {
+    fn codegen_string(&mut self, bytes: &[u8]) -> Values {
+        let elements = vecmap(bytes, |byte| {
             self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
@@ -1533,7 +1533,8 @@ impl FunctionContext<'_> {
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
-            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+            let message = String::from_utf8_lossy(static_string).into_owned();
+            Ok(Some(ConstrainError::StaticString(message)))
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
