@@ -158,7 +158,7 @@ fn small_helper(x: Field) -> Field {
 
 ### `inline_never`
 
-Prevents the compiler from inlining this function. This can be useful to keep circuit size manageable when a function is called from many places.
+Prevents the compiler from inlining this function. This can be useful to keep artifact size manageable when a function is called from many places.
 
 Since constrained calls are always inlined, this will only ever have any effect in unconstrained code.
 
