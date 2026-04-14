@@ -1,6 +1,15 @@
 #![cfg(test)]
 
-use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
+use acvm::{AcirField, FieldElement};
+
+use crate::{
+    assert_ssa_snapshot,
+    errors::RuntimeError,
+    ssa::{
+        interpreter::value::Value as InterpreterValue, ir::types::NumericType,
+        opt::assert_normalized_ssa_equals,
+    },
+};
 
 use super::{Ssa, generate_ssa};
 
@@ -879,6 +888,44 @@ fn mut_local_struct_field_assign_only_stores_needed_field() {
         store Field 0 at v2
         store Field 42 at v2
         return
+    }
+    ");
+}
+
+/// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
+/// the old values before any stores. Regression test for a lazy `codegen_ident` bug
+/// where stores were interleaved with lazy loads, causing stale reads.
+#[test]
+fn mutable_tuple_self_assign_loads_before_stores() {
+    let src = "
+    unconstrained fn main() -> pub bool {
+        let mut b: (bool, bool) = (true, false);
+        // After: b should be (false, true), so b.1 = true
+        b = (false, b.0);
+        b.1
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let results = ssa.interpret(Vec::new()).unwrap();
+    let expected = InterpreterValue::from_constant(FieldElement::one(), NumericType::bool())
+        .expect("should create bool value");
+    assert_eq!(results.len(), 1, "expected one return value");
+    assert_eq!(results[0], expected, "b.1 should be true (the old b.0) after b = (false, b.0)");
+
+    // The load of b.0 (v0) must appear before the store to v0.
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u1
+        store u1 1 at v0
+        v2 = allocate -> &mut u1
+        store u1 0 at v2
+        v4 = load v0 -> u1
+        store u1 0 at v0
+        store v4 at v2
+        v5 = load v2 -> u1
+        return v5
     }
     ");
 }
