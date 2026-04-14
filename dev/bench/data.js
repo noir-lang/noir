@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776170640591,
+  "lastUpdate": 1776199648052,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22161,48 +22161,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4b0fc9c5ec55ca543d0933472c3fec597caf3bc3",
-          "message": "chore: avoid unnecessary Type cloning in `type_of_value` (#12140)",
-          "timestamp": "2026-04-07T13:02:28Z",
-          "tree_id": "cb93ab10aeaf185d5ec9364d821816a333a3a97d",
-          "url": "https://github.com/noir-lang/noir/commit/4b0fc9c5ec55ca543d0933472c3fec597caf3bc3"
-        },
-        "date": 1775569196384,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168799,
-            "range": "± 611",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137780,
-            "range": "± 555",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644213,
-            "range": "± 5713",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "36a8119a58b1017cdbcbc26726507dea4f4ee2bb",
           "message": "fix: eliminate unnecessary clones on array indexing at last use (#12134)",
           "timestamp": "2026-04-07T13:24:30Z",
@@ -24244,6 +24202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644743,
             "range": "± 4984",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04a373ed8e9cf67ac4f7efea14009f3c3a856d58",
+          "message": "fix(docs): Fill in missing docs (#12242)\n\nCo-authored-by: James Zaki <james.zaki@proton.me>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-04-14T20:21:05Z",
+          "tree_id": "593177230c68b0273d02db1a212a60f1f1fe2ca6",
+          "url": "https://github.com/noir-lang/noir/commit/04a373ed8e9cf67ac4f7efea14009f3c3a856d58"
+        },
+        "date": 1776199593650,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166542,
+            "range": "± 328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138179,
+            "range": "± 5051",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643141,
+            "range": "± 1543",
             "unit": "ns/iter"
           }
         ]
