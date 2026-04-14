@@ -184,7 +184,7 @@ See [../../explainers/explainer-writing-noir.md] for more detail.
 
 ### `export`
 
-Marks a function for export in compiled artifacts. This is primarily used inside `contract` blocks to indicate that a function should be accessible externally.
+Marks a function for export in compiled artifacts. This is primarily used inside `contract` blocks to indicate that a function should be accessible externally. This can also be used by libraries for testing or benchmarking by exporting artifacts to test libraries against without having to create many individual binaries.
 
 ### `must_use`
 
