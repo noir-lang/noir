@@ -290,7 +290,7 @@ pub enum Literal {
     Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(
         Vec<FmtStrFragment>,
         /* Number of variables in the format string. */ u64,
