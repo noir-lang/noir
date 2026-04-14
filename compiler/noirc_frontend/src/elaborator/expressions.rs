@@ -370,7 +370,7 @@ impl Elaborator<'_> {
                     "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
                 );
                 let len = Type::constant_u32(len);
-                (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
+                (Lit(HirLiteral::Str(str.into_bytes())), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
