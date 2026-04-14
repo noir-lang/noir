@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776165578459,
+  "lastUpdate": 1776169502926,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22151,48 +22151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f5808eadd13d4ede19cd682649946d399215fcb6",
-          "message": "chore(deps): bump proptest-derive from 0.6.0 to 0.8.0 (#12141)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-07T12:32:10Z",
-          "tree_id": "66b5ab5409d4d72beb96e28c90545cab6201d28b",
-          "url": "https://github.com/noir-lang/noir/commit/f5808eadd13d4ede19cd682649946d399215fcb6"
-        },
-        "date": 1775566528151,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169291,
-            "range": "± 557",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138476,
-            "range": "± 4616",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643300,
-            "range": "± 12365",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -24244,6 +24202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3045460,
             "range": "± 10720",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6276ac789952446ac24965ef93c018cb842dd53a",
+          "message": "feat(fuzzer): enable print generation in ACIR functions (#12290)\n\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-14T11:52:06Z",
+          "tree_id": "5bfac2cc000074fc5a726a5916fb1839def586eb",
+          "url": "https://github.com/noir-lang/noir/commit/6276ac789952446ac24965ef93c018cb842dd53a"
+        },
+        "date": 1776169448142,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167287,
+            "range": "± 604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139532,
+            "range": "± 3044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644743,
+            "range": "± 4984",
             "unit": "ns/iter"
           }
         ]
