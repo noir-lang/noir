@@ -204,6 +204,14 @@ You can rename an import with `as`:
 use crate::foo::bar as my_bar;
 ```
 
+You can also alias a trait to `_` to import its methods without bringing the trait name into scope:
+
+```rust
+use crate::foo::MyTrait as _;
+```
+
+This is useful when you need to call methods defined by a trait but don't want the trait name to be accessible in the current module.
+
 ### Grouped imports
 
 Import multiple items from the same path:

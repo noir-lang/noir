@@ -61,7 +61,7 @@ fn main() {
 
 Integer casts generate range check constraints in the compiled circuit. Using `Field` values directly where possible can avoid these extra constraints.
 
-See [Security Considerations for Field Arithmetic](../fields.md/#Security-Considerations-for-Field-Arithmetic) to determine if the tradeoffs are worth the cheaper casting & arithmetic costs of using field arithmetic directly.
+See [Security Considerations for Field Arithmetic](./fields.md#security-considerations-for-field-arithmetic) to determine if the tradeoffs are worth the cheaper casting & arithmetic costs of using field arithmetic directly.
 
 ## Type Coercions
 
