@@ -436,6 +436,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         self.call_stack_id = call_stack;
     }
 
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.call_stack_id
+    }
+
     /// Record the positions of 3 placeholder no-op opcodes for the spill prologue.
     pub(crate) fn set_unresolved_spill_prologue(&mut self, positions: [OpcodeLocation; 3]) {
         self.unresolved_spill_prologue = Some(positions);

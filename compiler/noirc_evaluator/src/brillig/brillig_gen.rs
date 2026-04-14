@@ -68,7 +68,12 @@ pub(crate) fn gen_brillig_for(
         .copied()
         .expect("Should have the globals memory size specified for an entry point");
 
-    let options = BrilligOptions { enable_debug_trace: false, ..*options };
+    // Prefer the registry stored in `brillig` (populated during `to_brillig`) over the one
+    // in `options`, which may be None if the caller didn't initialise it before compilation.
+    let registry =
+        brillig.copy_site_registry.clone().or_else(|| options.copy_site_registry.clone());
+    let options =
+        BrilligOptions { enable_debug_trace: false, copy_site_registry: registry, ..*options };
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,

@@ -133,13 +133,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
 
-        // If we want to print the array copy count in the end, we reserve the 0 slot.
+        // If we want to print the array copy count at the end, we reserve global slots:
+        // slot 0 = total copies counter, slots 1..=MAX_TRACK_SITES = per-site counters.
         if self.brillig_context.count_array_copies() {
-            // Detach from the register so it's never deallocated.
-            let new_variable =
-                allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
-            self.brillig_context
-                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+            use crate::brillig::MAX_TRACK_SITES;
+            for _ in 0..(1 + MAX_TRACK_SITES) {
+                // Detach from the register so it's never deallocated.
+                let new_variable =
+                    allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
+                self.brillig_context
+                    .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+            }
         }
 
         for (id, value) in globals.values_iter() {
@@ -396,14 +400,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Process the block's terminator instruction.
         let terminator_instruction =
             block.terminator().expect("block is expected to be constructed");
-
-        // If we are exiting the entry point, we may want to print the array copy count, for debug purposes.
-        if self.brillig_context.count_array_copies()
-            && matches!(terminator_instruction, TerminatorInstruction::Return { .. })
-            && self.function_context.is_entry_point
-        {
-            self.brillig_context.emit_println_of_array_copy_counter();
-        }
 
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }

@@ -15,7 +15,7 @@ use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
-use noirc_errors::call_stack::CallStackHelper;
+use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 
 use self::brillig_ir::{
     artifact::{BrilligArtifact, Label},
@@ -34,7 +34,11 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use rustc_hash::FxHashMap as HashMap;
-use std::{borrow::Cow, collections::BTreeSet};
+use std::{
+    borrow::Cow,
+    collections::BTreeSet,
+    sync::{Arc, Mutex},
+};
 
 pub use self::brillig_ir::procedures::ProcedureId;
 
@@ -48,6 +52,89 @@ pub(crate) fn assert_u32(value: usize) -> u32 {
     value.try_into().expect("Failed conversion from usize to u32")
 }
 
+/// Maximum number of distinct copy sites that are tracked per-site.
+/// Sites beyond this limit are not tracked per-site (they still count toward the total).
+pub(crate) const MAX_TRACK_SITES: usize = 256;
+
+/// Number of per-site copy locations displayed at end of execution (top N by count).
+pub(crate) const MAX_DISPLAY_SITES: usize = 25;
+
+/// Inner state for [CopySiteRegistry], kept behind an `Arc<Mutex<…>>` so it can be
+/// shared across all `BrilligContext` instances that are alive during one compilation.
+#[derive(Debug, Default)]
+struct CopySiteRegistryInner {
+    /// Ordered list of call stack IDs (index = per-site counter slot).
+    sites: Vec<CallStackId>,
+    /// Map from `CallStackId` → slot index, used to deduplicate identical call sites.
+    site_to_index: rustc_hash::FxHashMap<CallStackId, usize>,
+    /// Source-location labels resolved after compilation (set by `resolve_labels`).
+    resolved_labels: Option<Vec<String>>,
+}
+
+/// Shared registry of array/vector copy sites, accumulated during Brillig compilation.
+/// Each *unique* call site (identified by `CallStackId`) is assigned a sequential index
+/// used to address its per-site counter in global memory.
+/// Registering the same call site twice returns the same index.
+/// After compilation, call `resolve_labels` to convert `CallStackId`s to readable strings.
+#[derive(Clone, Debug, Default)]
+pub struct CopySiteRegistry(Arc<Mutex<CopySiteRegistryInner>>);
+
+impl CopySiteRegistry {
+    /// Register a copy site for the given call stack location.
+    /// Returns the site index (0-based).  Identical call sites share an index.
+    pub(crate) fn register_site(&self, id: CallStackId) -> usize {
+        let mut inner = self.0.lock().unwrap();
+        if let Some(&idx) = inner.site_to_index.get(&id) {
+            return idx;
+        }
+        let index = inner.sites.len();
+        inner.site_to_index.insert(id, index);
+        inner.sites.push(id);
+        index
+    }
+
+    /// Resolve all registered `CallStackId`s to human-readable `"filename.nr:line"` strings.
+    /// Must be called after Brillig compilation (once the `CallStackHelper` is fully populated)
+    /// but before `get_resolved_labels` is used.
+    pub(crate) fn resolve_labels(
+        &self,
+        call_stacks: &CallStackHelper,
+        files: Option<&fm::FileManager>,
+    ) {
+        use fm::codespan_files::Files;
+        let sites = self.0.lock().unwrap().sites.clone();
+        let labels: Vec<String> = sites
+            .iter()
+            .map(|&id| {
+                let stack = call_stacks.get_call_stack(id);
+                let Some(location) = stack.last() else {
+                    return "<unknown>".to_string();
+                };
+                let Some(fm) = files else {
+                    return format!("<unknown>:{}", location.span.start());
+                };
+                let file_name = fm
+                    .path(location.file)
+                    .and_then(|p| p.file_name())
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("<unknown>");
+                let start_index = location.span.start() as usize;
+                match fm.as_file_map().line_index(location.file, start_index) {
+                    Ok(line_idx) => format!("{file_name}:{}", line_idx + 1),
+                    Err(_) => file_name.to_string(),
+                }
+            })
+            .collect();
+        self.0.lock().unwrap().resolved_labels = Some(labels);
+    }
+
+    /// Return a snapshot of all resolved site labels in registration order.
+    /// Returns an empty `Vec` if `resolve_labels` has not been called yet.
+    pub(crate) fn get_resolved_labels(&self) -> Vec<String> {
+        self.0.lock().unwrap().resolved_labels.clone().unwrap_or_default()
+    }
+}
+
 /// Options that affect Brillig code generation.
 #[derive(Clone, Debug, Default)]
 pub struct BrilligOptions {
@@ -56,6 +143,9 @@ pub struct BrilligOptions {
     pub enable_array_copy_counter: bool,
     pub show_opcode_advisories: bool,
     pub layout: LayoutConfig,
+    /// Shared registry for per-site array copy tracking.
+    /// Only populated when `enable_array_copy_counter` is true.
+    pub copy_site_registry: Option<CopySiteRegistry>,
 }
 
 /// Context structure for the Brillig pass.
@@ -69,6 +159,9 @@ pub struct Brillig {
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     /// The size of the global space for each Brillig entry point.
     globals_memory_size: HashMap<FunctionId, usize>,
+    /// Shared per-site copy-count registry, populated during function compilation.
+    /// Kept here so it outlives `to_brillig` and is accessible during `gen_brillig_for`.
+    pub(crate) copy_site_registry: Option<CopySiteRegistry>,
 }
 
 impl Brillig {
@@ -196,6 +289,22 @@ impl Ssa {
         if brillig_reachable_function_ids.is_empty() {
             return brillig;
         }
+
+        // If per-site array copy tracking is enabled, attach a shared registry to the options.
+        // The registry accumulates copy-site labels from all function compilations and is later
+        // read by the entry-point wrapper to emit per-site summaries.
+        // The registry is stored in `brillig` so it outlives this function and is accessible
+        // when `gen_brillig_for` builds the entry-point wrapper (called from ACIR generation).
+        let options_with_registry;
+        let options: &BrilligOptions = if options.enable_array_copy_counter {
+            let registry = CopySiteRegistry::default();
+            brillig.copy_site_registry = Some(registry.clone());
+            options_with_registry =
+                BrilligOptions { copy_site_registry: Some(registry), ..options.clone() };
+            &options_with_registry
+        } else {
+            options
+        };
 
         let call_graph = CallGraph::from_ssa(self);
         let max_call_depths = call_graph.max_call_depths(&brillig_reachable_function_ids);

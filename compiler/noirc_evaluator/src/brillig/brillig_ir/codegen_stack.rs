@@ -234,6 +234,7 @@ mod tests {
             enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: LayoutConfig::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
