@@ -140,7 +140,6 @@
 //!   ... b3 instructions ...
 //! ```
 
-use num_traits::Zero;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -1209,18 +1208,25 @@ impl<'f> Context<'f> {
             let index = self.inserter.resolve(index);
             let value = self.inserter.resolve(value);
 
+            if let Some(length) = self.inserter.function.dfg.try_get_array_length(array) {
+                if length.0 == 0 {
+                    // Any index we tried for safe merging would be unsafe.
+                    return None;
+                }
+                if let Some(index) = self.inserter.function.dfg.get_numeric_constant(index)
+                    && index.to_u128() >= u128::from(length.0)
+                {
+                    // This index is known to be OOB; if we insert the "safe index" fallback machinery,
+                    // it will result in worse opcode count than the base case.
+                    return None;
+                }
+            }
+
             // We can potentially remove this instruction at the end.
             superseded.push(*instruction);
 
             // Preserve the call stack of the original instruction, rather than collapse all new instructions into the condition.
             let current_call_stack = self.inserter.function.dfg.get_value_call_stack_id(current);
-
-            if let Some(length) = self.inserter.function.dfg.try_get_array_length(array)
-                && length.to_usize().is_zero()
-            {
-                // Any index we tried for safe merging would be unsafe.
-                return None;
-            }
 
             chain.push((index, value, mutable, current_call_stack));
 
@@ -2897,6 +2903,38 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_oob_index() {
+        // Test that if we know that the index is OOB, we don't apply the conditional optimization.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            enable_side_effects v0
+            v4 = array_set v1, index u32 4, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v1
+            return v7
+        }
+        ");
     }
 
     #[test]
