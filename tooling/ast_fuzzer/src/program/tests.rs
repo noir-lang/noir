@@ -284,13 +284,11 @@ fn test_assign_ref_element_type() {
     );
 }
 
-/// The fuzzer's direct oracle print calls must be wrapped in functions to
-/// match nargo's `println` -> `print_unconstrained` -> oracle structure.
-/// Without the wrapper, SSA codegen skips `Clone`/`inc_rc` for oracle
-/// arguments, so the array's reference count stays at 1 even when shared.
-/// A later `array_set` then mutates in-place instead of copying.
-///
-/// Found via seed `0x6a98890f00100000` in `comptime_vs_brillig_direct` at commit `c09ce9a7db`.
+/// The fuzzer's direct oracle print calls in ACIR functions must be wrapped
+/// in unconstrained wrapper functions, since ACIR code cannot call oracles
+/// directly. This matches nargo's `println` -> `print_unconstrained` -> oracle
+/// structure. Unconstrained functions are skipped since they can call oracles
+/// directly.
 #[test]
 fn test_wrap_oracle_prints_in_functions() {
     use super::expr;
@@ -298,7 +296,7 @@ fn test_wrap_oracle_prints_in_functions() {
 
     let array_type = Type::Array(1, Rc::new(Type::Bool));
 
-    // Build: unconstrained fn main() { let a = [true]; print_oracle(true, a, "...", false); }
+    // Build: fn main() { let a = [true]; print_oracle(true, a, "...", false); }
     let mut ctx = Context::new(Config::default());
 
     let let_expr = Expression::Let(noirc_frontend::monomorphization::ast::Let {
@@ -339,7 +337,7 @@ fn test_wrap_oracle_prints_in_functions() {
         arguments: vec![
             expr::lit_bool(true),
             Expression::Ident(value_ident),
-            Expression::Literal(Literal::Str("type_info".to_string())),
+            Expression::Literal(Literal::Str("type_info".to_string().into())),
             expr::lit_bool(false),
         ],
         return_type: Type::Unit,
@@ -353,7 +351,7 @@ fn test_wrap_oracle_prints_in_functions() {
         body: Expression::Block(vec![let_expr, oracle_call]),
         return_type: Type::Unit,
         return_visibility: Visibility::Private,
-        unconstrained: true,
+        unconstrained: false,
         inline_type: InlineType::default(),
         is_entry_point: true,
     };
@@ -367,9 +365,9 @@ fn test_wrap_oracle_prints_in_functions() {
     // The oracle call should be replaced with a call to a wrapper function,
     // and the wrapper function should contain the oracle call with hardcoded args.
     insta::assert_snapshot!(code, @r"
-    unconstrained fn main() -> () {
+    fn main() -> () {
         let a: bool = [true];
-        print_wrapper_1(a)
+        unsafe { print_wrapper_1(a) }
     }
     unconstrained fn print_wrapper_1(value: [bool; 1]) -> () {
         println(value)

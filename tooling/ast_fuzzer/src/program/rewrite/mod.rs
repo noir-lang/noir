@@ -102,22 +102,15 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
     program
 }
 
-/// Wrap the fuzzer's direct oracle print calls in wrapper functions.
+/// Wrap the fuzzer's direct oracle print calls in unconstrained wrapper functions.
 ///
-/// In nargo-compiled code, `println` goes through wrapper functions
-/// (`println` -> `print_unconstrained` -> oracle). The fuzzer instead
-/// generates direct oracle calls, which hits a compiler optimization:
-/// SSA codegen skips `Clone` (and therefore `inc_rc`) for oracle call
-/// arguments, since oracles cannot modify their inputs. Without the
-/// `inc_rc`, the array's reference count stays at 1 even when ownership
-/// analysis determined it is shared. A later `array_set` then sees
-/// `rc <= 1` and mutates in-place instead of copying, corrupting the
-/// value for subsequent uses.
+/// In constrained (ACIR) code, direct oracle calls are not allowed. In nargo-compiled
+/// code, `println` goes through unconstrained wrapper functions
+/// (`println` -> `print_unconstrained` -> oracle). The fuzzer generates direct oracle
+/// print calls, so this rewrite wraps them in unconstrained functions to match nargo's
+/// structure, enabling prints in ACIR functions.
 ///
-/// Adding wrapper functions around the oracle calls matches nargo's
-/// structure, so `Clone`/`inc_rc` is preserved at the call site.
-///
-/// Found via seed `0x6a98890f00100000` in `comptime_vs_brillig_direct` at commit `c09ce9a7db`.
+/// Unconstrained functions can call oracles directly, so they are skipped.
 pub(crate) fn wrap_oracle_prints_in_functions(ctx: &mut Context) {
     let func_ids: Vec<FuncId> = ctx.functions.keys().copied().collect();
     let mut next_func_id = ctx.functions.len() as u32;
@@ -125,6 +118,10 @@ pub(crate) fn wrap_oracle_prints_in_functions(ctx: &mut Context) {
 
     for &func_id in &func_ids {
         let func = ctx.functions.get_mut(&func_id).unwrap();
+        // Unconstrained functions can call oracles directly.
+        if func.unconstrained {
+            continue;
+        }
         visit_expr_mut(&mut func.body, &mut |e| {
             // Clone to release the borrow on `e` so we can mutate it below.
             let info =
