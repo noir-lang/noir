@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["change_all_functions_into_unconstrained","next_local_and_ident_id"],"mod":["limit","unreachable"]};
+window.SIDEBAR_ITEMS = {"fn":["change_all_functions_into_unconstrained","make_print_wrapper","next_local_and_ident_id","oracle_print_info","replace_with_wrapper_call","wrap_oracle_prints_in_functions"],"mod":["limit","unreachable"]};
