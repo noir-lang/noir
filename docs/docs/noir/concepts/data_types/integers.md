@@ -19,6 +19,27 @@ You can add a type suffix such as `u32` or `Field` to the end of an integer lite
 
 :::
 
+### Integer Literal Syntax
+
+Integer literals can include an optional type suffix to specify their type explicitly:
+
+```rust
+let a = 1u8;        // u8
+let b = 256_u16;    // u16
+let c = -1i8;       // i8
+let d = 42_u32;     // u32
+let e = 100_Field;  // Field
+```
+
+The supported suffixes are: `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, and `Field`.
+
+Underscores can be used as visual separators in numeric literals for readability. They are ignored by the compiler:
+
+```rust
+let million = 1_000_000;
+let max_u64 = 18_446_744_073_709_551_615_u64;
+```
+
 ## Unsigned Integers
 
 An unsigned integer type is specified first with the letter `u` (indicating its unsigned nature) followed by its bit size (e.g. `8`):
