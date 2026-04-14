@@ -45,11 +45,11 @@ $ nargo info
 
 A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants).
 
-Those are some nice savings already but we can do better. This code is all constrained so we're proving every step of calculating out using num, but we don't actually care about how we calculate this, just that it's correct. This is where brillig comes in.
+Those are some nice savings already but we can do better. This code is all constrained so we're proving every step of calculating `out` using num, but we don't actually care about how we calculate this, just that it's correct. This is where unconstrained code comes in.
 
-It turns out that truncating a u64 into a u8 is hard to do inside a snark, each time we do as u8 we lay down 4 ACIR opcodes which get converted into multiple gates. It's actually much easier to calculate num from out than the other way around. All we need to do is multiply each element of out by a constant and add them all together, both relatively easy operations inside a snark.
+It turns out that truncating a `u64` into a `u8` is hard to do inside a snark, each time we do as `u8` we lay down 4 ACIR opcodes which get converted into multiple gates. It's actually much easier to calculate `num` from `out` than the other way around. All we need to do is multiply each element of `out` by a constant and add them all together, both relatively easy operations inside a snark.
 
-We can then run `u64_to_u8` as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
+We can then run `u64_to_u8` as unconstrained code (Brillig) in order to calculate `out`, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back `num`. This looks a little like the below:
 
 ```rust
 fn main(num: u64) -> pub [u8; 8] {
@@ -85,7 +85,7 @@ $ nargo info
 ```
 
 This ends up taking off another 32 ACIR opcodes from our circuit!
-We've ended up with more Brillig opcodes than before but it is often faster for the backend to run more unconstrained (brillig) code to verify it with fewer constrained (ACIR) opcodes lateit is often faster for the backend to run more unconstrained (brillig) code to verify it with fewer constrained (ACIR) opcodes later.
+We've ended up with more Brillig opcodes than before but it is often faster for the backend to run more unconstrained code (Brillig) to verify it with fewer constrained opcodes (ACIR) later. 
 
 ## Unsafe Blocks
 
@@ -101,7 +101,7 @@ The compiler emits a warning unless the `unsafe` block is accompanied by a `// S
 
 `unsafe` does not disable any other compiler checks -- it only permits calling unconstrained functions. All other type checking, visibility rules, and constraint generation remain in effect.
 
-Generally we want to use brillig whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in brillig and then assert that if you square the result you get back your number.
+Generally we want to use unconstrained code whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in unconstrained code and then assert that if you square the result you get back your number.
 
 ## Break and Continue
 
