@@ -26,70 +26,66 @@ An in depth example might help drive the point home. Let's look at how we can op
 fn main(num: u64) -> pub [u8; 8] {
     let mut out: [u8; 8] = [0; 8];
     for i in 0..8 {
-        out[i] = (num >> (56 - (i * 8)) as u64 & 0xff) as u8;
+        out[i] = (num >> (56 - (i as u64 * 8))) as u8;
     }
-
     out
 }
 ```
 
 ```
-Total ACIR opcodes generated for language PLONKCSat { width: 3 }: 91
-Backend circuit size: 3619
+$ nargo info
++---------+----------------------------+--------------+-----------------+
+| Package | Function                   | ACIR Opcodes | Brillig Opcodes |
++=========+============================+==============+=================+
+| short   | main                       | 65           | 8               |
++---------+----------------------------+--------------+-----------------+
+| short   | directive_integer_quotient | N/A          | 8               |
++---------+----------------------------+--------------+-----------------+
 ```
 
-A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants). However we can save a bunch of gates by casting to u8 a bit earlier. This automatically truncates the bit-shifted value to fit in a u8 which allows us to remove the AND against 0xff. This saves us ~480 gates in total.
-
-```rust
-fn main(num: u72) -> pub [u8; 8] {
-    let mut out: [u8; 8] = [0; 8];
-    for i in 0..8 {
-        out[i] = (num >> (56 - (i * 8)) as u8;
-    }
-
-    out
-}
-```
-
-```
-Total ACIR opcodes generated for language PLONKCSat { width: 3 }: 75
-Backend circuit size: 3143
-```
+A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants).
 
 Those are some nice savings already but we can do better. This code is all constrained so we're proving every step of calculating out using num, but we don't actually care about how we calculate this, just that it's correct. This is where brillig comes in.
 
-It turns out that truncating a u72 into a u8 is hard to do inside a snark, each time we do as u8 we lay down 4 ACIR opcodes which get converted into multiple gates. It's actually much easier to calculate num from out than the other way around. All we need to do is multiply each element of out by a constant and add them all together, both relatively easy operations inside a snark.
+It turns out that truncating a u64 into a u8 is hard to do inside a snark, each time we do as u8 we lay down 4 ACIR opcodes which get converted into multiple gates. It's actually much easier to calculate num from out than the other way around. All we need to do is multiply each element of out by a constant and add them all together, both relatively easy operations inside a snark.
 
-We can then run `u72_to_u8` as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
+We can then run `u64_to_u8` as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
 
 ```rust
-fn main(num: u72) -> pub [u8; 8] {
+fn main(num: u64) -> pub [u8; 8] {
     // Safety: 'out' is properly constrained below in 'assert(num == reconstructed_num);'
-    let out = unsafe { u72_to_u8(num) };
+    let out = unsafe { u64_to_u8(num) };
 
-    let mut reconstructed_num: u72 = 0;
+    let mut reconstructed_num = 0;
     for i in 0..8 {
-        reconstructed_num += (out[i] as u72 << (56 - (8 * i)));
+        reconstructed_num += (out[i] as u64 << (56 - (8 * i as u64)));
     }
     assert(num == reconstructed_num);
     out
 }
 
-unconstrained fn u72_to_u8(num: u72) -> [u8; 8] {
+unconstrained fn u64_to_u8(num: u64) -> [u8; 8] {
     let mut out: [u8; 8] = [0; 8];
     for i in 0..8 {
-        out[i] = (num >> (56 - (i * 8))) as u8;
+        out[i] = (num >> (56 - (i as u64 * 8))) as u8;
     }
     out
 }
 ```
 
 ```
-Total ACIR opcodes generated for language PLONKCSat { width: 3 }: 78
-Backend circuit size: 2902
+$ nargo info
++---------+-----------+--------------+-----------------+
+| Package | Function  | ACIR Opcodes | Brillig Opcodes |
++=========+===========+==============+=================+
+| short   | main      | 33           | 114             |
++---------+-----------+--------------+-----------------+
+| short   | u64_to_u8 | N/A          | 114             |
++---------+-----------+--------------+-----------------+
 ```
 
-This ends up taking off another ~250 gates from our circuit! We've ended up with more ACIR opcodes than before but they're easier for the backend to prove (resulting in fewer gates).
+This ends up taking off another 32 ACIR opcodes from our circuit!
+We've ended up with more Brillig opcodes than before but it is often faster for the backend to run more unconstrained (brillig) code to verify it with fewer constrained (ACIR) opcodes lateit is often faster for the backend to run more unconstrained (brillig) code to verify it with fewer constrained (ACIR) opcodes later.
 
 ## Unsafe Blocks
 
