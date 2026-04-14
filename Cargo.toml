@@ -219,7 +219,7 @@ test-case = "3.3.1"
 jsonrpsee = { version = "0.26", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
-rand = "^0.10.0"
+rand = "^0.10.1"
 rangemap = "1.7.1"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
 proptest = { version = "1.11.0", default-features = false, features = [
