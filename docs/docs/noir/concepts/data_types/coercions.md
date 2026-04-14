@@ -37,7 +37,7 @@ The `as` keyword can be used to cast between the following types:
 
 - **Signed integers cannot be cast to `Field`** -- this will produce a compiler error. Convert to an unsigned integer first if needed.
 - **Non-numeric types** (arrays, strings, structs, tuples, etc.) cannot be cast to or from numeric types.
-- **Casting to `bool`** is not supported.
+- **Casting to `bool`** is not supported. Compare with zero instead: `value != 0`
 
 ### Example
 
