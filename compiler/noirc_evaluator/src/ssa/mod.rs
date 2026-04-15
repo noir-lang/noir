@@ -153,7 +153,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Running ACIR mem2reg this early creates block parameters that cascade through
         // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
-            .and_then(Ssa::load_store_forwarding_brillig)
+            .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
@@ -164,7 +164,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
-            .and_then(Ssa::load_store_forwarding_brillig)
+            .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),

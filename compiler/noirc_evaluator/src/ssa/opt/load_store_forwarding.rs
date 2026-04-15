@@ -48,16 +48,6 @@ impl Ssa {
         }
         self
     }
-
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn load_store_forwarding_brillig(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                function.load_store_forwarding();
-            }
-        }
-        self
-    }
 }
 
 impl Function {
