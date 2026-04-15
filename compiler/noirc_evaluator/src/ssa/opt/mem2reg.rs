@@ -135,8 +135,8 @@ type ParamLocations = BTreeMap<ValueId, HashSet<BasicBlockId>>;
 /// of the blocks where the variable is stored to. This is the minimal set of blocks where
 /// values from different control-flow paths could merge.
 fn compute_param_locations(
-    variables: &BTreeMap<ValueId, BasicBlockId>,
-    def_sites: &HashMap<ValueId, HashSet<BasicBlockId>>,
+    variables: &Variables,
+    def_sites: &DefSites,
     dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 ) -> ParamLocations {
     let mut result = BTreeMap::new();
@@ -178,16 +178,16 @@ fn iterated_dominance_frontier(
 /// Each block's visible set is its idom's visible set plus any variables declared locally.
 fn compute_visible_vars(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    variables: &Variables,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+) -> HashMap<BasicBlockId, Variables> {
     // Group variables by their declaration block
     let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
     for (var, decl_block) in variables {
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, Variables> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
@@ -209,7 +209,7 @@ fn compute_visible_vars(
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    visible_vars: &HashMap<BasicBlockId, Variables>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
@@ -239,7 +239,7 @@ fn add_block_params_and_find_exit_states(
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &Variables,
     param_locations: &ParamLocations,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -295,7 +295,7 @@ fn get_value_from_visited_predecessor(
 /// Only blocks in a variable's IDF have block parameters that need arguments wired.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    variables: &Variables,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &BlockStates,
@@ -407,6 +407,12 @@ fn abstract_interpret_block(
     exit_state
 }
 
+/// Maps an allocate result to the block it was allocated in
+type Variables = BTreeMap<ValueId, BasicBlockId>;
+
+/// Maps each allocate result to the set of blocks with stores to it
+type DefSites = HashMap<ValueId, HashSet<BasicBlockId>>;
+
 /// Return a map from each eligible variable to the block it was declared in,
 /// along with the set of blocks where each variable is stored to (definition sites),
 /// and the set of variables that are passed as arguments to a `Call`.
@@ -426,11 +432,11 @@ fn abstract_interpret_block(
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
-) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, HashSet<ValueId>) {
+) -> (Variables, DefSites, HashSet<ValueId>) {
     // Map each variable to the block it was declared in
-    let mut variables = BTreeMap::default();
+    let mut variables = Variables::default();
     // Map each variable to the set of blocks that contain stores to it
-    let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
+    let mut def_sites = DefSites::default();
 
     // Allocate results whose type is `Type::Reference(_, false)`. Only these are
     // allowed to survive a first-class use as a `Call` argument.
@@ -511,7 +517,7 @@ fn collect_eligible_variables_and_def_sites(
 ///   allocation and stores must remain so the callee has something to dereference.
 fn commit(
     inserter: &mut FunctionInserter,
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    variables: &Variables,
     used_in_calls: &HashSet<ValueId>,
     blocks: Vec<BasicBlockId>,
 ) {
