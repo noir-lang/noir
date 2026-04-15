@@ -1,6 +1,7 @@
 use std::io::IsTerminal;
 
 use crate::Location;
+use crate::call_stack::CallStack;
 use crate::function_locations::FunctionLocations;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
@@ -20,7 +21,7 @@ pub struct CustomDiagnostic {
 
     /// An optional call stack to display the full runtime call stack
     /// leading up to a runtime error. If this is empty it will not be displayed.
-    pub call_stack: Vec<Location>,
+    pub call_stack: CallStack,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -47,7 +48,7 @@ impl CustomDiagnostic {
             kind: DiagnosticKind::Error,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
@@ -65,7 +66,7 @@ impl CustomDiagnostic {
             kind,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
@@ -121,11 +122,11 @@ impl CustomDiagnostic {
             kind: DiagnosticKind::Bug,
             deprecated: false,
             unnecessary: false,
-            call_stack: Default::default(),
+            call_stack: CallStack::empty(),
         }
     }
 
-    pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
+    pub fn with_call_stack(mut self, call_stack: CallStack) -> Self {
         self.call_stack = call_stack;
         self
     }
@@ -282,13 +283,13 @@ fn convert_diagnostic(
 pub fn stack_trace<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
     function_locations: &FunctionLocations,
-    call_stack: &[Location],
+    call_stack: &CallStack,
 ) -> String {
     if call_stack.is_empty() {
         return String::new();
     }
 
-    let repeating_sequences = find_repeating_sequences(call_stack);
+    let repeating_sequences = find_repeating_sequences(call_stack.as_ref());
 
     // Compute the length of the longest frame number so we show them like this:
     //   1: ..

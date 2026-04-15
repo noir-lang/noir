@@ -812,7 +812,7 @@ impl DataFlowGraph {
     pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[value] {
             Value::Instruction { instruction, .. } => self.get_instruction_call_stack(*instruction),
-            _ => CallStack::new(),
+            _ => CallStack::empty(),
         }
     }
 

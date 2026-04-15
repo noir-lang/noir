@@ -165,7 +165,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                call_stack: CallStack::new(),
+                call_stack: CallStack::empty(),
             }),
         }
     }
@@ -175,7 +175,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(*var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::borrow_var on an array".to_string(),
-                call_stack: CallStack::new(),
+                call_stack: CallStack::empty(),
             }),
         }
     }

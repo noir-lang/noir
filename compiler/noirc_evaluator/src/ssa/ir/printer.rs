@@ -291,9 +291,9 @@ fn write_location_information(
 ) -> std::io::Result<()> {
     use codespan_files::Files;
     use std::io::Write;
-    let call_stack = dfg.get_instruction_call_stack(instruction);
+    let location = dfg.get_instruction_call_stack(instruction).last_or_dummy();
 
-    if let Some(location) = call_stack.last()
+    if !location.is_dummy()
         && let Ok(name) = fm.as_file_map().get_name(location.file)
     {
         let files = fm.as_file_map();
