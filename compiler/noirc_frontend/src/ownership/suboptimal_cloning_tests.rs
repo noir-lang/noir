@@ -115,7 +115,7 @@ fn nested_tuple_extraction_disjoint_subfields() {
 /// Suboptimal: both `arr[0]` and `arr[1]` get `.clone()`. The ownership pass
 /// always clones an indexed element whose type contains an array — a dynamic
 /// index cannot be proved disjoint from other uses of the same collection, so
-/// moving the outer array doesn't guarantee the inner slot is unaliased. If
+/// moving the outer array doesn't guarantee the inner slot is not aliased. If
 /// the analysis tracked that the constant indexes 0 and 1 are disjoint and
 /// that `arr` has no further uses, both clones could be avoided.
 #[test]
