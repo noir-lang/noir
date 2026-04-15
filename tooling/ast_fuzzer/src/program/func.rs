@@ -1421,9 +1421,9 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `println` statement, if there is some printable local variable.
     ///
-    /// For now this only works in unconstrained code. For constrained code we will
-    /// need to generate a proxy function, which we can do as a follow-up pass,
-    /// as it has to be done once per function signature.
+    /// This works as-is in unconstrained functions. In constrained functions
+    /// we need to generate a proxy function, which happens in a follow-up pass,
+    /// once per function signature.
     fn gen_print(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         let opts = self
             .locals
