@@ -43,7 +43,9 @@ impl CustomDiagnostic {
     /// displayed on top of a source file that has nothing to do with them,
     /// which is more confusing than just showing the primary message.
     fn secondaries(secondary_message: String, secondary_location: Location) -> Vec<CustomLabel> {
-        if secondary_message.is_empty() || secondary_location.is_dummy() {
+        if secondary_location.is_dummy() {
+            // Note that empty secondary messages are allowed: in frontend unit tests
+            // they carry the span information for the primary message.
             vec![]
         } else {
             vec![CustomLabel::new(secondary_message, secondary_location)]
