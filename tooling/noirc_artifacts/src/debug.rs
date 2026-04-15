@@ -393,16 +393,9 @@ pub struct LocationNodeDebugInfo {
     pub value: Location,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub struct LocationTree {
     locations: Vec<LocationNodeDebugInfo>,
-}
-
-impl Default for LocationTree {
-    fn default() -> Self {
-        let helper = CallStackHelper::default();
-        Self::from(&helper)
-    }
 }
 
 impl LocationTree {
