@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776200723536,
+  "lastUpdate": 1776246403831,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22151,48 +22151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "36a8119a58b1017cdbcbc26726507dea4f4ee2bb",
-          "message": "fix: eliminate unnecessary clones on array indexing at last use (#12134)",
-          "timestamp": "2026-04-07T13:24:30Z",
-          "tree_id": "f0ab1e88eb79ab633168a803f69a464ea51ea3f5",
-          "url": "https://github.com/noir-lang/noir/commit/36a8119a58b1017cdbcbc26726507dea4f4ee2bb"
-        },
-        "date": 1775570487293,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170127,
-            "range": "± 669",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139068,
-            "range": "± 1643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645098,
-            "range": "± 14088",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24244,6 +24202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643141,
             "range": "± 1543",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "41915dc6da5d18d3e337f208948a417a58ce7ad0",
+          "message": "chore(fuzz): Increase `constrain` frequency in the AST fuzzer (#12299)",
+          "timestamp": "2026-04-15T09:21:22Z",
+          "tree_id": "bfe26939a0b46b8683be78f8a4502c2682b50e6a",
+          "url": "https://github.com/noir-lang/noir/commit/41915dc6da5d18d3e337f208948a417a58ce7ad0"
+        },
+        "date": 1776246347659,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127396,
+            "range": "± 348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113134,
+            "range": "± 782",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041704,
+            "range": "± 30261",
             "unit": "ns/iter"
           }
         ]
