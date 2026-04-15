@@ -1598,7 +1598,7 @@ fn clone_inner_array_passed_alongside_outer() {
 /// Regression: same shape as `clone_inner_array_passed_alongside_outer`, but
 /// the inner array is reached through a struct field after a dynamic index
 /// (`foo(a, a[1].arr)`). The extracted `.arr` still shares memory with the
-/// slot inside `a`, so moving `a` isn't enough — `a[1].arr` must also be
+/// slot inside `a`, so cloning `a` isn't enough — `a[1].arr` must also be
 /// cloned.
 #[test]
 fn clone_inner_array_field_extracted_through_index() {
