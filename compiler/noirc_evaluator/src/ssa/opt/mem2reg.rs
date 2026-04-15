@@ -475,6 +475,10 @@ fn rematerialize_immutable_refs_before_call(
 /// i.e. those that are allocated but never used in a first-class manner.
 /// The main exception being immutable references which can be used in a first-class manner
 /// since functions (or other instructions) using them cannot modify their inner value.
+///
+/// Very important detail: when a user writes `let mut x = 0; .. &x ...` the SSA builder
+/// reuses the mutable reference created for x, rather than an immutable one. Without this
+/// we couldn't assume any given immutable reference isn't mutably aliased.
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
