@@ -23,7 +23,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        instruction::{Instruction, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -66,7 +66,7 @@ impl Function {
         // ValueId of the `allocate` instruction result. These are all iterated over at some point
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
-        let (variables, def_sites) =
+        let (variables, def_sites, used_in_calls) =
             collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
         if variables.is_empty() {
@@ -105,7 +105,7 @@ impl Function {
             &block_states,
             &cfg,
         );
-        commit(&mut inserter, &variables, blocks);
+        commit(&mut inserter, &variables, &used_in_calls, blocks);
     }
 }
 
@@ -365,10 +365,11 @@ fn get_terminator_args_mut(
 ///
 /// This function is very simple and will produce incorrect results for first-class references
 /// that are aliased, or stored in arrays, etc. It does handle immutable references that are
-/// passed as arguments to `Call` instructions: at each such call site, a fresh `Allocate` +
-/// `Store(current_value)` is emitted immediately before the call and the call's argument is
-/// rewritten to point at the fresh allocation. That keeps the callee's view unchanged (it
-/// can only `Load` through an `&T`) while freeing the original allocation to be optimized out.
+/// passed as arguments to `Call` instructions: those references are left in place (the original
+/// `Allocate` + `Store` are preserved by `commit`) so the callee can dereference them at runtime.
+/// The SSA-builder invariant that an immutable reference is never aliased by a mutable reference
+/// means the callee only ever `Load`s through the reference, so keeping the existing stores is
+/// safe and avoids emitting a redundant allocation per call site.
 ///
 /// Note that this function will also replace any instances of the reference being stored to
 /// with its current value in the block. Most of the time, this locally renames the reference
@@ -398,15 +399,6 @@ fn abstract_interpret_block(
                     inserter.map_value(result, *value);
                 }
             }
-            Instruction::Call { .. } => {
-                rematerialize_immutable_refs_before_call(
-                    &mut inserter.function.dfg,
-                    block,
-                    *instruction_id,
-                    entry_state,
-                    &exit_state,
-                );
-            }
             _ => (),
         }
         inserter.function.dfg[block].instructions_mut().push(*instruction_id);
@@ -415,66 +407,18 @@ fn abstract_interpret_block(
     exit_state
 }
 
-/// For each argument of a `Call` that is one of our eligible variables, emit a fresh
-/// `Allocate` + `Store(current_value)` into `block` and rewrite the call to pass the
-/// new allocation. By construction, any eligible variable reaching this point is an
-/// immutable reference (mutable references with first-class uses were disqualified
-/// during eligibility collection).
-fn rematerialize_immutable_refs_before_call(
-    dfg: &mut DataFlowGraph,
-    block: BasicBlockId,
-    call_id: InstructionId,
-    entry_state: &StateVec,
-    exit_state: &StateVec,
-) {
-    let Instruction::Call { func, arguments } = &dfg[call_id] else {
-        return;
-    };
-
-    // Scan the arguments first to avoid cloning `arguments` if we don't need to.
-    if !arguments.iter().any(|arg| exit_state.contains_key(arg) || entry_state.contains_key(arg)) {
-        return;
-    }
-
-    let func = *func;
-    let mut new_arguments = arguments.clone();
-
-    let call_stack = dfg.get_instruction_call_stack_id(call_id);
-
-    for arg in &mut new_arguments {
-        let Some(&current_value) = exit_state.get(arg).or_else(|| entry_state.get(arg)) else {
-            continue;
-        };
-        let ref_type = dfg.type_of_value(*arg).into_owned();
-        let Type::Reference(elem_type, _) = ref_type else {
-            continue;
-        };
-
-        let ctrl_typevars = Some(vec![Type::Reference(elem_type, false)]);
-        let new_alloc = dfg.insert_instruction_and_results_without_simplification(
-            Instruction::Allocate,
-            block,
-            ctrl_typevars,
-            call_stack,
-        );
-        let address = new_alloc.first();
-
-        let store = Instruction::Store { address, value: current_value };
-        dfg.insert_instruction_and_results_without_simplification(store, block, None, call_stack);
-
-        *arg = address;
-    }
-
-    dfg[call_id] = Instruction::Call { func, arguments: new_arguments };
-}
-
 /// Return a map from each eligible variable to the block it was declared in,
-/// along with the set of blocks where each variable is stored to (definition sites).
+/// along with the set of blocks where each variable is stored to (definition sites),
+/// and the set of variables that are passed as arguments to a `Call`.
 ///
 /// Only includes variables that are eligible for mem2reg optimization,
 /// i.e. those that are allocated but never used in a first-class manner.
 /// The main exception being immutable references which can be used in a first-class manner
 /// since functions (or other instructions) using them cannot modify their inner value.
+///
+/// Variables in the returned `used_in_calls` set are still eligible for load forwarding but
+/// their `Allocate` and `Store` instructions must be preserved so the call site still has a
+/// valid reference to dereference at runtime.
 ///
 /// Very important detail: when a user writes `let mut x = 0; .. &x ...` the SSA builder
 /// reuses the mutable reference created for x, rather than an immutable one. Without this
@@ -482,7 +426,7 @@ fn rematerialize_immutable_refs_before_call(
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
-) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>) {
+) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, HashSet<ValueId>) {
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
     // Map each variable to the set of blocks that contain stores to it
@@ -491,6 +435,10 @@ fn collect_eligible_variables_and_def_sites(
     // Allocate results whose type is `Type::Reference(_, false)`. Only these are
     // allowed to survive a first-class use as a `Call` argument.
     let mut immutable_variables: HashSet<ValueId> = HashSet::default();
+
+    // Eligible variables that are passed to a `Call`. Their `Allocate`/`Store` must be kept
+    // so the callee has a valid reference; only `Load`s through them may be eliminated.
+    let mut used_in_calls: HashSet<ValueId> = HashSet::default();
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
@@ -527,7 +475,9 @@ fn collect_eligible_variables_and_def_sites(
                     variables.remove(func);
                     def_sites.remove(func);
                     for arg in arguments {
-                        if !immutable_variables.contains(arg) {
+                        if immutable_variables.contains(arg) {
+                            used_in_calls.insert(*arg);
+                        } else {
                             variables.remove(arg);
                             def_sites.remove(arg);
                         }
@@ -549,15 +499,20 @@ fn collect_eligible_variables_and_def_sites(
 
     variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
     def_sites.retain(|address, _| variables.contains_key(address));
-    (variables, def_sites)
+    used_in_calls.retain(|address| variables.contains_key(address));
+    (variables, def_sites, used_in_calls)
 }
 
 /// Commit to all changes made by the pass:
 /// - Map any values mapped from the inserter to their new values in the function
-/// - Remove all Allocate, Load, and Store instructions from the eligible variables
+/// - Remove `Load` instructions for all eligible variables (the value has been forwarded)
+/// - Remove `Allocate` and `Store` instructions for eligible variables, except for those
+///   in `used_in_calls`: those references are still consumed by a call, so their
+///   allocation and stores must remain so the callee has something to dereference.
 fn commit(
     inserter: &mut FunctionInserter,
     variables: &BTreeMap<ValueId, BasicBlockId>,
+    used_in_calls: &HashSet<ValueId>,
     blocks: Vec<BasicBlockId>,
 ) {
     for block in blocks {
@@ -569,11 +524,12 @@ fn commit(
             let keep = match instruction {
                 Instruction::Allocate => {
                     let address = inserter.function.dfg.instruction_results(*instruction_id)[0];
-                    !variables.contains_key(&address)
+                    !variables.contains_key(&address) || used_in_calls.contains(&address)
                 }
-                Instruction::Load { address } | Instruction::Store { address, value: _ } => {
-                    !variables.contains_key(address)
+                Instruction::Store { address, value: _ } => {
+                    !variables.contains_key(address) || used_in_calls.contains(address)
                 }
+                Instruction::Load { address } => !variables.contains_key(address),
                 _ => true,
             };
 
@@ -1556,9 +1512,7 @@ brillig(inline) fn main f0 {
             v0 = allocate -> &Field
             store Field 1 at v0
             call f1(v0)
-            v3 = allocate -> &Field
-            store Field 1 at v3
-            call f1(v3)
+            call f1(v0)
             return
         }
         brillig(inline) fn bar f1 {
@@ -1599,52 +1553,6 @@ brillig(inline) fn main f0 {
         }
         brillig(inline) fn bar f1 {
           b0(v0: &Field, v1: &Field):
-            return
-        }
-        ");
-    }
-
-    #[test]
-    fn immutable_ref_rematerialized_with_merged_value() {
-        let src = "
-            brillig(inline) fn main f0 {
-              b0(v0: u1):
-                v1 = allocate -> &Field
-                store Field 1 at v1
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                store Field 2 at v1
-                jmp b3()
-              b2():
-                store Field 3 at v1
-                jmp b3()
-              b3():
-                call f1(v1)
-                return
-            }
-            brillig(inline) fn bar f1 {
-              b0(v0: &Field):
-                return
-            }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u1):
-            jmpif v0 then: b1(), else: b2()
-          b1():
-            jmp b3(Field 2)
-          b2():
-            jmp b3(Field 3)
-          b3(v1: Field):
-            v4 = allocate -> &Field
-            store v1 at v4
-            call f1(v4)
-            return
-        }
-        brillig(inline) fn bar f1 {
-          b0(v0: &Field):
             return
         }
         ");
