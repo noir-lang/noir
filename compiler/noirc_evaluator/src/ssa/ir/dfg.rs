@@ -798,7 +798,7 @@ impl DataFlowGraph {
 
     pub(crate) fn get_instruction_call_stack(&self, instruction: InstructionId) -> CallStack {
         let call_stack = self.get_instruction_call_stack_id(instruction);
-        self.call_stack_data.get_call_stack(call_stack)
+        self.get_call_stack(call_stack)
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
