@@ -39,6 +39,17 @@ pub struct ReportedErrors {
 }
 
 impl CustomDiagnostic {
+    /// Avoid showing secondary messages with dummy locations, because they are
+    /// displayed on top of a source file that has nothing to do with them,
+    /// which is more confusing than just showing the primary message.
+    fn secondaries(secondary_message: String, secondary_location: Location) -> Vec<CustomLabel> {
+        if secondary_message.is_empty() || secondary_location.is_dummy() {
+            vec![]
+        } else {
+            vec![CustomLabel::new(secondary_message, secondary_location)]
+        }
+    }
+
     pub fn from_message(msg: &str, file: fm::FileId) -> CustomDiagnostic {
         Self {
             file,
@@ -61,7 +72,7 @@ impl CustomDiagnostic {
         CustomDiagnostic {
             file: secondary_location.file,
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
+            secondaries: Self::secondaries(secondary_message, secondary_location),
             notes: Vec::new(),
             kind,
             deprecated: false,
@@ -117,7 +128,7 @@ impl CustomDiagnostic {
         CustomDiagnostic {
             file: secondary_location.file,
             message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
+            secondaries: Self::secondaries(secondary_message, secondary_location),
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
             deprecated: false,
