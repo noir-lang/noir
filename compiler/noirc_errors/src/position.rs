@@ -92,7 +92,7 @@ impl Location {
     }
 
     pub fn is_dummy(&self) -> bool {
-        self.file == FileId::dummy()
+        *self == Location::dummy()
     }
 }
 
