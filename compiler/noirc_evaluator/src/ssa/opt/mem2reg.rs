@@ -430,13 +430,16 @@ fn rematerialize_immutable_refs_before_call(
     let Instruction::Call { func, arguments } = &dfg[call_id] else {
         return;
     };
-    let func = *func;
 
-    // TODO: Can we avoid cloning the arguments until after we've identified we should rewrite them
+    // Scan the arguments first to avoid cloning `arguments` if we don't need to.
+    if !arguments.iter().any(|arg| exit_state.contains_key(arg) || entry_state.contains_key(arg)) {
+        return;
+    }
+
+    let func = *func;
     let mut new_arguments = arguments.clone();
 
     let call_stack = dfg.get_instruction_call_stack_id(call_id);
-    let mut rewritten = false;
 
     for arg in &mut new_arguments {
         let Some(&current_value) = exit_state.get(arg).or_else(|| entry_state.get(arg)) else {
@@ -460,12 +463,9 @@ fn rematerialize_immutable_refs_before_call(
         dfg.insert_instruction_and_results_without_simplification(store, block, None, call_stack);
 
         *arg = address;
-        rewritten = true;
     }
 
-    if rewritten {
-        dfg[call_id] = Instruction::Call { func, arguments: new_arguments };
-    }
+    dfg[call_id] = Instruction::Call { func, arguments: new_arguments };
 }
 
 /// Return a map from each eligible variable to the block it was declared in,
