@@ -1587,6 +1587,73 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     ");
 }
 
+/// Regression: when a nested array is passed alongside one of its inner arrays
+/// (`foo(a, a[1])`), `a[1]` is the textually-last use of `a`, but moving `a`
+/// only transfers the outer array's reference count. The inner array at
+/// `a[1]` still aliases the slot inside the cloned outer `a`, so a mutation
+/// of the inner array via `mut b` inside `foo` would leak back through the
+/// outer argument. `a[1]` must therefore always be cloned.
+#[test]
+fn clone_inner_array_passed_alongside_outer() {
+    let src = "
+    unconstrained fn main() {
+        let a = [[true], [false]];
+        foo(a, a[1]);
+    }
+    unconstrained fn foo(_a: [[bool; 1]; 2], mut b: [bool; 1]) {
+        b[0] = !b[0];
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [[true], [false]];
+        foo$f1(a$l0.clone(), a$l0[1]);
+    }
+    unconstrained fn foo$f1(_a$l1: [[bool; 1]; 2], mut b$l2: [bool; 1]) -> () {
+        b$l2[0] = (!b$l2[0])
+    }
+    ");
+}
+
+/// Regression: same shape as `clone_inner_array_passed_alongside_outer`, but
+/// the inner array is reached through a struct field after a dynamic index
+/// (`foo(a, a[1].arr)`). The extracted `.arr` still shares memory with the
+/// slot inside `a`, so moving `a` isn't enough — `a[1].arr` must also be
+/// cloned.
+#[test]
+fn clone_inner_array_field_extracted_through_index() {
+    let src = "
+    struct Entry { arr: [bool; 1] }
+
+    unconstrained fn main() {
+        let a = [Entry { arr: [true] }, Entry { arr: [false] }];
+        foo(a, a[1].arr);
+    }
+    unconstrained fn foo(_a: [Entry; 2], mut b: [bool; 1]) {
+        b[0] = !b[0];
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l2 = [{
+            let arr$l0 = [true];
+            (arr$l0)
+        }, {
+            let arr$l1 = [false];
+            (arr$l1)
+        }];
+        foo$f1(a$l2.clone(), a$l2[1].0);
+    }
+    unconstrained fn foo$f1(_a$l3: [([bool; 1],); 2], mut b$l4: [bool; 1]) -> () {
+        b$l4[0] = (!b$l4[0])
+    }
+    ");
+}
+
 #[test]
 fn no_confirmed_move_for_variable_reassigned_in_loop_in_disabled_if() {
     // Same as confirmed_move_for_variable_reassigned_in_the_loop,
