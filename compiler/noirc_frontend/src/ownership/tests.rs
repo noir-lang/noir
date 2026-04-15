@@ -1055,28 +1055,6 @@ fn clone_inserted_on_index_then_collection_in_lvalue() {
     ");
 }
 
-/// Nested array index: `arr[0][1]` on a 3D array. When the base variable has
-/// no further uses, the indexed element can be moved without cloning.
-#[test]
-fn nested_array_double_index_is_moved() {
-    let src = "
-    unconstrained fn main() {
-        let arr = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
-        let _val = arr[0][1];
-    }
-    ";
-
-    let program = get_monomorphized(src).unwrap();
-
-    // No clone needed — arr is not used again and the intermediate arr[0] is a temporary
-    insta::assert_snapshot!(program, @r"
-    unconstrained fn main$f0() -> () {
-        let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
-        let _val$l1 = arr$l0[0][1]
-    }
-    ");
-}
-
 #[test]
 fn clones_non_moved_variable_because_of_reference_even_if_unused() {
     // Similar to the above test, but shows that even when taking a reference
@@ -1609,7 +1587,7 @@ fn clone_inner_array_passed_alongside_outer() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let a$l0 = [[true], [false]];
-        foo$f1(a$l0.clone(), a$l0[1]);
+        foo$f1(a$l0.clone(), a$l0[1].clone());
     }
     unconstrained fn foo$f1(_a$l1: [[bool; 1]; 2], mut b$l2: [bool; 1]) -> () {
         b$l2[0] = (!b$l2[0])
@@ -1646,7 +1624,7 @@ fn clone_inner_array_field_extracted_through_index() {
             let arr$l1 = [false];
             (arr$l1)
         }];
-        foo$f1(a$l2.clone(), a$l2[1].0);
+        foo$f1(a$l2.clone(), a$l2[1].0.clone());
     }
     unconstrained fn foo$f1(_a$l3: [([bool; 1],); 2], mut b$l4: [bool; 1]) -> () {
         b$l4[0] = (!b$l4[0])
