@@ -152,7 +152,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Use brillig-only mem2reg before inlining.
         // Running ACIR mem2reg this early creates block parameters that cascade through
         // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
-        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg").and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding_brillig)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,
@@ -160,7 +163,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg").and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding_brillig)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
@@ -183,7 +189,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -224,7 +233,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
