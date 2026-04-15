@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776277393378,
+  "lastUpdate": 1776277815708,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22151,48 +22151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3b808ddb9b44d8d39208fd6444474dc2d7643980",
-          "message": "chore: add integration test to show signature normalisation (#12151)",
-          "timestamp": "2026-04-07T14:45:26Z",
-          "tree_id": "81380f254009d8fc38543900ca34d291892dc531",
-          "url": "https://github.com/noir-lang/noir/commit/3b808ddb9b44d8d39208fd6444474dc2d7643980"
-        },
-        "date": 1775574558742,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168806,
-            "range": "± 420",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139618,
-            "range": "± 2848",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643557,
-            "range": "± 4515",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24244,6 +24202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641455,
             "range": "± 8545",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e31b8ef20ff4242979c92f53efbf8c5343ed5bc",
+          "message": "fix(ssa): Check aliases when invalidating references passed to calls (#12320)",
+          "timestamp": "2026-04-15T18:06:44Z",
+          "tree_id": "b33ee29b68c9edac52ec63756f58368d6d04b6c9",
+          "url": "https://github.com/noir-lang/noir/commit/6e31b8ef20ff4242979c92f53efbf8c5343ed5bc"
+        },
+        "date": 1776277760126,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127641,
+            "range": "± 366",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113207,
+            "range": "± 3875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043874,
+            "range": "± 10191",
             "unit": "ns/iter"
           }
         ]
