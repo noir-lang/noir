@@ -1009,10 +1009,13 @@ mod tests {
 
     #[test]
     fn inliner_disabled() {
+        // At minimum aggressiveness, cost-based inlining is disabled.
+        // Use two call sites so the single-caller heuristic does not apply.
         let src = "
         brillig(inline) fn foo f0 {
           b0():
             v1 = call f1() -> Field
+            v2 = call f1() -> Field
             return v1
         }
         brillig(inline) fn bar f1 {
@@ -1267,9 +1270,11 @@ mod tests {
 
     #[test]
     fn inline_always_function() {
+        // Two call sites so the single-caller heuristic does not apply.
         let src = "
         brillig(inline) fn main f0 {
             b0():
+              call f1()
               call f1()
               return
         }
@@ -1287,8 +1292,8 @@ mod tests {
         }
         ");
 
-        // Check that with a minimum inliner aggressiveness we do not inline a function
-        // not marked with `inline_always`
+        // Without inline_always, the function is not inlined at minimum aggressiveness
+        // (two callers means the single-caller heuristic does not apply).
         let no_inline_always_src = &src.replace("inline_always", "inline");
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
@@ -1899,11 +1904,15 @@ mod simple_functions {
 
     #[test]
     fn does_not_inline_function_with_multiple_instructions() {
+        // f1 has >10 instructions (not simple) and is called from two sites,
+        // so it is not eligible for single-caller inlining. At minimum
+        // aggressiveness, cost-model inlining also does not apply.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
-            return v1
+            v2 = call f1(v1) -> Field
+            return v2
         }
 
         brillig(inline) fn foo f1 {
