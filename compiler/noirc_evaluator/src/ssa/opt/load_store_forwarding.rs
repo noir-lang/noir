@@ -24,7 +24,8 @@
 //! simplifier during re-insertion, resolving the alias.
 //!
 //! Calls are handled conservatively: simple reference arguments invalidate
-//! that specific address; containers or nested references clear all state.
+//! that address and all its potential aliases; containers or nested
+//! references clear all state.
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -182,16 +183,21 @@ fn forward_loads_and_stores_in_block(
                 last_stores.retain(|k, _| !may_alias(address, *k, allocations, dfg));
             }
             Instruction::Call { .. } => {
-                // Simple reference (`&mut T` where T has no refs): invalidate that address.
+                // Simple reference (`&mut T` where T has no refs): invalidate that
+                // address and all its potential aliases.
                 // Container or nested reference: clear all state.
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
                     let typ = inserter.function.dfg.type_of_value(value);
                     let is_simple_ref = matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
                     if is_simple_ref {
-                        known_values.remove(&value);
-                        last_loads.remove(&value);
-                        last_stores.remove(&value);
+                        let dfg = &inserter.function.dfg;
+                        known_values
+                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                        last_loads
+                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                        last_stores
+                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
                     } else if typ.contains_reference() {
                         known_values.clear();
                         last_loads.clear();
@@ -1037,6 +1043,32 @@ mod tests {
             v6 = load v5 -> Field
             store Field 2 at v2
             return v6
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn call_with_aliased_simple_ref_clears_aliases() {
+        // A reference stored into an array via array_set, then extracted via
+        // array_get as a new ValueId, then passed to a call. The callee can
+        // write through that reference, so the original address's known value
+        // must be invalidated. Regression test for #12317.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u32, v2: [&mut Field; 2]):
+            store Field 0 at v0
+            v3 = array_set v2, index v1, value v0
+            v4 = array_get v3, index v1 -> &mut Field
+            call f1(v4)
+            v5 = load v0 -> Field
+            return v5
+        }
+
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return
         }
         ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);

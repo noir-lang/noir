@@ -41,9 +41,41 @@ for i in 0..10 {
 }
 ```
 
-Alternatively, `start..=end` can be used for a range that is inclusive on both ends.
+Alternatively, `start..=end` can be used for a range that is inclusive on both ends:
+
+```rust
+// Exclusive range: i takes values 0, 1, 2, ..., 9
+for i in 0..10 {
+    println(i);
+}
+
+// Inclusive range: i takes values 0, 1, 2, ..., 10
+for i in 0..=10 {
+    println(i);
+}
+```
 
 The index for loops is of type `u64`.
+
+### Iterating over arrays and vectors
+
+You can iterate directly over the elements of an array or vector using `for element in collection`:
+
+```rust
+let arr = [10, 20, 30];
+for element in arr {
+    println(element);
+}
+```
+
+This also works with vectors:
+
+```rust
+let vec = @[1, 2, 3];
+for element in vec {
+    println(element);
+}
+```
 
 ### Break and Continue
 
