@@ -1,7 +1,7 @@
 use super::expr::HirIdent;
 use crate::Type;
 use crate::ast::Ident;
-use crate::node_interner::{ExprId, StmtId};
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
 
@@ -128,6 +128,15 @@ impl HirPattern {
             | HirPattern::Struct(_, _, location) => *location,
         }
     }
+
+    /// Returns `true` if this pattern is or contains a `self` identifier, `false` otherwise
+    pub fn is_self(&self, interner: &NodeInterner) -> bool {
+        match self {
+            HirPattern::Identifier(ident) => interner.definition(ident.id).name == "self",
+            HirPattern::Mutable(pattern, _) => pattern.is_self(interner),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
+    }
 }
 
 /// Represents an Ast form that can be assigned to. These
@@ -160,4 +169,16 @@ pub enum HirLValue {
     Error {
         location: Location,
     },
+}
+
+impl HirLValue {
+    pub fn location(&self) -> Location {
+        match self {
+            HirLValue::Ident(ident, _) => ident.location,
+            HirLValue::MemberAccess { location, .. }
+            | HirLValue::Index { location, .. }
+            | HirLValue::Dereference { location, .. }
+            | HirLValue::Error { location } => *location,
+        }
+    }
 }

@@ -109,7 +109,19 @@ impl Context<'_, '_, '_> {
 
     fn insert_sub(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
-        let unchecked_result = self.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs);
+        assert!(bit_size < 128, "bit_size >= 128 results in overflow");
+        let modulus = self
+            .numeric_constant(FieldElement::from(2u128.pow(bit_size)), NumericType::NativeField);
+
+        // Cast to Field, so that we can add 2^bit_size without overflowing the integer type,
+        // which in turns allows to do the subtraction without underflow.
+        let lhs_field = self.insert_safe_cast(lhs, NumericType::NativeField);
+        let rhs_field = self.insert_safe_cast(rhs, NumericType::NativeField);
+        let lhs_with_modulus =
+            self.insert_binary(lhs_field, BinaryOp::Add { unchecked: true }, modulus);
+        let unchecked_result =
+            self.insert_binary(lhs_with_modulus, BinaryOp::Sub { unchecked: true }, rhs_field);
+        // Truncate the result back to the bit size of the output, but allow an extra bit for the underflow protection
         let truncated = self.insert_truncate(unchecked_result, bit_size, bit_size + 1);
         let truncated = self.insert_safe_cast(truncated, NumericType::unsigned(bit_size));
 
@@ -163,6 +175,8 @@ impl Context<'_, '_, '_> {
         operation: &str,
         bit_size: u32,
     ) {
+        // Sanity check, since we will be computing 2_u128.pow(bit_size)
+        assert!(bit_size < 128, "unsupported bit size {bit_size} for signed integers");
         let half_width = self.numeric_constant(
             FieldElement::from(2_i128.pow(bit_size - 1)),
             NumericType::unsigned(bit_size),
@@ -231,10 +245,10 @@ impl Context<'_, '_, '_> {
     /// helper function which add instructions to the block computing the absolute value of the
     /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
     fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
-        assert_eq!(self.context.dfg.type_of_value(sign), Type::bool());
+        assert_eq!(*self.context.dfg.type_of_value(sign), Type::bool());
 
         // We compute the absolute value of lhs
-        let bit_width = FieldElement::from(2_i128.pow(bit_size));
+        let bit_width = FieldElement::from(2_u128.pow(bit_size));
         let bit_width = self.numeric_constant(bit_width, NumericType::NativeField);
         let sign_not = self.insert_not(sign);
 
@@ -263,7 +277,7 @@ impl Context<'_, '_, '_> {
     ///
     /// Compared to `self.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(&mut self, mut value: ValueId, typ: NumericType) -> ValueId {
-        let incoming_type = self.context.dfg.type_of_value(value);
+        let incoming_type = self.context.dfg.type_of_value(value).into_owned();
 
         let result = match (&incoming_type, typ) {
             // Casting to field is safe
@@ -511,20 +525,24 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: i32, v1: i32):
-            v2 = unchecked_sub v0, v1
-            v3 = truncate v2 to 32 bits, max_bit_size: 33
-            v4 = cast v3 as u32
-            v5 = cast v0 as u32
-            v6 = cast v1 as u32
-            v8 = lt v5, u32 2147483648
-            v9 = lt v6, u32 2147483648
-            v10 = not v9
-            v11 = eq v8, v10
-            v12 = lt v4, u32 2147483648
-            v13 = eq v12, v8
-            v14 = unchecked_mul v13, v11
-            constrain v14 == v11, "attempt to subtract with overflow"
-            return v3
+            v2 = cast v0 as Field
+            v3 = cast v1 as Field
+            v5 = add v2, Field 4294967296
+            v6 = sub v5, v3
+            v7 = truncate v6 to 32 bits, max_bit_size: 33
+            v8 = cast v7 as u32
+            v9 = cast v0 as u32
+            v10 = cast v1 as u32
+            v12 = lt v9, u32 2147483648
+            v13 = lt v10, u32 2147483648
+            v14 = not v13
+            v15 = eq v12, v14
+            v16 = lt v8, u32 2147483648
+            v17 = eq v16, v12
+            v18 = unchecked_mul v17, v15
+            constrain v18 == v15, "attempt to subtract with overflow"
+            v19 = cast v7 as i32
+            return v19
         }
         "#);
     }

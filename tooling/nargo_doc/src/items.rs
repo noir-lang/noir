@@ -91,7 +91,7 @@ pub type Links = Vec<Link>;
 
 pub type Comments = (String, Links);
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Workspace {
     pub name: String,
     /// Crates directly defined in this workspace.
@@ -106,7 +106,7 @@ impl Workspace {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Crate {
     pub name: String,
     pub version: Option<String>,
@@ -128,7 +128,7 @@ impl ItemProperties for Crate {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Item {
     Module(Module),
     Struct(Struct),
@@ -155,7 +155,7 @@ impl Item {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Module {
     pub id: ItemId,
     pub module_id: ModuleId,
@@ -185,7 +185,7 @@ impl ItemProperties for Module {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Struct {
     pub id: ItemId,
     pub name: String,
@@ -194,6 +194,7 @@ pub struct Struct {
     pub fields: Vec<StructField>,
     /// `true` if the struct has any private fields, besides the public ones listed in `fields`.
     pub has_private_fields: bool,
+    pub comptime: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<Comments>,
@@ -213,7 +214,7 @@ impl ItemProperties for Struct {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StructField {
     pub name: String,
     pub r#type: Type,
@@ -234,14 +235,14 @@ impl ItemProperties for StructField {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
     pub methods: Vec<Function>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
     pub trait_id: ItemId,
@@ -252,7 +253,7 @@ pub struct TraitImpl {
     pub methods: Vec<Function>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Global {
     pub id: ItemId,
     pub name: String,
@@ -276,7 +277,7 @@ impl ItemProperties for Global {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Function {
     pub id: ItemId,
     pub unconstrained: bool,
@@ -304,14 +305,14 @@ impl ItemProperties for Function {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FunctionParam {
     pub name: String,
     pub r#type: Type,
     pub mut_ref: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Trait {
     pub id: ItemId,
     pub name: String,
@@ -326,13 +327,13 @@ pub struct Trait {
     pub comments: Option<Comments>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AssociatedType {
     pub name: String,
     pub bounds: Vec<TraitBound>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AssociatedConstant {
     pub name: String,
     pub r#type: Type,
@@ -352,12 +353,13 @@ impl ItemProperties for Trait {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TypeAlias {
     pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
+    pub comptime: bool,
     pub comments: Option<Comments>,
 }
 
@@ -375,19 +377,19 @@ impl ItemProperties for TypeAlias {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Generic {
     pub name: String,
     pub numeric: Option<Type>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitConstraint {
     pub r#type: Type,
     pub bound: TraitBound,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitBound {
     pub trait_id: ItemId,
     pub trait_name: String,
@@ -395,7 +397,7 @@ pub struct TraitBound {
     pub named_generics: BTreeMap<String, Type>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
     Unit,
     Primitive(PrimitiveTypeKind),
@@ -449,7 +451,7 @@ pub enum Type {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub impls: Vec<Impl>,
@@ -471,7 +473,7 @@ impl ItemProperties for PrimitiveType {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Reexport {
     pub id: ItemId,
     pub item_name: String,
@@ -481,7 +483,6 @@ pub struct Reexport {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PrimitiveTypeKind {
     Bool,
-    U1,
     U8,
     U16,
     U32,
@@ -514,7 +515,6 @@ impl std::fmt::Display for PrimitiveTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
             PrimitiveTypeKind::Bool => "bool",
-            PrimitiveTypeKind::U1 => "u1",
             PrimitiveTypeKind::U8 => "u8",
             PrimitiveTypeKind::U16 => "u16",
             PrimitiveTypeKind::U32 => "u32",

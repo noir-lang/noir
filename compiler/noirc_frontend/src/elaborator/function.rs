@@ -8,13 +8,15 @@
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -43,6 +45,7 @@ impl Elaborator<'_> {
     /// Defines function metadata for all functions, impl methods, and trait impl methods.
     /// This is the first pass of function elaboration that extracts type signatures and
     /// resolves generics before the function bodies are elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_metas(
         &mut self,
         functions: &mut [UnresolvedFunctions],
@@ -66,7 +69,7 @@ impl Elaborator<'_> {
 
         // Define metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
-            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+            trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
         {
             self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
@@ -74,6 +77,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for a set of functions with optional extra trait constraints.
     /// This is used for both standalone functions and methods within impls/trait impls.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_functions(
         &mut self,
         function_set: &mut UnresolvedFunctions,
@@ -89,6 +93,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within an impl block.
     /// Resolves the self type and adds it to scope for method resolution.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_impl(
         &mut self,
         self_type: &UnresolvedType,
@@ -117,6 +122,7 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within a trait impl.
     /// This handles trait resolution, generics, associated types, and constraint checking.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_function_metas_for_trait_impl(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -125,6 +131,7 @@ impl Elaborator<'_> {
     ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
         self.self_type = trait_impl.methods.self_type.clone();
         self.generics = generics;
 
@@ -137,6 +144,7 @@ impl Elaborator<'_> {
         // Cleanup
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -148,6 +156,7 @@ impl Elaborator<'_> {
     ///
     /// Prerequisite: any implicit generics from enclosing impls have already been added
     /// to scope via [Self::add_generics].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_meta(
         &mut self,
         func: &mut NoirFunction,
@@ -171,11 +180,18 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, bound.trait_id);
+            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
         let mut trait_constraints =
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
+
+        // Add constraints for parent traits that have associated types.
+        let (parent_generics, parent_constraints) =
+            self.add_parent_associated_type_constraints(&trait_constraints);
+        generics.extend(parent_generics);
+        trait_constraints.extend(parent_constraints);
+
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
@@ -276,6 +292,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (generics, associated_generics_trait_constraints) where generics contains
     /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
+    #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
         &mut self,
         func_generics: &UnresolvedGenerics,
@@ -294,7 +311,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
                 let location = associated_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
@@ -329,6 +346,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (parameters, parameter_types, parameter_idents) where generics and
     /// trait_constraints may be extended due to `impl Trait` desugaring.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_parameters(
         &mut self,
         func: &NoirFunction,
@@ -347,6 +365,16 @@ impl Elaborator<'_> {
         let mut parameter_idents = Vec::new();
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
+
+        // Seed the parameter names with those from the constant generic parameter list, so that any function parameter
+        // that has the same name is reported as a duplicate. This is because their precedence is not obvious.
+        for generic in &func.def.generics {
+            let UnresolvedGeneric::Numeric { ident: IdentOrQuotedType::Ident(ident), .. } = generic
+            else {
+                continue;
+            };
+            parameter_names_in_list.insert(ident.as_string().clone(), ident.location());
+        }
 
         for Param { visibility, visibility_location, pattern, typ, location: _ } in
             func.parameters().iter().cloned()
@@ -435,6 +463,7 @@ impl Elaborator<'_> {
         Ok(())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
         self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
@@ -463,6 +492,7 @@ impl Elaborator<'_> {
     /// This is the second pass of function elaboration that processes the function body,
     /// resolves all expressions and statements, performs type checking, and verifies
     /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
@@ -486,6 +516,8 @@ impl Elaborator<'_> {
         self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
+        self.current_trait = func_meta.trait_id;
+        self.reset_lvalue_index_counter();
 
         self.scopes.start_function();
         let old_item = self.current_item.replace(DependencyId::Function(id));

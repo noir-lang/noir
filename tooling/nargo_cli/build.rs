@@ -205,7 +205,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -222,6 +222,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     "regression_10466",
     // bug
     "trait_associated_constant",
+    // Globals evaluate to invalid utf-8 which don't display correctly in a source file
+    "regression_12269",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -398,8 +400,9 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     }};
 
     #[allow(unused_mut)]
-    let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
+    let (mut nargo, target_dir) = setup_nargo_command(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
     {test_content}
+    drop(target_dir);
 }}
 "#
     )
@@ -771,7 +774,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             &test_dir,
             "info",
             &format!(
-                "compile_success_empty(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
+                "compile_success_empty(nargo, {});",
                 !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str())
             ),
             &MatrixConfig::default(),
@@ -799,7 +802,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
+            "compile_success_contract(nargo);",
             &MatrixConfig::default(),
         );
     }

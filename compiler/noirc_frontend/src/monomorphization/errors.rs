@@ -16,7 +16,7 @@ pub enum MonomorphizationError {
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: String, expected: String, location: Location },
-    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: String, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
@@ -24,6 +24,7 @@ pub enum MonomorphizationError {
     NestedVectors { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    NestedOrContainerReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
@@ -50,6 +51,9 @@ impl MonomorphizationError {
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
+                location, ..
+            }
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
@@ -145,9 +149,14 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
                 )
             }
+            MonomorphizationError::NestedOrContainerReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass `{typ}` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported"
+                )
+            }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
                 format!(
-                    "Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                    "Reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
             MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {

@@ -13,6 +13,7 @@ impl Parser<'_> {
     pub(crate) fn parse_type_alias(
         &mut self,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> TypeAlias {
         let location = self.location_at_previous_token_end();
@@ -20,6 +21,7 @@ impl Parser<'_> {
             self.expected_identifier();
             return TypeAlias {
                 visibility,
+                comptime,
                 name: self.empty_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
@@ -73,6 +75,7 @@ impl Parser<'_> {
 
         TypeAlias {
             visibility,
+            comptime,
             name,
             generics,
             typ,
@@ -114,6 +117,7 @@ mod tests {
         assert_eq!("Foo", alias.name.to_string());
         assert!(alias.generics.is_empty());
         assert_eq!(alias.typ.typ.to_string(), "Field");
+        assert!(!alias.comptime);
     }
 
     #[test]
@@ -130,6 +134,16 @@ mod tests {
         let alias = parse_type_alias_no_errors(src);
         assert_eq!("Double", alias.name.to_string());
         assert_eq!(alias.generics.len(), 1);
+    }
+
+    #[test]
+    fn parse_comptime_type_alias() {
+        let src = "comptime type Foo = Field;";
+        let alias = parse_type_alias_no_errors(src);
+        assert_eq!("Foo", alias.name.to_string());
+        assert!(alias.generics.is_empty());
+        assert_eq!(alias.typ.typ.to_string(), "Field");
+        assert!(alias.comptime);
     }
 
     #[test]

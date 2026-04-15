@@ -168,21 +168,23 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Struct) {
-            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+            self.mutable_and_unconstrained_not_applicable(modifiers);
 
             return vec![ItemKind::Struct(self.parse_struct(
                 attributes,
                 modifiers.visibility,
+                modifiers.comptime.is_some(),
                 start_location,
             ))];
         }
 
         if self.eat_keyword(Keyword::Enum) {
-            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+            self.mutable_and_unconstrained_not_applicable(modifiers);
 
             return vec![ItemKind::Enum(self.parse_enum(
                 attributes,
                 modifiers.visibility,
+                modifiers.comptime.is_some(),
                 start_location,
             ))];
         }
@@ -223,11 +225,13 @@ impl<'a> Parser<'a> {
         }
 
         if self.eat_keyword(Keyword::Type) {
-            self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
+            self.mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![ItemKind::TypeAlias(
-                self.parse_type_alias(modifiers.visibility, start_location),
-            )];
+            return vec![ItemKind::TypeAlias(self.parse_type_alias(
+                modifiers.visibility,
+                modifiers.comptime.is_some(),
+                start_location,
+            ))];
         }
 
         let is_function = if self.eat_keyword(Keyword::Fn) {

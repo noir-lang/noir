@@ -15,6 +15,7 @@ error: Assertion failed: QPA
    │ ╰─────────────────────────────'
    │  
    = Call stack:
-     1. src/main.nr:8:17
+     1: main
+             at src/main.nr:8:17
 
 Failed assertion

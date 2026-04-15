@@ -7,10 +7,10 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
-use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
 use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
@@ -25,7 +25,7 @@ pub enum RuntimeError {
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: SignedField,
+        value: FieldElement,
         typ: NumericType,
         range: String,
         call_stack: CallStack,

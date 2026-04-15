@@ -28,6 +28,7 @@ fn object_type_must_be_known_in_method_call() {
     pub fn foo<let N: u32>() -> [Field; N] {
         let array = [];
         let bar = array[0];
+                        ^ Index 0 is out of bounds for this array of length 0
         let _ = bar.len();
                 ^^^ Object type is unknown in method call
                 ~~~ Type must be known by this point to know which method to call
@@ -168,6 +169,29 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
                 ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
 
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn phantom_type_parameter_not_silently_resolved_by_trait_method() {
+    let src = r#"
+    struct Empty<T> {}
+
+    trait Foo { fn foo(self) -> u32; }
+
+    impl Foo for Empty<u32> { fn foo(_self: Self) -> u32 { 32 } }
+    impl Foo for Empty<u64> { fn foo(_self: Self) -> u32 { 64 } }
+
+    fn main()
+    {
+        let z = Empty {};
+                ^^^^^ Type annotation needed
+                ~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Empty`
+        let _ = z.foo();
+                ^^^^^ Multiple trait impls match the object type `Empty<_>`
+                ~~~~~ Ambiguous impl
+    }
     "#;
     check_errors(src);
 }
@@ -437,6 +461,17 @@ fn deny_cyclic_structs() {
         // Safety:
         let _ = unsafe { foo() };
         []
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_struct() {
+    let src = r#"
+    pub struct Foo {
+        quoted: Quoted,
+                ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime struct
     }
     "#;
     check_errors(src);

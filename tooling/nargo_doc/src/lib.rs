@@ -213,12 +213,14 @@ impl DocItemBuilder<'_> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = get_type_id(type_id, self.interner);
+                let comptime = data_type.comptime;
                 self.current_type = None;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
                     fields,
+                    comptime,
                     has_private_fields,
                     impls,
                     trait_impls,
@@ -302,8 +304,9 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
+                let comptime = type_alias.comptime;
                 let id = get_type_alias_id(type_alias_id, self.interner);
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics, comptime })
             }
             expand_items::Item::PrimitiveType(primitive_type) => {
                 let kind = match &primitive_type.typ {
@@ -456,7 +459,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Bool => Type::Primitive(PrimitiveTypeKind::Bool),
             noirc_frontend::Type::Integer(signedness, bit_size) => match signedness {
                 Signedness::Unsigned => match bit_size {
-                    IntegerBitSize::One => Type::Primitive(PrimitiveTypeKind::U1),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::U8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::U16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::U32),
@@ -464,7 +466,6 @@ impl DocItemBuilder<'_> {
                     IntegerBitSize::HundredTwentyEight => Type::Primitive(PrimitiveTypeKind::U128),
                 },
                 Signedness::Signed => match bit_size {
-                    IntegerBitSize::One => panic!("There is no signed 1-bit integer"),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::I8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::I16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::I32),
@@ -570,7 +571,7 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Reference(typ, mutable) => {
                 Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
             }
-            noirc_frontend::Type::Constant(signed_field, _kind) => {
+            noirc_frontend::Type::Constant(signed_field) => {
                 Type::Constant(signed_field.to_string())
             }
             noirc_frontend::Type::InfixExpr(lhs, operator, rhs, _) => Type::InfixExpr {
@@ -617,7 +618,7 @@ impl DocItemBuilder<'_> {
         let comments = self.doc_comments(ReferenceId::Function(func_id));
         let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
-            let is_self = self.pattern_is_self(pattern);
+            let is_self = pattern.is_self(self.interner);
 
             // `&mut self` is represented as a mutable reference type, not as a mutable pattern
             let mut mut_ref = false;
@@ -645,7 +646,7 @@ impl DocItemBuilder<'_> {
             .collect::<Vec<_>>();
 
         let attributes = self.interner.function_attributes(&func_id);
-        let deprecated = attributes.get_deprecated_note();
+        let deprecated = attributes.get_deprecated().map(|(_, note)| note);
 
         let id = get_function_id(func_id, self.interner);
 
@@ -689,12 +690,12 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
+        let non_private_imports = imports
+            .into_iter()
+            .filter(|import| import.visibility != ItemVisibility::Private)
+            .collect::<Vec<_>>();
 
-        for import in imports {
-            if import.visibility == ItemVisibility::Private {
-                continue;
-            }
-
+        for import in non_private_imports {
             let item_id = get_module_def_id(import.id, self.interner);
             if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
                 // Check if this is a re-export of a private item. The private item won't show up in
@@ -726,6 +727,11 @@ impl DocItemBuilder<'_> {
                 }),
             ));
         }
+
+        // The module changed (it got new items). Because it can still be looked up in
+        // `item_id_to_converted_item` we need to update its definition there too.
+        self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
+            Item::Module(module.clone());
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
@@ -836,17 +842,6 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
-        match pattern {
-            HirPattern::Identifier(ident) => {
-                let definition = self.interner.definition(ident.id);
-                definition.name == "self"
-            }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
-        }
-    }
-
     fn get_module_def_id_name(&self, id: ModuleDefId) -> String {
         match id {
             ModuleDefId::ModuleId(module_id) => {
@@ -886,7 +881,6 @@ pub(crate) fn convert_primitive_type(
     match primitive_type {
         noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
         noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
-        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
         noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
         noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
         noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,
@@ -913,9 +907,6 @@ pub(crate) fn convert_primitive_type(
             PrimitiveTypeKind::FunctionDefinition
         }
         noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
-        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
-            PrimitiveTypeKind::TypeDefinition
-        }
         noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
             PrimitiveTypeKind::TraitDefinition
         }

@@ -25,7 +25,7 @@ use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::CompileOptions;
-use noirc_frontend::hir::Context;
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use super::test_cmd::TestResult;
 use super::test_cmd::formatters::Formatter;
@@ -126,10 +126,14 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     }
 }
 
-fn print_test_result(test_result: TestResult, file_manager: &FileManager) {
+fn print_test_result(
+    test_result: TestResult,
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+) {
     let formatter: Box<dyn Formatter> = Box::new(PrettyFormatter);
     formatter
-        .test_end_sync(&test_result, 1, 1, file_manager, true, false, false)
+        .test_end_sync(&test_result, 1, 1, file_manager, parsed_files, true, false, false)
         .expect("Could not display test result");
 }
 
@@ -224,7 +228,7 @@ fn debug_test(
         run_params,
         package_params,
     );
-    print_test_result(test_result, &file_manager);
+    print_test_result(test_result, &file_manager, &parsed_files);
 
     Ok(())
 }

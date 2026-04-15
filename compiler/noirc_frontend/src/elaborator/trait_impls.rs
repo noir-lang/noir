@@ -65,10 +65,13 @@ impl Elaborator<'_> {
     /// - `MethodNotInTrait`: Impl contains method not in trait
     /// - `ImplIsStricterThanTrait`: Method where clause is more restrictive than trait
     /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
         let previous_current_trait_impl =
             std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
+        let previous_current_trait =
+            std::mem::replace(&mut self.current_trait, trait_impl.trait_id);
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
@@ -270,9 +273,11 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
         self.current_trait_impl = previous_current_trait_impl;
+        self.current_trait = previous_current_trait;
         self.self_type = previous_self_type;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_trait_impl_methods(
         &mut self,
         trait_id: TraitId,
@@ -404,6 +409,7 @@ impl Elaborator<'_> {
     ///     fn foo<B>() where B: MyTrait {}
     /// }
     /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_where_clause_against_trait(
         &mut self,
         func_id: &FuncId,
@@ -424,6 +430,8 @@ impl Elaborator<'_> {
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (which is a user error caught elsewhere).
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
@@ -491,6 +499,7 @@ impl Elaborator<'_> {
         self.interner.push_fn_meta(override_meta, *func_id);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_trait_impl_crate_coherence(
         &mut self,
         trait_id: TraitId,
@@ -515,6 +524,7 @@ impl Elaborator<'_> {
         self.local_module = previous_local_module;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn take_unresolved_associated_types(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -543,6 +553,7 @@ impl Elaborator<'_> {
         associated_types
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_trait_impl_assumed_trait_implementations(
         &mut self,
         impl_id: Option<TraitImplId>,
@@ -556,12 +567,12 @@ impl Elaborator<'_> {
                     trait_bound.location,
                     &trait_constrain.typ,
                     trait_bound,
-                    trait_bound.trait_id,
                 );
             }
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn remove_trait_impl_assumed_trait_implementations(
         &mut self,
         impl_id: Option<TraitImplId>,
@@ -577,6 +588,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_trait_impl_where_clause_matches_trait_where_clause(
         &mut self,
         trait_impl: &UnresolvedTraitImpl,
@@ -624,6 +636,7 @@ impl Elaborator<'_> {
     /// This is used both for checking:
     /// 1. The trait's where clause constraints are satisfied by the impl
     /// 2. The trait's parent trait bounds are satisfied by the impl
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_trait_bounds_are_satisfied(
         &mut self,
         constraints: Vec<TraitConstraint>,
@@ -714,6 +727,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
         let Some(trait_id) = trait_impl.trait_id else {
             self.push_err(TypeCheckError::expecting_other_error(
@@ -788,6 +802,7 @@ impl Elaborator<'_> {
     /// the where clause. These need to be passed to function meta definition.
     ///
     /// After this preparation, the trait impl is ready for function meta definition.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn prepare_trait_impl_for_function_meta_definition(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -862,6 +877,7 @@ impl Elaborator<'_> {
 
     /// Resolves the trait path from a trait impl declaration.
     /// Returns (trait_id, trait_generics, path_location).
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_trait_path(
         &mut self,
         trait_impl: &UnresolvedTraitImpl,
@@ -939,6 +955,7 @@ impl Elaborator<'_> {
 
     /// Sets up generics for a trait impl and processes trait constraints from the where clause.
     /// Returns tuple of (resolved constraints, new generic constraints).
+    #[tracing::instrument(level = "trace", skip_all)]
     fn setup_trait_impl_generics(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -952,7 +969,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(new_generic.type_var.clone());
                 let location = new_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
@@ -977,6 +994,7 @@ impl Elaborator<'_> {
 
     /// Resolves associated types for a trait impl and checks for missing generics.
     /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_associated_types(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
@@ -1024,6 +1042,7 @@ impl Elaborator<'_> {
 
     /// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
     /// associated types to be elided since trait impls must specify them.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_args_from_trait_impl(
         &mut self,
         args: GenericTypeArgs,

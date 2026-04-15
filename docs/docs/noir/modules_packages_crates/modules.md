@@ -184,11 +184,57 @@ fn from_bar() {
 }
 ```
 
-### `use` visibility
+## Import Syntax
 
-`use` declarations are private to the containing module, by default. However, like functions, 
-they can be marked as `pub` or `pub(crate)`. Such a use declaration serves to _re-export_ a name. 
-A public `use` declaration can therefore redirect some public name to a different target definition: 
+The `use` keyword brings items from other modules into scope. There are several forms:
+
+### Basic imports
+
+```rust
+use crate::foo::bar;         // Import 'bar' from the 'foo' module in the crate root
+use super::sibling_fn;       // Import from the parent module
+use some_dependency::item;   // Import from a dependency (plain path)
+```
+
+### Aliases
+
+You can rename an import with `as`:
+
+```rust
+use crate::foo::bar as my_bar;
+```
+
+You can also alias a trait to `_` to import its methods without bringing the trait name into scope:
+
+```rust
+use crate::foo::MyTrait as _;
+```
+
+This is useful when you need to call methods defined by a trait but don't want the trait name to be accessible in the current module.
+
+### Grouped imports
+
+Import multiple items from the same path:
+
+```rust
+use crate::foo::{bar, baz};
+use crate::{foo::{bar2 as b, baz}, qux::{c, d}};
+```
+
+### Path prefixes
+
+| Prefix | Meaning |
+|--------|---------|
+| `crate::` | From the root of the current crate |
+| `super::` | From the parent module |
+| `::` | An absolute path |
+| _(plain)_ | Relative to the current module, or a dependency name |
+
+### Re-exports
+
+`use` declarations are private to the containing module by default. However, like functions,
+they can be marked as `pub` or `pub(crate)`. A public `use` declaration serves to _re-export_ a name.
+A public `use` declaration can therefore redirect some public name to a different target definition:
 even a definition with a private canonical path, inside a different module.
 
 An example of re-exporting:
@@ -209,6 +255,19 @@ fn main() {
 ```
 
 In this example, the module `some_module` re-exports two public names defined in `foo`.
+
+## The Prelude
+
+Noir automatically imports a set of commonly used items into every file via the _prelude_. These items are available without an explicit `use` statement:
+
+- `assert_constant`, `print`, `println` -- built-in functions
+- `Eq`, `Ord` -- comparison traits (from `std::cmp`)
+- `BoundedVec` -- bounded vector type (from `std::collections`)
+- `From`, `Into` -- conversion traits (from `std::convert`)
+- `Default` -- default value trait (from `std::default`)
+- `derive`, `derive_via` -- derive macros (from `std::meta`)
+- `Option` -- optional value type (from `std::option`)
+- `panic` -- halt execution with a message (from `std::panic`)
 
 ### Visibility
 

@@ -1,11 +1,10 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
-    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -29,11 +28,7 @@ pub fn type_depth(typ: &Type) -> usize {
 /// Some types don't compile in Noir, so avoid those as we couldn't
 /// put any related failures into an integration test.
 pub fn can_be_global(typ: &Type) -> bool {
-    !matches!(
-        typ,
-        Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
-            | Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
-    )
+    !matches!(typ, Type::Integer(Signedness::Signed, IntegerBitSize::HundredTwentyEight))
 }
 
 /// Check if a type can be used in the `main` function.
@@ -99,11 +94,8 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
-                    // We don't want to produce `i1` or `i128`
-                    if sign.is_signed()
-                        && (size == IntegerBitSize::One
-                            || size == IntegerBitSize::HundredTwentyEight)
-                    {
+                    // We don't want to produce `i128`
+                    if sign.is_signed() && size == IntegerBitSize::HundredTwentyEight {
                         continue;
                     }
 
@@ -175,9 +167,37 @@ pub(crate) fn unref(typ: &Type) -> &Type {
     if let Type::Reference(typ, _) = typ { unref(typ.as_ref()) } else { typ }
 }
 
-/// Peel off all reference types, to get to a concrete underlying type.
-pub(crate) fn unref_mut(typ: &mut Type) -> &mut Type {
-    if let Type::Reference(typ, _) = typ { unref_mut(typ.as_mut()) } else { typ }
+/// Peel off all reference types, to get to a concrete underlying type. Then invokes the given
+/// function with a copy of the type. The returned type replaces the original type, recursively.
+pub(crate) fn unref_mut<F>(typ: &mut Type, f: F)
+where
+    F: FnOnce(Type) -> Type,
+{
+    if let Type::Reference(typ, _) = typ {
+        // One
+        *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+    } else {
+        *typ = f(typ.clone());
+    }
+}
+
+/// Similar to [`unref_mut`] but for `&mut Rc<Type>`.
+pub(crate) fn unref_mut_rc<F>(typ: &mut Rc<Type>, f: F)
+where
+    F: FnOnce(Type) -> Type,
+{
+    *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+}
+
+fn unref_mut_helper<F>(typ: &Type, f: F) -> Type
+where
+    F: FnOnce(Type) -> Type,
+{
+    if let Type::Reference(typ, mutable) = typ {
+        Type::Reference(Rc::new(unref_mut_helper(typ.as_ref(), f)), *mutable)
+    } else {
+        f(typ.clone())
+    }
 }
 
 /// Check if the type contains any references.
@@ -311,24 +331,18 @@ pub fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Typ
 
 /// Reference an expression into a target type
 pub fn ref_mut(typ: Type) -> Type {
-    Type::Reference(Box::new(typ), true)
+    Type::Reference(Rc::new(typ), true)
 }
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).
 ///
 /// Aims to maintain parity with [Monomorphizer::convert_type](noirc_frontend::monomorphization::Monomorphizer::convert_type).
 pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
-    use noirc_frontend::{Kind as HirKind, Type as HirType};
+    use noirc_frontend::Type as HirType;
 
     // Meet the expectations of `Type::evaluate_to_u32`.
     fn size_const(size: u32) -> Box<HirType> {
-        Box::new(HirType::Constant(
-            SignedField::from(size),
-            HirKind::Numeric(Box::new(HirType::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
-        ))
+        Box::new(HirType::constant_u32(size))
     }
 
     // Inverse of HirType::Function -> Type::Tuple([Type::Function, Type::Function])

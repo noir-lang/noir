@@ -23,6 +23,17 @@
 //! it would be wrong to replace `v2` with "42" as the previous array_set might not have
 //! been executed.
 //!
+//! However, in this case:
+//!
+//! ```text
+//! enable_side_effects u1 1
+//! v1 = array_set v0, index 0, value: 42
+//! enable_side_effects v200
+//! v2 = array_get v1, index 0 -> Field
+//! ```
+//!
+//! the optimization can be applied because the `array_set` is unconditional.
+//!
 //! In this case:
 //!
 //! ```text
@@ -149,7 +160,7 @@ impl Function {
 
                             let array_get = Instruction::ArrayGet { array: new_array, index };
                             let [result] = context.dfg.instruction_result(instruction_id);
-                            let result_typ = context.dfg.type_of_value(result);
+                            let result_typ = context.dfg.type_of_value(result).into_owned();
                             let ctrl_typevars = Some(vec![result_typ]);
                             let new_result = context.insert_instruction(array_get, ctrl_typevars);
                             let new_result = new_result.first();
@@ -219,7 +230,12 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                                         .get(&other_instruction_id)
                                         .expect("Expected to know the predicate of every array_set preceding this array_get");
 
-                                    if array_set_predicate != side_effects_var {
+                                    let array_set_predicate_is_one = dfg
+                                        .get_numeric_constant(*array_set_predicate)
+                                        .is_some_and(|var| var.is_one());
+                                    let can_optimize = array_set_predicate_is_one
+                                        || array_set_predicate == side_effects_var;
+                                    if !can_optimize {
                                         return None;
                                     }
                                 }
@@ -373,6 +389,33 @@ mod tests {
             enable_side_effects v2
             v6 = not v1
             enable_side_effects v1
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn optimized_array_get_from_unconditional_array_set() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v10: u1, v11: u1):
+            enable_side_effects u1 1
+            v1 = array_set v0, index u32 0, value Field 1
+            enable_side_effects v11
+            v2 = array_get v1, index u32 0 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1, v2: u1):
+            enable_side_effects u1 1
+            v6 = array_set v0, index u32 0, value Field 1
+            enable_side_effects v2
             return Field 1
         }
         ");

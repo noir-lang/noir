@@ -5,6 +5,7 @@ use std::{
 
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
+use itertools::Itertools;
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 
@@ -55,7 +56,7 @@ pub trait Comparable {
 
 impl<T: Comparable> Comparable for Vec<T> {
     fn equivalent(a: &Self, b: &Self) -> bool {
-        a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+        a.len() == b.len() && a.iter().zip_eq(b).all(|(a, b)| Comparable::equivalent(a, b))
     }
 }
 

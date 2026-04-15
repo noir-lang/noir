@@ -34,10 +34,9 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     };
 
     let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
-        name: interner.definition_name(id).to_string(),
-        note,
-        location,
+    attributes.get_deprecated().map(|(deny, note)| {
+        let name = interner.definition_name(id).to_string();
+        TypeCheckError::CallDeprecated { name, deny, note, location }
     })
 }
 
@@ -212,7 +211,7 @@ pub(super) fn oracle_returns_multiple_vectors(
                 }
             }
             Type::Forall(_, _)
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
             | Type::Reference(_, _)
@@ -265,7 +264,7 @@ pub(super) fn oracle_returns_vector_with_nested_array(
         return None;
     }
 
-    if func.return_type().is_vector_with_nested_array() {
+    if func.return_type().contains_vector_with_nested_array() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
     } else {
@@ -315,7 +314,7 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
-    } else if !return_type.is_valid_for_unconstrained_boundary() {
+    } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
@@ -460,7 +459,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = bit_size.into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.absolute_value() > max.into() || value.is_negative() {
+                if value > max.into() {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ,
@@ -471,19 +470,22 @@ pub(crate) fn check_integer_literal_fits_its_type(
             }
             Type::Integer(Signedness::Signed, bit_count) => {
                 let bit_count: u32 = bit_count.into();
-                let min = 2u128.pow(bit_count - 1);
-                let max = 2u128.pow(bit_count - 1) - 1;
+                let modulus = 2u128.pow(bit_count - 1);
+                let max = modulus - 1;
 
-                let is_negative = value.is_negative();
-                let abs = value.absolute_value();
-
-                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
-                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
-                        expr: value,
-                        ty: typ,
-                        range: format!("-{min}..={max}"),
-                        location,
-                    });
+                if value > max.into() {
+                    // FieldElement negatives are very large values, to test if this is a negative
+                    // within range, add the bit modulus back to it and check if it is within range
+                    // now or not.
+                    let wrapped = value + modulus.into();
+                    if wrapped > max.into() {
+                        return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                            expr: value,
+                            ty: typ,
+                            range: format!("-{modulus}..={max}"),
+                            location,
+                        });
+                    }
                 }
             }
             _ => (),

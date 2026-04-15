@@ -219,7 +219,9 @@ impl TerminatorInstruction {
     /// Estimate the Brillig opcode cost of this terminator instruction.
     pub(crate) fn cost(&self) -> usize {
         match self {
-            TerminatorInstruction::JmpIf { .. } => 2, // jump_if + jump
+            TerminatorInstruction::JmpIf { then_arguments, else_arguments, .. } => {
+                2 + then_arguments.len() + else_arguments.len()
+            } // jump_if + jump + moves
             TerminatorInstruction::Jmp { arguments, .. } => 1 + arguments.len(), // moves + jump
             TerminatorInstruction::Return { return_values, .. } => 1 + return_values.len(), // moves + return
             TerminatorInstruction::Unreachable { .. } => 0,

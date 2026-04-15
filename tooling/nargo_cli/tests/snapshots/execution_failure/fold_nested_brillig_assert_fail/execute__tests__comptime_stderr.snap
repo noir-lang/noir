@@ -9,10 +9,15 @@ error: Assertion failed
    │            -
    │
    = Call stack:
-     1. src/main.nr:5:4
-     2. src/main.nr:7:17
-     3. src/main.nr:12:5
-     4. src/main.nr:19:9
-     5. src/main.nr:24:5
+     1: ?
+             at src/main.nr:5:4
+     2: main
+             at src/main.nr:7:17
+     3: fold_conditional_wrapper
+             at src/main.nr:12:5
+     4: fold_conditional
+             at src/main.nr:19:9
+     5: conditional_wrapper
+             at src/main.nr:24:5
 
 Error interpreting main function

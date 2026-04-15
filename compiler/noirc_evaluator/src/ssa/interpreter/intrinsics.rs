@@ -438,7 +438,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
 
                 let result_type = self.dfg().type_of_value(results[0]);
-                let Type::Array(_, n) = result_type else {
+                let Type::Array(_, n) = &*result_type else {
                     return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
                         actual_type: result_type.to_string(),
                         expected_type: "array",
@@ -455,17 +455,12 @@ impl<W: Write> Interpreter<'_, W> {
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
                     result.push(Value::from_constant(x, NumericType::NativeField)?);
                     result.push(Value::from_constant(y, NumericType::NativeField)?);
-                    result.push(Value::from_constant(
-                        generator.infinity.into(),
-                        NumericType::bool(),
-                    )?);
                 }
                 let results = Value::array(
                     result,
                     vec![
                         Type::Numeric(NumericType::NativeField),
                         Type::Numeric(NumericType::NativeField),
-                        Type::Numeric(NumericType::bool()),
                     ],
                 );
                 Ok(vec![results])
@@ -514,7 +509,7 @@ impl<W: Write> Interpreter<'_, W> {
         result: ValueId,
     ) -> IResults {
         let result_type = self.dfg().type_of_value(result);
-        let Type::Array(_, limb_count) = result_type else {
+        let Type::Array(_, limb_count) = &*result_type else {
             return Err(InterpreterError::Internal(InternalError::TypeError {
                 value_id: result,
                 value: result_type.to_string(),
@@ -544,9 +539,18 @@ impl<W: Write> Interpreter<'_, W> {
 
         // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(element_types.len() * length as usize);
-        for arg in args.iter().skip(2) {
-            new_elements.push(self.lookup(*arg)?);
+        // We could remove any extras and then append:
+        //  new_elements.truncate(element_types.len() * length as usize);
+        // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+        // so instead of truncating, we append as well as overwrite.
+        let end_index = element_types.len() * (length as usize);
+        let push_only = end_index == new_elements.len();
+        for (i, arg) in args.iter().skip(2).enumerate() {
+            let value = self.lookup(*arg)?;
+            if !push_only {
+                new_elements[end_index + i] = value.clone();
+            }
+            new_elements.push(value);
         }
 
         let new_length = Value::u32(length + 1);

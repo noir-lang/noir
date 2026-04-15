@@ -1,4 +1,5 @@
 use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
+use itertools::Itertools;
 
 use crate::pwg::{OpcodeResolutionError, input_to_value};
 
@@ -7,7 +8,7 @@ pub(crate) fn to_u8_array<const N: usize, F: AcirField>(
     inputs: &[FunctionInput<F>; N],
 ) -> Result<[u8; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
-    for (it, input) in result.iter_mut().zip(inputs) {
+    for (it, input) in result.iter_mut().zip_eq(inputs) {
         let byte: u8 = input_to_value(initial_witness, *input)?
             .try_into_u128()
             .expect("expected input to fit into a u128")

@@ -19,6 +19,7 @@ noirc_frontend.workspace = true
 noirc_artifacts.workspace = true
 acvm.workspace = true
 noir_ssa_executor.workspace = true
+itertools.workspace = true
 log.workspace = true
 env_logger.workspace = true
 rand.workspace = true
@@ -28,12 +29,11 @@ serde_json.workspace = true
 base64.workspace = true
 sha1 = "0.10.6"
 redis = { version = "0.26" }
-strum_macros = "0.26"
+strum_macros = "0.28"
 strum = "0.26"
 sha2.workspace = true
 p256.workspace = true
 k256.workspace = true
-reqwest = { version = "0.12.23", features = ["json", "blocking"] }
 sancov = { git = "https://github.com/noir-lang/sancov.git", version = "0.1.0", features = [
     "hash_increment",
 ] }

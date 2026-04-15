@@ -5,6 +5,8 @@ on:
     branches:
       - master
 
+permissions: {}
+
 jobs:
   release-please:
     name: Create Release
@@ -12,10 +14,12 @@ jobs:
       release-pr: ${{ steps.release.outputs.pr }}
       tag-name: ${{ steps.release.outputs.tag_name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Run release-please
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
         with:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
@@ -24,9 +28,11 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -42,7 +48,7 @@ jobs:
         run: |
           cargo update --workspace
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 22.21.1
           cache: "yarn"
@@ -67,10 +73,12 @@ jobs:
     needs: [release-please, update-acvm-workspace-package-versions]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
@@ -131,7 +139,7 @@ jobs:
 
     steps:
       - name: Add warning to sticky comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3
         with:
           # We need to specify the PR on which to make the comment as workflow is triggered by push.
           number: ${{ fromJSON(needs.release-please.outputs.release-pr).number }}
@@ -150,9 +158,11 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Dispatch to publish workflow
-        uses: benc-uk/workflow-dispatch@v1
+        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
         with:
           workflow: publish-nargo.yml
           repo: noir-lang/noir
@@ -165,9 +175,11 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Dispatch to publish-es-packages
-        uses: benc-uk/workflow-dispatch@v1
+        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
         with:
           workflow: publish-es-packages.yml
           ref: master
@@ -179,10 +191,12 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Dispatch to publish-acvm
-        uses: benc-uk/workflow-dispatch@v1
+        uses: benc-uk/workflow-dispatch@7a027648b88c2413826b6ddd6c76114894dc5ec4 # v1
         with:
           workflow: publish-acvm.yml
           ref: master

@@ -38,7 +38,9 @@ pub enum ParserErrorReason {
     UnconstrainedNotApplicable,
     #[error("Expected an identifier or `(expression) after `$` for unquoting")]
     ExpectedIdentifierOrLeftParenAfterDollar,
-    #[error("`&mut` can only be used with `self")]
+    #[error(
+        "`&` and `&mut` can only be used with `self` as a name. Try putting it on the parameter's type instead"
+    )]
     RefMutCanOnlyBeUsedWithSelf,
     #[error("Invalid pattern")]
     InvalidPattern,
@@ -97,8 +99,10 @@ pub enum ParserErrorReason {
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
-    #[error("The `deprecated` attribute expects a string argument")]
-    DeprecatedAttributeExpectsAStringArgument,
+    #[error(
+        "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
+    )]
+    DeprecatedAttributeInvalidArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
@@ -279,7 +283,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             let primary = "`impl Trait` as a type is experimental".to_string();
                             Diagnostic::simple_warning(primary, secondary, error.location())
                         }
-                        _ => Diagnostic::simple_error(
+                        UnstableFeature::Enums => Diagnostic::simple_error(
                             reason.to_string(),
                             secondary,
                             error.location(),

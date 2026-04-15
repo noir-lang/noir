@@ -5,6 +5,7 @@ use std::{
 };
 
 use acvm::acir::circuit::ErrorSelector;
+use itertools::Itertools;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
@@ -330,7 +331,13 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
+                // The parsed type is the full reference type (e.g. &mut u32).
+                // insert_allocate_with_mutability expects the element type and mutability separately.
+                let value_id = if let Type::Reference(element, mutable) = typ {
+                    self.builder.insert_allocate_with_mutability(element.as_ref().clone(), mutable)
+                } else {
+                    self.builder.insert_allocate(typ)
+                };
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
@@ -366,7 +373,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
                     self.define_variable(target, value_id)?;
                 }
             }
@@ -576,7 +583,7 @@ impl Translator {
 
         self.global_values.insert(identifier.name, value_id);
 
-        let typ = self.globals_function.dfg.type_of_value(value_id);
+        let typ = self.globals_function.dfg.type_of_value(value_id).into_owned();
         self.global_types.push(typ);
 
         Ok(())

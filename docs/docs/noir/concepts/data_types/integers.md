@@ -7,7 +7,7 @@ sidebar_position: 1
 
 An integer type is a range constrained field type.
 The Noir frontend supports both unsigned and signed integer types.
-The allowed sizes are 1, 8, 16, 32, 64 and 128 bits. ([currently only unsigned integers for 128 bits](https://github.com/noir-lang/noir/issues/7591))
+The allowed sizes are 8, 16, 32, 64 and 128 bits. ([currently only unsigned integers for 128 bits](https://github.com/noir-lang/noir/issues/7591))
 
 :::info
 
@@ -18,6 +18,27 @@ The one exception is for loop indices which default to `u32` since comparisons o
 You can add a type suffix such as `u32` or `Field` to the end of an integer literal to explicitly specify the type.
 
 :::
+
+### Integer Literal Syntax
+
+Integer literals can include an optional type suffix to specify their type explicitly:
+
+```rust
+let a = 1u8;        // u8
+let b = 256_u16;    // u16
+let c = -1i8;       // i8
+let d = 42_u32;     // u32
+let e = 100_Field;  // Field
+```
+
+The supported suffixes are: `u8`, `u16`, `u32`, `u64`, `u128`, `i8`, `i16`, `i32`, `i64`, and `Field`.
+
+Underscores can be used as visual separators in numeric literals for readability. They are ignored by the compiler:
+
+```rust
+let million = 1_000_000;
+let max_u64 = 18_446_744_073_709_551_615_u64;
+```
 
 ## Unsigned Integers
 

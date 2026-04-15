@@ -342,7 +342,7 @@ impl<'a> Lexer<'a> {
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            '0'..='9' => self.eat_digits(initial_char),
+            '0'..='9' => self.eat_digits(Some(initial_char), false),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
@@ -412,10 +412,10 @@ impl<'a> Lexer<'a> {
         Ok(ident_token.into_span(start, end))
     }
 
-    fn eat_digits(&mut self, initial_char: char) -> SpannedTokenResult {
+    fn eat_digits(&mut self, initial_char: Option<char>, negative: bool) -> SpannedTokenResult {
         let start = self.position;
 
-        let original_str = self.eat_while(Some(initial_char), |ch| {
+        let original_str = self.eat_while(initial_char, |ch| {
             // We eat any alphanumeric character. Even though we're only expecting
             // integers, we don't want to allow things like `1234abc` to be lexed
             // as an integer followed by an ident. We'd rather an invalid integer error here.
@@ -434,7 +434,7 @@ impl<'a> Lexer<'a> {
             None => BigInt::from_str(&integer_str),
         };
 
-        let integer = match bigint_result {
+        let mut integer = match bigint_result {
             Ok(bigint) => {
                 if bigint > self.max_integer {
                     return Err(LexerErrorKind::IntegerLiteralTooLarge {
@@ -453,6 +453,10 @@ impl<'a> Lexer<'a> {
             }
         };
 
+        if negative {
+            integer = -integer;
+        }
+
         let integer_token = Token::Int(integer, type_suffix);
         Ok(integer_token.into_span(start, end))
     }
@@ -465,7 +469,6 @@ impl<'a> Lexer<'a> {
             ("i16", IntegerTypeSuffix::I16),
             ("i32", IntegerTypeSuffix::I32),
             ("i64", IntegerTypeSuffix::I64),
-            ("u1", IntegerTypeSuffix::U1),
             ("u8", IntegerTypeSuffix::U8),
             ("u16", IntegerTypeSuffix::U16),
             ("u32", IntegerTypeSuffix::U32),
@@ -1344,7 +1347,6 @@ mod tests {
             ("0x_01", Token::Int(0x1_u128.into(), None)),
             ("1_000_000", Token::Int(1_000_000_u128.into(), None)),
             ("1__0___Field", Token::Int(10_u32.into(), Some(IntegerTypeSuffix::Field))),
-            ("0x1u1", Token::Int(1_u32.into(), Some(IntegerTypeSuffix::U1))),
             ("97_i64", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::I64))),
             ("97_u128", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::U128))),
         ];

@@ -9,14 +9,6 @@ declarations in the source program.
 
 ## Methods
 
-### add_item
-
-#include_code add_item noir_stdlib/src/meta/module.nr rust
-
-Adds a top-level item (a function, a struct, a global, etc.) to the module.
-Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
-Note that the items are type-checked as if they are inside the module they are being added to.
-
 ### child_modules
 
 #include_code child_modules noir_stdlib/src/meta/module.nr rust

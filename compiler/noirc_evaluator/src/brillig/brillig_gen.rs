@@ -7,9 +7,11 @@ pub(crate) mod brillig_globals;
 mod brillig_instructions;
 mod coalescing;
 pub(crate) mod constant_allocation;
+mod live_intervals;
 pub(crate) mod spill_manager;
 #[cfg(test)]
 mod tests;
+mod union_find;
 mod variable_liveness;
 
 use acvm::FieldElement;
@@ -162,22 +164,15 @@ mod entry_point {
         12: sp[3] = const u32 69
         13: sp[4] = const u32 1
         14: stop @[sp[3]; sp[4]]
-        15: call 22
-        16: sp[4] = u32 add sp[2], sp[3]
-        17: sp[5] = u32 lt_eq sp[2], sp[4]
-        18: jump if sp[5] to 20
-        19: call 28
-        20: sp[2] = sp[4]
-        21: return
-        22: @4 = const u32 30790
-        23: @3 = u32 lt @0, @4
-        24: jump if @3 to 27
-        25: @1 = indirect const u64 15764276373176857197
-        26: trap @[@1; @2]
-        27: return
-        28: @1 = indirect const u64 14990209321349310352
-        29: trap @[@1; @2]
-        30: return
+        15: sp[4] = u32 add sp[2], sp[3]
+        16: sp[5] = u32 lt_eq sp[2], sp[4]
+        17: jump if sp[5] to 19
+        18: call 21
+        19: sp[2] = sp[4]
+        20: return
+        21: @1 = indirect const u64 14990209321349310352
+        22: trap @[@1; @2]
+        23: return
         ");
     }
 
@@ -241,63 +236,56 @@ mod entry_point {
         12: sp[3] = const u32 69
         13: sp[4] = const u32 1
         14: stop @[sp[3]; sp[4]]
-        15: call 66
-        16: sp[1] = @1
-        17: @3 = const u32 3
-        18: @1 = u32 add @1, @3
-        19: sp[4] = u32 add sp[2], sp[3]
-        20: sp[5] = const u32 2
-        21: sp[6] = u32 add sp[2], sp[5]
-        22: sp[5] = const u32 3
-        23: sp[7] = u32 add sp[2], sp[5]
-        24: sp[5] = const u32 4
-        25: sp[8] = u32 add sp[3], sp[5]
-        26: sp[5] = const u32 5
-        27: sp[9] = u32 add sp[3], sp[5]
-        28: sp[5] = const u32 6
-        29: sp[10] = u32 add sp[2], sp[5]
-        30: sp[5] = const u32 7
-        31: sp[11] = u32 add sp[3], sp[5]
-        32: sp[5] = const u32 8
-        33: @4 = const u32 0
-        34: @3 = u32 add sp[1], @4
-        35: store sp[4] at @3
-        36: sp[4] = u32 add sp[2], sp[5]
-        37: sp[5] = const u32 9
-        38: @4 = const u32 1
-        39: @3 = u32 add sp[1], @4
-        40: store sp[6] at @3
-        41: sp[6] = u32 add sp[3], sp[5]
-        42: sp[3] = const u32 10
-        43: sp[5] = u32 add sp[2], sp[3]
-        44: @4 = const u32 0
-        45: @3 = u32 add sp[1], @4
-        46: sp[3] = load @3
-        47: @4 = const u32 2
-        48: @3 = u32 add sp[1], @4
-        49: store sp[7] at @3
-        50: @4 = const u32 1
-        51: @3 = u32 add sp[1], @4
-        52: sp[7] = load @3
-        53: sp[2] = u32 add sp[3], sp[7]
-        54: @4 = const u32 2
-        55: @3 = u32 add sp[1], @4
-        56: sp[7] = load @3
-        57: sp[3] = u32 add sp[2], sp[7]
-        58: sp[2] = u32 add sp[3], sp[8]
-        59: sp[3] = u32 add sp[2], sp[9]
-        60: sp[2] = u32 add sp[3], sp[10]
-        61: sp[3] = u32 add sp[2], sp[11]
-        62: sp[2] = u32 add sp[3], sp[4]
-        63: sp[3] = u32 add sp[2], sp[6]
-        64: sp[2] = u32 add sp[3], sp[5]
-        65: return
-        66: @4 = const u32 250
-        67: @3 = u32 lt @0, @4
-        68: jump if @3 to 71
-        69: @1 = indirect const u64 15764276373176857197
-        70: trap @[@1; @2]
-        71: return
+        15: sp[1] = @1
+        16: @3 = const u32 3
+        17: @1 = u32 add @1, @3
+        18: sp[4] = u32 add sp[2], sp[3]
+        19: sp[5] = const u32 2
+        20: sp[6] = u32 add sp[2], sp[5]
+        21: sp[5] = const u32 3
+        22: sp[7] = u32 add sp[2], sp[5]
+        23: sp[5] = const u32 4
+        24: sp[8] = u32 add sp[3], sp[5]
+        25: sp[5] = const u32 5
+        26: sp[9] = u32 add sp[3], sp[5]
+        27: sp[5] = const u32 6
+        28: sp[10] = u32 add sp[2], sp[5]
+        29: sp[5] = const u32 7
+        30: sp[11] = u32 add sp[3], sp[5]
+        31: sp[5] = const u32 8
+        32: @4 = const u32 0
+        33: @3 = u32 add sp[1], @4
+        34: store sp[4] at @3
+        35: sp[4] = u32 add sp[2], sp[5]
+        36: sp[5] = const u32 9
+        37: @4 = const u32 1
+        38: @3 = u32 add sp[1], @4
+        39: store sp[6] at @3
+        40: sp[6] = u32 add sp[3], sp[5]
+        41: sp[3] = const u32 10
+        42: sp[5] = u32 add sp[2], sp[3]
+        43: @4 = const u32 0
+        44: @3 = u32 add sp[1], @4
+        45: sp[3] = load @3
+        46: @4 = const u32 2
+        47: @3 = u32 add sp[1], @4
+        48: store sp[7] at @3
+        49: @4 = const u32 1
+        50: @3 = u32 add sp[1], @4
+        51: sp[7] = load @3
+        52: sp[2] = u32 add sp[3], sp[7]
+        53: @4 = const u32 2
+        54: @3 = u32 add sp[1], @4
+        55: sp[7] = load @3
+        56: sp[3] = u32 add sp[2], sp[7]
+        57: sp[2] = u32 add sp[3], sp[8]
+        58: sp[3] = u32 add sp[2], sp[9]
+        59: sp[2] = u32 add sp[3], sp[10]
+        60: sp[3] = u32 add sp[2], sp[11]
+        61: sp[2] = u32 add sp[3], sp[4]
+        62: sp[3] = u32 add sp[2], sp[6]
+        63: sp[2] = u32 add sp[3], sp[5]
+        64: return
         ");
     }
 }

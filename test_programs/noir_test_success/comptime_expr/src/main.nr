@@ -8,9 +8,9 @@ mod tests {
             let expr = quote { [1, 2, 4] }.as_expr().unwrap();
             let elems = expr.as_array().unwrap();
             assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (1, false));
-            assert_eq(elems[1].as_integer().unwrap(), (2, false));
-            assert_eq(elems[2].as_integer().unwrap(), (4, false));
+            assert_eq(elems[0].as_integer().unwrap(), 1);
+            assert_eq(elems[1].as_integer().unwrap(), 2);
+            assert_eq(elems[2].as_integer().unwrap(), 4);
         }
     }
 
@@ -21,9 +21,9 @@ mod tests {
             let expr = expr.modify(times_two);
             let elems = expr.as_array().unwrap();
             assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (2, false));
-            assert_eq(elems[1].as_integer().unwrap(), (4, false));
-            assert_eq(elems[2].as_integer().unwrap(), (8, false));
+            assert_eq(elems[0].as_integer().unwrap(), 2);
+            assert_eq(elems[1].as_integer().unwrap(), 4);
+            assert_eq(elems[2].as_integer().unwrap(), 8);
         }
     }
 
@@ -48,14 +48,14 @@ mod tests {
             let expr = quote { assert(1) }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (predicate, msg) = expr.as_assert().unwrap();
-            assert_eq(predicate.as_integer().unwrap(), (2, false));
+            assert_eq(predicate.as_integer().unwrap(), 2);
             assert(msg.is_none());
 
             let expr = quote { assert(1, 2) }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (predicate, msg) = expr.as_assert().unwrap();
-            assert_eq(predicate.as_integer().unwrap(), (2, false));
-            assert_eq(msg.unwrap().as_integer().unwrap(), (4, false));
+            assert_eq(predicate.as_integer().unwrap(), 2);
+            assert_eq(msg.unwrap().as_integer().unwrap(), 4);
         }
     }
 
@@ -82,16 +82,16 @@ mod tests {
             let expr = quote { assert_eq(1, 2) }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
-            assert_eq(lhs.as_integer().unwrap(), (2, false));
-            assert_eq(rhs.as_integer().unwrap(), (4, false));
+            assert_eq(lhs.as_integer().unwrap(), 2);
+            assert_eq(rhs.as_integer().unwrap(), 4);
             assert(msg.is_none());
 
             let expr = quote { assert_eq(1, 2, 3) }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (lhs, rhs, msg) = expr.as_assert_eq().unwrap();
-            assert_eq(lhs.as_integer().unwrap(), (2, false));
-            assert_eq(rhs.as_integer().unwrap(), (4, false));
-            assert_eq(msg.unwrap().as_integer().unwrap(), (6, false));
+            assert_eq(lhs.as_integer().unwrap(), 2);
+            assert_eq(rhs.as_integer().unwrap(), 4);
+            assert_eq(msg.unwrap().as_integer().unwrap(), 6);
         }
     }
 
@@ -101,7 +101,7 @@ mod tests {
             let expr = quote { { a = 1; } }.as_expr().unwrap();
             let exprs = expr.as_block().unwrap();
             let (_lhs, rhs) = exprs[0].as_assign().unwrap();
-            assert_eq(rhs.as_integer().unwrap(), (1, false));
+            assert_eq(rhs.as_integer().unwrap(), 1);
         }
     }
 
@@ -112,7 +112,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let exprs = expr.as_block().unwrap();
             let (_lhs, rhs) = exprs[0].as_assign().unwrap();
-            assert_eq(rhs.as_integer().unwrap(), (2, false));
+            assert_eq(rhs.as_integer().unwrap(), 2);
         }
     }
 
@@ -122,9 +122,9 @@ mod tests {
             let expr = quote { { 1; 4; 23 } }.as_expr().unwrap();
             let exprs = expr.as_block().unwrap();
             assert_eq(exprs.len(), 3);
-            assert_eq(exprs[0].as_integer().unwrap(), (1, false));
-            assert_eq(exprs[1].as_integer().unwrap(), (4, false));
-            assert_eq(exprs[2].as_integer().unwrap(), (23, false));
+            assert_eq(exprs[0].as_integer().unwrap(), 1);
+            assert_eq(exprs[1].as_integer().unwrap(), 4);
+            assert_eq(exprs[2].as_integer().unwrap(), 23);
 
             assert(exprs[0].has_semicolon());
             assert(exprs[1].has_semicolon());
@@ -139,9 +139,9 @@ mod tests {
             let expr = expr.modify(times_two);
             let exprs = expr.as_block().unwrap();
             assert_eq(exprs.len(), 3);
-            assert_eq(exprs[0].as_integer().unwrap(), (2, false));
-            assert_eq(exprs[1].as_integer().unwrap(), (8, false));
-            assert_eq(exprs[2].as_integer().unwrap(), (46, false));
+            assert_eq(exprs[0].as_integer().unwrap(), 2);
+            assert_eq(exprs[1].as_integer().unwrap(), 8);
+            assert_eq(exprs[2].as_integer().unwrap(), 46);
 
             assert(exprs[0].has_semicolon());
             assert(exprs[1].has_semicolon());
@@ -161,8 +161,8 @@ mod tests {
             assert(generics[0].is_field());
 
             assert_eq(arguments.len(), 2);
-            assert_eq(arguments[0].as_integer().unwrap(), (3, false));
-            assert_eq(arguments[1].as_integer().unwrap(), (4, false));
+            assert_eq(arguments[0].as_integer().unwrap(), 3);
+            assert_eq(arguments[1].as_integer().unwrap(), 4);
         }
     }
 
@@ -179,8 +179,8 @@ mod tests {
             assert_eq(generics.len(), 0);
 
             assert_eq(arguments.len(), 2);
-            assert_eq(arguments[0].as_integer().unwrap(), (6, false));
-            assert_eq(arguments[1].as_integer().unwrap(), (8, false));
+            assert_eq(arguments[0].as_integer().unwrap(), 6);
+            assert_eq(arguments[1].as_integer().unwrap(), 8);
         }
     }
 
@@ -188,10 +188,14 @@ mod tests {
     fn test_expr_as_integer() {
         comptime {
             let expr = quote { 1 }.as_expr().unwrap();
-            assert_eq((1, false), expr.as_integer().unwrap());
+            assert_eq(1, expr.as_integer().unwrap());
 
             let expr = quote { -2 }.as_expr().unwrap();
-            assert_eq((2, true), expr.as_integer().unwrap());
+            assert_eq(-2, expr.as_integer().unwrap());
+
+            // The type suffix shouldn't affect the result
+            let expr = quote { -2i8 }.as_expr().unwrap();
+            assert_eq(-2, expr.as_integer().unwrap());
         }
     }
 
@@ -201,7 +205,7 @@ mod tests {
             let expr = quote { 1 }.as_expr().unwrap();
             let expr = expr.modify(times_two);
 
-            assert_eq((2, false), expr.as_integer().unwrap());
+            assert_eq(2, expr.as_integer().unwrap());
         }
     }
 
@@ -234,9 +238,9 @@ mod tests {
             let expr = expr.modify(times_two);
 
             let (lhs, op, rhs) = expr.as_binary_op().unwrap();
-            assert_eq(lhs.as_integer().unwrap(), (6, false));
+            assert_eq(lhs.as_integer().unwrap(), 6);
             assert(op.is_add());
-            assert_eq(rhs.as_integer().unwrap(), (8, false));
+            assert_eq(rhs.as_integer().unwrap(), 8);
         }
     }
 
@@ -256,7 +260,7 @@ mod tests {
         comptime {
             let expr = quote { 1 as Field }.as_expr().unwrap();
             let (expr, typ) = expr.as_cast().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (1, false));
+            assert_eq(expr.as_integer().unwrap(), 1);
             assert(typ.is_field());
         }
     }
@@ -267,7 +271,7 @@ mod tests {
             let expr = quote { 1 as Field }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (expr, typ) = expr.as_cast().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
             assert(typ.is_field());
         }
     }
@@ -288,7 +292,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let exprs = expr.as_comptime().unwrap();
             assert_eq(exprs.len(), 3);
-            assert_eq(exprs[0].as_integer().unwrap(), (2, false));
+            assert_eq(exprs[0].as_integer().unwrap(), 2);
         }
     }
 
@@ -311,9 +315,9 @@ mod tests {
             let (_typ, fields) = expr.as_constructor().unwrap();
             assert_eq(fields.len(), 2);
             assert_eq(fields[0].0, quote { a });
-            assert_eq(fields[0].1.as_integer().unwrap(), (1, false));
+            assert_eq(fields[0].1.as_integer().unwrap(), 1);
             assert_eq(fields[1].0, quote { b });
-            assert_eq(fields[1].1.as_integer().unwrap(), (2, false));
+            assert_eq(fields[1].1.as_integer().unwrap(), 2);
         }
     }
 
@@ -325,9 +329,9 @@ mod tests {
             let (_typ, fields) = expr.as_constructor().unwrap();
             assert_eq(fields.len(), 2);
             assert_eq(fields[0].0, quote { a });
-            assert_eq(fields[0].1.as_integer().unwrap(), (2, false));
+            assert_eq(fields[0].1.as_integer().unwrap(), 2);
             assert_eq(fields[1].0, quote { b });
-            assert_eq(fields[1].1.as_integer().unwrap(), (4, false));
+            assert_eq(fields[1].1.as_integer().unwrap(), 4);
         }
     }
 
@@ -340,7 +344,7 @@ mod tests {
             let expr = quote { foo(42) }.as_expr().unwrap();
             let (_function, args) = expr.as_function_call().unwrap();
             assert_eq(args.len(), 1);
-            assert_eq(args[0].as_integer().unwrap(), (42, false));
+            assert_eq(args[0].as_integer().unwrap(), 42);
         }
     }
     // docs:end:as_expr_example
@@ -352,7 +356,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (_function, args) = expr.as_function_call().unwrap();
             assert_eq(args.len(), 1);
-            assert_eq(args[0].as_integer().unwrap(), (84, false));
+            assert_eq(args[0].as_integer().unwrap(), 84);
         }
     }
 
@@ -375,19 +379,19 @@ mod tests {
             let expr = quote { if 1 { 2 } }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (condition, consequence, alternative) = expr.as_if().unwrap();
-            assert_eq(condition.as_integer().unwrap(), (2, false));
+            assert_eq(condition.as_integer().unwrap(), 2);
             let consequence = consequence.as_block().unwrap()[0].as_block().unwrap()[0];
-            assert_eq(consequence.as_integer().unwrap(), (4, false));
+            assert_eq(consequence.as_integer().unwrap(), 4);
             assert(alternative.is_none());
 
             let expr = quote { if 1 { 2 } else { 3 } }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (condition, consequence, alternative) = expr.as_if().unwrap();
-            assert_eq(condition.as_integer().unwrap(), (2, false));
+            assert_eq(condition.as_integer().unwrap(), 2);
             let consequence = consequence.as_block().unwrap()[0].as_block().unwrap()[0];
-            assert_eq(consequence.as_integer().unwrap(), (4, false));
+            assert_eq(consequence.as_integer().unwrap(), 4);
             let alternative = alternative.unwrap().as_block().unwrap()[0].as_block().unwrap()[0];
-            assert_eq(alternative.as_integer().unwrap(), (6, false));
+            assert_eq(alternative.as_integer().unwrap(), 6);
         }
     }
 
@@ -405,8 +409,8 @@ mod tests {
             let expr = quote { 1[2] }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (object, index) = expr.as_index().unwrap();
-            assert_eq(object.as_integer().unwrap(), (2, false));
-            assert_eq(index.as_integer().unwrap(), (4, false));
+            assert_eq(object.as_integer().unwrap(), 2);
+            assert_eq(index.as_integer().unwrap(), 4);
         }
     }
 
@@ -426,7 +430,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (expr, name) = expr.as_member_access().unwrap();
             assert_eq(name, quote { bar });
-            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
         }
     }
 
@@ -446,8 +450,8 @@ mod tests {
         comptime {
             let expr = quote { [1; 3] }.as_expr().unwrap();
             let (expr, length) = expr.as_repeated_element_array().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (1, false));
-            assert_eq(length.as_integer().unwrap(), (3, false));
+            assert_eq(expr.as_integer().unwrap(), 1);
+            assert_eq(length.as_integer().unwrap(), 3);
         }
     }
 
@@ -457,8 +461,8 @@ mod tests {
             let expr = quote { [1; 3] }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (expr, length) = expr.as_repeated_element_array().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (2, false));
-            assert_eq(length.as_integer().unwrap(), (6, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
+            assert_eq(length.as_integer().unwrap(), 6);
         }
     }
 
@@ -467,8 +471,8 @@ mod tests {
         comptime {
             let expr = quote { @[1; 3] }.as_expr().unwrap();
             let (expr, length) = expr.as_repeated_element_vector().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (1, false));
-            assert_eq(length.as_integer().unwrap(), (3, false));
+            assert_eq(expr.as_integer().unwrap(), 1);
+            assert_eq(length.as_integer().unwrap(), 3);
         }
     }
 
@@ -479,8 +483,8 @@ mod tests {
             let expr = expr.modify(times_two);
             println(f"expr = {expr}");
             let (expr, length) = expr.as_repeated_element_vector().unwrap();
-            assert_eq(expr.as_integer().unwrap(), (2, false));
-            assert_eq(length.as_integer().unwrap(), (6, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
+            assert_eq(length.as_integer().unwrap(), 6);
         }
     }
 
@@ -490,9 +494,9 @@ mod tests {
             let expr = quote { @[1, 3, 5] }.as_expr().unwrap();
             let elems = expr.as_vector().unwrap();
             assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (1, false));
-            assert_eq(elems[1].as_integer().unwrap(), (3, false));
-            assert_eq(elems[2].as_integer().unwrap(), (5, false));
+            assert_eq(elems[0].as_integer().unwrap(), 1);
+            assert_eq(elems[1].as_integer().unwrap(), 3);
+            assert_eq(elems[2].as_integer().unwrap(), 5);
         }
     }
 
@@ -503,9 +507,9 @@ mod tests {
             let expr = expr.modify(times_two);
             let elems = expr.as_vector().unwrap();
             assert_eq(elems.len(), 3);
-            assert_eq(elems[0].as_integer().unwrap(), (2, false));
-            assert_eq(elems[1].as_integer().unwrap(), (6, false));
-            assert_eq(elems[2].as_integer().unwrap(), (10, false));
+            assert_eq(elems[0].as_integer().unwrap(), 2);
+            assert_eq(elems[1].as_integer().unwrap(), 6);
+            assert_eq(elems[2].as_integer().unwrap(), 10);
         }
     }
 
@@ -525,8 +529,8 @@ mod tests {
             let expr = expr.modify(times_two);
             let tuple_exprs = expr.as_tuple().unwrap();
             assert_eq(tuple_exprs.len(), 2);
-            assert_eq(tuple_exprs[0].as_integer().unwrap(), (2, false));
-            assert_eq(tuple_exprs[1].as_integer().unwrap(), (4, false));
+            assert_eq(tuple_exprs[0].as_integer().unwrap(), 2);
+            assert_eq(tuple_exprs[1].as_integer().unwrap(), 4);
         }
     }
 
@@ -547,7 +551,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (op, expr) = expr.as_unary_op().unwrap();
             assert(op.is_minus());
-            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
         }
     }
 
@@ -577,7 +581,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let exprs = expr.as_unsafe().unwrap();
             assert_eq(exprs.len(), 3);
-            assert_eq(exprs[0].as_integer().unwrap(), (2, false));
+            assert_eq(exprs[0].as_integer().unwrap(), 2);
         }
     }
 
@@ -607,14 +611,14 @@ mod tests {
             assert_eq(params.len(), 1);
             assert(params[0].1.unwrap().is_field());
             assert(return_type.unwrap().is_field());
-            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 1);
 
             let expr = quote { |x| { 1 } }.as_expr().unwrap();
             let (params, return_type, body) = expr.as_lambda().unwrap();
             assert_eq(params.len(), 1);
             assert(params[0].1.is_none());
             assert(return_type.is_none());
-            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (1, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 1);
         }
     }
 
@@ -627,10 +631,7 @@ mod tests {
             assert_eq(params.len(), 1);
             assert(params[0].1.unwrap().is_field());
             assert(return_type.unwrap().is_field());
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                (2, false),
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 2);
 
             let expr = quote { |x| { 1 } }.as_expr().unwrap();
             let expr = expr.modify(times_two);
@@ -638,10 +639,7 @@ mod tests {
             assert_eq(params.len(), 1);
             assert(params[0].1.is_none());
             assert(return_type.is_none());
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                (2, false),
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 2);
         }
     }
 
@@ -651,7 +649,7 @@ mod tests {
             let expr = quote { let x: Field = 1; }.as_expr().unwrap();
             let (_pattern, typ, expr) = expr.as_let().unwrap();
             assert(typ.unwrap().is_field());
-            assert_eq(expr.as_integer().unwrap(), (1, false));
+            assert_eq(expr.as_integer().unwrap(), 1);
         }
     }
 
@@ -662,7 +660,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (_pattern, typ, expr) = expr.as_let().unwrap();
             assert(typ.unwrap().is_field());
-            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
         }
     }
 
@@ -673,7 +671,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (_pattern, typ, expr) = expr.as_let().unwrap();
             assert(typ.is_none());
-            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(expr.as_integer().unwrap(), 2);
         }
     }
 
@@ -683,8 +681,8 @@ mod tests {
             let expr = quote { for x in 2 { 3 } }.as_expr().unwrap();
             let (index, array, body) = expr.as_for().unwrap();
             assert_eq(index, quote { x });
-            assert_eq(array.as_integer().unwrap(), (2, false));
-            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (3, false));
+            assert_eq(array.as_integer().unwrap(), 2);
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 3);
         }
     }
 
@@ -695,11 +693,8 @@ mod tests {
             let expr = expr.modify(times_two);
             let (index, array, body) = expr.as_for().unwrap();
             assert_eq(index, quote { x });
-            assert_eq(array.as_integer().unwrap(), (4, false));
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                (6, false),
-            );
+            assert_eq(array.as_integer().unwrap(), 4);
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 6);
         }
     }
 
@@ -709,18 +704,18 @@ mod tests {
             let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
             let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
-            assert_eq(from.as_integer().unwrap(), (2, false));
-            assert_eq(to.as_integer().unwrap(), (3, false));
+            assert_eq(from.as_integer().unwrap(), 2);
+            assert_eq(to.as_integer().unwrap(), 3);
             assert(!inclusive);
-            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (4, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 4);
 
             let expr = quote { for x in 2..=3 { 4 } }.as_expr().unwrap();
             let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
-            assert_eq(from.as_integer().unwrap(), (2, false));
-            assert_eq(to.as_integer().unwrap(), (3, false));
+            assert_eq(from.as_integer().unwrap(), 2);
+            assert_eq(to.as_integer().unwrap(), 3);
             assert(inclusive);
-            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), (4, false));
+            assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 4);
         }
     }
 
@@ -731,13 +726,10 @@ mod tests {
             let expr = expr.modify(times_two);
             let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
-            assert_eq(from.as_integer().unwrap(), (4, false));
-            assert_eq(to.as_integer().unwrap(), (6, false));
+            assert_eq(from.as_integer().unwrap(), 4);
+            assert_eq(to.as_integer().unwrap(), 6);
             assert(!inclusive);
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                (8, false),
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 8);
         }
     }
 
@@ -772,7 +764,7 @@ mod tests {
     }
 
     comptime fn times_two(expr: Expr) -> Option<Expr> {
-        expr.as_integer().and_then(|(value, _)| {
+        expr.as_integer().and_then(|value| {
             let value = value * 2;
             quote { $value }.as_expr()
         })

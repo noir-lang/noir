@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex, RwLock};
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
     self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
 };
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -204,7 +204,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let element_type =
+            self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -228,17 +229,20 @@ impl<'a> FunctionContext<'a> {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
-            // A mutable reference wraps each element into a reference.
+            // A reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::Reference(element, _) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
+            ast::Type::Reference(element, mutable) => {
+                let mutable = *mutable;
+                Self::map_type_helper(element, &mut |typ| {
+                    f(Type::Reference(Arc::new(typ), mutable))
+                })
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
                 // The message string, the number of fields to be formatted, and
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
-                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                    vec![ast::Type::String(*len), ast::Type::Field, fields.as_ref().clone()];
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
@@ -283,10 +287,10 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
-            ast::Type::Reference(element, _) => {
+            ast::Type::Reference(element, mutable) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Arc::new(element))
+                Type::Reference(Arc::new(element), *mutable)
             }
         }
     }
@@ -301,9 +305,12 @@ impl<'a> FunctionContext<'a> {
     /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
     /// is within the range of the given type. This is needed for user provided values where
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    ///
+    /// Expects a [FieldElement] in normal form (-6 is `-FieldElement::from(6)`) and converts
+    /// into two's complement form as necessary for negative signed types.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: SignedField,
+        mut value: FieldElement,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         if let Some(range) = numeric_type.value_is_outside_limits(value) {
@@ -316,18 +323,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative() {
-            match numeric_type {
-                NumericType::NativeField => -value.absolute_value(),
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    assert!(bit_size < 128);
-                    let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.absolute_value()
-                }
-            }
-        } else {
-            value.absolute_value()
-        };
+        // If `value` is greater than `max` despite passing the `value_is_outside_limits`
+        // check, it means this is a negative number, which is encoded as a large field value.
+        // Convert it to two's complement instead.
+        if let Ok(max) = numeric_type.max_value()
+            && value > max
+        {
+            assert!(numeric_type.is_signed());
+            let bit_size = numeric_type.bit_size::<FieldElement>();
+            assert!(bit_size < 128);
+            value = FieldElement::from(1u128 << bit_size) + value;
+        }
 
         Ok(self.builder.numeric_constant(value, numeric_type))
     }
@@ -903,9 +909,7 @@ impl<'a> FunctionContext<'a> {
     fn assign(&mut self, lhs: Values, rhs: Values) {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
-                assert_eq!(lhs_branches.len(), rhs_branches.len());
-
-                for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
+                for (lhs, rhs) in lhs_branches.into_iter().zip_eq(rhs_branches) {
                     self.assign(lhs, rhs);
                 }
             }

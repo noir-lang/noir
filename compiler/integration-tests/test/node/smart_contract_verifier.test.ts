@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { network } from 'hardhat';
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'path';
@@ -57,6 +57,7 @@ test_cases.forEach((testInfo) => {
     // Smart contract verification
 
     // Link the ZKTranscriptLib
+    const { ethers } = await network.connect();
     const ZKTranscriptLib = await ethers.deployContract(testInfo.zk_lib);
     await ZKTranscriptLib.waitForDeployment();
 

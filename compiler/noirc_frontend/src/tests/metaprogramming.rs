@@ -45,8 +45,7 @@ fn comptime_code_rejects_dynamic_variable() {
 fn comptime_type_in_runtime_code() {
     let source = "
     pub fn foo(_f: FunctionDefinition) {}
-                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
-                   ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
+                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in non-comptime function
     ";
     check_errors(source);
 }
@@ -80,7 +79,7 @@ fn unquoted_integer_as_integer_token() {
     pub fn foobar() {}
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len = 1;
+        let serialized_len = 1_u32;
         // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
         // in the context of a generic argument.
@@ -108,7 +107,7 @@ fn unquoted_integer_as_integer_token() {
     }
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len: Field = 1_Field;
+        let serialized_len: u32 = 1_u32;
         quote {
             impl Serialize < $serialized_len > for Field {
                 fn serialize() {
@@ -1181,10 +1180,8 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 
     impl Trait for Quoted {
         fn foo(self: Self) -> Self {
-                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                              ~~~~ Comptime-only type used here
-                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                     ~~~~ Comptime-only type used here
+                              ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+                     ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
             self
         }
     }
@@ -1201,8 +1198,7 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
     impl Trait for Quoted {
         fn foo(self) {
-               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-               ~~~~ Comptime-only type used here
+               ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
         }
     }
     "#;
@@ -1502,4 +1498,108 @@ fn path_inside_module_attribute() {
     }
     "#;
     assert_no_errors(src);
+}
+
+// Regression: macro-call validation was bypassed inside comptime blocks
+#[test]
+fn non_comptime_macro_call_in_comptime_block() {
+    let src = r#"
+    fn not_comptime() -> Field {
+        7
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            not_comptime!()
+            ^^^^^^^^^^^^^^^ This macro call is to a non-comptime function
+            ~~~~~~~~~~~~~~~ Macro calls must be to comptime functions
+            ^^^^^^^^^^^^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~~~~~~~~~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~~~~~~~~~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+// Regression: comptime fn returning non-Quoted accepted as macro in comptime block
+#[test]
+fn comptime_fn_returning_non_quoted_macro_call_in_comptime_block() {
+    let src = r#"
+    comptime fn bad_macro() -> Field {
+        42
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            bad_macro!()
+            ^^^^^^^^^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~~~~~~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~~~~~~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+// Regression: function-value macro call accepted in comptime block
+#[test]
+fn function_value_macro_call_in_comptime_block() {
+    let src = r#"
+    fn not_comptime() -> Field {
+        7
+    }
+
+    fn main() {
+        let _x: Field = comptime {
+            let f = not_comptime;
+            f!()
+            ^^^^ Invalid syntax in macro call
+            ~~~~ Macro calls must call a comptime function directly, they cannot use higher-order functions
+            ^^^^ Expected macro call to return a `Quoted` but found a(n) `Field`
+            ~~~~ Macro calls must return quoted values, otherwise there is no code to insert.
+            ~~~~ Hint: remove the `!` from the end of the function name.
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn match_in_comptime_errors_instead_of_panicking() {
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        comptime {
+            let foo = Foo::Bar;
+            match foo { Foo::Bar => {} }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn runtime_variable_in_macro_gives_specific_error() {
+    let src = r#"
+    comptime fn ident(val: Quoted) -> Quoted {
+        val
+    }
+
+    comptime fn wrap_with_add(x: Field) -> Quoted {
+        quote { $x + 41 }
+    }
+
+    fn main() {
+        let x = 1;
+            ^ unused variable x
+            ~ unused variable
+        let _y: Field = wrap_with_add!(ident!(quote { x }));
+                                                      ^ variable `x` is a runtime variable and cannot be used in comptime code
+                                                      ~ this variable is not available in comptime
+    }
+    "#;
+    check_errors(src);
 }

@@ -20,6 +20,7 @@ bn254_blackbox_solver.workspace = true
 rustc-hash.workspace = true
 rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
+itertools.workspace = true
 thiserror.workspace = true
 noirc_printable_type.workspace = true
 num-bigint.workspace = true
@@ -35,7 +36,6 @@ chrono = "0.4.37"
 rayon.workspace = true
 cfg-if.workspace = true
 smallvec = { version = "1.13.2", features = ["serde"] }
-vec-collections = "0.4.3"
 petgraph.workspace = true
 fm.workspace = true
 

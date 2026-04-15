@@ -57,7 +57,7 @@ use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVaria
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutConfig {
     max_stack_frame_size: usize,
-    max_stack_size: usize,
+    num_stack_frames: usize,
     max_scratch_space: usize,
 }
 
@@ -67,8 +67,7 @@ impl LayoutConfig {
         num_stack_frames: usize,
         max_scratch_space: usize,
     ) -> Self {
-        let max_stack_size = num_stack_frames * max_stack_frame_size;
-        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
+        Self { max_stack_frame_size, num_stack_frames, max_scratch_space }
     }
 
     /// The maximum size of an individual stack frame.
@@ -78,7 +77,15 @@ impl LayoutConfig {
 
     /// The overall maximum stack size is the maximum number of frames times the maximum size of an individual stack frame.
     pub(crate) fn max_stack_size(&self) -> usize {
-        self.max_stack_size
+        self.num_stack_frames * self.max_stack_frame_size
+    }
+
+    /// The maximum number of stack frames that should be active simultaneously.
+    ///
+    /// Note that currently this isn't strictly enforced: as long as the memory fits into [LayoutConfig::max_stack_size]
+    /// we allow more frames to be created during recursive calls.
+    pub(crate) fn num_stack_frames(&self) -> usize {
+        self.num_stack_frames
     }
 
     pub(crate) fn max_scratch_space(&self) -> usize {

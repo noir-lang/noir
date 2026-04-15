@@ -316,4 +316,30 @@ mod tests {
         let err = parse_toml(toml, &abi).unwrap_err();
         assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
     }
+
+    #[test]
+    fn try_from_toml_tuple_array_length_mismatch() {
+        let typ = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let toml = "input = [0]";
+        let input = parse_toml(toml, &abi).unwrap();
+        let value = &input["input"];
+        assert!(matches!(value, InputValue::Vec(vec) if vec.len() == 1));
+    }
+
+    #[test]
+    fn try_from_input_value_toml_array_length_mismatch() {
+        let value = InputValue::Vec(vec![InputValue::Field(0.into())]);
+        let abi_type = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let result = TomlTypes::try_from_input_value(&value, &abi_type).unwrap();
+        assert!(matches!(result, TomlTypes::Array(array) if array.len() == 1));
+    }
 }

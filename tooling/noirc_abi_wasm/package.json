@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.19",
+  "version": "1.0.0-beta.20",
   "license": "(MIT OR Apache-2.0)",
   "homepage": "https://noir-lang.org/",
   "repository": {
@@ -28,7 +28,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "bash ./build.sh",
-    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+    "test": "mocha",
     "test:browser": "web-test-runner",
     "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
@@ -43,7 +43,8 @@
     "@web/dev-server-esbuild": "^1.0.5",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
-    "eslint": "^10.0.2",
-    "mocha": "^11.7.5"
+    "eslint": "^10.1.0",
+    "mocha": "^11.7.5",
+    "tsx": "^4.21.0"
   }
 }

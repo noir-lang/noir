@@ -5,6 +5,7 @@ use acvm::acir::brillig::lengths::{
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
@@ -135,7 +136,7 @@ impl Context<'_> {
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
-            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         // Reuse or generate Brillig code
         let output_values = if let Some(generated_pointer) =
@@ -188,7 +189,7 @@ impl Context<'_> {
             .iter()
             .map(|&value_id| {
                 let typ = dfg.type_of_value(value_id);
-                if let Type::Vector(item_types) = typ {
+                if let Type::Vector(item_types) = &*typ {
                     let len = match self
                         .ssa_values
                         .get(&value_id)
@@ -236,12 +237,12 @@ impl Context<'_> {
         output_values: Vec<AcirValue>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        for (result_id, output) in result_ids.iter().zip(output_values) {
+        for (result_id, output) in result_ids.iter().zip_eq(output_values) {
             if let AcirValue::Array(_) = &output {
                 let array_id = *result_id;
                 let block_id = self.block_id(array_id);
                 let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(array_typ, Type::Array(_, _)) {
+                let len = if matches!(*array_typ, Type::Array(_, _)) {
                     array_typ.flattened_size()
                 } else {
                     arrays::flattened_value_size(&output)
@@ -271,7 +272,7 @@ impl Context<'_> {
         let mut values: Vec<AcirValue> = Vec::new();
         for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            if let Type::Vector(elements_type) = result_type {
+            if let Type::Vector(elements_type) = &*result_type {
                 let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
                 let len = self.acir_context.constant(len).to_u128();

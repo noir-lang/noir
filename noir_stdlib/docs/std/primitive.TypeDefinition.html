@@ -20,8 +20,7 @@
 <h2><a href="#primitive">Primitive type TypeDefinition</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
-<li><a href="#add_attribute">add_attribute</a></li>
-<li><a href="#add_generic">add_generic</a></li>
+<li><a href="#add_abi">add_abi</a></li>
 <li><a href="#as_type">as_type</a></li>
 <li><a href="#as_type_with_generics">as_type_with_generics</a></li>
 <li><a href="#fields">fields</a></li>
@@ -30,7 +29,6 @@
 <li><a href="#has_named_attribute">has_named_attribute</a></li>
 <li><a href="#module">module</a></li>
 <li><a href="#name">name</a></li>
-<li><a href="#set_fields">set_fields</a></li>
 </ul>
 <h3>Trait implementations</h3>
 <ul class="sidebar-list">
@@ -82,7 +80,6 @@
 <li><a href="primitive.Type.html">Type</a></div></li>
 <li><a href="primitive.TypeDefinition.html">TypeDefinition</a></div></li>
 <li><a href="primitive.TypedExpr.html">TypedExpr</a></div></li>
-<li><a href="primitive.u1.html">u1</a></div></li>
 <li><a href="primitive.u128.html">u128</a></div></li>
 <li><a href="primitive.u16.html">u16</a></div></li>
 <li><a href="primitive.u32.html">u32</a></div></li>
@@ -115,9 +112,7 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></code></h3>
 
-<div class="padded-methods"><code id="add_attribute" class="code-header">pub comptime fn <a href="#add_attribute"><span class="fn">add_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, attribute: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;)</code>
-
-<code id="add_generic" class="code-header">pub comptime fn <a href="#add_generic"><span class="fn">add_generic</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, generic_name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<div class="padded-methods"><code id="add_abi" class="code-header">pub comptime fn <a href="#add_abi"><span class="fn">add_abi</span></a>(self, abi_argument: <a href="../std/primitive.CtString.html" class="primitive">CtString</a>)</code>
 
 <code id="as_type" class="code-header">pub comptime fn <a href="#as_type"><span class="fn">as_type</span></a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
@@ -160,15 +155,7 @@ function if possible.</p></div>
 
 <code id="name" class="code-header">pub comptime fn <a href="#name"><span class="fn">name</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
-<code id="set_fields" class="code-header">pub comptime fn <a href="#set_fields"><span class="fn">set_fields</span></a>(self, new_fields: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)])</code>
-
-<div class="padded-description"><div class="comments">
-<p>Sets the fields of this type to the given fields vector.
-All existing fields of the type will be overridden with the given fields.
-Each element of the fields vector corresponds to the name and type of a field.
-Each name is expected to be a single identifier.</p>
-</div>
-</div></div><h2>Trait implementations</h2>
+</div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-TypeDefinition"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>

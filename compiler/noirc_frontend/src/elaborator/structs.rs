@@ -25,6 +25,7 @@ impl Elaborator<'_> {
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_struct_definitions(
         &mut self,
         structs: &BTreeMap<TypeId, UnresolvedStruct>,
@@ -37,6 +38,10 @@ impl Elaborator<'_> {
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
             self.local_module = Some(typ.module_id);
+            self.current_item = Some(DependencyId::DataType(*type_id));
+
+            let previous_in_comptime_context =
+                std::mem::replace(&mut self.in_comptime_context, typ.struct_def.comptime);
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
 
@@ -63,6 +68,9 @@ impl Elaborator<'_> {
                 }
                 struct_def.set_fields(fields);
             });
+
+            self.in_comptime_context = previous_in_comptime_context;
+            self.current_item = None;
         }
 
         self.check_for_nested_vectors(&struct_ids);
@@ -76,13 +84,14 @@ impl Elaborator<'_> {
     /// - Tracks the struct id to detect circular dependencies
     ///
     /// The generic scope is automatically recovered after resolution completes.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_struct_fields(
         &mut self,
         unresolved: &NoirStruct,
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item = this.current_item.replace(DependencyId::Struct(struct_id));
+            let previous_item = this.current_item.replace(DependencyId::DataType(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
@@ -90,12 +99,16 @@ impl Elaborator<'_> {
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
+            let previous_impl_trait_context = this
+                .impl_trait_is_disallowed
+                .replace(super::types::ImplTraitDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
                 let visibility = field.item.visibility;
                 let name = field.item.name.clone();
                 let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
+            this.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
 
@@ -111,6 +124,7 @@ impl Elaborator<'_> {
     /// complete type information. We only check structs without generics here, as
     /// generic structs are validated during monomorphization and after monomorphization
     /// during SSA codegen.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_for_nested_vectors(&mut self, struct_ids: &[TypeId]) {
         for id in struct_ids {
             let struct_type = self.interner.get_type(*id);

@@ -3,6 +3,7 @@ name = "trait_method_mut_self"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.33.0"
+compiler_unstable_features = ["trait_as_type"]
 
 [dependencies]
-poseidon = { tag = "v0.2.4", git = "https://github.com/noir-lang/poseidon" }
+poseidon = { tag = "v0.3.0", git = "https://github.com/noir-lang/poseidon" }

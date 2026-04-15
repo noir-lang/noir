@@ -129,6 +129,9 @@ pub struct ReferenceValue {
     pub element: Shared<Option<Value>>,
 
     pub element_type: Arc<Type>,
+
+    /// Whether this reference is mutable (`&mut T`) or immutable (`&T`).
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -149,7 +152,9 @@ impl Value {
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
-            Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
+            Value::Reference(reference) => {
+                Type::Reference(reference.element_type.clone(), reference.mutable)
+            }
             Value::ArrayOrVector(array) if array.is_vector => {
                 Type::Vector(array.element_types.clone())
             }
@@ -170,8 +175,13 @@ impl Value {
     }
 
     /// Create an empty reference value.
-    pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
-        Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
+    pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>, mutable: bool) -> Self {
+        Value::Reference(ReferenceValue {
+            original_id,
+            element_type,
+            element: Shared::new(None),
+            mutable,
+        })
     }
 
     pub(crate) fn as_bool(&self) -> Option<bool> {
@@ -304,7 +314,7 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => {
+            Type::Reference(element_type, mutable) => {
                 // Initialize the reference to a default value, so that if we execute a
                 // Load instruction when side effects are disabled, we don't get an error.
                 let value = Self::uninitialized(element_type, id);
@@ -312,6 +322,7 @@ impl Value {
                     original_id: id,
                     element_type: element_type.clone(),
                     element: Shared::new(Some(value)),
+                    mutable: *mutable,
                 })
             }
             Type::Array(element_types, length) => {
@@ -321,9 +332,22 @@ impl Value {
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }
-            Type::Vector(element_types) => Self::vector(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
+    }
+
+    /// Create an uninitialized (zeroed) vector of the given size.
+    /// Each element slot is filled with `Value::uninitialized` of the appropriate element type.
+    pub(crate) fn uninitialized_vector(element_types: &[Type], size: usize, id: ValueId) -> Value {
+        let element_count = element_types.len();
+        let elements = (0..size)
+            .map(|i| {
+                let element_type = &element_types[i % element_count.max(1)];
+                Self::uninitialized(element_type, id)
+            })
+            .collect();
+        Self::vector(elements, Arc::new(element_types.to_vec()))
     }
 
     pub(crate) fn as_string(&self) -> Option<String> {
@@ -347,6 +371,7 @@ impl Value {
                     original_id: r.original_id,
                     element: Shared::new(element),
                     element_type: r.element_type.clone(),
+                    mutable: r.mutable,
                 })
             }
             Value::ArrayOrVector(a) => {

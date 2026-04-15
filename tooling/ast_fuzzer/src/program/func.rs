@@ -1,8 +1,11 @@
+use acir::FieldElement;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
+    rc::Rc,
 };
 use strum::IntoEnumIterator;
 
@@ -19,7 +22,6 @@ use noirc_frontend::{
         },
     },
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
 };
 
 use super::{
@@ -212,11 +214,10 @@ impl<'a> FunctionContext<'a> {
         );
 
         // The function parameters are the base layer for local variables.
-        let locals = ScopeStack::from_variables(
-            decl.params
-                .iter()
-                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
-        );
+        let locals =
+            ScopeStack::from_variables(decl.params.iter().map(|(id, mutable, name, typ, _vis)| {
+                (*id, *mutable, name.clone(), typ.as_ref().clone())
+            }));
 
         // Function parameters are by definition considered to be dynamic input.
         let dynamics = Stack::new(locals.current().variable_ids().map(|id| (*id, true)).collect());
@@ -557,6 +558,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (src_mutable, src_name, src_type) = self.get_variable(&id).clone();
+            let src_type = Rc::new(src_type);
             let ident_id = self.next_ident_id();
             let src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
             let src_dyn = match id {
@@ -753,7 +755,7 @@ impl<'a> FunctionContext<'a> {
                 let item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
                     index: Box::new(idx_expr),
-                    element_type: *item_type.clone(),
+                    element_type: item_type.as_ref().clone(),
                     location: Location::dummy(),
                 });
                 // Produce the target type from the item.
@@ -826,7 +828,7 @@ impl<'a> FunctionContext<'a> {
                     Expression::Index(Index {
                         collection: Box::new(Expression::Ident(ident)),
                         index: Box::new(idx),
-                        element_type: *item_type.clone(),
+                        element_type: item_type.as_ref().clone(),
                         location: Location::dummy(),
                     })
                 },
@@ -980,7 +982,10 @@ impl<'a> FunctionContext<'a> {
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
 
             // Limit the index to be in the valid range for the array length, with a small chance of index OOB.
-            if self.avoid_index_out_of_bounds(u)? {
+            // Always apply modulo for constant literal indices because constant
+            // out-of-bounds are rejected at compile time
+            let is_literal = matches!(idx, Expression::Literal(_));
+            if is_literal || self.avoid_index_out_of_bounds(u)? {
                 idx = expr::index_modulo(idx, len);
             }
 
@@ -1188,6 +1193,12 @@ impl<'a> FunctionContext<'a> {
             return Ok(e);
         }
 
+        if freq.enabled_when("print", !self.config().avoid_print)
+            && let Some(e) = self.gen_print(u)?
+        {
+            return Ok(e);
+        }
+
         if self.unconstrained() {
             // Get loop out of the way quick, as it's always disabled for ACIR.
             if freq.enabled_when("loop", self.budget > 1) {
@@ -1204,13 +1215,6 @@ impl<'a> FunctionContext<'a> {
 
             if freq.enabled_when("continue", self.in_loop && !self.config().avoid_loop_control) {
                 return Ok(Expression::Continue);
-            }
-
-            // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled_when("print", !self.config().avoid_print)
-                && let Some(e) = self.gen_print(u)?
-            {
-                return Ok(e);
             }
         }
 
@@ -1293,7 +1297,7 @@ impl<'a> FunctionContext<'a> {
             self.next_ident_id(),
             mutable,
             name.clone(),
-            typ,
+            Rc::new(typ),
         );
         (v, i)
     }
@@ -1417,9 +1421,9 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `println` statement, if there is some printable local variable.
     ///
-    /// For now this only works in unconstrained code. For constrained code we will
-    /// need to generate a proxy function, which we can do as a follow-up pass,
-    /// as it has to be done once per function signature.
+    /// This works as-is in unconstrained functions. In constrained functions
+    /// we need to generate a proxy function, which happens in a follow-up pass,
+    /// once per function signature.
     fn gen_print(&mut self, u: &mut Unstructured) -> arbitrary::Result<Option<Expression>> {
         let opts = self
             .locals
@@ -1468,7 +1472,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle("print".to_string()),
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            typ: Rc::new(Type::Function(
+                param_types,
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
             id: self.next_ident_id(),
         };
 
@@ -1964,7 +1973,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate a random field that can be used in the match constructor of a numeric type.
-    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
+    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<FieldElement> {
         let literal = self.gen_literal(u, typ)?;
         let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
             unreachable!("expected Literal::Integer; got {literal:?}");
@@ -2028,7 +2037,11 @@ impl<'a> FunctionContext<'a> {
                 let matches = func.return_type == *return_type.as_ref()
                     && func.unconstrained == *unconstrained
                     && func.params.len() == param_types.len()
-                    && func.params.iter().zip(param_types).all(|((_, _, _, a, _), b)| a == b);
+                    && func
+                        .params
+                        .iter()
+                        .zip_eq(param_types)
+                        .all(|((_, _, _, a, _), b)| a.as_ref() == b);
 
                 matches.then_some(*func_id)
             })
@@ -2073,19 +2086,19 @@ impl<'a> FunctionContext<'a> {
     /// Identifier for a global function.
     fn func_ident(&mut self, callee_id: FuncId) -> Ident {
         let callee = self.ctx.function_decl(callee_id).clone();
-        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        let param_types = callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
 
         Ident {
             location: None,
             definition: Definition::Function(callee_id),
             mutable: false,
             name: callee.name.clone(),
-            typ: Type::Function(
+            typ: Rc::new(Type::Function(
                 param_types,
-                Box::new(callee.return_type.clone()),
-                Box::new(Type::Unit),
+                Rc::new(callee.return_type.clone()),
+                Rc::new(Type::Unit),
                 callee.unconstrained,
-            ),
+            )),
             id: self.next_ident_id(),
         }
     }
@@ -2094,7 +2107,7 @@ impl<'a> FunctionContext<'a> {
     fn local_ident(&mut self, id: LocalId) -> Ident {
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ)
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Rc::new(typ))
     }
 
     /// Type of a local variable.
@@ -2111,7 +2124,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
         let idx_variable_id = VariableId::Local(idx_local_id);
         let idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), Rc::new(idx_type));
         (idx_local_id, idx_name, idx_ident)
     }
 
@@ -2121,7 +2134,8 @@ impl<'a> FunctionContext<'a> {
             CallableId::Global(id) => {
                 let decl = self.ctx.function_decl(id);
                 let return_type = decl.return_type.clone();
-                let param_types = decl.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                let param_types =
+                    decl.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 (param_types, return_type, decl.unconstrained)
             }
             CallableId::Local(id) => {
@@ -2155,7 +2169,8 @@ impl<'a> FunctionContext<'a> {
     ) -> (LocalId, String, Expression) {
         let (_, name, typ) = self.globals.get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
+        let ident =
+            expr::ident(VariableId::Global(id), ident_id, false, name, Rc::new(typ.clone()));
         let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
         let Expression::Let(Let { id, name, .. }) = &let_expr else {
             unreachable!("expected Let; got {let_expr:?}");
@@ -2176,7 +2191,7 @@ impl<'a> FunctionContext<'a> {
         let is_dynamic = self.is_dynamic(&id);
         let let_expr = self.let_var(
             mutable,
-            ident.typ.clone(),
+            ident.typ.as_ref().clone(),
             Expression::Ident(ident),
             add_to_scope,
             is_dynamic,
@@ -2196,7 +2211,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin("array_len".to_string()),
             mutable: false,
             name: "len".to_string(),
-            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            typ: Rc::new(Type::Function(
+                vec![typ],
+                Rc::new(types::U32),
+                Rc::new(Type::Unit),
+                false,
+            )),
             id: self.next_ident_id(),
         };
         Expression::Call(Call {
@@ -2220,12 +2240,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(format!("vector_{name}")),
             mutable: false,
             name: name.to_string(),
-            typ: Type::Function(
+            typ: Rc::new(Type::Function(
                 arg_types,
-                Box::new(return_type.clone()),
-                Box::new(Type::Unit),
+                Rc::new(return_type.clone()),
+                Rc::new(Type::Unit),
                 false,
-            ),
+            )),
             id: self.next_ident_id(),
         };
         Expression::Call(Call {

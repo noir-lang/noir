@@ -9,10 +9,9 @@ use crate::{
         type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    signed_field::SignedField,
     token::Token,
 };
-use acvm::BlackBoxResolutionError;
+use acvm::{BlackBoxResolutionError, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -40,7 +39,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: SignedField,
+        value: FieldElement,
         typ: Type,
         location: Location,
     },
@@ -188,6 +187,10 @@ pub enum InterpreterError {
         location: Location,
     },
     NoImpl {
+        location: Location,
+    },
+    NoTraitItemInImpl {
+        item_name: String,
         location: Location,
     },
     NoMatchingImplFound {
@@ -390,6 +393,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
@@ -715,6 +719,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NoImpl { location } => {
                 let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::NoTraitItemInImpl { item_name, location } => {
+                let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {

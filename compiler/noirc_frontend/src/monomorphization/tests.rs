@@ -68,61 +68,6 @@ fn recursive_type_with_alias_errors() {
 }
 
 #[test]
-fn mutually_recursive_types_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `Odd` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(Odd),
-        }
-
-        enum Odd {
-            One,
-            Succ(Even),
-        }
-        ";
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
-fn mutually_recursive_types_with_structs_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `EvenSucc` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(EvenSucc),
-        }
-
-        pub struct EvenSucc { inner: Odd }
-
-        enum Odd {
-            One,
-            Succ(OddSucc),
-        }
-
-        pub struct OddSucc { inner: Even }
-        ";
-
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main(y: call_data(0) Field) -> pub Field {
@@ -613,7 +558,12 @@ fn unused_str_const_generic_in_enum_inferred() {
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+    insta::assert_snapshot!(program, @"
+global B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());
+fn main$f0() -> () {
+    let _f$l0 = B$g0
+}
+");
 }
 
 #[test]
@@ -1181,8 +1131,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
-                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
-                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                     ^^^^^ Reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1204,7 +1154,11 @@ fn evaluates_builtin_zeroed() {
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
-    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+    insta::assert_snapshot!(program, @"
+    fn main$f0() -> () {
+        let _a$l0 = [(0, \"\0\0\0\"); 2]
+    }
+    ");
 }
 
 #[test]
@@ -1222,10 +1176,10 @@ fn evaluates_builtin_zeroed_function() {
         let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
     }
     fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     ");
 }
@@ -1312,8 +1266,8 @@ fn evaluates_builtin_modulus_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let _$l0 = 254;
-        let _$l1 = @[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1];
-        let _$l2 = @[1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let _$l1 = @[true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, false, false, true, false, false, true, true, false, true, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, false, true, false, false, false, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, true, true, false, false, true, true, true, true, false, false, false, false, true, false, false, true, false, false, false, false, true, false, true, true, true, true, true, false, false, true, true, false, false, false, false, false, true, false, true, false, false, true, false, true, true, true, false, true, false, false, false, false, true, true, false, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, true, false, false, false, false, false, true, false, true, false, false, false, false, true, true, true, false, true, true, false, false, true, false, true, false, false, false, false, false, false, false, true, false, true, true, false, false, false, true, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, false, false, true, false, false, true, true, false, false, false, false, false, true, true];
+        let _$l2 = @[true, true, false, false, false, false, false, true, true, false, false, true, false, false, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, true, false, false, false, true, true, false, true, false, false, false, false, false, false, false, true, false, true, false, false, true, true, false, true, true, true, false, false, false, false, true, false, true, false, false, false, false, false, true, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, false, true, true, false, false, false, false, true, false, true, true, true, false, true, false, false, true, false, true, false, false, false, false, false, true, true, false, false, true, true, true, true, true, false, true, false, false, false, false, true, false, false, true, false, false, false, false, true, true, true, true, false, false, true, true, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, false, false, false, true, false, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, true, false, true, true, false, false, true, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true];
         let _$l3 = @[1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
         let _$l4 = @[48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0, 0, 1]
     }
@@ -1505,4 +1459,97 @@ fn main() {{
         }
         Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
     }
+}
+
+#[test]
+fn deref_of_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let mut x: Field = 5;
+            let y = *&mut x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&mut x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn deref_of_immutable_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let x: Field = 5;
+            let y = *&x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn outer_immref_to_brillig_is_accepted() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&x) };
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &Field) -> Field {
+            *x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn inner_immref_to_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&&x) };
+                                 ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &&Field) -> Field {
+            **x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn outer_immref_from_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            // Safety:
+            let y = unsafe { foo(5) };
+                             ^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                             ^^^^^^ Reference `&Field` cannot be returned from an unconstrained runtime to a constrained runtime
+            assert(*y == 5);
+        }
+
+        unconstrained fn foo(x: Field) -> &Field {
+            &x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
 }

@@ -186,6 +186,8 @@ impl Trait for Foo {
         let src = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -197,6 +199,8 @@ impl Tra>|<it for Foo {
         let expected = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -207,8 +211,16 @@ impl Trait for Foo {
         panic(f"Implement bar")
     }
 
+    fn baz(&self) -> Self {
+        panic(f"Implement baz")
+    }
+
     fn foo(x: i32) -> i32 {
         panic(f"Implement foo")
+    }
+
+    fn qux(&mut self) -> Self {
+        panic(f"Implement qux")
     }
 }"#;
 

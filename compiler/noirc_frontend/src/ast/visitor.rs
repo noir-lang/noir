@@ -1,22 +1,22 @@
+use acvm::FieldElement;
 use noirc_errors::{Location, Span};
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
-        Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
-        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
-        UnresolvedGeneric, UseTree, UseTreeKind,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, Path, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem,
+        TypeImpl, UnresolvedGeneric, UseTree, UseTreeKind,
     },
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    signed_field::SignedField,
     token::{
         FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
@@ -174,7 +174,7 @@ pub trait Visitor {
 
     fn visit_literal_integer(
         &mut self,
-        _value: SignedField,
+        _value: FieldElement,
         _suffix: Option<IntegerTypeSuffix>,
         _: Span,
     ) {
@@ -306,6 +306,10 @@ pub trait Visitor {
     }
 
     fn visit_assign_statement(&mut self, _: &AssignStatement) -> bool {
+        true
+    }
+
+    fn visit_assign_op_statement(&mut self, _: &AssignOpStatement) -> bool {
         true
     }
 
@@ -468,7 +472,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: SignedField,
+        _value: &FieldElement,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1229,6 +1233,9 @@ impl Statement {
             StatementKind::Assign(assign_statement) => {
                 assign_statement.accept(visitor);
             }
+            StatementKind::AssignOp(assign_op_statement) => {
+                assign_op_statement.accept(visitor);
+            }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
             }
@@ -1294,6 +1301,19 @@ impl ConstrainExpression {
 impl AssignStatement {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_assign_statement(self) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.lvalue.accept(visitor);
+        self.expression.accept(visitor);
+    }
+}
+
+impl AssignOpStatement {
+    pub fn accept(&self, visitor: &mut impl Visitor) {
+        if visitor.visit_assign_op_statement(self) {
             self.accept_children(visitor);
         }
     }
@@ -1565,13 +1585,16 @@ impl UnresolvedTypeExpression {
                 }
             }
             UnresolvedTypeExpression::Constant(value, suffix, location) => {
-                visitor.visit_constant_type_expression(*value, *suffix, location.span);
+                visitor.visit_constant_type_expression(value, *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {
                     lhs.accept(visitor);
                     rhs.accept(visitor);
                 }
+            }
+            UnresolvedTypeExpression::Negation(rhs, _location) => {
+                rhs.accept(visitor);
             }
             UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
                 if visitor.visit_as_trait_path_type_expression(as_trait_path) {

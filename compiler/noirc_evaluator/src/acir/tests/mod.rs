@@ -359,7 +359,7 @@ fn derive_pedersen_generators_requires_constant_input() {
     acir(inline) fn main f0 {
       b0(v0: u32, v1: u32):
         separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-        v2 = call derive_pedersen_generators(separator, v1) -> [(Field, Field, u1); 1]
+        v2 = call derive_pedersen_generators(separator, v1) -> [(Field, Field); 1]
         return v2
     }
     "#;
@@ -446,7 +446,7 @@ fn blake3_slice_regression() {
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
-fn execute_ssa(
+pub(crate) fn execute_ssa(
     ssa: Ssa,
     initial_witness: WitnessMap<FieldElement>,
     output: Option<&Witness>,

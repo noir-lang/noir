@@ -19,6 +19,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
@@ -115,9 +116,11 @@ impl Context {
                     new_function.dfg.call_stack_data.get_or_insert_locations(&locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
-                let ctrl_typevars = instruction
-                    .requires_ctrl_typevars()
-                    .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
+                let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+                    vecmap(old_results, |result| {
+                        old_function.dfg.type_of_value(*result).into_owned()
+                    })
+                });
 
                 let new_results =
                     new_function.dfg.insert_instruction_and_results_without_simplification(
@@ -127,8 +130,8 @@ impl Context {
                         new_call_stack,
                     );
 
-                assert_eq!(old_results.len(), new_results.len());
-                for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
+                for (old_result, new_result) in
+                    old_results.iter().zip_eq(new_results.results().iter())
                 {
                     let old_result = *old_result;
                     self.new_ids.values.insert(old_result, *new_result);
@@ -174,7 +177,7 @@ impl IdMaps {
             let new_id = self.blocks[&old_id];
             let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
-                let typ = old_function.dfg.type_of_value(old_parameter);
+                let typ = old_function.dfg.type_of_value(old_parameter).into_owned();
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
                 self.values.insert(old_parameter, new_parameter);
             }

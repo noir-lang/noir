@@ -68,6 +68,18 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
+/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+fn variables_returned_by_instruction(
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+) -> Variables {
+    dfg.instruction_results(instruction_id)
+        .iter()
+        .copied()
+        .filter(|result_id| is_variable(*result_id, dfg))
+        .collect()
+}
+
 /// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
@@ -82,7 +94,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -123,24 +135,17 @@ impl VariableLiveness {
         let back_edges: LoopMap = loops
             .yet_to_unroll
             .into_iter()
-            .map(|_loop| {
-                let back_edge = BackEdge { header: _loop.header, start: _loop.back_edge_start };
-                let loop_body = _loop.blocks;
-                (back_edge, loop_body)
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
             })
             .collect();
 
-        Self {
-            cfg: loops.cfg,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-            max_live_count: 0,
-        }
-        .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
-        .compute_max_live_count(func)
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -369,9 +374,9 @@ impl VariableLiveness {
             let live_out = self.get_live_out(&block_id);
 
             // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
-            let mut used_after: Variables = Default::default();
+            let mut used_after = Variables::default();
             // Variables becoming dead after each instruction.
-            let mut block_last_uses: LastUses = Default::default();
+            let mut block_last_uses = LastUses::default();
 
             // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {
@@ -386,12 +391,27 @@ impl VariableLiveness {
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
-                let instruction_last_uses = variables_used_in_instruction(instruction, &func.dfg)
-                    .into_iter()
-                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                    .collect();
-                // Remember that we have already handled these.
+                let mut instruction_last_uses: HashSet<ValueId> =
+                    variables_used_in_instruction(instruction, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                        .collect();
+
+                // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
+
+                // Check results as well: if they are not used by anything after,
+                // they can be deallocated. DIE should remove these, but in isolated
+                // unit tests they can be expected to be removed.
+                let unused_instruction_results =
+                    variables_returned_by_instruction(*instruction_id, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id));
+
+                // We can immediately free unused results.
+                // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
+                instruction_last_uses.extend(unused_instruction_results);
+
                 // Remember that we can deallocate these after this instruction.
                 block_last_uses.insert(*instruction_id, instruction_last_uses);
             }
@@ -852,11 +872,10 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 10
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = sp[4]
-        4: return
+        0: sp[3] = const field 10
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = sp[4]
+        3: return
         ");
     }
 
@@ -886,15 +905,42 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 1
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = const field 2
-        4: sp[3] = field add sp[4], sp[2]
-        5: sp[2] = const field 3
-        6: sp[4] = field add sp[3], sp[2]
-        7: sp[2] = sp[4]
-        8: return
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = const field 2
+        3: sp[3] = field add sp[4], sp[2]
+        4: sp[2] = const field 3
+        5: sp[4] = field add sp[3], sp[2]
+        6: sp[2] = sp[4]
+        7: return
+        ");
+    }
+
+    #[test]
+    fn test_never_use_deallocation() {
+        // When an instruction result is never used, its register can be reused ASAP.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v0, Field 2
+            v3 = add v0, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 2
+        3: sp[4] = field add sp[2], sp[3]
+        4: sp[3] = const field 3
+        5: sp[4] = field add sp[2], sp[3]
+        6: sp[2] = sp[4]
+        7: return
         ");
     }
 
@@ -930,22 +976,21 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const u32 0
-         2: sp[5] = const u32 1
-         3: sp[3] = sp[4]
-         4: jump to 0 // -> 5: f0/b1
-         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-         6: jump if sp[4] to 0 // -> 10: f0/b2
-         7: jump to 0 // -> 8: f0/b3
-         8: sp[2] = sp[3] // f0/b3
-         9: return
-        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
-        11: sp[6] = u32 lt_eq sp[3], sp[4]
-        12: jump if sp[6] to 0 // -> 14: f0/b2/1
-        13: call 0 // -> ErrorWithString
-        14: sp[3] = sp[4] // f0/b2/1
-        15: jump to 0 // -> 5: f0/b1
+         0: sp[4] = const u32 0
+         1: sp[5] = const u32 1
+         2: sp[3] = sp[4]
+         3: jump to 0 // -> 4: f0/b1
+         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         5: jump if sp[4] to 0 // -> 9: f0/b2
+         6: jump to 0 // -> 7: f0/b3
+         7: sp[2] = sp[3] // f0/b3
+         8: return
+         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+        10: sp[6] = u32 lt_eq sp[3], sp[4]
+        11: jump if sp[6] to 0 // -> 13: f0/b2/1
+        12: call 0 // -> ErrorWithString
+        13: sp[3] = sp[4] // f0/b2/1
+        14: jump to 0 // -> 4: f0/b1
         ");
     }
 
@@ -980,17 +1025,16 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 42
-         2: jump if sp[2] to 0 // -> 6: f0/b1
-         3: jump to 0 // -> 4: f0/b2
-         4: sp[3] = sp[4] // f0/b2
-         5: jump to 0 // -> 9: f0/b3
-         6: sp[2] = const field 27 // f0/b1
-         7: sp[3] = field add sp[2], sp[4]
-         8: jump to 0 // -> 9: f0/b3
-         9: sp[2] = sp[3] // f0/b3
-        10: return
+         0: sp[4] = const field 42
+         1: jump if sp[2] to 0 // -> 5: f0/b1
+         2: jump to 0 // -> 3: f0/b2
+         3: sp[3] = sp[4] // f0/b2
+         4: jump to 0 // -> 8: f0/b3
+         5: sp[2] = const field 27 // f0/b1
+         6: sp[3] = field add sp[2], sp[4]
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
+         9: return
         ");
     }
 
@@ -1020,13 +1064,12 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 100
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[3] = const field 200
-        4: sp[5] = field mul sp[2], sp[3]
-        5: sp[2] = field add sp[4], sp[5]
-        6: return
+        0: sp[3] = const field 100
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 200
+        3: sp[5] = field mul sp[2], sp[3]
+        4: sp[2] = field add sp[4], sp[5]
+        5: return
         ");
     }
 
@@ -1058,16 +1101,15 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 1
-         2: sp[5] = field add sp[2], sp[4]
-         3: sp[2] = const field 2
-         4: sp[4] = field add sp[5], sp[2]
-         5: sp[2] = const field 3
-         6: sp[3] = field mul sp[4], sp[2]
-         7: jump to 0 // -> 8: f0/b1
-         8: sp[2] = sp[3] // f0/b1
-         9: return
+        0: sp[4] = const field 1
+        1: sp[5] = field add sp[2], sp[4]
+        2: sp[2] = const field 2
+        3: sp[4] = field add sp[5], sp[2]
+        4: sp[2] = const field 3
+        5: sp[3] = field mul sp[4], sp[2]
+        6: jump to 0 // -> 7: f0/b1
+        7: sp[2] = sp[3] // f0/b1
+        8: return
         ");
     }
 }

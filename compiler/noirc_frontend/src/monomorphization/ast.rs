@@ -1,5 +1,7 @@
+use std::rc::Rc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
@@ -9,7 +11,6 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
-    signed_field::SignedField,
     token::Attributes,
 };
 use crate::{shared::Visibility, token::FunctionAttributeKind};
@@ -77,7 +78,7 @@ impl Expression {
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
                 Literal::FmtStr(_, size, expr) => {
                     let typ = expr.return_type()?;
-                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                    owned(Type::FmtString(*size as u32, Rc::new(typ.into_owned())))
                 }
             },
             Expression::Block(xs) => {
@@ -101,7 +102,13 @@ impl Expression {
                     xs[*idx].return_type()
                 }
                 x => {
-                    let typ = x.return_type()?;
+                    let mut typ = x.return_type()?;
+
+                    // Unwrap reference types to get the underlying tuple type
+                    while let Type::Reference(reference_type, _) = typ.as_ref() {
+                        typ = Cow::Owned(reference_type.as_ref().clone());
+                    }
+
                     let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
@@ -243,7 +250,7 @@ pub struct Ident {
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
-    pub typ: Type,
+    pub typ: Rc<Type>,
     pub id: IdentId,
 }
 
@@ -280,10 +287,10 @@ pub enum Literal {
         is_vector: bool,
         typ: Type,
     },
-    Integer(SignedField, Type, Location),
+    Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(
         Vec<FmtStrFragment>,
         /* Number of variables in the format string. */ u64,
@@ -422,7 +429,7 @@ pub enum LValue {
 }
 
 pub type Parameters =
-    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Rc<Type>, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -539,20 +546,20 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Rc<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
-    FmtString(/*len:*/ u32, Box<Type>),
+    FmtString(/*len:*/ u32, Rc<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Vector(Box<Type>),
-    Reference(Box<Type>, /*mutable:*/ bool),
+    Vector(Rc<Type>),
+    Reference(Rc<Type>, /*mutable:*/ bool),
     /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
-        /*ret:*/ Box<Type>,
-        /*env:*/ Box<Type>,
+        /*ret:*/ Rc<Type>,
+        /*env:*/ Rc<Type>,
         /*unconstrained:*/ bool,
     ),
 }

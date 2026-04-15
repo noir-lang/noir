@@ -17,6 +17,7 @@ use acvm::acir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_context;
@@ -25,7 +26,7 @@ mod call;
 mod shared_context;
 pub(crate) mod ssa;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod types;
 
 use crate::brillig::Brillig;
@@ -49,7 +50,7 @@ use crate::ssa::{
 };
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
-use acir_context::{AcirContext, BrilligStdLib, power_of_two};
+use acir_context::{AcirContext, BrilligStdLib};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -256,7 +257,7 @@ impl<'a> Context<'a> {
         // But an attempt at searching through the program and relabeling these witnesses so we could remove
         // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
         // but "the opcode count doesn't even change in real circuits."
-        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+        for (witness_var, return_var) in return_witness_vars.iter().zip_eq(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
 
@@ -310,7 +311,7 @@ impl<'a> Context<'a> {
         }
 
         let outputs: Vec<AcirType> =
-            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
@@ -370,12 +371,12 @@ impl<'a> Context<'a> {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
-                    let len = if matches!(typ, Type::Array(_, _)) {
+                    let len = if matches!(*typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {typ:?}"),
+                            found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
@@ -667,7 +668,7 @@ impl<'a> Context<'a> {
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
         assert!(
-            !matches!(dfg.type_of_value(value_id), Type::Reference(_)),
+            !matches!(*dfg.type_of_value(value_id), Type::Reference(..)),
             "convert_value: did not expect a Reference type"
         );
 
@@ -812,13 +813,13 @@ impl<'a> Context<'a> {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
 
-        match (lhs_type, rhs_type) {
+        match (&*lhs_type, &*rhs_type) {
             // Function type should not be possible, since all functions
             // have been inlined.
             (_, Type::Function) | (Type::Function, _) => {
                 unreachable!("all functions should be inlined")
             }
-            (_, Type::Reference(_)) | (Type::Reference(_), _) => {
+            (_, Type::Reference(..)) | (Type::Reference(..), _) => {
                 unreachable!("References are invalid in binary operations")
             }
             (_, Type::Array(..)) | (Type::Array(..), _) => {
@@ -831,7 +832,7 @@ impl<'a> Context<'a> {
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
-                Type::Numeric(lhs_type)
+                Type::Numeric(*lhs_type)
             }
         }
     }
@@ -841,7 +842,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        mut max_bit_size: u32,
+        max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -850,33 +851,17 @@ impl<'a> Context<'a> {
             "Attempted to generate a truncation into size larger than max input"
         );
 
-        let mut var = self.convert_numeric_value(value_id, dfg)?;
+        let var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
-                if matches!(
-                    &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
-                ) {
-                    // Subtractions must first have the integer modulus added before truncation can be
-                    // applied. This is done in order to prevent underflow.
-                    //
-                    // FieldElements have max bit size equals to max_num_bits so
-                    // we filter out this bit size because there is no underflow
-                    // for FieldElements. Furthermore, adding a power of two
-                    // would be incorrect for a FieldElement (cf. #8519).
-                    if max_bit_size < FieldElement::max_num_bits() {
-                        // When max_bit_size is max_num_bits() - 1, adding
-                        // 2**max_bit_size to an element of max_bit_size bits
-                        // gives an element of max_num_bits() bits which may overflow
-                        assert!(
-                            max_bit_size != FieldElement::max_num_bits() - 1,
-                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
-                        );
-                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
-                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                        var = self.acir_context.add_var(var, integer_modulus)?;
-                        max_bit_size += 1;
-                    }
+                if let Instruction::Binary(Binary {
+                    lhs,
+                    operator: BinaryOp::Sub { unchecked: true },
+                    ..
+                }) = &dfg[*instruction]
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    unreachable!("Truncation of unchecked signed subtraction");
                 }
             }
             Value::Param { .. } => {
