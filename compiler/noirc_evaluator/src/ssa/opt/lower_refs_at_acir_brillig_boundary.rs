@@ -27,6 +27,7 @@
 //!
 //! - This pass must be run after defunctionalization.
 
+#![allow(unused)]
 use std::sync::Arc;
 
 use iter_extended::vecmap;

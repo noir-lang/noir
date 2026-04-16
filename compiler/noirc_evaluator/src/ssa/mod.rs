@@ -157,10 +157,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(
-            Ssa::lower_refs_at_acir_brillig_boundary,
-            "Lower refs at ACIR/Brillig boundary",
-        ),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
