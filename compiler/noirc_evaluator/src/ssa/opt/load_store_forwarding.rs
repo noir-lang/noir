@@ -36,6 +36,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -102,18 +103,33 @@ fn collect_allocations(function: &Function, blocks: &[BasicBlockId]) -> HashSet<
     allocations
 }
 
+/// Returns true if two types are compatible for aliasing purposes.
+///
+/// `&mut T` and `&T` with the same inner type must be treated as potentially aliasing.
+///
+/// The comparison is recursive so that nested references (e.g. `&&mut T` vs
+/// `&mut &T`) are also handled correctly.
+fn same_type_for_aliasing(a: &Type, b: &Type) -> bool {
+    match (a, b) {
+        (Type::Reference(inner_a, _), Type::Reference(inner_b, _)) => {
+            same_type_for_aliasing(inner_a, inner_b)
+        }
+        _ => a == b,
+    }
+}
+
 /// Returns true if two addresses might refer to the same memory.
 ///
 /// Conservative: returns true when uncertain.
 /// - Same ValueId -> always alias.
-/// - Different reference types -> never alias.
+/// - Incompatible reference types -> never alias.
 /// - Both from different `allocate` instructions -> never alias.
 /// - Otherwise -> may alias.
 fn may_alias(a: ValueId, b: ValueId, allocations: &HashSet<ValueId>, dfg: &DataFlowGraph) -> bool {
     if a == b {
         return true;
     }
-    if dfg.type_of_value(a) != dfg.type_of_value(b) {
+    if !same_type_for_aliasing(&dfg.type_of_value(a), &dfg.type_of_value(b)) {
         return false;
     }
     if allocations.contains(&a) && allocations.contains(&b) {
@@ -1069,6 +1085,67 @@ mod tests {
           b0(v0: &mut Field):
             store Field 1 at v0
             return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn nested_mutable_and_immutable_reference_outer_are_aliases() {
+        // same_type_for_aliasing must recurse through nested reference types.
+        // v0 (&mut &mut Field) and v1 (&mut &Field) differ only in the inner
+        // mutability flag; the outer types strip to the same underlying Field,
+        // so they must be treated as potential aliases.
+        //
+        // Concretely: the store to v0 must invalidate the cached load of v1,
+        // so the second load of v1 is NOT forwarded to v2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut &mut Field, v1: &mut &Field):
+            v2 = load v1 -> &Field       // cache: last_loads[v1] = v2
+            v3 = allocate -> &mut Field
+            store v3 at v0              // must clear last_loads[v1] (v0 may alias v1)
+            v4 = load v1 -> &Field      // must NOT forward to v2
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn immutable_ref_load_prevents_dead_store_through_mutable_alias() {
+        // A load from an immutable reference must protect a prior store to a
+        // mutable reference of the same type, because the two may alias.
+        // Without the fix, may_alias(&mut Field, &Field) returns false (type
+        // mismatch), so the load does not mark the first store as used and it
+        // gets incorrectly eliminated as a dead store.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            v2 = load v1 -> Field
+            store Field 2 at v0
+            return v2
+        }
+        ";
+        // If v0 == v1, eliminating `store Field 1 at v0` is wrong because
+        // `load v1` reads through it.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn considers_mutable_reference_and_immutable_reference_to_be_aliases() {
+        // v0 (&mut Field) and v1 (&Field) may point to the same memory even
+        // though their types differ in mutability. The store to v0 must
+        // therefore invalidate the cached load result for v1, so the second
+        // load of v1 is NOT forwarded to v2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &Field):
+            v2 = load v1 -> Field    // cache: last_loads[v1] = v2
+            store Field 0 at v0     // must clear last_loads[v1] (v0 may alias v1)
+            v3 = load v1 -> Field   // must NOT forward to v2
+            return v3
         }
         ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
