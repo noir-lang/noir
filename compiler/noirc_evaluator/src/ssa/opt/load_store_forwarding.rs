@@ -1079,6 +1079,26 @@ mod tests {
     }
 
     #[test]
+    fn does_not_remove_potentially_aliased_store_before_array_set() {
+        // Regression test for #12316. After `array_set` stores v0 into v2, a
+        // later `store at v1` may alias v0 (v1 could have been extracted from
+        // v2). The intervening aliased store must invalidate last_stores[v0]
+        // so that `store Field 2 at v0` does not treat `store Field 0 at v0`
+        // as a redundant prior write and eliminate it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: [&mut Field; 2]):
+            store Field 0 at v0
+            v3 = array_set v2, index u32 0, value v0
+            store Field 1 at v1
+            store Field 2 at v0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
     fn nested_mutable_and_immutable_reference_outer_are_aliases() {
         // same_type_for_aliasing must recurse through nested reference types.
         // v0 (&mut &mut Field) and v1 (&mut &Field) differ only in the inner
