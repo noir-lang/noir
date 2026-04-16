@@ -182,6 +182,10 @@ impl Function {
             // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             let blocks_to_revisit = context.blocks_to_revisit;
 
+            if blocks_to_revisit.is_empty() {
+                break;
+            }
+
             // Preserve the values_to_replace mapping across iterations.
             // This is necessary because instructions that were simplified or deduplicated in earlier
             // iterations may still be referenced by instructions in blocks that are revisited.
@@ -617,6 +621,7 @@ impl Context {
         new_results
     }
 
+    /// Cache the results of a newly pushed instruction.
     #[allow(clippy::too_many_arguments)]
     fn cache_instruction(
         &mut self,
@@ -695,7 +700,29 @@ impl Context {
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
-            // If we see this make_array again, we can reuse the current result.
+
+            // Check whether the instruction simplified something else which already exists in the cache,
+            // but we didn't know that before. If so, we should revisit the block to deduplicate.
+            if let Some(last_instruction_id) = dfg[block].instructions().last() {
+                let last_instruction = &dfg[*last_instruction_id];
+                if last_instruction != instruction
+                    && let Some(
+                        CacheResult::Cached { dominator, .. }
+                        | CacheResult::NeedToHoistToCommonBlock { dominator },
+                    ) = self.cached_instruction_results.get(
+                        dfg,
+                        dom,
+                        *last_instruction_id,
+                        last_instruction,
+                        predicate,
+                        block,
+                    )
+                {
+                    self.blocks_to_revisit.insert(dominator);
+                }
+            }
+
+            // If we see this instruction again, we can reuse the current result.
             self.cached_instruction_results.cache(
                 dom,
                 instruction.clone(),
@@ -1171,24 +1198,26 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 15);
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        let ssa = ssa.fold_constants_using_constraints(2);
 
+        // 1st iteration:
         // The `array_get` instruction after `enable_side_effects v1` is deduplicated
         // with the one under `enable_side_effects v0` because it doesn't require a predicate,
         // but the `array_set` is not, because it does require a predicate, and the subsequent
         // `array_get` uses a different input, so it's not a duplicate of anything.
+        // 2nd iteration:
+        // Simplification allows array_gets to be deduplicated even when they read through an
+        // array_set at a different index: `array_get (array_set v2, idx 1, _), idx 0` simplifies
+        // to `array_get v2, idx 0` which matches the cached result. The constrains then become
+        // trivial (`v4 == v4`) and are removed.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: [Field; 2]):
             enable_side_effects v0
             v4 = array_get v2, index u32 0 -> u32
             v7 = array_set v2, index u32 1, value u32 2
-            v8 = array_get v2, index u32 0 -> u32
-            constrain v4 == v8
             enable_side_effects v1
-            v9 = array_set v2, index u32 1, value u32 2
-            v10 = array_get v2, index u32 0 -> u32
-            constrain v4 == v10
+            v8 = array_set v2, index u32 1, value u32 2
             enable_side_effects v0
             return
         }
@@ -3303,5 +3332,44 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(DEFAULT_MAX_ITER));
+    }
+
+    /// A constrain with an error message followed by an equivalent constrain
+    /// that only becomes visible after simplification. The duplicate should
+    /// be removed.
+    #[test]
+    fn duplicate_constrain_after_simplification() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            v3 = not v2
+            enable_side_effects v3
+            constrain v0 == Field 1, \"Index out of bounds\"
+            v5 = eq u32 0, u32 0
+            v6 = unchecked_mul v5, v3
+            constrain v6 == u1 0
+            enable_side_effects u1 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(3);
+
+        // The simplified `constrain v0 == Field 1` should be deduplicated
+        // against the existing one with the error message.
+        // It simplified, because if `v0` is constrained to be 1,
+        // then v2 is 1, v3 is 0, v6 is 0, and the 2nd constrain is true.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            v3 = not v2
+            enable_side_effects v3
+            constrain v0 == Field 1, "Index out of bounds"
+            enable_side_effects u1 1
+            return
+        }
+        "#);
     }
 }
