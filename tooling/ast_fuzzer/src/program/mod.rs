@@ -319,16 +319,24 @@ impl Context {
             Visibility::Private
         };
 
+        let inline_type = if is_main {
+            InlineType::default()
+        } else {
+            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
+            *u.choose(&choices)?
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             return_type,
             return_visibility,
-            inline_type: if is_main {
-                InlineType::default()
-            } else {
-                *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
-            },
+            inline_type,
             unconstrained,
         };
 
@@ -385,6 +393,7 @@ impl Context {
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
         rewrite::remove_unreachable_functions(self);
         rewrite::add_recursion_limit(self, u)?;
+        rewrite::wrap_oracle_prints_in_functions(self);
         Ok(())
     }
 

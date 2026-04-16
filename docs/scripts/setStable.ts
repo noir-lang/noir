@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const GITHUB_PAGES = 3;
 const IGNORE_VERSIONS = ['0.16.0'];
-const NUMBER_OF_VERSIONS_TO_SHOW = 2;
+const NUMBER_OF_VERSIONS_TO_SHOW = 4;
 
 const MAX_RETRIES = 3;
 const INITIAL_DELAY_MS = 1000;
