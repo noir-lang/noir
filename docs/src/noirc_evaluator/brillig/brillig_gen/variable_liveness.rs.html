@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span><span class="kw">super</span>::constant_allocation::ConstantAllocation;
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span><span class="kw">super</span>::constant_allocation::{ConstantAllocation, InstructionLocation};
 <a href=#23 id=23 data-nosnippet>23</a>
 <a href=#24 id=24 data-nosnippet>24</a><span class="doccomment">/// A set of [ValueId]s referring to SSA variables (not functions).
 <a href=#25 id=25 data-nosnippet>25</a></span><span class="kw">type </span>Variables = HashSet&lt;ValueId&gt;;
@@ -145,7 +145,7 @@
 <a href=#145 id=145 data-nosnippet>145</a>            .compute_block_param_definitions(func, <span class="kw-2">&amp;</span>loops.dom)
 <a href=#146 id=146 data-nosnippet>146</a>            .compute_live_in_of_blocks(func, constants, back_edges)
 <a href=#147 id=147 data-nosnippet>147</a>            .compute_last_uses(func)
-<a href=#148 id=148 data-nosnippet>148</a>            .compute_max_live_count(func)
+<a href=#148 id=148 data-nosnippet>148</a>            .compute_max_live_count(func, constants)
 <a href=#149 id=149 data-nosnippet>149</a>    }
 <a href=#150 id=150 data-nosnippet>150</a>
 <a href=#151 id=151 data-nosnippet>151</a>    <span class="doccomment">/// The set of values that are alive before the block starts executing.
@@ -424,692 +424,765 @@
 <a href=#424 id=424 data-nosnippet>424</a>
 <a href=#425 id=425 data-nosnippet>425</a>    <span class="doccomment">/// Compute [VariableLiveness::max_live_count].
 <a href=#426 id=426 data-nosnippet>426</a>    ///
-<a href=#427 id=427 data-nosnippet>427</a>    /// Walk each block instruction-by-instruction, tracking how many variables are
-<a href=#428 id=428 data-nosnippet>428</a>    /// simultaneously alive: start with `live_in`, add variables defined by each
-<a href=#429 id=429 data-nosnippet>429</a>    /// instruction (including block param definitions), and subtract dead variables
-<a href=#430 id=430 data-nosnippet>430</a>    /// from `last_uses`. Record the highest count across all blocks.
+<a href=#427 id=427 data-nosnippet>427</a>    /// Walk each block instruction-by-instruction, tracking the set of variables
+<a href=#428 id=428 data-nosnippet>428</a>    /// simultaneously alive: start with `live_in` plus block param definitions,
+<a href=#429 id=429 data-nosnippet>429</a>    /// materialize constants at their allocation points, add instruction results,
+<a href=#430 id=430 data-nosnippet>430</a>    /// and remove dead variables from `last_uses`. Record the highest count.
 <a href=#431 id=431 data-nosnippet>431</a>    ///
-<a href=#432 id=432 data-nosnippet>432</a>    /// For `MakeArray` instructions, also account for the element count: during Brillig
-<a href=#433 id=433 data-nosnippet>433</a>    /// codegen, each unique element value is materialized as a separate register, which
-<a href=#434 id=434 data-nosnippet>434</a>    /// can far exceed the SSA-level variable count.
-<a href=#435 id=435 data-nosnippet>435</a>    </span><span class="kw">fn </span>compute_max_live_count(<span class="kw-2">mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="kw">let </span><span class="kw-2">mut </span>max_count: usize = <span class="number">0</span>;
-<a href=#437 id=437 data-nosnippet>437</a>
-<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
-<a href=#439 id=439 data-nosnippet>439</a>            <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
-<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">let </span>live_in = <span class="self">self</span>.get_live_in(<span class="kw-2">&amp;</span>block_id);
+<a href=#432 id=432 data-nosnippet>432</a>    /// # Safety
+<a href=#433 id=433 data-nosnippet>433</a>    /// This is a rough estimate. Until we have solidified an exact live count we expect consumers
+<a href=#434 id=434 data-nosnippet>434</a>    /// of the max live count to have some extra margin to account for potentially temporary allocated registers.
+<a href=#435 id=435 data-nosnippet>435</a>    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+<a href=#436 id=436 data-nosnippet>436</a>    </span><span class="kw">fn </span>compute_max_live_count(<span class="kw-2">mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function, constants: <span class="kw-2">&amp;</span>ConstantAllocation) -&gt; <span class="self">Self </span>{
+<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let </span><span class="kw-2">mut </span>max_count: usize = <span class="number">0</span>;
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">let </span>block = <span class="kw-2">&amp;</span>func.dfg[block_id];
 <a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">let </span>last_uses = <span class="self">self</span>.get_last_uses(<span class="kw-2">&amp;</span>block_id);
 <a href=#442 id=442 data-nosnippet>442</a>
-<a href=#443 id=443 data-nosnippet>443</a>            <span class="comment">// Start with the live-in set plus variables defined at block entry
-<a href=#444 id=444 data-nosnippet>444</a>            // (block param definitions are allocated before the first instruction).
-<a href=#445 id=445 data-nosnippet>445</a>            </span><span class="kw">let </span>param_defs = <span class="self">self</span>.defined_block_params(<span class="kw-2">&amp;</span>block_id);
-<a href=#446 id=446 data-nosnippet>446</a>            <span class="kw">let </span><span class="kw-2">mut </span>current_count = live_in.len() + param_defs.len();
-<a href=#447 id=447 data-nosnippet>447</a>            max_count = max_count.max(current_count);
-<a href=#448 id=448 data-nosnippet>448</a>
-<a href=#449 id=449 data-nosnippet>449</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
-<a href=#450 id=450 data-nosnippet>450</a>                <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id];
-<a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a>                <span class="comment">// MakeArray materializes each element as a register during Brillig codegen.
-<a href=#453 id=453 data-nosnippet>453</a>                // Count the number of unique element values to estimate register pressure.
-<a href=#454 id=454 data-nosnippet>454</a>                </span><span class="kw">if let </span>Instruction::MakeArray { elements, .. } = instruction {
-<a href=#455 id=455 data-nosnippet>455</a>                    <span class="kw">let </span>unique_elements: HashSet&lt;<span class="kw">_</span>&gt; = elements.iter().copied().collect();
-<a href=#456 id=456 data-nosnippet>456</a>                    max_count = max_count.max(current_count + unique_elements.len());
-<a href=#457 id=457 data-nosnippet>457</a>                }
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>                <span class="comment">// Add results defined by this instruction.
-<a href=#460 id=460 data-nosnippet>460</a>                </span><span class="kw">let </span>results = func.dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
-<a href=#461 id=461 data-nosnippet>461</a>                current_count += results.len();
-<a href=#462 id=462 data-nosnippet>462</a>                max_count = max_count.max(current_count);
-<a href=#463 id=463 data-nosnippet>463</a>
-<a href=#464 id=464 data-nosnippet>464</a>                <span class="comment">// Subtract variables that die after this instruction.
-<a href=#465 id=465 data-nosnippet>465</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(dead) = last_uses.get(instruction_id) {
-<a href=#466 id=466 data-nosnippet>466</a>                    current_count = current_count.saturating_sub(dead.len());
-<a href=#467 id=467 data-nosnippet>467</a>                }
-<a href=#468 id=468 data-nosnippet>468</a>            }
-<a href=#469 id=469 data-nosnippet>469</a>        }
-<a href=#470 id=470 data-nosnippet>470</a>
-<a href=#471 id=471 data-nosnippet>471</a>        <span class="self">self</span>.max_live_count = max_count;
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="self">self
-<a href=#473 id=473 data-nosnippet>473</a>    </span>}
-<a href=#474 id=474 data-nosnippet>474</a>
-<a href=#475 id=475 data-nosnippet>475</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>cfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ControlFlowGraph {
-<a href=#476 id=476 data-nosnippet>476</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.cfg
-<a href=#477 id=477 data-nosnippet>477</a>    }
-<a href=#478 id=478 data-nosnippet>478</a>}
+<a href=#443 id=443 data-nosnippet>443</a>            <span class="kw">let </span><span class="kw-2">mut </span>live_set: HashSet&lt;ValueId&gt; =
+<a href=#444 id=444 data-nosnippet>444</a>                <span class="self">self</span>.get_live_in(<span class="kw-2">&amp;</span>block_id).iter().copied().collect();
+<a href=#445 id=445 data-nosnippet>445</a>            live_set.extend(<span class="self">self</span>.defined_block_params(<span class="kw-2">&amp;</span>block_id));
+<a href=#446 id=446 data-nosnippet>446</a>            max_count = max_count.max(live_set.len());
+<a href=#447 id=447 data-nosnippet>447</a>
+<a href=#448 id=448 data-nosnippet>448</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
+<a href=#449 id=449 data-nosnippet>449</a>                <span class="comment">// Materialize constants allocated at this instruction location.
+<a href=#450 id=450 data-nosnippet>450</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(new_consts) = constants.allocated_at_location(
+<a href=#451 id=451 data-nosnippet>451</a>                    block_id,
+<a href=#452 id=452 data-nosnippet>452</a>                    InstructionLocation::Instruction(<span class="kw-2">*</span>instruction_id),
+<a href=#453 id=453 data-nosnippet>453</a>                ) {
+<a href=#454 id=454 data-nosnippet>454</a>                    live_set.extend(new_consts.iter().copied());
+<a href=#455 id=455 data-nosnippet>455</a>                    max_count = max_count.max(live_set.len());
+<a href=#456 id=456 data-nosnippet>456</a>                }
+<a href=#457 id=457 data-nosnippet>457</a>
+<a href=#458 id=458 data-nosnippet>458</a>                <span class="comment">// MakeArray materializes each unique element as a register during
+<a href=#459 id=459 data-nosnippet>459</a>                // Brillig codegen. Include them in the live set so the peak accounts
+<a href=#460 id=460 data-nosnippet>460</a>                // for non-constant element values as well.
+<a href=#461 id=461 data-nosnippet>461</a>                </span><span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id];
+<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">if let </span>Instruction::MakeArray { elements, .. } = instruction {
+<a href=#463 id=463 data-nosnippet>463</a>                    live_set.extend(elements.iter().copied());
+<a href=#464 id=464 data-nosnippet>464</a>                    max_count = max_count.max(live_set.len());
+<a href=#465 id=465 data-nosnippet>465</a>                }
+<a href=#466 id=466 data-nosnippet>466</a>
+<a href=#467 id=467 data-nosnippet>467</a>                <span class="comment">// Add results defined by this instruction.
+<a href=#468 id=468 data-nosnippet>468</a>                </span><span class="kw">let </span>results = func.dfg.instruction_results(<span class="kw-2">*</span>instruction_id);
+<a href=#469 id=469 data-nosnippet>469</a>                live_set.extend(results.iter().copied());
+<a href=#470 id=470 data-nosnippet>470</a>                max_count = max_count.max(live_set.len());
+<a href=#471 id=471 data-nosnippet>471</a>
+<a href=#472 id=472 data-nosnippet>472</a>                <span class="comment">// Subtract variables that die after this instruction.
+<a href=#473 id=473 data-nosnippet>473</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(dead) = last_uses.get(instruction_id) {
+<a href=#474 id=474 data-nosnippet>474</a>                    <span class="kw">for </span>d <span class="kw">in </span>dead {
+<a href=#475 id=475 data-nosnippet>475</a>                        live_set.remove(d);
+<a href=#476 id=476 data-nosnippet>476</a>                    }
+<a href=#477 id=477 data-nosnippet>477</a>                }
+<a href=#478 id=478 data-nosnippet>478</a>            }
 <a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a><span class="attr">#[cfg(test)]
-<a href=#481 id=481 data-nosnippet>481</a></span><span class="kw">mod </span>tests {
-<a href=#482 id=482 data-nosnippet>482</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
-<a href=#483 id=483 data-nosnippet>483</a>    <span class="kw">use </span>rustc_hash::FxHashSet;
-<a href=#484 id=484 data-nosnippet>484</a>
-<a href=#485 id=485 data-nosnippet>485</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_artifact_snapshot;
-<a href=#486 id=486 data-nosnippet>486</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::constant_allocation::ConstantAllocation;
-<a href=#487 id=487 data-nosnippet>487</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::tests::ssa_to_brillig_artifacts;
-<a href=#488 id=488 data-nosnippet>488</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::variable_liveness::VariableLiveness;
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::function_builder::FunctionBuilder;
-<a href=#490 id=490 data-nosnippet>490</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
-<a href=#491 id=491 data-nosnippet>491</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
-<a href=#492 id=492 data-nosnippet>492</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::BinaryOp;
-<a href=#493 id=493 data-nosnippet>493</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::map::Id;
-<a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
-<a href=#495 id=495 data-nosnippet>495</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
-<a href=#496 id=496 data-nosnippet>496</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
+<a href=#480 id=480 data-nosnippet>480</a>            <span class="comment">// Handle constants allocated at the terminator.
+<a href=#481 id=481 data-nosnippet>481</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(new_consts) =
+<a href=#482 id=482 data-nosnippet>482</a>                constants.allocated_at_location(block_id, InstructionLocation::Terminator)
+<a href=#483 id=483 data-nosnippet>483</a>            {
+<a href=#484 id=484 data-nosnippet>484</a>                live_set.extend(new_consts.iter().copied());
+<a href=#485 id=485 data-nosnippet>485</a>                max_count = max_count.max(live_set.len());
+<a href=#486 id=486 data-nosnippet>486</a>            }
+<a href=#487 id=487 data-nosnippet>487</a>        }
+<a href=#488 id=488 data-nosnippet>488</a>
+<a href=#489 id=489 data-nosnippet>489</a>        <span class="self">self</span>.max_live_count = max_count;
+<a href=#490 id=490 data-nosnippet>490</a>        <span class="self">self
+<a href=#491 id=491 data-nosnippet>491</a>    </span>}
+<a href=#492 id=492 data-nosnippet>492</a>
+<a href=#493 id=493 data-nosnippet>493</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>cfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ControlFlowGraph {
+<a href=#494 id=494 data-nosnippet>494</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.cfg
+<a href=#495 id=495 data-nosnippet>495</a>    }
+<a href=#496 id=496 data-nosnippet>496</a>}
 <a href=#497 id=497 data-nosnippet>497</a>
-<a href=#498 id=498 data-nosnippet>498</a>    <span class="attr">#[test]
-<a href=#499 id=499 data-nosnippet>499</a>    </span><span class="kw">fn </span>simple_back_propagation() {
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="comment">// brillig fn main f0 {
-<a href=#501 id=501 data-nosnippet>501</a>        //     b0(v0: Field, v1: Field):
-<a href=#502 id=502 data-nosnippet>502</a>        //       v3 = allocate
-<a href=#503 id=503 data-nosnippet>503</a>        //       store Field 0 at v3
-<a href=#504 id=504 data-nosnippet>504</a>        //       v4 = eq v0, Field 0
-<a href=#505 id=505 data-nosnippet>505</a>        //       jmpif v4 then: b1, else: b2
-<a href=#506 id=506 data-nosnippet>506</a>        //     b2():
-<a href=#507 id=507 data-nosnippet>507</a>        //       v7 = add v0, Field 27
-<a href=#508 id=508 data-nosnippet>508</a>        //       store v7 at v3
-<a href=#509 id=509 data-nosnippet>509</a>        //       jmp b3()
-<a href=#510 id=510 data-nosnippet>510</a>        //     b1():
-<a href=#511 id=511 data-nosnippet>511</a>        //       v6 = add v1, Field 27
-<a href=#512 id=512 data-nosnippet>512</a>        //       store v6 at v3
-<a href=#513 id=513 data-nosnippet>513</a>        //       jmp b3()
-<a href=#514 id=514 data-nosnippet>514</a>        //     b3():
-<a href=#515 id=515 data-nosnippet>515</a>        //       v8 = load v3
-<a href=#516 id=516 data-nosnippet>516</a>        //       return v8
-<a href=#517 id=517 data-nosnippet>517</a>        //   }
-<a href=#518 id=518 data-nosnippet>518</a>
-<a href=#519 id=519 data-nosnippet>519</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
-<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
-<a href=#521 id=521 data-nosnippet>521</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-<a href=#522 id=522 data-nosnippet>522</a>
-<a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">let </span>b1 = builder.insert_block();
-<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">let </span>b2 = builder.insert_block();
-<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span>b3 = builder.insert_block();
-<a href=#526 id=526 data-nosnippet>526</a>
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::field());
-<a href=#528 id=528 data-nosnippet>528</a>        <span class="kw">let </span>v1 = builder.add_parameter(Type::field());
-<a href=#529 id=529 data-nosnippet>529</a>
-<a href=#530 id=530 data-nosnippet>530</a>        <span class="kw">let </span>v3 = builder.insert_allocate(Type::field());
-<a href=#531 id=531 data-nosnippet>531</a>
-<a href=#532 id=532 data-nosnippet>532</a>        <span class="kw">let </span>zero = builder.field_constant(<span class="number">0u128</span>);
-<a href=#533 id=533 data-nosnippet>533</a>        builder.insert_store(v3, zero);
-<a href=#534 id=534 data-nosnippet>534</a>
-<a href=#535 id=535 data-nosnippet>535</a>        <span class="kw">let </span>v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
+<a href=#498 id=498 data-nosnippet>498</a><span class="attr">#[cfg(test)]
+<a href=#499 id=499 data-nosnippet>499</a></span><span class="kw">mod </span>tests {
+<a href=#500 id=500 data-nosnippet>500</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">use </span>rustc_hash::FxHashSet;
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">use </span><span class="kw">crate</span>::assert_artifact_snapshot;
+<a href=#504 id=504 data-nosnippet>504</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::constant_allocation::ConstantAllocation;
+<a href=#505 id=505 data-nosnippet>505</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::tests::ssa_to_brillig_artifacts;
+<a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::variable_liveness::VariableLiveness;
+<a href=#507 id=507 data-nosnippet>507</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::function_builder::FunctionBuilder;
+<a href=#508 id=508 data-nosnippet>508</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::basic_block::BasicBlockId;
+<a href=#509 id=509 data-nosnippet>509</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::function::RuntimeType;
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::BinaryOp;
+<a href=#511 id=511 data-nosnippet>511</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::map::Id;
+<a href=#512 id=512 data-nosnippet>512</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
+<a href=#513 id=513 data-nosnippet>513</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
+<a href=#515 id=515 data-nosnippet>515</a>
+<a href=#516 id=516 data-nosnippet>516</a>    <span class="attr">#[test]
+<a href=#517 id=517 data-nosnippet>517</a>    </span><span class="kw">fn </span>simple_back_propagation() {
+<a href=#518 id=518 data-nosnippet>518</a>        <span class="comment">// brillig fn main f0 {
+<a href=#519 id=519 data-nosnippet>519</a>        //     b0(v0: Field, v1: Field):
+<a href=#520 id=520 data-nosnippet>520</a>        //       v3 = allocate
+<a href=#521 id=521 data-nosnippet>521</a>        //       store Field 0 at v3
+<a href=#522 id=522 data-nosnippet>522</a>        //       v4 = eq v0, Field 0
+<a href=#523 id=523 data-nosnippet>523</a>        //       jmpif v4 then: b1, else: b2
+<a href=#524 id=524 data-nosnippet>524</a>        //     b2():
+<a href=#525 id=525 data-nosnippet>525</a>        //       v7 = add v0, Field 27
+<a href=#526 id=526 data-nosnippet>526</a>        //       store v7 at v3
+<a href=#527 id=527 data-nosnippet>527</a>        //       jmp b3()
+<a href=#528 id=528 data-nosnippet>528</a>        //     b1():
+<a href=#529 id=529 data-nosnippet>529</a>        //       v6 = add v1, Field 27
+<a href=#530 id=530 data-nosnippet>530</a>        //       store v6 at v3
+<a href=#531 id=531 data-nosnippet>531</a>        //       jmp b3()
+<a href=#532 id=532 data-nosnippet>532</a>        //     b3():
+<a href=#533 id=533 data-nosnippet>533</a>        //       v8 = load v3
+<a href=#534 id=534 data-nosnippet>534</a>        //       return v8
+<a href=#535 id=535 data-nosnippet>535</a>        //   }
 <a href=#536 id=536 data-nosnippet>536</a>
-<a href=#537 id=537 data-nosnippet>537</a>        builder.terminate_with_jmpif_no_args(v4, b1, b2);
-<a href=#538 id=538 data-nosnippet>538</a>
-<a href=#539 id=539 data-nosnippet>539</a>        builder.switch_to_block(b2);
+<a href=#537 id=537 data-nosnippet>537</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
+<a href=#538 id=538 data-nosnippet>538</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+<a href=#539 id=539 data-nosnippet>539</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 <a href=#540 id=540 data-nosnippet>540</a>
-<a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">let </span>twenty_seven = builder.field_constant(<span class="number">27u128</span>);
-<a href=#542 id=542 data-nosnippet>542</a>        <span class="kw">let </span>v7 = builder.insert_binary(v0, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, twenty_seven);
-<a href=#543 id=543 data-nosnippet>543</a>        builder.insert_store(v3, v7);
+<a href=#541 id=541 data-nosnippet>541</a>        <span class="kw">let </span>b1 = builder.insert_block();
+<a href=#542 id=542 data-nosnippet>542</a>        <span class="kw">let </span>b2 = builder.insert_block();
+<a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">let </span>b3 = builder.insert_block();
 <a href=#544 id=544 data-nosnippet>544</a>
-<a href=#545 id=545 data-nosnippet>545</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
-<a href=#546 id=546 data-nosnippet>546</a>
-<a href=#547 id=547 data-nosnippet>547</a>        builder.switch_to_block(b1);
-<a href=#548 id=548 data-nosnippet>548</a>
-<a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>v6 = builder.insert_binary(v1, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, twenty_seven);
-<a href=#550 id=550 data-nosnippet>550</a>        builder.insert_store(v3, v6);
-<a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
-<a href=#553 id=553 data-nosnippet>553</a>
-<a href=#554 id=554 data-nosnippet>554</a>        builder.switch_to_block(b3);
-<a href=#555 id=555 data-nosnippet>555</a>
-<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>v8 = builder.insert_load(v3, Type::field());
-<a href=#557 id=557 data-nosnippet>557</a>
-<a href=#558 id=558 data-nosnippet>558</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v8]);
-<a href=#559 id=559 data-nosnippet>559</a>
-<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">let </span>ssa = builder.finish();
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">let </span>func = ssa.main();
-<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
-<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::field());
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>v1 = builder.add_parameter(Type::field());
+<a href=#547 id=547 data-nosnippet>547</a>
+<a href=#548 id=548 data-nosnippet>548</a>        <span class="kw">let </span>v3 = builder.insert_allocate(Type::field());
+<a href=#549 id=549 data-nosnippet>549</a>
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">let </span>zero = builder.field_constant(<span class="number">0u128</span>);
+<a href=#551 id=551 data-nosnippet>551</a>        builder.insert_store(v3, zero);
+<a href=#552 id=552 data-nosnippet>552</a>
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">let </span>v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>        builder.terminate_with_jmpif_no_args(v4, b1, b2);
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a>        builder.switch_to_block(b2);
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a>        <span class="kw">let </span>twenty_seven = builder.field_constant(<span class="number">27u128</span>);
+<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">let </span>v7 = builder.insert_binary(v0, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, twenty_seven);
+<a href=#561 id=561 data-nosnippet>561</a>        builder.insert_store(v3, v7);
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
 <a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="macro">assert!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>func.entry_block()).is_empty());
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="macro">assert_eq!</span>(
-<a href=#567 id=567 data-nosnippet>567</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b2),
-<a href=#568 id=568 data-nosnippet>568</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3, v0, twenty_seven].into_iter())
-<a href=#569 id=569 data-nosnippet>569</a>        );
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="macro">assert_eq!</span>(
-<a href=#571 id=571 data-nosnippet>571</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b1),
-<a href=#572 id=572 data-nosnippet>572</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3, v1, twenty_seven].into_iter())
-<a href=#573 id=573 data-nosnippet>573</a>        );
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b3), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()));
+<a href=#565 id=565 data-nosnippet>565</a>        builder.switch_to_block(b1);
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>v6 = builder.insert_binary(v1, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, twenty_seven);
+<a href=#568 id=568 data-nosnippet>568</a>        builder.insert_store(v3, v6);
+<a href=#569 id=569 data-nosnippet>569</a>
+<a href=#570 id=570 data-nosnippet>570</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>        builder.switch_to_block(b3);
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">let </span>v8 = builder.insert_load(v3, Type::field());
 <a href=#575 id=575 data-nosnippet>575</a>
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">let </span>block_1 = <span class="kw-2">&amp;</span>func.dfg[b1];
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">let </span>block_2 = <span class="kw-2">&amp;</span>func.dfg[b2];
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let </span>block_3 = <span class="kw-2">&amp;</span>func.dfg[b3];
-<a href=#579 id=579 data-nosnippet>579</a>        <span class="macro">assert_eq!</span>(
-<a href=#580 id=580 data-nosnippet>580</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b1).get(<span class="kw-2">&amp;</span>block_1.instructions()[<span class="number">0</span>]),
-<a href=#581 id=581 data-nosnippet>581</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, twenty_seven].into_iter()))
-<a href=#582 id=582 data-nosnippet>582</a>        );
-<a href=#583 id=583 data-nosnippet>583</a>        <span class="macro">assert_eq!</span>(
-<a href=#584 id=584 data-nosnippet>584</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b2).get(<span class="kw-2">&amp;</span>block_2.instructions()[<span class="number">0</span>]),
-<a href=#585 id=585 data-nosnippet>585</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, twenty_seven].into_iter()))
-<a href=#586 id=586 data-nosnippet>586</a>        );
-<a href=#587 id=587 data-nosnippet>587</a>        <span class="macro">assert_eq!</span>(
-<a href=#588 id=588 data-nosnippet>588</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b3).get(<span class="kw-2">&amp;</span>block_3.instructions()[<span class="number">0</span>]),
-<a href=#589 id=589 data-nosnippet>589</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()))
-<a href=#590 id=590 data-nosnippet>590</a>        );
-<a href=#591 id=591 data-nosnippet>591</a>    }
-<a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="attr">#[test]
-<a href=#594 id=594 data-nosnippet>594</a>    </span><span class="kw">fn </span>propagation_with_nested_loops() {
-<a href=#595 id=595 data-nosnippet>595</a>        <span class="comment">// brillig fn main f0 {
-<a href=#596 id=596 data-nosnippet>596</a>        //     b0(v0: u32, v1: u32):
-<a href=#597 id=597 data-nosnippet>597</a>        //       v3 = allocate
-<a href=#598 id=598 data-nosnippet>598</a>        //       store u32 0 at v3
-<a href=#599 id=599 data-nosnippet>599</a>        //       jmp b1(u32 0)
-<a href=#600 id=600 data-nosnippet>600</a>        //     b1(v4: u32):
-<a href=#601 id=601 data-nosnippet>601</a>        //       v5 = lt v4, v0
-<a href=#602 id=602 data-nosnippet>602</a>        //       jmpif v5 then: b2, else: b3
-<a href=#603 id=603 data-nosnippet>603</a>        //     b3():
-<a href=#604 id=604 data-nosnippet>604</a>        //       v17 = load v3
-<a href=#605 id=605 data-nosnippet>605</a>        //       return v17
-<a href=#606 id=606 data-nosnippet>606</a>        //     b2():
-<a href=#607 id=607 data-nosnippet>607</a>        //       v6 = mul v4, v4
-<a href=#608 id=608 data-nosnippet>608</a>        //       jmp b4(v0)
-<a href=#609 id=609 data-nosnippet>609</a>        //     b4(v7: u32):
-<a href=#610 id=610 data-nosnippet>610</a>        //       v8 = lt v7, v1
-<a href=#611 id=611 data-nosnippet>611</a>        //       jmpif v8 then: b5, else: b6
-<a href=#612 id=612 data-nosnippet>612</a>        //     b6():
-<a href=#613 id=613 data-nosnippet>613</a>        //       v16 = add v4, u32 1
-<a href=#614 id=614 data-nosnippet>614</a>        //       jmp b1(v16)
-<a href=#615 id=615 data-nosnippet>615</a>        //     b5():
-<a href=#616 id=616 data-nosnippet>616</a>        //       v10 = eq v7, u32 27
-<a href=#617 id=617 data-nosnippet>617</a>        //       v11 = not v10
-<a href=#618 id=618 data-nosnippet>618</a>        //       jmpif v11 then: b7, else: b8
-<a href=#619 id=619 data-nosnippet>619</a>        //     b7():
-<a href=#620 id=620 data-nosnippet>620</a>        //       v12 = load v3
-<a href=#621 id=621 data-nosnippet>621</a>        //       v13 = add v12, v6
-<a href=#622 id=622 data-nosnippet>622</a>        //       store v13 at v3
-<a href=#623 id=623 data-nosnippet>623</a>        //       jmp b8()
-<a href=#624 id=624 data-nosnippet>624</a>        //     b8():
-<a href=#625 id=625 data-nosnippet>625</a>        //       v15 = add v7, u32 1
-<a href=#626 id=626 data-nosnippet>626</a>        //       jmp b4(v15)
-<a href=#627 id=627 data-nosnippet>627</a>        //   }
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
-<a href=#630 id=630 data-nosnippet>630</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
-<a href=#631 id=631 data-nosnippet>631</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-<a href=#632 id=632 data-nosnippet>632</a>
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>b1 = builder.insert_block();
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">let </span>b2 = builder.insert_block();
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>b3 = builder.insert_block();
-<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let </span>b4 = builder.insert_block();
-<a href=#637 id=637 data-nosnippet>637</a>        <span class="kw">let </span>b5 = builder.insert_block();
-<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">let </span>b6 = builder.insert_block();
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>b7 = builder.insert_block();
-<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">let </span>b8 = builder.insert_block();
-<a href=#641 id=641 data-nosnippet>641</a>
-<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
-<a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span>v1 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">let </span>v3 = builder.insert_allocate(Type::unsigned(<span class="number">32</span>));
+<a href=#576 id=576 data-nosnippet>576</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v8]);
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let </span>ssa = builder.finish();
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#580 id=580 data-nosnippet>580</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#581 id=581 data-nosnippet>581</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a>        <span class="macro">assert!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>func.entry_block()).is_empty());
+<a href=#584 id=584 data-nosnippet>584</a>        <span class="macro">assert_eq!</span>(
+<a href=#585 id=585 data-nosnippet>585</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b2),
+<a href=#586 id=586 data-nosnippet>586</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3, v0, twenty_seven].into_iter())
+<a href=#587 id=587 data-nosnippet>587</a>        );
+<a href=#588 id=588 data-nosnippet>588</a>        <span class="macro">assert_eq!</span>(
+<a href=#589 id=589 data-nosnippet>589</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b1),
+<a href=#590 id=590 data-nosnippet>590</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3, v1, twenty_seven].into_iter())
+<a href=#591 id=591 data-nosnippet>591</a>        );
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b3), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()));
+<a href=#593 id=593 data-nosnippet>593</a>
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">let </span>block_1 = <span class="kw-2">&amp;</span>func.dfg[b1];
+<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">let </span>block_2 = <span class="kw-2">&amp;</span>func.dfg[b2];
+<a href=#596 id=596 data-nosnippet>596</a>        <span class="kw">let </span>block_3 = <span class="kw-2">&amp;</span>func.dfg[b3];
+<a href=#597 id=597 data-nosnippet>597</a>        <span class="macro">assert_eq!</span>(
+<a href=#598 id=598 data-nosnippet>598</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b1).get(<span class="kw-2">&amp;</span>block_1.instructions()[<span class="number">0</span>]),
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, twenty_seven].into_iter()))
+<a href=#600 id=600 data-nosnippet>600</a>        );
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="macro">assert_eq!</span>(
+<a href=#602 id=602 data-nosnippet>602</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b2).get(<span class="kw-2">&amp;</span>block_2.instructions()[<span class="number">0</span>]),
+<a href=#603 id=603 data-nosnippet>603</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, twenty_seven].into_iter()))
+<a href=#604 id=604 data-nosnippet>604</a>        );
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="macro">assert_eq!</span>(
+<a href=#606 id=606 data-nosnippet>606</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b3).get(<span class="kw-2">&amp;</span>block_3.instructions()[<span class="number">0</span>]),
+<a href=#607 id=607 data-nosnippet>607</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()))
+<a href=#608 id=608 data-nosnippet>608</a>        );
+<a href=#609 id=609 data-nosnippet>609</a>    }
+<a href=#610 id=610 data-nosnippet>610</a>
+<a href=#611 id=611 data-nosnippet>611</a>    <span class="attr">#[test]
+<a href=#612 id=612 data-nosnippet>612</a>    </span><span class="kw">fn </span>propagation_with_nested_loops() {
+<a href=#613 id=613 data-nosnippet>613</a>        <span class="comment">// brillig fn main f0 {
+<a href=#614 id=614 data-nosnippet>614</a>        //     b0(v0: u32, v1: u32):
+<a href=#615 id=615 data-nosnippet>615</a>        //       v3 = allocate
+<a href=#616 id=616 data-nosnippet>616</a>        //       store u32 0 at v3
+<a href=#617 id=617 data-nosnippet>617</a>        //       jmp b1(u32 0)
+<a href=#618 id=618 data-nosnippet>618</a>        //     b1(v4: u32):
+<a href=#619 id=619 data-nosnippet>619</a>        //       v5 = lt v4, v0
+<a href=#620 id=620 data-nosnippet>620</a>        //       jmpif v5 then: b2, else: b3
+<a href=#621 id=621 data-nosnippet>621</a>        //     b3():
+<a href=#622 id=622 data-nosnippet>622</a>        //       v17 = load v3
+<a href=#623 id=623 data-nosnippet>623</a>        //       return v17
+<a href=#624 id=624 data-nosnippet>624</a>        //     b2():
+<a href=#625 id=625 data-nosnippet>625</a>        //       v6 = mul v4, v4
+<a href=#626 id=626 data-nosnippet>626</a>        //       jmp b4(v0)
+<a href=#627 id=627 data-nosnippet>627</a>        //     b4(v7: u32):
+<a href=#628 id=628 data-nosnippet>628</a>        //       v8 = lt v7, v1
+<a href=#629 id=629 data-nosnippet>629</a>        //       jmpif v8 then: b5, else: b6
+<a href=#630 id=630 data-nosnippet>630</a>        //     b6():
+<a href=#631 id=631 data-nosnippet>631</a>        //       v16 = add v4, u32 1
+<a href=#632 id=632 data-nosnippet>632</a>        //       jmp b1(v16)
+<a href=#633 id=633 data-nosnippet>633</a>        //     b5():
+<a href=#634 id=634 data-nosnippet>634</a>        //       v10 = eq v7, u32 27
+<a href=#635 id=635 data-nosnippet>635</a>        //       v11 = not v10
+<a href=#636 id=636 data-nosnippet>636</a>        //       jmpif v11 then: b7, else: b8
+<a href=#637 id=637 data-nosnippet>637</a>        //     b7():
+<a href=#638 id=638 data-nosnippet>638</a>        //       v12 = load v3
+<a href=#639 id=639 data-nosnippet>639</a>        //       v13 = add v12, v6
+<a href=#640 id=640 data-nosnippet>640</a>        //       store v13 at v3
+<a href=#641 id=641 data-nosnippet>641</a>        //       jmp b8()
+<a href=#642 id=642 data-nosnippet>642</a>        //     b8():
+<a href=#643 id=643 data-nosnippet>643</a>        //       v15 = add v7, u32 1
+<a href=#644 id=644 data-nosnippet>644</a>        //       jmp b4(v15)
+<a href=#645 id=645 data-nosnippet>645</a>        //   }
 <a href=#646 id=646 data-nosnippet>646</a>
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-<a href=#648 id=648 data-nosnippet>648</a>        builder.insert_store(v3, zero);
-<a href=#649 id=649 data-nosnippet>649</a>
-<a href=#650 id=650 data-nosnippet>650</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[zero]);
-<a href=#651 id=651 data-nosnippet>651</a>
-<a href=#652 id=652 data-nosnippet>652</a>        builder.switch_to_block(b1);
-<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>v4 = builder.add_block_parameter(b1, Type::unsigned(<span class="number">32</span>));
-<a href=#654 id=654 data-nosnippet>654</a>
-<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">let </span>v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
-<a href=#656 id=656 data-nosnippet>656</a>
-<a href=#657 id=657 data-nosnippet>657</a>        builder.terminate_with_jmpif_no_args(v5, b2, b3);
-<a href=#658 id=658 data-nosnippet>658</a>
-<a href=#659 id=659 data-nosnippet>659</a>        builder.switch_to_block(b2);
-<a href=#660 id=660 data-nosnippet>660</a>
-<a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">let </span>v6 = builder.insert_binary(v4, BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}, v4);
+<a href=#647 id=647 data-nosnippet>647</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
+<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+<a href=#649 id=649 data-nosnippet>649</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+<a href=#650 id=650 data-nosnippet>650</a>
+<a href=#651 id=651 data-nosnippet>651</a>        <span class="kw">let </span>b1 = builder.insert_block();
+<a href=#652 id=652 data-nosnippet>652</a>        <span class="kw">let </span>b2 = builder.insert_block();
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>b3 = builder.insert_block();
+<a href=#654 id=654 data-nosnippet>654</a>        <span class="kw">let </span>b4 = builder.insert_block();
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">let </span>b5 = builder.insert_block();
+<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">let </span>b6 = builder.insert_block();
+<a href=#657 id=657 data-nosnippet>657</a>        <span class="kw">let </span>b7 = builder.insert_block();
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span>b8 = builder.insert_block();
+<a href=#659 id=659 data-nosnippet>659</a>
+<a href=#660 id=660 data-nosnippet>660</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">let </span>v1 = builder.add_parameter(Type::unsigned(<span class="number">32</span>));
 <a href=#662 id=662 data-nosnippet>662</a>
-<a href=#663 id=663 data-nosnippet>663</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[v0]);
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw">let </span>v3 = builder.insert_allocate(Type::unsigned(<span class="number">32</span>));
 <a href=#664 id=664 data-nosnippet>664</a>
-<a href=#665 id=665 data-nosnippet>665</a>        builder.switch_to_block(b4);
-<a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>v7 = builder.add_block_parameter(b4, Type::unsigned(<span class="number">32</span>));
-<a href=#668 id=668 data-nosnippet>668</a>
-<a href=#669 id=669 data-nosnippet>669</a>        <span class="kw">let </span>v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
-<a href=#670 id=670 data-nosnippet>670</a>
-<a href=#671 id=671 data-nosnippet>671</a>        builder.terminate_with_jmpif_no_args(v8, b5, b6);
+<a href=#665 id=665 data-nosnippet>665</a>        <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+<a href=#666 id=666 data-nosnippet>666</a>        builder.insert_store(v3, zero);
+<a href=#667 id=667 data-nosnippet>667</a>
+<a href=#668 id=668 data-nosnippet>668</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[zero]);
+<a href=#669 id=669 data-nosnippet>669</a>
+<a href=#670 id=670 data-nosnippet>670</a>        builder.switch_to_block(b1);
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">let </span>v4 = builder.add_block_parameter(b1, Type::unsigned(<span class="number">32</span>));
 <a href=#672 id=672 data-nosnippet>672</a>
-<a href=#673 id=673 data-nosnippet>673</a>        builder.switch_to_block(b5);
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 <a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>twenty_seven = builder.numeric_constant(<span class="number">27u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
-<a href=#677 id=677 data-nosnippet>677</a>
-<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw">let </span>v11 = builder.insert_not(v10);
-<a href=#679 id=679 data-nosnippet>679</a>
-<a href=#680 id=680 data-nosnippet>680</a>        builder.terminate_with_jmpif_no_args(v11, b7, b8);
-<a href=#681 id=681 data-nosnippet>681</a>
-<a href=#682 id=682 data-nosnippet>682</a>        builder.switch_to_block(b7);
-<a href=#683 id=683 data-nosnippet>683</a>
-<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">let </span>v12 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
-<a href=#685 id=685 data-nosnippet>685</a>
-<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>v13 = builder.insert_binary(v12, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, v6);
-<a href=#687 id=687 data-nosnippet>687</a>
-<a href=#688 id=688 data-nosnippet>688</a>        builder.insert_store(v3, v13);
-<a href=#689 id=689 data-nosnippet>689</a>
-<a href=#690 id=690 data-nosnippet>690</a>        builder.terminate_with_jmp(b8, <span class="macro">vec!</span>[]);
-<a href=#691 id=691 data-nosnippet>691</a>
-<a href=#692 id=692 data-nosnippet>692</a>        builder.switch_to_block(b8);
-<a href=#693 id=693 data-nosnippet>693</a>
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>one = builder.numeric_constant(<span class="number">1u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>v15 = builder.insert_binary(v7, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, one);
-<a href=#696 id=696 data-nosnippet>696</a>
-<a href=#697 id=697 data-nosnippet>697</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[v15]);
-<a href=#698 id=698 data-nosnippet>698</a>
-<a href=#699 id=699 data-nosnippet>699</a>        builder.switch_to_block(b6);
-<a href=#700 id=700 data-nosnippet>700</a>
-<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">let </span>v16 = builder.insert_binary(v4, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, one);
-<a href=#702 id=702 data-nosnippet>702</a>
-<a href=#703 id=703 data-nosnippet>703</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[v16]);
-<a href=#704 id=704 data-nosnippet>704</a>
-<a href=#705 id=705 data-nosnippet>705</a>        builder.switch_to_block(b3);
-<a href=#706 id=706 data-nosnippet>706</a>
-<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>v17 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
-<a href=#708 id=708 data-nosnippet>708</a>
-<a href=#709 id=709 data-nosnippet>709</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v17]);
-<a href=#710 id=710 data-nosnippet>710</a>
-<a href=#711 id=711 data-nosnippet>711</a>        <span class="kw">let </span>ssa = builder.finish();
-<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">let </span>func = ssa.main();
-<a href=#713 id=713 data-nosnippet>713</a>
-<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
-<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#675 id=675 data-nosnippet>675</a>        builder.terminate_with_jmpif_no_args(v5, b2, b3);
+<a href=#676 id=676 data-nosnippet>676</a>
+<a href=#677 id=677 data-nosnippet>677</a>        builder.switch_to_block(b2);
+<a href=#678 id=678 data-nosnippet>678</a>
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw">let </span>v6 = builder.insert_binary(v4, BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}, v4);
+<a href=#680 id=680 data-nosnippet>680</a>
+<a href=#681 id=681 data-nosnippet>681</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[v0]);
+<a href=#682 id=682 data-nosnippet>682</a>
+<a href=#683 id=683 data-nosnippet>683</a>        builder.switch_to_block(b4);
+<a href=#684 id=684 data-nosnippet>684</a>
+<a href=#685 id=685 data-nosnippet>685</a>        <span class="kw">let </span>v7 = builder.add_block_parameter(b4, Type::unsigned(<span class="number">32</span>));
+<a href=#686 id=686 data-nosnippet>686</a>
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
+<a href=#688 id=688 data-nosnippet>688</a>
+<a href=#689 id=689 data-nosnippet>689</a>        builder.terminate_with_jmpif_no_args(v8, b5, b6);
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a>        builder.switch_to_block(b5);
+<a href=#692 id=692 data-nosnippet>692</a>
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>twenty_seven = builder.numeric_constant(<span class="number">27u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>v10 = builder.insert_binary(v7, BinaryOp::Eq, twenty_seven);
+<a href=#695 id=695 data-nosnippet>695</a>
+<a href=#696 id=696 data-nosnippet>696</a>        <span class="kw">let </span>v11 = builder.insert_not(v10);
+<a href=#697 id=697 data-nosnippet>697</a>
+<a href=#698 id=698 data-nosnippet>698</a>        builder.terminate_with_jmpif_no_args(v11, b7, b8);
+<a href=#699 id=699 data-nosnippet>699</a>
+<a href=#700 id=700 data-nosnippet>700</a>        builder.switch_to_block(b7);
+<a href=#701 id=701 data-nosnippet>701</a>
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">let </span>v12 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
+<a href=#703 id=703 data-nosnippet>703</a>
+<a href=#704 id=704 data-nosnippet>704</a>        <span class="kw">let </span>v13 = builder.insert_binary(v12, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, v6);
+<a href=#705 id=705 data-nosnippet>705</a>
+<a href=#706 id=706 data-nosnippet>706</a>        builder.insert_store(v3, v13);
+<a href=#707 id=707 data-nosnippet>707</a>
+<a href=#708 id=708 data-nosnippet>708</a>        builder.terminate_with_jmp(b8, <span class="macro">vec!</span>[]);
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a>        builder.switch_to_block(b8);
+<a href=#711 id=711 data-nosnippet>711</a>
+<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">let </span>one = builder.numeric_constant(<span class="number">1u128</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw">let </span>v15 = builder.insert_binary(v7, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, one);
+<a href=#714 id=714 data-nosnippet>714</a>
+<a href=#715 id=715 data-nosnippet>715</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[v15]);
 <a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>        <span class="macro">assert!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>func.entry_block()).is_empty());
-<a href=#718 id=718 data-nosnippet>718</a>        <span class="macro">assert_eq!</span>(
-<a href=#719 id=719 data-nosnippet>719</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b1),
-<a href=#720 id=720 data-nosnippet>720</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-<a href=#721 id=721 data-nosnippet>721</a>        );
-<a href=#722 id=722 data-nosnippet>722</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b3), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()));
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="macro">assert_eq!</span>(
-<a href=#724 id=724 data-nosnippet>724</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b2),
-<a href=#725 id=725 data-nosnippet>725</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-<a href=#726 id=726 data-nosnippet>726</a>        );
-<a href=#727 id=727 data-nosnippet>727</a>        <span class="macro">assert_eq!</span>(
-<a href=#728 id=728 data-nosnippet>728</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b4),
-<a href=#729 id=729 data-nosnippet>729</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
-<a href=#730 id=730 data-nosnippet>730</a>        );
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="macro">assert_eq!</span>(
-<a href=#732 id=732 data-nosnippet>732</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b6),
-<a href=#733 id=733 data-nosnippet>733</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
-<a href=#734 id=734 data-nosnippet>734</a>        );
-<a href=#735 id=735 data-nosnippet>735</a>        <span class="macro">assert_eq!</span>(
-<a href=#736 id=736 data-nosnippet>736</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b5),
-<a href=#737 id=737 data-nosnippet>737</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
-<a href=#738 id=738 data-nosnippet>738</a>        );
-<a href=#739 id=739 data-nosnippet>739</a>        <span class="macro">assert_eq!</span>(
-<a href=#740 id=740 data-nosnippet>740</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b7),
-<a href=#741 id=741 data-nosnippet>741</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
-<a href=#742 id=742 data-nosnippet>742</a>        );
-<a href=#743 id=743 data-nosnippet>743</a>        <span class="macro">assert_eq!</span>(
-<a href=#744 id=744 data-nosnippet>744</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b8),
-<a href=#745 id=745 data-nosnippet>745</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
-<a href=#746 id=746 data-nosnippet>746</a>        );
-<a href=#747 id=747 data-nosnippet>747</a>
-<a href=#748 id=748 data-nosnippet>748</a>        <span class="kw">let </span>block_3 = <span class="kw-2">&amp;</span>func.dfg[b3];
+<a href=#717 id=717 data-nosnippet>717</a>        builder.switch_to_block(b6);
+<a href=#718 id=718 data-nosnippet>718</a>
+<a href=#719 id=719 data-nosnippet>719</a>        <span class="kw">let </span>v16 = builder.insert_binary(v4, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, one);
+<a href=#720 id=720 data-nosnippet>720</a>
+<a href=#721 id=721 data-nosnippet>721</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[v16]);
+<a href=#722 id=722 data-nosnippet>722</a>
+<a href=#723 id=723 data-nosnippet>723</a>        builder.switch_to_block(b3);
+<a href=#724 id=724 data-nosnippet>724</a>
+<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">let </span>v17 = builder.insert_load(v3, Type::unsigned(<span class="number">32</span>));
+<a href=#726 id=726 data-nosnippet>726</a>
+<a href=#727 id=727 data-nosnippet>727</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v17]);
+<a href=#728 id=728 data-nosnippet>728</a>
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw">let </span>ssa = builder.finish();
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#734 id=734 data-nosnippet>734</a>
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="macro">assert!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>func.entry_block()).is_empty());
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="macro">assert_eq!</span>(
+<a href=#737 id=737 data-nosnippet>737</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b1),
+<a href=#738 id=738 data-nosnippet>738</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+<a href=#739 id=739 data-nosnippet>739</a>        );
+<a href=#740 id=740 data-nosnippet>740</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b3), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()));
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="macro">assert_eq!</span>(
+<a href=#742 id=742 data-nosnippet>742</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b2),
+<a href=#743 id=743 data-nosnippet>743</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
+<a href=#744 id=744 data-nosnippet>744</a>        );
+<a href=#745 id=745 data-nosnippet>745</a>        <span class="macro">assert_eq!</span>(
+<a href=#746 id=746 data-nosnippet>746</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b4),
+<a href=#747 id=747 data-nosnippet>747</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+<a href=#748 id=748 data-nosnippet>748</a>        );
 <a href=#749 id=749 data-nosnippet>749</a>        <span class="macro">assert_eq!</span>(
-<a href=#750 id=750 data-nosnippet>750</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b3).get(<span class="kw-2">&amp;</span>block_3.instructions()[<span class="number">0</span>]),
-<a href=#751 id=751 data-nosnippet>751</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()))
+<a href=#750 id=750 data-nosnippet>750</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b6),
+<a href=#751 id=751 data-nosnippet>751</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, twenty_seven, one].into_iter())
 <a href=#752 id=752 data-nosnippet>752</a>        );
-<a href=#753 id=753 data-nosnippet>753</a>    }
-<a href=#754 id=754 data-nosnippet>754</a>
-<a href=#755 id=755 data-nosnippet>755</a>    <span class="attr">#[test]
-<a href=#756 id=756 data-nosnippet>756</a>    </span><span class="kw">fn </span>block_params() {
-<a href=#757 id=757 data-nosnippet>757</a>        <span class="comment">// brillig fn main f0 {
-<a href=#758 id=758 data-nosnippet>758</a>        //     b0(v0: u1):
-<a href=#759 id=759 data-nosnippet>759</a>        //       jmpif v0 then: b1, else: b2
-<a href=#760 id=760 data-nosnippet>760</a>        //     b1():
-<a href=#761 id=761 data-nosnippet>761</a>        //       jmp b3(Field 27, Field 29)
-<a href=#762 id=762 data-nosnippet>762</a>        //     b3(v1: Field, v2: Field):
-<a href=#763 id=763 data-nosnippet>763</a>        //       return v1
-<a href=#764 id=764 data-nosnippet>764</a>        //     b2():
-<a href=#765 id=765 data-nosnippet>765</a>        //       jmp b3(Field 28, Field 40)
-<a href=#766 id=766 data-nosnippet>766</a>        //   }
-<a href=#767 id=767 data-nosnippet>767</a>
-<a href=#768 id=768 data-nosnippet>768</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
-<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
-<a href=#770 id=770 data-nosnippet>770</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-<a href=#771 id=771 data-nosnippet>771</a>
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::bool());
-<a href=#773 id=773 data-nosnippet>773</a>
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">let </span>b1 = builder.insert_block();
-<a href=#775 id=775 data-nosnippet>775</a>        <span class="kw">let </span>b2 = builder.insert_block();
-<a href=#776 id=776 data-nosnippet>776</a>        <span class="kw">let </span>b3 = builder.insert_block();
-<a href=#777 id=777 data-nosnippet>777</a>
-<a href=#778 id=778 data-nosnippet>778</a>        builder.terminate_with_jmpif_no_args(v0, b1, b2);
-<a href=#779 id=779 data-nosnippet>779</a>
-<a href=#780 id=780 data-nosnippet>780</a>        builder.switch_to_block(b1);
-<a href=#781 id=781 data-nosnippet>781</a>        <span class="kw">let </span>twenty_seven = builder.field_constant(<span class="number">27_u128</span>);
-<a href=#782 id=782 data-nosnippet>782</a>        <span class="kw">let </span>twenty_nine = builder.field_constant(<span class="number">29_u128</span>);
-<a href=#783 id=783 data-nosnippet>783</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[twenty_seven, twenty_nine]);
-<a href=#784 id=784 data-nosnippet>784</a>
-<a href=#785 id=785 data-nosnippet>785</a>        builder.switch_to_block(b3);
-<a href=#786 id=786 data-nosnippet>786</a>        <span class="kw">let </span>v1 = builder.add_block_parameter(b3, Type::field());
-<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">let </span>v2 = builder.add_block_parameter(b3, Type::field());
-<a href=#788 id=788 data-nosnippet>788</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v1]);
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="macro">assert_eq!</span>(
+<a href=#754 id=754 data-nosnippet>754</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b5),
+<a href=#755 id=755 data-nosnippet>755</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+<a href=#756 id=756 data-nosnippet>756</a>        );
+<a href=#757 id=757 data-nosnippet>757</a>        <span class="macro">assert_eq!</span>(
+<a href=#758 id=758 data-nosnippet>758</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b7),
+<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+<a href=#760 id=760 data-nosnippet>760</a>        );
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="macro">assert_eq!</span>(
+<a href=#762 id=762 data-nosnippet>762</a>            liveness.get_live_in(<span class="kw-2">&amp;</span>b8),
+<a href=#763 id=763 data-nosnippet>763</a>            <span class="kw-2">&amp;</span>FxHashSet::from_iter([v0, v1, v3, v4, v6, v7, twenty_seven, one].into_iter())
+<a href=#764 id=764 data-nosnippet>764</a>        );
+<a href=#765 id=765 data-nosnippet>765</a>
+<a href=#766 id=766 data-nosnippet>766</a>        <span class="kw">let </span>block_3 = <span class="kw-2">&amp;</span>func.dfg[b3];
+<a href=#767 id=767 data-nosnippet>767</a>        <span class="macro">assert_eq!</span>(
+<a href=#768 id=768 data-nosnippet>768</a>            liveness.get_last_uses(<span class="kw-2">&amp;</span>b3).get(<span class="kw-2">&amp;</span>block_3.instructions()[<span class="number">0</span>]),
+<a href=#769 id=769 data-nosnippet>769</a>            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>FxHashSet::from_iter([v3].into_iter()))
+<a href=#770 id=770 data-nosnippet>770</a>        );
+<a href=#771 id=771 data-nosnippet>771</a>    }
+<a href=#772 id=772 data-nosnippet>772</a>
+<a href=#773 id=773 data-nosnippet>773</a>    <span class="attr">#[test]
+<a href=#774 id=774 data-nosnippet>774</a>    </span><span class="kw">fn </span>block_params() {
+<a href=#775 id=775 data-nosnippet>775</a>        <span class="comment">// brillig fn main f0 {
+<a href=#776 id=776 data-nosnippet>776</a>        //     b0(v0: u1):
+<a href=#777 id=777 data-nosnippet>777</a>        //       jmpif v0 then: b1, else: b2
+<a href=#778 id=778 data-nosnippet>778</a>        //     b1():
+<a href=#779 id=779 data-nosnippet>779</a>        //       jmp b3(Field 27, Field 29)
+<a href=#780 id=780 data-nosnippet>780</a>        //     b3(v1: Field, v2: Field):
+<a href=#781 id=781 data-nosnippet>781</a>        //       return v1
+<a href=#782 id=782 data-nosnippet>782</a>        //     b2():
+<a href=#783 id=783 data-nosnippet>783</a>        //       jmp b3(Field 28, Field 40)
+<a href=#784 id=784 data-nosnippet>784</a>        //   }
+<a href=#785 id=785 data-nosnippet>785</a>
+<a href=#786 id=786 data-nosnippet>786</a>        </span><span class="kw">let </span>main_id = Id::test_new(<span class="number">1</span>);
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
+<a href=#788 id=788 data-nosnippet>788</a>        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
 <a href=#789 id=789 data-nosnippet>789</a>
-<a href=#790 id=790 data-nosnippet>790</a>        builder.switch_to_block(b2);
-<a href=#791 id=791 data-nosnippet>791</a>        <span class="kw">let </span>twenty_eight = builder.field_constant(<span class="number">28_u128</span>);
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span>forty = builder.field_constant(<span class="number">40_u128</span>);
-<a href=#793 id=793 data-nosnippet>793</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[twenty_eight, forty]);
-<a href=#794 id=794 data-nosnippet>794</a>
-<a href=#795 id=795 data-nosnippet>795</a>        <span class="kw">let </span>ssa = builder.finish();
-<a href=#796 id=796 data-nosnippet>796</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#790 id=790 data-nosnippet>790</a>        <span class="kw">let </span>v0 = builder.add_parameter(Type::bool());
+<a href=#791 id=791 data-nosnippet>791</a>
+<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span>b1 = builder.insert_block();
+<a href=#793 id=793 data-nosnippet>793</a>        <span class="kw">let </span>b2 = builder.insert_block();
+<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">let </span>b3 = builder.insert_block();
+<a href=#795 id=795 data-nosnippet>795</a>
+<a href=#796 id=796 data-nosnippet>796</a>        builder.terminate_with_jmpif_no_args(v0, b1, b2);
 <a href=#797 id=797 data-nosnippet>797</a>
-<a href=#798 id=798 data-nosnippet>798</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
-<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
-<a href=#800 id=800 data-nosnippet>800</a>
-<a href=#801 id=801 data-nosnippet>801</a>        <span class="comment">// Entry point defines its own params and also b3's params.
-<a href=#802 id=802 data-nosnippet>802</a>        </span><span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>func.entry_block()), <span class="macro">vec!</span>[v0, v1, v2]);
-<a href=#803 id=803 data-nosnippet>803</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b1), <span class="macro">vec!</span>[]);
-<a href=#804 id=804 data-nosnippet>804</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b2), <span class="macro">vec!</span>[]);
-<a href=#805 id=805 data-nosnippet>805</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b3), <span class="macro">vec!</span>[]);
-<a href=#806 id=806 data-nosnippet>806</a>
-<a href=#807 id=807 data-nosnippet>807</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b1), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, v2].into_iter()));
-<a href=#808 id=808 data-nosnippet>808</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b2), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, v2].into_iter()));
-<a href=#809 id=809 data-nosnippet>809</a>    }
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>    <span class="doccomment">/// A block parameter should be considered used, even if it's not actually used in the SSA.
-<a href=#812 id=812 data-nosnippet>812</a>    </span><span class="attr">#[test]
-<a href=#813 id=813 data-nosnippet>813</a>    </span><span class="kw">fn </span>unused_block_parameter() {
-<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#815 id=815 data-nosnippet>815</a>        brillig(inline) fn main f0 {
-<a href=#816 id=816 data-nosnippet>816</a>          b0(v0: u32, v1: u1):
-<a href=#817 id=817 data-nosnippet>817</a>            jmpif v1 then: b1(), else: b2()
-<a href=#818 id=818 data-nosnippet>818</a>          b1():
-<a href=#819 id=819 data-nosnippet>819</a>            v7 = add v0, u32 10
-<a href=#820 id=820 data-nosnippet>820</a>            jmp b3(v0, v7)
-<a href=#821 id=821 data-nosnippet>821</a>          b2():
-<a href=#822 id=822 data-nosnippet>822</a>            jmp b3(u32 1, u32 2)
-<a href=#823 id=823 data-nosnippet>823</a>          b3(v2: u32, v3: u32):
-<a href=#824 id=824 data-nosnippet>824</a>            return v3
-<a href=#825 id=825 data-nosnippet>825</a>        }
-<a href=#826 id=826 data-nosnippet>826</a>        "</span>;
-<a href=#827 id=827 data-nosnippet>827</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span>func = ssa.main();
-<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
-<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
-<a href=#831 id=831 data-nosnippet>831</a>
-<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">let </span>[b0, b1, b2, b3] = block_ids();
-<a href=#833 id=833 data-nosnippet>833</a>        <span class="kw">let </span>[_v0, _v1, v2, v3] = value_ids();
-<a href=#834 id=834 data-nosnippet>834</a>
-<a href=#835 id=835 data-nosnippet>835</a>        <span class="comment">// v2 and v3 are parameters of b3, but only v3 is used.
-<a href=#836 id=836 data-nosnippet>836</a>        </span><span class="kw">for </span>p <span class="kw">in </span>[v2, v3] {
-<a href=#837 id=837 data-nosnippet>837</a>            <span class="comment">// Both should be allocated in b0, which is the immediate dominator of b3.
-<a href=#838 id=838 data-nosnippet>838</a>            </span><span class="macro">assert!</span>(liveness.param_definitions[<span class="kw-2">&amp;</span>b0].contains(<span class="kw-2">&amp;</span>p), <span class="string">"{p} should be allocated in b0"</span>);
-<a href=#839 id=839 data-nosnippet>839</a>            <span class="kw">for </span>b <span class="kw">in </span>[b1, b2, b3] {
-<a href=#840 id=840 data-nosnippet>840</a>                <span class="comment">// Since they are defined in b0, they should be considered live all the way.
-<a href=#841 id=841 data-nosnippet>841</a>                </span><span class="macro">assert!</span>(liveness.live_in[<span class="kw-2">&amp;</span>b].contains(<span class="kw-2">&amp;</span>p), <span class="string">"{p} should be live in {b}"</span>);
-<a href=#842 id=842 data-nosnippet>842</a>            }
+<a href=#798 id=798 data-nosnippet>798</a>        builder.switch_to_block(b1);
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">let </span>twenty_seven = builder.field_constant(<span class="number">27_u128</span>);
+<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">let </span>twenty_nine = builder.field_constant(<span class="number">29_u128</span>);
+<a href=#801 id=801 data-nosnippet>801</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[twenty_seven, twenty_nine]);
+<a href=#802 id=802 data-nosnippet>802</a>
+<a href=#803 id=803 data-nosnippet>803</a>        builder.switch_to_block(b3);
+<a href=#804 id=804 data-nosnippet>804</a>        <span class="kw">let </span>v1 = builder.add_block_parameter(b3, Type::field());
+<a href=#805 id=805 data-nosnippet>805</a>        <span class="kw">let </span>v2 = builder.add_block_parameter(b3, Type::field());
+<a href=#806 id=806 data-nosnippet>806</a>        builder.terminate_with_return(<span class="macro">vec!</span>[v1]);
+<a href=#807 id=807 data-nosnippet>807</a>
+<a href=#808 id=808 data-nosnippet>808</a>        builder.switch_to_block(b2);
+<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let </span>twenty_eight = builder.field_constant(<span class="number">28_u128</span>);
+<a href=#810 id=810 data-nosnippet>810</a>        <span class="kw">let </span>forty = builder.field_constant(<span class="number">40_u128</span>);
+<a href=#811 id=811 data-nosnippet>811</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[twenty_eight, forty]);
+<a href=#812 id=812 data-nosnippet>812</a>
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>ssa = builder.finish();
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#815 id=815 data-nosnippet>815</a>
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#817 id=817 data-nosnippet>817</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#818 id=818 data-nosnippet>818</a>
+<a href=#819 id=819 data-nosnippet>819</a>        <span class="comment">// Entry point defines its own params and also b3's params.
+<a href=#820 id=820 data-nosnippet>820</a>        </span><span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>func.entry_block()), <span class="macro">vec!</span>[v0, v1, v2]);
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b1), <span class="macro">vec!</span>[]);
+<a href=#822 id=822 data-nosnippet>822</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b2), <span class="macro">vec!</span>[]);
+<a href=#823 id=823 data-nosnippet>823</a>        <span class="macro">assert_eq!</span>(liveness.defined_block_params(<span class="kw-2">&amp;</span>b3), <span class="macro">vec!</span>[]);
+<a href=#824 id=824 data-nosnippet>824</a>
+<a href=#825 id=825 data-nosnippet>825</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b1), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, v2].into_iter()));
+<a href=#826 id=826 data-nosnippet>826</a>        <span class="macro">assert_eq!</span>(liveness.get_live_in(<span class="kw-2">&amp;</span>b2), <span class="kw-2">&amp;</span>FxHashSet::from_iter([v1, v2].into_iter()));
+<a href=#827 id=827 data-nosnippet>827</a>    }
+<a href=#828 id=828 data-nosnippet>828</a>
+<a href=#829 id=829 data-nosnippet>829</a>    <span class="doccomment">/// A block parameter should be considered used, even if it's not actually used in the SSA.
+<a href=#830 id=830 data-nosnippet>830</a>    </span><span class="attr">#[test]
+<a href=#831 id=831 data-nosnippet>831</a>    </span><span class="kw">fn </span>unused_block_parameter() {
+<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#833 id=833 data-nosnippet>833</a>        brillig(inline) fn main f0 {
+<a href=#834 id=834 data-nosnippet>834</a>          b0(v0: u32, v1: u1):
+<a href=#835 id=835 data-nosnippet>835</a>            jmpif v1 then: b1(), else: b2()
+<a href=#836 id=836 data-nosnippet>836</a>          b1():
+<a href=#837 id=837 data-nosnippet>837</a>            v7 = add v0, u32 10
+<a href=#838 id=838 data-nosnippet>838</a>            jmp b3(v0, v7)
+<a href=#839 id=839 data-nosnippet>839</a>          b2():
+<a href=#840 id=840 data-nosnippet>840</a>            jmp b3(u32 1, u32 2)
+<a href=#841 id=841 data-nosnippet>841</a>          b3(v2: u32, v3: u32):
+<a href=#842 id=842 data-nosnippet>842</a>            return v3
 <a href=#843 id=843 data-nosnippet>843</a>        }
-<a href=#844 id=844 data-nosnippet>844</a>    }
-<a href=#845 id=845 data-nosnippet>845</a>
-<a href=#846 id=846 data-nosnippet>846</a>    <span class="kw">fn </span>value_ids&lt;<span class="kw">const </span>N: usize&gt;() -&gt; [ValueId; N] {
-<a href=#847 id=847 data-nosnippet>847</a>        std::array::from_fn(|i| ValueId::new(i <span class="kw">as </span>u32))
-<a href=#848 id=848 data-nosnippet>848</a>    }
+<a href=#844 id=844 data-nosnippet>844</a>        "</span>;
+<a href=#845 id=845 data-nosnippet>845</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#846 id=846 data-nosnippet>846</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#847 id=847 data-nosnippet>847</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#848 id=848 data-nosnippet>848</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
 <a href=#849 id=849 data-nosnippet>849</a>
-<a href=#850 id=850 data-nosnippet>850</a>    <span class="kw">fn </span>block_ids&lt;<span class="kw">const </span>N: usize&gt;() -&gt; [BasicBlockId; N] {
-<a href=#851 id=851 data-nosnippet>851</a>        std::array::from_fn(|i| BasicBlockId::new(i <span class="kw">as </span>u32))
-<a href=#852 id=852 data-nosnippet>852</a>    }
-<a href=#853 id=853 data-nosnippet>853</a>
-<a href=#854 id=854 data-nosnippet>854</a>    <span class="attr">#[test]
-<a href=#855 id=855 data-nosnippet>855</a>    </span><span class="kw">fn </span>test_entry_block_parameters() {
-<a href=#856 id=856 data-nosnippet>856</a>        <span class="comment">// Entry block parameters are allocated in the entry block itself
-<a href=#857 id=857 data-nosnippet>857</a>        // but are not in the live-in set (no predecessor to pass them).
-<a href=#858 id=858 data-nosnippet>858</a>        // The entry block defines its own parameters via defined_block_params().
-<a href=#859 id=859 data-nosnippet>859</a>        //
-<a href=#860 id=860 data-nosnippet>860</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#861 id=861 data-nosnippet>861</a>        // SSA v1 (result of add) → Brillig sp[3] (line 2: result of add stored in sp[3])
-<a href=#862 id=862 data-nosnippet>862</a>        // Line 3: sp[1] = sp[3] moves v1 to return position
-<a href=#863 id=863 data-nosnippet>863</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#864 id=864 data-nosnippet>864</a>        brillig(inline) fn main f0 {
-<a href=#865 id=865 data-nosnippet>865</a>        b0(v0: Field):
-<a href=#866 id=866 data-nosnippet>866</a>            v1 = add v0, Field 10
-<a href=#867 id=867 data-nosnippet>867</a>            return v1
-<a href=#868 id=868 data-nosnippet>868</a>        }
-<a href=#869 id=869 data-nosnippet>869</a>        "</span>;
-<a href=#870 id=870 data-nosnippet>870</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#871 id=871 data-nosnippet>871</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#872 id=872 data-nosnippet>872</a>
-<a href=#873 id=873 data-nosnippet>873</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#874 id=874 data-nosnippet>874</a>        fn main
-<a href=#875 id=875 data-nosnippet>875</a>        0: sp[3] = const field 10
-<a href=#876 id=876 data-nosnippet>876</a>        1: sp[4] = field add sp[2], sp[3]
-<a href=#877 id=877 data-nosnippet>877</a>        2: sp[2] = sp[4]
-<a href=#878 id=878 data-nosnippet>878</a>        3: return
-<a href=#879 id=879 data-nosnippet>879</a>        "</span>);
-<a href=#880 id=880 data-nosnippet>880</a>    }
-<a href=#881 id=881 data-nosnippet>881</a>
-<a href=#882 id=882 data-nosnippet>882</a>    <span class="attr">#[test]
-<a href=#883 id=883 data-nosnippet>883</a>    </span><span class="kw">fn </span>test_last_use_deallocation() {
-<a href=#884 id=884 data-nosnippet>884</a>        <span class="comment">// When a variable reaches its last use, its register is deallocated
-<a href=#885 id=885 data-nosnippet>885</a>        // and can be reused for subsequent variables. This is tracked per-instruction
-<a href=#886 id=886 data-nosnippet>886</a>        // via get_last_uses().
-<a href=#887 id=887 data-nosnippet>887</a>        //
-<a href=#888 id=888 data-nosnippet>888</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#889 id=889 data-nosnippet>889</a>        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
-<a href=#890 id=890 data-nosnippet>890</a>        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
-<a href=#891 id=891 data-nosnippet>891</a>        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
-<a href=#892 id=892 data-nosnippet>892</a>        // Line 7: sp[1] = sp[3] moves v3 to return position
-<a href=#893 id=893 data-nosnippet>893</a>        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
-<a href=#894 id=894 data-nosnippet>894</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#895 id=895 data-nosnippet>895</a>        brillig(inline) fn main f0 {
-<a href=#896 id=896 data-nosnippet>896</a>        b0(v0: Field):
-<a href=#897 id=897 data-nosnippet>897</a>            v1 = add v0, Field 1
-<a href=#898 id=898 data-nosnippet>898</a>            v2 = add v1, Field 2
-<a href=#899 id=899 data-nosnippet>899</a>            v3 = add v2, Field 3
-<a href=#900 id=900 data-nosnippet>900</a>            return v3
-<a href=#901 id=901 data-nosnippet>901</a>        }
-<a href=#902 id=902 data-nosnippet>902</a>        "</span>;
-<a href=#903 id=903 data-nosnippet>903</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#905 id=905 data-nosnippet>905</a>
-<a href=#906 id=906 data-nosnippet>906</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#907 id=907 data-nosnippet>907</a>        fn main
-<a href=#908 id=908 data-nosnippet>908</a>        0: sp[3] = const field 1
-<a href=#909 id=909 data-nosnippet>909</a>        1: sp[4] = field add sp[2], sp[3]
-<a href=#910 id=910 data-nosnippet>910</a>        2: sp[2] = const field 2
-<a href=#911 id=911 data-nosnippet>911</a>        3: sp[3] = field add sp[4], sp[2]
-<a href=#912 id=912 data-nosnippet>912</a>        4: sp[2] = const field 3
-<a href=#913 id=913 data-nosnippet>913</a>        5: sp[4] = field add sp[3], sp[2]
-<a href=#914 id=914 data-nosnippet>914</a>        6: sp[2] = sp[4]
-<a href=#915 id=915 data-nosnippet>915</a>        7: return
-<a href=#916 id=916 data-nosnippet>916</a>        "</span>);
-<a href=#917 id=917 data-nosnippet>917</a>    }
-<a href=#918 id=918 data-nosnippet>918</a>
-<a href=#919 id=919 data-nosnippet>919</a>    <span class="attr">#[test]
-<a href=#920 id=920 data-nosnippet>920</a>    </span><span class="kw">fn </span>test_never_use_deallocation() {
-<a href=#921 id=921 data-nosnippet>921</a>        <span class="comment">// When an instruction result is never used, its register can be reused ASAP.
-<a href=#922 id=922 data-nosnippet>922</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#923 id=923 data-nosnippet>923</a>        brillig(inline) fn main f0 {
-<a href=#924 id=924 data-nosnippet>924</a>        b0(v0: Field):
-<a href=#925 id=925 data-nosnippet>925</a>            v1 = add v0, Field 1
-<a href=#926 id=926 data-nosnippet>926</a>            v2 = add v0, Field 2
-<a href=#927 id=927 data-nosnippet>927</a>            v3 = add v0, Field 3
-<a href=#928 id=928 data-nosnippet>928</a>            return v3
-<a href=#929 id=929 data-nosnippet>929</a>        }
-<a href=#930 id=930 data-nosnippet>930</a>        "</span>;
-<a href=#931 id=931 data-nosnippet>931</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#932 id=932 data-nosnippet>932</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#933 id=933 data-nosnippet>933</a>
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#935 id=935 data-nosnippet>935</a>        fn main
-<a href=#936 id=936 data-nosnippet>936</a>        0: sp[3] = const field 1
-<a href=#937 id=937 data-nosnippet>937</a>        1: sp[4] = field add sp[2], sp[3]
-<a href=#938 id=938 data-nosnippet>938</a>        2: sp[3] = const field 2
-<a href=#939 id=939 data-nosnippet>939</a>        3: sp[4] = field add sp[2], sp[3]
-<a href=#940 id=940 data-nosnippet>940</a>        4: sp[3] = const field 3
-<a href=#941 id=941 data-nosnippet>941</a>        5: sp[4] = field add sp[2], sp[3]
-<a href=#942 id=942 data-nosnippet>942</a>        6: sp[2] = sp[4]
-<a href=#943 id=943 data-nosnippet>943</a>        7: return
-<a href=#944 id=944 data-nosnippet>944</a>        "</span>);
-<a href=#945 id=945 data-nosnippet>945</a>    }
-<a href=#946 id=946 data-nosnippet>946</a>
-<a href=#947 id=947 data-nosnippet>947</a>    <span class="attr">#[test]
-<a href=#948 id=948 data-nosnippet>948</a>    </span><span class="kw">fn </span>test_loop_liveness() {
-<a href=#949 id=949 data-nosnippet>949</a>        <span class="comment">// Variables live in the loop header must remain alive throughout the loop body
-<a href=#950 id=950 data-nosnippet>950</a>        // because the back edge jumps back to the header.
-<a href=#951 id=951 data-nosnippet>951</a>        //
-<a href=#952 id=952 data-nosnippet>952</a>        // SSA v0 (loop bound) → Brillig sp[1]
-<a href=#953 id=953 data-nosnippet>953</a>        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
-<a href=#954 id=954 data-nosnippet>954</a>        // Line 3: sp[2] = sp[3] initializes v1 to 0
-<a href=#955 id=955 data-nosnippet>955</a>        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 &lt; v0
-<a href=#956 id=956 data-nosnippet>956</a>        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
-<a href=#957 id=957 data-nosnippet>957</a>        // Line 14: sp[2] = sp[3] updates v1 for next iteration
-<a href=#958 id=958 data-nosnippet>958</a>        // Line 15: jump back to b1
-<a href=#959 id=959 data-nosnippet>959</a>        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
-<a href=#960 id=960 data-nosnippet>960</a>        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
-<a href=#961 id=961 data-nosnippet>961</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#962 id=962 data-nosnippet>962</a>        brillig(inline) fn main f0 {
-<a href=#963 id=963 data-nosnippet>963</a>        b0(v0: u32):
-<a href=#964 id=964 data-nosnippet>964</a>            jmp b1(u32 0)
-<a href=#965 id=965 data-nosnippet>965</a>        b1(v1: u32):
-<a href=#966 id=966 data-nosnippet>966</a>            v2 = lt v1, v0
-<a href=#967 id=967 data-nosnippet>967</a>            jmpif v2 then: b2(), else: b3()
-<a href=#968 id=968 data-nosnippet>968</a>        b2():
-<a href=#969 id=969 data-nosnippet>969</a>            v3 = add v1, u32 1
-<a href=#970 id=970 data-nosnippet>970</a>            jmp b1(v3)
-<a href=#971 id=971 data-nosnippet>971</a>        b3():
-<a href=#972 id=972 data-nosnippet>972</a>            return v1
-<a href=#973 id=973 data-nosnippet>973</a>        }
-<a href=#974 id=974 data-nosnippet>974</a>        "</span>;
-<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#977 id=977 data-nosnippet>977</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#978 id=978 data-nosnippet>978</a>        fn main
-<a href=#979 id=979 data-nosnippet>979</a>         0: sp[4] = const u32 0
-<a href=#980 id=980 data-nosnippet>980</a>         1: sp[5] = const u32 1
-<a href=#981 id=981 data-nosnippet>981</a>         2: sp[3] = sp[4]
-<a href=#982 id=982 data-nosnippet>982</a>         3: jump to 0 // -&gt; 4: f0/b1
-<a href=#983 id=983 data-nosnippet>983</a>         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-<a href=#984 id=984 data-nosnippet>984</a>         5: jump if sp[4] to 0 // -&gt; 9: f0/b2
-<a href=#985 id=985 data-nosnippet>985</a>         6: jump to 0 // -&gt; 7: f0/b3
-<a href=#986 id=986 data-nosnippet>986</a>         7: sp[2] = sp[3] // f0/b3
-<a href=#987 id=987 data-nosnippet>987</a>         8: return
-<a href=#988 id=988 data-nosnippet>988</a>         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
-<a href=#989 id=989 data-nosnippet>989</a>        10: sp[6] = u32 lt_eq sp[3], sp[4]
-<a href=#990 id=990 data-nosnippet>990</a>        11: jump if sp[6] to 0 // -&gt; 13: f0/b2/1
-<a href=#991 id=991 data-nosnippet>991</a>        12: call 0 // -&gt; ErrorWithString
-<a href=#992 id=992 data-nosnippet>992</a>        13: sp[3] = sp[4] // f0/b2/1
-<a href=#993 id=993 data-nosnippet>993</a>        14: jump to 0 // -&gt; 4: f0/b1
-<a href=#994 id=994 data-nosnippet>994</a>        "</span>);
-<a href=#995 id=995 data-nosnippet>995</a>    }
-<a href=#996 id=996 data-nosnippet>996</a>
-<a href=#997 id=997 data-nosnippet>997</a>    <span class="attr">#[test]
-<a href=#998 id=998 data-nosnippet>998</a>    </span><span class="kw">fn </span>test_block_parameters() {
-<a href=#999 id=999 data-nosnippet>999</a>        <span class="comment">// Multiple predecessors pass different values (42 and v2) to the same parameter.
-<a href=#1000 id=1000 data-nosnippet>1000</a>        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
-<a href=#1001 id=1001 data-nosnippet>1001</a>        // and each predecessor generates a mov to that register.
-<a href=#1002 id=1002 data-nosnippet>1002</a>        //
-<a href=#1003 id=1003 data-nosnippet>1003</a>        // SSA v0 (condition) → Brillig sp[1]
-<a href=#1004 id=1004 data-nosnippet>1004</a>        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
-<a href=#1005 id=1005 data-nosnippet>1005</a>        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
-<a href=#1006 id=1006 data-nosnippet>1006</a>        // Field 42 constant → sp[3] (line 1)
-<a href=#1007 id=1007 data-nosnippet>1007</a>        // Line 2: jmpif sp[1] branches to b1 or b2
-<a href=#1008 id=1008 data-nosnippet>1008</a>        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
-<a href=#1009 id=1009 data-nosnippet>1009</a>        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
-<a href=#1010 id=1010 data-nosnippet>1010</a>        // Line 9 (b3): sp[1] = sp[2] prepares return
-<a href=#1011 id=1011 data-nosnippet>1011</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1012 id=1012 data-nosnippet>1012</a>        brillig(inline) fn main f0 {
-<a href=#1013 id=1013 data-nosnippet>1013</a>        b0(v0: u1):
-<a href=#1014 id=1014 data-nosnippet>1014</a>            jmpif v0 then: b1(), else: b2()
-<a href=#1015 id=1015 data-nosnippet>1015</a>        b1():
-<a href=#1016 id=1016 data-nosnippet>1016</a>            v2 = add Field 27, Field 42
-<a href=#1017 id=1017 data-nosnippet>1017</a>            jmp b3(v2)
-<a href=#1018 id=1018 data-nosnippet>1018</a>        b2():
-<a href=#1019 id=1019 data-nosnippet>1019</a>            jmp b3(Field 42)
-<a href=#1020 id=1020 data-nosnippet>1020</a>        b3(v1: Field):
-<a href=#1021 id=1021 data-nosnippet>1021</a>            return v1
-<a href=#1022 id=1022 data-nosnippet>1022</a>        }
-<a href=#1023 id=1023 data-nosnippet>1023</a>        "</span>;
-<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#1025 id=1025 data-nosnippet>1025</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#1027 id=1027 data-nosnippet>1027</a>        fn main
-<a href=#1028 id=1028 data-nosnippet>1028</a>         0: sp[4] = const field 42
-<a href=#1029 id=1029 data-nosnippet>1029</a>         1: jump if sp[2] to 0 // -&gt; 5: f0/b1
-<a href=#1030 id=1030 data-nosnippet>1030</a>         2: jump to 0 // -&gt; 3: f0/b2
-<a href=#1031 id=1031 data-nosnippet>1031</a>         3: sp[3] = sp[4] // f0/b2
-<a href=#1032 id=1032 data-nosnippet>1032</a>         4: jump to 0 // -&gt; 8: f0/b3
-<a href=#1033 id=1033 data-nosnippet>1033</a>         5: sp[2] = const field 27 // f0/b1
-<a href=#1034 id=1034 data-nosnippet>1034</a>         6: sp[3] = field add sp[2], sp[4]
-<a href=#1035 id=1035 data-nosnippet>1035</a>         7: jump to 0 // -&gt; 8: f0/b3
-<a href=#1036 id=1036 data-nosnippet>1036</a>         8: sp[2] = sp[3] // f0/b3
-<a href=#1037 id=1037 data-nosnippet>1037</a>         9: return
-<a href=#1038 id=1038 data-nosnippet>1038</a>        "</span>);
-<a href=#1039 id=1039 data-nosnippet>1039</a>    }
-<a href=#1040 id=1040 data-nosnippet>1040</a>
-<a href=#1041 id=1041 data-nosnippet>1041</a>    <span class="attr">#[test]
-<a href=#1042 id=1042 data-nosnippet>1042</a>    </span><span class="kw">fn </span>test_constants_liveness() {
-<a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="comment">// Constant SSA values are also included in liveness analysis
-<a href=#1044 id=1044 data-nosnippet>1044</a>        // Only hoisted global constants are filtered out.
-<a href=#1045 id=1045 data-nosnippet>1045</a>        //
-<a href=#1046 id=1046 data-nosnippet>1046</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#1047 id=1047 data-nosnippet>1047</a>        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
-<a href=#1048 id=1048 data-nosnippet>1048</a>        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
-<a href=#1049 id=1049 data-nosnippet>1049</a>        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
-<a href=#1050 id=1050 data-nosnippet>1050</a>        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
-<a href=#1051 id=1051 data-nosnippet>1051</a>        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
-<a href=#1052 id=1052 data-nosnippet>1052</a>        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
-<a href=#1053 id=1053 data-nosnippet>1053</a>        //
-<a href=#1054 id=1054 data-nosnippet>1054</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1055 id=1055 data-nosnippet>1055</a>        brillig(inline) fn main f0 {
-<a href=#1056 id=1056 data-nosnippet>1056</a>        b0(v0: Field):
-<a href=#1057 id=1057 data-nosnippet>1057</a>            v1 = add v0, Field 100
-<a href=#1058 id=1058 data-nosnippet>1058</a>            v2 = mul v0, Field 200
-<a href=#1059 id=1059 data-nosnippet>1059</a>            v3 = add v1, v2
-<a href=#1060 id=1060 data-nosnippet>1060</a>            return v3
-<a href=#1061 id=1061 data-nosnippet>1061</a>        }
-<a href=#1062 id=1062 data-nosnippet>1062</a>        "</span>;
-<a href=#1063 id=1063 data-nosnippet>1063</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#1064 id=1064 data-nosnippet>1064</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#1065 id=1065 data-nosnippet>1065</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#1066 id=1066 data-nosnippet>1066</a>        fn main
-<a href=#1067 id=1067 data-nosnippet>1067</a>        0: sp[3] = const field 100
-<a href=#1068 id=1068 data-nosnippet>1068</a>        1: sp[4] = field add sp[2], sp[3]
-<a href=#1069 id=1069 data-nosnippet>1069</a>        2: sp[3] = const field 200
-<a href=#1070 id=1070 data-nosnippet>1070</a>        3: sp[5] = field mul sp[2], sp[3]
-<a href=#1071 id=1071 data-nosnippet>1071</a>        4: sp[2] = field add sp[4], sp[5]
-<a href=#1072 id=1072 data-nosnippet>1072</a>        5: return
-<a href=#1073 id=1073 data-nosnippet>1073</a>        "</span>);
-<a href=#1074 id=1074 data-nosnippet>1074</a>    }
-<a href=#1075 id=1075 data-nosnippet>1075</a>
-<a href=#1076 id=1076 data-nosnippet>1076</a>    <span class="attr">#[test]
-<a href=#1077 id=1077 data-nosnippet>1077</a>    </span><span class="kw">fn </span>test_terminator_arguments_stay_alive() {
-<a href=#1078 id=1078 data-nosnippet>1078</a>        <span class="comment">// Arguments to terminator instructions must remain alive until the terminator executes.
-<a href=#1079 id=1079 data-nosnippet>1079</a>        // They cannot be deallocated in the last instruction of the block.
-<a href=#1080 id=1080 data-nosnippet>1080</a>        //
-<a href=#1081 id=1081 data-nosnippet>1081</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#1082 id=1082 data-nosnippet>1082</a>        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
-<a href=#1083 id=1083 data-nosnippet>1083</a>        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
-<a href=#1084 id=1084 data-nosnippet>1084</a>        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
-<a href=#1085 id=1085 data-nosnippet>1085</a>        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
-<a href=#1086 id=1086 data-nosnippet>1086</a>        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
-<a href=#1087 id=1087 data-nosnippet>1087</a>        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
-<a href=#1088 id=1088 data-nosnippet>1088</a>        // Line 8 (b1): sp[1] = sp[2] prepares return
-<a href=#1089 id=1089 data-nosnippet>1089</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1090 id=1090 data-nosnippet>1090</a>        brillig(inline) fn main f0 {
-<a href=#1091 id=1091 data-nosnippet>1091</a>        b0(v0: Field):
-<a href=#1092 id=1092 data-nosnippet>1092</a>            v1 = add v0, Field 1
-<a href=#1093 id=1093 data-nosnippet>1093</a>            v2 = add v1, Field 2
-<a href=#1094 id=1094 data-nosnippet>1094</a>            v3 = mul v2, Field 3
-<a href=#1095 id=1095 data-nosnippet>1095</a>            jmp b1(v3)
-<a href=#1096 id=1096 data-nosnippet>1096</a>        b1(v4: Field):
-<a href=#1097 id=1097 data-nosnippet>1097</a>            return v4
-<a href=#1098 id=1098 data-nosnippet>1098</a>        }
-<a href=#1099 id=1099 data-nosnippet>1099</a>        "</span>;
-<a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#1101 id=1101 data-nosnippet>1101</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#1102 id=1102 data-nosnippet>1102</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#1103 id=1103 data-nosnippet>1103</a>        fn main
-<a href=#1104 id=1104 data-nosnippet>1104</a>        0: sp[4] = const field 1
-<a href=#1105 id=1105 data-nosnippet>1105</a>        1: sp[5] = field add sp[2], sp[4]
-<a href=#1106 id=1106 data-nosnippet>1106</a>        2: sp[2] = const field 2
-<a href=#1107 id=1107 data-nosnippet>1107</a>        3: sp[4] = field add sp[5], sp[2]
-<a href=#1108 id=1108 data-nosnippet>1108</a>        4: sp[2] = const field 3
-<a href=#1109 id=1109 data-nosnippet>1109</a>        5: sp[3] = field mul sp[4], sp[2]
-<a href=#1110 id=1110 data-nosnippet>1110</a>        6: jump to 0 // -&gt; 7: f0/b1
-<a href=#1111 id=1111 data-nosnippet>1111</a>        7: sp[2] = sp[3] // f0/b1
-<a href=#1112 id=1112 data-nosnippet>1112</a>        8: return
-<a href=#1113 id=1113 data-nosnippet>1113</a>        "</span>);
-<a href=#1114 id=1114 data-nosnippet>1114</a>    }
-<a href=#1115 id=1115 data-nosnippet>1115</a>}</code></pre></div></section></main></body></html>
+<a href=#850 id=850 data-nosnippet>850</a>        <span class="kw">let </span>[b0, b1, b2, b3] = block_ids();
+<a href=#851 id=851 data-nosnippet>851</a>        <span class="kw">let </span>[_v0, _v1, v2, v3] = value_ids();
+<a href=#852 id=852 data-nosnippet>852</a>
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="comment">// v2 and v3 are parameters of b3, but only v3 is used.
+<a href=#854 id=854 data-nosnippet>854</a>        </span><span class="kw">for </span>p <span class="kw">in </span>[v2, v3] {
+<a href=#855 id=855 data-nosnippet>855</a>            <span class="comment">// Both should be allocated in b0, which is the immediate dominator of b3.
+<a href=#856 id=856 data-nosnippet>856</a>            </span><span class="macro">assert!</span>(liveness.param_definitions[<span class="kw-2">&amp;</span>b0].contains(<span class="kw-2">&amp;</span>p), <span class="string">"{p} should be allocated in b0"</span>);
+<a href=#857 id=857 data-nosnippet>857</a>            <span class="kw">for </span>b <span class="kw">in </span>[b1, b2, b3] {
+<a href=#858 id=858 data-nosnippet>858</a>                <span class="comment">// Since they are defined in b0, they should be considered live all the way.
+<a href=#859 id=859 data-nosnippet>859</a>                </span><span class="macro">assert!</span>(liveness.live_in[<span class="kw-2">&amp;</span>b].contains(<span class="kw-2">&amp;</span>p), <span class="string">"{p} should be live in {b}"</span>);
+<a href=#860 id=860 data-nosnippet>860</a>            }
+<a href=#861 id=861 data-nosnippet>861</a>        }
+<a href=#862 id=862 data-nosnippet>862</a>    }
+<a href=#863 id=863 data-nosnippet>863</a>
+<a href=#864 id=864 data-nosnippet>864</a>    <span class="kw">fn </span>value_ids&lt;<span class="kw">const </span>N: usize&gt;() -&gt; [ValueId; N] {
+<a href=#865 id=865 data-nosnippet>865</a>        std::array::from_fn(|i| ValueId::new(i <span class="kw">as </span>u32))
+<a href=#866 id=866 data-nosnippet>866</a>    }
+<a href=#867 id=867 data-nosnippet>867</a>
+<a href=#868 id=868 data-nosnippet>868</a>    <span class="kw">fn </span>block_ids&lt;<span class="kw">const </span>N: usize&gt;() -&gt; [BasicBlockId; N] {
+<a href=#869 id=869 data-nosnippet>869</a>        std::array::from_fn(|i| BasicBlockId::new(i <span class="kw">as </span>u32))
+<a href=#870 id=870 data-nosnippet>870</a>    }
+<a href=#871 id=871 data-nosnippet>871</a>
+<a href=#872 id=872 data-nosnippet>872</a>    <span class="attr">#[test]
+<a href=#873 id=873 data-nosnippet>873</a>    </span><span class="kw">fn </span>test_entry_block_parameters() {
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="comment">// Entry block parameters are allocated in the entry block itself
+<a href=#875 id=875 data-nosnippet>875</a>        // but are not in the live-in set (no predecessor to pass them).
+<a href=#876 id=876 data-nosnippet>876</a>        // The entry block defines its own parameters via defined_block_params().
+<a href=#877 id=877 data-nosnippet>877</a>        //
+<a href=#878 id=878 data-nosnippet>878</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#879 id=879 data-nosnippet>879</a>        // SSA v1 (result of add) → Brillig sp[3] (line 2: result of add stored in sp[3])
+<a href=#880 id=880 data-nosnippet>880</a>        // Line 3: sp[1] = sp[3] moves v1 to return position
+<a href=#881 id=881 data-nosnippet>881</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#882 id=882 data-nosnippet>882</a>        brillig(inline) fn main f0 {
+<a href=#883 id=883 data-nosnippet>883</a>        b0(v0: Field):
+<a href=#884 id=884 data-nosnippet>884</a>            v1 = add v0, Field 10
+<a href=#885 id=885 data-nosnippet>885</a>            return v1
+<a href=#886 id=886 data-nosnippet>886</a>        }
+<a href=#887 id=887 data-nosnippet>887</a>        "</span>;
+<a href=#888 id=888 data-nosnippet>888</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#889 id=889 data-nosnippet>889</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#890 id=890 data-nosnippet>890</a>
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#892 id=892 data-nosnippet>892</a>        fn main
+<a href=#893 id=893 data-nosnippet>893</a>        0: sp[3] = const field 10
+<a href=#894 id=894 data-nosnippet>894</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#895 id=895 data-nosnippet>895</a>        2: sp[2] = sp[4]
+<a href=#896 id=896 data-nosnippet>896</a>        3: return
+<a href=#897 id=897 data-nosnippet>897</a>        "</span>);
+<a href=#898 id=898 data-nosnippet>898</a>    }
+<a href=#899 id=899 data-nosnippet>899</a>
+<a href=#900 id=900 data-nosnippet>900</a>    <span class="attr">#[test]
+<a href=#901 id=901 data-nosnippet>901</a>    </span><span class="kw">fn </span>test_last_use_deallocation() {
+<a href=#902 id=902 data-nosnippet>902</a>        <span class="comment">// When a variable reaches its last use, its register is deallocated
+<a href=#903 id=903 data-nosnippet>903</a>        // and can be reused for subsequent variables. This is tracked per-instruction
+<a href=#904 id=904 data-nosnippet>904</a>        // via get_last_uses().
+<a href=#905 id=905 data-nosnippet>905</a>        //
+<a href=#906 id=906 data-nosnippet>906</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#907 id=907 data-nosnippet>907</a>        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
+<a href=#908 id=908 data-nosnippet>908</a>        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
+<a href=#909 id=909 data-nosnippet>909</a>        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
+<a href=#910 id=910 data-nosnippet>910</a>        // Line 7: sp[1] = sp[3] moves v3 to return position
+<a href=#911 id=911 data-nosnippet>911</a>        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
+<a href=#912 id=912 data-nosnippet>912</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#913 id=913 data-nosnippet>913</a>        brillig(inline) fn main f0 {
+<a href=#914 id=914 data-nosnippet>914</a>        b0(v0: Field):
+<a href=#915 id=915 data-nosnippet>915</a>            v1 = add v0, Field 1
+<a href=#916 id=916 data-nosnippet>916</a>            v2 = add v1, Field 2
+<a href=#917 id=917 data-nosnippet>917</a>            v3 = add v2, Field 3
+<a href=#918 id=918 data-nosnippet>918</a>            return v3
+<a href=#919 id=919 data-nosnippet>919</a>        }
+<a href=#920 id=920 data-nosnippet>920</a>        "</span>;
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#922 id=922 data-nosnippet>922</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#923 id=923 data-nosnippet>923</a>
+<a href=#924 id=924 data-nosnippet>924</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#925 id=925 data-nosnippet>925</a>        fn main
+<a href=#926 id=926 data-nosnippet>926</a>        0: sp[3] = const field 1
+<a href=#927 id=927 data-nosnippet>927</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#928 id=928 data-nosnippet>928</a>        2: sp[2] = const field 2
+<a href=#929 id=929 data-nosnippet>929</a>        3: sp[3] = field add sp[4], sp[2]
+<a href=#930 id=930 data-nosnippet>930</a>        4: sp[2] = const field 3
+<a href=#931 id=931 data-nosnippet>931</a>        5: sp[4] = field add sp[3], sp[2]
+<a href=#932 id=932 data-nosnippet>932</a>        6: sp[2] = sp[4]
+<a href=#933 id=933 data-nosnippet>933</a>        7: return
+<a href=#934 id=934 data-nosnippet>934</a>        "</span>);
+<a href=#935 id=935 data-nosnippet>935</a>    }
+<a href=#936 id=936 data-nosnippet>936</a>
+<a href=#937 id=937 data-nosnippet>937</a>    <span class="attr">#[test]
+<a href=#938 id=938 data-nosnippet>938</a>    </span><span class="kw">fn </span>test_never_use_deallocation() {
+<a href=#939 id=939 data-nosnippet>939</a>        <span class="comment">// When an instruction result is never used, its register can be reused ASAP.
+<a href=#940 id=940 data-nosnippet>940</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#941 id=941 data-nosnippet>941</a>        brillig(inline) fn main f0 {
+<a href=#942 id=942 data-nosnippet>942</a>        b0(v0: Field):
+<a href=#943 id=943 data-nosnippet>943</a>            v1 = add v0, Field 1
+<a href=#944 id=944 data-nosnippet>944</a>            v2 = add v0, Field 2
+<a href=#945 id=945 data-nosnippet>945</a>            v3 = add v0, Field 3
+<a href=#946 id=946 data-nosnippet>946</a>            return v3
+<a href=#947 id=947 data-nosnippet>947</a>        }
+<a href=#948 id=948 data-nosnippet>948</a>        "</span>;
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#953 id=953 data-nosnippet>953</a>        fn main
+<a href=#954 id=954 data-nosnippet>954</a>        0: sp[3] = const field 1
+<a href=#955 id=955 data-nosnippet>955</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#956 id=956 data-nosnippet>956</a>        2: sp[3] = const field 2
+<a href=#957 id=957 data-nosnippet>957</a>        3: sp[4] = field add sp[2], sp[3]
+<a href=#958 id=958 data-nosnippet>958</a>        4: sp[3] = const field 3
+<a href=#959 id=959 data-nosnippet>959</a>        5: sp[4] = field add sp[2], sp[3]
+<a href=#960 id=960 data-nosnippet>960</a>        6: sp[2] = sp[4]
+<a href=#961 id=961 data-nosnippet>961</a>        7: return
+<a href=#962 id=962 data-nosnippet>962</a>        "</span>);
+<a href=#963 id=963 data-nosnippet>963</a>    }
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a>    <span class="attr">#[test]
+<a href=#966 id=966 data-nosnippet>966</a>    </span><span class="kw">fn </span>test_loop_liveness() {
+<a href=#967 id=967 data-nosnippet>967</a>        <span class="comment">// Variables live in the loop header must remain alive throughout the loop body
+<a href=#968 id=968 data-nosnippet>968</a>        // because the back edge jumps back to the header.
+<a href=#969 id=969 data-nosnippet>969</a>        //
+<a href=#970 id=970 data-nosnippet>970</a>        // SSA v0 (loop bound) → Brillig sp[1]
+<a href=#971 id=971 data-nosnippet>971</a>        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
+<a href=#972 id=972 data-nosnippet>972</a>        // Line 3: sp[2] = sp[3] initializes v1 to 0
+<a href=#973 id=973 data-nosnippet>973</a>        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 &lt; v0
+<a href=#974 id=974 data-nosnippet>974</a>        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
+<a href=#975 id=975 data-nosnippet>975</a>        // Line 14: sp[2] = sp[3] updates v1 for next iteration
+<a href=#976 id=976 data-nosnippet>976</a>        // Line 15: jump back to b1
+<a href=#977 id=977 data-nosnippet>977</a>        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
+<a href=#978 id=978 data-nosnippet>978</a>        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
+<a href=#979 id=979 data-nosnippet>979</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#980 id=980 data-nosnippet>980</a>        brillig(inline) fn main f0 {
+<a href=#981 id=981 data-nosnippet>981</a>        b0(v0: u32):
+<a href=#982 id=982 data-nosnippet>982</a>            jmp b1(u32 0)
+<a href=#983 id=983 data-nosnippet>983</a>        b1(v1: u32):
+<a href=#984 id=984 data-nosnippet>984</a>            v2 = lt v1, v0
+<a href=#985 id=985 data-nosnippet>985</a>            jmpif v2 then: b2(), else: b3()
+<a href=#986 id=986 data-nosnippet>986</a>        b2():
+<a href=#987 id=987 data-nosnippet>987</a>            v3 = add v1, u32 1
+<a href=#988 id=988 data-nosnippet>988</a>            jmp b1(v3)
+<a href=#989 id=989 data-nosnippet>989</a>        b3():
+<a href=#990 id=990 data-nosnippet>990</a>            return v1
+<a href=#991 id=991 data-nosnippet>991</a>        }
+<a href=#992 id=992 data-nosnippet>992</a>        "</span>;
+<a href=#993 id=993 data-nosnippet>993</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#994 id=994 data-nosnippet>994</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#996 id=996 data-nosnippet>996</a>        fn main
+<a href=#997 id=997 data-nosnippet>997</a>         0: sp[4] = const u32 0
+<a href=#998 id=998 data-nosnippet>998</a>         1: sp[5] = const u32 1
+<a href=#999 id=999 data-nosnippet>999</a>         2: sp[3] = sp[4]
+<a href=#1000 id=1000 data-nosnippet>1000</a>         3: jump to 0 // -&gt; 4: f0/b1
+<a href=#1001 id=1001 data-nosnippet>1001</a>         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+<a href=#1002 id=1002 data-nosnippet>1002</a>         5: jump if sp[4] to 0 // -&gt; 9: f0/b2
+<a href=#1003 id=1003 data-nosnippet>1003</a>         6: jump to 0 // -&gt; 7: f0/b3
+<a href=#1004 id=1004 data-nosnippet>1004</a>         7: sp[2] = sp[3] // f0/b3
+<a href=#1005 id=1005 data-nosnippet>1005</a>         8: return
+<a href=#1006 id=1006 data-nosnippet>1006</a>         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+<a href=#1007 id=1007 data-nosnippet>1007</a>        10: sp[6] = u32 lt_eq sp[3], sp[4]
+<a href=#1008 id=1008 data-nosnippet>1008</a>        11: jump if sp[6] to 0 // -&gt; 13: f0/b2/1
+<a href=#1009 id=1009 data-nosnippet>1009</a>        12: call 0 // -&gt; ErrorWithString
+<a href=#1010 id=1010 data-nosnippet>1010</a>        13: sp[3] = sp[4] // f0/b2/1
+<a href=#1011 id=1011 data-nosnippet>1011</a>        14: jump to 0 // -&gt; 4: f0/b1
+<a href=#1012 id=1012 data-nosnippet>1012</a>        "</span>);
+<a href=#1013 id=1013 data-nosnippet>1013</a>    }
+<a href=#1014 id=1014 data-nosnippet>1014</a>
+<a href=#1015 id=1015 data-nosnippet>1015</a>    <span class="attr">#[test]
+<a href=#1016 id=1016 data-nosnippet>1016</a>    </span><span class="kw">fn </span>test_block_parameters() {
+<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="comment">// Multiple predecessors pass different values (42 and v2) to the same parameter.
+<a href=#1018 id=1018 data-nosnippet>1018</a>        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
+<a href=#1019 id=1019 data-nosnippet>1019</a>        // and each predecessor generates a mov to that register.
+<a href=#1020 id=1020 data-nosnippet>1020</a>        //
+<a href=#1021 id=1021 data-nosnippet>1021</a>        // SSA v0 (condition) → Brillig sp[1]
+<a href=#1022 id=1022 data-nosnippet>1022</a>        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
+<a href=#1023 id=1023 data-nosnippet>1023</a>        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
+<a href=#1024 id=1024 data-nosnippet>1024</a>        // Field 42 constant → sp[3] (line 1)
+<a href=#1025 id=1025 data-nosnippet>1025</a>        // Line 2: jmpif sp[1] branches to b1 or b2
+<a href=#1026 id=1026 data-nosnippet>1026</a>        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
+<a href=#1027 id=1027 data-nosnippet>1027</a>        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
+<a href=#1028 id=1028 data-nosnippet>1028</a>        // Line 9 (b3): sp[1] = sp[2] prepares return
+<a href=#1029 id=1029 data-nosnippet>1029</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1030 id=1030 data-nosnippet>1030</a>        brillig(inline) fn main f0 {
+<a href=#1031 id=1031 data-nosnippet>1031</a>        b0(v0: u1):
+<a href=#1032 id=1032 data-nosnippet>1032</a>            jmpif v0 then: b1(), else: b2()
+<a href=#1033 id=1033 data-nosnippet>1033</a>        b1():
+<a href=#1034 id=1034 data-nosnippet>1034</a>            v2 = add Field 27, Field 42
+<a href=#1035 id=1035 data-nosnippet>1035</a>            jmp b3(v2)
+<a href=#1036 id=1036 data-nosnippet>1036</a>        b2():
+<a href=#1037 id=1037 data-nosnippet>1037</a>            jmp b3(Field 42)
+<a href=#1038 id=1038 data-nosnippet>1038</a>        b3(v1: Field):
+<a href=#1039 id=1039 data-nosnippet>1039</a>            return v1
+<a href=#1040 id=1040 data-nosnippet>1040</a>        }
+<a href=#1041 id=1041 data-nosnippet>1041</a>        "</span>;
+<a href=#1042 id=1042 data-nosnippet>1042</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#1044 id=1044 data-nosnippet>1044</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#1045 id=1045 data-nosnippet>1045</a>        fn main
+<a href=#1046 id=1046 data-nosnippet>1046</a>         0: sp[4] = const field 42
+<a href=#1047 id=1047 data-nosnippet>1047</a>         1: jump if sp[2] to 0 // -&gt; 5: f0/b1
+<a href=#1048 id=1048 data-nosnippet>1048</a>         2: jump to 0 // -&gt; 3: f0/b2
+<a href=#1049 id=1049 data-nosnippet>1049</a>         3: sp[3] = sp[4] // f0/b2
+<a href=#1050 id=1050 data-nosnippet>1050</a>         4: jump to 0 // -&gt; 8: f0/b3
+<a href=#1051 id=1051 data-nosnippet>1051</a>         5: sp[2] = const field 27 // f0/b1
+<a href=#1052 id=1052 data-nosnippet>1052</a>         6: sp[3] = field add sp[2], sp[4]
+<a href=#1053 id=1053 data-nosnippet>1053</a>         7: jump to 0 // -&gt; 8: f0/b3
+<a href=#1054 id=1054 data-nosnippet>1054</a>         8: sp[2] = sp[3] // f0/b3
+<a href=#1055 id=1055 data-nosnippet>1055</a>         9: return
+<a href=#1056 id=1056 data-nosnippet>1056</a>        "</span>);
+<a href=#1057 id=1057 data-nosnippet>1057</a>    }
+<a href=#1058 id=1058 data-nosnippet>1058</a>
+<a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="attr">#[test]
+<a href=#1060 id=1060 data-nosnippet>1060</a>    </span><span class="kw">fn </span>test_constants_liveness() {
+<a href=#1061 id=1061 data-nosnippet>1061</a>        <span class="comment">// Constant SSA values are also included in liveness analysis
+<a href=#1062 id=1062 data-nosnippet>1062</a>        // Only hoisted global constants are filtered out.
+<a href=#1063 id=1063 data-nosnippet>1063</a>        //
+<a href=#1064 id=1064 data-nosnippet>1064</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#1065 id=1065 data-nosnippet>1065</a>        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
+<a href=#1066 id=1066 data-nosnippet>1066</a>        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
+<a href=#1067 id=1067 data-nosnippet>1067</a>        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
+<a href=#1068 id=1068 data-nosnippet>1068</a>        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
+<a href=#1069 id=1069 data-nosnippet>1069</a>        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
+<a href=#1070 id=1070 data-nosnippet>1070</a>        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
+<a href=#1071 id=1071 data-nosnippet>1071</a>        //
+<a href=#1072 id=1072 data-nosnippet>1072</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1073 id=1073 data-nosnippet>1073</a>        brillig(inline) fn main f0 {
+<a href=#1074 id=1074 data-nosnippet>1074</a>        b0(v0: Field):
+<a href=#1075 id=1075 data-nosnippet>1075</a>            v1 = add v0, Field 100
+<a href=#1076 id=1076 data-nosnippet>1076</a>            v2 = mul v0, Field 200
+<a href=#1077 id=1077 data-nosnippet>1077</a>            v3 = add v1, v2
+<a href=#1078 id=1078 data-nosnippet>1078</a>            return v3
+<a href=#1079 id=1079 data-nosnippet>1079</a>        }
+<a href=#1080 id=1080 data-nosnippet>1080</a>        "</span>;
+<a href=#1081 id=1081 data-nosnippet>1081</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#1082 id=1082 data-nosnippet>1082</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#1083 id=1083 data-nosnippet>1083</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#1084 id=1084 data-nosnippet>1084</a>        fn main
+<a href=#1085 id=1085 data-nosnippet>1085</a>        0: sp[3] = const field 100
+<a href=#1086 id=1086 data-nosnippet>1086</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#1087 id=1087 data-nosnippet>1087</a>        2: sp[3] = const field 200
+<a href=#1088 id=1088 data-nosnippet>1088</a>        3: sp[5] = field mul sp[2], sp[3]
+<a href=#1089 id=1089 data-nosnippet>1089</a>        4: sp[2] = field add sp[4], sp[5]
+<a href=#1090 id=1090 data-nosnippet>1090</a>        5: return
+<a href=#1091 id=1091 data-nosnippet>1091</a>        "</span>);
+<a href=#1092 id=1092 data-nosnippet>1092</a>    }
+<a href=#1093 id=1093 data-nosnippet>1093</a>
+<a href=#1094 id=1094 data-nosnippet>1094</a>    <span class="attr">#[test]
+<a href=#1095 id=1095 data-nosnippet>1095</a>    </span><span class="kw">fn </span>max_live_count_includes_constants_outside_make_array() {
+<a href=#1096 id=1096 data-nosnippet>1096</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1097 id=1097 data-nosnippet>1097</a>        brillig(inline) fn main f0 {
+<a href=#1098 id=1098 data-nosnippet>1098</a>          b0(v0: Field):
+<a href=#1099 id=1099 data-nosnippet>1099</a>            v1 = add v0, Field 1
+<a href=#1100 id=1100 data-nosnippet>1100</a>            return v1
+<a href=#1101 id=1101 data-nosnippet>1101</a>        }
+<a href=#1102 id=1102 data-nosnippet>1102</a>        "</span>;
+<a href=#1103 id=1103 data-nosnippet>1103</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1104 id=1104 data-nosnippet>1104</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1105 id=1105 data-nosnippet>1105</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1106 id=1106 data-nosnippet>1106</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1107 id=1107 data-nosnippet>1107</a>
+<a href=#1108 id=1108 data-nosnippet>1108</a>        <span class="comment">// The constant `Field 1` should be allocated in b0.
+<a href=#1109 id=1109 data-nosnippet>1109</a>        </span><span class="kw">let </span>allocated_in_entry = constants.allocated_in_block(func.entry_block());
+<a href=#1110 id=1110 data-nosnippet>1110</a>        <span class="macro">assert!</span>(
+<a href=#1111 id=1111 data-nosnippet>1111</a>            !allocated_in_entry.is_empty(),
+<a href=#1112 id=1112 data-nosnippet>1112</a>            <span class="string">"expected Field 1 to be allocated in the entry block, but nothing was"
+<a href=#1113 id=1113 data-nosnippet>1113</a>        </span>);
+<a href=#1114 id=1114 data-nosnippet>1114</a>
+<a href=#1115 id=1115 data-nosnippet>1115</a>        <span class="comment">// The true peak is 3 registers: v0 + Field 1 + v1 must coexist during the add.
+<a href=#1116 id=1116 data-nosnippet>1116</a>        // If we did not account for constants, we would incorrectly report 2.
+<a href=#1117 id=1117 data-nosnippet>1117</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#1118 id=1118 data-nosnippet>1118</a>            liveness.max_live_count, <span class="number">3</span>,
+<a href=#1119 id=1119 data-nosnippet>1119</a>            <span class="string">"expected max_live_count &gt;= 3 (v0 + Field 1 + v1 live during the add), got {}"</span>,
+<a href=#1120 id=1120 data-nosnippet>1120</a>            liveness.max_live_count
+<a href=#1121 id=1121 data-nosnippet>1121</a>        );
+<a href=#1122 id=1122 data-nosnippet>1122</a>    }
+<a href=#1123 id=1123 data-nosnippet>1123</a>
+<a href=#1124 id=1124 data-nosnippet>1124</a>    <span class="attr">#[test]
+<a href=#1125 id=1125 data-nosnippet>1125</a>    </span><span class="kw">fn </span>test_terminator_arguments_stay_alive() {
+<a href=#1126 id=1126 data-nosnippet>1126</a>        <span class="comment">// Arguments to terminator instructions must remain alive until the terminator executes.
+<a href=#1127 id=1127 data-nosnippet>1127</a>        // They cannot be deallocated in the last instruction of the block.
+<a href=#1128 id=1128 data-nosnippet>1128</a>        //
+<a href=#1129 id=1129 data-nosnippet>1129</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#1130 id=1130 data-nosnippet>1130</a>        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
+<a href=#1131 id=1131 data-nosnippet>1131</a>        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
+<a href=#1132 id=1132 data-nosnippet>1132</a>        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
+<a href=#1133 id=1133 data-nosnippet>1133</a>        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
+<a href=#1134 id=1134 data-nosnippet>1134</a>        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
+<a href=#1135 id=1135 data-nosnippet>1135</a>        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
+<a href=#1136 id=1136 data-nosnippet>1136</a>        // Line 8 (b1): sp[1] = sp[2] prepares return
+<a href=#1137 id=1137 data-nosnippet>1137</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1138 id=1138 data-nosnippet>1138</a>        brillig(inline) fn main f0 {
+<a href=#1139 id=1139 data-nosnippet>1139</a>        b0(v0: Field):
+<a href=#1140 id=1140 data-nosnippet>1140</a>            v1 = add v0, Field 1
+<a href=#1141 id=1141 data-nosnippet>1141</a>            v2 = add v1, Field 2
+<a href=#1142 id=1142 data-nosnippet>1142</a>            v3 = mul v2, Field 3
+<a href=#1143 id=1143 data-nosnippet>1143</a>            jmp b1(v3)
+<a href=#1144 id=1144 data-nosnippet>1144</a>        b1(v4: Field):
+<a href=#1145 id=1145 data-nosnippet>1145</a>            return v4
+<a href=#1146 id=1146 data-nosnippet>1146</a>        }
+<a href=#1147 id=1147 data-nosnippet>1147</a>        "</span>;
+<a href=#1148 id=1148 data-nosnippet>1148</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#1149 id=1149 data-nosnippet>1149</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#1150 id=1150 data-nosnippet>1150</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#1151 id=1151 data-nosnippet>1151</a>        fn main
+<a href=#1152 id=1152 data-nosnippet>1152</a>        0: sp[4] = const field 1
+<a href=#1153 id=1153 data-nosnippet>1153</a>        1: sp[5] = field add sp[2], sp[4]
+<a href=#1154 id=1154 data-nosnippet>1154</a>        2: sp[2] = const field 2
+<a href=#1155 id=1155 data-nosnippet>1155</a>        3: sp[4] = field add sp[5], sp[2]
+<a href=#1156 id=1156 data-nosnippet>1156</a>        4: sp[2] = const field 3
+<a href=#1157 id=1157 data-nosnippet>1157</a>        5: sp[3] = field mul sp[4], sp[2]
+<a href=#1158 id=1158 data-nosnippet>1158</a>        6: jump to 0 // -&gt; 7: f0/b1
+<a href=#1159 id=1159 data-nosnippet>1159</a>        7: sp[2] = sp[3] // f0/b1
+<a href=#1160 id=1160 data-nosnippet>1160</a>        8: return
+<a href=#1161 id=1161 data-nosnippet>1161</a>        "</span>);
+<a href=#1162 id=1162 data-nosnippet>1162</a>    }
+<a href=#1163 id=1163 data-nosnippet>1163</a>
+<a href=#1164 id=1164 data-nosnippet>1164</a>    <span class="attr">#[test]
+<a href=#1165 id=1165 data-nosnippet>1165</a>    </span><span class="kw">fn </span>make_array_peak_includes_result() {
+<a href=#1166 id=1166 data-nosnippet>1166</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1167 id=1167 data-nosnippet>1167</a>        brillig(inline) fn main f0 {
+<a href=#1168 id=1168 data-nosnippet>1168</a>          b0(v0: Field, v1: Field, v2: Field):
+<a href=#1169 id=1169 data-nosnippet>1169</a>            v3 = make_array [v0, v1, v2] : [Field; 3]
+<a href=#1170 id=1170 data-nosnippet>1170</a>            return v3
+<a href=#1171 id=1171 data-nosnippet>1171</a>        }
+<a href=#1172 id=1172 data-nosnippet>1172</a>        "</span>;
+<a href=#1173 id=1173 data-nosnippet>1173</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1174 id=1174 data-nosnippet>1174</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1175 id=1175 data-nosnippet>1175</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1176 id=1176 data-nosnippet>1176</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1177 id=1177 data-nosnippet>1177</a>
+<a href=#1178 id=1178 data-nosnippet>1178</a>        <span class="comment">// Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+<a href=#1179 id=1179 data-nosnippet>1179</a>        // The elements are already in the live set as block params, but
+<a href=#1180 id=1180 data-nosnippet>1180</a>        // the result register is allocated simultaneously during codegen.
+<a href=#1181 id=1181 data-nosnippet>1181</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#1182 id=1182 data-nosnippet>1182</a>            liveness.max_live_count, <span class="number">4</span>,
+<a href=#1183 id=1183 data-nosnippet>1183</a>            <span class="string">"MakeArray peak must include the result register: \
+<a href=#1184 id=1184 data-nosnippet>1184</a>             3 element params + 1 result = 4, got {}"</span>,
+<a href=#1185 id=1185 data-nosnippet>1185</a>            liveness.max_live_count
+<a href=#1186 id=1186 data-nosnippet>1186</a>        );
+<a href=#1187 id=1187 data-nosnippet>1187</a>    }
+<a href=#1188 id=1188 data-nosnippet>1188</a>}</code></pre></div></section></main></body></html>
