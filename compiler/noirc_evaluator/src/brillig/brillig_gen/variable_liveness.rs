@@ -1162,4 +1162,29 @@ mod tests {
         8: return
         ");
     }
+
+    #[test]
+    fn make_array_peak_includes_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = make_array [v0, v1, v2] : [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+        // The elements are already in the live set as block params, but
+        // the result register is allocated simultaneously during codegen.
+        assert_eq!(
+            liveness.max_live_count, 4,
+            "MakeArray peak must include the result register: \
+             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count
+        );
+    }
 }
