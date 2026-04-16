@@ -6,8 +6,8 @@ sidebar_position: 1
 ---
 
 An integer type is a range constrained field type.
-The Noir frontend supports both unsigned and signed integer types.
-The allowed sizes are 8, 16, 32, 64 and 128 bits. ([currently only unsigned integers for 128 bits](https://github.com/noir-lang/noir/issues/7591))
+
+The Noir frontend supports both unsigned and signed integer types. The allowed sizes are 8, 16, 32, 64 and 128 bits. (For 128 bits, [only unsigned is supported](https://github.com/noir-lang/noir/issues/7591) at the moment.)
 
 :::info
 
