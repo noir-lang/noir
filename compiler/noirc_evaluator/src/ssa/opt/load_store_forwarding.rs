@@ -148,7 +148,6 @@ fn forward_loads_and_stores_in_block(
 ) -> HashSet<InstructionId> {
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
-    let mut last_loads: HashMap<ValueId, ValueId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
@@ -170,28 +169,20 @@ fn forward_loads_and_stores_in_block(
                 let aliases =
                     |k: &ValueId| *k != address && may_alias(address, *k, allocations, dfg);
                 known_values.retain(|k, _| !aliases(k));
-                last_loads.retain(|k, _| !aliases(k));
                 last_stores.retain(|k, _| !aliases(k));
 
-                // A store supersedes any prior load from this address.
-                last_loads.remove(&address);
                 known_values.insert(address, value);
                 last_stores.insert(address, instruction_id);
             }
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
 
+                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                 if let Some(value) = known_values.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
-                } else if let Some(prev_result) = last_loads.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    inserter.map_value(result, *prev_result);
-                    instructions_to_remove.insert(instruction_id);
                 } else {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    last_loads.insert(address, result);
+                    known_values.insert(address, result);
                 }
 
                 // Mark aliased stores as used (not dead).
@@ -210,13 +201,10 @@ fn forward_loads_and_stores_in_block(
                         let dfg = &inserter.function.dfg;
                         known_values
                             .retain(|k, _| !may_alias(value, *k, allocations, dfg));
-                        last_loads
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
                         last_stores
                             .retain(|k, _| !may_alias(value, *k, allocations, dfg));
                     } else if typ.contains_reference() {
                         known_values.clear();
-                        last_loads.clear();
                         last_stores.clear();
                     }
                 });
