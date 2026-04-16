@@ -21,7 +21,7 @@
     "@easyops-cn/docusaurus-search-local": "^0.55.1",
     "@getbrevo/brevo": "^4.0.1",
     "@mdx-js/react": "^3.1.1",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "hast-util-is-element": "^3.0.0",
     "prism-react-renderer": "^2.4.1",
