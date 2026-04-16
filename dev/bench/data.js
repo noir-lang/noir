@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776369421985,
+  "lastUpdate": 1776372796609,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22231,48 +22231,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "79532ad48717a0a7c6a2bcf77a11ed5ec6bf1ae0",
-          "message": "chore: update poseidon library to v0.3.0 and re-enable tests (#12167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-04-08T13:25:19Z",
-          "tree_id": "cb4e7739a4aed7d092c1d1ca12648bc7fed25332",
-          "url": "https://github.com/noir-lang/noir/commit/79532ad48717a0a7c6a2bcf77a11ed5ec6bf1ae0"
-        },
-        "date": 1775656081083,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168670,
-            "range": "± 299",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137301,
-            "range": "± 1849",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2641414,
-            "range": "± 3775",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "46a5eb7441c339a10dcb72a41d37792dc9fc4084",
           "message": "fix: remove stale u1 references from error messages (#12165)",
           "timestamp": "2026-04-08T13:52:35Z",
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3049517,
             "range": "± 1504",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad02a20cd80b3e8a6189722b11a625998e578435",
+          "message": "fix: Fix prioritize types over globals for resolution (#12274)",
+          "timestamp": "2026-04-16T20:28:41Z",
+          "tree_id": "7d65fa382f56469a0ee3cf16a5254a30a32db4fe",
+          "url": "https://github.com/noir-lang/noir/commit/ad02a20cd80b3e8a6189722b11a625998e578435"
+        },
+        "date": 1776372741364,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168054,
+            "range": "± 925",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137537,
+            "range": "± 434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645293,
+            "range": "± 42461",
             "unit": "ns/iter"
           }
         ]
