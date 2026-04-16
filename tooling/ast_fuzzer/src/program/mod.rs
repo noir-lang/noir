@@ -323,8 +323,11 @@ impl Context {
             InlineType::default()
         } else {
             // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
-            let choices =
-                InlineType::iter().filter(|it| !matches!(it, InlineType::Fold)).collect::<Vec<_>>();
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
             *u.choose(&choices)?
         };
 
