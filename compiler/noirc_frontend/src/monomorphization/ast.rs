@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
+use strum_macros::EnumIter;
 
 use crate::token::FmtStrFragment;
 use crate::{
@@ -434,7 +435,18 @@ pub type Parameters =
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
 #[derive(
-    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialOrd,
+    Ord,
+    EnumIter,
 )]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
