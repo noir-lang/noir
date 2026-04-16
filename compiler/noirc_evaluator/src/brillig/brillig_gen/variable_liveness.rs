@@ -19,7 +19,7 @@ use crate::ssa::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::constant_allocation::{ConstantAllocation, InstructionLocation};
 
 /// A set of [ValueId]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
@@ -145,7 +145,7 @@ impl VariableLiveness {
             .compute_block_param_definitions(func, &loops.dom)
             .compute_live_in_of_blocks(func, constants, back_edges)
             .compute_last_uses(func)
-            .compute_max_live_count(func)
+            .compute_max_live_count(func, constants)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -424,47 +424,65 @@ impl VariableLiveness {
 
     /// Compute [VariableLiveness::max_live_count].
     ///
-    /// Walk each block instruction-by-instruction, tracking how many variables are
-    /// simultaneously alive: start with `live_in`, add variables defined by each
-    /// instruction (including block param definitions), and subtract dead variables
-    /// from `last_uses`. Record the highest count across all blocks.
+    /// Walk each block instruction-by-instruction, tracking the set of variables
+    /// simultaneously alive: start with `live_in` plus block param definitions,
+    /// materialize constants at their allocation points, add instruction results,
+    /// and remove dead variables from `last_uses`. Record the highest count.
     ///
-    /// For `MakeArray` instructions, also account for the element count: during Brillig
-    /// codegen, each unique element value is materialized as a separate register, which
-    /// can far exceed the SSA-level variable count.
-    fn compute_max_live_count(mut self, func: &Function) -> Self {
+    /// # Safety
+    /// This is a rough estimate. Until we have solidified an exact live count we expect consumers
+    /// of the max live count to have some extra margin to account for potentially temporary allocated registers.
+    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+    fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
-            let live_in = self.get_live_in(&block_id);
             let last_uses = self.get_last_uses(&block_id);
 
-            // Start with the live-in set plus variables defined at block entry
-            // (block param definitions are allocated before the first instruction).
-            let param_defs = self.defined_block_params(&block_id);
-            let mut current_count = live_in.len() + param_defs.len();
-            max_count = max_count.max(current_count);
+            let mut live_set: HashSet<ValueId> =
+                self.get_live_in(&block_id).iter().copied().collect();
+            live_set.extend(self.defined_block_params(&block_id));
+            max_count = max_count.max(live_set.len());
 
             for instruction_id in block.instructions() {
-                let instruction = &func.dfg[*instruction_id];
+                // Materialize constants allocated at this instruction location.
+                if let Some(new_consts) = constants.allocated_at_location(
+                    block_id,
+                    InstructionLocation::Instruction(*instruction_id),
+                ) {
+                    live_set.extend(new_consts.iter().copied());
+                    max_count = max_count.max(live_set.len());
+                }
 
-                // MakeArray materializes each element as a register during Brillig codegen.
-                // Count the number of unique element values to estimate register pressure.
+                // MakeArray materializes each unique element as a register during
+                // Brillig codegen. Include them in the live set so the peak accounts
+                // for non-constant element values as well.
+                let instruction = &func.dfg[*instruction_id];
                 if let Instruction::MakeArray { elements, .. } = instruction {
-                    let unique_elements: HashSet<_> = elements.iter().copied().collect();
-                    max_count = max_count.max(current_count + unique_elements.len());
+                    live_set.extend(elements.iter().copied());
+                    max_count = max_count.max(live_set.len());
                 }
 
                 // Add results defined by this instruction.
                 let results = func.dfg.instruction_results(*instruction_id);
-                current_count += results.len();
-                max_count = max_count.max(current_count);
+                live_set.extend(results.iter().copied());
+                max_count = max_count.max(live_set.len());
 
                 // Subtract variables that die after this instruction.
                 if let Some(dead) = last_uses.get(instruction_id) {
-                    current_count = current_count.saturating_sub(dead.len());
+                    for d in dead {
+                        live_set.remove(d);
+                    }
                 }
+            }
+
+            // Handle constants allocated at the terminator.
+            if let Some(new_consts) =
+                constants.allocated_at_location(block_id, InstructionLocation::Terminator)
+            {
+                live_set.extend(new_consts.iter().copied());
+                max_count = max_count.max(live_set.len());
             }
         }
 
@@ -1071,6 +1089,38 @@ mod tests {
         4: sp[2] = field add sp[4], sp[5]
         5: return
         ");
+    }
+
+    #[test]
+    fn max_live_count_includes_constants_outside_make_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // The constant `Field 1` should be allocated in b0.
+        let allocated_in_entry = constants.allocated_in_block(func.entry_block());
+        assert!(
+            !allocated_in_entry.is_empty(),
+            "expected Field 1 to be allocated in the entry block, but nothing was"
+        );
+
+        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during
+        // the add. The current implementation reports only 2 because constants
+        // used by instructions are never added to the live count (except for MakeArray).
+        assert!(
+            liveness.max_live_count >= 3,
+            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), \
+             got {}. Constants used by non-MakeArray instructions are not counted.",
+            liveness.max_live_count
+        );
     }
 
     #[test]
