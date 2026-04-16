@@ -1112,13 +1112,11 @@ mod tests {
             "expected Field 1 to be allocated in the entry block, but nothing was"
         );
 
-        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during
-        // the add. The current implementation reports only 2 because constants
-        // used by instructions are never added to the live count (except for MakeArray).
-        assert!(
-            liveness.max_live_count >= 3,
-            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), \
-             got {}. Constants used by non-MakeArray instructions are not counted.",
+        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during the add.
+        // If we did not account for constants, we would incorrectly report 2.
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), got {}",
             liveness.max_live_count
         );
     }
