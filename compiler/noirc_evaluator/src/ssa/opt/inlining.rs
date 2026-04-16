@@ -1,7 +1,11 @@
 //! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
-//! within the function caller. If all function calls are known, there will only
-//! be a single function remaining when the pass finishes.
+//! within the function caller. If all function calls are known, only the inline
+//! targets — `main`, any Brillig or folded ACIR entry point, and any recursive
+//! ACIR function (see [InlineInfo::is_inline_target]) — will remain when the pass finishes.
+//!
+//! Global [values][Value::Global] live in the shared SSA global DFG.
+//! Inlining preserves their [ValueId]s in place rather than cloning them into each inline target.
 
 use std::collections::HashSet;
 
@@ -43,8 +47,8 @@ impl Ssa {
     /// In the case of recursive Acir functions, this will attempt
     /// to recursively inline until the RECURSION_LIMIT is reached.
     ///
-    /// Functions are recursively inlined into main until either we finish
-    /// inlining all functions or we encounter a function whose function id is not known.
+    /// Functions are recursively inlined into each [inline target][InlineInfo::is_inline_target] until either we
+    /// finish inlining all functions or we encounter a function whose function id is not known.
     /// When the later happens, the call instruction is kept in addition to the function
     /// it refers to. The function it refers to is kept unmodified without any inlining
     /// changes. This is because if the function's id later becomes known by a later
@@ -159,9 +163,10 @@ impl Function {
 
 /// The context for the function inlining pass.
 ///
-/// This works using an internal FunctionBuilder to build a new main function from scratch.
-/// Doing it this way properly handles importing instructions between functions and lets us
-/// reuse the existing API at the cost of essentially cloning each of main's instructions.
+/// This works using an internal FunctionBuilder to build a new inline-target function
+/// from scratch. Doing it this way properly handles importing instructions between
+/// functions and lets us reuse the existing API at the cost of essentially cloning
+/// each of the inline target's instructions.
 struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
@@ -208,10 +213,10 @@ struct PerFunctionContext<'function> {
 
 impl InlineContext {
     /// Create a new context object for the function inlining pass.
-    /// This starts off with an empty mapping of instructions for main's parameters.
-    /// The function being inlined into will always be the main function, although it is
-    /// actually a copy that is created in case the original main is still needed from a function
-    /// that could not be inlined calling it.
+    /// This starts off with an empty mapping of instructions for the inline target's
+    /// parameters. The function being inlined into is the current inline target,
+    /// although it is actually a copy that is created in case the original is still needed
+    /// from a function that could not be inlined calling it.
     fn new(ssa: &Ssa, entry_point: FunctionId) -> Self {
         let source = &ssa.functions[&entry_point];
         let builder = FunctionBuilder::from_existing(source, entry_point);
