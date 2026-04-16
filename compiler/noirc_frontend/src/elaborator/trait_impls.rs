@@ -1071,7 +1071,7 @@ fn constraints_unify(
     // This just lets us early-return `None` for `false` conditions
     let require = |cond: bool| cond.then_some(());
 
-    require(impl_constraint.trait_bound.trait_id != override_constraint.trait_bound.trait_id)?;
+    require(impl_constraint.trait_bound.trait_id == override_constraint.trait_bound.trait_id)?;
 
     let mut bindings = TypeBindings::default();
     impl_constraint.typ.try_unify(&override_constraint.typ, &mut bindings).ok()?;
