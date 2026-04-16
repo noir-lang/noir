@@ -1079,7 +1079,7 @@ fn constraints_unify(
     let impl_generics = &impl_constraint.trait_bound.trait_generics;
     let override_generics = &override_constraint.trait_bound.trait_generics;
 
-    require(impl_generics.ordered.len() != override_generics.ordered.len())?;
+    require(impl_generics.ordered.len() == override_generics.ordered.len())?;
 
     let generics = impl_generics.ordered.iter().zip(&override_generics.ordered);
     for (impl_generic, override_generic) in generics {
