@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776366861308,
+  "lastUpdate": 1776367022474,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fe15baeeb16aa13c81828ff807a12cce7b7e25db",
-          "message": "feat: avoid duplicated calculation of CFG (#12164)",
-          "timestamp": "2026-04-08T12:26:41Z",
-          "tree_id": "549cc3042f70a2840f44fb1993a3fe7d723d49c4",
-          "url": "https://github.com/noir-lang/noir/commit/fe15baeeb16aa13c81828ff807a12cce7b7e25db"
-        },
-        "date": 1775652781621,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167945,
-            "range": "± 215",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137566,
-            "range": "± 3787",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643070,
-            "range": "± 2431",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645154,
             "range": "± 2056",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "681b9c6b181d6651cf195226590cf68a34e254c4",
+          "message": "chore(ssa): Inlining pass module doc comments (#12337)",
+          "timestamp": "2026-04-16T18:52:42Z",
+          "tree_id": "016697455b213231781de6dfbdd4899257943fc7",
+          "url": "https://github.com/noir-lang/noir/commit/681b9c6b181d6651cf195226590cf68a34e254c4"
+        },
+        "date": 1776366967690,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167990,
+            "range": "± 1530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138306,
+            "range": "± 372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645146,
+            "range": "± 5928",
             "unit": "ns/iter"
           }
         ]
