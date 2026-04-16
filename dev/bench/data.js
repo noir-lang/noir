@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776351208834,
+  "lastUpdate": 1776366861308,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1de11522a39ef7f5de86201a1d662f9958e098ac",
-          "message": "fix: check oracle return type on any function expr, not only on calls (#12158)",
-          "timestamp": "2026-04-07T22:13:10Z",
-          "tree_id": "0d9cdce4df88b8e8b5a3e821379f7dea0b458273",
-          "url": "https://github.com/noir-lang/noir/commit/1de11522a39ef7f5de86201a1d662f9958e098ac"
-        },
-        "date": 1775601384105,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169491,
-            "range": "± 254",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137078,
-            "range": "± 2825",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642672,
-            "range": "± 1730",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644572,
             "range": "± 8193",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7734c5876a540842fc953d8b354a66947fb06e0d",
+          "message": "chore(ssa): Merge provably equivalent sets in load_store_forwarding (#12338)",
+          "timestamp": "2026-04-16T18:50:00Z",
+          "tree_id": "daf9cb1113f982212479045c144ff90e1ac0b5e2",
+          "url": "https://github.com/noir-lang/noir/commit/7734c5876a540842fc953d8b354a66947fb06e0d"
+        },
+        "date": 1776366807299,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169001,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138707,
+            "range": "± 5696",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645154,
+            "range": "± 2056",
             "unit": "ns/iter"
           }
         ]
