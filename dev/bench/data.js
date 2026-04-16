@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776348491883,
+  "lastUpdate": 1776350183143,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22186,48 +22186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f190e7831f1ab79a4aaabb66ba2db3b5f48a9700",
-          "message": "feat!: remove u1 type from user-facing Noir (#11753)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2026-04-07T21:16:17Z",
-          "tree_id": "06127e68109bd71dbccaa1810e363085c714cee4",
-          "url": "https://github.com/noir-lang/noir/commit/f190e7831f1ab79a4aaabb66ba2db3b5f48a9700"
-        },
-        "date": 1775597936527,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169158,
-            "range": "± 176",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137584,
-            "range": "± 6288",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2640882,
-            "range": "± 1471",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -24279,6 +24237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645435,
             "range": "± 21777",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d77f5adb214c9a3c7428d953d0d7be09d7d9abc",
+          "message": "fix: consider reference mutability in load_store_forwarding (#12331)",
+          "timestamp": "2026-04-16T14:10:01Z",
+          "tree_id": "a699836d664de8a1a4b9092f2bfeab9e047c03da",
+          "url": "https://github.com/noir-lang/noir/commit/1d77f5adb214c9a3c7428d953d0d7be09d7d9abc"
+        },
+        "date": 1776350128102,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168324,
+            "range": "± 343",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139427,
+            "range": "± 6613",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644572,
+            "range": "± 8193",
             "unit": "ns/iter"
           }
         ]
