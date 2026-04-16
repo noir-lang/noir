@@ -1086,7 +1086,7 @@ fn constraints_unify(
         impl_generic.try_unify(override_generic, &mut bindings).ok()?;
     }
 
-    require(impl_generics.named.len() != override_generics.named.len())?;
+    require(impl_generics.named.len() == override_generics.named.len())?;
 
     let named_override_generics = &override_generics.named;
     for impl_named in &impl_generics.named {
