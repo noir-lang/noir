@@ -40,7 +40,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// assert(empty_vector.len() == 0);
     /// ```
     ///
-    /// Note that whenever calling `new` the maximum length of the vector should always be specified
+    /// Note that whenever calling `new` the maximum length of the vector should generally be specified
     /// via a type signature:
     ///
     /// ```noir
@@ -60,10 +60,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     v3.push(5);
     /// }
     /// ```
-    ///
-    /// This defaulting of `MaxLen` (and numeric generics in general) to zero may change in future noir versions
-    /// but for now make sure to use type annotations when using bounded vectors. Otherwise, you will receive a
-    /// constraint failure at runtime when the vec is pushed to.
     pub fn new() -> Self {
         let zeroed = crate::mem::zeroed();
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
@@ -403,10 +399,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn pop(&mut self) -> T {
         assert(self.len > 0, "cannot pop from an empty vector");
         self.len -= 1;
-
-        let elem = self.storage[self.len];
-        self.storage[self.len] = crate::mem::zeroed();
-        elem
+        self.storage[self.len]
     }
 
     /// Returns true if the given predicate returns true for any element
@@ -559,10 +552,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Creates a new BoundedVec from the given array and length.
     /// The given length must be less than or equal to the length of the array.
     ///
-    /// This function will zero out any elements at or past index `len` of `array`.
-    /// This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
-    /// zeroed after that index, you can use [`from_parts_unchecked`][Self::from_parts_unchecked] to remove the extra loop.
-    ///
     /// Example:
     ///
     /// ```noir
@@ -571,20 +560,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```
     pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
-        let zeroed = crate::mem::zeroed();
-
-        if is_unconstrained() {
-            for i in len..MaxLen {
-                array[i] = zeroed;
-            }
-        } else {
-            for i in 0..MaxLen {
-                if i >= len {
-                    array[i] = zeroed;
-                }
-            }
-        }
-
         BoundedVec { storage: array, len }
     }
 
@@ -611,6 +586,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// // fails because elements past the length are still checked in eq
     /// assert_eq(vec1, vec2); // fails
     /// ```
+    #[deprecated("`BoundedVec::from_parts` no longer requires an extra loop, `BoundedVec::from_parts_unchecked` is no longer required")]
     pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
         BoundedVec { storage: array, len }
@@ -622,16 +598,45 @@ where
     T: Eq,
 {
     fn eq(self, other: BoundedVec<T, MaxLen>) -> bool {
-        // TODO: https://github.com/noir-lang/noir/issues/4837
-        //
-        // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
-        // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
         if self.len == other.len {
-            self.storage == other.storage
+            if is_unconstrained() {
+                // safety: we are already in an unconstrained context
+                unsafe {
+                    unconstrained_eq(self, other)
+                }
+            } else {
+                let mut eq = true;
+                for i in 0..MaxLen {
+                    if i < self.len {
+                        eq &= self.storage[i] == other.storage[i];
+                    }
+                }
+                eq
+            }
         } else {
             false
         }
     }
+}
+
+/// Returns true if both BoundedVecs are equal.
+/// Note: This assumes the lengths of both Vecs are already equal!
+/// This function is broken out of `impl Eq for BoundedVec` to make use of `break` in unconstrained code.
+unconstrained fn unconstrained_eq<T, let MaxLen: u32>(
+    a: BoundedVec<T, MaxLen>,
+    b: BoundedVec<T, MaxLen>,
+) -> bool
+where
+    T: Eq,
+{
+    let mut eq = true;
+    for i in 0..a.len {
+        if a.storage[i] != b.storage[i] {
+            eq = false;
+            break;
+        }
+    }
+    eq
 }
 
 impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> {
@@ -1156,28 +1161,12 @@ mod bounded_vec_tests {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
-            // Any elements past the given length are zeroed out, so these
+            // Any elements past the given length are ignored, so these
             // two BoundedVecs will be completely equal
             let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
             let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
             assert_eq(vec1, vec2);
             // docs:end:from-parts
-        }
-
-        #[test]
-        fn from_parts_unchecked() {
-            // docs:start:from-parts-unchecked
-            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
-            assert_eq(vec.len(), 3);
-
-            // invalid use!
-            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
-            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
-
-            // both vecs have length 3 so we'd expect them to be equal, but this
-            // fails because elements past the length are still checked in eq
-            assert(vec1 != vec2);
-            // docs:end:from-parts-unchecked
         }
     }
 
@@ -1442,8 +1431,8 @@ mod bounded_vec_tests {
             let mut vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
 
             let _ = vec.pop();
-            // after pop, the last element should be zeroed
-            assert_eq(vec.storage(), [1, 2, 0]);
+            // after pop, the last element should be unmodified
+            assert_eq(vec.storage(), [1, 2, 3]);
             assert_eq(vec.len(), 2);
         }
 
