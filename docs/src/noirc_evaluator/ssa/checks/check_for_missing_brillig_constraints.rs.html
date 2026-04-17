@@ -333,7 +333,7 @@
 <a href=#333 id=333 data-nosnippet>333</a>            {
 <a href=#334 id=334 data-nosnippet>334</a>                <span class="comment">// Skip already visited locations (happens often in unrolled functions)
 <a href=#335 id=335 data-nosnippet>335</a>                </span><span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(<span class="kw-2">*</span>instruction);
-<a href=#336 id=336 data-nosnippet>336</a>                <span class="kw">let </span>location = call_stack.last();
+<a href=#336 id=336 data-nosnippet>336</a>                <span class="kw">let </span>location = call_stack.last().filter(|loc| !loc.is_dummy());
 <a href=#337 id=337 data-nosnippet>337</a>
 <a href=#338 id=338 data-nosnippet>338</a>                <span class="comment">// If there is no call stack (happens for tests), consider unvisited
 <a href=#339 id=339 data-nosnippet>339</a>                </span><span class="kw">let </span>visited =
@@ -371,8 +371,8 @@
 <a href=#371 id=371 data-nosnippet>371</a>                        });
 <a href=#372 id=372 data-nosnippet>372</a>                    }
 <a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(location) = location {
-<a href=#375 id=375 data-nosnippet>375</a>                        <span class="self">self</span>.visited_locations.insert((<span class="kw-2">*</span>callee, <span class="kw-2">*</span>location));
+<a href=#374 id=374 data-nosnippet>374</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(loc) = location {
+<a href=#375 id=375 data-nosnippet>375</a>                        <span class="self">self</span>.visited_locations.insert((<span class="kw-2">*</span>callee, <span class="kw-2">*</span>loc));
 <a href=#376 id=376 data-nosnippet>376</a>                    }
 <a href=#377 id=377 data-nosnippet>377</a>                }
 <a href=#378 id=378 data-nosnippet>378</a>            }

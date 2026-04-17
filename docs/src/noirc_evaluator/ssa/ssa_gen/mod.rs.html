@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>        } <span class="kw">else </span>{
 <a href=#166 id=166 data-nosnippet>166</a>            <span class="macro">format!</span>(<span class="string">"{payload:?}"</span>)
 <a href=#167 id=167 data-nosnippet>167</a>        };
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>err = RuntimeError::SsaValidationError { message, call_stack: CallStack::empty() };
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="prelude-val">Err</span>(err)
 <a href=#170 id=170 data-nosnippet>170</a>    } <span class="kw">else </span>{
 <a href=#171 id=171 data-nosnippet>171</a>        <span class="prelude-val">Ok</span>(ssa)
@@ -1558,7 +1558,7 @@
 <a href=#1558 id=1558 data-nosnippet>1558</a>        <span class="kw">let </span>loop_end = current_loop.loop_end;
 <a href=#1559 id=1559 data-nosnippet>1559</a>        <span class="self">self</span>.builder.terminate_with_jmp(loop_end, Vec::new());
 <a href=#1560 id=1560 data-nosnippet>1560</a>
-<a href=#1561 id=1561 data-nosnippet>1561</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+<a href=#1561 id=1561 data-nosnippet>1561</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
 <a href=#1562 id=1562 data-nosnippet>1562</a>    }
 <a href=#1563 id=1563 data-nosnippet>1563</a>
 <a href=#1564 id=1564 data-nosnippet>1564</a>    <span class="kw">fn </span>codegen_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
@@ -1572,7 +1572,7 @@
 <a href=#1572 id=1572 data-nosnippet>1572</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
 <a href=#1573 id=1573 data-nosnippet>1573</a>        }
 <a href=#1574 id=1574 data-nosnippet>1574</a>
-<a href=#1575 id=1575 data-nosnippet>1575</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+<a href=#1575 id=1575 data-nosnippet>1575</a>        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
 <a href=#1576 id=1576 data-nosnippet>1576</a>    }
 <a href=#1577 id=1577 data-nosnippet>1577</a>
 <a href=#1578 id=1578 data-nosnippet>1578</a>    <span class="doccomment">/// Evaluate the given expression, increment the reference count of each array within,

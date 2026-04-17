@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a>    FieldElement,
 <a href=#3 id=3 data-nosnippet>3</a>    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
 <a href=#4 id=4 data-nosnippet>4</a>};
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>noirc_errors::{Location, call_stack::CallStackId};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackId};
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use crate</span>::{
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="doccomment">/// Choose a call stack to return with the [RuntimeError].
 <a href=#62 id=62 data-nosnippet>62</a>    ///
 <a href=#63 id=63 data-nosnippet>63</a>    /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
-<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; Vec&lt;Location&gt; {
+<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; CallStack {
 <a href=#65 id=65 data-nosnippet>65</a>        <span class="comment">// The value points at one of the problematic references, while the instruction would
 <a href=#66 id=66 data-nosnippet>66</a>        // point at where we got the if-then-else; it's not clear which one is more useful.
 <a href=#67 id=67 data-nosnippet>67</a>        </span><span class="kw">let </span>call_stack = <span class="self">self</span>.dfg.get_value_call_stack(value);

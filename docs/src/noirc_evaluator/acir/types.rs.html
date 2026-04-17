@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(var),
 <a href=#166 id=166 data-nosnippet>166</a>            AcirValue::DynamicArray(<span class="kw">_</span>) | AcirValue::Array(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InternalError::General {
 <a href=#167 id=167 data-nosnippet>167</a>                message: <span class="string">"Called AcirValue::into_var on an array"</span>.to_string(),
-<a href=#168 id=168 data-nosnippet>168</a>                call_stack: CallStack::new(),
+<a href=#168 id=168 data-nosnippet>168</a>                call_stack: CallStack::empty(),
 <a href=#169 id=169 data-nosnippet>169</a>            }),
 <a href=#170 id=170 data-nosnippet>170</a>        }
 <a href=#171 id=171 data-nosnippet>171</a>    }
@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>var),
 <a href=#176 id=176 data-nosnippet>176</a>            AcirValue::DynamicArray(<span class="kw">_</span>) | AcirValue::Array(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InternalError::General {
 <a href=#177 id=177 data-nosnippet>177</a>                message: <span class="string">"Called AcirValue::borrow_var on an array"</span>.to_string(),
-<a href=#178 id=178 data-nosnippet>178</a>                call_stack: CallStack::new(),
+<a href=#178 id=178 data-nosnippet>178</a>                call_stack: CallStack::empty(),
 <a href=#179 id=179 data-nosnippet>179</a>            }),
 <a href=#180 id=180 data-nosnippet>180</a>        }
 <a href=#181 id=181 data-nosnippet>181</a>    }

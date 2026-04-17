@@ -348,7 +348,7 @@
 <a href=#348 id=348 data-nosnippet>348</a>            </span><span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
 <a href=#349 id=349 data-nosnippet>349</a>                <span class="kw">return </span>LoopUnrollResult::Failed(
 <a href=#350 id=350 data-nosnippet>350</a>                    loop_.header,
-<a href=#351 id=351 data-nosnippet>351</a>                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+<a href=#351 id=351 data-nosnippet>351</a>                    RuntimeError::UnknownLoopBound { call_stack: CallStack::empty() },
 <a href=#352 id=352 data-nosnippet>352</a>                );
 <a href=#353 id=353 data-nosnippet>353</a>            }
 <a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">return </span>LoopUnrollResult::Skipped;
@@ -865,7 +865,7 @@
 <a href=#865 id=865 data-nosnippet>865</a>            <span class="prelude-val">Ok</span>(pre_header.remove(<span class="number">0</span>))
 <a href=#866 id=866 data-nosnippet>866</a>        } <span class="kw">else </span>{
 <a href=#867 id=867 data-nosnippet>867</a>            <span class="comment">// We can come back into the header from multiple blocks, so we can't unroll this.
-<a href=#868 id=868 data-nosnippet>868</a>            </span><span class="prelude-val">Err</span>(CallStack::new())
+<a href=#868 id=868 data-nosnippet>868</a>            </span><span class="prelude-val">Err</span>(CallStack::empty())
 <a href=#869 id=869 data-nosnippet>869</a>        }
 <a href=#870 id=870 data-nosnippet>870</a>    }
 <a href=#871 id=871 data-nosnippet>871</a>
@@ -1622,7 +1622,7 @@
 <a href=#1622 id=1622 data-nosnippet>1622</a>            }
 <a href=#1623 id=1623 data-nosnippet>1623</a>        }
 <a href=#1624 id=1624 data-nosnippet>1624</a>        <span class="prelude-val">Some</span>(terminator) =&gt; <span class="prelude-val">Err</span>(dfg.get_call_stack(terminator.call_stack())),
-<a href=#1625 id=1625 data-nosnippet>1625</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(CallStack::new()),
+<a href=#1625 id=1625 data-nosnippet>1625</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(CallStack::empty()),
 <a href=#1626 id=1626 data-nosnippet>1626</a>    }
 <a href=#1627 id=1627 data-nosnippet>1627</a>}
 <a href=#1628 id=1628 data-nosnippet>1628</a>
@@ -1648,7 +1648,7 @@
 <a href=#1648 id=1648 data-nosnippet>1648</a>            <span class="prelude-val">Ok</span>(arguments.clone())
 <a href=#1649 id=1649 data-nosnippet>1649</a>        }
 <a href=#1650 id=1650 data-nosnippet>1650</a>        <span class="prelude-val">Some</span>(terminator) =&gt; <span class="prelude-val">Err</span>(dfg.get_call_stack(terminator.call_stack())),
-<a href=#1651 id=1651 data-nosnippet>1651</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(CallStack::new()),
+<a href=#1651 id=1651 data-nosnippet>1651</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(CallStack::empty()),
 <a href=#1652 id=1652 data-nosnippet>1652</a>    }
 <a href=#1653 id=1653 data-nosnippet>1653</a>}
 <a href=#1654 id=1654 data-nosnippet>1654</a>

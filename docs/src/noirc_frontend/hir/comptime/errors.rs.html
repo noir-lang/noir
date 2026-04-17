@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>    token::Token,
 <a href=#13 id=13 data-nosnippet>13</a>};
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>acvm::{BlackBoxResolutionError, FieldElement};
-<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a><span class="doccomment">/// The possible errors that can halt the interpreter.
 <a href=#18 id=18 data-nosnippet>18</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
@@ -533,7 +533,7 @@
 <a href=#533 id=533 data-nosnippet>533</a>                };
 <a href=#534 id=534 data-nosnippet>534</a>                <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_error(primary, secondary, <span class="kw-2">*</span>location);
 <a href=#535 id=535 data-nosnippet>535</a>
-<a href=#536 id=536 data-nosnippet>536</a>                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+<a href=#536 id=536 data-nosnippet>536</a>                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
 <a href=#537 id=537 data-nosnippet>537</a>            }
 <a href=#538 id=538 data-nosnippet>538</a>            InterpreterError::NonIntegerUsedInLoop { typ, location } =&gt; {
 <a href=#539 id=539 data-nosnippet>539</a>                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Non-integer type `{typ}` used in for loop"</span>);
@@ -870,7 +870,7 @@
 <a href=#870 id=870 data-nosnippet>870</a>                    <span class="string">"Exceeded the recursion limit"</span>.to_string(),
 <a href=#871 id=871 data-nosnippet>871</a>                    <span class="kw-2">*</span>location,
 <a href=#872 id=872 data-nosnippet>872</a>                );
-<a href=#873 id=873 data-nosnippet>873</a>                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+<a href=#873 id=873 data-nosnippet>873</a>                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
 <a href=#874 id=874 data-nosnippet>874</a>            }
 <a href=#875 id=875 data-nosnippet>875</a>            InterpreterError::EvaluationDepthOverflow { location, call_stack } =&gt; {
 <a href=#876 id=876 data-nosnippet>876</a>                <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_error(
@@ -879,7 +879,7 @@
 <a href=#879 id=879 data-nosnippet>879</a>                        </span>.to_string(),
 <a href=#880 id=880 data-nosnippet>880</a>                    <span class="kw-2">*</span>location,
 <a href=#881 id=881 data-nosnippet>881</a>                );
-<a href=#882 id=882 data-nosnippet>882</a>                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+<a href=#882 id=882 data-nosnippet>882</a>                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
 <a href=#883 id=883 data-nosnippet>883</a>            }
 <a href=#884 id=884 data-nosnippet>884</a>            InterpreterError::AttributeRecursionLimitExceeded { location } =&gt; {
 <a href=#885 id=885 data-nosnippet>885</a>                CustomDiagnostic::simple_error(

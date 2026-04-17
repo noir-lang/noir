@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>            <span class="kw">let </span>error_msg = panic_message.lock().unwrap().clone();
 <a href=#61 id=61 data-nosnippet>61</a>            <span class="prelude-val">Err</span>(RuntimeError::InternalError(InternalError::General {
 <a href=#62 id=62 data-nosnippet>62</a>                message: <span class="macro">format!</span>(<span class="string">"Panic occurred: {error_msg}"</span>),
-<a href=#63 id=63 data-nosnippet>63</a>                call_stack: CallStack::default(),
+<a href=#63 id=63 data-nosnippet>63</a>                call_stack: CallStack::empty(),
 <a href=#64 id=64 data-nosnippet>64</a>            }))
 <a href=#65 id=65 data-nosnippet>65</a>        }
 <a href=#66 id=66 data-nosnippet>66</a>    }

@@ -86,7 +86,7 @@
 <a href=#86 id=86 data-nosnippet>86</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(artifact) = artifact <span class="kw">else </span>{
 <a href=#87 id=87 data-nosnippet>87</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
 <a href=#88 id=88 data-nosnippet>88</a>                message: <span class="macro">format!</span>(<span class="string">"Cannot find linked fn {unresolved_fn_label}"</span>),
-<a href=#89 id=89 data-nosnippet>89</a>                call_stack: CallStack::new(),
+<a href=#89 id=89 data-nosnippet>89</a>                call_stack: CallStack::empty(),
 <a href=#90 id=90 data-nosnippet>90</a>            }
 <a href=#91 id=91 data-nosnippet>91</a>            .into());
 <a href=#92 id=92 data-nosnippet>92</a>        };

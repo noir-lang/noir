@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>im::HashMap;
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>iter_extended::vecmap;
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>itertools::Itertools;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>noirc_errors::{Location, call_stack::CallStackId};
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackId};
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span><span class="kw">crate</span>::ssa::{
 <a href=#23 id=23 data-nosnippet>23</a>    function_builder::FunctionBuilder,
@@ -532,7 +532,7 @@
 <a href=#532 id=532 data-nosnippet>532</a>    </span><span class="kw">fn </span>validate_callee(
 <a href=#533 id=533 data-nosnippet>533</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#534 id=534 data-nosnippet>534</a>        callee: <span class="kw-2">&amp;</span>Function,
-<a href=#535 id=535 data-nosnippet>535</a>        call_stack: Vec&lt;Location&gt;,
+<a href=#535 id=535 data-nosnippet>535</a>        call_stack: CallStack,
 <a href=#536 id=536 data-nosnippet>536</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
 <a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">if </span><span class="self">self</span>.entry_function.runtime().is_brillig() &amp;&amp; callee.runtime().is_acir() {
 <a href=#538 id=538 data-nosnippet>538</a>            <span class="comment">// If the caller is Brillig and the called function is ACIR,

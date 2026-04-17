@@ -1016,32 +1016,35 @@
 <a href=#1016 id=1016 data-nosnippet>1016</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
 <a href=#1017 id=1017 data-nosnippet>1017</a>                    },
 <a href=#1018 id=1018 data-nosnippet>1018</a>                };
-<a href=#1019 id=1019 data-nosnippet>1019</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
-<a href=#1020 id=1020 data-nosnippet>1020</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
-<a href=#1021 id=1021 data-nosnippet>1021</a>            <span class="kw">let </span>diagnostic =
-<a href=#1022 id=1022 data-nosnippet>1022</a>                CustomDiagnostic::simple_warning(message, secondary_message, <span class="kw-2">*</span>location);
-<a href=#1023 id=1023 data-nosnippet>1023</a>            diagnostic.with_call_stack(call_stack)
-<a href=#1024 id=1024 data-nosnippet>1024</a>        }
-<a href=#1025 id=1025 data-nosnippet>1025</a>        SsaReport::Bug(bug) =&gt; {
-<a href=#1026 id=1026 data-nosnippet>1026</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
-<a href=#1027 id=1027 data-nosnippet>1027</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
-<a href=#1028 id=1028 data-nosnippet>1028</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
-<a href=#1029 id=1029 data-nosnippet>1029</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
-<a href=#1030 id=1030 data-nosnippet>1030</a>                    }
-<a href=#1031 id=1031 data-nosnippet>1031</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
-<a href=#1032 id=1032 data-nosnippet>1032</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
-<a href=#1033 id=1033 data-nosnippet>1033</a>                    }
-<a href=#1034 id=1034 data-nosnippet>1034</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
-<a href=#1035 id=1035 data-nosnippet>1035</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
-<a href=#1036 id=1036 data-nosnippet>1036</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
-<a href=#1037 id=1037 data-nosnippet>1037</a>                        }
-<a href=#1038 id=1038 data-nosnippet>1038</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
-<a href=#1039 id=1039 data-nosnippet>1039</a>                    }
-<a href=#1040 id=1040 data-nosnippet>1040</a>                };
-<a href=#1041 id=1041 data-nosnippet>1041</a>            <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
-<a href=#1042 id=1042 data-nosnippet>1042</a>            <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
-<a href=#1043 id=1043 data-nosnippet>1043</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, <span class="kw-2">*</span>location);
-<a href=#1044 id=1044 data-nosnippet>1044</a>            diagnostic.with_call_stack(call_stack)
-<a href=#1045 id=1045 data-nosnippet>1045</a>        }
-<a href=#1046 id=1046 data-nosnippet>1046</a>    }
-<a href=#1047 id=1047 data-nosnippet>1047</a>}</code></pre></div></section></main></body></html>
+<a href=#1019 id=1019 data-nosnippet>1019</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
+<a href=#1020 id=1020 data-nosnippet>1020</a>            <span class="kw">if </span>location.is_dummy() {
+<a href=#1021 id=1021 data-nosnippet>1021</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Warning to have a location"</span>);
+<a href=#1022 id=1022 data-nosnippet>1022</a>            }
+<a href=#1023 id=1023 data-nosnippet>1023</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
+<a href=#1024 id=1024 data-nosnippet>1024</a>            diagnostic.with_call_stack(call_stack)
+<a href=#1025 id=1025 data-nosnippet>1025</a>        }
+<a href=#1026 id=1026 data-nosnippet>1026</a>        SsaReport::Bug(bug) =&gt; {
+<a href=#1027 id=1027 data-nosnippet>1027</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
+<a href=#1028 id=1028 data-nosnippet>1028</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
+<a href=#1029 id=1029 data-nosnippet>1029</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
+<a href=#1030 id=1030 data-nosnippet>1030</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
+<a href=#1031 id=1031 data-nosnippet>1031</a>                    }
+<a href=#1032 id=1032 data-nosnippet>1032</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
+<a href=#1033 id=1033 data-nosnippet>1033</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
+<a href=#1034 id=1034 data-nosnippet>1034</a>                    }
+<a href=#1035 id=1035 data-nosnippet>1035</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
+<a href=#1036 id=1036 data-nosnippet>1036</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
+<a href=#1037 id=1037 data-nosnippet>1037</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
+<a href=#1038 id=1038 data-nosnippet>1038</a>                        }
+<a href=#1039 id=1039 data-nosnippet>1039</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
+<a href=#1040 id=1040 data-nosnippet>1040</a>                    }
+<a href=#1041 id=1041 data-nosnippet>1041</a>                };
+<a href=#1042 id=1042 data-nosnippet>1042</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
+<a href=#1043 id=1043 data-nosnippet>1043</a>            <span class="kw">if </span>location.is_dummy() {
+<a href=#1044 id=1044 data-nosnippet>1044</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Bug to have a location"</span>);
+<a href=#1045 id=1045 data-nosnippet>1045</a>            }
+<a href=#1046 id=1046 data-nosnippet>1046</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
+<a href=#1047 id=1047 data-nosnippet>1047</a>            diagnostic.with_call_stack(call_stack)
+<a href=#1048 id=1048 data-nosnippet>1048</a>        }
+<a href=#1049 id=1049 data-nosnippet>1049</a>    }
+<a href=#1050 id=1050 data-nosnippet>1050</a>}</code></pre></div></section></main></body></html>

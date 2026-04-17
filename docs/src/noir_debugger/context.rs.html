@@ -17,7 +17,7 @@
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackId};
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>noirc_printable_type::{PrintableType, PrintableValue};
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>thiserror::Error;
 <a href=#23 id=23 data-nosnippet>23</a>
@@ -546,7 +546,7 @@
 <a href=#546 id=546 data-nosnippet>546</a>                        .location_tree
 <a href=#547 id=547 data-nosnippet>547</a>                        .get_call_stack(call_stack_id)
 <a href=#548 id=548 data-nosnippet>548</a>                } <span class="kw">else </span>{
-<a href=#549 id=549 data-nosnippet>549</a>                    <span class="macro">vec!</span>[]
+<a href=#549 id=549 data-nosnippet>549</a>                    CallStack::empty()
 <a href=#550 id=550 data-nosnippet>550</a>                }
 <a href=#551 id=551 data-nosnippet>551</a>            })
 <a href=#552 id=552 data-nosnippet>552</a>            .into_iter()
@@ -1049,7 +1049,7 @@
 <a href=#1049 id=1049 data-nosnippet>1049</a>) {
 <a href=#1050 id=1050 data-nosnippet>1050</a>    <span class="kw">for </span>(opcode_location, source_locations) <span class="kw">in </span>opcode_to_locations {
 <a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="kw">let </span>source_locations = debug_info.location_tree.get_call_stack(<span class="kw-2">*</span>source_locations);
-<a href=#1052 id=1052 data-nosnippet>1052</a>        source_locations.iter().for_each(|source_location| {
+<a href=#1052 id=1052 data-nosnippet>1052</a>        source_locations.into_iter().for_each(|source_location| {
 <a href=#1053 id=1053 data-nosnippet>1053</a>            <span class="kw">let </span>span = source_location.span;
 <a href=#1054 id=1054 data-nosnippet>1054</a>            <span class="kw">let </span>file_id = source_location.file;
 <a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(file) = simple_files.get(<span class="kw-2">&amp;</span>file_id) <span class="kw">else </span>{
