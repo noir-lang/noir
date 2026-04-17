@@ -80,9 +80,7 @@ impl Function {
         // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
         let instructions = inserter.function.dfg[block].take_instructions();
         for instruction_id in &instructions {
-            if !instructions_to_remove.contains(instruction_id) {
-                inserter.push_instruction(*instruction_id, block, true);
-            }
+            inserter.push_instruction(*instruction_id, block, true);
         }
         inserter.map_terminator_in_place(block);
         inserter.map_data_bus_in_place();
