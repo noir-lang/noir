@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776459098579,
+  "lastUpdate": 1776459141687,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7245cf85ebc68f441b93e0c20d4498de6bd9d877",
-          "message": "fix: Fix cycle in lookup_associated_type_in_parent_impls (#12160)",
-          "timestamp": "2026-04-09T20:15:22Z",
-          "tree_id": "9162ab4c8a0976c4802b2bfec8efd47fcbb80d8f",
-          "url": "https://github.com/noir-lang/noir/commit/7245cf85ebc68f441b93e0c20d4498de6bd9d877"
-        },
-        "date": 1775767295445,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168751,
-            "range": "± 254",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137467,
-            "range": "± 982",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642206,
-            "range": "± 2251",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359913,
             "range": "± 6979",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b2c4fcbe1321e760d555cc148daf4c3fdac266d",
+          "message": "feat(ssa): Only load/store the extracted tuple field for mutable variables (#12241)",
+          "timestamp": "2026-04-17T20:28:47Z",
+          "tree_id": "18168de30ae17192b6628b71183d5892ba3a6794",
+          "url": "https://github.com/noir-lang/noir/commit/3b2c4fcbe1321e760d555cc148daf4c3fdac266d"
+        },
+        "date": 1776459084830,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128192,
+            "range": "± 235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113336,
+            "range": "± 536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043571,
+            "range": "± 6191",
             "unit": "ns/iter"
           }
         ]
