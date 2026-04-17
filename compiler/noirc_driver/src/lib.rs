@@ -12,7 +12,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::{CustomDiagnostic, DiagnosticKind};
+use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
@@ -170,12 +170,6 @@ pub struct CompileOptions {
     #[arg(long)]
     pub count_array_copies: bool,
 
-    /// Flag to turn on the lookback feature of the Brillig call constraints
-    /// check, allowing tracking argument values before the call happens preventing
-    /// certain rare false positives (leads to a slowdown on large rollout functions)
-    #[arg(long)]
-    pub enable_brillig_constraints_check_lookback: bool,
-
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -290,7 +284,6 @@ impl Default for CompileOptions {
             skip_brillig_constraints_check: false,
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
-            enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
@@ -333,11 +326,8 @@ impl CompileOptions {
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
-            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
-            enable_brillig_constraints_check_lookback: self
-                .enable_brillig_constraints_check_lookback,
-            skip_brillig_constraints_check: !self.silence_warnings
-                && self.skip_brillig_constraints_check,
+            skip_underconstrained_check: self.skip_underconstrained_check,
+            skip_brillig_constraints_check: self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
@@ -515,7 +505,7 @@ pub fn check_crate(
         .map(CustomDiagnostic::from)
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
-            !options.silence_warnings || diagnostic.kind != DiagnosticKind::Warning
+            !options.silence_warnings || !diagnostic.is_warning()
         })
         .filter(|error| {
             // Only keep warnings from the crate we are checking
@@ -569,12 +559,17 @@ pub fn compile_main(
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    if !options.silence_warnings {
-        warnings.extend(compilation_warnings);
-    }
+
+    // Make sure we don't hide bugs, only warnings can be silenced.
+    warnings.extend(
+        compilation_warnings
+            .into_iter()
+            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
+    );
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
