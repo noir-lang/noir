@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776435174033,
+  "lastUpdate": 1776448093087,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5cc82dc07e791c5d89660d9fc0ba762e8cc57409",
-          "message": "fix(ssa): prevent false merge collapses when inner IfElse simplifies to its condition (#12189)",
-          "timestamp": "2026-04-09T10:30:05Z",
-          "tree_id": "0f7e0ddeebec63d2b20898ffbd0db2f8e339a9c0",
-          "url": "https://github.com/noir-lang/noir/commit/5cc82dc07e791c5d89660d9fc0ba762e8cc57409"
-        },
-        "date": 1775732127868,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169374,
-            "range": "± 1155",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136916,
-            "range": "± 8604",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2640265,
-            "range": "± 5712",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644056,
             "range": "± 2697",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2a4d12d4b782dee357f5c86f4bf88e683d682592",
+          "message": "chore(deps): bump basic-ftp from 5.2.0 to 5.2.2 (#12342)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-04-17T17:24:39Z",
+          "tree_id": "adc58b62a0f5e2160721c93be02ab0d16091d978",
+          "url": "https://github.com/noir-lang/noir/commit/2a4d12d4b782dee357f5c86f4bf88e683d682592"
+        },
+        "date": 1776448035808,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127811,
+            "range": "± 329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113720,
+            "range": "± 789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041604,
+            "range": "± 32433",
             "unit": "ns/iter"
           }
         ]
