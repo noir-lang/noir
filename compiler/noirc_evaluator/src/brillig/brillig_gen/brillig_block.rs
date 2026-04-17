@@ -237,6 +237,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Check fist permanent because ensure_permanent_spill() modifies the record.
         if (permanent && sm.ensure_permanent_spill(&value_id)) || sm.is_spilled(&value_id) {
+            // The record already exists (promoted or still currently spilled). The slot
+            // holds a valid copy because SSA values are immutable, so no store is needed.
+            // If the value had been reloaded into a register, free that register now so
+            // it isn't leaked for the remainder of the block.
+            sm.remove_from_lru(&value_id);
+            if self.variables.is_allocated(&value_id) {
+                self.variables.remove_variable(
+                    &value_id,
+                    self.function_context,
+                    self.brillig_context,
+                );
+            }
             return;
         }
 
