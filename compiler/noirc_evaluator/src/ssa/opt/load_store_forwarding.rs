@@ -148,7 +148,6 @@ fn forward_loads_and_stores_in_block(
 ) -> HashSet<InstructionId> {
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
-    let mut last_loads: HashMap<ValueId, ValueId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
@@ -170,28 +169,20 @@ fn forward_loads_and_stores_in_block(
                 let aliases =
                     |k: &ValueId| *k != address && may_alias(address, *k, allocations, dfg);
                 known_values.retain(|k, _| !aliases(k));
-                last_loads.retain(|k, _| !aliases(k));
                 last_stores.retain(|k, _| !aliases(k));
 
-                // A store supersedes any prior load from this address.
-                last_loads.remove(&address);
                 known_values.insert(address, value);
                 last_stores.insert(address, instruction_id);
             }
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
 
+                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                 if let Some(value) = known_values.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
-                } else if let Some(prev_result) = last_loads.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    inserter.map_value(result, *prev_result);
-                    instructions_to_remove.insert(instruction_id);
                 } else {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    last_loads.insert(address, result);
+                    known_values.insert(address, result);
                 }
 
                 // Mark aliased stores as used (not dead).
@@ -210,13 +201,10 @@ fn forward_loads_and_stores_in_block(
                         let dfg = &inserter.function.dfg;
                         known_values
                             .retain(|k, _| !may_alias(value, *k, allocations, dfg));
-                        last_loads
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
                         last_stores
                             .retain(|k, _| !may_alias(value, *k, allocations, dfg));
                     } else if typ.contains_reference() {
                         known_values.clear();
-                        last_loads.clear();
                         last_stores.clear();
                     }
                 });
@@ -1084,6 +1072,26 @@ mod tests {
         brillig(inline) fn f1 f1 {
           b0(v0: &mut Field):
             store Field 1 at v0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn does_not_remove_potentially_aliased_store_before_array_set() {
+        // Regression test for #12316. After `array_set` stores v0 into v2, a
+        // later `store at v1` may alias v0 (v1 could have been extracted from
+        // v2). The intervening aliased store must invalidate last_stores[v0]
+        // so that `store Field 2 at v0` does not treat `store Field 0 at v0`
+        // as a redundant prior write and eliminate it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: [&mut Field; 2]):
+            store Field 0 at v0
+            v3 = array_set v2, index u32 0, value v0
+            store Field 1 at v1
+            store Field 2 at v0
             return
         }
         ";

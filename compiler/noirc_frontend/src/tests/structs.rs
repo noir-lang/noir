@@ -670,3 +670,21 @@ fn non_overlapping_trait_impls_with_generic() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn struct_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        struct Foo {}
+
+        impl Foo {
+            fn bar() {}
+        }
+
+        fn main() {
+            Foo::bar();
+        }
+    "#;
+    assert_no_errors(src);
+}

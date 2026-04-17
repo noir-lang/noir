@@ -28,6 +28,7 @@
 <li><a href="#double">double</a></li>
 <li><a href="#generator">generator</a></li>
 <li><a href="#is_infinite">is_infinite</a></li>
+<li><a href="#new">new</a></li>
 <li><a href="#point_at_infinity">point_at_infinity</a></li>
 </ul>
 <h3>Trait implementations</h3>
@@ -68,7 +69,12 @@ x and y denotes the Weierstrass coordinates of the point.</p>
 <div class="padded-description"></div><h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
-<div class="padded-methods"><code id="double" class="code-header">pub fn <a href="#double"><span class="fn">double</span></a>(self) -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>(x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Create a new point using the provided (x, y) pair</p>
+</div>
+</div><code id="double" class="code-header">pub fn <a href="#double"><span class="fn">double</span></a>(self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Elliptic curve point doubling operation

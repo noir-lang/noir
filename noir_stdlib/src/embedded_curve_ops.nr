@@ -11,6 +11,11 @@ pub struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
+    /// Create a new point using the provided (x, y) pair
+    pub fn new(x: Field, y: Field) -> Self {
+        EmbeddedCurvePoint { x, y }
+    }
+
     /// Elliptic curve point doubling operation
     /// returns the doubled point of a point P, i.e P+P
     pub fn double(self) -> EmbeddedCurvePoint {
