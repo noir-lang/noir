@@ -246,7 +246,7 @@ fn brillig_spill_case4_diamond_wrong_output() {
 /// an extra `const u32 0; add; store sp[2] at @3` spill in between, which is
 /// absent here.
 #[test]
-fn brillig_spill_does_not_leak_reloaded_then_permanent_value() {
+fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode_() {
     let src = "
     brillig(inline) fn main f0 {
       b0(v0: u32, v1: u32, v2: u32):
@@ -347,7 +347,7 @@ fn brillig_spill_does_not_leak_reloaded_then_permanent_value() {
 /// active transient spill and ICEs with "Transient spill leaked across block boundary"
 /// at [begin_block][crate::brillig::brillig_gen::spill_manager::SpillManager::begin_block].
 #[test]
-fn brillig_spill_does_not_leak_reloaded_permanent_values() {
+fn brillig_spill_does_not_cause_transient_spill_leak() {
     let src = "
     brillig(inline) fn main f0 {
       b0(v0: u32, v1: u32, v2: u32, v3: u32):
