@@ -11,7 +11,7 @@ Resolves <!-- Link to GitHub Issue -->
 Check one:
 - [ ] No user documentation needed.
 - [ ] Documented in _docs/_.
-- [ ] **[For Experimental Features]** Tracking issue created to document this later.
+- [ ] **[For Experimental Features]** Documentation tracking issue created: <!-- Link to GitHub Issue -->
 
 ## PR Checklist
 
