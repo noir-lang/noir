@@ -31,6 +31,13 @@ impl CallStack {
         self.0.last().copied().unwrap_or(Location::dummy())
     }
 
+    /// Get the last location, unless the call stack is empty.
+    ///
+    /// Note that the last location may be a dummy.
+    pub fn last(&self) -> Option<&Location> {
+        self.0.last()
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }

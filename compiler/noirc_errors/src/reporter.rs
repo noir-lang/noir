@@ -39,19 +39,6 @@ pub struct ReportedErrors {
 }
 
 impl CustomDiagnostic {
-    /// Avoid showing secondary messages with dummy locations, because they are
-    /// displayed on top of a source file that has nothing to do with them,
-    /// which is more confusing than just showing the primary message.
-    fn secondaries(secondary_message: String, secondary_location: Location) -> Vec<CustomLabel> {
-        if secondary_location.is_dummy() {
-            // Note that empty secondary messages are allowed: in frontend unit tests
-            // they carry the span information for the primary message.
-            vec![]
-        } else {
-            vec![CustomLabel::new(secondary_message, secondary_location)]
-        }
-    }
-
     pub fn from_message(msg: &str, file: fm::FileId) -> CustomDiagnostic {
         Self {
             file,
@@ -74,7 +61,7 @@ impl CustomDiagnostic {
         CustomDiagnostic {
             file: secondary_location.file,
             message: primary_message,
-            secondaries: Self::secondaries(secondary_message, secondary_location),
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),
             kind,
             deprecated: false,
@@ -130,7 +117,7 @@ impl CustomDiagnostic {
         CustomDiagnostic {
             file: secondary_location.file,
             message: primary_message,
-            secondaries: Self::secondaries(secondary_message, secondary_location),
+            secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
             deprecated: false,
@@ -277,6 +264,11 @@ fn convert_diagnostic(
     let secondary_labels = cd
         .secondaries
         .iter()
+        .filter(|custom_label|
+            // Some secondary messages come with dummy locations.
+            // Displaying these on whatever the first file ID (id = 0)
+            // would be more confusing than displaying only the primary.
+            !custom_label.location.is_dummy())
         .map(|custom_label| {
             let location = custom_label.location;
             let span = location.span;
