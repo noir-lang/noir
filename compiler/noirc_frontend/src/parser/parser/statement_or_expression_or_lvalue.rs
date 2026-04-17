@@ -1,5 +1,8 @@
 use crate::{
-    ast::{AssignStatement, Expression, ExpressionKind, LValue, Statement, StatementKind},
+    ast::{
+        AssignOpStatement, AssignStatement, Expression, ExpressionKind, LValue, Statement,
+        StatementKind,
+    },
     token::{Token, TokenKind},
 };
 
@@ -41,6 +44,17 @@ impl Parser<'_> {
                             kind,
                             location: self.location_since(start_location),
                         });
+                    } else if let Some(op) = self.next_is_op_assign() {
+                        let expression = self.parse_expression_or_error();
+                        let kind = StatementKind::AssignOp(AssignOpStatement {
+                            lvalue: interned_lvalue(),
+                            op,
+                            expression,
+                        });
+                        return StatementOrExpressionOrLValue::Statement(Statement {
+                            kind,
+                            location: self.location_since(start_location),
+                        });
                     } else if self.current_is(Token::Dot) {
                         let object = Expression {
                             kind: ExpressionKind::Interned(interned),
@@ -67,5 +81,57 @@ impl Parser<'_> {
         } else {
             StatementOrExpressionOrLValue::Statement(statement)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::FieldElement;
+    use noirc_errors::Location;
+
+    use crate::{
+        ast::{AssignOpKind, Ident, LValue, Path, StatementKind},
+        node_interner::{InternedExpressionKind, NodeInterner},
+        parser::{Parser, StatementOrExpressionOrLValue, parser::tests::expect_no_errors},
+        token::{LocatedToken, Token, Tokens},
+    };
+
+    fn interned_lvalue() -> InternedExpressionKind {
+        let location = Location::dummy();
+        let mut interner = NodeInterner::default();
+        let ident = Ident::new("x".to_string(), location);
+        let lvalue = LValue::Path(Path::from_ident(ident));
+        interner.push_lvalue(lvalue)
+    }
+
+    #[test]
+    fn parses_op_assignment_for_interned_lvalue() {
+        let location = Location::dummy();
+        let interned = interned_lvalue();
+        let quoted = Tokens(vec![
+            LocatedToken::new(Token::InternedLValue(interned), location),
+            LocatedToken::new(Token::Plus, location),
+            LocatedToken::new(Token::Assign, location),
+            LocatedToken::new(Token::Int(FieldElement::from(1u128), None), location),
+        ]);
+
+        let parser = Parser::for_tokens(quoted);
+        let (parsed, warnings) = parser
+            .parse_result(Parser::parse_statement_or_expression_or_lvalue)
+            .expect("Expected successful parse");
+        expect_no_errors(&warnings);
+
+        let StatementOrExpressionOrLValue::Statement(statement) = parsed else {
+            panic!("Expected statement");
+        };
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected op-assignment statement");
+        };
+        let LValue::Interned(id, _) = assign_op.lvalue else {
+            panic!("Expected interned lvalue");
+        };
+        assert_eq!(id, interned);
+        assert!(matches!(assign_op.op.contents, AssignOpKind::Add));
+        assert_eq!(assign_op.expression.to_string(), "1");
     }
 }
