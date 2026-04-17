@@ -1016,10 +1016,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic =
-                CustomDiagnostic::simple_warning(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Warning to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
         SsaReport::Bug(bug) => {
@@ -1038,9 +1039,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                     }
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Bug to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
     }

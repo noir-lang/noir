@@ -165,7 +165,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::empty() };
         Err(err)
     } else {
         Ok(ssa)
@@ -1558,7 +1558,7 @@ impl FunctionContext<'_> {
         let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
@@ -1572,7 +1572,7 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,
