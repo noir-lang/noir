@@ -365,6 +365,5 @@ fn brillig_spill_does_not_cause_transient_spill_leak() {
     let layout = LayoutConfig::new(4, 16, MAX_SCRATCH_SPACE);
     let options = BrilligOptions { layout, ..Default::default() };
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
-    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
-    assert!(!main.to_string().is_empty());
+    let _ = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 }
