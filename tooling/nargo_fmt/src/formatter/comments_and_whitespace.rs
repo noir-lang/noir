@@ -334,6 +334,10 @@ mod tests {
     };
     use test_case::test_case;
 
+    fn normalize_expected_newlines(expected: &str) -> String {
+        if cfg!(windows) { expected.replace('\n', "\r\n") } else { expected.to_owned() }
+    }
+
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
         let config = Config { wrap_comments: true, comment_width, ..Config::default() };
         assert_format_with_config(src, expected, config);
@@ -833,6 +837,22 @@ mod foo;
     1
 ];\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lvalue_index_with_comment() {
+        let src = "fn foo(mut bar: [Field; 2]) {
+    bar[// hello
+    1] = 2;
+}";
+        let expected = "fn foo(mut bar: [Field; 2]) {
+    bar[
+        // hello
+        1
+    ] = 2;
+}
+";
+        assert_format(src, &normalize_expected_newlines(expected));
     }
 
     #[test]

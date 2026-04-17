@@ -401,6 +401,10 @@ impl ChunkFormatter<'_, '_> {
 mod tests {
     use crate::{assert_format, assert_format_with_max_width};
 
+    fn normalize_expected_newlines(expected: &str) -> String {
+        if cfg!(windows) { expected.replace('\n', "\r\n") } else { expected.to_owned() }
+    }
+
     #[test]
     fn format_expression_statement() {
         let src = " fn foo() { 1 } ";
@@ -616,6 +620,25 @@ mod tests {
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_op_assign_to_index_with_block() {
+        let src = "fn main(mut array: [Field; 3]) {
+    array[{
+    1;
+    2
+    }] += 3;
+}
+";
+        let expected = "fn main(mut array: [Field; 3]) {
+    array[{
+        1;
+        2
+    }] += 3;
+}
+";
+        assert_format(src, &normalize_expected_newlines(expected));
     }
 
     #[test]
