@@ -21,7 +21,8 @@ impl CallStack {
 
     /// Check if the call stack is empty.
     ///
-    /// A call stack can be non-empty and end still end in a dummy location.
+    /// A call stack can be non-empty and still end in a dummy location,
+    /// for example if we are using the SSA parser, with no source files.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
