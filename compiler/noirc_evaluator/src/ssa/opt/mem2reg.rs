@@ -305,12 +305,15 @@ fn add_terminator_arguments(
 
         for predecessor in cfg.predecessors(block) {
             let pred_state = &block_states[&predecessor];
-            let args = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
+            let mut edges = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
             for address in block_state.entry_state.keys() {
                 // Only wire arguments for IDF blocks (those with block parameters).
                 // Declaration blocks and inherited-value blocks don't have params to wire.
                 if block != variables[address] && param_locations[address].contains(&block) {
-                    args.push(pred_state.get_exit_value(*address));
+                    let value = pred_state.get_exit_value(*address);
+                    for args in &mut edges {
+                        args.push(value);
+                    }
                 }
             }
         }
@@ -334,24 +337,33 @@ impl BlockState {
     }
 }
 
-/// Get the terminator arguments for block `block` jumping to block `jmp_target`.
-/// The `jmp_target` is relevant if `block` terminates in a jmpif terminator and may jmp to
-/// multiple blocks. Panics if the given block does not have block arguments.
+/// Get the terminator argument lists for every edge from `block` to `jmp_target`.
+///
+/// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
+/// same successor, in which case both argument vectors are returned so the caller can
+/// wire each edge. Panics if the given block does not terminate in a Jmp or JmpIf.
 fn get_terminator_args_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     jmp_target: BasicBlockId,
-) -> &mut Vec<ValueId> {
+) -> Vec<&mut Vec<ValueId>> {
     match dfg[block].unwrap_terminator_mut() {
-        TerminatorInstruction::Jmp { arguments, .. } => arguments,
+        TerminatorInstruction::Jmp { arguments, .. } => vec![arguments],
         TerminatorInstruction::JmpIf {
-            then_destination, then_arguments, else_arguments, ..
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            ..
         } => {
+            let mut edges = Vec::new();
             if jmp_target == *then_destination {
-                then_arguments
-            } else {
-                else_arguments
+                edges.push(then_arguments);
             }
+            if jmp_target == *else_destination {
+                edges.push(else_arguments);
+            }
+            edges
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
             "get_terminator_args called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
@@ -1371,6 +1383,49 @@ brillig(inline) fn main f0 {
             jmp b5()
           b5():
             return v1
+        }
+        ");
+    }
+
+    /// Regression for a `JmpIf` whose `then_destination` and `else_destination` point
+    /// at the same successor block. When `mem2reg` introduces a new block parameter at
+    /// that successor, it must wire the promoted value onto both edges of the `JmpIf`.
+    /// The input uses differing existing arguments on the same-target `JmpIf`
+    /// (`b3(Field 200)` vs `b3(Field 300)`) so that the condition is semantically
+    /// meaningful and the shape appears in valid SSA.
+    #[test]
+    fn jmpif_same_target_wires_both_edges() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 1 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3(Field 100)
+              b2():
+                store Field 20 at v1
+                jmpif v0 then: b3(Field 200), else: b3(Field 300)
+              b3(v2: Field):
+                v3 = load v1 -> Field
+                v4 = add v2, v3
+                return v4
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 100, Field 10)
+          b2():
+            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300, Field 20)
+          b3(v1: Field, v2: Field):
+            v8 = add v1, v2
+            return v8
         }
         ");
     }
