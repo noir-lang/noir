@@ -30,7 +30,10 @@ pub(super) fn simplify_binary(
     let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
 
     let operator = binary.operator;
-    assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
+    assert_eq!(
+        lhs_type, rhs_type,
+        "ICE - Binary instruction operands must have the same type in {block}: {operator} {lhs}, {rhs} ({lhs_value:?}, {rhs_value:?})"
+    );
 
     let operator = if lhs_type == NumericType::NativeField {
         // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
