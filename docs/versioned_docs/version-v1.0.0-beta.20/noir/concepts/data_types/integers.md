@@ -15,7 +15,9 @@ When an integer is specified without a defined or inferred type, it defaults to 
 
 - Array indices
 - Loop indices
-- Bitwise operands
+- Bitwise operations
+- Comparison operations
+- A modulo (`%`) operation
 - Constants in numeric generics
 
 You can add a type suffix such as `u32` or `Field` to the end of an integer literal to explicitly specify the type.
