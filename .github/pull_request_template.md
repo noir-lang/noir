@@ -1,14 +1,8 @@
-# Description
-
-## Problem
+## Problem Resolved
 
 Resolves <!-- Link to GitHub Issue -->
 
-## Summary
-
-
-
-## Additional Context
+## Summary of Changes
 
 
 
@@ -16,10 +10,10 @@ Resolves <!-- Link to GitHub Issue -->
 
 Check one:
 - [ ] No user documentation needed.
-- [ ] Changes in _docs/_ included in this PR.
-- [ ] **[For Experimental Features]** Changes in _docs/_ to be submitted in a separate PR.
+- [ ] Documented in _docs/_.
+- [ ] **[For Experimental Features]** Tracking issue created to document this later.
 
-# PR Checklist
+## PR Checklist
 
 - [ ] I have tested the changes locally.
 - [ ] I have formatted the changes with [Prettier](https://prettier.io/) and/or `cargo fmt` on default settings.
