@@ -189,7 +189,7 @@ fn coalescing_spill_arg_register_aliased_by_subsequent_allocation() {
 /// > A later allocation can therefore hand out the same register to a different live value, causing register aliasing.
 ///
 /// If the parameter was allowed to die and its register deallocated, the register could have already been allocated to something else,
-/// before the coalescing partner is defined. `BrilligBlock` avoids deallocating registers prematurely by calling `CoalescingMap::has_live_partner`,
+/// before the coalescing partner is defined. `BrilligBlock` avoids deallocating registers prematurely by calling `CoalescingMap::decrement_live_count`,
 /// but this assumes that there *is* a live partner at the time. If the parameter died when none of its partners were defined yet,
 /// it could happen, but we assume that if we define an `arg` which we want to pass to a `param`, then `param` should still be available at that point.
 ///

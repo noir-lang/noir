@@ -55,10 +55,10 @@ impl UnionFind {
 ///
 /// Returns:
 /// - A map from each value to its group ID.
-/// - A vec of all members in each group.
+/// - A vec of live counts per group (initialized to group size).
 pub(super) fn connected_components(
     edges: &HashMap<ValueId, ValueId>,
-) -> (HashMap<ValueId, usize>, Vec<Vec<ValueId>>) {
+) -> (HashMap<ValueId, usize>, Vec<usize>) {
     let mut uf = UnionFind::new();
     for (&k, &v) in edges {
         uf.make_set(k);
@@ -69,17 +69,17 @@ pub(super) fn connected_components(
     let all_values: Vec<ValueId> = uf.parent.keys().copied().collect();
     let mut root_to_group: HashMap<ValueId, usize> = HashMap::default();
     let mut groups: HashMap<ValueId, usize> = HashMap::default();
-    let mut group_members: Vec<Vec<ValueId>> = Vec::new();
+    let mut group_live_counts: Vec<usize> = Vec::new();
 
     for value in all_values {
         let root = uf.find(value);
         let group_id = *root_to_group.entry(root).or_insert_with(|| {
-            group_members.push(Vec::new());
-            group_members.len() - 1
+            group_live_counts.push(0);
+            group_live_counts.len() - 1
         });
         groups.insert(value, group_id);
-        group_members[group_id].push(value);
+        group_live_counts[group_id] += 1;
     }
 
-    (groups, group_members)
+    (groups, group_live_counts)
 }
