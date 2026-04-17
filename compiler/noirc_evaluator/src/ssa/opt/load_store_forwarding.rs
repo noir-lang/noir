@@ -63,11 +63,8 @@ impl Function {
             return;
         }
 
-        let allocations = collect_allocations(inserter.function, &blocks);
-
         let block = blocks[0];
-        let instructions_to_remove =
-            forward_loads_and_stores_in_block(&mut inserter, block, &allocations);
+        let instructions_to_remove = forward_loads_and_stores_in_block(&mut inserter, block);
 
         if !instructions_to_remove.is_empty() {
             inserter.function.dfg[block]
@@ -85,20 +82,6 @@ impl Function {
         inserter.map_terminator_in_place(block);
         inserter.map_data_bus_in_place();
     }
-}
-
-/// Collect all ValueIds produced by Allocate instructions.
-fn collect_allocations(function: &Function, blocks: &[BasicBlockId]) -> HashSet<ValueId> {
-    let mut allocations = HashSet::default();
-    for block in blocks {
-        for instruction_id in function.dfg[*block].instructions() {
-            if let Instruction::Allocate = &function.dfg[*instruction_id] {
-                let result = function.dfg.instruction_results(*instruction_id)[0];
-                allocations.insert(result);
-            }
-        }
-    }
-    allocations
 }
 
 /// Returns true if two types are compatible for aliasing purposes.
@@ -142,8 +125,8 @@ fn may_alias(a: ValueId, b: ValueId, allocations: &HashSet<ValueId>, dfg: &DataF
 fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    allocations: &HashSet<ValueId>,
 ) -> HashSet<InstructionId> {
+    let mut allocations: HashSet<ValueId> = HashSet::default();
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
@@ -153,6 +136,10 @@ fn forward_loads_and_stores_in_block(
     for instruction_id in instructions {
         let instruction = &inserter.function.dfg[instruction_id];
         match instruction {
+            Instruction::Allocate => {
+                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
+                allocations.insert(result);
+            }
             Instruction::Store { address, value } => {
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
@@ -165,7 +152,7 @@ fn forward_loads_and_stores_in_block(
 
                 // Clear aliased entries (Y != address where may_alias).
                 let aliases =
-                    |k: &ValueId| *k != address && may_alias(address, *k, allocations, dfg);
+                    |k: &ValueId| *k != address && may_alias(address, *k, &allocations, dfg);
                 known_values.retain(|k, _| !aliases(k));
                 last_stores.retain(|k, _| !aliases(k));
 
@@ -185,7 +172,7 @@ fn forward_loads_and_stores_in_block(
 
                 // Mark aliased stores as used (not dead).
                 let dfg = &inserter.function.dfg;
-                last_stores.retain(|k, _| !may_alias(address, *k, allocations, dfg));
+                last_stores.retain(|k, _| !may_alias(address, *k, &allocations, dfg));
             }
             Instruction::Call { .. } => {
                 // Simple reference (`&mut T` where T has no refs): invalidate that
@@ -198,9 +185,9 @@ fn forward_loads_and_stores_in_block(
                     if is_simple_ref {
                         let dfg = &inserter.function.dfg;
                         known_values
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                            .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
                         last_stores
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                            .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
                     } else if typ.contains_reference() {
                         known_values.clear();
                         last_stores.clear();
