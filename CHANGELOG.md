@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.0-beta.21](https://github.com/noir-lang/noir/compare/v1.0.0-beta.20...v1.0.0-beta.21) (2026-04-17)
+
+
+### Features
+
+* **fuzzer:** Enable print generation in ACIR functions ([#12290](https://github.com/noir-lang/noir/issues/12290)) ([6276ac7](https://github.com/noir-lang/noir/commit/6276ac789952446ac24965ef93c018cb842dd53a))
+* **ssa:** Only load/store the extracted tuple field for mutable variables ([#12241](https://github.com/noir-lang/noir/issues/12241)) ([3b2c4fc](https://github.com/noir-lang/noir/commit/3b2c4fcbe1321e760d555cc148daf4c3fdac266d))
+
+
+### Bug Fixes
+
+* Always clone array indexes ([#12321](https://github.com/noir-lang/noir/issues/12321)) ([3bcd132](https://github.com/noir-lang/noir/commit/3bcd1323339d623806e3b8f452cda242e0f8e781))
+* **brillig:** Use value set for tracking max live count ([#12334](https://github.com/noir-lang/noir/issues/12334)) ([2596078](https://github.com/noir-lang/noir/commit/2596078362361dd562827400a21f909d59735af8))
+* Consider reference mutability in load_store_forwarding ([#12331](https://github.com/noir-lang/noir/issues/12331)) ([1d77f5a](https://github.com/noir-lang/noir/commit/1d77f5adb214c9a3c7428d953d0d7be09d7d9abc))
+* **docs:** Fill in missing docs ([#12242](https://github.com/noir-lang/noir/issues/12242)) ([04a373e](https://github.com/noir-lang/noir/commit/04a373ed8e9cf67ac4f7efea14009f3c3a856d58))
+* **docs:** Update sgn0 signature from u1 to bool ([#12250](https://github.com/noir-lang/noir/issues/12250)) ([55a01b2](https://github.com/noir-lang/noir/commit/55a01b24e39a27a64107293be03342910e3032f2))
+* Fix prioritize types over globals for resolution ([#12274](https://github.com/noir-lang/noir/issues/12274)) ([ad02a20](https://github.com/noir-lang/noir/commit/ad02a20cd80b3e8a6189722b11a625998e578435))
+* **fuzzer:** Wrap oracle print calls in wrapper functions ([#12147](https://github.com/noir-lang/noir/issues/12147)) ([363cbe7](https://github.com/noir-lang/noir/commit/363cbe75d9069740863a8259568657f307d6f3f2))
+* **licm:** Check lower bound when simplifying checked arithmetic to unchecked ([#12301](https://github.com/noir-lang/noir/issues/12301)) ([73dad8e](https://github.com/noir-lang/noir/commit/73dad8e14d09fe89570532c9f83d295fefeb26a0))
+* Replace equality with try_unify ([#12272](https://github.com/noir-lang/noir/issues/12272)) ([5c1a8fd](https://github.com/noir-lang/noir/commit/5c1a8fd4f6bffcf95354a98726a541123952f5f6))
+* **ssa:** Check aliases when invalidating references passed to calls ([#12320](https://github.com/noir-lang/noir/issues/12320)) ([6e31b8e](https://github.com/noir-lang/noir/commit/6e31b8ef20ff4242979c92f53efbf8c5343ed5bc))
+* **ssa:** Simplify LSF to only run on single block functions ([#12243](https://github.com/noir-lang/noir/issues/12243)) ([0ad5555](https://github.com/noir-lang/noir/commit/0ad55559cebd4fa6d67f8d80323ece389305bdb9))
+* Use bytes in Hir strings ([#12269](https://github.com/noir-lang/noir/issues/12269)) ([228ae9c](https://github.com/noir-lang/noir/commit/228ae9c4bd293f8be395319e199258a95cddaf31))
+
 ## [1.0.0-beta.20](https://github.com/noir-lang/noir/compare/v1.0.0-beta.19...v1.0.0-beta.20) (2026-04-13)
 
 
