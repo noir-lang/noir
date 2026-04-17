@@ -170,9 +170,13 @@ fn forward_loads_and_stores_in_block(
                     known_values.insert(address, result);
                 }
 
-                // Mark aliased stores as used (not dead).
+                // Mark aliased stores as used (not dead). Keep the exact-address
+                // entry: if the load was forwarded its instruction is removed,
+                // so a later same-address store can still dead-eliminate it; if
+                // the load was not forwarded the entry is absent here anyway.
                 let dfg = &inserter.function.dfg;
-                last_stores.retain(|k, _| !may_alias(address, *k, &allocations, dfg));
+                last_stores
+                    .retain(|k, _| *k == address || !may_alias(address, *k, &allocations, dfg));
             }
             Instruction::Call { .. } => {
                 // Simple reference (`&mut T` where T has no refs): invalidate that
@@ -262,8 +266,9 @@ mod tests {
 
     #[test]
     fn store_load_store() {
-        // Store, load, then another store. The first store is NOT dead (it was loaded),
-        // the load gets forwarded, and the second store survives.
+        // Store, load, then another store to the same address. Both loads get
+        // forwarded (and removed), so nothing observes the first store — it is
+        // dead once the second store supersedes it.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -283,9 +288,33 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 1 at v0
             store Field 2 at v0
             return Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn regression_12313_store_loaded_and_returned_is_not_dead() {
+        // A store whose value is forwarded to a later load is still observed
+        // whenever that load's result escapes the block (here, via return).
+        // Without an intervening same-address store, the store must survive.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return Field 1
         }
         ");
     }
@@ -718,6 +747,8 @@ mod tests {
         // In push: v5/v6 forward to v3/v4 (load-to-load before any stores).
         // v13 forwards to v10 (store-to-load: v0 kept through store to v1 since types differ),
         // v15 forwards to v10 (store-to-load), making store v4 at v1 a dead store.
+        // The first store v10 at v0 is also dead: both intervening loads are
+        // forwarded and removed, then the same value is re-stored at v0.
         // In next_counter: v6/v7/v8 forward to v3/v4/v5 (load-to-load),
         // v11/v12/v13 forward to v3/v4/v5 (load-to-load, no intervening stores to v0/v1/v2
         // between the first loads and these).
@@ -730,7 +761,6 @@ mod tests {
             constrain v6 == u1 1
             v8 = array_set v3, index v4, value v2
             v10 = unchecked_add v4, u32 1
-            store v8 at v0
             v11 = add v4, u32 1
             store v8 at v0
             store v11 at v1
