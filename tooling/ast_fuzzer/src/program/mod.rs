@@ -319,16 +319,24 @@ impl Context {
             Visibility::Private
         };
 
+        let inline_type = if is_main {
+            InlineType::default()
+        } else {
+            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            let choices = InlineType::iter()
+                .filter(|it| {
+                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                })
+                .collect::<Vec<_>>();
+            *u.choose(&choices)?
+        };
+
         let decl = FunctionDeclaration {
             name: if is_main { "main".to_string() } else { format!("func_{i}") },
             params,
             return_type,
             return_visibility,
-            inline_type: if is_main {
-                InlineType::default()
-            } else {
-                *u.choose(&[InlineType::Inline, InlineType::InlineAlways])?
-            },
+            inline_type,
             unconstrained,
         };
 
