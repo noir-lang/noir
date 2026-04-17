@@ -572,5 +572,17 @@ mod tests {
         assert!(sm.ensure_permanent_spill(&v2));
         assert!(sm.is_spilled(&v2));
         assert!(sm.has_permanent_slot(&v2));
+
+        // Case 5: Transient reloaded (not permanent, not currently spilled) -> returns true,
+        // promoted to permanent and re-marked as spilled. This is the state that used to
+        // leak a register through `spill_value`'s short-circuit (issue #12266).
+        let off3 = sm.allocate_spill_offset();
+        sm.record_spill(v3, off3, test_var(3));
+        sm.unmark_spilled(&v3);
+        assert!(!sm.is_spilled(&v3));
+        assert!(!sm.has_permanent_slot(&v3));
+        assert!(sm.ensure_permanent_spill(&v3));
+        assert!(sm.is_spilled(&v3));
+        assert!(sm.has_permanent_slot(&v3));
     }
 }
