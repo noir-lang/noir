@@ -24,7 +24,7 @@ and instead globals live throughout the entirety of the program.</p>
     brillig_context: &amp;'block mut <a class="struct" href="../../brillig_ir/struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;FieldElement, Registers&gt;,
     block_id: <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
+    call_stacks: &amp;mut CallStackHelper,
     globals: &amp;'block HashMap&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
     hoisted_global_constants: &amp;'block FxHashMap&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>), <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
 )</h4></section></summary><div class="docblock"><p>Converts an SSA basic block into a sequence of Brillig opcodes.</p>
@@ -34,7 +34,7 @@ an SSA block by accessing the pre-computed liveness context.</p>
     &amp;mut self,
     globals: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     used_globals: &amp;HashSet&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
+    call_stacks: &amp;mut CallStackHelper,
     hoisted_global_constants: &amp;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/set/struct.BTreeSet.html" title="struct alloc::collections::btree::set::BTreeSet">BTreeSet</a>&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>)&gt;,
 ) -&gt; HashMap&lt;(FieldElement, <a class="enum" href="../../../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>), <a class="struct" href="../../brillig_ir/registers/struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a>&lt;<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>, Registers&gt;&gt;</h4></section></summary><div class="docblock"><p>Converts SSA globals into Brillig global values.</p>
 <p>Global values can be:</p>
@@ -61,7 +61,7 @@ which are used to resolve references to these constants throughout Brillig lower
 <p>This is required because temporary registers can be allocated in in procedures where
 we don’t have access to the spill manager the context necessary to properly spill an
 SSA variable, so we have to make room in anticipation of such need.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_spill_store" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#210-221">Source</a><h4 class="code-header">fn <a href="#method.codegen_spill_store" class="fn">codegen_spill_store</a>(&amp;mut self, offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>, source_reg: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>)</h4></section></summary><div class="docblock"><p>Emit a 3-instruction sequence to store <code>source_reg</code> into the spill region
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_spill_store" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#210-221">Source</a><h4 class="code-header">fn <a href="#method.codegen_spill_store" class="fn">codegen_spill_store</a>(&amp;mut self, offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>, source_reg: MemoryAddress)</h4></section></summary><div class="docblock"><p>Emit a 3-instruction sequence to store <code>source_reg</code> into the spill region
 at the given offset relative to the per-frame spill base pointer.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.spill_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#231-257">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.spill_value" class="fn">spill_value</a>(
     &amp;mut self,
@@ -75,7 +75,7 @@ and free its register. Returns the slot offset.</p>
 <code>emit_store = false</code> is used only for block parameters,
 whose registers don’t yet contain the final value.
 The Jmp terminators write the value directly into the slot later.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_spill_load" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#261-272">Source</a><h4 class="code-header">fn <a href="#method.codegen_spill_load" class="fn">codegen_spill_load</a>(&amp;mut self, offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>, dest_reg: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>)</h4></section></summary><div class="docblock"><p>Emit a 3-instruction sequence to load a value from the spill region
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_spill_load" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#261-272">Source</a><h4 class="code-header">fn <a href="#method.codegen_spill_load" class="fn">codegen_spill_load</a>(&amp;mut self, offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>, dest_reg: MemoryAddress)</h4></section></summary><div class="docblock"><p>Emit a 3-instruction sequence to load a value from the spill region
 at the given offset into <code>dest_reg</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.spill_lru_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#275-280">Source</a><h4 class="code-header">fn <a href="#method.spill_lru_value" class="fn">spill_lru_value</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>Spill the least-recently-used value to the spill region</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.reload_spilled_value" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#283-310">Source</a><h4 class="code-header">fn <a href="#method.reload_spilled_value" class="fn">reload_spilled_value</a>(&amp;mut self, value_id: <a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; <a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a></h4></section></summary><div class="docblock"><p>Reload a previously spilled value into a freshly allocated register</p>
@@ -109,7 +109,7 @@ and tracks the new value in the LRU.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_block" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#381-409">Source</a><h4 class="code-header">fn <a href="#method.convert_block" class="fn">convert_block</a>(
     &amp;mut self,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
+    call_stacks: &amp;mut CallStackHelper,
 )</h4></section></summary><div class="docblock"><p>Internal method for <a href="struct.BrilligBlock.html#method.compile_block" title="associated function noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock::compile_block">BrilligBlock::compile_block</a> that actually kicks off the Brillig compilation process.</p>
 <p>At this point any Brillig context should be contained in <a href="struct.BrilligBlock.html" title="struct noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock">BrilligBlock</a>, and this function should
 only need to accept external SSA and debugging structures.</p>
@@ -151,7 +151,7 @@ for us to create a unique label across functions and blocks.</p>
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     destination: <a class="type" href="../../../ssa/ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     arguments: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(<a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>, <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>)&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.jmpif_to_then_block" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#577-595">Source</a><h4 class="code-header">fn <a href="#method.jmpif_to_then_block" class="fn">jmpif_to_then_block</a>(
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(MemoryAddress, MemoryAddress)&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.jmpif_to_then_block" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#577-595">Source</a><h4 class="code-header">fn <a href="#method.jmpif_to_then_block" class="fn">jmpif_to_then_block</a>(
     &amp;mut self,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     condition: <a class="struct" href="../../brillig_ir/brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
@@ -178,7 +178,7 @@ decides when the block parameters are defined.</p>
     &amp;mut self,
     instruction_id: <a class="struct" href="../../../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    call_stacks: &amp;mut <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
+    call_stacks: &amp;mut CallStackHelper,
 )</h4></section></summary><div class="docblock"><p>Converts an SSA instruction into a sequence of Brillig opcodes.</p>
 <p>If this is the last time a variable is used in this block, its memory slot gets deallocated, unless it’s a global.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_cast" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_block.rs.html#778-783">Source</a><h4 class="code-header">fn <a href="#method.convert_cast" class="fn">convert_cast</a>(
@@ -257,7 +257,7 @@ then generate opcodes for a conditional move.</p>
 <p>Panics if the <code>then_value</code> and <code>else_value</code> are incompatible.</p>
 </div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-BrilligBlock%3C'_,+Registers%3E" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/brillig_vector_ops.rs.html#12-182">Source</a><a href="#impl-BrilligBlock%3C'_,+Registers%3E" class="anchor">§</a><h3 class="code-header">impl&lt;Registers: <a class="trait" href="../../brillig_ir/registers/trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator">RegisterAllocator</a>&gt; <a class="struct" href="struct.BrilligBlock.html" title="struct noirc_evaluator::brillig::brillig_gen::brillig_block::BrilligBlock">BrilligBlock</a>&lt;'_, Registers&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.write_variables" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/brillig_vector_ops.rs.html#15-26">Source</a><h4 class="code-header">fn <a href="#method.write_variables" class="fn">write_variables</a>(
     &amp;mut self,
-    write_pointer: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    write_pointer: MemoryAddress,
     variables: &amp;[<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>],
 )</h4></section></summary><div class="docblock"><p>Take a list of <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a> and copy the memory they point at to the <code>write_pointer</code>,
 increasing the address by 1 between each variable.</p>
@@ -279,7 +279,7 @@ then write those variables to the returned write pointer.</p>
 then write those variables to the returned write pointer.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.read_variables" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/brillig_vector_ops.rs.html#73-84">Source</a><h4 class="code-header">fn <a href="#method.read_variables" class="fn">read_variables</a>(
     &amp;mut self,
-    read_pointer: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    read_pointer: MemoryAddress,
     variables: &amp;[<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>],
 )</h4></section></summary><div class="docblock"><p>Read the memory starting at the pointer into successive variables.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.vector_pop_front_operation" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/brillig_vector_ops.rs.html#88-104">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.vector_pop_front_operation" class="fn">vector_pop_front_operation</a>(
@@ -334,7 +334,7 @@ This method handles the conversion of inputs/outputs and manages memory allocati
 </div></details><details class="toggle method-toggle" open><summary><section id="method.output_variables_to_destinations" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#174-181">Source</a><h4 class="code-header">fn <a href="#method.output_variables_to_destinations" class="fn">output_variables_to_destinations</a>(
     &amp;mut self,
     output_variables: &amp;[<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>],
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../brillig_ir/registers/struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a>&lt;<a class="enum" href="../../../../brillig/opcodes/enum.ValueOrArray.html" title="enum brillig::opcodes::ValueOrArray">ValueOrArray</a>, Registers&gt;&gt;</h4></section></summary><div class="docblock"><p>Convert output <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>s to <a href="../../../../brillig/opcodes/enum.ValueOrArray.html" title="enum brillig::opcodes::ValueOrArray">ValueOrArray</a> destinations on the heap.</p>
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="../../brillig_ir/registers/struct.Allocated.html" title="struct noirc_evaluator::brillig::brillig_ir::registers::Allocated">Allocated</a>&lt;ValueOrArray, Registers&gt;&gt;</h4></section></summary><div class="docblock"><p>Convert output <a href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>s to [ValueOrArray] destinations on the heap.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_field_less_than" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#186-202">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_field_less_than" class="fn">convert_ssa_field_less_than</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
@@ -344,7 +344,7 @@ This method handles the conversion of inputs/outputs and manages memory allocati
 <p>Compares two field elements and returns a boolean result.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_ssa_black_box_call" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_call/code_gen_call.rs.html#209-251">Source</a><h4 class="code-header">fn <a href="#method.convert_ssa_black_box_call" class="fn">convert_ssa_black_box_call</a>(
     &amp;mut self,
-    bb_func: &amp;<a class="enum" href="../../../../acir/circuit/black_box_functions/enum.BlackBoxFunc.html" title="enum acir::circuit::black_box_functions::BlackBoxFunc">BlackBoxFunc</a>,
+    bb_func: &amp;BlackBoxFunc,
     arguments: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     instruction_id: <a class="struct" href="../../../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -370,7 +370,7 @@ argument in SSA that is removed for Brillig as CFG flattening is not needed.</p>
     results: &amp;[<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../brillig_ir/brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;</h4></section></summary><div class="docblock"><p>Allocates a variable to hold the result of an external function call (e.g., foreign or black box).
-For more information about foreign function calls in Brillig take a look at the <a href="../../../../brillig/opcodes/enum.BrilligOpcode.html#variant.ForeignCall" title="variant brillig::opcodes::BrilligOpcode::ForeignCall">foreign call opcode</a>.</p>
+For more information about foreign function calls in Brillig take a look at the [foreign call opcode][acvm::acir::brillig::Opcode::ForeignCall].</p>
 <p>This is typically used during Brillig codegen for calls to <a href="../../../ssa/ir/value/enum.Value.html#variant.ForeignFunction" title="variant noirc_evaluator::ssa::ir::value::Value::ForeignFunction">Value::ForeignFunction</a>, where
 external host functions return values back into the program.</p>
 <p>Numeric types and fixed-sized array results are directly allocated.</p>
@@ -492,7 +492,7 @@ writing the results to the <code>result_variable</code>.</p>
     data: &amp;Vector&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     typ: &amp;<a class="enum" href="../../../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    pointer: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    pointer: MemoryAddress,
 )</h4></section></summary><div class="docblock"><p>Initializes a constant array in Brillig memory.</p>
 <p>This method is responsible for writing a constant array’s contents into memory, starting
 from the given <code>pointer</code>. It chooses between compile-time or runtime initialization
@@ -511,7 +511,7 @@ For an array like [1, 2, 3, 4], each element will be set explicitly</p>
     item_types: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/sync/struct.Arc.html" title="struct alloc::sync::Arc">Arc</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>&gt;&gt;,
     item_to_repeat: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     item_count: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
-    pointer: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    pointer: MemoryAddress,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 )</h4></section></summary><div class="docblock"><p>Codegens Brillig instructions to initialize a large, constant array using a runtime loop.</p>
 <p>This method assumes the array consists of identical items repeated multiple times.
@@ -530,7 +530,7 @@ For primitive type (e.g., <code>u32</code>, <code>Field</code>), a single memory
     &amp;mut self,
     data: &amp;Vector&lt;<a class="type" href="../../../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
     dfg: &amp;<a class="struct" href="../../../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-    pointer: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    pointer: MemoryAddress,
 )</h4></section></summary><div class="docblock"><p>Codegens Brillig instructions to initialize a constant array at compile time.</p>
 <p>This method generates one <code>store</code> instruction per array element, writing each
 value from the SSA into consecutive memory addresses starting at <code>pointer</code>.</p>
@@ -567,7 +567,7 @@ Look at the <a href="../../brillig_ir/procedures/fn.compile_procedure.html" titl
 <p>If <code>has_offset</code> is set, then the <code>index_variable</code> is expected to have accounted for the array/vector specific offset
 between the <code>source_variable</code> and the start of the items; otherwise opcodes are emitted to calculate an adjusted
 base pointer.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_assert_rc_neq_zero" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#284-300">Source</a><h4 class="code-header">fn <a href="#method.codegen_assert_rc_neq_zero" class="fn">codegen_assert_rc_neq_zero</a>(&amp;mut self, rc_register: <a class="enum" href="../../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>)</h4></section></summary><div class="docblock"><p>Debug utility method to determine whether an array’s reference count (RC) is zero.
+</div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_assert_rc_neq_zero" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/brillig/brillig_gen/brillig_instructions/brillig_memory.rs.html#284-300">Source</a><h4 class="code-header">fn <a href="#method.codegen_assert_rc_neq_zero" class="fn">codegen_assert_rc_neq_zero</a>(&amp;mut self, rc_register: MemoryAddress)</h4></section></summary><div class="docblock"><p>Debug utility method to determine whether an array’s reference count (RC) is zero.
 If RC’s have drifted down to zero it means the RC increment/decrement instructions
 have been written incorrectly.</p>
 <p>Should only be called if <a href="../../brillig_ir/struct.BrilligContext.html#method.enable_debug_assertions" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::enable_debug_assertions">BrilligContext::enable_debug_assertions</a> returns true.</p>
