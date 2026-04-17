@@ -574,6 +574,35 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_scalar_mul_with_malformed_inputs_returns_error() {
+        let circuit =
+            make_circuit(vec![Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
+                points: vec![
+                    FunctionInput::Witness(Witness(1)),
+                    FunctionInput::Witness(Witness(2)),
+                    FunctionInput::Witness(Witness(3)),
+                ],
+                scalars: vec![FunctionInput::Witness(Witness(4))],
+                predicate: FunctionInput::Witness(Witness(5)),
+                outputs: (Witness(6), Witness(7), Witness(8)),
+            })]);
+
+        let witness_map =
+            WitnessMap::from(BTreeMap::from_iter([(Witness(5), FieldElement::one())]));
+
+        let backend = Bn254BlackBoxSolver;
+        let error = validate_witness(&backend, witness_map, &circuit).unwrap_err();
+
+        assert!(matches!(
+            error,
+            crate::pwg::OpcodeResolutionError::BlackBoxFunctionFailed(
+                acir::BlackBoxFunc::MultiScalarMul,
+                _
+            )
+        ));
+    }
+
+    #[test]
     fn test_and_valid() {
         // w1 AND w2 = w3, where w1=0b1010, w2=0b1100, w3=0b1000
         let circuit = make_circuit(vec![Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
