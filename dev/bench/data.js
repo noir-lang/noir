@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776456370035,
+  "lastUpdate": 1776457966108,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22230,48 +22230,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "8c11bf053f676674f201eeee8eac3b04309511cd",
-          "message": "chore: Use retain in remove_redundant_params (#12226)",
-          "timestamp": "2026-04-09T20:13:34Z",
-          "tree_id": "4ee98c7ff85dc7c76ed5d8ca608b886a9addf1b4",
-          "url": "https://github.com/noir-lang/noir/commit/8c11bf053f676674f201eeee8eac3b04309511cd"
-        },
-        "date": 1775767112016,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 159660,
-            "range": "± 454",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139086,
-            "range": "± 1750",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2124878,
-            "range": "± 1025",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7245cf85ebc68f441b93e0c20d4498de6bd9d877",
           "message": "fix: Fix cycle in lookup_associated_type_in_parent_impls (#12160)",
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643596,
             "range": "± 2661",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1093384f19327219195e583040258e7b3861a14",
+          "message": "chore(docs): Specify the exceptions when numbers default to `u32` instead of `Field` (#12340)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-04-17T20:08:33Z",
+          "tree_id": "c580e48f2e13a48045c6c3d6d68d653db504cb82",
+          "url": "https://github.com/noir-lang/noir/commit/a1093384f19327219195e583040258e7b3861a14"
+        },
+        "date": 1776457917636,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 99039,
+            "range": "± 447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 88314,
+            "range": "± 707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2359913,
+            "range": "± 6979",
             "unit": "ns/iter"
           }
         ]
