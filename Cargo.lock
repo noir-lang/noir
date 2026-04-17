@@ -1118,11 +1118,11 @@ dependencies = [
 
 [[package]]
 name = "codespan-lsp"
-version = "0.11.1"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc4159b76af02757139baf42c0c971c6dc155330999fbfd8eddb29b97fb2db68"
+checksum = "7b93929a224896b211d7a3a6121e3819584ef0d1413e5dbb1eaee8492ffffc40"
 dependencies = [
- "codespan-reporting 0.11.1",
+ "codespan-reporting 0.13.1",
  "lsp-types 0.88.0",
  "url",
 ]
