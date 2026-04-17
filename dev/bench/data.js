@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776455237293,
+  "lastUpdate": 1776455289004,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "04cba8d722259cb9a0d8e9f887293ea4e2f588f1",
-          "message": "fix(cli): Wrap the DAP server input reader to fix JSON payloads (#12154)",
-          "timestamp": "2026-04-09T20:09:25Z",
-          "tree_id": "1a351855dc3bcb2e45ef21e45f5fda9c2c0c51f5",
-          "url": "https://github.com/noir-lang/noir/commit/04cba8d722259cb9a0d8e9f887293ea4e2f588f1"
-        },
-        "date": 1775766811183,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 159173,
-            "range": "± 953",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138675,
-            "range": "± 2187",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2123219,
-            "range": "± 2652",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644052,
             "range": "± 2486",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e6729d9c8f2cc1c7bd84d31d9705ba5f0adac3d",
+          "message": "chore: Turn `CallStack` into a newtype  (#12307)",
+          "timestamp": "2026-04-17T19:23:26Z",
+          "tree_id": "cf3ac84ab73e1148fbc8cb795685b9adfa52be84",
+          "url": "https://github.com/noir-lang/noir/commit/9e6729d9c8f2cc1c7bd84d31d9705ba5f0adac3d"
+        },
+        "date": 1776455233062,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 165794,
+            "range": "± 187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135745,
+            "range": "± 4355",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643596,
+            "range": "± 2661",
             "unit": "ns/iter"
           }
         ]
