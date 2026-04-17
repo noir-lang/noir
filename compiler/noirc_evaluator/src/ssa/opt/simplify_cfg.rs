@@ -153,6 +153,7 @@ fn simplify_current_block(
     while simplified {
         simplified = check_for_negated_jmpif_condition(function, block, cfg)
             | check_for_constant_jmpif(function, block, cfg)
+            | check_for_redundant_same_target_jmpif(function, block, cfg)
             | check_for_converging_jmpif(function, block, cfg)
             | try_inline_successor(function, cfg, block, values_to_replace);
 
@@ -338,68 +339,113 @@ fn check_for_negated_jmpif_condition(
     false
 }
 
-/// Attempts to simplify a `jmpif` terminator if both branches converge.
+/// Attempts to simplify a `jmpif` whose `then_destination` and `else_destination` are
+/// the same block.
 ///
-/// We define convergence as when two branches of a `jmpif` ultimately lead to the same
-/// destination block, after following chains of empty blocks. If they do, the conditional
-/// jump is unnecessary and can be replaced with a simple `jmp`.
+/// `jmpif v then: b1(args_t), else: b1(args_e)`:
+/// - If `args_t == args_e`, the condition is observationally irrelevant, and we fold
+///   to `jmp b1(args)` preserving the shared arguments. The previous implementation
+///   silently dropped the arguments here, producing malformed SSA when the target
+///   block had parameters.
+/// - If the argument lists differ, the jmpif is semantically meaningful (the
+///   condition selects between the two argument lists) and we leave it alone.
+fn check_for_redundant_same_target_jmpif(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) -> bool {
+    let (destination, arguments, call_stack) = match function.dfg[block].terminator() {
+        Some(TerminatorInstruction::JmpIf {
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            call_stack,
+            ..
+        }) if then_destination == else_destination && then_arguments == else_arguments => {
+            (*then_destination, then_arguments.clone(), *call_stack)
+        }
+        _ => return false,
+    };
+
+    let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+    function.dfg[block].set_terminator(jmp);
+    cfg.recompute_block(function, block);
+    // No successor becomes unreachable — both edges already pointed at the same block.
+    true
+}
+
+/// Attempts to simplify a `jmpif` whose two distinct immediate destinations resolve,
+/// through chains of empty param-less blocks, to the same final block.
+///
+/// `resolve_jmp_chain` only walks through empty blocks via argless jmps, so in valid
+/// SSA both edge argument vectors are empty when the chains converge (see the
+/// `debug_assert!`). The fold therefore produces a plain `jmp final()`.
+///
+/// This helper assumes the same-destination case has already been handled by
+/// [`check_for_redundant_same_target_jmpif`] and bails out if it finds it.
 fn check_for_converging_jmpif(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    let Some(TerminatorInstruction::JmpIf {
-        then_destination, else_destination, call_stack, ..
-    }) = function.dfg[block].terminator()
-    else {
-        return false;
-    };
+    // Snapshot everything we need while the immutable borrow on the dfg is live, so
+    // `resolve_jmp_chain` and the later mutable borrow don't conflict.
+    let (then_destination, then_arguments, else_destination, else_arguments, call_stack) =
+        match function.dfg[block].terminator() {
+            Some(TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                call_stack,
+                ..
+            }) if then_destination != else_destination => (
+                *then_destination,
+                then_arguments.clone(),
+                *else_destination,
+                else_arguments.clone(),
+                *call_stack,
+            ),
+            _ => return false,
+        };
 
-    let then_final = resolve_jmp_chain(function, *then_destination);
-    let else_final = resolve_jmp_chain(function, *else_destination);
+    let then_final = resolve_jmp_chain(function, then_destination);
+    let else_final = resolve_jmp_chain(function, else_destination);
 
-    if matches!(function.runtime(), RuntimeType::Acir(_)) && then_final != else_final {
-        // The `flatten_cfg` pass expects two blocks to join to the same block.
-        // If we have a nested if the inner if statement could potentially be a converging jmpif.
-        // This may change the final block we converge into.
-        // However, if both branches resolve to the same block, the jmpif is a no-op and can
-        // always be safely replaced with a jmp.
+    if then_final != else_final {
         return false;
     }
 
-    // If both branches end at the same target, we can replace the jmpif with a jmp
-    if then_final == else_final {
-        let then_destination = *then_destination;
-        let else_destination = *else_destination;
-        // For ACIR functions, jump to the immediate target rather than the resolved
-        // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
-        // intermediate blocks can create asymmetric paths that break branch analysis.
-        // try_inline_successor will safely collapse the remaining chain later.
-        let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
-            then_destination
-        } else {
-            then_final
-        };
-        let jmp = TerminatorInstruction::Jmp {
-            destination,
-            // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
-            arguments: Vec::new(),
-            call_stack: *call_stack,
-        };
-        function.dfg[block].set_terminator(jmp);
-        cfg.recompute_block(function, block);
+    // `resolve_jmp_chain` only advances through empty, param-less blocks via argless
+    // jmps, so advancing past either immediate destination proves that destination
+    // had no parameters and therefore the incoming edge's argument vector is empty.
+    assert!(
+        then_arguments.is_empty() && else_arguments.is_empty(),
+        "chain-converging jmpif should have empty edge arguments in valid SSA",
+    );
 
-        // The old branch targets may now be unreachable. Cascade-invalidate their
-        // successors so that downstream blocks no longer see them as predecessors,
-        // enabling further inlining.
-        for dest in [then_destination, else_destination] {
-            cascade_invalidate_unreachable(function, cfg, dest);
-        }
-
-        true
+    // For ACIR functions, jump to the immediate target rather than the resolved
+    // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
+    // intermediate blocks can create asymmetric paths that break branch analysis.
+    // try_inline_successor will safely collapse the remaining chain later.
+    let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        then_destination
     } else {
-        false
+        then_final
+    };
+    let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new(), call_stack };
+    function.dfg[block].set_terminator(jmp);
+    cfg.recompute_block(function, block);
+
+    // The old branch targets may now be unreachable. Cascade-invalidate their
+    // successors so that downstream blocks no longer see them as predecessors,
+    // enabling further inlining.
+    for dest in [then_destination, else_destination] {
+        cascade_invalidate_unreachable(function, cfg, dest);
     }
+
+    true
 }
 
 /// Follow a chain of empty blocks to find the real destination.
@@ -1295,6 +1341,60 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1):
             return
+        }
+        ");
+    }
+
+    /// A `jmpif` whose two edges point at the same block with *matching* arguments is
+    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+    /// preserving the shared arguments — the previous implementation silently
+    /// constructed the replacement `jmp` with an empty argument vector, producing
+    /// malformed SSA whenever the target block had parameters.
+    #[test]
+    fn fold_jmpif_same_target_matching_arguments_preserves_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 42), else: b1(Field 42)
+          b1(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return Field 42
+        }
+        ");
+    }
+
+    /// A `jmpif` whose two edges point at the same block with *differing* arguments
+    /// is semantically meaningful — the condition selects between the two argument
+    /// lists. simplify_cfg must leave it alone rather than folding.
+    #[test]
+    fn preserve_jmpif_same_target_differing_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 1), else: b1(Field 2)
+          b1(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 1), else: b1(Field 2)
+          b1(v1: Field):
+            return v1
         }
         ");
     }
