@@ -478,6 +478,9 @@ mod tests {
 
     fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
         let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        if test_program_dir.ends_with("vectors") {
+            nargo.env("NOIR_SPILL_TRACE", "1");
+        }
         nargo.arg("execute").arg("--force").arg("--force-brillig");
         nargo.arg("--max-stack-frame-size").arg("64");
 

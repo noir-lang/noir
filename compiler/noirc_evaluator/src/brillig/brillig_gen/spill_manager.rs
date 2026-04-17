@@ -45,6 +45,15 @@ pub(crate) struct SpillRecord {
     pub(crate) is_currently_spilled: bool,
 }
 
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) struct SpillRecordTrace {
+    pub(crate) offset: usize,
+    pub(crate) register: acvm::acir::brillig::MemoryAddress,
+    pub(crate) is_permanent: bool,
+    pub(crate) is_currently_spilled: bool,
+}
+
 impl SpillManager {
     pub(crate) fn new() -> Self {
         Self {
@@ -245,6 +254,15 @@ impl SpillManager {
     /// there should be only one at any point.
     pub(crate) fn get_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
         self.records.get(value_id).map(|r| r.offset)
+    }
+
+    pub(crate) fn trace_record(&self, value_id: &ValueId) -> Option<SpillRecordTrace> {
+        self.records.get(value_id).map(|record| SpillRecordTrace {
+            offset: record.offset,
+            register: record.variable.extract_register(),
+            is_permanent: record.is_permanent,
+            is_currently_spilled: record.is_currently_spilled,
+        })
     }
 
     /// Re-mark permanently-spilled values as currently spilled at block entry.

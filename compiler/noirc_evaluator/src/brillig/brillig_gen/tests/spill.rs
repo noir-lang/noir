@@ -367,3 +367,48 @@ fn brillig_spill_does_not_cause_transient_spill_leak() {
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let _ = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 }
+
+#[test]
+fn brillig_spill_vectors_reduced_push_between_ifs_region() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v50 = eq v0, Field 10
+        v52 = eq v0, Field 20
+        v88 = make_array [Field 0, Field 0, Field 10, v0] : [Field]
+        jmp b20(u32 4, v88)
+      b20(v14: u32, v15: [Field]):
+        v90, v91 = call vector_push_back(v14, v15, Field 30) -> (u32, [Field])
+        jmpif v52 then: b21(), else: b22(v90, v91)
+      b21():
+        v92, v93 = call vector_push_back(v90, v91, Field 20) -> (u32, [Field])
+        jmp b22(v92, v93)
+      b22(v16: u32, v17: [Field]):
+        v94, v95 = call vector_push_back(v16, v17, Field 15) -> (u32, [Field])
+        jmpif v52 then: b23(v94, v95), else: b24()
+      b23(v18: u32, v19: [Field]):
+        v100, v101 = call vector_push_back(v18, v19, Field 60) -> (u32, [Field])
+        constrain v100 == u32 8
+        v102 = array_get v101, index u32 6 minus 3 -> Field
+        constrain v102 == Field 5
+        v103 = array_get v101, index u32 7 minus 3 -> Field
+        constrain v103 == Field 30
+        v104 = array_get v101, index u32 8 minus 3 -> Field
+        constrain v104 == Field 15
+        v105 = array_get v101, index u32 9 minus 3 -> Field
+        constrain v105 == Field 50
+        v107 = array_get v101, index u32 10 minus 3 -> Field
+        constrain v107 == Field 60
+        return
+      b24():
+        v97, v98 = call vector_push_back(v94, v95, Field 50) -> (u32, [Field])
+        jmp b23(v97, v98)
+    }
+    ";
+
+    let layout = LayoutConfig::new(64, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let result =
+        execute_brillig_from_ssa_with_options(src, vec![FieldElement::from(5u32)], &options);
+    assert_eq!(result, Vec::<FieldElement>::new());
+}
