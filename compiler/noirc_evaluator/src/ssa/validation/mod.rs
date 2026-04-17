@@ -29,7 +29,10 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
-    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
+        instruction::TerminatorInstruction, post_order::PostOrder,
+    },
     ssa_gen::Ssa,
 };
 
@@ -45,17 +48,73 @@ use super::ir::{
 struct Validator<'f> {
     function: &'f Function,
     ssa: &'f Ssa,
+    dominator_tree: DominatorTree,
 
     // State for valid Field to integer casts
     // Range checks are laid down in isolation and can make for safe casts
-    // If they occurred before the value being cast to a smaller type
-    // Stores: A set of (value being range constrained, the value's max bit size)
-    range_checks: HashMap<ValueId, u32>,
+    // if they dominate the cast (or appear earlier in the same block).
+    range_checks: HashMap<ValueId, Vec<RangeCheckSite>>,
+}
+
+#[derive(Clone, Copy)]
+struct RangeCheckSite {
+    block: BasicBlockId,
+    instruction_index: usize,
+    max_bit_size: u32,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default() }
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
+        Self { function, ssa, dominator_tree, range_checks: HashMap::default() }
+    }
+
+    fn collect_range_checks(&mut self) {
+        for block in self.function.reachable_blocks() {
+            for (instruction_index, instruction) in
+                self.function.dfg[block].instructions().iter().enumerate()
+            {
+                if let Instruction::RangeCheck { value, max_bit_size, .. } =
+                    &self.function.dfg[*instruction]
+                {
+                    self.range_checks.entry(*value).or_default().push(RangeCheckSite {
+                        block,
+                        instruction_index,
+                        max_bit_size: *max_bit_size,
+                    });
+                }
+            }
+        }
+    }
+
+    fn dominating_range_check_max_bit_size(
+        &mut self,
+        value: ValueId,
+        cast_block: BasicBlockId,
+        cast_instruction_index: usize,
+    ) -> Option<u32> {
+        let range_check_sites = self.range_checks.get(&value)?.clone();
+        let mut min_max_bit_size: Option<u32> = None;
+
+        for range_check_site in range_check_sites {
+            let dominates_cast = if range_check_site.block == cast_block {
+                range_check_site.instruction_index < cast_instruction_index
+            } else {
+                self.dominator_tree.dominates(range_check_site.block, cast_block)
+            };
+
+            if dominates_cast {
+                min_max_bit_size = Some(match min_max_bit_size {
+                    Some(current) => current.min(range_check_site.max_bit_size),
+                    None => range_check_site.max_bit_size,
+                });
+            }
+        }
+
+        min_max_bit_size
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -67,15 +126,16 @@ impl<'f> Validator<'f> {
     /// Our initial SSA gen only generates preceding truncates for safe casts.
     /// The cases accepted here are extended past what we perform during our initial SSA gen
     /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
-    fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
+    fn validate_field_to_integer_cast_invariant(
+        &mut self,
+        instruction_id: InstructionId,
+        block: BasicBlockId,
+        instruction_index: usize,
+    ) {
         let dfg = &self.function.dfg;
 
         let (cast_input, typ) = match &dfg[instruction_id] {
             Instruction::Cast(cast_input, typ) => (*cast_input, *typ),
-            Instruction::RangeCheck { value, max_bit_size, .. } => {
-                self.range_checks.insert(*value, *max_bit_size);
-                return;
-            }
             _ => return,
         };
 
@@ -91,8 +151,10 @@ impl<'f> Validator<'f> {
 
         // If the cast input has already been range constrained to a bit size that fits
         // in the destination type, we have a safe cast.
-        if let Some(max_bit_size) = self.range_checks.get(&cast_input) {
-            assert!(*max_bit_size <= target_type_size);
+        if let Some(max_bit_size) =
+            self.dominating_range_check_max_bit_size(cast_input, block, instruction_index)
+        {
+            assert!(max_bit_size <= target_type_size);
             return;
         }
 
@@ -1104,10 +1166,17 @@ impl<'f> Validator<'f> {
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
+        self.collect_range_checks();
 
         for block in self.function.reachable_blocks() {
-            for instruction in self.function.dfg[block].instructions() {
-                self.validate_field_to_integer_cast_invariant(*instruction);
+            for (instruction_index, instruction) in
+                self.function.dfg[block].instructions().iter().enumerate()
+            {
+                self.validate_field_to_integer_cast_invariant(
+                    *instruction,
+                    block,
+                    instruction_index,
+                );
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
@@ -1522,6 +1591,45 @@ mod tests {
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
             return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_from_field_after_dominating_range_check() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: u1):
+            range_check v0 to 8 bits
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v2 = cast v0 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid cast from Field")]
+    fn cast_from_field_after_non_dominating_range_check_is_rejected() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: u1):
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            range_check v0 to 8 bits
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v2 = cast v0 as u8
+            return v2
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
