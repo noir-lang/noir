@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776373824530,
+  "lastUpdate": 1776423723132,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22221,48 +22221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "46a5eb7441c339a10dcb72a41d37792dc9fc4084",
-          "message": "fix: remove stale u1 references from error messages (#12165)",
-          "timestamp": "2026-04-08T13:52:35Z",
-          "tree_id": "dc5b4b1db5262dac24382142a50ebe86b324d0f9",
-          "url": "https://github.com/noir-lang/noir/commit/46a5eb7441c339a10dcb72a41d37792dc9fc4084"
-        },
-        "date": 1775657731240,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168755,
-            "range": "± 907",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136962,
-            "range": "± 1743",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2640914,
-            "range": "± 1943",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645293,
             "range": "± 42461",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c0688b16dc9c59e709648e8c37c18392b073c7b",
+          "message": "chore(stdlib): Add `EmbeddedCurvePoint::new` (#12330)",
+          "timestamp": "2026-04-17T10:34:51Z",
+          "tree_id": "f6c1f16b53f33467f79f5a11443b0b0849243638",
+          "url": "https://github.com/noir-lang/noir/commit/2c0688b16dc9c59e709648e8c37c18392b073c7b"
+        },
+        "date": 1776423665298,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168237,
+            "range": "± 673",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139125,
+            "range": "± 399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642004,
+            "range": "± 15089",
             "unit": "ns/iter"
           }
         ]
