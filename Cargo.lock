@@ -90,7 +90,7 @@ dependencies = [
  "p256",
  "pprof",
  "proptest",
- "sha2 0.11.0-rc.5",
+ "sha2 0.11.0",
  "thiserror 2.0.18",
 ]
 
@@ -3063,7 +3063,7 @@ dependencies = [
  "cpubits",
  "ecdsa",
  "elliptic-curve",
- "sha2 0.11.0-rc.5",
+ "sha2 0.11.0",
  "signature",
 ]
 
@@ -3382,7 +3382,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "sha2 0.11.0-rc.5",
+ "sha2 0.11.0",
  "similar 2.7.0",
  "similar-asserts",
  "tempfile",
@@ -4174,7 +4174,7 @@ dependencies = [
  "elliptic-curve",
  "primefield",
  "primeorder",
- "sha2 0.11.0-rc.5",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -5539,12 +5539,12 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.0-rc.5"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c5f3b1e2dc8aad28310d8410bd4d7e180eca65fca176c52ab00d364475d0024"
+checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
 dependencies = [
  "cfg-if",
- "cpufeatures 0.2.17",
+ "cpufeatures 0.3.0",
  "digest 0.11.2",
 ]
 
@@ -5776,7 +5776,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "sha2 0.11.0-rc.5",
+ "sha2 0.11.0",
  "strum",
  "strum_macros",
 ]

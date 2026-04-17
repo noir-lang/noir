@@ -228,7 +228,7 @@ proptest = { version = "1.11.0", default-features = false, features = [
 ] }
 proptest-derive = "^0.8.0"
 rayon = "1.8.0"
-sha2 = "0.11.0-rc.5"
+sha2 = "0.11.0"
 k256 = "0.14.0-rc.8"
 p256 = "0.14.0-rc.8"
 strum = "0.26"
