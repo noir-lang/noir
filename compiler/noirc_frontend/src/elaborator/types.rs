@@ -2118,6 +2118,7 @@ impl Elaborator<'_> {
                 if bit_width_x != bit_width_y {
                     return Err(if op.kind.is_bitshift() {
                         TypeCheckError::ShiftIntegerBitWidth {
+                            sign: *sign_x,
                             bit_width_x: *bit_width_x,
                             bit_width_y: *bit_width_y,
                             location,

@@ -141,6 +141,7 @@ pub enum TypeCheckError {
     IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
     ShiftIntegerBitWidth {
+        sign: Signedness,
         bit_width_x: IntegerBitSize,
         bit_width_y: IntegerBitSize,
         location: Location,
@@ -586,7 +587,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::ShiftIntegerBitWidth { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
@@ -604,6 +604,20 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { location }
             | TypeCheckError::VerifyProofWithTypeInBrillig { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
+            }
+            TypeCheckError::ShiftIntegerBitWidth { sign, bit_width_x, location, .. } => {
+                let sign_prefix = match sign {
+                    Signedness::Signed => 'i',
+                    Signedness::Unsigned => 'u',
+                };
+                let mut diag =
+                    Diagnostic::simple_error(error.to_string(), String::new(), *location);
+                diag.add_note(format!(
+                    "the shift amount must have the same bit width as the value being shifted; \
+                     try casting the shift amount with `as {sign_prefix}{}`",
+                    bit_width_x.bit_size()
+                ));
+                diag
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {
                 let primary = match op {
