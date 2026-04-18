@@ -843,15 +843,23 @@ impl<'f> Context<'f> {
         let args = vecmap(args, |(then_arg, else_arg)| {
             let call_stack = cond_context.call_stack;
 
-            // Try to collapse a redundant nested merge. When the inner merge's
-            // else_value (or then_value) matches the outer merge's corresponding
-            // argument, the two merges can be combined into one.
+            // Collapse a redundant nested merge:
+            //   IfElse(c1, IfElse(c2, x, _, y), _, y)  →  IfElse(c2, x, NOT(c2), y)
+            //
+            // `ConditionalBranch::condition` is already AND-ed with all outer
+            // branch conditions, so with `r` = reaching condition of `c1`, and
+            // `d1`, `d2` the raw jmpif predicates, c1 = r·d1 and c2 = c1·d2 =
+            // r·d1·d2.
+            //
+            // The semantically precise else-condition is `r·!(d1·d2)`, but this
+            // rewrite uses `NOT(c2) = !(r·d1·d2)` instead. The two agree when
+            // `r` is true. When `r` is false they disagree, but the enclosing
+            // branch is inactive in that case and the merge result is discarded
+            // by the outer predication — so the difference is unobservable.
+            // Using `NOT(c2)` avoids the extra AND the precise form would need.
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
             let (then_condition, then_value, else_condition, else_value) =
                 if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // For the collapsed merge, the then_condition is the inner's
-                    // condition which already incorporates all outer conditions.
-                    // The correct else_condition is NOT(then_condition).
                     let inner_else_cond = self.not_instruction(
                         inner_then_cond,
                         self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
@@ -2655,6 +2663,77 @@ mod merge_provenance_tests {
             v15 = mul v13, Field 200
             v16 = add v14, v15
             return v16
+        }
+        ");
+    }
+
+    /// Regression pin for issue #12327: the collapse emits `NOT(c2)` as the
+    /// else-condition instead of the semantically precise `r·!(d1·d2)`. The
+    /// two forms differ when the reaching condition `r` is false, so a shared
+    /// non-zero outer else-value (Field 42) makes the difference visible in
+    /// the flattened SSA. If a future change switches to the precise form,
+    /// this snapshot will drift and prompt a deliberate doc update.
+    #[test]
+    fn collapse_with_nonzero_else_value() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                jmpif v0 then: b1(), else: b2(Field 42)
+              b1():
+                jmpif v1 then: b3(), else: b4(Field 42)
+              b3():
+                jmpif v2 then: b5(), else: b6(Field 42)
+              b5():
+                jmp b6(Field 5)
+              b6(v3: Field):
+                jmp b4(v3)
+              b4(v4: Field):
+                jmp b2(v4)
+              b2(v5: Field):
+                return v5
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // The inner collapsed merge is `IfElse(v4, Field 5, NOT(v4), Field 42)`
+        // where `v4 = v0·v1·v2`. Under the precise `r·!(d1·d2)` form, the else
+        // side would be zeroed when `v0` is false and `v21` would be 0 rather
+        // than 42; the outer predication discards that path regardless, so the
+        // observed constant-42 tail is harmless.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = unchecked_mul v3, v2
+            enable_side_effects v4
+            v5 = not v2
+            v6 = unchecked_mul v3, v5
+            enable_side_effects v3
+            v7 = cast v4 as Field
+            v8 = cast v6 as Field
+            v10 = mul v7, Field 5
+            v12 = mul v8, Field 42
+            v13 = add v10, v12
+            v14 = not v1
+            v15 = unchecked_mul v0, v14
+            enable_side_effects v0
+            v16 = not v4
+            v17 = cast v4 as Field
+            v18 = cast v16 as Field
+            v19 = mul v17, Field 5
+            v20 = mul v18, Field 42
+            v21 = add v19, v20
+            v22 = not v0
+            enable_side_effects u1 1
+            v24 = cast v0 as Field
+            v25 = cast v22 as Field
+            v26 = mul v24, v21
+            v27 = mul v25, Field 42
+            v28 = add v26, v27
+            return v28
         }
         ");
     }
