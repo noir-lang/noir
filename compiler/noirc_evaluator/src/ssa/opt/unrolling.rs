@@ -348,7 +348,7 @@ impl Function {
             if self.runtime().is_acir() {
                 return LoopUnrollResult::Failed(
                     loop_.header,
-                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::empty() },
                 );
             }
             return LoopUnrollResult::Skipped;
@@ -865,7 +865,7 @@ impl Loop {
             Ok(pre_header.remove(0))
         } else {
             // We can come back into the header from multiple blocks, so we can't unroll this.
-            Err(CallStack::new())
+            Err(CallStack::empty())
         }
     }
 
@@ -1622,7 +1622,7 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
             }
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
-        None => Err(CallStack::new()),
+        None => Err(CallStack::empty()),
     }
 }
 
@@ -1648,7 +1648,7 @@ fn get_header_arguments(
             Ok(arguments.clone())
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
-        None => Err(CallStack::new()),
+        None => Err(CallStack::empty()),
     }
 }
 

@@ -15,7 +15,7 @@ pub fn check_program(compiled_program: &CompiledProgram) -> Result<(), ErrorsAnd
                     compiled_program.debug[i].location_tree.get_call_stack(*call_stack);
                 CustomDiagnostic::from_message(
                     &format!("Circuit \"{}\" is not solvable", circuit.function_name),
-                    call_stack[0].file,
+                    call_stack.last_or_dummy().file,
                 )
                 .with_call_stack(call_stack)
             } else {

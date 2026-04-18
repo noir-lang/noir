@@ -1,6 +1,15 @@
 #![cfg(test)]
 
-use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
+use acvm::{AcirField, FieldElement};
+
+use crate::{
+    assert_ssa_snapshot,
+    errors::RuntimeError,
+    ssa::{
+        interpreter::value::Value as InterpreterValue, ir::types::NumericType,
+        opt::assert_normalized_ssa_equals,
+    },
+};
 
 use super::{Ssa, generate_ssa};
 
@@ -726,6 +735,197 @@ fn mut_ref_and_immutable_ref_to_same_data_ssa() {
         v8 = eq v7, Field 42
         constrain v7 == Field 42
         return
+    }
+    ");
+}
+
+/// Accessing a single field of `&mut self` (a flattened struct passed as individual references)
+/// should only load that field's reference, not all fields.
+#[test]
+fn mut_ref_struct_field_access_only_loads_needed_field() {
+    let src = "
+    struct Counter {
+        storage: [Field; 4],
+        len: u32,
+        counter: Field,
+    }
+
+    impl Counter {
+        fn next_counter(&mut self) -> Field {
+            let counter = self.counter;
+            self.counter += 1;
+            counter
+        }
+    }
+
+    unconstrained fn main() {
+        let mut c = Counter { storage: [0; 4], len: 0, counter: 0 };
+        let _ = c.next_counter();
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // next_counter should only load/store v2 (counter ref), not v0 (storage ref) or v1 (len ref)
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v1 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+        v2 = allocate -> &mut [Field; 4]
+        store v1 at v2
+        v3 = allocate -> &mut u32
+        store u32 0 at v3
+        v5 = allocate -> &mut Field
+        store Field 0 at v5
+        v7 = call f1(v2, v3, v5) -> Field
+        return
+    }
+    brillig(inline) fn next_counter f1 {
+      b0(v0: &mut [Field; 4], v1: &mut u32, v2: &mut Field):
+        v3 = load v2 -> Field
+        v4 = load v2 -> Field
+        v6 = add v4, Field 1
+        store v6 at v2
+        return v3
+    }
+    ");
+}
+
+/// Assigning to a single field of `&mut self` should only store to that field's reference,
+/// not load/store all fields.
+#[test]
+fn mut_ref_struct_field_assign_only_stores_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    impl Pair {
+        fn set_b(&mut self, val: Field) {
+            self.b = val;
+        }
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        p.set_b(42);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // set_b should only store to v1 (b ref), not load/store v0 (a ref)
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        call f1(v0, v2, Field 42)
+        return
+    }
+    brillig(inline) fn set_b f1 {
+      b0(v0: &mut Field, v1: &mut Field, v2: Field):
+        store v2 at v1
+        return
+    }
+    ");
+}
+
+/// Accessing a single field of a `let mut` local struct should only load that field's
+/// allocation, not all fields.
+#[test]
+fn mut_local_struct_field_access_only_loads_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        assert(p.b == 0);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Reading p.b should only load from v2, not v0
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        v3 = load v2 -> Field
+        v4 = eq v3, Field 0
+        constrain v3 == Field 0
+        return
+    }
+    ");
+}
+
+/// Assigning to a single field of a `let mut` local struct should only store to that
+/// field's allocation, not load/store all fields.
+#[test]
+fn mut_local_struct_field_assign_only_stores_needed_field() {
+    let src = "
+    struct Pair {
+        a: Field,
+        b: Field,
+    }
+
+    unconstrained fn main() {
+        let mut p = Pair { a: 0, b: 0 };
+        p.b = 42;
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Assigning p.b = 42 should only store to v2, no loads/stores of v0
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 0 at v0
+        v2 = allocate -> &mut Field
+        store Field 0 at v2
+        store Field 42 at v2
+        return
+    }
+    ");
+}
+
+/// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
+/// the old values before any stores. Regression test for a lazy `codegen_ident` bug
+/// where stores were interleaved with lazy loads, causing stale reads.
+#[test]
+fn mutable_tuple_self_assign_loads_before_stores() {
+    let src = "
+    unconstrained fn main() -> pub bool {
+        let mut b: (bool, bool) = (true, false);
+        // After: b should be (false, true), so b.1 = true
+        b = (false, b.0);
+        b.1
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let results = ssa.interpret(Vec::new()).unwrap();
+    let expected = InterpreterValue::from_constant(FieldElement::one(), NumericType::bool())
+        .expect("should create bool value");
+    assert_eq!(results.len(), 1, "expected one return value");
+    assert_eq!(results[0], expected, "b.1 should be true (the old b.0) after b = (false, b.0)");
+
+    // The load of b.0 (v0) must appear before the store to v0.
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u1
+        store u1 1 at v0
+        v2 = allocate -> &mut u1
+        store u1 0 at v2
+        v4 = load v0 -> u1
+        store u1 0 at v0
+        store v4 at v2
+        v5 = load v2 -> u1
+        return v5
     }
     ");
 }
