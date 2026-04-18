@@ -6,14 +6,19 @@ sidebar_position: 1
 ---
 
 An integer type is a range constrained field type.
-The Noir frontend supports both unsigned and signed integer types.
-The allowed sizes are 8, 16, 32, 64 and 128 bits. ([currently only unsigned integers for 128 bits](https://github.com/noir-lang/noir/issues/7591))
+
+The Noir frontend supports both unsigned and signed integer types. The allowed sizes are 8, 16, 32, 64 and 128 bits. (For 128 bits, [only unsigned is supported](https://github.com/noir-lang/noir/issues/7591) at the moment.)
 
 :::info
 
-When an integer is defined in Noir without a specific type, it will default to `Field` unless another type is expected at its position.
+When an integer is specified without a defined or inferred type, it defaults to `Field`. Except if they are one of the following, it defaults to `u32` instead:
 
-The one exception is for loop indices which default to `u32` since comparisons on `Field`s are not possible.
+- Array indices
+- Loop indices
+- Bitwise operations
+- Comparison operations
+- A modulo (`%`) operation
+- Constants in numeric generics
 
 You can add a type suffix such as `u32` or `Field` to the end of an integer literal to explicitly specify the type.
 

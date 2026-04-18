@@ -17,7 +17,7 @@ use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
 use itertools::Itertools;
-use noirc_errors::{Location, call_stack::CallStackId};
+use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -532,7 +532,7 @@ impl<'function> PerFunctionContext<'function> {
     fn validate_callee(
         &self,
         callee: &Function,
-        call_stack: Vec<Location>,
+        call_stack: CallStack,
     ) -> Result<(), RuntimeError> {
         if self.entry_function.runtime().is_brillig() && callee.runtime().is_acir() {
             // If the caller is Brillig and the called function is ACIR,
