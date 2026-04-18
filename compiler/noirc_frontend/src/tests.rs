@@ -21,6 +21,7 @@ mod numeric_generics;
 mod oracles;
 mod references;
 mod runtime;
+mod shifts;
 mod structs;
 mod traits;
 mod turbofish;
