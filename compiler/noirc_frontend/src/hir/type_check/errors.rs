@@ -139,6 +139,12 @@ pub enum TypeCheckError {
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
     IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
+    #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
+    ShiftIntegerBitWidth {
+        bit_width_x: IntegerBitSize,
+        bit_width_y: IntegerBitSize,
+        location: Location,
+    },
     #[error("Cannot apply unary operator `{operator}` to type `{typ}`")]
     InvalidUnaryOp { operator: &'static str, typ: String, location: Location },
     #[error(
@@ -344,6 +350,7 @@ impl TypeCheckError {
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
+            | TypeCheckError::ShiftIntegerBitWidth { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location }
             | TypeCheckError::FieldModulo { location }
@@ -579,6 +586,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
+            | TypeCheckError::ShiftIntegerBitWidth { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
