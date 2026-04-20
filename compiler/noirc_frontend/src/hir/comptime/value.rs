@@ -713,11 +713,11 @@ impl Value {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::FormatString(_, typ, _) => typ.contains_function(),
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
             | Value::String(_)
-            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)
