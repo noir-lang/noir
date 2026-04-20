@@ -713,11 +713,11 @@
 <a href=#713 id=713 data-nosnippet>713</a>                values.iter().any(|value| value.contains_function_or_closure())
 <a href=#714 id=714 data-nosnippet>714</a>            }
 <a href=#715 id=715 data-nosnippet>715</a>            Value::Pointer(shared, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; shared.borrow().contains_function_or_closure(),
-<a href=#716 id=716 data-nosnippet>716</a>            Value::Unit
-<a href=#717 id=717 data-nosnippet>717</a>            | Value::Bool(<span class="kw">_</span>)
-<a href=#718 id=718 data-nosnippet>718</a>            | Value::Integer(<span class="kw">_</span>)
-<a href=#719 id=719 data-nosnippet>719</a>            | Value::String(<span class="kw">_</span>)
-<a href=#720 id=720 data-nosnippet>720</a>            | Value::FormatString(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#716 id=716 data-nosnippet>716</a>            Value::FormatString(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; typ.contains_function(),
+<a href=#717 id=717 data-nosnippet>717</a>            Value::Unit
+<a href=#718 id=718 data-nosnippet>718</a>            | Value::Bool(<span class="kw">_</span>)
+<a href=#719 id=719 data-nosnippet>719</a>            | Value::Integer(<span class="kw">_</span>)
+<a href=#720 id=720 data-nosnippet>720</a>            | Value::String(<span class="kw">_</span>)
 <a href=#721 id=721 data-nosnippet>721</a>            | Value::CtString(<span class="kw">_</span>)
 <a href=#722 id=722 data-nosnippet>722</a>            | Value::Quoted(<span class="kw">_</span>)
 <a href=#723 id=723 data-nosnippet>723</a>            | Value::TypeDefinition(<span class="kw">_</span>)
