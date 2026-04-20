@@ -458,6 +458,9 @@ impl Context {
                     }
 
                     // If this is a Load, remember it so Store can fix up the placeholder parent.
+                    // Note that by the time this pass runs, Loads and Stores should have been
+                    // removed from ACIR functions, but we do have some unit tests that uses them.
+                    // This could be removed, but we kept it in case things change in the future.
                     if let Instruction::Load { address } = instruction {
                         pending_loads.entry(*address).or_default().push(*result_id);
                     }
