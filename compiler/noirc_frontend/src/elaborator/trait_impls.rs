@@ -33,6 +33,15 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
+use crate::hir::def_map::LocalModuleId;
+
+/// State saved when entering a trait impl scope, restored on exit.
+struct TraitImplScopeState {
+    local_module: Option<LocalModuleId>,
+    current_trait_impl: Option<TraitImplId>,
+    current_trait: Option<TraitId>,
+    self_type: Option<Type>,
+}
 
 impl Elaborator<'_> {
     /// Collects and validates a trait implementation.
@@ -67,17 +76,13 @@ impl Elaborator<'_> {
     /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        let previous_local_module = self.local_module.replace(trait_impl.module_id);
-        let previous_current_trait_impl =
-            std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
-        let previous_current_trait =
-            std::mem::replace(&mut self.current_trait, trait_impl.trait_id);
+        let self_type = trait_impl
+            .methods
+            .self_type
+            .clone()
+            .expect("Expected struct type to be set before collect_trait_impl");
 
-        let self_type = trait_impl.methods.self_type.clone();
-        let self_type =
-            self_type.expect("Expected struct type to be set before collect_trait_impl");
-
-        let previous_self_type = self.self_type.replace(self_type.clone());
+        let scope = self.enter_trait_impl_scope(trait_impl, self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
@@ -271,10 +276,32 @@ impl Elaborator<'_> {
             self.generics = previous_generics;
         }
 
-        self.local_module = previous_local_module;
-        self.current_trait_impl = previous_current_trait_impl;
-        self.current_trait = previous_current_trait;
-        self.self_type = previous_self_type;
+        self.exit_trait_impl_scope(scope);
+    }
+
+    /// Saves the elaborator state needed to process a trait impl, swapping in the
+    /// impl's module/trait/self-type. Paired with [`Self::exit_trait_impl_scope`].
+    fn enter_trait_impl_scope(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+        self_type: Type,
+    ) -> TraitImplScopeState {
+        TraitImplScopeState {
+            local_module: self.local_module.replace(trait_impl.module_id),
+            current_trait_impl: std::mem::replace(
+                &mut self.current_trait_impl,
+                trait_impl.impl_id,
+            ),
+            current_trait: std::mem::replace(&mut self.current_trait, trait_impl.trait_id),
+            self_type: self.self_type.replace(self_type),
+        }
+    }
+
+    fn exit_trait_impl_scope(&mut self, state: TraitImplScopeState) {
+        self.local_module = state.local_module;
+        self.current_trait_impl = state.current_trait_impl;
+        self.current_trait = state.current_trait;
+        self.self_type = state.self_type;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
