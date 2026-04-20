@@ -445,7 +445,6 @@ impl Context {
 
                     // Ensure each arg is itself tracked so that when we reach the instruction
                     // that produces arg (going backward), we expand its parents too.
-                    // This is the equivalent of the who_cares[arg].insert(key) update.
                     for &arg in args.iter() {
                         self.parents.entry(arg).or_default();
                     }
