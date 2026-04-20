@@ -165,7 +165,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::empty() };
         Err(err)
     } else {
         Ok(ssa)
@@ -1240,6 +1240,31 @@ impl FunctionContext<'_> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
+        // Optimization: for ExtractTupleField(Dereference(x), N), extract the field's
+        // reference first, then dereference only that field. This avoids loading all
+        // fields of a struct through &mut self when only one field is needed.
+        if let Expression::Unary(unary) = tuple
+            && matches!(unary.operator, UnaryOp::Dereference { .. })
+            && !unary.skip
+            && let ast::Type::Tuple(fields) = &unary.result_type
+        {
+            let field_type = &fields[field_index];
+            let references = self.codegen_expression(&unary.rhs)?;
+            let field_ref = Self::get_field(references, field_index);
+            return Ok(self.dereference(&field_ref, field_type));
+        }
+
+        // Optimization: for ExtractTupleField(Ident(mutable_local), N), get the
+        // references without loading, then extract and load only the needed field.
+        if let Expression::Ident(ident) = tuple
+            && ident.mutable
+            && matches!(ident.definition, ast::Definition::Local(_))
+        {
+            let references = self.codegen_ident_reference(ident);
+            let field = Self::get_field(references, field_index);
+            return Ok(field.map(|value| value.eval(self).into()));
+        }
+
         let tuple = self.codegen_expression(tuple)?;
         Ok(Self::get_field(tuple, field_index))
     }
@@ -1558,7 +1583,7 @@ impl FunctionContext<'_> {
         let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
@@ -1572,7 +1597,7 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,

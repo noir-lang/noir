@@ -333,7 +333,7 @@ impl DependencyContext {
             {
                 // Skip already visited locations (happens often in unrolled functions)
                 let call_stack = function.dfg.get_instruction_call_stack(*instruction);
-                let location = call_stack.last();
+                let location = call_stack.last().filter(|loc| !loc.is_dummy());
 
                 // If there is no call stack (happens for tests), consider unvisited
                 let visited =
@@ -371,8 +371,8 @@ impl DependencyContext {
                         });
                     }
 
-                    if let Some(location) = location {
-                        self.visited_locations.insert((*callee, *location));
+                    if let Some(loc) = location {
+                        self.visited_locations.insert((*callee, *loc));
                     }
                 }
             }

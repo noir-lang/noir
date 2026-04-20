@@ -36,6 +36,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -62,11 +63,8 @@ impl Function {
             return;
         }
 
-        let allocations = collect_allocations(inserter.function, &blocks);
-
         let block = blocks[0];
-        let instructions_to_remove =
-            forward_loads_and_stores_in_block(&mut inserter, block, &allocations);
+        let instructions_to_remove = forward_loads_and_stores_in_block(&mut inserter, block);
 
         if !instructions_to_remove.is_empty() {
             inserter.function.dfg[block]
@@ -79,41 +77,40 @@ impl Function {
         // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
         let instructions = inserter.function.dfg[block].take_instructions();
         for instruction_id in &instructions {
-            if !instructions_to_remove.contains(instruction_id) {
-                inserter.push_instruction(*instruction_id, block, true);
-            }
+            inserter.push_instruction(*instruction_id, block, true);
         }
         inserter.map_terminator_in_place(block);
         inserter.map_data_bus_in_place();
     }
 }
 
-/// Collect all ValueIds produced by Allocate instructions.
-fn collect_allocations(function: &Function, blocks: &[BasicBlockId]) -> HashSet<ValueId> {
-    let mut allocations = HashSet::default();
-    for block in blocks {
-        for instruction_id in function.dfg[*block].instructions() {
-            if let Instruction::Allocate = &function.dfg[*instruction_id] {
-                let result = function.dfg.instruction_results(*instruction_id)[0];
-                allocations.insert(result);
-            }
+/// Returns true if two types are compatible for aliasing purposes.
+///
+/// `&mut T` and `&T` with the same inner type must be treated as potentially aliasing.
+///
+/// The comparison is recursive so that nested references (e.g. `&&mut T` vs
+/// `&mut &T`) are also handled correctly.
+fn same_type_for_aliasing(a: &Type, b: &Type) -> bool {
+    match (a, b) {
+        (Type::Reference(inner_a, _), Type::Reference(inner_b, _)) => {
+            same_type_for_aliasing(inner_a, inner_b)
         }
+        _ => a == b,
     }
-    allocations
 }
 
 /// Returns true if two addresses might refer to the same memory.
 ///
 /// Conservative: returns true when uncertain.
 /// - Same ValueId -> always alias.
-/// - Different reference types -> never alias.
+/// - Incompatible reference types -> never alias.
 /// - Both from different `allocate` instructions -> never alias.
 /// - Otherwise -> may alias.
 fn may_alias(a: ValueId, b: ValueId, allocations: &HashSet<ValueId>, dfg: &DataFlowGraph) -> bool {
     if a == b {
         return true;
     }
-    if dfg.type_of_value(a) != dfg.type_of_value(b) {
+    if !same_type_for_aliasing(&dfg.type_of_value(a), &dfg.type_of_value(b)) {
         return false;
     }
     if allocations.contains(&a) && allocations.contains(&b) {
@@ -128,11 +125,10 @@ fn may_alias(a: ValueId, b: ValueId, allocations: &HashSet<ValueId>, dfg: &DataF
 fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    allocations: &HashSet<ValueId>,
 ) -> HashSet<InstructionId> {
+    let mut allocations: HashSet<ValueId> = HashSet::default();
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
-    let mut last_loads: HashMap<ValueId, ValueId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
@@ -140,6 +136,10 @@ fn forward_loads_and_stores_in_block(
     for instruction_id in instructions {
         let instruction = &inserter.function.dfg[instruction_id];
         match instruction {
+            Instruction::Allocate => {
+                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
+                allocations.insert(result);
+            }
             Instruction::Store { address, value } => {
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
@@ -152,35 +152,27 @@ fn forward_loads_and_stores_in_block(
 
                 // Clear aliased entries (Y != address where may_alias).
                 let aliases =
-                    |k: &ValueId| *k != address && may_alias(address, *k, allocations, dfg);
+                    |k: &ValueId| *k != address && may_alias(address, *k, &allocations, dfg);
                 known_values.retain(|k, _| !aliases(k));
-                last_loads.retain(|k, _| !aliases(k));
                 last_stores.retain(|k, _| !aliases(k));
 
-                // A store supersedes any prior load from this address.
-                last_loads.remove(&address);
                 known_values.insert(address, value);
                 last_stores.insert(address, instruction_id);
             }
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
 
+                let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                 if let Some(value) = known_values.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
                     inserter.map_value(result, *value);
                     instructions_to_remove.insert(instruction_id);
-                } else if let Some(prev_result) = last_loads.get(&address) {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    inserter.map_value(result, *prev_result);
-                    instructions_to_remove.insert(instruction_id);
                 } else {
-                    let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                    last_loads.insert(address, result);
+                    known_values.insert(address, result);
                 }
 
                 // Mark aliased stores as used (not dead).
                 let dfg = &inserter.function.dfg;
-                last_stores.retain(|k, _| !may_alias(address, *k, allocations, dfg));
+                last_stores.retain(|k, _| !may_alias(address, *k, &allocations, dfg));
             }
             Instruction::Call { .. } => {
                 // Simple reference (`&mut T` where T has no refs): invalidate that
@@ -193,14 +185,11 @@ fn forward_loads_and_stores_in_block(
                     if is_simple_ref {
                         let dfg = &inserter.function.dfg;
                         known_values
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
-                        last_loads
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                            .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
                         last_stores
-                            .retain(|k, _| !may_alias(value, *k, allocations, dfg));
+                            .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
                     } else if typ.contains_reference() {
                         known_values.clear();
-                        last_loads.clear();
                         last_stores.clear();
                     }
                 });
@@ -1069,6 +1058,87 @@ mod tests {
           b0(v0: &mut Field):
             store Field 1 at v0
             return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn does_not_remove_potentially_aliased_store_before_array_set() {
+        // Regression test for #12316. After `array_set` stores v0 into v2, a
+        // later `store at v1` may alias v0 (v1 could have been extracted from
+        // v2). The intervening aliased store must invalidate last_stores[v0]
+        // so that `store Field 2 at v0` does not treat `store Field 0 at v0`
+        // as a redundant prior write and eliminate it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: [&mut Field; 2]):
+            store Field 0 at v0
+            v3 = array_set v2, index u32 0, value v0
+            store Field 1 at v1
+            store Field 2 at v0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn nested_mutable_and_immutable_reference_outer_are_aliases() {
+        // same_type_for_aliasing must recurse through nested reference types.
+        // v0 (&mut &mut Field) and v1 (&mut &Field) differ only in the inner
+        // mutability flag; the outer types strip to the same underlying Field,
+        // so they must be treated as potential aliases.
+        //
+        // Concretely: the store to v0 must invalidate the cached load of v1,
+        // so the second load of v1 is NOT forwarded to v2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut &mut Field, v1: &mut &Field):
+            v2 = load v1 -> &Field       // cache: last_loads[v1] = v2
+            v3 = allocate -> &mut Field
+            store v3 at v0              // must clear last_loads[v1] (v0 may alias v1)
+            v4 = load v1 -> &Field      // must NOT forward to v2
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn immutable_ref_load_prevents_dead_store_through_mutable_alias() {
+        // A load from an immutable reference must protect a prior store to a
+        // mutable reference of the same type, because the two may alias.
+        // Without the fix, may_alias(&mut Field, &Field) returns false (type
+        // mismatch), so the load does not mark the first store as used and it
+        // gets incorrectly eliminated as a dead store.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            v2 = load v1 -> Field
+            store Field 2 at v0
+            return v2
+        }
+        ";
+        // If v0 == v1, eliminating `store Field 1 at v0` is wrong because
+        // `load v1` reads through it.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn considers_mutable_reference_and_immutable_reference_to_be_aliases() {
+        // v0 (&mut Field) and v1 (&Field) may point to the same memory even
+        // though their types differ in mutability. The store to v0 must
+        // therefore invalidate the cached load result for v1, so the second
+        // load of v1 is NOT forwarded to v2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &Field):
+            v2 = load v1 -> Field    // cache: last_loads[v1] = v2
+            store Field 0 at v0     // must clear last_loads[v1] (v0 may alias v1)
+            v3 = load v1 -> Field   // must NOT forward to v2
+            return v3
         }
         ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
