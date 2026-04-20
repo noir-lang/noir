@@ -1,0 +1,6 @@
+[package]
+name = "conditional_black_box_function_pointer_call"
+type = "bin"
+authors = [""]
+
+[dependencies]

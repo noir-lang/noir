@@ -176,7 +176,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -193,6 +193,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     "simple_shield",
     "strings",
     // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
     // This relies on maximum inliner setting
