@@ -175,20 +175,30 @@ fn forward_loads_and_stores_in_block(
                 last_stores.retain(|k, _| !may_alias(address, *k, &allocations, dfg));
             }
             Instruction::Call { .. } => {
-                // Simple reference (`&mut T` where T has no refs): invalidate that
-                // address and all its potential aliases.
-                // Container or nested reference: clear all state.
+                // `is_simple_ref`: `&T` or `&mut T` where T itself contains no refs.
+                // `is_mutable`: the outermost reference layer is mutable.
+                //
+                // - Simple mutable ref (`&mut T`): precise invalidation — the callee
+                //   can write through it, so that address and its aliases are cleared.
+                // - Simple immutable ref (`&T`): no-op — the callee can only read.
+                // - Container or nested ref that contains a mutable reference somewhere
+                //   (e.g. `[&mut T; N]`, `&&mut T`): full clear — the callee can
+                //   extract the inner mutable ref and write through it.
+                // - Container or nested ref with only immutable references
+                //   (e.g. `[&T; N]`): no-op — no write path exists.
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
                     let typ = inserter.function.dfg.type_of_value(value);
-                    let is_simple_ref = matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
-                    if is_simple_ref {
+                    let is_simple_ref =
+                        matches!(typ.reference_element_type(), Some(inner) if !inner.contains_reference());
+                    let is_mutable = matches!(typ.as_ref(), Type::Reference(_, true));
+                    if is_simple_ref && is_mutable {
                         let dfg = &inserter.function.dfg;
                         known_values
                             .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
                         last_stores
                             .retain(|k, _| !may_alias(value, *k, &allocations, dfg));
-                    } else if typ.contains_reference() {
+                    } else if !is_simple_ref && typ.contains_mutable_reference() {
                         known_values.clear();
                         last_stores.clear();
                     }
@@ -537,6 +547,78 @@ mod tests {
         // The load should NOT be forwarded because the call receives an array
         // containing a reference, so the callee could modify the pointed-to memory.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn call_with_immutable_reference_does_not_invalidate_cache() {
+        // A call that only receives an immutable reference cannot write through
+        // it, so cached values for that address must remain valid after the call.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The call only holds an immutable reference; it cannot modify v0's
+        // memory. The second load should be forwarded to v1.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_array_of_immutable_references_does_not_invalidate_cache() {
+        // A call that only receives an array of immutable references cannot write
+        // through any of them, so no cached values should be invalidated.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: [&Field; 2]):
+            store Field 10 at v0
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&Field; 2]):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The call only receives immutable references; it cannot modify v0's
+        // memory. The load should be forwarded to Field 10.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: [&Field; 2]):
+            store Field 10 at v0
+            call f1(v1)
+            return Field 10
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&Field; 2]):
+            return
+        }
+        ");
     }
 
     #[test]
