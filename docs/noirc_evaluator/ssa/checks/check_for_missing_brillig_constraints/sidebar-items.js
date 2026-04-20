@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ResultStatus"],"fn":["intersecting"],"struct":["BrilligTaintedIds","DependencyContext"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_ANCESTOR_DISTANCE","MAX_ARRAY_OUTPUT_LENGTH"],"fn":["any_ancestor","as_equivalence","bfs_ancestors","bfs_traverse_ancestors","has_call_to_brillig","instruction_arguments","instruction_results","is_call_to_brillig","is_constraint","is_side_effect"],"struct":["Context","TaintedDescendants","ValueSet"]};

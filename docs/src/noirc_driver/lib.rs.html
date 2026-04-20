@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>noirc_artifacts::program::CompiledProgram;
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, DiagnosticKind};
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>noirc_evaluator::brillig::brillig_ir::{
 <a href=#18 id=18 data-nosnippet>18</a>    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
@@ -170,881 +170,876 @@
 <a href=#170 id=170 data-nosnippet>170</a>    </span><span class="attr">#[arg(long)]
 <a href=#171 id=171 data-nosnippet>171</a>    </span><span class="kw">pub </span>count_array_copies: bool,
 <a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Flag to turn on the lookback feature of the Brillig call constraints
-<a href=#174 id=174 data-nosnippet>174</a>    /// check, allowing tracking argument values before the call happens preventing
-<a href=#175 id=175 data-nosnippet>175</a>    /// certain rare false positives (leads to a slowdown on large rollout functions)
-<a href=#176 id=176 data-nosnippet>176</a>    </span><span class="attr">#[arg(long)]
-<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">pub </span>enable_brillig_constraints_check_lookback: bool,
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Setting to decide on an inlining strategy for Brillig functions.
+<a href=#174 id=174 data-nosnippet>174</a>    /// A more aggressive inliner should generate larger programs but more optimized
+<a href=#175 id=175 data-nosnippet>175</a>    /// A less aggressive inliner should generate smaller programs
+<a href=#176 id=176 data-nosnippet>176</a>    </span><span class="attr">#[arg(long, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = i64::MAX)]
+<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">pub </span>inliner_aggressiveness: i64,
 <a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// Setting to decide on an inlining strategy for Brillig functions.
-<a href=#180 id=180 data-nosnippet>180</a>    /// A more aggressive inliner should generate larger programs but more optimized
-<a href=#181 id=181 data-nosnippet>181</a>    /// A less aggressive inliner should generate smaller programs
-<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="attr">#[arg(long, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = i64::MAX)]
-<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">pub </span>inliner_aggressiveness: i64,
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="doccomment">/// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
-<a href=#186 id=186 data-nosnippet>186</a>    /// A value of 0 effectively disables constant folding.
-<a href=#187 id=187 data-nosnippet>187</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
-<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">pub </span>constant_folding_max_iter: usize,
-<a href=#189 id=189 data-nosnippet>189</a>
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Setting to decide the maximum weight threshold at which we designate a function
-<a href=#191 id=191 data-nosnippet>191</a>    /// as "small" and thus to always be inlined.
-<a href=#192 id=192 data-nosnippet>192</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = INLINING_MAX_INSTRUCTIONS)]
-<a href=#193 id=193 data-nosnippet>193</a>    </span><span class="kw">pub </span>small_function_max_instructions: usize,
-<a href=#194 id=194 data-nosnippet>194</a>
-<a href=#195 id=195 data-nosnippet>195</a>    <span class="doccomment">/// Setting the maximum acceptable increase in Brillig bytecode size due to
-<a href=#196 id=196 data-nosnippet>196</a>    /// unrolling small loops.
-<a href=#197 id=197 data-nosnippet>197</a>    /// When left empty, any change is accepted as long
-<a href=#198 id=198 data-nosnippet>198</a>    /// as it required fewer SSA instructions. A value of 100 allows up to 2× growth.
-<a href=#199 id=199 data-nosnippet>199</a>    /// A higher value results in fewer jumps but a larger program.
-<a href=#200 id=200 data-nosnippet>200</a>    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
-<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>)]
-<a href=#202 id=202 data-nosnippet>202</a>    </span><span class="kw">pub </span>max_bytecode_increase_percent: <span class="prelude-ty">Option</span>&lt;i32&gt;,
-<a href=#203 id=203 data-nosnippet>203</a>
-<a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// Maximum iterations for Brillig loop unrolling. Loops exceeding this
-<a href=#205 id=205 data-nosnippet>205</a>    /// will not be unrolled even if they pass the instruction threshold.
-<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_UNROLL_ITERATIONS)]
-<a href=#207 id=207 data-nosnippet>207</a>    </span><span class="kw">pub </span>max_unroll_iterations: usize,
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="doccomment">/// Override the threshold for force-unrolling small loops.
-<a href=#210 id=210 data-nosnippet>210</a>    ///
-<a href=#211 id=211 data-nosnippet>211</a>    /// Loops with constant bounds and no breaks whose unrolled
-<a href=#212 id=212 data-nosnippet>212</a>    /// instruction count is at or below this threshold will always be unrolled.
-<a href=#213 id=213 data-nosnippet>213</a>    ///
-<a href=#214 id=214 data-nosnippet>214</a>    /// Set to 0 to disable force-unrolling.
-<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = FORCE_UNROLL_THRESHOLD)]
-<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">pub </span>force_unroll_threshold: usize,
-<a href=#217 id=217 data-nosnippet>217</a>
-<a href=#218 id=218 data-nosnippet>218</a>    <span class="doccomment">/// Minimum percentage cost reduction required to keep a specialized
-<a href=#219 id=219 data-nosnippet>219</a>    /// Brillig function clone. Set to 0 to disable specialization.
-<a href=#220 id=220 data-nosnippet>220</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = DEFAULT_SPECIALIZATION_THRESHOLD)]
-<a href=#221 id=221 data-nosnippet>221</a>    </span><span class="kw">pub </span>specialization_threshold: usize,
-<a href=#222 id=222 data-nosnippet>222</a>
-<a href=#223 id=223 data-nosnippet>223</a>    <span class="doccomment">/// Maximum number of specialized clones per original Brillig function.
-<a href=#224 id=224 data-nosnippet>224</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = DEFAULT_MAX_SPECIALIZATIONS_PER_FN)]
-<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">pub </span>max_specializations_per_fn: usize,
-<a href=#226 id=226 data-nosnippet>226</a>
-<a href=#227 id=227 data-nosnippet>227</a>    <span class="doccomment">/// Maximum size of a single Brillig stack frame.
-<a href=#228 id=228 data-nosnippet>228</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_STACK_FRAME_SIZE)]
-<a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">pub </span>max_stack_frame_size: usize,
-<a href=#230 id=230 data-nosnippet>230</a>
-<a href=#231 id=231 data-nosnippet>231</a>    <span class="doccomment">/// Number of Brillig stack frames / call depth limit.
-<a href=#232 id=232 data-nosnippet>232</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = NUM_STACK_FRAMES)]
-<a href=#233 id=233 data-nosnippet>233</a>    </span><span class="kw">pub </span>num_stack_frames: usize,
-<a href=#234 id=234 data-nosnippet>234</a>
-<a href=#235 id=235 data-nosnippet>235</a>    <span class="doccomment">/// Maximum Brillig scratch space size.
-<a href=#236 id=236 data-nosnippet>236</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_SCRATCH_SPACE)]
-<a href=#237 id=237 data-nosnippet>237</a>    </span><span class="kw">pub </span>max_scratch_space: usize,
-<a href=#238 id=238 data-nosnippet>238</a>
-<a href=#239 id=239 data-nosnippet>239</a>    <span class="doccomment">/// Skip reading files/folders from the root directory and instead accept the
-<a href=#240 id=240 data-nosnippet>240</a>    /// contents of `main.nr` through STDIN.
-<a href=#241 id=241 data-nosnippet>241</a>    ///
-<a href=#242 id=242 data-nosnippet>242</a>    /// The implicit package structure is:
-<a href=#243 id=243 data-nosnippet>243</a>    /// ```
-<a href=#244 id=244 data-nosnippet>244</a>    /// src/main.nr // STDIN
-<a href=#245 id=245 data-nosnippet>245</a>    /// Nargo.toml // fixed "bin" Nargo.toml
-<a href=#246 id=246 data-nosnippet>246</a>    /// ```
-<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
-<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="kw">pub </span>debug_compile_stdin: bool,
-<a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="doccomment">/// Unstable features to enable for this current build.
-<a href=#251 id=251 data-nosnippet>251</a>    ///
-<a href=#252 id=252 data-nosnippet>252</a>    /// If non-empty, it disables unstable features required in crate manifests.
-<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
-<a href=#254 id=254 data-nosnippet>254</a>    #[clap(long, short = <span class="string">'Z'</span>, value_delimiter = <span class="string">','</span>, conflicts_with = <span class="string">"no_unstable_features"</span>)]
-<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">pub </span>unstable_features: Vec&lt;UnstableFeature&gt;,
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a>    <span class="doccomment">/// Disable any unstable features required in crate manifests.
-<a href=#258 id=258 data-nosnippet>258</a>    </span><span class="attr">#[arg(long, conflicts_with = <span class="string">"unstable_features"</span>)]
-<a href=#259 id=259 data-nosnippet>259</a>    </span><span class="kw">pub </span>no_unstable_features: bool,
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// Used internally to avoid comptime println from producing output
-<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
-<a href=#263 id=263 data-nosnippet>263</a>    </span><span class="kw">pub </span>disable_comptime_printing: bool,
-<a href=#264 id=264 data-nosnippet>264</a>}
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a><span class="kw">impl </span>Default <span class="kw">for </span>CompileOptions {
-<a href=#267 id=267 data-nosnippet>267</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="self">Self </span>{
-<a href=#269 id=269 data-nosnippet>269</a>            force_compile: <span class="bool-val">false</span>,
-<a href=#270 id=270 data-nosnippet>270</a>            show_ssa: <span class="bool-val">false</span>,
-<a href=#271 id=271 data-nosnippet>271</a>            show_ssa_pass: Vec::new(),
-<a href=#272 id=272 data-nosnippet>272</a>            hide_unchanged_ssa: <span class="bool-val">false</span>,
-<a href=#273 id=273 data-nosnippet>273</a>            with_ssa_locations: <span class="bool-val">false</span>,
-<a href=#274 id=274 data-nosnippet>274</a>            show_contract_fn: <span class="prelude-val">None</span>,
-<a href=#275 id=275 data-nosnippet>275</a>            skip_ssa_pass: Vec::new(),
-<a href=#276 id=276 data-nosnippet>276</a>            emit_ssa: <span class="bool-val">false</span>,
-<a href=#277 id=277 data-nosnippet>277</a>            minimal_ssa: <span class="bool-val">false</span>,
-<a href=#278 id=278 data-nosnippet>278</a>            show_brillig: <span class="bool-val">false</span>,
-<a href=#279 id=279 data-nosnippet>279</a>            show_brillig_opcode_advisories: <span class="bool-val">false</span>,
-<a href=#280 id=280 data-nosnippet>280</a>            print_acir: <span class="bool-val">false</span>,
-<a href=#281 id=281 data-nosnippet>281</a>            benchmark_codegen: <span class="bool-val">false</span>,
-<a href=#282 id=282 data-nosnippet>282</a>            deny_warnings: <span class="bool-val">false</span>,
-<a href=#283 id=283 data-nosnippet>283</a>            silence_warnings: <span class="bool-val">false</span>,
-<a href=#284 id=284 data-nosnippet>284</a>            show_monomorphized: <span class="bool-val">false</span>,
-<a href=#285 id=285 data-nosnippet>285</a>            instrument_debug: <span class="bool-val">false</span>,
-<a href=#286 id=286 data-nosnippet>286</a>            force_brillig: <span class="bool-val">false</span>,
-<a href=#287 id=287 data-nosnippet>287</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
-<a href=#288 id=288 data-nosnippet>288</a>            show_artifact_paths: <span class="bool-val">false</span>,
-<a href=#289 id=289 data-nosnippet>289</a>            skip_underconstrained_check: <span class="bool-val">false</span>,
-<a href=#290 id=290 data-nosnippet>290</a>            skip_brillig_constraints_check: <span class="bool-val">false</span>,
-<a href=#291 id=291 data-nosnippet>291</a>            enable_brillig_debug_assertions: <span class="bool-val">false</span>,
-<a href=#292 id=292 data-nosnippet>292</a>            count_array_copies: <span class="bool-val">false</span>,
-<a href=#293 id=293 data-nosnippet>293</a>            enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
-<a href=#294 id=294 data-nosnippet>294</a>            inliner_aggressiveness: i64::MAX,
-<a href=#295 id=295 data-nosnippet>295</a>            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-<a href=#296 id=296 data-nosnippet>296</a>            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
-<a href=#297 id=297 data-nosnippet>297</a>            max_bytecode_increase_percent: <span class="prelude-val">None</span>,
-<a href=#298 id=298 data-nosnippet>298</a>            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-<a href=#299 id=299 data-nosnippet>299</a>            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-<a href=#300 id=300 data-nosnippet>300</a>            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
-<a href=#301 id=301 data-nosnippet>301</a>            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-<a href=#302 id=302 data-nosnippet>302</a>            max_stack_frame_size: MAX_STACK_FRAME_SIZE,
-<a href=#303 id=303 data-nosnippet>303</a>            num_stack_frames: NUM_STACK_FRAMES,
-<a href=#304 id=304 data-nosnippet>304</a>            max_scratch_space: MAX_SCRATCH_SPACE,
-<a href=#305 id=305 data-nosnippet>305</a>            debug_compile_stdin: <span class="bool-val">false</span>,
-<a href=#306 id=306 data-nosnippet>306</a>            unstable_features: Vec::new(),
-<a href=#307 id=307 data-nosnippet>307</a>            no_unstable_features: <span class="bool-val">false</span>,
-<a href=#308 id=308 data-nosnippet>308</a>            disable_comptime_printing: <span class="bool-val">false</span>,
-<a href=#309 id=309 data-nosnippet>309</a>        }
-<a href=#310 id=310 data-nosnippet>310</a>    }
-<a href=#311 id=311 data-nosnippet>311</a>}
-<a href=#312 id=312 data-nosnippet>312</a>
-<a href=#313 id=313 data-nosnippet>313</a><span class="kw">impl </span>CompileOptions {
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">pub fn </span>as_ssa_options(<span class="kw-2">&amp;</span><span class="self">self</span>, package_build_path: PathBuf) -&gt; SsaEvaluatorOptions {
-<a href=#315 id=315 data-nosnippet>315</a>        SsaEvaluatorOptions {
-<a href=#316 id=316 data-nosnippet>316</a>            ssa_logging: <span class="kw">if </span>!<span class="self">self</span>.show_ssa_pass.is_empty() {
-<a href=#317 id=317 data-nosnippet>317</a>                SsaLogging::Contains(<span class="self">self</span>.show_ssa_pass.clone())
-<a href=#318 id=318 data-nosnippet>318</a>            } <span class="kw">else if </span><span class="self">self</span>.show_ssa {
-<a href=#319 id=319 data-nosnippet>319</a>                SsaLogging::All
-<a href=#320 id=320 data-nosnippet>320</a>            } <span class="kw">else </span>{
-<a href=#321 id=321 data-nosnippet>321</a>                SsaLogging::None
-<a href=#322 id=322 data-nosnippet>322</a>            },
-<a href=#323 id=323 data-nosnippet>323</a>            brillig_options: BrilligOptions {
-<a href=#324 id=324 data-nosnippet>324</a>                enable_debug_trace: <span class="self">self</span>.show_brillig,
-<a href=#325 id=325 data-nosnippet>325</a>                enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
-<a href=#326 id=326 data-nosnippet>326</a>                enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
-<a href=#327 id=327 data-nosnippet>327</a>                show_opcode_advisories: <span class="self">self</span>.show_brillig_opcode_advisories,
-<a href=#328 id=328 data-nosnippet>328</a>                layout: LayoutConfig::new(
-<a href=#329 id=329 data-nosnippet>329</a>                    <span class="self">self</span>.max_stack_frame_size,
-<a href=#330 id=330 data-nosnippet>330</a>                    <span class="self">self</span>.num_stack_frames,
-<a href=#331 id=331 data-nosnippet>331</a>                    <span class="self">self</span>.max_scratch_space,
-<a href=#332 id=332 data-nosnippet>332</a>                ),
-<a href=#333 id=333 data-nosnippet>333</a>            },
-<a href=#334 id=334 data-nosnippet>334</a>            print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
-<a href=#335 id=335 data-nosnippet>335</a>            emit_ssa: <span class="kw">if </span><span class="self">self</span>.emit_ssa { <span class="prelude-val">Some</span>(package_build_path) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-<a href=#336 id=336 data-nosnippet>336</a>            skip_underconstrained_check: !<span class="self">self</span>.silence_warnings &amp;&amp; <span class="self">self</span>.skip_underconstrained_check,
-<a href=#337 id=337 data-nosnippet>337</a>            enable_brillig_constraints_check_lookback: <span class="self">self
-<a href=#338 id=338 data-nosnippet>338</a>                </span>.enable_brillig_constraints_check_lookback,
-<a href=#339 id=339 data-nosnippet>339</a>            skip_brillig_constraints_check: !<span class="self">self</span>.silence_warnings
-<a href=#340 id=340 data-nosnippet>340</a>                &amp;&amp; <span class="self">self</span>.skip_brillig_constraints_check,
-<a href=#341 id=341 data-nosnippet>341</a>            inliner_aggressiveness: <span class="self">self</span>.inliner_aggressiveness,
-<a href=#342 id=342 data-nosnippet>342</a>            constant_folding_max_iter: <span class="self">self</span>.constant_folding_max_iter,
-<a href=#343 id=343 data-nosnippet>343</a>            small_function_max_instruction: <span class="self">self</span>.small_function_max_instructions,
-<a href=#344 id=344 data-nosnippet>344</a>            max_bytecode_increase_percent: <span class="self">self</span>.max_bytecode_increase_percent,
-<a href=#345 id=345 data-nosnippet>345</a>            max_unroll_iterations: <span class="self">self</span>.max_unroll_iterations,
-<a href=#346 id=346 data-nosnippet>346</a>            force_unroll_threshold: <span class="self">self</span>.force_unroll_threshold,
-<a href=#347 id=347 data-nosnippet>347</a>            specialization_threshold: <span class="self">self</span>.specialization_threshold,
-<a href=#348 id=348 data-nosnippet>348</a>            max_specializations_per_fn: <span class="self">self</span>.max_specializations_per_fn,
-<a href=#349 id=349 data-nosnippet>349</a>            skip_passes: <span class="self">self</span>.skip_ssa_pass.clone(),
-<a href=#350 id=350 data-nosnippet>350</a>            ssa_logging_hide_unchanged: <span class="self">self</span>.hide_unchanged_ssa,
+<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
+<a href=#180 id=180 data-nosnippet>180</a>    /// A value of 0 effectively disables constant folding.
+<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
+<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">pub </span>constant_folding_max_iter: usize,
+<a href=#183 id=183 data-nosnippet>183</a>
+<a href=#184 id=184 data-nosnippet>184</a>    <span class="doccomment">/// Setting to decide the maximum weight threshold at which we designate a function
+<a href=#185 id=185 data-nosnippet>185</a>    /// as "small" and thus to always be inlined.
+<a href=#186 id=186 data-nosnippet>186</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>, default_value_t = INLINING_MAX_INSTRUCTIONS)]
+<a href=#187 id=187 data-nosnippet>187</a>    </span><span class="kw">pub </span>small_function_max_instructions: usize,
+<a href=#188 id=188 data-nosnippet>188</a>
+<a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// Setting the maximum acceptable increase in Brillig bytecode size due to
+<a href=#190 id=190 data-nosnippet>190</a>    /// unrolling small loops.
+<a href=#191 id=191 data-nosnippet>191</a>    /// When left empty, any change is accepted as long
+<a href=#192 id=192 data-nosnippet>192</a>    /// as it required fewer SSA instructions. A value of 100 allows up to 2× growth.
+<a href=#193 id=193 data-nosnippet>193</a>    /// A higher value results in fewer jumps but a larger program.
+<a href=#194 id=194 data-nosnippet>194</a>    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
+<a href=#195 id=195 data-nosnippet>195</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, allow_hyphen_values = <span class="bool-val">true</span>)]
+<a href=#196 id=196 data-nosnippet>196</a>    </span><span class="kw">pub </span>max_bytecode_increase_percent: <span class="prelude-ty">Option</span>&lt;i32&gt;,
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// Maximum iterations for Brillig loop unrolling. Loops exceeding this
+<a href=#199 id=199 data-nosnippet>199</a>    /// will not be unrolled even if they pass the instruction threshold.
+<a href=#200 id=200 data-nosnippet>200</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_UNROLL_ITERATIONS)]
+<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub </span>max_unroll_iterations: usize,
+<a href=#202 id=202 data-nosnippet>202</a>
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// Override the threshold for force-unrolling small loops.
+<a href=#204 id=204 data-nosnippet>204</a>    ///
+<a href=#205 id=205 data-nosnippet>205</a>    /// Loops with constant bounds and no breaks whose unrolled
+<a href=#206 id=206 data-nosnippet>206</a>    /// instruction count is at or below this threshold will always be unrolled.
+<a href=#207 id=207 data-nosnippet>207</a>    ///
+<a href=#208 id=208 data-nosnippet>208</a>    /// Set to 0 to disable force-unrolling.
+<a href=#209 id=209 data-nosnippet>209</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = FORCE_UNROLL_THRESHOLD)]
+<a href=#210 id=210 data-nosnippet>210</a>    </span><span class="kw">pub </span>force_unroll_threshold: usize,
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="doccomment">/// Minimum percentage cost reduction required to keep a specialized
+<a href=#213 id=213 data-nosnippet>213</a>    /// Brillig function clone. Set to 0 to disable specialization.
+<a href=#214 id=214 data-nosnippet>214</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = DEFAULT_SPECIALIZATION_THRESHOLD)]
+<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">pub </span>specialization_threshold: usize,
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="doccomment">/// Maximum number of specialized clones per original Brillig function.
+<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = DEFAULT_MAX_SPECIALIZATIONS_PER_FN)]
+<a href=#219 id=219 data-nosnippet>219</a>    </span><span class="kw">pub </span>max_specializations_per_fn: usize,
+<a href=#220 id=220 data-nosnippet>220</a>
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="doccomment">/// Maximum size of a single Brillig stack frame.
+<a href=#222 id=222 data-nosnippet>222</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_STACK_FRAME_SIZE)]
+<a href=#223 id=223 data-nosnippet>223</a>    </span><span class="kw">pub </span>max_stack_frame_size: usize,
+<a href=#224 id=224 data-nosnippet>224</a>
+<a href=#225 id=225 data-nosnippet>225</a>    <span class="doccomment">/// Number of Brillig stack frames / call depth limit.
+<a href=#226 id=226 data-nosnippet>226</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = NUM_STACK_FRAMES)]
+<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">pub </span>num_stack_frames: usize,
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="doccomment">/// Maximum Brillig scratch space size.
+<a href=#230 id=230 data-nosnippet>230</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>, default_value_t = MAX_SCRATCH_SPACE)]
+<a href=#231 id=231 data-nosnippet>231</a>    </span><span class="kw">pub </span>max_scratch_space: usize,
+<a href=#232 id=232 data-nosnippet>232</a>
+<a href=#233 id=233 data-nosnippet>233</a>    <span class="doccomment">/// Skip reading files/folders from the root directory and instead accept the
+<a href=#234 id=234 data-nosnippet>234</a>    /// contents of `main.nr` through STDIN.
+<a href=#235 id=235 data-nosnippet>235</a>    ///
+<a href=#236 id=236 data-nosnippet>236</a>    /// The implicit package structure is:
+<a href=#237 id=237 data-nosnippet>237</a>    /// ```
+<a href=#238 id=238 data-nosnippet>238</a>    /// src/main.nr // STDIN
+<a href=#239 id=239 data-nosnippet>239</a>    /// Nargo.toml // fixed "bin" Nargo.toml
+<a href=#240 id=240 data-nosnippet>240</a>    /// ```
+<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+<a href=#242 id=242 data-nosnippet>242</a>    </span><span class="kw">pub </span>debug_compile_stdin: bool,
+<a href=#243 id=243 data-nosnippet>243</a>
+<a href=#244 id=244 data-nosnippet>244</a>    <span class="doccomment">/// Unstable features to enable for this current build.
+<a href=#245 id=245 data-nosnippet>245</a>    ///
+<a href=#246 id=246 data-nosnippet>246</a>    /// If non-empty, it disables unstable features required in crate manifests.
+<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
+<a href=#248 id=248 data-nosnippet>248</a>    #[clap(long, short = <span class="string">'Z'</span>, value_delimiter = <span class="string">','</span>, conflicts_with = <span class="string">"no_unstable_features"</span>)]
+<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">pub </span>unstable_features: Vec&lt;UnstableFeature&gt;,
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="doccomment">/// Disable any unstable features required in crate manifests.
+<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="attr">#[arg(long, conflicts_with = <span class="string">"unstable_features"</span>)]
+<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">pub </span>no_unstable_features: bool,
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>    <span class="doccomment">/// Used internally to avoid comptime println from producing output
+<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+<a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">pub </span>disable_comptime_printing: bool,
+<a href=#258 id=258 data-nosnippet>258</a>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a><span class="kw">impl </span>Default <span class="kw">for </span>CompileOptions {
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="self">Self </span>{
+<a href=#263 id=263 data-nosnippet>263</a>            force_compile: <span class="bool-val">false</span>,
+<a href=#264 id=264 data-nosnippet>264</a>            show_ssa: <span class="bool-val">false</span>,
+<a href=#265 id=265 data-nosnippet>265</a>            show_ssa_pass: Vec::new(),
+<a href=#266 id=266 data-nosnippet>266</a>            hide_unchanged_ssa: <span class="bool-val">false</span>,
+<a href=#267 id=267 data-nosnippet>267</a>            with_ssa_locations: <span class="bool-val">false</span>,
+<a href=#268 id=268 data-nosnippet>268</a>            show_contract_fn: <span class="prelude-val">None</span>,
+<a href=#269 id=269 data-nosnippet>269</a>            skip_ssa_pass: Vec::new(),
+<a href=#270 id=270 data-nosnippet>270</a>            emit_ssa: <span class="bool-val">false</span>,
+<a href=#271 id=271 data-nosnippet>271</a>            minimal_ssa: <span class="bool-val">false</span>,
+<a href=#272 id=272 data-nosnippet>272</a>            show_brillig: <span class="bool-val">false</span>,
+<a href=#273 id=273 data-nosnippet>273</a>            show_brillig_opcode_advisories: <span class="bool-val">false</span>,
+<a href=#274 id=274 data-nosnippet>274</a>            print_acir: <span class="bool-val">false</span>,
+<a href=#275 id=275 data-nosnippet>275</a>            benchmark_codegen: <span class="bool-val">false</span>,
+<a href=#276 id=276 data-nosnippet>276</a>            deny_warnings: <span class="bool-val">false</span>,
+<a href=#277 id=277 data-nosnippet>277</a>            silence_warnings: <span class="bool-val">false</span>,
+<a href=#278 id=278 data-nosnippet>278</a>            show_monomorphized: <span class="bool-val">false</span>,
+<a href=#279 id=279 data-nosnippet>279</a>            instrument_debug: <span class="bool-val">false</span>,
+<a href=#280 id=280 data-nosnippet>280</a>            force_brillig: <span class="bool-val">false</span>,
+<a href=#281 id=281 data-nosnippet>281</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
+<a href=#282 id=282 data-nosnippet>282</a>            show_artifact_paths: <span class="bool-val">false</span>,
+<a href=#283 id=283 data-nosnippet>283</a>            skip_underconstrained_check: <span class="bool-val">false</span>,
+<a href=#284 id=284 data-nosnippet>284</a>            skip_brillig_constraints_check: <span class="bool-val">false</span>,
+<a href=#285 id=285 data-nosnippet>285</a>            enable_brillig_debug_assertions: <span class="bool-val">false</span>,
+<a href=#286 id=286 data-nosnippet>286</a>            count_array_copies: <span class="bool-val">false</span>,
+<a href=#287 id=287 data-nosnippet>287</a>            inliner_aggressiveness: i64::MAX,
+<a href=#288 id=288 data-nosnippet>288</a>            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+<a href=#289 id=289 data-nosnippet>289</a>            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
+<a href=#290 id=290 data-nosnippet>290</a>            max_bytecode_increase_percent: <span class="prelude-val">None</span>,
+<a href=#291 id=291 data-nosnippet>291</a>            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+<a href=#292 id=292 data-nosnippet>292</a>            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+<a href=#293 id=293 data-nosnippet>293</a>            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+<a href=#294 id=294 data-nosnippet>294</a>            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+<a href=#295 id=295 data-nosnippet>295</a>            max_stack_frame_size: MAX_STACK_FRAME_SIZE,
+<a href=#296 id=296 data-nosnippet>296</a>            num_stack_frames: NUM_STACK_FRAMES,
+<a href=#297 id=297 data-nosnippet>297</a>            max_scratch_space: MAX_SCRATCH_SPACE,
+<a href=#298 id=298 data-nosnippet>298</a>            debug_compile_stdin: <span class="bool-val">false</span>,
+<a href=#299 id=299 data-nosnippet>299</a>            unstable_features: Vec::new(),
+<a href=#300 id=300 data-nosnippet>300</a>            no_unstable_features: <span class="bool-val">false</span>,
+<a href=#301 id=301 data-nosnippet>301</a>            disable_comptime_printing: <span class="bool-val">false</span>,
+<a href=#302 id=302 data-nosnippet>302</a>        }
+<a href=#303 id=303 data-nosnippet>303</a>    }
+<a href=#304 id=304 data-nosnippet>304</a>}
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a><span class="kw">impl </span>CompileOptions {
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">pub fn </span>as_ssa_options(<span class="kw-2">&amp;</span><span class="self">self</span>, package_build_path: PathBuf) -&gt; SsaEvaluatorOptions {
+<a href=#308 id=308 data-nosnippet>308</a>        SsaEvaluatorOptions {
+<a href=#309 id=309 data-nosnippet>309</a>            ssa_logging: <span class="kw">if </span>!<span class="self">self</span>.show_ssa_pass.is_empty() {
+<a href=#310 id=310 data-nosnippet>310</a>                SsaLogging::Contains(<span class="self">self</span>.show_ssa_pass.clone())
+<a href=#311 id=311 data-nosnippet>311</a>            } <span class="kw">else if </span><span class="self">self</span>.show_ssa {
+<a href=#312 id=312 data-nosnippet>312</a>                SsaLogging::All
+<a href=#313 id=313 data-nosnippet>313</a>            } <span class="kw">else </span>{
+<a href=#314 id=314 data-nosnippet>314</a>                SsaLogging::None
+<a href=#315 id=315 data-nosnippet>315</a>            },
+<a href=#316 id=316 data-nosnippet>316</a>            brillig_options: BrilligOptions {
+<a href=#317 id=317 data-nosnippet>317</a>                enable_debug_trace: <span class="self">self</span>.show_brillig,
+<a href=#318 id=318 data-nosnippet>318</a>                enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
+<a href=#319 id=319 data-nosnippet>319</a>                enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
+<a href=#320 id=320 data-nosnippet>320</a>                show_opcode_advisories: <span class="self">self</span>.show_brillig_opcode_advisories,
+<a href=#321 id=321 data-nosnippet>321</a>                layout: LayoutConfig::new(
+<a href=#322 id=322 data-nosnippet>322</a>                    <span class="self">self</span>.max_stack_frame_size,
+<a href=#323 id=323 data-nosnippet>323</a>                    <span class="self">self</span>.num_stack_frames,
+<a href=#324 id=324 data-nosnippet>324</a>                    <span class="self">self</span>.max_scratch_space,
+<a href=#325 id=325 data-nosnippet>325</a>                ),
+<a href=#326 id=326 data-nosnippet>326</a>            },
+<a href=#327 id=327 data-nosnippet>327</a>            print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
+<a href=#328 id=328 data-nosnippet>328</a>            emit_ssa: <span class="kw">if </span><span class="self">self</span>.emit_ssa { <span class="prelude-val">Some</span>(package_build_path) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
+<a href=#329 id=329 data-nosnippet>329</a>            skip_underconstrained_check: <span class="self">self</span>.skip_underconstrained_check,
+<a href=#330 id=330 data-nosnippet>330</a>            skip_brillig_constraints_check: <span class="self">self</span>.skip_brillig_constraints_check,
+<a href=#331 id=331 data-nosnippet>331</a>            inliner_aggressiveness: <span class="self">self</span>.inliner_aggressiveness,
+<a href=#332 id=332 data-nosnippet>332</a>            constant_folding_max_iter: <span class="self">self</span>.constant_folding_max_iter,
+<a href=#333 id=333 data-nosnippet>333</a>            small_function_max_instruction: <span class="self">self</span>.small_function_max_instructions,
+<a href=#334 id=334 data-nosnippet>334</a>            max_bytecode_increase_percent: <span class="self">self</span>.max_bytecode_increase_percent,
+<a href=#335 id=335 data-nosnippet>335</a>            max_unroll_iterations: <span class="self">self</span>.max_unroll_iterations,
+<a href=#336 id=336 data-nosnippet>336</a>            force_unroll_threshold: <span class="self">self</span>.force_unroll_threshold,
+<a href=#337 id=337 data-nosnippet>337</a>            specialization_threshold: <span class="self">self</span>.specialization_threshold,
+<a href=#338 id=338 data-nosnippet>338</a>            max_specializations_per_fn: <span class="self">self</span>.max_specializations_per_fn,
+<a href=#339 id=339 data-nosnippet>339</a>            skip_passes: <span class="self">self</span>.skip_ssa_pass.clone(),
+<a href=#340 id=340 data-nosnippet>340</a>            ssa_logging_hide_unchanged: <span class="self">self</span>.hide_unchanged_ssa,
+<a href=#341 id=341 data-nosnippet>341</a>        }
+<a href=#342 id=342 data-nosnippet>342</a>    }
+<a href=#343 id=343 data-nosnippet>343</a>}
+<a href=#344 id=344 data-nosnippet>344</a>
+<a href=#345 id=345 data-nosnippet>345</a><span class="kw">impl </span>CompileOptions {
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>frontend_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FrontendOptions {
+<a href=#347 id=347 data-nosnippet>347</a>        FrontendOptions {
+<a href=#348 id=348 data-nosnippet>348</a>            debug_comptime_in_file: <span class="self">self</span>.debug_comptime_in_file.as_deref(),
+<a href=#349 id=349 data-nosnippet>349</a>            enabled_unstable_features: <span class="kw-2">&amp;</span><span class="self">self</span>.unstable_features,
+<a href=#350 id=350 data-nosnippet>350</a>            disable_required_unstable_features: <span class="self">self</span>.no_unstable_features,
 <a href=#351 id=351 data-nosnippet>351</a>        }
 <a href=#352 id=352 data-nosnippet>352</a>    }
 <a href=#353 id=353 data-nosnippet>353</a>}
 <a href=#354 id=354 data-nosnippet>354</a>
-<a href=#355 id=355 data-nosnippet>355</a><span class="kw">impl </span>CompileOptions {
-<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>frontend_options(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FrontendOptions {
-<a href=#357 id=357 data-nosnippet>357</a>        FrontendOptions {
-<a href=#358 id=358 data-nosnippet>358</a>            debug_comptime_in_file: <span class="self">self</span>.debug_comptime_in_file.as_deref(),
-<a href=#359 id=359 data-nosnippet>359</a>            enabled_unstable_features: <span class="kw-2">&amp;</span><span class="self">self</span>.unstable_features,
-<a href=#360 id=360 data-nosnippet>360</a>            disable_required_unstable_features: <span class="self">self</span>.no_unstable_features,
-<a href=#361 id=361 data-nosnippet>361</a>        }
-<a href=#362 id=362 data-nosnippet>362</a>    }
-<a href=#363 id=363 data-nosnippet>363</a>}
-<a href=#364 id=364 data-nosnippet>364</a>
-<a href=#365 id=365 data-nosnippet>365</a><span class="attr">#[derive(Debug)]
-<a href=#366 id=366 data-nosnippet>366</a>#[allow(clippy::large_enum_variant)]
-<a href=#367 id=367 data-nosnippet>367</a></span><span class="kw">pub enum </span>CompileError {
-<a href=#368 id=368 data-nosnippet>368</a>    MonomorphizationError(MonomorphizationError),
-<a href=#369 id=369 data-nosnippet>369</a>    RuntimeError(RuntimeError),
-<a href=#370 id=370 data-nosnippet>370</a>}
-<a href=#371 id=371 data-nosnippet>371</a>
-<a href=#372 id=372 data-nosnippet>372</a><span class="kw">impl </span>From&lt;MonomorphizationError&gt; <span class="kw">for </span>CompileError {
-<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">fn </span>from(error: MonomorphizationError) -&gt; <span class="self">Self </span>{
-<a href=#374 id=374 data-nosnippet>374</a>        <span class="self">Self</span>::MonomorphizationError(error)
-<a href=#375 id=375 data-nosnippet>375</a>    }
-<a href=#376 id=376 data-nosnippet>376</a>}
-<a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a><span class="kw">impl </span>From&lt;RuntimeError&gt; <span class="kw">for </span>CompileError {
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">fn </span>from(error: RuntimeError) -&gt; <span class="self">Self </span>{
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="self">Self</span>::RuntimeError(error)
-<a href=#381 id=381 data-nosnippet>381</a>    }
-<a href=#382 id=382 data-nosnippet>382</a>}
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a><span class="kw">impl </span>From&lt;CompileError&gt; <span class="kw">for </span>CustomDiagnostic {
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="kw">fn </span>from(error: CompileError) -&gt; CustomDiagnostic {
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="kw">match </span>error {
-<a href=#387 id=387 data-nosnippet>387</a>            CompileError::RuntimeError(err) =&gt; err.into(),
-<a href=#388 id=388 data-nosnippet>388</a>            CompileError::MonomorphizationError(err) =&gt; err.into(),
-<a href=#389 id=389 data-nosnippet>389</a>        }
-<a href=#390 id=390 data-nosnippet>390</a>    }
-<a href=#391 id=391 data-nosnippet>391</a>}
-<a href=#392 id=392 data-nosnippet>392</a>
-<a href=#393 id=393 data-nosnippet>393</a><span class="doccomment">/// Helper type used to signify where only warnings are expected in file diagnostics
-<a href=#394 id=394 data-nosnippet>394</a></span><span class="kw">pub type </span>Warnings = Vec&lt;CustomDiagnostic&gt;;
-<a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a><span class="doccomment">/// Helper type used to signify where errors or warnings are expected in file diagnostics
-<a href=#397 id=397 data-nosnippet>397</a></span><span class="kw">pub type </span>ErrorsAndWarnings = Vec&lt;CustomDiagnostic&gt;;
-<a href=#398 id=398 data-nosnippet>398</a>
-<a href=#399 id=399 data-nosnippet>399</a><span class="doccomment">/// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
-<a href=#400 id=400 data-nosnippet>400</a></span><span class="kw">pub type </span>CompilationResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;(T, Warnings), ErrorsAndWarnings&gt;;
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a><span class="doccomment">/// Helper method to return a file manager instance with the stdlib already added
-<a href=#403 id=403 data-nosnippet>403</a>///
-<a href=#404 id=404 data-nosnippet>404</a>/// TODO: This should become the canonical way to create a file manager and
-<a href=#405 id=405 data-nosnippet>405</a>/// TODO if we use a File manager trait, we can move file manager into this crate
-<a href=#406 id=406 data-nosnippet>406</a>/// TODO as a module
-<a href=#407 id=407 data-nosnippet>407</a></span><span class="kw">pub fn </span>file_manager_with_stdlib(root: <span class="kw-2">&amp;</span>Path) -&gt; FileManager {
-<a href=#408 id=408 data-nosnippet>408</a>    <span class="kw">let </span><span class="kw-2">mut </span>file_manager = FileManager::new(root);
-<a href=#409 id=409 data-nosnippet>409</a>
-<a href=#410 id=410 data-nosnippet>410</a>    add_stdlib_source_to_file_manager(<span class="kw-2">&amp;mut </span>file_manager);
-<a href=#411 id=411 data-nosnippet>411</a>    add_debug_source_to_file_manager(<span class="kw-2">&amp;mut </span>file_manager);
-<a href=#412 id=412 data-nosnippet>412</a>
-<a href=#413 id=413 data-nosnippet>413</a>    file_manager
-<a href=#414 id=414 data-nosnippet>414</a>}
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a><span class="doccomment">/// Adds the source code for the stdlib into the file manager
-<a href=#417 id=417 data-nosnippet>417</a></span><span class="kw">fn </span>add_stdlib_source_to_file_manager(file_manager: <span class="kw-2">&amp;mut </span>FileManager) {
-<a href=#418 id=418 data-nosnippet>418</a>    <span class="comment">// Add the stdlib contents to the file manager, since every package automatically has a dependency
-<a href=#419 id=419 data-nosnippet>419</a>    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
-<a href=#420 id=420 data-nosnippet>420</a>    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
-<a href=#421 id=421 data-nosnippet>421</a>    // to manually add it here.
-<a href=#422 id=422 data-nosnippet>422</a>    </span><span class="kw">let </span>stdlib_paths_with_source = stdlib_paths_with_source();
-<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">for </span>(path, source) <span class="kw">in </span>stdlib_paths_with_source {
-<a href=#424 id=424 data-nosnippet>424</a>        file_manager.add_file_with_source_canonical_path(Path::new(<span class="kw-2">&amp;</span>path), source);
-<a href=#425 id=425 data-nosnippet>425</a>    }
-<a href=#426 id=426 data-nosnippet>426</a>}
-<a href=#427 id=427 data-nosnippet>427</a>
-<a href=#428 id=428 data-nosnippet>428</a><span class="doccomment">/// Adds the source code of the debug crate needed to support instrumentation to
-<a href=#429 id=429 data-nosnippet>429</a>/// track variables values
-<a href=#430 id=430 data-nosnippet>430</a></span><span class="kw">fn </span>add_debug_source_to_file_manager(file_manager: <span class="kw-2">&amp;mut </span>FileManager) {
-<a href=#431 id=431 data-nosnippet>431</a>    <span class="comment">// Adds the synthetic debug module for instrumentation into the file manager
-<a href=#432 id=432 data-nosnippet>432</a>    </span><span class="kw">let </span>path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
-<a href=#433 id=433 data-nosnippet>433</a>    file_manager
-<a href=#434 id=434 data-nosnippet>434</a>        .add_file_with_source_canonical_path(<span class="kw-2">&amp;</span>path_to_debug_lib_file, build_debug_crate_file());
-<a href=#435 id=435 data-nosnippet>435</a>}
+<a href=#355 id=355 data-nosnippet>355</a><span class="attr">#[derive(Debug)]
+<a href=#356 id=356 data-nosnippet>356</a>#[allow(clippy::large_enum_variant)]
+<a href=#357 id=357 data-nosnippet>357</a></span><span class="kw">pub enum </span>CompileError {
+<a href=#358 id=358 data-nosnippet>358</a>    MonomorphizationError(MonomorphizationError),
+<a href=#359 id=359 data-nosnippet>359</a>    RuntimeError(RuntimeError),
+<a href=#360 id=360 data-nosnippet>360</a>}
+<a href=#361 id=361 data-nosnippet>361</a>
+<a href=#362 id=362 data-nosnippet>362</a><span class="kw">impl </span>From&lt;MonomorphizationError&gt; <span class="kw">for </span>CompileError {
+<a href=#363 id=363 data-nosnippet>363</a>    <span class="kw">fn </span>from(error: MonomorphizationError) -&gt; <span class="self">Self </span>{
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="self">Self</span>::MonomorphizationError(error)
+<a href=#365 id=365 data-nosnippet>365</a>    }
+<a href=#366 id=366 data-nosnippet>366</a>}
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a><span class="kw">impl </span>From&lt;RuntimeError&gt; <span class="kw">for </span>CompileError {
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">fn </span>from(error: RuntimeError) -&gt; <span class="self">Self </span>{
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="self">Self</span>::RuntimeError(error)
+<a href=#371 id=371 data-nosnippet>371</a>    }
+<a href=#372 id=372 data-nosnippet>372</a>}
+<a href=#373 id=373 data-nosnippet>373</a>
+<a href=#374 id=374 data-nosnippet>374</a><span class="kw">impl </span>From&lt;CompileError&gt; <span class="kw">for </span>CustomDiagnostic {
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">fn </span>from(error: CompileError) -&gt; CustomDiagnostic {
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="kw">match </span>error {
+<a href=#377 id=377 data-nosnippet>377</a>            CompileError::RuntimeError(err) =&gt; err.into(),
+<a href=#378 id=378 data-nosnippet>378</a>            CompileError::MonomorphizationError(err) =&gt; err.into(),
+<a href=#379 id=379 data-nosnippet>379</a>        }
+<a href=#380 id=380 data-nosnippet>380</a>    }
+<a href=#381 id=381 data-nosnippet>381</a>}
+<a href=#382 id=382 data-nosnippet>382</a>
+<a href=#383 id=383 data-nosnippet>383</a><span class="doccomment">/// Helper type used to signify where only warnings are expected in file diagnostics
+<a href=#384 id=384 data-nosnippet>384</a></span><span class="kw">pub type </span>Warnings = Vec&lt;CustomDiagnostic&gt;;
+<a href=#385 id=385 data-nosnippet>385</a>
+<a href=#386 id=386 data-nosnippet>386</a><span class="doccomment">/// Helper type used to signify where errors or warnings are expected in file diagnostics
+<a href=#387 id=387 data-nosnippet>387</a></span><span class="kw">pub type </span>ErrorsAndWarnings = Vec&lt;CustomDiagnostic&gt;;
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a><span class="doccomment">/// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
+<a href=#390 id=390 data-nosnippet>390</a></span><span class="kw">pub type </span>CompilationResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;(T, Warnings), ErrorsAndWarnings&gt;;
+<a href=#391 id=391 data-nosnippet>391</a>
+<a href=#392 id=392 data-nosnippet>392</a><span class="doccomment">/// Helper method to return a file manager instance with the stdlib already added
+<a href=#393 id=393 data-nosnippet>393</a>///
+<a href=#394 id=394 data-nosnippet>394</a>/// TODO: This should become the canonical way to create a file manager and
+<a href=#395 id=395 data-nosnippet>395</a>/// TODO if we use a File manager trait, we can move file manager into this crate
+<a href=#396 id=396 data-nosnippet>396</a>/// TODO as a module
+<a href=#397 id=397 data-nosnippet>397</a></span><span class="kw">pub fn </span>file_manager_with_stdlib(root: <span class="kw-2">&amp;</span>Path) -&gt; FileManager {
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="kw">let </span><span class="kw-2">mut </span>file_manager = FileManager::new(root);
+<a href=#399 id=399 data-nosnippet>399</a>
+<a href=#400 id=400 data-nosnippet>400</a>    add_stdlib_source_to_file_manager(<span class="kw-2">&amp;mut </span>file_manager);
+<a href=#401 id=401 data-nosnippet>401</a>    add_debug_source_to_file_manager(<span class="kw-2">&amp;mut </span>file_manager);
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a>    file_manager
+<a href=#404 id=404 data-nosnippet>404</a>}
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a><span class="doccomment">/// Adds the source code for the stdlib into the file manager
+<a href=#407 id=407 data-nosnippet>407</a></span><span class="kw">fn </span>add_stdlib_source_to_file_manager(file_manager: <span class="kw-2">&amp;mut </span>FileManager) {
+<a href=#408 id=408 data-nosnippet>408</a>    <span class="comment">// Add the stdlib contents to the file manager, since every package automatically has a dependency
+<a href=#409 id=409 data-nosnippet>409</a>    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
+<a href=#410 id=410 data-nosnippet>410</a>    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
+<a href=#411 id=411 data-nosnippet>411</a>    // to manually add it here.
+<a href=#412 id=412 data-nosnippet>412</a>    </span><span class="kw">let </span>stdlib_paths_with_source = stdlib_paths_with_source();
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="kw">for </span>(path, source) <span class="kw">in </span>stdlib_paths_with_source {
+<a href=#414 id=414 data-nosnippet>414</a>        file_manager.add_file_with_source_canonical_path(Path::new(<span class="kw-2">&amp;</span>path), source);
+<a href=#415 id=415 data-nosnippet>415</a>    }
+<a href=#416 id=416 data-nosnippet>416</a>}
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a><span class="doccomment">/// Adds the source code of the debug crate needed to support instrumentation to
+<a href=#419 id=419 data-nosnippet>419</a>/// track variables values
+<a href=#420 id=420 data-nosnippet>420</a></span><span class="kw">fn </span>add_debug_source_to_file_manager(file_manager: <span class="kw-2">&amp;mut </span>FileManager) {
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="comment">// Adds the synthetic debug module for instrumentation into the file manager
+<a href=#422 id=422 data-nosnippet>422</a>    </span><span class="kw">let </span>path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
+<a href=#423 id=423 data-nosnippet>423</a>    file_manager
+<a href=#424 id=424 data-nosnippet>424</a>        .add_file_with_source_canonical_path(<span class="kw-2">&amp;</span>path_to_debug_lib_file, build_debug_crate_file());
+<a href=#425 id=425 data-nosnippet>425</a>}
+<a href=#426 id=426 data-nosnippet>426</a>
+<a href=#427 id=427 data-nosnippet>427</a><span class="doccomment">/// Adds the file from the file system at `Path` to the crate graph as a root file
+<a href=#428 id=428 data-nosnippet>428</a>///
+<a href=#429 id=429 data-nosnippet>429</a>/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
+<a href=#430 id=430 data-nosnippet>430</a>/// this method assumes the root crate is the stdlib (useful for running tests
+<a href=#431 id=431 data-nosnippet>431</a>/// in the stdlib, getting LSP stuff for the stdlib, etc.).
+<a href=#432 id=432 data-nosnippet>432</a></span><span class="kw">pub fn </span>prepare_crate(context: <span class="kw-2">&amp;mut </span>Context, file_name: <span class="kw-2">&amp;</span>Path) -&gt; CrateId {
+<a href=#433 id=433 data-nosnippet>433</a>    <span class="kw">let </span>path_to_std_lib_file = Path::new(STD_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="kw">let </span>std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
+<a href=#435 id=435 data-nosnippet>435</a>    <span class="kw">let </span>std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 <a href=#436 id=436 data-nosnippet>436</a>
-<a href=#437 id=437 data-nosnippet>437</a><span class="doccomment">/// Adds the file from the file system at `Path` to the crate graph as a root file
-<a href=#438 id=438 data-nosnippet>438</a>///
-<a href=#439 id=439 data-nosnippet>439</a>/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
-<a href=#440 id=440 data-nosnippet>440</a>/// this method assumes the root crate is the stdlib (useful for running tests
-<a href=#441 id=441 data-nosnippet>441</a>/// in the stdlib, getting LSP stuff for the stdlib, etc.).
-<a href=#442 id=442 data-nosnippet>442</a></span><span class="kw">pub fn </span>prepare_crate(context: <span class="kw-2">&amp;mut </span>Context, file_name: <span class="kw-2">&amp;</span>Path) -&gt; CrateId {
-<a href=#443 id=443 data-nosnippet>443</a>    <span class="kw">let </span>path_to_std_lib_file = Path::new(STD_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
-<a href=#444 id=444 data-nosnippet>444</a>    <span class="kw">let </span>std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
-<a href=#445 id=445 data-nosnippet>445</a>    <span class="kw">let </span>std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
-<a href=#446 id=446 data-nosnippet>446</a>
-<a href=#447 id=447 data-nosnippet>447</a>    <span class="kw">let </span>root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"files are expected to be added to the FileManager before reaching the compiler file_path: {}"</span>, file_name.display()));
-<a href=#448 id=448 data-nosnippet>448</a>
-<a href=#449 id=449 data-nosnippet>449</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(std_crate_id) = std_crate_id {
-<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-<a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a>        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
-<a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a>        root_crate_id
-<a href=#455 id=455 data-nosnippet>455</a>    } <span class="kw">else </span>{
-<a href=#456 id=456 data-nosnippet>456</a>        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
-<a href=#457 id=457 data-nosnippet>457</a>    }
-<a href=#458 id=458 data-nosnippet>458</a>}
-<a href=#459 id=459 data-nosnippet>459</a>
-<a href=#460 id=460 data-nosnippet>460</a><span class="kw">pub fn </span>link_to_debug_crate(context: <span class="kw-2">&amp;mut </span>Context, root_crate_id: CrateId) {
-<a href=#461 id=461 data-nosnippet>461</a>    <span class="kw">let </span>path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
-<a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">let </span>debug_crate_id = prepare_dependency(context, <span class="kw-2">&amp;</span>path_to_debug_lib_file);
-<a href=#463 id=463 data-nosnippet>463</a>    add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
-<a href=#464 id=464 data-nosnippet>464</a>    context.debug_crate_id = <span class="prelude-val">Some</span>(debug_crate_id);
-<a href=#465 id=465 data-nosnippet>465</a>}
-<a href=#466 id=466 data-nosnippet>466</a>
-<a href=#467 id=467 data-nosnippet>467</a><span class="comment">// Adds the file from the file system at `Path` to the crate graph
-<a href=#468 id=468 data-nosnippet>468</a></span><span class="kw">pub fn </span>prepare_dependency(context: <span class="kw-2">&amp;mut </span>Context, file_name: <span class="kw-2">&amp;</span>Path) -&gt; CrateId {
-<a href=#469 id=469 data-nosnippet>469</a>    <span class="kw">let </span>root_file_id = context
-<a href=#470 id=470 data-nosnippet>470</a>        .file_manager
-<a href=#471 id=471 data-nosnippet>471</a>        .name_to_id(file_name.to_path_buf())
-<a href=#472 id=472 data-nosnippet>472</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"files are expected to be added to the FileManager before reaching the compiler file_path: {}"</span>, file_name.display()));
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>    <span class="kw">let </span>crate_id = context.crate_graph.add_crate(root_file_id);
-<a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a>    <span class="comment">// Every dependency has access to stdlib
-<a href=#477 id=477 data-nosnippet>477</a>    </span><span class="kw">let </span>std_crate_id = context.stdlib_crate_id();
-<a href=#478 id=478 data-nosnippet>478</a>    add_dep(context, crate_id, <span class="kw-2">*</span>std_crate_id, STD_CRATE_NAME.parse().unwrap());
-<a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>    crate_id
-<a href=#481 id=481 data-nosnippet>481</a>}
-<a href=#482 id=482 data-nosnippet>482</a>
-<a href=#483 id=483 data-nosnippet>483</a><span class="doccomment">/// Adds a edge in the crate graph for two crates
-<a href=#484 id=484 data-nosnippet>484</a></span><span class="kw">pub fn </span>add_dep(
-<a href=#485 id=485 data-nosnippet>485</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#486 id=486 data-nosnippet>486</a>    this_crate: CrateId,
-<a href=#487 id=487 data-nosnippet>487</a>    depends_on: CrateId,
-<a href=#488 id=488 data-nosnippet>488</a>    crate_name: CrateName,
-<a href=#489 id=489 data-nosnippet>489</a>) {
-<a href=#490 id=490 data-nosnippet>490</a>    context
-<a href=#491 id=491 data-nosnippet>491</a>        .crate_graph
-<a href=#492 id=492 data-nosnippet>492</a>        .add_dep(this_crate, crate_name, depends_on)
-<a href=#493 id=493 data-nosnippet>493</a>        .expect(<span class="string">"cyclic dependency triggered"</span>);
-<a href=#494 id=494 data-nosnippet>494</a>}
-<a href=#495 id=495 data-nosnippet>495</a>
-<a href=#496 id=496 data-nosnippet>496</a><span class="doccomment">/// Run the def collection, elaboration and type checking passes.
-<a href=#497 id=497 data-nosnippet>497</a>///
-<a href=#498 id=498 data-nosnippet>498</a>/// On success, this returns () alongside any warnings found during checking.
-<a href=#499 id=499 data-nosnippet>499</a>///
-<a href=#500 id=500 data-nosnippet>500</a>/// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-<a href=#501 id=501 data-nosnippet>501</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#502 id=502 data-nosnippet>502</a></span><span class="kw">pub fn </span>check_crate(
-<a href=#503 id=503 data-nosnippet>503</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#504 id=504 data-nosnippet>504</a>    crate_id: CrateId,
-<a href=#505 id=505 data-nosnippet>505</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#506 id=506 data-nosnippet>506</a>) -&gt; CompilationResult&lt;()&gt; {
-<a href=#507 id=507 data-nosnippet>507</a>    <span class="kw">if </span>options.disable_comptime_printing {
-<a href=#508 id=508 data-nosnippet>508</a>        context.disable_comptime_printing();
-<a href=#509 id=509 data-nosnippet>509</a>    }
-<a href=#510 id=510 data-nosnippet>510</a>
-<a href=#511 id=511 data-nosnippet>511</a>    <span class="kw">let </span>diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
-<a href=#512 id=512 data-nosnippet>512</a>    <span class="kw">let </span>crate_files = context.crate_files(<span class="kw-2">&amp;</span>crate_id);
-<a href=#513 id=513 data-nosnippet>513</a>    <span class="kw">let </span>warnings_and_errors: Vec&lt;CustomDiagnostic&gt; = diagnostics
-<a href=#514 id=514 data-nosnippet>514</a>        .iter()
-<a href=#515 id=515 data-nosnippet>515</a>        .map(CustomDiagnostic::from)
-<a href=#516 id=516 data-nosnippet>516</a>        .filter(|diagnostic| {
-<a href=#517 id=517 data-nosnippet>517</a>            <span class="comment">// We filter out any warnings if they're going to be ignored later on to free up memory.
-<a href=#518 id=518 data-nosnippet>518</a>            </span>!options.silence_warnings || diagnostic.kind != DiagnosticKind::Warning
-<a href=#519 id=519 data-nosnippet>519</a>        })
-<a href=#520 id=520 data-nosnippet>520</a>        .filter(|error| {
-<a href=#521 id=521 data-nosnippet>521</a>            <span class="comment">// Only keep warnings from the crate we are checking
-<a href=#522 id=522 data-nosnippet>522</a>            </span><span class="kw">if </span>error.is_warning() { crate_files.contains(<span class="kw-2">&amp;</span>error.file) } <span class="kw">else </span>{ <span class="bool-val">true </span>}
-<a href=#523 id=523 data-nosnippet>523</a>        })
-<a href=#524 id=524 data-nosnippet>524</a>        .collect();
-<a href=#525 id=525 data-nosnippet>525</a>
-<a href=#526 id=526 data-nosnippet>526</a>    <span class="kw">if </span>has_errors(<span class="kw-2">&amp;</span>warnings_and_errors, options.deny_warnings) {
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="prelude-val">Err</span>(warnings_and_errors)
-<a href=#528 id=528 data-nosnippet>528</a>    } <span class="kw">else </span>{
-<a href=#529 id=529 data-nosnippet>529</a>        <span class="prelude-val">Ok</span>(((), warnings_and_errors))
-<a href=#530 id=530 data-nosnippet>530</a>    }
-<a href=#531 id=531 data-nosnippet>531</a>}
-<a href=#532 id=532 data-nosnippet>532</a>
-<a href=#533 id=533 data-nosnippet>533</a><span class="kw">pub fn </span>compute_function_abi(
-<a href=#534 id=534 data-nosnippet>534</a>    context: <span class="kw-2">&amp;</span>Context,
-<a href=#535 id=535 data-nosnippet>535</a>    crate_id: <span class="kw-2">&amp;</span>CrateId,
-<a href=#536 id=536 data-nosnippet>536</a>) -&gt; <span class="prelude-ty">Option</span>&lt;(Vec&lt;AbiParameter&gt;, <span class="prelude-ty">Option</span>&lt;AbiType&gt;)&gt; {
-<a href=#537 id=537 data-nosnippet>537</a>    <span class="kw">let </span>main_function = context.get_main_function(crate_id)<span class="question-mark">?</span>;
-<a href=#538 id=538 data-nosnippet>538</a>
-<a href=#539 id=539 data-nosnippet>539</a>    <span class="prelude-val">Some</span>(abi_gen::compute_function_abi(context, <span class="kw-2">&amp;</span>main_function))
-<a href=#540 id=540 data-nosnippet>540</a>}
-<a href=#541 id=541 data-nosnippet>541</a>
-<a href=#542 id=542 data-nosnippet>542</a><span class="doccomment">/// Run the frontend to check the crate for errors then compile the main function if there were none
-<a href=#543 id=543 data-nosnippet>543</a>///
-<a href=#544 id=544 data-nosnippet>544</a>/// On success this returns the compiled program alongside any warnings that were found.
-<a href=#545 id=545 data-nosnippet>545</a>/// On error this returns the non-empty list of warnings and errors.
-<a href=#546 id=546 data-nosnippet>546</a>///
-<a href=#547 id=547 data-nosnippet>547</a>/// See [compile_no_check] for further information about the use of `cached_program`.
-<a href=#548 id=548 data-nosnippet>548</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#549 id=549 data-nosnippet>549</a></span><span class="kw">pub fn </span>compile_main(
-<a href=#550 id=550 data-nosnippet>550</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#551 id=551 data-nosnippet>551</a>    crate_id: CrateId,
-<a href=#552 id=552 data-nosnippet>552</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#553 id=553 data-nosnippet>553</a>    cached_program: <span class="prelude-ty">Option</span>&lt;CompiledProgram&gt;,
-<a href=#554 id=554 data-nosnippet>554</a>) -&gt; CompilationResult&lt;CompiledProgram&gt; {
-<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>warnings) = check_crate(context, crate_id, options)<span class="question-mark">?</span>;
-<a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a>    <span class="kw">let </span>main = context.get_main_function(<span class="kw-2">&amp;</span>crate_id).ok_or_else(|| {
-<a href=#558 id=558 data-nosnippet>558</a>        <span class="comment">// TODO(#2155): This error might be a better to exist in Nargo
-<a href=#559 id=559 data-nosnippet>559</a>        </span><span class="kw">let </span>err = CustomDiagnostic::from_message(
-<a href=#560 id=560 data-nosnippet>560</a>            <span class="string">"cannot compile crate into a program as it does not contain a `main` function"</span>,
-<a href=#561 id=561 data-nosnippet>561</a>            FileId::default(),
-<a href=#562 id=562 data-nosnippet>562</a>        );
-<a href=#563 id=563 data-nosnippet>563</a>        <span class="macro">vec!</span>[err]
-<a href=#564 id=564 data-nosnippet>564</a>    })<span class="question-mark">?</span>;
-<a href=#565 id=565 data-nosnippet>565</a>
-<a href=#566 id=566 data-nosnippet>566</a>    <span class="kw">let </span>compiled_program =
-<a href=#567 id=567 data-nosnippet>567</a>        compile_no_check(context, options, main, cached_program, options.force_compile)
-<a href=#568 id=568 data-nosnippet>568</a>            .map_err(|error| <span class="macro">vec!</span>[CustomDiagnostic::from(error)])<span class="question-mark">?</span>;
-<a href=#569 id=569 data-nosnippet>569</a>
-<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">let </span>compilation_warnings =
-<a href=#571 id=571 data-nosnippet>571</a>        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
-<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">if </span>options.deny_warnings &amp;&amp; !compilation_warnings.is_empty() {
-<a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(compilation_warnings);
-<a href=#574 id=574 data-nosnippet>574</a>    }
-<a href=#575 id=575 data-nosnippet>575</a>    <span class="kw">if </span>!options.silence_warnings {
-<a href=#576 id=576 data-nosnippet>576</a>        warnings.extend(compilation_warnings);
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"files are expected to be added to the FileManager before reaching the compiler file_path: {}"</span>, file_name.display()));
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(std_crate_id) = std_crate_id {
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="kw">let </span>root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+<a href=#441 id=441 data-nosnippet>441</a>
+<a href=#442 id=442 data-nosnippet>442</a>        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+<a href=#443 id=443 data-nosnippet>443</a>
+<a href=#444 id=444 data-nosnippet>444</a>        root_crate_id
+<a href=#445 id=445 data-nosnippet>445</a>    } <span class="kw">else </span>{
+<a href=#446 id=446 data-nosnippet>446</a>        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+<a href=#447 id=447 data-nosnippet>447</a>    }
+<a href=#448 id=448 data-nosnippet>448</a>}
+<a href=#449 id=449 data-nosnippet>449</a>
+<a href=#450 id=450 data-nosnippet>450</a><span class="kw">pub fn </span>link_to_debug_crate(context: <span class="kw-2">&amp;mut </span>Context, root_crate_id: CrateId) {
+<a href=#451 id=451 data-nosnippet>451</a>    <span class="kw">let </span>path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join(<span class="string">"lib.nr"</span>);
+<a href=#452 id=452 data-nosnippet>452</a>    <span class="kw">let </span>debug_crate_id = prepare_dependency(context, <span class="kw-2">&amp;</span>path_to_debug_lib_file);
+<a href=#453 id=453 data-nosnippet>453</a>    add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
+<a href=#454 id=454 data-nosnippet>454</a>    context.debug_crate_id = <span class="prelude-val">Some</span>(debug_crate_id);
+<a href=#455 id=455 data-nosnippet>455</a>}
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a><span class="comment">// Adds the file from the file system at `Path` to the crate graph
+<a href=#458 id=458 data-nosnippet>458</a></span><span class="kw">pub fn </span>prepare_dependency(context: <span class="kw-2">&amp;mut </span>Context, file_name: <span class="kw-2">&amp;</span>Path) -&gt; CrateId {
+<a href=#459 id=459 data-nosnippet>459</a>    <span class="kw">let </span>root_file_id = context
+<a href=#460 id=460 data-nosnippet>460</a>        .file_manager
+<a href=#461 id=461 data-nosnippet>461</a>        .name_to_id(file_name.to_path_buf())
+<a href=#462 id=462 data-nosnippet>462</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"files are expected to be added to the FileManager before reaching the compiler file_path: {}"</span>, file_name.display()));
+<a href=#463 id=463 data-nosnippet>463</a>
+<a href=#464 id=464 data-nosnippet>464</a>    <span class="kw">let </span>crate_id = context.crate_graph.add_crate(root_file_id);
+<a href=#465 id=465 data-nosnippet>465</a>
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="comment">// Every dependency has access to stdlib
+<a href=#467 id=467 data-nosnippet>467</a>    </span><span class="kw">let </span>std_crate_id = context.stdlib_crate_id();
+<a href=#468 id=468 data-nosnippet>468</a>    add_dep(context, crate_id, <span class="kw-2">*</span>std_crate_id, STD_CRATE_NAME.parse().unwrap());
+<a href=#469 id=469 data-nosnippet>469</a>
+<a href=#470 id=470 data-nosnippet>470</a>    crate_id
+<a href=#471 id=471 data-nosnippet>471</a>}
+<a href=#472 id=472 data-nosnippet>472</a>
+<a href=#473 id=473 data-nosnippet>473</a><span class="doccomment">/// Adds a edge in the crate graph for two crates
+<a href=#474 id=474 data-nosnippet>474</a></span><span class="kw">pub fn </span>add_dep(
+<a href=#475 id=475 data-nosnippet>475</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#476 id=476 data-nosnippet>476</a>    this_crate: CrateId,
+<a href=#477 id=477 data-nosnippet>477</a>    depends_on: CrateId,
+<a href=#478 id=478 data-nosnippet>478</a>    crate_name: CrateName,
+<a href=#479 id=479 data-nosnippet>479</a>) {
+<a href=#480 id=480 data-nosnippet>480</a>    context
+<a href=#481 id=481 data-nosnippet>481</a>        .crate_graph
+<a href=#482 id=482 data-nosnippet>482</a>        .add_dep(this_crate, crate_name, depends_on)
+<a href=#483 id=483 data-nosnippet>483</a>        .expect(<span class="string">"cyclic dependency triggered"</span>);
+<a href=#484 id=484 data-nosnippet>484</a>}
+<a href=#485 id=485 data-nosnippet>485</a>
+<a href=#486 id=486 data-nosnippet>486</a><span class="doccomment">/// Run the def collection, elaboration and type checking passes.
+<a href=#487 id=487 data-nosnippet>487</a>///
+<a href=#488 id=488 data-nosnippet>488</a>/// On success, this returns () alongside any warnings found during checking.
+<a href=#489 id=489 data-nosnippet>489</a>///
+<a href=#490 id=490 data-nosnippet>490</a>/// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
+<a href=#491 id=491 data-nosnippet>491</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#492 id=492 data-nosnippet>492</a></span><span class="kw">pub fn </span>check_crate(
+<a href=#493 id=493 data-nosnippet>493</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#494 id=494 data-nosnippet>494</a>    crate_id: CrateId,
+<a href=#495 id=495 data-nosnippet>495</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#496 id=496 data-nosnippet>496</a>) -&gt; CompilationResult&lt;()&gt; {
+<a href=#497 id=497 data-nosnippet>497</a>    <span class="kw">if </span>options.disable_comptime_printing {
+<a href=#498 id=498 data-nosnippet>498</a>        context.disable_comptime_printing();
+<a href=#499 id=499 data-nosnippet>499</a>    }
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">let </span>diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
+<a href=#502 id=502 data-nosnippet>502</a>    <span class="kw">let </span>crate_files = context.crate_files(<span class="kw-2">&amp;</span>crate_id);
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">let </span>warnings_and_errors: Vec&lt;CustomDiagnostic&gt; = diagnostics
+<a href=#504 id=504 data-nosnippet>504</a>        .iter()
+<a href=#505 id=505 data-nosnippet>505</a>        .map(CustomDiagnostic::from)
+<a href=#506 id=506 data-nosnippet>506</a>        .filter(|diagnostic| {
+<a href=#507 id=507 data-nosnippet>507</a>            <span class="comment">// We filter out any warnings if they're going to be ignored later on to free up memory.
+<a href=#508 id=508 data-nosnippet>508</a>            </span>!options.silence_warnings || !diagnostic.is_warning()
+<a href=#509 id=509 data-nosnippet>509</a>        })
+<a href=#510 id=510 data-nosnippet>510</a>        .filter(|error| {
+<a href=#511 id=511 data-nosnippet>511</a>            <span class="comment">// Only keep warnings from the crate we are checking
+<a href=#512 id=512 data-nosnippet>512</a>            </span><span class="kw">if </span>error.is_warning() { crate_files.contains(<span class="kw-2">&amp;</span>error.file) } <span class="kw">else </span>{ <span class="bool-val">true </span>}
+<a href=#513 id=513 data-nosnippet>513</a>        })
+<a href=#514 id=514 data-nosnippet>514</a>        .collect();
+<a href=#515 id=515 data-nosnippet>515</a>
+<a href=#516 id=516 data-nosnippet>516</a>    <span class="kw">if </span>has_errors(<span class="kw-2">&amp;</span>warnings_and_errors, options.deny_warnings) {
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="prelude-val">Err</span>(warnings_and_errors)
+<a href=#518 id=518 data-nosnippet>518</a>    } <span class="kw">else </span>{
+<a href=#519 id=519 data-nosnippet>519</a>        <span class="prelude-val">Ok</span>(((), warnings_and_errors))
+<a href=#520 id=520 data-nosnippet>520</a>    }
+<a href=#521 id=521 data-nosnippet>521</a>}
+<a href=#522 id=522 data-nosnippet>522</a>
+<a href=#523 id=523 data-nosnippet>523</a><span class="kw">pub fn </span>compute_function_abi(
+<a href=#524 id=524 data-nosnippet>524</a>    context: <span class="kw-2">&amp;</span>Context,
+<a href=#525 id=525 data-nosnippet>525</a>    crate_id: <span class="kw-2">&amp;</span>CrateId,
+<a href=#526 id=526 data-nosnippet>526</a>) -&gt; <span class="prelude-ty">Option</span>&lt;(Vec&lt;AbiParameter&gt;, <span class="prelude-ty">Option</span>&lt;AbiType&gt;)&gt; {
+<a href=#527 id=527 data-nosnippet>527</a>    <span class="kw">let </span>main_function = context.get_main_function(crate_id)<span class="question-mark">?</span>;
+<a href=#528 id=528 data-nosnippet>528</a>
+<a href=#529 id=529 data-nosnippet>529</a>    <span class="prelude-val">Some</span>(abi_gen::compute_function_abi(context, <span class="kw-2">&amp;</span>main_function))
+<a href=#530 id=530 data-nosnippet>530</a>}
+<a href=#531 id=531 data-nosnippet>531</a>
+<a href=#532 id=532 data-nosnippet>532</a><span class="doccomment">/// Run the frontend to check the crate for errors then compile the main function if there were none
+<a href=#533 id=533 data-nosnippet>533</a>///
+<a href=#534 id=534 data-nosnippet>534</a>/// On success this returns the compiled program alongside any warnings that were found.
+<a href=#535 id=535 data-nosnippet>535</a>/// On error this returns the non-empty list of warnings and errors.
+<a href=#536 id=536 data-nosnippet>536</a>///
+<a href=#537 id=537 data-nosnippet>537</a>/// See [compile_no_check] for further information about the use of `cached_program`.
+<a href=#538 id=538 data-nosnippet>538</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#539 id=539 data-nosnippet>539</a></span><span class="kw">pub fn </span>compile_main(
+<a href=#540 id=540 data-nosnippet>540</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#541 id=541 data-nosnippet>541</a>    crate_id: CrateId,
+<a href=#542 id=542 data-nosnippet>542</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#543 id=543 data-nosnippet>543</a>    cached_program: <span class="prelude-ty">Option</span>&lt;CompiledProgram&gt;,
+<a href=#544 id=544 data-nosnippet>544</a>) -&gt; CompilationResult&lt;CompiledProgram&gt; {
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>warnings) = check_crate(context, crate_id, options)<span class="question-mark">?</span>;
+<a href=#546 id=546 data-nosnippet>546</a>
+<a href=#547 id=547 data-nosnippet>547</a>    <span class="kw">let </span>main = context.get_main_function(<span class="kw-2">&amp;</span>crate_id).ok_or_else(|| {
+<a href=#548 id=548 data-nosnippet>548</a>        <span class="comment">// TODO(#2155): This error might be a better to exist in Nargo
+<a href=#549 id=549 data-nosnippet>549</a>        </span><span class="kw">let </span>err = CustomDiagnostic::from_message(
+<a href=#550 id=550 data-nosnippet>550</a>            <span class="string">"cannot compile crate into a program as it does not contain a `main` function"</span>,
+<a href=#551 id=551 data-nosnippet>551</a>            FileId::default(),
+<a href=#552 id=552 data-nosnippet>552</a>        );
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="macro">vec!</span>[err]
+<a href=#554 id=554 data-nosnippet>554</a>    })<span class="question-mark">?</span>;
+<a href=#555 id=555 data-nosnippet>555</a>
+<a href=#556 id=556 data-nosnippet>556</a>    <span class="kw">let </span>compiled_program =
+<a href=#557 id=557 data-nosnippet>557</a>        compile_no_check(context, options, main, cached_program, options.force_compile)
+<a href=#558 id=558 data-nosnippet>558</a>            .map_err(|error| <span class="macro">vec!</span>[CustomDiagnostic::from(error)])<span class="question-mark">?</span>;
+<a href=#559 id=559 data-nosnippet>559</a>
+<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">let </span>compilation_warnings =
+<a href=#561 id=561 data-nosnippet>561</a>        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a>    <span class="kw">if </span>options.deny_warnings &amp;&amp; !compilation_warnings.is_empty() {
+<a href=#564 id=564 data-nosnippet>564</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(compilation_warnings);
+<a href=#565 id=565 data-nosnippet>565</a>    }
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>    <span class="comment">// Make sure we don't hide bugs, only warnings can be silenced.
+<a href=#568 id=568 data-nosnippet>568</a>    </span>warnings.extend(
+<a href=#569 id=569 data-nosnippet>569</a>        compilation_warnings
+<a href=#570 id=570 data-nosnippet>570</a>            .into_iter()
+<a href=#571 id=571 data-nosnippet>571</a>            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
+<a href=#572 id=572 data-nosnippet>572</a>    );
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">if </span>options.print_acir {
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main:"</span>);
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"{}"</span>, compiled_program.program);
 <a href=#577 id=577 data-nosnippet>577</a>    }
 <a href=#578 id=578 data-nosnippet>578</a>
-<a href=#579 id=579 data-nosnippet>579</a>    <span class="kw">if </span>options.print_acir {
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main:"</span>);
-<a href=#581 id=581 data-nosnippet>581</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"{}"</span>, compiled_program.program);
-<a href=#582 id=582 data-nosnippet>582</a>    }
-<a href=#583 id=583 data-nosnippet>583</a>
-<a href=#584 id=584 data-nosnippet>584</a>    <span class="prelude-val">Ok</span>((compiled_program, warnings))
-<a href=#585 id=585 data-nosnippet>585</a>}
-<a href=#586 id=586 data-nosnippet>586</a>
-<a href=#587 id=587 data-nosnippet>587</a><span class="doccomment">/// Run the frontend to check the crate for errors then compile all contracts if there were none
-<a href=#588 id=588 data-nosnippet>588</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#589 id=589 data-nosnippet>589</a></span><span class="kw">pub fn </span>compile_contract(
-<a href=#590 id=590 data-nosnippet>590</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#591 id=591 data-nosnippet>591</a>    crate_id: CrateId,
-<a href=#592 id=592 data-nosnippet>592</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#593 id=593 data-nosnippet>593</a>) -&gt; CompilationResult&lt;CompiledContract&gt; {
-<a href=#594 id=594 data-nosnippet>594</a>    <span class="kw">let </span>(<span class="kw">_</span>, warnings) = check_crate(context, crate_id, options)<span class="question-mark">?</span>;
-<a href=#595 id=595 data-nosnippet>595</a>
-<a href=#596 id=596 data-nosnippet>596</a>    <span class="kw">let </span>def_map = context.def_map(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
-<a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">let </span><span class="kw-2">mut </span>contracts = def_map.get_all_contracts();
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((module_id, name)) = contracts.next() <span class="kw">else </span>{
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">let </span>err = CustomDiagnostic::from_message(
-<a href=#601 id=601 data-nosnippet>601</a>            <span class="string">"cannot compile crate into a contract as it does not contain any contracts"</span>,
-<a href=#602 id=602 data-nosnippet>602</a>            FileId::default(),
-<a href=#603 id=603 data-nosnippet>603</a>        );
-<a href=#604 id=604 data-nosnippet>604</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">vec!</span>[err]);
-<a href=#605 id=605 data-nosnippet>605</a>    };
-<a href=#606 id=606 data-nosnippet>606</a>
-<a href=#607 id=607 data-nosnippet>607</a>    <span class="kw">if </span>contracts.next().is_some() {
-<a href=#608 id=608 data-nosnippet>608</a>        <span class="kw">let </span>err = CustomDiagnostic::from_message(
-<a href=#609 id=609 data-nosnippet>609</a>            <span class="string">"Packages are limited to a single contract"</span>,
-<a href=#610 id=610 data-nosnippet>610</a>            FileId::default(),
-<a href=#611 id=611 data-nosnippet>611</a>        );
-<a href=#612 id=612 data-nosnippet>612</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">vec!</span>[err]);
-<a href=#613 id=613 data-nosnippet>613</a>    }
-<a href=#614 id=614 data-nosnippet>614</a>    drop(contracts);
+<a href=#579 id=579 data-nosnippet>579</a>    <span class="prelude-val">Ok</span>((compiled_program, warnings))
+<a href=#580 id=580 data-nosnippet>580</a>}
+<a href=#581 id=581 data-nosnippet>581</a>
+<a href=#582 id=582 data-nosnippet>582</a><span class="doccomment">/// Run the frontend to check the crate for errors then compile all contracts if there were none
+<a href=#583 id=583 data-nosnippet>583</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#584 id=584 data-nosnippet>584</a></span><span class="kw">pub fn </span>compile_contract(
+<a href=#585 id=585 data-nosnippet>585</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#586 id=586 data-nosnippet>586</a>    crate_id: CrateId,
+<a href=#587 id=587 data-nosnippet>587</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#588 id=588 data-nosnippet>588</a>) -&gt; CompilationResult&lt;CompiledContract&gt; {
+<a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">let </span>(<span class="kw">_</span>, warnings) = check_crate(context, crate_id, options)<span class="question-mark">?</span>;
+<a href=#590 id=590 data-nosnippet>590</a>
+<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">let </span>def_map = context.def_map(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
+<a href=#592 id=592 data-nosnippet>592</a>    <span class="kw">let </span><span class="kw-2">mut </span>contracts = def_map.get_all_contracts();
+<a href=#593 id=593 data-nosnippet>593</a>
+<a href=#594 id=594 data-nosnippet>594</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((module_id, name)) = contracts.next() <span class="kw">else </span>{
+<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">let </span>err = CustomDiagnostic::from_message(
+<a href=#596 id=596 data-nosnippet>596</a>            <span class="string">"cannot compile crate into a contract as it does not contain any contracts"</span>,
+<a href=#597 id=597 data-nosnippet>597</a>            FileId::default(),
+<a href=#598 id=598 data-nosnippet>598</a>        );
+<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">vec!</span>[err]);
+<a href=#600 id=600 data-nosnippet>600</a>    };
+<a href=#601 id=601 data-nosnippet>601</a>
+<a href=#602 id=602 data-nosnippet>602</a>    <span class="kw">if </span>contracts.next().is_some() {
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span>err = CustomDiagnostic::from_message(
+<a href=#604 id=604 data-nosnippet>604</a>            <span class="string">"Packages are limited to a single contract"</span>,
+<a href=#605 id=605 data-nosnippet>605</a>            FileId::default(),
+<a href=#606 id=606 data-nosnippet>606</a>        );
+<a href=#607 id=607 data-nosnippet>607</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">vec!</span>[err]);
+<a href=#608 id=608 data-nosnippet>608</a>    }
+<a href=#609 id=609 data-nosnippet>609</a>    drop(contracts);
+<a href=#610 id=610 data-nosnippet>610</a>
+<a href=#611 id=611 data-nosnippet>611</a>    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: module_id };
+<a href=#612 id=612 data-nosnippet>612</a>    <span class="kw">let </span>contract = read_contract(context, module_id, name);
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = warnings;
 <a href=#615 id=615 data-nosnippet>615</a>
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: module_id };
-<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">let </span>contract = read_contract(context, module_id, name);
-<a href=#618 id=618 data-nosnippet>618</a>
-<a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = warnings;
-<a href=#620 id=620 data-nosnippet>620</a>
-<a href=#621 id=621 data-nosnippet>621</a>    <span class="kw">let </span>compiled_contract = <span class="kw">match </span>compile_contract_inner(context, contract, options) {
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="prelude-val">Ok</span>(contract) =&gt; contract,
-<a href=#623 id=623 data-nosnippet>623</a>        <span class="prelude-val">Err</span>(<span class="kw-2">mut </span>more_errors) =&gt; {
-<a href=#624 id=624 data-nosnippet>624</a>            errors.append(<span class="kw-2">&amp;mut </span>more_errors);
-<a href=#625 id=625 data-nosnippet>625</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(errors);
-<a href=#626 id=626 data-nosnippet>626</a>        }
-<a href=#627 id=627 data-nosnippet>627</a>    };
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>    <span class="kw">if </span>has_errors(<span class="kw-2">&amp;</span>errors, options.deny_warnings) {
-<a href=#630 id=630 data-nosnippet>630</a>        <span class="prelude-val">Err</span>(errors)
-<a href=#631 id=631 data-nosnippet>631</a>    } <span class="kw">else </span>{
-<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">if </span>options.print_acir {
-<a href=#633 id=633 data-nosnippet>633</a>            <span class="kw">for </span>contract_function <span class="kw">in </span><span class="kw-2">&amp;</span>compiled_contract.functions {
-<a href=#634 id=634 data-nosnippet>634</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name) = options.show_contract_fn
-<a href=#635 id=635 data-nosnippet>635</a>                    &amp;&amp; name != <span class="kw-2">&amp;</span>contract_function.name
-<a href=#636 id=636 data-nosnippet>636</a>                {
-<a href=#637 id=637 data-nosnippet>637</a>                    <span class="kw">continue</span>;
-<a href=#638 id=638 data-nosnippet>638</a>                }
-<a href=#639 id=639 data-nosnippet>639</a>                <span class="macro">println!</span>(
-<a href=#640 id=640 data-nosnippet>640</a>                    <span class="string">"Compiled ACIR for {}::{} (non-transformed):"</span>,
-<a href=#641 id=641 data-nosnippet>641</a>                    compiled_contract.name, contract_function.name
-<a href=#642 id=642 data-nosnippet>642</a>                );
-<a href=#643 id=643 data-nosnippet>643</a>                <span class="macro">println!</span>(<span class="string">"{}"</span>, contract_function.bytecode);
-<a href=#644 id=644 data-nosnippet>644</a>            }
-<a href=#645 id=645 data-nosnippet>645</a>        }
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="comment">// errors here is either empty or contains only warnings
-<a href=#647 id=647 data-nosnippet>647</a>        </span><span class="prelude-val">Ok</span>((compiled_contract, errors))
-<a href=#648 id=648 data-nosnippet>648</a>    }
-<a href=#649 id=649 data-nosnippet>649</a>}
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a><span class="doccomment">/// Return a Vec of all `contract` declarations in the source code and the functions they contain
-<a href=#652 id=652 data-nosnippet>652</a></span><span class="kw">fn </span>read_contract(context: <span class="kw-2">&amp;</span>Context, module_id: ModuleId, name: String) -&gt; Contract {
-<a href=#653 id=653 data-nosnippet>653</a>    <span class="kw">let </span>module = context.module(module_id);
-<a href=#654 id=654 data-nosnippet>654</a>
-<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">let </span>functions: Vec&lt;ContractFunctionMeta&gt; = module
-<a href=#656 id=656 data-nosnippet>656</a>        .value_definitions()
-<a href=#657 id=657 data-nosnippet>657</a>        .filter_map(|id| {
-<a href=#658 id=658 data-nosnippet>658</a>            id.as_function().map(|function_id| {
-<a href=#659 id=659 data-nosnippet>659</a>                <span class="kw">let </span>attrs = context.def_interner.function_attributes(<span class="kw-2">&amp;</span>function_id);
-<a href=#660 id=660 data-nosnippet>660</a>                <span class="kw">let </span>is_entry_point = attrs.is_contract_entry_point();
-<a href=#661 id=661 data-nosnippet>661</a>                ContractFunctionMeta { function_id, is_entry_point }
-<a href=#662 id=662 data-nosnippet>662</a>            })
-<a href=#663 id=663 data-nosnippet>663</a>        })
-<a href=#664 id=664 data-nosnippet>664</a>        .collect();
-<a href=#665 id=665 data-nosnippet>665</a>
-<a href=#666 id=666 data-nosnippet>666</a>    <span class="kw">let </span><span class="kw-2">mut </span>outputs = ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
-<a href=#667 id=667 data-nosnippet>667</a>
-<a href=#668 id=668 data-nosnippet>668</a>    context.def_interner.get_all_globals().iter().for_each(|global_info| {
-<a href=#669 id=669 data-nosnippet>669</a>        context.def_interner.global_attributes(<span class="kw-2">&amp;</span>global_info.id).iter().for_each(|attr| {
-<a href=#670 id=670 data-nosnippet>670</a>            <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
-<a href=#671 id=671 data-nosnippet>671</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.globals.get_mut(tag) {
-<a href=#672 id=672 data-nosnippet>672</a>                    tagged.push(global_info.id);
-<a href=#673 id=673 data-nosnippet>673</a>                } <span class="kw">else </span>{
-<a href=#674 id=674 data-nosnippet>674</a>                    outputs.globals.insert(tag.clone(), <span class="macro">vec!</span>[global_info.id]);
-<a href=#675 id=675 data-nosnippet>675</a>                }
-<a href=#676 id=676 data-nosnippet>676</a>            }
-<a href=#677 id=677 data-nosnippet>677</a>        });
-<a href=#678 id=678 data-nosnippet>678</a>    });
-<a href=#679 id=679 data-nosnippet>679</a>
-<a href=#680 id=680 data-nosnippet>680</a>    module.type_definitions().for_each(|id| {
-<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">if let </span>ModuleDefId::TypeId(struct_id) = id {
-<a href=#682 id=682 data-nosnippet>682</a>            context.def_interner.type_attributes(<span class="kw-2">&amp;</span>struct_id).iter().for_each(|attr| {
-<a href=#683 id=683 data-nosnippet>683</a>                <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
-<a href=#684 id=684 data-nosnippet>684</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.structs.get_mut(tag) {
-<a href=#685 id=685 data-nosnippet>685</a>                        tagged.push(struct_id);
-<a href=#686 id=686 data-nosnippet>686</a>                    } <span class="kw">else </span>{
-<a href=#687 id=687 data-nosnippet>687</a>                        outputs.structs.insert(tag.clone(), <span class="macro">vec!</span>[struct_id]);
-<a href=#688 id=688 data-nosnippet>688</a>                    }
-<a href=#689 id=689 data-nosnippet>689</a>                }
-<a href=#690 id=690 data-nosnippet>690</a>            });
-<a href=#691 id=691 data-nosnippet>691</a>        }
-<a href=#692 id=692 data-nosnippet>692</a>    });
-<a href=#693 id=693 data-nosnippet>693</a>
-<a href=#694 id=694 data-nosnippet>694</a>    Contract { name, functions, outputs }
+<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">let </span>compiled_contract = <span class="kw">match </span>compile_contract_inner(context, contract, options) {
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="prelude-val">Ok</span>(contract) =&gt; contract,
+<a href=#618 id=618 data-nosnippet>618</a>        <span class="prelude-val">Err</span>(<span class="kw-2">mut </span>more_errors) =&gt; {
+<a href=#619 id=619 data-nosnippet>619</a>            errors.append(<span class="kw-2">&amp;mut </span>more_errors);
+<a href=#620 id=620 data-nosnippet>620</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(errors);
+<a href=#621 id=621 data-nosnippet>621</a>        }
+<a href=#622 id=622 data-nosnippet>622</a>    };
+<a href=#623 id=623 data-nosnippet>623</a>
+<a href=#624 id=624 data-nosnippet>624</a>    <span class="kw">if </span>has_errors(<span class="kw-2">&amp;</span>errors, options.deny_warnings) {
+<a href=#625 id=625 data-nosnippet>625</a>        <span class="prelude-val">Err</span>(errors)
+<a href=#626 id=626 data-nosnippet>626</a>    } <span class="kw">else </span>{
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">if </span>options.print_acir {
+<a href=#628 id=628 data-nosnippet>628</a>            <span class="kw">for </span>contract_function <span class="kw">in </span><span class="kw-2">&amp;</span>compiled_contract.functions {
+<a href=#629 id=629 data-nosnippet>629</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name) = options.show_contract_fn
+<a href=#630 id=630 data-nosnippet>630</a>                    &amp;&amp; name != <span class="kw-2">&amp;</span>contract_function.name
+<a href=#631 id=631 data-nosnippet>631</a>                {
+<a href=#632 id=632 data-nosnippet>632</a>                    <span class="kw">continue</span>;
+<a href=#633 id=633 data-nosnippet>633</a>                }
+<a href=#634 id=634 data-nosnippet>634</a>                <span class="macro">println!</span>(
+<a href=#635 id=635 data-nosnippet>635</a>                    <span class="string">"Compiled ACIR for {}::{} (non-transformed):"</span>,
+<a href=#636 id=636 data-nosnippet>636</a>                    compiled_contract.name, contract_function.name
+<a href=#637 id=637 data-nosnippet>637</a>                );
+<a href=#638 id=638 data-nosnippet>638</a>                <span class="macro">println!</span>(<span class="string">"{}"</span>, contract_function.bytecode);
+<a href=#639 id=639 data-nosnippet>639</a>            }
+<a href=#640 id=640 data-nosnippet>640</a>        }
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="comment">// errors here is either empty or contains only warnings
+<a href=#642 id=642 data-nosnippet>642</a>        </span><span class="prelude-val">Ok</span>((compiled_contract, errors))
+<a href=#643 id=643 data-nosnippet>643</a>    }
+<a href=#644 id=644 data-nosnippet>644</a>}
+<a href=#645 id=645 data-nosnippet>645</a>
+<a href=#646 id=646 data-nosnippet>646</a><span class="doccomment">/// Return a Vec of all `contract` declarations in the source code and the functions they contain
+<a href=#647 id=647 data-nosnippet>647</a></span><span class="kw">fn </span>read_contract(context: <span class="kw-2">&amp;</span>Context, module_id: ModuleId, name: String) -&gt; Contract {
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="kw">let </span>module = context.module(module_id);
+<a href=#649 id=649 data-nosnippet>649</a>
+<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">let </span>functions: Vec&lt;ContractFunctionMeta&gt; = module
+<a href=#651 id=651 data-nosnippet>651</a>        .value_definitions()
+<a href=#652 id=652 data-nosnippet>652</a>        .filter_map(|id| {
+<a href=#653 id=653 data-nosnippet>653</a>            id.as_function().map(|function_id| {
+<a href=#654 id=654 data-nosnippet>654</a>                <span class="kw">let </span>attrs = context.def_interner.function_attributes(<span class="kw-2">&amp;</span>function_id);
+<a href=#655 id=655 data-nosnippet>655</a>                <span class="kw">let </span>is_entry_point = attrs.is_contract_entry_point();
+<a href=#656 id=656 data-nosnippet>656</a>                ContractFunctionMeta { function_id, is_entry_point }
+<a href=#657 id=657 data-nosnippet>657</a>            })
+<a href=#658 id=658 data-nosnippet>658</a>        })
+<a href=#659 id=659 data-nosnippet>659</a>        .collect();
+<a href=#660 id=660 data-nosnippet>660</a>
+<a href=#661 id=661 data-nosnippet>661</a>    <span class="kw">let </span><span class="kw-2">mut </span>outputs = ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
+<a href=#662 id=662 data-nosnippet>662</a>
+<a href=#663 id=663 data-nosnippet>663</a>    context.def_interner.get_all_globals().iter().for_each(|global_info| {
+<a href=#664 id=664 data-nosnippet>664</a>        context.def_interner.global_attributes(<span class="kw-2">&amp;</span>global_info.id).iter().for_each(|attr| {
+<a href=#665 id=665 data-nosnippet>665</a>            <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
+<a href=#666 id=666 data-nosnippet>666</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.globals.get_mut(tag) {
+<a href=#667 id=667 data-nosnippet>667</a>                    tagged.push(global_info.id);
+<a href=#668 id=668 data-nosnippet>668</a>                } <span class="kw">else </span>{
+<a href=#669 id=669 data-nosnippet>669</a>                    outputs.globals.insert(tag.clone(), <span class="macro">vec!</span>[global_info.id]);
+<a href=#670 id=670 data-nosnippet>670</a>                }
+<a href=#671 id=671 data-nosnippet>671</a>            }
+<a href=#672 id=672 data-nosnippet>672</a>        });
+<a href=#673 id=673 data-nosnippet>673</a>    });
+<a href=#674 id=674 data-nosnippet>674</a>
+<a href=#675 id=675 data-nosnippet>675</a>    module.type_definitions().for_each(|id| {
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">if let </span>ModuleDefId::TypeId(struct_id) = id {
+<a href=#677 id=677 data-nosnippet>677</a>            context.def_interner.type_attributes(<span class="kw-2">&amp;</span>struct_id).iter().for_each(|attr| {
+<a href=#678 id=678 data-nosnippet>678</a>                <span class="kw">if let </span>SecondaryAttributeKind::Abi(tag) = <span class="kw-2">&amp;</span>attr.kind {
+<a href=#679 id=679 data-nosnippet>679</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.structs.get_mut(tag) {
+<a href=#680 id=680 data-nosnippet>680</a>                        tagged.push(struct_id);
+<a href=#681 id=681 data-nosnippet>681</a>                    } <span class="kw">else </span>{
+<a href=#682 id=682 data-nosnippet>682</a>                        outputs.structs.insert(tag.clone(), <span class="macro">vec!</span>[struct_id]);
+<a href=#683 id=683 data-nosnippet>683</a>                    }
+<a href=#684 id=684 data-nosnippet>684</a>                }
+<a href=#685 id=685 data-nosnippet>685</a>            });
+<a href=#686 id=686 data-nosnippet>686</a>        }
+<a href=#687 id=687 data-nosnippet>687</a>    });
+<a href=#688 id=688 data-nosnippet>688</a>
+<a href=#689 id=689 data-nosnippet>689</a>    Contract { name, functions, outputs }
+<a href=#690 id=690 data-nosnippet>690</a>}
+<a href=#691 id=691 data-nosnippet>691</a>
+<a href=#692 id=692 data-nosnippet>692</a><span class="doccomment">/// True if there are (non-warning) errors present and we should halt compilation
+<a href=#693 id=693 data-nosnippet>693</a></span><span class="kw">fn </span>has_errors(errors: <span class="kw-2">&amp;</span>[CustomDiagnostic], deny_warnings: bool) -&gt; bool {
+<a href=#694 id=694 data-nosnippet>694</a>    <span class="kw">if </span>deny_warnings { !errors.is_empty() } <span class="kw">else </span>{ errors.iter().any(|error| error.is_error()) }
 <a href=#695 id=695 data-nosnippet>695</a>}
 <a href=#696 id=696 data-nosnippet>696</a>
-<a href=#697 id=697 data-nosnippet>697</a><span class="doccomment">/// True if there are (non-warning) errors present and we should halt compilation
-<a href=#698 id=698 data-nosnippet>698</a></span><span class="kw">fn </span>has_errors(errors: <span class="kw-2">&amp;</span>[CustomDiagnostic], deny_warnings: bool) -&gt; bool {
-<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">if </span>deny_warnings { !errors.is_empty() } <span class="kw">else </span>{ errors.iter().any(|error| error.is_error()) }
-<a href=#700 id=700 data-nosnippet>700</a>}
-<a href=#701 id=701 data-nosnippet>701</a>
-<a href=#702 id=702 data-nosnippet>702</a><span class="doccomment">/// Compile all of the functions associated with a Noir contract.
-<a href=#703 id=703 data-nosnippet>703</a></span><span class="kw">fn </span>compile_contract_inner(
-<a href=#704 id=704 data-nosnippet>704</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#705 id=705 data-nosnippet>705</a>    contract: Contract,
-<a href=#706 id=706 data-nosnippet>706</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#707 id=707 data-nosnippet>707</a>) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledContract, ErrorsAndWarnings&gt; {
-<a href=#708 id=708 data-nosnippet>708</a>    <span class="kw">let </span><span class="kw-2">mut </span>functions = Vec::new();
-<a href=#709 id=709 data-nosnippet>709</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
-<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">let </span><span class="kw-2">mut </span>warnings = Vec::new();
-<a href=#711 id=711 data-nosnippet>711</a>    <span class="kw">for </span>contract_function <span class="kw">in </span><span class="kw-2">&amp;</span>contract.functions {
-<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">let </span>function_id = contract_function.function_id;
-<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw">let </span>is_entry_point = contract_function.is_entry_point;
-<a href=#714 id=714 data-nosnippet>714</a>
-<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw">let </span>name = context.function_name(<span class="kw-2">&amp;</span>function_id).to_owned();
-<a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>        <span class="comment">// We assume that functions have already been type checked.
-<a href=#718 id=718 data-nosnippet>718</a>        // This is the exact same assumption that compile_no_check makes.
-<a href=#719 id=719 data-nosnippet>719</a>        // If it is not an entry-point point, we can then just skip the
-<a href=#720 id=720 data-nosnippet>720</a>        // compilation step. It will also not be added to the ABI.
-<a href=#721 id=721 data-nosnippet>721</a>        </span><span class="kw">if </span>!is_entry_point {
-<a href=#722 id=722 data-nosnippet>722</a>            <span class="kw">continue</span>;
+<a href=#697 id=697 data-nosnippet>697</a><span class="doccomment">/// Compile all of the functions associated with a Noir contract.
+<a href=#698 id=698 data-nosnippet>698</a></span><span class="kw">fn </span>compile_contract_inner(
+<a href=#699 id=699 data-nosnippet>699</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#700 id=700 data-nosnippet>700</a>    contract: Contract,
+<a href=#701 id=701 data-nosnippet>701</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#702 id=702 data-nosnippet>702</a>) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledContract, ErrorsAndWarnings&gt; {
+<a href=#703 id=703 data-nosnippet>703</a>    <span class="kw">let </span><span class="kw-2">mut </span>functions = Vec::new();
+<a href=#704 id=704 data-nosnippet>704</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+<a href=#705 id=705 data-nosnippet>705</a>    <span class="kw">let </span><span class="kw-2">mut </span>warnings = Vec::new();
+<a href=#706 id=706 data-nosnippet>706</a>    <span class="kw">for </span>contract_function <span class="kw">in </span><span class="kw-2">&amp;</span>contract.functions {
+<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>function_id = contract_function.function_id;
+<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw">let </span>is_entry_point = contract_function.is_entry_point;
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a>        <span class="kw">let </span>name = context.function_name(<span class="kw-2">&amp;</span>function_id).to_owned();
+<a href=#711 id=711 data-nosnippet>711</a>
+<a href=#712 id=712 data-nosnippet>712</a>        <span class="comment">// We assume that functions have already been type checked.
+<a href=#713 id=713 data-nosnippet>713</a>        // This is the exact same assumption that compile_no_check makes.
+<a href=#714 id=714 data-nosnippet>714</a>        // If it is not an entry-point point, we can then just skip the
+<a href=#715 id=715 data-nosnippet>715</a>        // compilation step. It will also not be added to the ABI.
+<a href=#716 id=716 data-nosnippet>716</a>        </span><span class="kw">if </span>!is_entry_point {
+<a href=#717 id=717 data-nosnippet>717</a>            <span class="kw">continue</span>;
+<a href=#718 id=718 data-nosnippet>718</a>        }
+<a href=#719 id=719 data-nosnippet>719</a>
+<a href=#720 id=720 data-nosnippet>720</a>        <span class="kw">let </span><span class="kw-2">mut </span>options = options.clone();
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">if </span>name == <span class="string">"public_dispatch" </span>{
+<a href=#722 id=722 data-nosnippet>722</a>            options.inliner_aggressiveness = <span class="number">0</span>;
 <a href=#723 id=723 data-nosnippet>723</a>        }
 <a href=#724 id=724 data-nosnippet>724</a>
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">let </span><span class="kw-2">mut </span>options = options.clone();
-<a href=#726 id=726 data-nosnippet>726</a>        <span class="kw">if </span>name == <span class="string">"public_dispatch" </span>{
-<a href=#727 id=727 data-nosnippet>727</a>            options.inliner_aggressiveness = <span class="number">0</span>;
-<a href=#728 id=728 data-nosnippet>728</a>        }
-<a href=#729 id=729 data-nosnippet>729</a>
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name_filter) = options.show_contract_fn {
-<a href=#731 id=731 data-nosnippet>731</a>            <span class="kw">let </span>show = name == <span class="kw-2">*</span>name_filter;
-<a href=#732 id=732 data-nosnippet>732</a>            options.show_ssa &amp;= show;
-<a href=#733 id=733 data-nosnippet>733</a>            <span class="kw">if </span>!show {
-<a href=#734 id=734 data-nosnippet>734</a>                options.show_ssa_pass.clear();
-<a href=#735 id=735 data-nosnippet>735</a>            }
-<a href=#736 id=736 data-nosnippet>736</a>        }
-<a href=#737 id=737 data-nosnippet>737</a>
-<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>function = <span class="kw">match </span>compile_no_check(context, <span class="kw-2">&amp;</span>options, function_id, <span class="prelude-val">None</span>, <span class="bool-val">true</span>) {
-<a href=#739 id=739 data-nosnippet>739</a>            <span class="prelude-val">Ok</span>(function) =&gt; function,
-<a href=#740 id=740 data-nosnippet>740</a>            <span class="prelude-val">Err</span>(new_error) =&gt; {
-<a href=#741 id=741 data-nosnippet>741</a>                errors.push(new_error.into());
-<a href=#742 id=742 data-nosnippet>742</a>                <span class="kw">continue</span>;
-<a href=#743 id=743 data-nosnippet>743</a>            }
-<a href=#744 id=744 data-nosnippet>744</a>        };
-<a href=#745 id=745 data-nosnippet>745</a>        warnings.extend(function.warnings);
-<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">let </span>modifiers = context.def_interner.function_modifiers(<span class="kw-2">&amp;</span>function_id);
-<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>is_unconstrained = context.def_interner.function_meta(<span class="kw-2">&amp;</span>function_id).is_unconstrained();
-<a href=#748 id=748 data-nosnippet>748</a>
-<a href=#749 id=749 data-nosnippet>749</a>        <span class="kw">let </span>custom_attributes = modifiers
-<a href=#750 id=750 data-nosnippet>750</a>            .attributes
-<a href=#751 id=751 data-nosnippet>751</a>            .secondary
-<a href=#752 id=752 data-nosnippet>752</a>            .iter()
-<a href=#753 id=753 data-nosnippet>753</a>            .filter_map(|attr| <span class="kw">match </span><span class="kw-2">&amp;</span>attr.kind {
-<a href=#754 id=754 data-nosnippet>754</a>                SecondaryAttributeKind::Tag(contents) =&gt; <span class="prelude-val">Some</span>(contents.clone()),
-<a href=#755 id=755 data-nosnippet>755</a>                SecondaryAttributeKind::Meta(meta_attribute) =&gt; {
-<a href=#756 id=756 data-nosnippet>756</a>                    context.def_interner.get_meta_attribute_name(meta_attribute)
-<a href=#757 id=757 data-nosnippet>757</a>                }
-<a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#759 id=759 data-nosnippet>759</a>            })
-<a href=#760 id=760 data-nosnippet>760</a>            .collect();
-<a href=#761 id=761 data-nosnippet>761</a>
-<a href=#762 id=762 data-nosnippet>762</a>        functions.push(ContractFunction {
-<a href=#763 id=763 data-nosnippet>763</a>            name,
-<a href=#764 id=764 data-nosnippet>764</a>            hash: function.hash,
-<a href=#765 id=765 data-nosnippet>765</a>            custom_attributes,
-<a href=#766 id=766 data-nosnippet>766</a>            abi: function.abi,
-<a href=#767 id=767 data-nosnippet>767</a>            bytecode: function.program,
-<a href=#768 id=768 data-nosnippet>768</a>            debug: function.debug,
-<a href=#769 id=769 data-nosnippet>769</a>            is_unconstrained,
-<a href=#770 id=770 data-nosnippet>770</a>        });
-<a href=#771 id=771 data-nosnippet>771</a>    }
-<a href=#772 id=772 data-nosnippet>772</a>
-<a href=#773 id=773 data-nosnippet>773</a>    <span class="kw">if </span>errors.is_empty() {
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">let </span>debug_infos: Vec&lt;<span class="kw">_</span>&gt; =
-<a href=#775 id=775 data-nosnippet>775</a>            functions.iter().flat_map(|function| function.debug.clone()).collect();
-<a href=#776 id=776 data-nosnippet>776</a>        <span class="kw">let </span>file_map =
-<a href=#777 id=777 data-nosnippet>777</a>            filter_relevant_files(<span class="kw-2">&amp;</span>debug_infos, <span class="kw-2">&amp;</span>context.file_manager, <span class="kw-2">&amp;</span>context.parsed_files);
-<a href=#778 id=778 data-nosnippet>778</a>
-<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">let </span>out_structs = contract
-<a href=#780 id=780 data-nosnippet>780</a>            .outputs
-<a href=#781 id=781 data-nosnippet>781</a>            .structs
-<a href=#782 id=782 data-nosnippet>782</a>            .into_iter()
-<a href=#783 id=783 data-nosnippet>783</a>            .map(|(tag, structs)| {
-<a href=#784 id=784 data-nosnippet>784</a>                <span class="kw">let </span>structs = structs
-<a href=#785 id=785 data-nosnippet>785</a>                    .into_iter()
-<a href=#786 id=786 data-nosnippet>786</a>                    .map(|struct_id| {
-<a href=#787 id=787 data-nosnippet>787</a>                        <span class="kw">let </span>typ = context.def_interner.get_type(struct_id);
-<a href=#788 id=788 data-nosnippet>788</a>                        <span class="kw">let </span>typ = typ.borrow();
-<a href=#789 id=789 data-nosnippet>789</a>                        <span class="kw">let </span>fields =
-<a href=#790 id=790 data-nosnippet>790</a>                            vecmap(typ.get_fields(<span class="kw-2">&amp;</span>[]).unwrap_or_default(), |(name, typ, <span class="kw">_</span>)| {
-<a href=#791 id=791 data-nosnippet>791</a>                                (name, abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ))
-<a href=#792 id=792 data-nosnippet>792</a>                            });
-<a href=#793 id=793 data-nosnippet>793</a>                        <span class="kw">let </span>path =
-<a href=#794 id=794 data-nosnippet>794</a>                            context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
-<a href=#795 id=795 data-nosnippet>795</a>                        AbiType::Struct { path, fields }
-<a href=#796 id=796 data-nosnippet>796</a>                    })
-<a href=#797 id=797 data-nosnippet>797</a>                    .collect();
-<a href=#798 id=798 data-nosnippet>798</a>                (tag, structs)
-<a href=#799 id=799 data-nosnippet>799</a>            })
-<a href=#800 id=800 data-nosnippet>800</a>            .collect();
-<a href=#801 id=801 data-nosnippet>801</a>
-<a href=#802 id=802 data-nosnippet>802</a>        <span class="kw">let </span>out_globals = contract
-<a href=#803 id=803 data-nosnippet>803</a>            .outputs
-<a href=#804 id=804 data-nosnippet>804</a>            .globals
-<a href=#805 id=805 data-nosnippet>805</a>            .iter()
-<a href=#806 id=806 data-nosnippet>806</a>            .map(|(tag, globals)| {
-<a href=#807 id=807 data-nosnippet>807</a>                <span class="kw">let </span>globals: Vec&lt;AbiValue&gt; = globals
-<a href=#808 id=808 data-nosnippet>808</a>                    .iter()
-<a href=#809 id=809 data-nosnippet>809</a>                    .map(|global_id| {
-<a href=#810 id=810 data-nosnippet>810</a>                        <span class="kw">let </span>let_statement =
-<a href=#811 id=811 data-nosnippet>811</a>                            context.def_interner.get_global_let_statement(<span class="kw-2">*</span>global_id).unwrap();
-<a href=#812 id=812 data-nosnippet>812</a>                        <span class="kw">let </span>hir_expression =
-<a href=#813 id=813 data-nosnippet>813</a>                            context.def_interner.expression(<span class="kw-2">&amp;</span>let_statement.expression);
-<a href=#814 id=814 data-nosnippet>814</a>                        value_from_hir_expression(context, hir_expression)
-<a href=#815 id=815 data-nosnippet>815</a>                    })
-<a href=#816 id=816 data-nosnippet>816</a>                    .collect();
-<a href=#817 id=817 data-nosnippet>817</a>                (tag.clone(), globals)
-<a href=#818 id=818 data-nosnippet>818</a>            })
-<a href=#819 id=819 data-nosnippet>819</a>            .collect();
-<a href=#820 id=820 data-nosnippet>820</a>
-<a href=#821 id=821 data-nosnippet>821</a>        <span class="prelude-val">Ok</span>(CompiledContract {
-<a href=#822 id=822 data-nosnippet>822</a>            name: contract.name,
-<a href=#823 id=823 data-nosnippet>823</a>            functions,
-<a href=#824 id=824 data-nosnippet>824</a>            outputs: CompiledContractOutputs { structs: out_structs, globals: out_globals },
-<a href=#825 id=825 data-nosnippet>825</a>            file_map,
-<a href=#826 id=826 data-nosnippet>826</a>            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-<a href=#827 id=827 data-nosnippet>827</a>            warnings,
-<a href=#828 id=828 data-nosnippet>828</a>        })
-<a href=#829 id=829 data-nosnippet>829</a>    } <span class="kw">else </span>{
-<a href=#830 id=830 data-nosnippet>830</a>        <span class="prelude-val">Err</span>(errors)
-<a href=#831 id=831 data-nosnippet>831</a>    }
-<a href=#832 id=832 data-nosnippet>832</a>}
-<a href=#833 id=833 data-nosnippet>833</a>
-<a href=#834 id=834 data-nosnippet>834</a><span class="kw">pub fn </span>filter_relevant_files(
-<a href=#835 id=835 data-nosnippet>835</a>    debug_symbols: <span class="kw-2">&amp;</span>[DebugInfo],
-<a href=#836 id=836 data-nosnippet>836</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
-<a href=#837 id=837 data-nosnippet>837</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
-<a href=#838 id=838 data-nosnippet>838</a>) -&gt; BTreeMap&lt;FileId, DebugFile&gt; {
-<a href=#839 id=839 data-nosnippet>839</a>    <span class="kw">let </span><span class="kw-2">mut </span>files_with_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
-<a href=#840 id=840 data-nosnippet>840</a>        .iter()
-<a href=#841 id=841 data-nosnippet>841</a>        .flat_map(|function_symbols| {
-<a href=#842 id=842 data-nosnippet>842</a>            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
-<a href=#843 id=843 data-nosnippet>843</a>                function_symbols
-<a href=#844 id=844 data-nosnippet>844</a>                    .location_tree
-<a href=#845 id=845 data-nosnippet>845</a>                    .get_call_stack(<span class="kw-2">*</span>call_stack_id)
-<a href=#846 id=846 data-nosnippet>846</a>                    .into_iter()
-<a href=#847 id=847 data-nosnippet>847</a>                    .map(|location| location.file)
-<a href=#848 id=848 data-nosnippet>848</a>            })
-<a href=#849 id=849 data-nosnippet>849</a>        })
-<a href=#850 id=850 data-nosnippet>850</a>        .collect();
-<a href=#851 id=851 data-nosnippet>851</a>
-<a href=#852 id=852 data-nosnippet>852</a>    <span class="kw">let </span>files_with_brillig_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
-<a href=#853 id=853 data-nosnippet>853</a>        .iter()
-<a href=#854 id=854 data-nosnippet>854</a>        .flat_map(|function_symbols| {
-<a href=#855 id=855 data-nosnippet>855</a>            function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-<a href=#856 id=856 data-nosnippet>856</a>                brillig_location_map.values().flat_map(|call_stack_id| {
-<a href=#857 id=857 data-nosnippet>857</a>                    function_symbols
-<a href=#858 id=858 data-nosnippet>858</a>                        .location_tree
-<a href=#859 id=859 data-nosnippet>859</a>                        .get_call_stack(<span class="kw-2">*</span>call_stack_id)
-<a href=#860 id=860 data-nosnippet>860</a>                        .into_iter()
-<a href=#861 id=861 data-nosnippet>861</a>                        .map(|location| location.file)
-<a href=#862 id=862 data-nosnippet>862</a>                })
-<a href=#863 id=863 data-nosnippet>863</a>            })
-<a href=#864 id=864 data-nosnippet>864</a>        })
-<a href=#865 id=865 data-nosnippet>865</a>        .collect();
-<a href=#866 id=866 data-nosnippet>866</a>
-<a href=#867 id=867 data-nosnippet>867</a>    files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
-<a href=#868 id=868 data-nosnippet>868</a>
-<a href=#869 id=869 data-nosnippet>869</a>    <span class="kw">let </span><span class="kw-2">mut </span>file_map = BTreeMap::new();
-<a href=#870 id=870 data-nosnippet>870</a>
-<a href=#871 id=871 data-nosnippet>871</a>    <span class="kw">for </span>file_id <span class="kw">in </span>files_with_debug_symbols {
-<a href=#872 id=872 data-nosnippet>872</a>        <span class="kw">let </span>file_path = file_manager.path(file_id).expect(<span class="string">"file should exist"</span>);
-<a href=#873 id=873 data-nosnippet>873</a>        <span class="kw">let </span>file_source = file_manager.fetch_file(file_id).expect(<span class="string">"file should exist"</span>);
-<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span>(parsed_module, _errors) = parsed_files.get(<span class="kw-2">&amp;</span>file_id).expect(<span class="string">"file should exist"</span>);
-<a href=#875 id=875 data-nosnippet>875</a>        <span class="kw">let </span>include_comptime_items = <span class="bool-val">false</span>;
-<a href=#876 id=876 data-nosnippet>876</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_locations =
-<a href=#877 id=877 data-nosnippet>877</a>            function_locations_in_parsed_module(parsed_module, file_id, include_comptime_items);
-<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">let </span>function_locations = function_locations
-<a href=#879 id=879 data-nosnippet>879</a>            .all_in_file(file_id)
-<a href=#880 id=880 data-nosnippet>880</a>            .map(|(name, span)| FunctionLocation { name: name.to_string(), start: span.start() })
-<a href=#881 id=881 data-nosnippet>881</a>            .collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#882 id=882 data-nosnippet>882</a>
-<a href=#883 id=883 data-nosnippet>883</a>        file_map.insert(
-<a href=#884 id=884 data-nosnippet>884</a>            file_id,
-<a href=#885 id=885 data-nosnippet>885</a>            DebugFile {
-<a href=#886 id=886 data-nosnippet>886</a>                source: file_source.to_string(),
-<a href=#887 id=887 data-nosnippet>887</a>                path: file_path.to_path_buf(),
-<a href=#888 id=888 data-nosnippet>888</a>                function_locations,
-<a href=#889 id=889 data-nosnippet>889</a>            },
-<a href=#890 id=890 data-nosnippet>890</a>        );
-<a href=#891 id=891 data-nosnippet>891</a>    }
-<a href=#892 id=892 data-nosnippet>892</a>    file_map
-<a href=#893 id=893 data-nosnippet>893</a>}
-<a href=#894 id=894 data-nosnippet>894</a>
-<a href=#895 id=895 data-nosnippet>895</a><span class="doccomment">/// Compile the current crate using `main_function` as the entrypoint.
-<a href=#896 id=896 data-nosnippet>896</a>///
-<a href=#897 id=897 data-nosnippet>897</a>/// This function assumes [`check_crate`] is called beforehand.
-<a href=#898 id=898 data-nosnippet>898</a>///
-<a href=#899 id=899 data-nosnippet>899</a>/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
-<a href=#900 id=900 data-nosnippet>900</a>/// pass before usage in proof generation; if it's returned from cache these transformations might have
-<a href=#901 id=901 data-nosnippet>901</a>/// already been applied.
-<a href=#902 id=902 data-nosnippet>902</a>///
-<a href=#903 id=903 data-nosnippet>903</a>/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-<a href=#904 id=904 data-nosnippet>904</a>/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
-<a href=#905 id=905 data-nosnippet>905</a>/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-<a href=#906 id=906 data-nosnippet>906</a>/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
-<a href=#907 id=907 data-nosnippet>907</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all, fields(function_name = context.function_name(<span class="kw-2">&amp;</span>main_function)))]
-<a href=#908 id=908 data-nosnippet>908</a>#[allow(clippy::result_large_err)]
-<a href=#909 id=909 data-nosnippet>909</a></span><span class="kw">pub fn </span>compile_no_check(
-<a href=#910 id=910 data-nosnippet>910</a>    context: <span class="kw-2">&amp;mut </span>Context,
-<a href=#911 id=911 data-nosnippet>911</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#912 id=912 data-nosnippet>912</a>    main_function: FuncId,
-<a href=#913 id=913 data-nosnippet>913</a>    cached_program: <span class="prelude-ty">Option</span>&lt;CompiledProgram&gt;,
-<a href=#914 id=914 data-nosnippet>914</a>    force_compile: bool,
-<a href=#915 id=915 data-nosnippet>915</a>) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, CompileError&gt; {
-<a href=#916 id=916 data-nosnippet>916</a>    <span class="kw">let </span>force_unconstrained = options.force_brillig || options.minimal_ssa;
-<a href=#917 id=917 data-nosnippet>917</a>
-<a href=#918 id=918 data-nosnippet>918</a>    <span class="kw">let </span>program = <span class="kw">if </span>options.instrument_debug {
-<a href=#919 id=919 data-nosnippet>919</a>        monomorphize_debug(
-<a href=#920 id=920 data-nosnippet>920</a>            main_function,
-<a href=#921 id=921 data-nosnippet>921</a>            <span class="kw-2">&amp;mut </span>context.def_interner,
-<a href=#922 id=922 data-nosnippet>922</a>            <span class="kw-2">&amp;</span>context.debug_instrumenter,
-<a href=#923 id=923 data-nosnippet>923</a>            context.debug_crate_id,
-<a href=#924 id=924 data-nosnippet>924</a>            force_unconstrained,
-<a href=#925 id=925 data-nosnippet>925</a>        )<span class="question-mark">?
-<a href=#926 id=926 data-nosnippet>926</a>    </span>} <span class="kw">else </span>{
-<a href=#927 id=927 data-nosnippet>927</a>        monomorphize(main_function, <span class="kw-2">&amp;mut </span>context.def_interner, force_unconstrained)<span class="question-mark">?
-<a href=#928 id=928 data-nosnippet>928</a>    </span>};
-<a href=#929 id=929 data-nosnippet>929</a>
-<a href=#930 id=930 data-nosnippet>930</a>    <span class="kw">if </span>options.show_monomorphized {
-<a href=#931 id=931 data-nosnippet>931</a>        <span class="macro">println!</span>(<span class="string">"{program}"</span>);
-<a href=#932 id=932 data-nosnippet>932</a>    }
-<a href=#933 id=933 data-nosnippet>933</a>
-<a href=#934 id=934 data-nosnippet>934</a>    <span class="comment">// If user has specified that they want to see intermediate steps printed then we should
-<a href=#935 id=935 data-nosnippet>935</a>    // force compilation even if the program hasn't changed.
-<a href=#936 id=936 data-nosnippet>936</a>    </span><span class="kw">let </span>force_compile = force_compile
-<a href=#937 id=937 data-nosnippet>937</a>        || options.print_acir
-<a href=#938 id=938 data-nosnippet>938</a>        || options.show_brillig
-<a href=#939 id=939 data-nosnippet>939</a>        || options.force_brillig
-<a href=#940 id=940 data-nosnippet>940</a>        || options.count_array_copies
-<a href=#941 id=941 data-nosnippet>941</a>        || options.show_ssa
-<a href=#942 id=942 data-nosnippet>942</a>        || !options.show_ssa_pass.is_empty()
-<a href=#943 id=943 data-nosnippet>943</a>        || options.emit_ssa
-<a href=#944 id=944 data-nosnippet>944</a>        || options.minimal_ssa;
-<a href=#945 id=945 data-nosnippet>945</a>
-<a href=#946 id=946 data-nosnippet>946</a>    <span class="comment">// Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-<a href=#947 id=947 data-nosnippet>947</a>    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program);
-<a href=#948 id=948 data-nosnippet>948</a>
-<a href=#949 id=949 data-nosnippet>949</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(cached_program) = cached_program
-<a href=#950 id=950 data-nosnippet>950</a>        &amp;&amp; !force_compile
-<a href=#951 id=951 data-nosnippet>951</a>        &amp;&amp; cached_program.hash == hash
-<a href=#952 id=952 data-nosnippet>952</a>    {
-<a href=#953 id=953 data-nosnippet>953</a>        <span class="macro">info!</span>(<span class="string">"Program matches existing artifact, returning early"</span>);
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(cached_program);
-<a href=#955 id=955 data-nosnippet>955</a>    }
-<a href=#956 id=956 data-nosnippet>956</a>
-<a href=#957 id=957 data-nosnippet>957</a>    <span class="kw">let </span>return_visibility = program.return_visibility();
-<a href=#958 id=958 data-nosnippet>958</a>    <span class="kw">let </span>ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
-<a href=#959 id=959 data-nosnippet>959</a>
-<a href=#960 id=960 data-nosnippet>960</a>    <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, error_types, .. } = <span class="kw">if </span>options.minimal_ssa {
-<a href=#961 id=961 data-nosnippet>961</a>        create_program_with_minimal_passes(program, <span class="kw-2">&amp;</span>ssa_evaluator_options, <span class="kw-2">&amp;</span>context.file_manager)<span class="question-mark">?
-<a href=#962 id=962 data-nosnippet>962</a>    </span>} <span class="kw">else </span>{
-<a href=#963 id=963 data-nosnippet>963</a>        create_program(
-<a href=#964 id=964 data-nosnippet>964</a>            program,
-<a href=#965 id=965 data-nosnippet>965</a>            <span class="kw-2">&amp;</span>ssa_evaluator_options,
-<a href=#966 id=966 data-nosnippet>966</a>            <span class="kw">if </span>options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-<a href=#967 id=967 data-nosnippet>967</a>        )<span class="question-mark">?
-<a href=#968 id=968 data-nosnippet>968</a>    </span>};
-<a href=#969 id=969 data-nosnippet>969</a>
-<a href=#970 id=970 data-nosnippet>970</a>    <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
-<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">let </span>file_map = filter_relevant_files(<span class="kw-2">&amp;</span>debug, <span class="kw-2">&amp;</span>context.file_manager, <span class="kw-2">&amp;</span>context.parsed_files);
-<a href=#972 id=972 data-nosnippet>972</a>
-<a href=#973 id=973 data-nosnippet>973</a>    <span class="prelude-val">Ok</span>(CompiledProgram {
-<a href=#974 id=974 data-nosnippet>974</a>        hash,
-<a href=#975 id=975 data-nosnippet>975</a>        program,
-<a href=#976 id=976 data-nosnippet>976</a>        debug,
-<a href=#977 id=977 data-nosnippet>977</a>        abi,
-<a href=#978 id=978 data-nosnippet>978</a>        file_map,
-<a href=#979 id=979 data-nosnippet>979</a>        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
-<a href=#980 id=980 data-nosnippet>980</a>        warnings,
-<a href=#981 id=981 data-nosnippet>981</a>    })
-<a href=#982 id=982 data-nosnippet>982</a>}
-<a href=#983 id=983 data-nosnippet>983</a>
-<a href=#984 id=984 data-nosnippet>984</a><span class="doccomment">/// Specifies a contract function and extra metadata that
-<a href=#985 id=985 data-nosnippet>985</a>/// one can use when processing a contract function.
-<a href=#986 id=986 data-nosnippet>986</a>///
-<a href=#987 id=987 data-nosnippet>987</a>/// One of these is whether the contract function is an entry point.
-<a href=#988 id=988 data-nosnippet>988</a>/// The caller should only type-check these functions and not attempt
-<a href=#989 id=989 data-nosnippet>989</a>/// to create a circuit for them.
-<a href=#990 id=990 data-nosnippet>990</a></span><span class="kw">struct </span>ContractFunctionMeta {
-<a href=#991 id=991 data-nosnippet>991</a>    function_id: FuncId,
-<a href=#992 id=992 data-nosnippet>992</a>    <span class="doccomment">/// Indicates whether the function is an entry point
-<a href=#993 id=993 data-nosnippet>993</a>    </span>is_entry_point: bool,
+<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>name_filter) = options.show_contract_fn {
+<a href=#726 id=726 data-nosnippet>726</a>            <span class="kw">let </span>show = name == <span class="kw-2">*</span>name_filter;
+<a href=#727 id=727 data-nosnippet>727</a>            options.show_ssa &amp;= show;
+<a href=#728 id=728 data-nosnippet>728</a>            <span class="kw">if </span>!show {
+<a href=#729 id=729 data-nosnippet>729</a>                options.show_ssa_pass.clear();
+<a href=#730 id=730 data-nosnippet>730</a>            }
+<a href=#731 id=731 data-nosnippet>731</a>        }
+<a href=#732 id=732 data-nosnippet>732</a>
+<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>function = <span class="kw">match </span>compile_no_check(context, <span class="kw-2">&amp;</span>options, function_id, <span class="prelude-val">None</span>, <span class="bool-val">true</span>) {
+<a href=#734 id=734 data-nosnippet>734</a>            <span class="prelude-val">Ok</span>(function) =&gt; function,
+<a href=#735 id=735 data-nosnippet>735</a>            <span class="prelude-val">Err</span>(new_error) =&gt; {
+<a href=#736 id=736 data-nosnippet>736</a>                errors.push(new_error.into());
+<a href=#737 id=737 data-nosnippet>737</a>                <span class="kw">continue</span>;
+<a href=#738 id=738 data-nosnippet>738</a>            }
+<a href=#739 id=739 data-nosnippet>739</a>        };
+<a href=#740 id=740 data-nosnippet>740</a>        warnings.extend(function.warnings);
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">let </span>modifiers = context.def_interner.function_modifiers(<span class="kw-2">&amp;</span>function_id);
+<a href=#742 id=742 data-nosnippet>742</a>        <span class="kw">let </span>is_unconstrained = context.def_interner.function_meta(<span class="kw-2">&amp;</span>function_id).is_unconstrained();
+<a href=#743 id=743 data-nosnippet>743</a>
+<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">let </span>custom_attributes = modifiers
+<a href=#745 id=745 data-nosnippet>745</a>            .attributes
+<a href=#746 id=746 data-nosnippet>746</a>            .secondary
+<a href=#747 id=747 data-nosnippet>747</a>            .iter()
+<a href=#748 id=748 data-nosnippet>748</a>            .filter_map(|attr| <span class="kw">match </span><span class="kw-2">&amp;</span>attr.kind {
+<a href=#749 id=749 data-nosnippet>749</a>                SecondaryAttributeKind::Tag(contents) =&gt; <span class="prelude-val">Some</span>(contents.clone()),
+<a href=#750 id=750 data-nosnippet>750</a>                SecondaryAttributeKind::Meta(meta_attribute) =&gt; {
+<a href=#751 id=751 data-nosnippet>751</a>                    context.def_interner.get_meta_attribute_name(meta_attribute)
+<a href=#752 id=752 data-nosnippet>752</a>                }
+<a href=#753 id=753 data-nosnippet>753</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#754 id=754 data-nosnippet>754</a>            })
+<a href=#755 id=755 data-nosnippet>755</a>            .collect();
+<a href=#756 id=756 data-nosnippet>756</a>
+<a href=#757 id=757 data-nosnippet>757</a>        functions.push(ContractFunction {
+<a href=#758 id=758 data-nosnippet>758</a>            name,
+<a href=#759 id=759 data-nosnippet>759</a>            hash: function.hash,
+<a href=#760 id=760 data-nosnippet>760</a>            custom_attributes,
+<a href=#761 id=761 data-nosnippet>761</a>            abi: function.abi,
+<a href=#762 id=762 data-nosnippet>762</a>            bytecode: function.program,
+<a href=#763 id=763 data-nosnippet>763</a>            debug: function.debug,
+<a href=#764 id=764 data-nosnippet>764</a>            is_unconstrained,
+<a href=#765 id=765 data-nosnippet>765</a>        });
+<a href=#766 id=766 data-nosnippet>766</a>    }
+<a href=#767 id=767 data-nosnippet>767</a>
+<a href=#768 id=768 data-nosnippet>768</a>    <span class="kw">if </span>errors.is_empty() {
+<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>debug_infos: Vec&lt;<span class="kw">_</span>&gt; =
+<a href=#770 id=770 data-nosnippet>770</a>            functions.iter().flat_map(|function| function.debug.clone()).collect();
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">let </span>file_map =
+<a href=#772 id=772 data-nosnippet>772</a>            filter_relevant_files(<span class="kw-2">&amp;</span>debug_infos, <span class="kw-2">&amp;</span>context.file_manager, <span class="kw-2">&amp;</span>context.parsed_files);
+<a href=#773 id=773 data-nosnippet>773</a>
+<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">let </span>out_structs = contract
+<a href=#775 id=775 data-nosnippet>775</a>            .outputs
+<a href=#776 id=776 data-nosnippet>776</a>            .structs
+<a href=#777 id=777 data-nosnippet>777</a>            .into_iter()
+<a href=#778 id=778 data-nosnippet>778</a>            .map(|(tag, structs)| {
+<a href=#779 id=779 data-nosnippet>779</a>                <span class="kw">let </span>structs = structs
+<a href=#780 id=780 data-nosnippet>780</a>                    .into_iter()
+<a href=#781 id=781 data-nosnippet>781</a>                    .map(|struct_id| {
+<a href=#782 id=782 data-nosnippet>782</a>                        <span class="kw">let </span>typ = context.def_interner.get_type(struct_id);
+<a href=#783 id=783 data-nosnippet>783</a>                        <span class="kw">let </span>typ = typ.borrow();
+<a href=#784 id=784 data-nosnippet>784</a>                        <span class="kw">let </span>fields =
+<a href=#785 id=785 data-nosnippet>785</a>                            vecmap(typ.get_fields(<span class="kw-2">&amp;</span>[]).unwrap_or_default(), |(name, typ, <span class="kw">_</span>)| {
+<a href=#786 id=786 data-nosnippet>786</a>                                (name, abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>typ))
+<a href=#787 id=787 data-nosnippet>787</a>                            });
+<a href=#788 id=788 data-nosnippet>788</a>                        <span class="kw">let </span>path =
+<a href=#789 id=789 data-nosnippet>789</a>                            context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
+<a href=#790 id=790 data-nosnippet>790</a>                        AbiType::Struct { path, fields }
+<a href=#791 id=791 data-nosnippet>791</a>                    })
+<a href=#792 id=792 data-nosnippet>792</a>                    .collect();
+<a href=#793 id=793 data-nosnippet>793</a>                (tag, structs)
+<a href=#794 id=794 data-nosnippet>794</a>            })
+<a href=#795 id=795 data-nosnippet>795</a>            .collect();
+<a href=#796 id=796 data-nosnippet>796</a>
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="kw">let </span>out_globals = contract
+<a href=#798 id=798 data-nosnippet>798</a>            .outputs
+<a href=#799 id=799 data-nosnippet>799</a>            .globals
+<a href=#800 id=800 data-nosnippet>800</a>            .iter()
+<a href=#801 id=801 data-nosnippet>801</a>            .map(|(tag, globals)| {
+<a href=#802 id=802 data-nosnippet>802</a>                <span class="kw">let </span>globals: Vec&lt;AbiValue&gt; = globals
+<a href=#803 id=803 data-nosnippet>803</a>                    .iter()
+<a href=#804 id=804 data-nosnippet>804</a>                    .map(|global_id| {
+<a href=#805 id=805 data-nosnippet>805</a>                        <span class="kw">let </span>let_statement =
+<a href=#806 id=806 data-nosnippet>806</a>                            context.def_interner.get_global_let_statement(<span class="kw-2">*</span>global_id).unwrap();
+<a href=#807 id=807 data-nosnippet>807</a>                        <span class="kw">let </span>hir_expression =
+<a href=#808 id=808 data-nosnippet>808</a>                            context.def_interner.expression(<span class="kw-2">&amp;</span>let_statement.expression);
+<a href=#809 id=809 data-nosnippet>809</a>                        value_from_hir_expression(context, hir_expression)
+<a href=#810 id=810 data-nosnippet>810</a>                    })
+<a href=#811 id=811 data-nosnippet>811</a>                    .collect();
+<a href=#812 id=812 data-nosnippet>812</a>                (tag.clone(), globals)
+<a href=#813 id=813 data-nosnippet>813</a>            })
+<a href=#814 id=814 data-nosnippet>814</a>            .collect();
+<a href=#815 id=815 data-nosnippet>815</a>
+<a href=#816 id=816 data-nosnippet>816</a>        <span class="prelude-val">Ok</span>(CompiledContract {
+<a href=#817 id=817 data-nosnippet>817</a>            name: contract.name,
+<a href=#818 id=818 data-nosnippet>818</a>            functions,
+<a href=#819 id=819 data-nosnippet>819</a>            outputs: CompiledContractOutputs { structs: out_structs, globals: out_globals },
+<a href=#820 id=820 data-nosnippet>820</a>            file_map,
+<a href=#821 id=821 data-nosnippet>821</a>            noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+<a href=#822 id=822 data-nosnippet>822</a>            warnings,
+<a href=#823 id=823 data-nosnippet>823</a>        })
+<a href=#824 id=824 data-nosnippet>824</a>    } <span class="kw">else </span>{
+<a href=#825 id=825 data-nosnippet>825</a>        <span class="prelude-val">Err</span>(errors)
+<a href=#826 id=826 data-nosnippet>826</a>    }
+<a href=#827 id=827 data-nosnippet>827</a>}
+<a href=#828 id=828 data-nosnippet>828</a>
+<a href=#829 id=829 data-nosnippet>829</a><span class="kw">pub fn </span>filter_relevant_files(
+<a href=#830 id=830 data-nosnippet>830</a>    debug_symbols: <span class="kw-2">&amp;</span>[DebugInfo],
+<a href=#831 id=831 data-nosnippet>831</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
+<a href=#832 id=832 data-nosnippet>832</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
+<a href=#833 id=833 data-nosnippet>833</a>) -&gt; BTreeMap&lt;FileId, DebugFile&gt; {
+<a href=#834 id=834 data-nosnippet>834</a>    <span class="kw">let </span><span class="kw-2">mut </span>files_with_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
+<a href=#835 id=835 data-nosnippet>835</a>        .iter()
+<a href=#836 id=836 data-nosnippet>836</a>        .flat_map(|function_symbols| {
+<a href=#837 id=837 data-nosnippet>837</a>            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+<a href=#838 id=838 data-nosnippet>838</a>                function_symbols
+<a href=#839 id=839 data-nosnippet>839</a>                    .location_tree
+<a href=#840 id=840 data-nosnippet>840</a>                    .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+<a href=#841 id=841 data-nosnippet>841</a>                    .into_iter()
+<a href=#842 id=842 data-nosnippet>842</a>                    .map(|location| location.file)
+<a href=#843 id=843 data-nosnippet>843</a>            })
+<a href=#844 id=844 data-nosnippet>844</a>        })
+<a href=#845 id=845 data-nosnippet>845</a>        .collect();
+<a href=#846 id=846 data-nosnippet>846</a>
+<a href=#847 id=847 data-nosnippet>847</a>    <span class="kw">let </span>files_with_brillig_debug_symbols: BTreeSet&lt;FileId&gt; = debug_symbols
+<a href=#848 id=848 data-nosnippet>848</a>        .iter()
+<a href=#849 id=849 data-nosnippet>849</a>        .flat_map(|function_symbols| {
+<a href=#850 id=850 data-nosnippet>850</a>            function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+<a href=#851 id=851 data-nosnippet>851</a>                brillig_location_map.values().flat_map(|call_stack_id| {
+<a href=#852 id=852 data-nosnippet>852</a>                    function_symbols
+<a href=#853 id=853 data-nosnippet>853</a>                        .location_tree
+<a href=#854 id=854 data-nosnippet>854</a>                        .get_call_stack(<span class="kw-2">*</span>call_stack_id)
+<a href=#855 id=855 data-nosnippet>855</a>                        .into_iter()
+<a href=#856 id=856 data-nosnippet>856</a>                        .map(|location| location.file)
+<a href=#857 id=857 data-nosnippet>857</a>                })
+<a href=#858 id=858 data-nosnippet>858</a>            })
+<a href=#859 id=859 data-nosnippet>859</a>        })
+<a href=#860 id=860 data-nosnippet>860</a>        .collect();
+<a href=#861 id=861 data-nosnippet>861</a>
+<a href=#862 id=862 data-nosnippet>862</a>    files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
+<a href=#863 id=863 data-nosnippet>863</a>
+<a href=#864 id=864 data-nosnippet>864</a>    <span class="kw">let </span><span class="kw-2">mut </span>file_map = BTreeMap::new();
+<a href=#865 id=865 data-nosnippet>865</a>
+<a href=#866 id=866 data-nosnippet>866</a>    <span class="kw">for </span>file_id <span class="kw">in </span>files_with_debug_symbols {
+<a href=#867 id=867 data-nosnippet>867</a>        <span class="kw">let </span>file_path = file_manager.path(file_id).expect(<span class="string">"file should exist"</span>);
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw">let </span>file_source = file_manager.fetch_file(file_id).expect(<span class="string">"file should exist"</span>);
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">let </span>(parsed_module, _errors) = parsed_files.get(<span class="kw-2">&amp;</span>file_id).expect(<span class="string">"file should exist"</span>);
+<a href=#870 id=870 data-nosnippet>870</a>        <span class="kw">let </span>include_comptime_items = <span class="bool-val">false</span>;
+<a href=#871 id=871 data-nosnippet>871</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_locations =
+<a href=#872 id=872 data-nosnippet>872</a>            function_locations_in_parsed_module(parsed_module, file_id, include_comptime_items);
+<a href=#873 id=873 data-nosnippet>873</a>        <span class="kw">let </span>function_locations = function_locations
+<a href=#874 id=874 data-nosnippet>874</a>            .all_in_file(file_id)
+<a href=#875 id=875 data-nosnippet>875</a>            .map(|(name, span)| FunctionLocation { name: name.to_string(), start: span.start() })
+<a href=#876 id=876 data-nosnippet>876</a>            .collect::&lt;BTreeSet&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#877 id=877 data-nosnippet>877</a>
+<a href=#878 id=878 data-nosnippet>878</a>        file_map.insert(
+<a href=#879 id=879 data-nosnippet>879</a>            file_id,
+<a href=#880 id=880 data-nosnippet>880</a>            DebugFile {
+<a href=#881 id=881 data-nosnippet>881</a>                source: file_source.to_string(),
+<a href=#882 id=882 data-nosnippet>882</a>                path: file_path.to_path_buf(),
+<a href=#883 id=883 data-nosnippet>883</a>                function_locations,
+<a href=#884 id=884 data-nosnippet>884</a>            },
+<a href=#885 id=885 data-nosnippet>885</a>        );
+<a href=#886 id=886 data-nosnippet>886</a>    }
+<a href=#887 id=887 data-nosnippet>887</a>    file_map
+<a href=#888 id=888 data-nosnippet>888</a>}
+<a href=#889 id=889 data-nosnippet>889</a>
+<a href=#890 id=890 data-nosnippet>890</a><span class="doccomment">/// Compile the current crate using `main_function` as the entrypoint.
+<a href=#891 id=891 data-nosnippet>891</a>///
+<a href=#892 id=892 data-nosnippet>892</a>/// This function assumes [`check_crate`] is called beforehand.
+<a href=#893 id=893 data-nosnippet>893</a>///
+<a href=#894 id=894 data-nosnippet>894</a>/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
+<a href=#895 id=895 data-nosnippet>895</a>/// pass before usage in proof generation; if it's returned from cache these transformations might have
+<a href=#896 id=896 data-nosnippet>896</a>/// already been applied.
+<a href=#897 id=897 data-nosnippet>897</a>///
+<a href=#898 id=898 data-nosnippet>898</a>/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
+<a href=#899 id=899 data-nosnippet>899</a>/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+<a href=#900 id=900 data-nosnippet>900</a>/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
+<a href=#901 id=901 data-nosnippet>901</a>/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
+<a href=#902 id=902 data-nosnippet>902</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all, fields(function_name = context.function_name(<span class="kw-2">&amp;</span>main_function)))]
+<a href=#903 id=903 data-nosnippet>903</a>#[allow(clippy::result_large_err)]
+<a href=#904 id=904 data-nosnippet>904</a></span><span class="kw">pub fn </span>compile_no_check(
+<a href=#905 id=905 data-nosnippet>905</a>    context: <span class="kw-2">&amp;mut </span>Context,
+<a href=#906 id=906 data-nosnippet>906</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#907 id=907 data-nosnippet>907</a>    main_function: FuncId,
+<a href=#908 id=908 data-nosnippet>908</a>    cached_program: <span class="prelude-ty">Option</span>&lt;CompiledProgram&gt;,
+<a href=#909 id=909 data-nosnippet>909</a>    force_compile: bool,
+<a href=#910 id=910 data-nosnippet>910</a>) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, CompileError&gt; {
+<a href=#911 id=911 data-nosnippet>911</a>    <span class="kw">let </span>force_unconstrained = options.force_brillig || options.minimal_ssa;
+<a href=#912 id=912 data-nosnippet>912</a>
+<a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">let </span>program = <span class="kw">if </span>options.instrument_debug {
+<a href=#914 id=914 data-nosnippet>914</a>        monomorphize_debug(
+<a href=#915 id=915 data-nosnippet>915</a>            main_function,
+<a href=#916 id=916 data-nosnippet>916</a>            <span class="kw-2">&amp;mut </span>context.def_interner,
+<a href=#917 id=917 data-nosnippet>917</a>            <span class="kw-2">&amp;</span>context.debug_instrumenter,
+<a href=#918 id=918 data-nosnippet>918</a>            context.debug_crate_id,
+<a href=#919 id=919 data-nosnippet>919</a>            force_unconstrained,
+<a href=#920 id=920 data-nosnippet>920</a>        )<span class="question-mark">?
+<a href=#921 id=921 data-nosnippet>921</a>    </span>} <span class="kw">else </span>{
+<a href=#922 id=922 data-nosnippet>922</a>        monomorphize(main_function, <span class="kw-2">&amp;mut </span>context.def_interner, force_unconstrained)<span class="question-mark">?
+<a href=#923 id=923 data-nosnippet>923</a>    </span>};
+<a href=#924 id=924 data-nosnippet>924</a>
+<a href=#925 id=925 data-nosnippet>925</a>    <span class="kw">if </span>options.show_monomorphized {
+<a href=#926 id=926 data-nosnippet>926</a>        <span class="macro">println!</span>(<span class="string">"{program}"</span>);
+<a href=#927 id=927 data-nosnippet>927</a>    }
+<a href=#928 id=928 data-nosnippet>928</a>
+<a href=#929 id=929 data-nosnippet>929</a>    <span class="comment">// If user has specified that they want to see intermediate steps printed then we should
+<a href=#930 id=930 data-nosnippet>930</a>    // force compilation even if the program hasn't changed.
+<a href=#931 id=931 data-nosnippet>931</a>    </span><span class="kw">let </span>force_compile = force_compile
+<a href=#932 id=932 data-nosnippet>932</a>        || options.print_acir
+<a href=#933 id=933 data-nosnippet>933</a>        || options.show_brillig
+<a href=#934 id=934 data-nosnippet>934</a>        || options.force_brillig
+<a href=#935 id=935 data-nosnippet>935</a>        || options.count_array_copies
+<a href=#936 id=936 data-nosnippet>936</a>        || options.show_ssa
+<a href=#937 id=937 data-nosnippet>937</a>        || !options.show_ssa_pass.is_empty()
+<a href=#938 id=938 data-nosnippet>938</a>        || options.emit_ssa
+<a href=#939 id=939 data-nosnippet>939</a>        || options.minimal_ssa;
+<a href=#940 id=940 data-nosnippet>940</a>
+<a href=#941 id=941 data-nosnippet>941</a>    <span class="comment">// Hash the AST program, which is going to be used to fingerprint the compilation artifact.
+<a href=#942 id=942 data-nosnippet>942</a>    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program);
+<a href=#943 id=943 data-nosnippet>943</a>
+<a href=#944 id=944 data-nosnippet>944</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(cached_program) = cached_program
+<a href=#945 id=945 data-nosnippet>945</a>        &amp;&amp; !force_compile
+<a href=#946 id=946 data-nosnippet>946</a>        &amp;&amp; cached_program.hash == hash
+<a href=#947 id=947 data-nosnippet>947</a>    {
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="macro">info!</span>(<span class="string">"Program matches existing artifact, returning early"</span>);
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(cached_program);
+<a href=#950 id=950 data-nosnippet>950</a>    }
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a>    <span class="kw">let </span>return_visibility = program.return_visibility();
+<a href=#953 id=953 data-nosnippet>953</a>    <span class="kw">let </span>ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+<a href=#954 id=954 data-nosnippet>954</a>
+<a href=#955 id=955 data-nosnippet>955</a>    <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, error_types, .. } = <span class="kw">if </span>options.minimal_ssa {
+<a href=#956 id=956 data-nosnippet>956</a>        create_program_with_minimal_passes(program, <span class="kw-2">&amp;</span>ssa_evaluator_options, <span class="kw-2">&amp;</span>context.file_manager)<span class="question-mark">?
+<a href=#957 id=957 data-nosnippet>957</a>    </span>} <span class="kw">else </span>{
+<a href=#958 id=958 data-nosnippet>958</a>        create_program(
+<a href=#959 id=959 data-nosnippet>959</a>            program,
+<a href=#960 id=960 data-nosnippet>960</a>            <span class="kw-2">&amp;</span>ssa_evaluator_options,
+<a href=#961 id=961 data-nosnippet>961</a>            <span class="kw">if </span>options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
+<a href=#962 id=962 data-nosnippet>962</a>        )<span class="question-mark">?
+<a href=#963 id=963 data-nosnippet>963</a>    </span>};
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a>    <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
+<a href=#966 id=966 data-nosnippet>966</a>    <span class="kw">let </span>file_map = filter_relevant_files(<span class="kw-2">&amp;</span>debug, <span class="kw-2">&amp;</span>context.file_manager, <span class="kw-2">&amp;</span>context.parsed_files);
+<a href=#967 id=967 data-nosnippet>967</a>
+<a href=#968 id=968 data-nosnippet>968</a>    <span class="prelude-val">Ok</span>(CompiledProgram {
+<a href=#969 id=969 data-nosnippet>969</a>        hash,
+<a href=#970 id=970 data-nosnippet>970</a>        program,
+<a href=#971 id=971 data-nosnippet>971</a>        debug,
+<a href=#972 id=972 data-nosnippet>972</a>        abi,
+<a href=#973 id=973 data-nosnippet>973</a>        file_map,
+<a href=#974 id=974 data-nosnippet>974</a>        noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
+<a href=#975 id=975 data-nosnippet>975</a>        warnings,
+<a href=#976 id=976 data-nosnippet>976</a>    })
+<a href=#977 id=977 data-nosnippet>977</a>}
+<a href=#978 id=978 data-nosnippet>978</a>
+<a href=#979 id=979 data-nosnippet>979</a><span class="doccomment">/// Specifies a contract function and extra metadata that
+<a href=#980 id=980 data-nosnippet>980</a>/// one can use when processing a contract function.
+<a href=#981 id=981 data-nosnippet>981</a>///
+<a href=#982 id=982 data-nosnippet>982</a>/// One of these is whether the contract function is an entry point.
+<a href=#983 id=983 data-nosnippet>983</a>/// The caller should only type-check these functions and not attempt
+<a href=#984 id=984 data-nosnippet>984</a>/// to create a circuit for them.
+<a href=#985 id=985 data-nosnippet>985</a></span><span class="kw">struct </span>ContractFunctionMeta {
+<a href=#986 id=986 data-nosnippet>986</a>    function_id: FuncId,
+<a href=#987 id=987 data-nosnippet>987</a>    <span class="doccomment">/// Indicates whether the function is an entry point
+<a href=#988 id=988 data-nosnippet>988</a>    </span>is_entry_point: bool,
+<a href=#989 id=989 data-nosnippet>989</a>}
+<a href=#990 id=990 data-nosnippet>990</a>
+<a href=#991 id=991 data-nosnippet>991</a><span class="kw">struct </span>ContractOutputs {
+<a href=#992 id=992 data-nosnippet>992</a>    structs: HashMap&lt;String, Vec&lt;TypeId&gt;&gt;,
+<a href=#993 id=993 data-nosnippet>993</a>    globals: HashMap&lt;String, Vec&lt;GlobalId&gt;&gt;,
 <a href=#994 id=994 data-nosnippet>994</a>}
 <a href=#995 id=995 data-nosnippet>995</a>
-<a href=#996 id=996 data-nosnippet>996</a><span class="kw">struct </span>ContractOutputs {
-<a href=#997 id=997 data-nosnippet>997</a>    structs: HashMap&lt;String, Vec&lt;TypeId&gt;&gt;,
-<a href=#998 id=998 data-nosnippet>998</a>    globals: HashMap&lt;String, Vec&lt;GlobalId&gt;&gt;,
-<a href=#999 id=999 data-nosnippet>999</a>}
-<a href=#1000 id=1000 data-nosnippet>1000</a>
-<a href=#1001 id=1001 data-nosnippet>1001</a><span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
-<a href=#1002 id=1002 data-nosnippet>1002</a>/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-<a href=#1003 id=1003 data-nosnippet>1003</a></span><span class="kw">struct </span>Contract {
-<a href=#1004 id=1004 data-nosnippet>1004</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-<a href=#1005 id=1005 data-nosnippet>1005</a>    </span>name: String,
-<a href=#1006 id=1006 data-nosnippet>1006</a>    functions: Vec&lt;ContractFunctionMeta&gt;,
-<a href=#1007 id=1007 data-nosnippet>1007</a>    outputs: ContractOutputs,
-<a href=#1008 id=1008 data-nosnippet>1008</a>}
-<a href=#1009 id=1009 data-nosnippet>1009</a>
-<a href=#1010 id=1010 data-nosnippet>1010</a><span class="kw">fn </span>ssa_report_to_custom_diagnostic(error: SsaReport) -&gt; CustomDiagnostic {
-<a href=#1011 id=1011 data-nosnippet>1011</a>    <span class="kw">match </span>error {
-<a href=#1012 id=1012 data-nosnippet>1012</a>        SsaReport::Warning(warning) =&gt; {
-<a href=#1013 id=1013 data-nosnippet>1013</a>            <span class="kw">let </span>message = warning.to_string();
-<a href=#1014 id=1014 data-nosnippet>1014</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
-<a href=#1015 id=1015 data-nosnippet>1015</a>                    InternalWarning::ReturnConstant { call_stack } =&gt; {
-<a href=#1016 id=1016 data-nosnippet>1016</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
-<a href=#1017 id=1017 data-nosnippet>1017</a>                    },
-<a href=#1018 id=1018 data-nosnippet>1018</a>                };
-<a href=#1019 id=1019 data-nosnippet>1019</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
-<a href=#1020 id=1020 data-nosnippet>1020</a>            <span class="kw">if </span>location.is_dummy() {
-<a href=#1021 id=1021 data-nosnippet>1021</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Warning to have a location"</span>);
-<a href=#1022 id=1022 data-nosnippet>1022</a>            }
-<a href=#1023 id=1023 data-nosnippet>1023</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
-<a href=#1024 id=1024 data-nosnippet>1024</a>            diagnostic.with_call_stack(call_stack)
-<a href=#1025 id=1025 data-nosnippet>1025</a>        }
-<a href=#1026 id=1026 data-nosnippet>1026</a>        SsaReport::Bug(bug) =&gt; {
-<a href=#1027 id=1027 data-nosnippet>1027</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
-<a href=#1028 id=1028 data-nosnippet>1028</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
-<a href=#1029 id=1029 data-nosnippet>1029</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
-<a href=#1030 id=1030 data-nosnippet>1030</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
-<a href=#1031 id=1031 data-nosnippet>1031</a>                    }
-<a href=#1032 id=1032 data-nosnippet>1032</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
-<a href=#1033 id=1033 data-nosnippet>1033</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
-<a href=#1034 id=1034 data-nosnippet>1034</a>                    }
-<a href=#1035 id=1035 data-nosnippet>1035</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
-<a href=#1036 id=1036 data-nosnippet>1036</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
-<a href=#1037 id=1037 data-nosnippet>1037</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
-<a href=#1038 id=1038 data-nosnippet>1038</a>                        }
-<a href=#1039 id=1039 data-nosnippet>1039</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
-<a href=#1040 id=1040 data-nosnippet>1040</a>                    }
-<a href=#1041 id=1041 data-nosnippet>1041</a>                };
-<a href=#1042 id=1042 data-nosnippet>1042</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
-<a href=#1043 id=1043 data-nosnippet>1043</a>            <span class="kw">if </span>location.is_dummy() {
-<a href=#1044 id=1044 data-nosnippet>1044</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Bug to have a location"</span>);
-<a href=#1045 id=1045 data-nosnippet>1045</a>            }
-<a href=#1046 id=1046 data-nosnippet>1046</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
-<a href=#1047 id=1047 data-nosnippet>1047</a>            diagnostic.with_call_stack(call_stack)
-<a href=#1048 id=1048 data-nosnippet>1048</a>        }
-<a href=#1049 id=1049 data-nosnippet>1049</a>    }
-<a href=#1050 id=1050 data-nosnippet>1050</a>}</code></pre></div></section></main></body></html>
+<a href=#996 id=996 data-nosnippet>996</a><span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
+<a href=#997 id=997 data-nosnippet>997</a>/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+<a href=#998 id=998 data-nosnippet>998</a></span><span class="kw">struct </span>Contract {
+<a href=#999 id=999 data-nosnippet>999</a>    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+<a href=#1000 id=1000 data-nosnippet>1000</a>    </span>name: String,
+<a href=#1001 id=1001 data-nosnippet>1001</a>    functions: Vec&lt;ContractFunctionMeta&gt;,
+<a href=#1002 id=1002 data-nosnippet>1002</a>    outputs: ContractOutputs,
+<a href=#1003 id=1003 data-nosnippet>1003</a>}
+<a href=#1004 id=1004 data-nosnippet>1004</a>
+<a href=#1005 id=1005 data-nosnippet>1005</a><span class="kw">fn </span>ssa_report_to_custom_diagnostic(error: SsaReport) -&gt; CustomDiagnostic {
+<a href=#1006 id=1006 data-nosnippet>1006</a>    <span class="kw">match </span>error {
+<a href=#1007 id=1007 data-nosnippet>1007</a>        SsaReport::Warning(warning) =&gt; {
+<a href=#1008 id=1008 data-nosnippet>1008</a>            <span class="kw">let </span>message = warning.to_string();
+<a href=#1009 id=1009 data-nosnippet>1009</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
+<a href=#1010 id=1010 data-nosnippet>1010</a>                    InternalWarning::ReturnConstant { call_stack } =&gt; {
+<a href=#1011 id=1011 data-nosnippet>1011</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
+<a href=#1012 id=1012 data-nosnippet>1012</a>                    },
+<a href=#1013 id=1013 data-nosnippet>1013</a>                };
+<a href=#1014 id=1014 data-nosnippet>1014</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
+<a href=#1015 id=1015 data-nosnippet>1015</a>            <span class="kw">if </span>location.is_dummy() {
+<a href=#1016 id=1016 data-nosnippet>1016</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Warning to have a location"</span>);
+<a href=#1017 id=1017 data-nosnippet>1017</a>            }
+<a href=#1018 id=1018 data-nosnippet>1018</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
+<a href=#1019 id=1019 data-nosnippet>1019</a>            diagnostic.with_call_stack(call_stack)
+<a href=#1020 id=1020 data-nosnippet>1020</a>        }
+<a href=#1021 id=1021 data-nosnippet>1021</a>        SsaReport::Bug(bug) =&gt; {
+<a href=#1022 id=1022 data-nosnippet>1022</a>            <span class="kw">let </span><span class="kw-2">mut </span>message = bug.to_string();
+<a href=#1023 id=1023 data-nosnippet>1023</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>bug {
+<a href=#1024 id=1024 data-nosnippet>1024</a>                    InternalBug::IndependentSubgraph { call_stack } =&gt; {
+<a href=#1025 id=1025 data-nosnippet>1025</a>                        (<span class="string">"There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability"</span>.to_string(), call_stack)
+<a href=#1026 id=1026 data-nosnippet>1026</a>                    }
+<a href=#1027 id=1027 data-nosnippet>1027</a>                    InternalBug::UncheckedBrilligCall { call_stack } =&gt; {
+<a href=#1028 id=1028 data-nosnippet>1028</a>                        (<span class="string">"This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities"</span>.to_string(), call_stack)
+<a href=#1029 id=1029 data-nosnippet>1029</a>                    }
+<a href=#1030 id=1030 data-nosnippet>1030</a>                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } =&gt; {
+<a href=#1031 id=1031 data-nosnippet>1031</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(assertion_failure_message) = assertion_failure_message {
+<a href=#1032 id=1032 data-nosnippet>1032</a>                            message.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">": {assertion_failure_message}"</span>));
+<a href=#1033 id=1033 data-nosnippet>1033</a>                        }
+<a href=#1034 id=1034 data-nosnippet>1034</a>                        (<span class="string">"As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution"</span>.to_string(), call_stack)
+<a href=#1035 id=1035 data-nosnippet>1035</a>                    }
+<a href=#1036 id=1036 data-nosnippet>1036</a>                };
+<a href=#1037 id=1037 data-nosnippet>1037</a>            <span class="kw">let </span>location = call_stack.last_or_dummy();
+<a href=#1038 id=1038 data-nosnippet>1038</a>            <span class="kw">if </span>location.is_dummy() {
+<a href=#1039 id=1039 data-nosnippet>1039</a>                <span class="macro">tracing::warn!</span>(<span class="string">"expected SsaReport::Bug to have a location"</span>);
+<a href=#1040 id=1040 data-nosnippet>1040</a>            }
+<a href=#1041 id=1041 data-nosnippet>1041</a>            <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
+<a href=#1042 id=1042 data-nosnippet>1042</a>            diagnostic.with_call_stack(call_stack)
+<a href=#1043 id=1043 data-nosnippet>1043</a>        }
+<a href=#1044 id=1044 data-nosnippet>1044</a>    }
+<a href=#1045 id=1045 data-nosnippet>1045</a>}</code></pre></div></section></main></body></html>
