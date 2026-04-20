@@ -56,6 +56,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         std::env::var_os("NOIR_SPILL_TRACE").is_some()
     }
 
+    fn spill_trace_type(dfg: &DataFlowGraph, value_id: ValueId) -> Option<Type> {
+        let typ = dfg.type_of_value(value_id).into_owned();
+        matches!(typ, Type::Vector(_)).then_some(typ)
+    }
+
     /// Converts an SSA basic block into a sequence of Brillig opcodes.
     ///
     /// This method contains the necessary initial variable and register setup for compiling
@@ -233,20 +238,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// whose registers don't yet contain the final value.
     /// The Jmp terminators write the value directly into the slot later.
     pub(crate) fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) {
-        let trace = Self::spill_trace_enabled();
-        let allocated_before = self.variables.is_allocated(&value_id);
-
-        if trace {
-            let record_before = self
-                .function_context
-                .spill_manager
-                .as_ref()
-                .and_then(|sm| sm.trace_record(&value_id));
-            eprintln!(
-                "[spill-trace] spill_value enter value={value_id:?} permanent={permanent} emit_store={emit_store} allocated={allocated_before} record={record_before:?}"
-            );
-        }
-
         // Check fist permanent because ensure_permanent_spill() modifies the record.
         let should_short_circuit = {
             let sm = self
@@ -262,16 +253,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             // holds a valid copy because SSA values are immutable, so no store is needed.
             // If the value had been reloaded into a register, free that register now so
             // it isn't leaked for the remainder of the block.
-            if trace {
-                let record_after = self
-                    .function_context
-                    .spill_manager
-                    .as_ref()
-                    .and_then(|sm| sm.trace_record(&value_id));
-                eprintln!(
-                    "[spill-trace] spill_value short_circuit value={value_id:?} allocated_before={allocated_before} record_after={record_after:?}"
-                );
-            }
             self.function_context.spill_manager.as_mut().unwrap().remove_from_lru(&value_id);
             if self.variables.is_allocated(&value_id) {
                 self.variables.remove_variable(
@@ -279,11 +260,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.function_context,
                     self.brillig_context,
                 );
-                if trace {
-                    eprintln!(
-                        "[spill-trace] spill_value short_circuit freed_register value={value_id:?}"
-                    );
-                }
             }
             return;
         }
@@ -303,12 +279,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         self.variables.remove_variable(&value_id, self.function_context, self.brillig_context);
-        if trace {
-            eprintln!(
-                "[spill-trace] spill_value stored_and_freed value={value_id:?} offset={offset} register={:?} permanent={permanent}",
-                var.extract_register()
-            );
-        }
     }
 
     /// Emit a 3-instruction sequence to load a value from the spill region
@@ -336,7 +306,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Reload a previously spilled value into a freshly allocated register
     fn reload_spilled_value(&mut self, value_id: ValueId) -> BrilligVariable {
-        let trace = Self::spill_trace_enabled();
         // Ensure capacity for the reload register (may trigger another spill)
         self.ensure_register_capacity(1);
 
@@ -361,14 +330,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Re-add to available variables (was removed during spill)
         self.variables.add_available(value_id);
-
-        if trace {
-            eprintln!(
-                "[spill-trace] reload value={value_id:?} offset={} old_register={:?} new_register={new_reg:?}",
-                spill_record.offset,
-                spill_record.variable.extract_register()
-            );
-        }
 
         new_var
     }
@@ -400,23 +361,27 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         live_in_no_globals.sort();
 
         if Self::spill_trace_enabled() {
-            eprintln!(
-                "[spill-trace] spill_non_param_live_ins dest={destination:?} params={:?} live_ins={:?}",
-                dfg[destination].parameters(),
-                live_in_no_globals
-                    .iter()
-                    .map(|value_id| {
-                        let typ = dfg.type_of_value(*value_id);
-                        let allocated = self.variables.is_allocated(value_id);
-                        let record = self
-                            .function_context
-                            .spill_manager
-                            .as_ref()
-                            .and_then(|sm| sm.trace_record(value_id));
-                        format!("{value_id:?}:{typ:?}:allocated={allocated}:record={record:?}")
-                    })
-                    .collect_vec()
-            );
+            let vector_live_ins = live_in_no_globals
+                .iter()
+                .filter_map(|value_id| {
+                    let typ = Self::spill_trace_type(dfg, *value_id)?;
+                    let allocated = self.variables.is_allocated(value_id);
+                    let record = self
+                        .function_context
+                        .spill_manager
+                        .as_ref()
+                        .and_then(|sm| sm.trace_record(value_id));
+                    Some(format!("{value_id:?}:{typ:?}:allocated={allocated}:record={record:?}"))
+                })
+                .collect_vec();
+
+            if !vector_live_ins.is_empty() {
+                eprintln!(
+                    "[spill-trace] event=live_ins block={:?} dest={destination:?} params={:?} vector_live_ins={vector_live_ins:?}",
+                    self.block_id,
+                    dfg[destination].parameters()
+                );
+            }
         }
 
         for value_id in live_in_no_globals {
@@ -424,6 +389,33 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Parameters are eagerly spilled in `convert_block_params` at
                 // definition time. Their spill slots are written by each terminator (see `convert_ssa_terminator`).
                 // Skip them here.
+                continue;
+            }
+
+            if Self::spill_trace_enabled()
+                && let Some(typ) = Self::spill_trace_type(dfg, value_id)
+            {
+                let allocated_before = self.variables.is_allocated(&value_id);
+                let record_before = self
+                    .function_context
+                    .spill_manager
+                    .as_ref()
+                    .and_then(|sm| sm.trace_record(&value_id));
+                eprintln!(
+                    "[spill-trace] event=spill_live_in_before block={:?} dest={destination:?} value={value_id:?} type={typ:?} allocated={allocated_before} record={record_before:?}",
+                    self.block_id
+                );
+                self.spill_value(value_id, true, true);
+                let allocated_after = self.variables.is_allocated(&value_id);
+                let record_after = self
+                    .function_context
+                    .spill_manager
+                    .as_ref()
+                    .and_then(|sm| sm.trace_record(&value_id));
+                eprintln!(
+                    "[spill-trace] event=spill_live_in_after block={:?} dest={destination:?} value={value_id:?} type={typ:?} allocated={allocated_after} record={record_after:?}",
+                    self.block_id
+                );
                 continue;
             }
 
@@ -609,9 +601,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             if let Some(offset) = spill_offset {
                 // Param was spilled — write arg directly to param's spill slot.
-                if Self::spill_trace_enabled() {
+                if Self::spill_trace_enabled()
+                    && (Self::spill_trace_type(dfg, *arg).is_some()
+                        || Self::spill_trace_type(dfg, *param).is_some())
+                {
+                    let arg_type = Self::spill_trace_type(dfg, *arg);
+                    let param_type = Self::spill_trace_type(dfg, *param);
                     eprintln!(
-                        "[spill-trace] jmp_setup store_arg destination={destination:?} arg={arg:?} param={param:?} arg_register={arg_reg:?} param_spill_offset={offset}"
+                        "[spill-trace] event=jmp_store block={:?} dest={destination:?} arg={arg:?} arg_type={arg_type:?} param={param:?} param_type={param_type:?} arg_register={arg_reg:?} param_spill_offset={offset}",
+                        self.block_id
                     );
                 }
                 self.codegen_spill_store(offset, arg_reg);
@@ -621,9 +619,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 // Filter out self-moves (e.g. from coalesced args that already share the param register).
                 if arg_reg != param_reg {
-                    if Self::spill_trace_enabled() {
+                    if Self::spill_trace_enabled()
+                        && (Self::spill_trace_type(dfg, *arg).is_some()
+                            || Self::spill_trace_type(dfg, *param).is_some())
+                    {
+                        let arg_type = Self::spill_trace_type(dfg, *arg);
+                        let param_type = Self::spill_trace_type(dfg, *param);
                         eprintln!(
-                            "[spill-trace] jmp_setup move_arg destination={destination:?} arg={arg:?} param={param:?} arg_register={arg_reg:?} param_register={param_reg:?}"
+                            "[spill-trace] event=jmp_move block={:?} dest={destination:?} arg={arg:?} arg_type={arg_type:?} param={param:?} param_type={param_type:?} arg_register={arg_reg:?} param_register={param_reg:?}",
+                            self.block_id
                         );
                     }
                     moves.push((arg_reg, param_reg));
