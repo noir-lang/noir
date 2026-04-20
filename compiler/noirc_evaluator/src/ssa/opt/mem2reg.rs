@@ -428,7 +428,13 @@ fn collect_eligible_variables_and_def_sites(
                     let address = function.dfg.instruction_results(*instruction_id)[0];
                     variables.insert(address, block_id);
                 }
-                Instruction::Load { .. } => (),
+                Instruction::Load { address } => {
+                    // If a load from an address comes before a store to it, don't consider that variable as eligible
+                    if !variables_with_stores_in_decl_block.contains(address) {
+                        variables.remove(address);
+                        def_sites.remove(address);
+                    }
+                }
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
                 Instruction::Store { address, value } => {
                     variables.remove(value);
@@ -1373,5 +1379,21 @@ brillig(inline) fn main f0 {
             return v1
         }
         ");
+    }
+
+    #[test]
+    fn load_before_store_in_decl_block() {
+        // A load before a store shouldn't happen but, if it does, mem2reg shouldn't consider
+        // loads from those addresses as eligibile for being optimized out.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = load v0 -> Field
+            store Field 42 at v0
+            return v1
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
