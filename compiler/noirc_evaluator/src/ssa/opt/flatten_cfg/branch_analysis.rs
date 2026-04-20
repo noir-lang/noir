@@ -288,7 +288,7 @@ mod tests {
     use crate::{
         brillig::BrilligOptions,
         ssa::{
-            SsaEvaluatorOptions,
+            SsaEvaluatorOptions, checks,
             function_builder::FunctionBuilder,
             ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
             opt::{
@@ -648,6 +648,9 @@ mod tests {
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length:
+                checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
             inliner_aggressiveness: 0,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,

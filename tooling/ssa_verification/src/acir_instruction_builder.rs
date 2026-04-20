@@ -18,6 +18,7 @@ use noirc_evaluator::ssa::{
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 use noirc_evaluator::ssa::{
+    checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
     opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
     ssa_gen::Ssa,
 };
@@ -256,6 +257,8 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         emit_ssa: { None },
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,
+        brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+        brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
         inliner_aggressiveness: 0,
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,

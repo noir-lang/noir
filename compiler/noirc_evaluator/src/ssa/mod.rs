@@ -42,7 +42,7 @@ pub use builder::{SsaBuilder, SsaPass};
 
 mod artifact;
 mod builder;
-mod checks;
+pub mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
@@ -98,6 +98,11 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    pub brillig_constraints_check_max_array_output_length: u32,
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    pub brillig_constraints_check_max_ancestor_distance: u32,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -417,7 +422,12 @@ pub fn optimize_ssa_builder_into_acir(
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
-            || ssa.check_for_missing_brillig_constraints(),
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.brillig_constraints_check_max_array_output_length,
+                    options.brillig_constraints_check_max_ancestor_distance,
+                )
+            },
         ));
     }
 

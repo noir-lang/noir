@@ -9,6 +9,7 @@ mod tests {
         errors::RuntimeError,
         ssa::{
             Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
+            checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
             opt::{
                 DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
                 FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding, inlining,
@@ -25,6 +26,8 @@ mod tests {
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,

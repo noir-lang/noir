@@ -5,6 +5,9 @@ use noir_ast_fuzzer::compare::{
     CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
+use noirc_evaluator::ssa::checks::{
+    DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+};
 use noirc_evaluator::ssa::opt::{
     CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
     DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
@@ -36,6 +39,8 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         emit_ssa: None,
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,
+        brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+        brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
         inliner_aggressiveness: 0,
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
