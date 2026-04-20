@@ -575,7 +575,6 @@ impl Elaborator<'_> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
-            self.check_comptime_type_in_non_comptime_item(&typ, location);
             return typ;
         }
 
@@ -600,14 +599,6 @@ impl Elaborator<'_> {
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
             return Type::Alias(type_alias, args);
-        }
-
-        // Check if the name refers to a global used as a numeric type. This is checked after type aliases so that a type alias
-        // in the types namespace takes priority over a same-named global in the values namespace.
-        if args.is_empty()
-            && let Some(typ) = self.lookup_global_type(&path, mode)
-        {
-            return typ;
         }
 
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
@@ -657,6 +648,16 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Ok(item) => {
+                // Fall back to the numeric-global shortcut so that `global N: u32 = 5`
+                // used in a type position like `[u8; N]` still resolves. A name that
+                // also exists in the types namespace as a real type takes priority via
+                // the match arms above.
+                if args.is_empty()
+                    && let Some(typ) = self.lookup_global_type(&path, mode)
+                {
+                    return typ;
+                }
+
                 self.push_err(ResolverError::Expected {
                     expected: "type",
                     found: item.description(self.interner),
@@ -666,6 +667,12 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Err(err) => {
+                if args.is_empty()
+                    && let Some(typ) = self.lookup_global_type(&path, mode)
+                {
+                    return typ;
+                }
+
                 self.push_err(err);
 
                 Type::Error
