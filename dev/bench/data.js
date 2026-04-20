@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776707129159,
+  "lastUpdate": 1776707967219,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22471,48 +22471,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "97fda06efa4ee3bb11b8243701117a003d0105de",
-          "message": "chore(docs): Document snapshot-test conventions and fix cargo insta flags (#12238)",
-          "timestamp": "2026-04-10T18:50:38Z",
-          "tree_id": "0704eee0deb3be206528b938736ca2c9ef429b21",
-          "url": "https://github.com/noir-lang/noir/commit/97fda06efa4ee3bb11b8243701117a003d0105de"
-        },
-        "date": 1775848427822,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169562,
-            "range": "± 406",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138350,
-            "range": "± 639",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645670,
-            "range": "± 2128",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jjaa1012@gmail.com",
             "name": "Wonjae Choi",
             "username": "0xwonj"
@@ -24564,6 +24522,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643906,
             "range": "± 38263",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa0d3d4f1194f068dfe7b85090dcf03f6f2393e2",
+          "message": "fix: fmtstr with functions in globals didn't compile (#12356)",
+          "timestamp": "2026-04-20T17:34:48Z",
+          "tree_id": "d090fe5300e1c7757beadb6dcdb8434ea3f1a105",
+          "url": "https://github.com/noir-lang/noir/commit/fa0d3d4f1194f068dfe7b85090dcf03f6f2393e2"
+        },
+        "date": 1776707902399,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 158888,
+            "range": "± 308",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136281,
+            "range": "± 7821",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2122250,
+            "range": "± 1891",
             "unit": "ns/iter"
           }
         ]
