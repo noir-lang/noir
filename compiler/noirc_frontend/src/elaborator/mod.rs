@@ -801,11 +801,8 @@ impl<'context> Elaborator<'context> {
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = Some(*module);
-            let errors = check_trait_impl_method_matches_declaration(
-                self.interner,
-                *function,
-                noir_function,
-            );
+            let errors =
+                check_trait_impl_method_matches_declaration(self, *function, noir_function);
             self.push_errors(errors);
         }
 
@@ -1139,7 +1136,7 @@ pub mod test_utils {
         };
 
         let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), false);
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

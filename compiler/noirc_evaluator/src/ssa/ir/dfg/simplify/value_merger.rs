@@ -2,7 +2,7 @@ use acvm::{
     FieldElement,
     acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
 };
-use noirc_errors::{Location, call_stack::CallStackId};
+use noirc_errors::call_stack::{CallStack, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -61,7 +61,7 @@ impl<'a> ValueMerger<'a> {
     /// Choose a call stack to return with the [RuntimeError].
     ///
     /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
-    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+    fn get_call_stack(&self, value: ValueId) -> CallStack {
         // The value points at one of the problematic references, while the instruction would
         // point at where we got the if-then-else; it's not clear which one is more useful.
         let call_stack = self.dfg.get_value_call_stack(value);
@@ -87,7 +87,7 @@ impl<'a> ValueMerger<'a> {
             return Ok(then_value);
         }
 
-        match self.dfg.type_of_value(then_value) {
+        match &*self.dfg.type_of_value(then_value) {
             Type::Numeric(_) => Ok(Self::merge_numeric_values(
                 self.dfg,
                 self.block,
@@ -97,16 +97,20 @@ impl<'a> ValueMerger<'a> {
                 else_value,
             )),
             typ @ Type::Array(_, _) => {
+                let typ = typ.clone();
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Vector(_) => self.merge_vector_values(
-                typ,
-                then_condition,
-                else_condition,
-                then_value,
-                else_value,
-            ),
-            Type::Reference(_) => {
+            typ @ Type::Vector(_) => {
+                let typ = typ.clone();
+                self.merge_vector_values(
+                    typ,
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                )
+            }
+            Type::Reference(..) => {
                 let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }

@@ -173,7 +173,7 @@ fn sub_underflow_signed() {
 
 #[test]
 fn sub_unchecked_unsigned() {
-    let error = expect_error(
+    executes_with_no_errors(
         "
         acir(inline) fn main f0 {
           b0():
@@ -182,7 +182,6 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -733,6 +732,7 @@ fn allocate() {
         original_id: ValueId::test_new(0),
         element: Shared::new(None),
         element_type: Arc::new(Type::field()),
+        mutable: true,
     });
     assert_eq!(value, expected);
 }
@@ -769,6 +769,7 @@ fn store() {
         original_id: ValueId::test_new(0),
         element: Shared::new(Some(Value::bool(true))),
         element_type: Arc::new(Type::bool()),
+        mutable: true,
     });
     assert_eq!(value, expected);
 }
@@ -798,6 +799,7 @@ fn enable_side_effects() {
         original_id: ValueId::test_new(1),
         element: Shared::new(Some(field_zero.clone())),
         element_type: Arc::new(Type::field()),
+        mutable: true,
     });
     assert_eq!(values[0], expected);
     assert_eq!(values[1], field_zero);

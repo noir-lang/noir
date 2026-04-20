@@ -122,3 +122,7 @@ fn doc_comments_test() {}
 fn use_invalid_global() {
     let _ = one::subone::valid_global;
 }
+
+fn hover_on_numeric_generic<let N: u32>() {
+    println(N);
+}

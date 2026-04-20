@@ -29,7 +29,6 @@ pub enum PrimitiveType {
     I16,
     I32,
     I64,
-    U1,
     U8,
     U16,
     U32,
@@ -60,7 +59,6 @@ impl PrimitiveType {
             "i16" => Some(Self::I16),
             "i32" => Some(Self::I32),
             "i64" => Some(Self::I64),
-            "u1" => Some(Self::U1),
             "u8" => Some(Self::U8),
             "u16" => Some(Self::U16),
             "u32" => Some(Self::U32),
@@ -92,7 +90,6 @@ impl PrimitiveType {
             Self::I16 => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Self::I32 => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Self::I64 => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Self::U1 => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Self::U8 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Self::U16 => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Self::U32 => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -120,7 +117,6 @@ impl PrimitiveType {
             Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen) => Some(Self::I16),
             Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo) => Some(Self::I32),
             Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour) => Some(Self::I64),
-            Type::Integer(Signedness::Unsigned, IntegerBitSize::One) => Some(Self::U1),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => Some(Self::U8),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen) => Some(Self::U16),
             Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Some(Self::U32),
@@ -152,7 +148,6 @@ impl PrimitiveType {
             Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
             Self::I32 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)),
             Self::I64 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)),
-            Self::U1 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::One)),
             Self::U8 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
             Self::U16 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen)),
             Self::U32 => Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)),
@@ -191,7 +186,6 @@ impl PrimitiveType {
             Self::I16 => "i16",
             Self::I32 => "i32",
             Self::I64 => "i64",
-            Self::U1 => "u1",
             Self::U8 => "u8",
             Self::U16 => "u16",
             Self::U32 => "u32",
@@ -230,7 +224,6 @@ impl Elaborator<'_> {
             | PrimitiveType::I16
             | PrimitiveType::I32
             | PrimitiveType::I64
-            | PrimitiveType::U1
             | PrimitiveType::U8
             | PrimitiveType::U16
             | PrimitiveType::U32
@@ -312,7 +305,6 @@ impl Elaborator<'_> {
             | PrimitiveType::I16
             | PrimitiveType::I32
             | PrimitiveType::I64
-            | PrimitiveType::U1
             | PrimitiveType::U8
             | PrimitiveType::U16
             | PrimitiveType::U32

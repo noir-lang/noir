@@ -128,8 +128,11 @@ where
         Expression::Let(let_) => {
             visit_expr_be_mut(&mut let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _, message) => {
             visit_expr_be_mut(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be_mut(&mut message.as_mut().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue_mut(&mut assign.lvalue, b, e, i);
@@ -296,8 +299,11 @@ where
         Expression::Let(let_) => {
             visit_expr_be(&let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _location, message) => {
             visit_expr_be(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be(&message.as_ref().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue(&assign.lvalue, b, e, i);

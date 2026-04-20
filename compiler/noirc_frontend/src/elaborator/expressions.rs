@@ -245,7 +245,7 @@ impl Elaborator<'_> {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
-                self.unify(&inner_expr_type, &Type::Unit, || {
+                self.unify(&inner_expr_type, &Type::Unit, |_| {
                     let expr_type = inner_expr_type.clone();
                     let expr_location = location;
 
@@ -370,7 +370,7 @@ impl Elaborator<'_> {
                     "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
                 );
                 let len = Type::constant_u32(len);
-                (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
+                (Lit(HirLiteral::Str(str.into_bytes())), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
@@ -390,7 +390,6 @@ impl Elaborator<'_> {
             Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
             Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
-            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
             Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
             Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
@@ -426,7 +425,7 @@ impl Elaborator<'_> {
                     let location = elem.location;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
-                    self.unify(&elem_type, &first_elem_type, || {
+                    self.unify(&elem_type, &first_elem_type, |_| {
                         TypeCheckError::NonHomogeneousArray {
                             first_location,
                             first_type: first_elem_type.to_string(),
@@ -560,14 +559,12 @@ impl Elaborator<'_> {
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator {
-            if mutable {
-                // If skip_op is set we already know we have a mutable reference
-                if !skip_op {
-                    self.check_can_mutate(rhs, rhs_location);
-                }
-            } else {
-                self.use_unstable_feature(UnstableFeature::Ownership, location);
+        if let UnaryOp::Reference { mutable } = operator
+            && mutable
+        {
+            // If skip_op is set we already know we have a mutable reference
+            if !skip_op {
+                self.check_can_mutate(rhs, rhs_location);
             }
         }
 
@@ -692,12 +689,12 @@ impl Elaborator<'_> {
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
         let expected = Type::u32();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
-            expected: expected.clone(),
-            actual: index_type.clone(),
+        self.unify_or_type_mismatch_with_source(
+            &index_type,
+            &expected,
+            Source::ArrayIndex,
             location,
-            source: Source::ArrayIndex,
-        });
+        );
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
@@ -723,6 +720,7 @@ impl Elaborator<'_> {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
                     expr_location: lhs_location,
+                    similarly_named_types: Vec::new(),
                 });
                 Type::Error
             }
@@ -1066,11 +1064,7 @@ impl Elaborator<'_> {
             msg
         });
 
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
         (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
     }
@@ -1260,12 +1254,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || {
-                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                            expected_typ: expected_type.to_string(),
-                            expr_typ: field_type.to_string(),
-                            expr_location: field_location,
-                        })
+                    |elaborator| {
+                        CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                            &field_type,
+                            expected_type,
+                            field_location,
+                        ))
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -1365,24 +1359,6 @@ impl Elaborator<'_> {
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
 
-        // `Field as u1` is not supported directly by the backend. Insert an intermediate
-        // cast to u8 to transform it into: `(Field as u8) as u1`.
-        let lhs_could_be_field = match lhs_type.follow_bindings() {
-            Type::FieldElement => true,
-            Type::TypeVariable(ref var) => var.is_integer_or_field(),
-            _ => false,
-        };
-        let lhs = if lhs_could_be_field
-            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
-        {
-            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            let cast_to_u8 =
-                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
-            self.interner.push_expr_full(cast_to_u8, location, u8_type)
-        } else {
-            lhs
-        };
-
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -1391,12 +1367,29 @@ impl Elaborator<'_> {
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
-        let is_ord =
-            infix.operator.contents.is_comparator() && !infix.operator.contents.is_equality();
         let operator = HirBinaryOp::new(infix.operator, file);
+        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+    }
+
+    /// Complete infix elaboration given pre-elaborated operands.
+    ///
+    /// This is the shared core of [`Self::elaborate_infix`] and the op-assign desugaring in
+    /// [`Self::elaborate_assign_op`], which needs to supply an already-elaborated lhs to avoid
+    /// evaluating index sub-expressions twice.
+    pub(super) fn finish_infix(
+        &mut self,
+        lhs: ExprId,
+        lhs_type: Type,
+        operator: HirBinaryOp,
+        rhs: ExprId,
+        rhs_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
+        let is_ord = operator.kind.is_comparator() && !operator.kind.is_equality();
+
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
@@ -1480,11 +1473,7 @@ impl Elaborator<'_> {
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expected_typ: Type::Bool.to_string(),
-            expr_typ: cond_type.to_string(),
-            expr_location,
-        });
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, expr_location);
 
         let (alternative, else_type, error_location) =
             if let Some(alternative) = if_expr.alternative {
@@ -1496,12 +1485,8 @@ impl Elaborator<'_> {
                 (None, Type::Unit, consequence_location)
             };
 
-        self.unify(&ret_type, &else_type, || {
-            let err = TypeCheckError::TypeMismatch {
-                expected_typ: ret_type.to_string(),
-                expr_typ: else_type.to_string(),
-                expr_location: error_location,
-            };
+        self.unify(&else_type, &ret_type, |elaborator| {
+            let err = elaborator.new_type_mismatch_error(&else_type, &ret_type, error_location);
 
             let context = if ret_type == Type::Unit {
                 "Are you missing a semicolon at the end of your 'else' branch?"
@@ -1682,11 +1667,7 @@ impl Elaborator<'_> {
         let lambda_context = self.lambda_stack.pop().unwrap();
         self.pop_scope();
 
-        self.unify(&body_type, &return_type, || TypeCheckError::TypeMismatch {
-            expected_typ: return_type.to_string(),
-            expr_typ: body_type.to_string(),
-            expr_location: body_location,
-        });
+        self.unify_or_type_mismatch(&body_type, &return_type, body_location);
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
             self.interner.definition_type(capture.ident.id)
@@ -1733,11 +1714,7 @@ impl Elaborator<'_> {
             // If we don't do this, "1" will end up with the default integer or field type,
             // which is Field.
             if let Some(target_type) = target_type {
-                this.unify(&block_type, target_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: target_type.to_string(),
-                    expr_typ: block_type.to_string(),
-                    expr_location: location,
-                });
+                this.unify_or_type_mismatch(&block_type, target_type, location);
             }
 
             block
@@ -1823,7 +1800,7 @@ impl Elaborator<'_> {
         return_type: &Type,
         location: Location,
     ) -> Option<FuncId> {
-        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), || {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), |_| {
             TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
         });
 

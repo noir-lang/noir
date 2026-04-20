@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use noirc_abi::input_parser::InputValue;
-use rand::Rng;
+use rand::RngExt;
 use rand_xorshift::XorShiftRng;
 
 use crate::mutation::configurations::{BASIC_SPLICE_MUTATION_CONFIGURATION, SpliceMutationOptions};

@@ -314,7 +314,7 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
-    } else if !return_type.is_valid_for_unconstrained_boundary() {
+    } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None

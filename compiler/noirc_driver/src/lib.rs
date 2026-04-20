@@ -461,6 +461,7 @@ pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
     let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
     let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
     add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
+    context.debug_crate_id = Some(debug_crate_id);
 }
 
 // Adds the file from the file system at `Path` to the crate graph
@@ -919,6 +920,7 @@ pub fn compile_no_check(
             main_function,
             &mut context.def_interner,
             &context.debug_instrumenter,
+            context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
@@ -1014,10 +1016,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic =
-                CustomDiagnostic::simple_warning(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Warning to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
         SsaReport::Bug(bug) => {
@@ -1036,9 +1039,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                     }
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Bug to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
     }

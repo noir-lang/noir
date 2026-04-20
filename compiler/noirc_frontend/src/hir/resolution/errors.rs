@@ -235,6 +235,8 @@ pub enum ResolverError {
     VarargsLastParameterIsNotAVector { location: Location },
     #[error("`comptime` global used in non-comptime code")]
     ComptimeGlobalInNonComptimeCode { location: Location, name: String },
+    #[error("The `{typ}` type has been removed")]
+    RemovedType { location: Location, typ: String, replacement: String },
     #[error("Recursion limit reached during elaboration")]
     MaximumRecursionDepthExceeded { location: Location },
 }
@@ -321,6 +323,7 @@ impl ResolverError {
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
+            | ResolverError::RemovedType { location, .. }
             | ResolverError::MaximumRecursionDepthExceeded { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::VariableDoesNotNeedToBeMutable { ident }
@@ -1047,6 +1050,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime global `{name}` used in non-comptime code"),
                     "Consider using a comptime function or block".to_string(),
+                    *location,
+                )
+            },
+            ResolverError::RemovedType { location, typ, replacement } => {
+                Diagnostic::simple_error(
+                    format!("`{typ}` has been removed, use `{replacement}` instead"),
+                    String::new(),
                     *location,
                 )
             },
