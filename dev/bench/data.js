@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776695662371,
+  "lastUpdate": 1776705330094,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22231,48 +22231,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "df639eb1cf145bc88a8383c60e104f52459a4e02",
-          "message": "chore: Reverse ast traversal of last_uses pass (#12172)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-04-10T11:27:08Z",
-          "tree_id": "e0a0a397cfd671c44f96d9565de53e94951be8f6",
-          "url": "https://github.com/noir-lang/noir/commit/df639eb1cf145bc88a8383c60e104f52459a4e02"
-        },
-        "date": 1775821824289,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168200,
-            "range": "± 354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137998,
-            "range": "± 1154",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2641087,
-            "range": "± 6135",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "200eb367789c5823101acf160481b6c9cb50cd3e",
           "message": "chore: Add reference docs (#12235)",
           "timestamp": "2026-04-10T16:34:52Z",
@@ -24314,6 +24272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043019,
             "range": "± 10811",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bf0bc7fde61911ce14f5f852b4c96c4c8a2055f5",
+          "message": "chore: add regression test for inserting into an empty vector (#12354)",
+          "timestamp": "2026-04-20T16:45:19Z",
+          "tree_id": "8e4625c93124b241ebeeeeecda3fedd6f8ba1fcd",
+          "url": "https://github.com/noir-lang/noir/commit/bf0bc7fde61911ce14f5f852b4c96c4c8a2055f5"
+        },
+        "date": 1776705274917,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167605,
+            "range": "± 3616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137837,
+            "range": "± 1048",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644720,
+            "range": "± 5387",
             "unit": "ns/iter"
           }
         ]
