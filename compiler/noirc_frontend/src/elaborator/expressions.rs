@@ -18,7 +18,7 @@ use crate::{
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
-        ScopeForest,
+        PathResolutionMode, ScopeForest,
         patterns::IdentFromPath,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
@@ -1865,7 +1865,9 @@ impl Elaborator<'_> {
 
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
-        let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
+        let Some(trait_bound) =
+            self.resolve_trait_bound(&constraint.trait_bound, PathResolutionMode::MarkAsUsed)
+        else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);

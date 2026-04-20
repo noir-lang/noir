@@ -549,39 +549,33 @@ impl Elaborator<'_> {
         associated_types
     }
 
+    /// Adds the trait impl's where-clause constraints as assumed impls in scope,
+    /// runs `f`, then removes them. Guarantees the remove happens by pairing the
+    /// two sides of the scope in a single call.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn add_trait_impl_assumed_trait_implementations(
+    pub(super) fn with_trait_impl_assumed_impls_in_scope<R>(
         &mut self,
         impl_id: Option<TraitImplId>,
-    ) {
-        if let Some(impl_id) = impl_id
-            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-        {
-            for trait_constrain in &trait_implementation.borrow().where_clause {
-                let trait_bound = &trait_constrain.trait_bound;
-                self.add_trait_bound_to_scope(
-                    trait_bound.location,
-                    &trait_constrain.typ,
-                    trait_bound,
-                );
-            }
-        }
-    }
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let constraints: Vec<_> = impl_id
+            .and_then(|id| self.interner.try_get_trait_implementation(id))
+            .map(|impl_| impl_.borrow().where_clause.clone())
+            .unwrap_or_default();
 
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn remove_trait_impl_assumed_trait_implementations(
-        &mut self,
-        impl_id: Option<TraitImplId>,
-    ) {
-        if let Some(impl_id) = impl_id
-            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-        {
-            for trait_constrain in &trait_implementation.borrow().where_clause {
-                self.interner.remove_assumed_trait_implementations_for_trait(
-                    trait_constrain.trait_bound.trait_id,
-                );
-            }
+        for constraint in &constraints {
+            let trait_bound = &constraint.trait_bound;
+            self.add_trait_bound_to_scope(trait_bound.location, &constraint.typ, trait_bound);
         }
+
+        let result = f(self);
+
+        for constraint in &constraints {
+            self.interner
+                .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
+        }
+
+        result
     }
 
     /// Verifies that the impl satisfies every obligation the trait's where clause

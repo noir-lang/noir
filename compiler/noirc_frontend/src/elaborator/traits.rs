@@ -466,7 +466,9 @@ impl Elaborator<'_> {
         let generic_type = new_generic.into_named_generic(&Rc::new(name), None);
         let trait_bound = TraitBound { trait_path, trait_generics };
 
-        if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
+        if let Some(trait_bound) =
+            self.resolve_trait_bound(&trait_bound, PathResolutionMode::MarkAsReferenced)
+        {
             let new_constraint = TraitConstraint { typ: generic_type.clone(), trait_bound };
             trait_constraints.push(new_constraint);
         }
@@ -477,25 +479,22 @@ impl Elaborator<'_> {
     /// Resolves a slice of trait bounds, filtering out any that fail to resolve.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_bounds(&mut self, bounds: &[TraitBound]) -> Vec<ResolvedTraitBound> {
-        bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
-    }
-
-    /// Resolves a trait bound, marking the trait as referenced.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
-        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
-    }
-
-    /// Resolves a trait bound, marking the trait as used.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn use_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
-        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsUsed)
+        bounds
+            .iter()
+            .filter_map(|bound| {
+                self.resolve_trait_bound(bound, PathResolutionMode::MarkAsReferenced)
+            })
+            .collect()
     }
 
     /// Resolve the given TraitBound, pushing error(s) if the path or any
     /// types used failed to resolve.
+    ///
+    /// `mode` determines whether the referenced trait is marked as referenced or used —
+    /// trait-bound lookups that flow through a user-visible mention (like a method call's
+    /// synthetic constraint) should mark the trait as used.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_bound_inner(
+    pub(crate) fn resolve_trait_bound(
         &mut self,
         bound: &TraitBound,
         mode: PathResolutionMode,
@@ -595,7 +594,8 @@ impl Elaborator<'_> {
     ) -> Option<TraitConstraint> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitConstraint);
         let typ = self.resolve_type(constraint.typ.clone(), wildcard_allowed);
-        let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
+        let trait_bound =
+            self.resolve_trait_bound(&constraint.trait_bound, PathResolutionMode::MarkAsReferenced)?;
         let location = constraint.trait_bound.trait_path.location;
 
         self.add_trait_bound_to_scope(location, &typ, &trait_bound);

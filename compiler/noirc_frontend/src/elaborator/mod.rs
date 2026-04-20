@@ -119,9 +119,8 @@ use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
-use path_resolution::{
-    PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
-};
+pub use path_resolution::PathResolutionMode;
+use path_resolution::{PathResolution, PathResolutionItem, PathResolutionTarget};
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 use rustc_hash::FxHasher;
@@ -794,9 +793,9 @@ impl<'context> Elaborator<'context> {
         self.current_trait_impl = trait_impl.impl_id;
         self.current_trait = trait_impl.trait_id;
 
-        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+        self.with_trait_impl_assumed_impls_in_scope(trait_impl.impl_id, |this| {
+            this.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+        });
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = Some(*module);
