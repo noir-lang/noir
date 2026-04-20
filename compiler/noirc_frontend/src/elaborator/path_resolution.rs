@@ -207,7 +207,7 @@ enum MethodLookupResult {
 /// impl Trait for Foo {}
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum PathResolutionMode {
+pub(super) enum PathResolutionMode {
     MarkAsReferenced,
     MarkAsUsed,
 }

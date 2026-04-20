@@ -807,10 +807,7 @@ fn quoted_as_trait_constraint(
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
         .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.resolve_trait_bound(
-                &trait_bound,
-                crate::elaborator::PathResolutionMode::MarkAsUsed,
-            )
+            elaborator.use_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
