@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
 use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
@@ -110,7 +111,7 @@ impl From<&BrokenLink> for CustomDiagnostic {
             kind: DiagnosticKind::Warning,
             deprecated: false,
             unnecessary: false,
-            call_stack: vec![],
+            call_stack: CallStack::empty(),
         }
     }
 }

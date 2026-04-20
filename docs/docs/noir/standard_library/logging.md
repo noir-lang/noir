@@ -1,5 +1,5 @@
 ---
-title: Logging
+title: Logging and Panics
 description:
   Learn how to use the println statement for debugging in Noir with this tutorial. Understand the
   basics of logging in Noir and how to implement it in your code.
@@ -8,6 +8,7 @@ keywords:
     noir logging,
     println statement,
     print statement,
+    panic,
     debugging in noir,
     noir std library,
     logging tutorial,
@@ -75,4 +76,32 @@ print(person);
 
 println("Hello world!"); // Prints with a newline at the end of the input
 print("Hello world!");   // Prints the input and keeps cursor on the same line
+```
+
+## `panic`
+
+The `panic` function halts execution with an error message. It is auto-imported via the prelude, so no `use` statement is needed.
+
+```rust
+fn panic<T, U>(message: T) -> U where T: StringLike
+```
+
+The message can be a string literal or a format string. The return type is polymorphic, so `panic` can be used in any expression position:
+
+```rust
+fn divide(x: Field, y: Field) -> Field {
+    if y == 0 {
+        panic("division by zero")
+    } else {
+        x / y
+    }
+}
+```
+
+```rust
+fn example(x: u32) {
+    if x > 100 {
+        panic(f"value too large: {x}");
+    }
+}
 ```

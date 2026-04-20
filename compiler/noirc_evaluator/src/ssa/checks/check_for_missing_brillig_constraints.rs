@@ -609,13 +609,14 @@ impl Context {
 
                     // If there is no call stack (happens for tests), consider unvisited
                     let visited = match location {
+                        None => false,
+                        Some(loc) if loc.is_dummy() => false,
                         Some(loc) => {
                             let Instruction::Call { func: callee, .. } = instruction else {
                                 unreachable!("ICE: Expected Brillig call");
                             };
                             !visited_locations.insert((*callee, *loc))
                         }
-                        None => false,
                     };
 
                     // Skip if we have a similar one already.

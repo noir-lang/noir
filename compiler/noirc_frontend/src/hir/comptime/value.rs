@@ -343,8 +343,9 @@ impl Value {
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
                 }
-                let typ = Type::DataType(data_type, generics);
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
 
+                let typ = Type::DataType(data_type, generics);
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
@@ -483,8 +484,7 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
             Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+                HirExpression::Literal(HirLiteral::Str(Rc::unwrap_or_clone(bytes)))
             }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -539,6 +539,7 @@ impl Value {
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
                 }
 
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
                 HirExpression::Constructor(HirConstructorExpression {
                     r#type: data_type,
                     struct_generics: generics,
