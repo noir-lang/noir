@@ -234,7 +234,7 @@ k256 = "0.14.0-rc.8"
 p256 = "0.14.0-rc.8"
 strum = "0.26"
 strum_macros = "0.28"
-tokio = "1.42"
+tokio = "1.52"
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
