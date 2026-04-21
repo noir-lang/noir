@@ -266,9 +266,9 @@
 <a href=#266 id=266 data-nosnippet>266</a>    /// because the reload code may execute again in a loop iteration. Only `remove_spill`
 <a href=#267 id=267 data-nosnippet>267</a>    /// (used when the value is truly dead) should free the slot.
 <a href=#268 id=268 data-nosnippet>268</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unmark_spilled(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_id: <span class="kw-2">&amp;</span>ValueId) {
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(record) = <span class="self">self</span>.records.get_mut(value_id) {
-<a href=#270 id=270 data-nosnippet>270</a>            record.is_currently_spilled = <span class="bool-val">false</span>;
-<a href=#271 id=271 data-nosnippet>271</a>        }
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">let </span>record = <span class="self">self</span>.records.get_mut(value_id).expect(<span class="string">"No record for value"</span>);
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="macro">assert!</span>(record.is_currently_spilled, <span class="string">"value is not currently spilled"</span>);
+<a href=#271 id=271 data-nosnippet>271</a>        record.is_currently_spilled = <span class="bool-val">false</span>;
 <a href=#272 id=272 data-nosnippet>272</a>    }
 <a href=#273 id=273 data-nosnippet>273</a>
 <a href=#274 id=274 data-nosnippet>274</a>    <span class="doccomment">/// Ensure a value has a permanent spill slot.
