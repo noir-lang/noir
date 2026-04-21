@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776769412821,
+  "lastUpdate": 1776769442433,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b4236c1957d0c26cb65d82adc9e5447b6ff1d629",
-          "message": "chore: Release Noir(1.0.0-beta.20) (#11611)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-04-13T16:58:21Z",
-          "tree_id": "4f7f13e0f0fc25460e297c84fff569ec646a6294",
-          "url": "https://github.com/noir-lang/noir/commit/b4236c1957d0c26cb65d82adc9e5447b6ff1d629"
-        },
-        "date": 1776102021596,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 304.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 519.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 355.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 354.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 357.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 355.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 9740,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 9740,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 357.84,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1080,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.42,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 102.22,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.7,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4879,6 +4780,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 304.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 519.79,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 276.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 355.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 354.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 357.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 355.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 9070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 9070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 357.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 354.43,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 102.24,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.71,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e143140d38bc2ffa8c32dba65c64b3695b6f9b5b",
+          "message": "chore(deps): bump redis from 0.26.1 to 1.2.0 (#12279)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-21T10:23:57Z",
+          "tree_id": "f8e8dc30901edd3c6b602e84b08fa237b63eeeab",
+          "url": "https://github.com/noir-lang/noir/commit/e143140d38bc2ffa8c32dba65c64b3695b6f9b5b"
+        },
+        "date": 1776769384945,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 304.35,
             "unit": "MB"
           },
           {
