@@ -35,12 +35,14 @@ impl Elaborator<'_> {
     }
 
     /// Restores the generics state saved by `enter_generics_scope`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn exit_generics_scope(&mut self, state: GenericsState) {
         self.generics.truncate(state.generics_count);
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
     /// back to the previous length.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let state = self.enter_generics_scope();
         let ret = f(self);
@@ -50,6 +52,7 @@ impl Elaborator<'_> {
 
     /// Add the given generics to scope.
     /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_generics(&mut self, generics: &UnresolvedGenerics) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             let mut is_error = false;
@@ -88,6 +91,7 @@ impl Elaborator<'_> {
         })
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_existing_generics(
         &mut self,
         unresolved_generics: &UnresolvedGenerics,
@@ -100,6 +104,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_existing_generic(
         &mut self,
         unresolved_generic: &UnresolvedGeneric,
@@ -126,6 +131,7 @@ impl Elaborator<'_> {
         self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_generic(
         &mut self,
         generic: &UnresolvedGeneric,
@@ -154,6 +160,7 @@ impl Elaborator<'_> {
     /// Return the kind of an unresolved generic.
     /// If a numeric generic has been specified, resolve the annotated type to make
     /// sure only primitive numeric types are being used.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
@@ -185,6 +192,7 @@ impl Elaborator<'_> {
 
     /// Check that all the generics show up in any of `types` (if they don't, we produce an error),
     /// or in any of a where clause associated type binding.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_generics_appear_in_types(
         &mut self,
         generics: &[UnresolvedGeneric],
@@ -235,6 +243,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
@@ -263,6 +272,7 @@ struct RemoveGenericsAppearingInTypeVisitor<'interner, 'ident> {
 }
 
 impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn visit_type(&mut self, typ: &Type) {
         match typ {
             Type::Array(length, element) => {
@@ -326,12 +336,14 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
 }
 
 impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn visit_resolved_type(&mut self, quoted_type_id: QuotedTypeId, _: Location) {
         let typ = self.interner.get_quoted_type(quoted_type_id);
         self.visit_type(typ);

@@ -1,9 +1,6 @@
-use crate::{
-    elaborator::UnstableFeature,
-    tests::{
-        assert_no_errors, assert_no_errors_using_features, check_errors,
-        check_errors_using_features, check_monomorphization_error, get_program_using_features,
-    },
+use crate::tests::{
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    check_monomorphization_error,
 };
 
 #[test]
@@ -108,7 +105,7 @@ fn constrained_reference_to_unconstrained() {
 }
 
 #[test]
-fn immutable_references_with_ownership_feature() {
+fn immutable_references_with_ownership_feature_brillig() {
     let src = r#"
         unconstrained fn main() {
             let array = [1, 2, 3];
@@ -117,26 +114,20 @@ fn immutable_references_with_ownership_feature() {
 
         fn borrow(_array: &[Field; 3]) {}
     "#;
-
-    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
-fn immutable_references_without_ownership_feature() {
+fn immutable_references_with_ownership_feature() {
     let src = r#"
         fn main() {
             let array = [1, 2, 3];
             borrow(&array);
-                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
         }
 
         fn borrow(_array: &[Field; 3]) {}
-                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors(src);
+     "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -193,7 +184,7 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         let mul = |x: Field| { *y = *y * x; };
 
         let f = choose_func(add, mul);
-                ^^^^^^^^^^^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
+                ^^^^^^^^^^^ Mutable reference `fn[(&mut Field,)](Field) -> ()` cannot be returned from an oracle function
 
         f(20);
     }
@@ -203,6 +194,25 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
         f: fn[Env](Field) -> (),
         g: fn[Env](Field) -> (),
     ) -> fn[Env](Field) -> () {}
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn mutable_reference_behind_generics_returned_from_indirect_oracle() {
+    let src = r#"
+    unconstrained fn main() {
+        foo::<&[(u8, u8); 3]>();
+    }
+
+    unconstrained fn foo<T>() {
+        let f = get_array::<T>;
+                ^^^^^^^^^ Mutable reference `[&[(u8, u8); 3]]` cannot be returned from an oracle function
+        let _result = f();
+    }
+
+    #[oracle(get_array)]
+    unconstrained fn get_array<T>() -> [T] {}
     "#;
     check_monomorphization_error(src);
 }
@@ -223,7 +233,7 @@ fn method_with_immutable_self_reference_does_not_require_mutable_variable() {
         assert(s.ping() == 1);
     }
     "#;
-    assert_no_errors_using_features(src, &[UnstableFeature::Ownership]);
+    assert_no_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -236,7 +246,7 @@ fn disallows_mutating_non_mutable_ref_member_access() {
         ^^ `ps` is a `&` reference, so it cannot be written to
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -249,7 +259,7 @@ fn disallows_mutating_non_mutable_ref_array_index() {
         ^^ `ps` is a `&` reference, so it cannot be written to
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -261,7 +271,7 @@ fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
         ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -272,7 +282,7 @@ fn allows_mutating_mutable_reference_inside_non_mutable_reference() {
         x.0.0 = 1;
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -284,5 +294,172 @@ fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
         ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn cannot_take_mut_ref_of_immutable_variable_in_deref() {
+    let src = r#"
+    fn main() {
+        let x: Field = 5;
+        let _y = *&mut x;
+                       ^ Cannot mutate immutable variable `x`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_inference_through_mutable_reference() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_mut_ref<let N: u32>(foo: &mut Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    fn main() {
+        let mut foo = Foo { data: [1, 2, 3] };
+        assert(by_mut_ref(&mut foo) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_mutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &mut Foo<N> is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_mut_ref<let N: u32>(foo: &mut Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_mut_ref(foo) == 1);
+               ^^^^^^^^^^ Type annotation needed
+               ~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `by_mut_ref`
+                          ^^^ Expected type &mut Foo<_>, found type Foo<3>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &mut Foo is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo {
+        data: Field,
+    }
+
+    fn by_mut_ref(foo: &mut Foo) -> Field {
+        foo.data
+    }
+
+    fn main() {
+        let foo = Foo { data: 1 };
+        assert(by_mut_ref(foo) == 1);
+                          ^^^ Expected type &mut Foo, found type Foo
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_ref<let N: u32>(foo: &Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    unconstrained fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_ref(&foo) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference_multiple_numeric_generics() {
+    let src = r#"
+    struct PublicCall<let M: u32, let N: u32, T> {
+        name: str<M>,
+        args: [Field; N],
+        _phantom: T,
+    }
+
+    struct Caller {}
+
+    impl Caller {
+        unconstrained fn call<let M: u32, let N: u32, T>(_self: Caller, _call: &PublicCall<M, N, T>) {}
+    }
+
+    unconstrained fn main() {
+        let caller = Caller {};
+        let pc = PublicCall { name: "hello", args: [1, 2, 3], _phantom: 0 as Field };
+        caller.call(&pc);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_inference_through_immutable_reference_auto_borrow_rejected() {
+    // Auto-borrow is not supported: passing a value where &Foo<N> is expected
+    // should be rejected by the compiler.
+    let src = r#"
+    struct Foo<let N: u32> {
+        data: [Field; N],
+    }
+
+    fn by_ref<let N: u32>(foo: &Foo<N>) -> Field {
+        foo.data[0]
+    }
+
+    unconstrained fn main() {
+        let foo = Foo { data: [1, 2, 3] };
+        assert(by_ref(foo) == 1);
+               ^^^^^^ Type annotation needed
+               ~~~~~~ Could not determine the value of the generic argument `N` declared on the function `by_ref`
+                      ^^^ Expected type &Foo<_>, found type Foo<3>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_inference_through_mutable_reference_method_auto_ref() {
+    let src = r#"
+    struct Caller {}
+
+    struct PublicCall<let M: u32, let N: u32> {
+        name: str<M>,
+        args: [Field; N],
+    }
+
+    impl Caller {
+        fn call<let M: u32, let N: u32>(_self: Caller, _call: &mut PublicCall<M, N>) {}
+    }
+
+    fn main() {
+        let caller = Caller {};
+        let mut pc = PublicCall { name: "hello", args: [1, 2, 3] };
+        caller.call(&mut pc);
+    }
+    "#;
+    assert_no_errors(src);
 }

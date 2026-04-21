@@ -8,7 +8,7 @@
 //! 6. Push a default element to the end of the vector
 
 use crate::mutations::configuration::{VecMutationConfig, VecMutationOptions};
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 /// Insert a random element at a random index
 struct RandomInsertion;

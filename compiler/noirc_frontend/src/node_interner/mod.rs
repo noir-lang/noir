@@ -597,7 +597,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -1279,7 +1278,6 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1606,7 +1604,8 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        for parent_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(

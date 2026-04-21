@@ -211,6 +211,18 @@ impl Context {
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
             }
+            Expression::Index(index) => {
+                let (base_should_clone, _) =
+                    self.handle_extract_expression_rec(&mut index.collection)?;
+                self.handle_expression(&mut index.index);
+                // A dynamic index can extract an inner element whose reference count
+                // is not bumped by moving the outer collection. If the extracted type
+                // contains an array, the inner array may still alias the collection,
+                // so an outer extract site must clone regardless of last-use status.
+                let should_clone =
+                    base_should_clone || contains_array_or_str_type(&index.element_type);
+                Some((should_clone, index.element_type.clone()))
+            }
             _ => None,
         }
     }
@@ -289,11 +301,18 @@ impl Context {
             panic!("handle_index given non-index expression: {index_expr}");
         };
 
-        // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
-        self.handle_expression(&mut index.index);
-
-        // If the index collection is being borrowed we need to clone the result.
+        // A dynamic index can extract an inner array that still shares memory with
+        // the original collection. Even at the base's last use, moving only transfers
+        // the outer array's reference count -- the inner element's RC is not bumped.
+        // Whenever the extracted element contains an array we must clone it.
+        if self.handle_extract_expression_rec(&mut index.collection).is_some() {
+            self.handle_expression(&mut index.index);
+        } else {
+            // Collection is a complex expression (function call, block, etc.);
+            // sub-expressions are handled normally.
+            self.handle_reference_expression(&mut index.collection);
+            self.handle_expression(&mut index.index);
+        }
         if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }

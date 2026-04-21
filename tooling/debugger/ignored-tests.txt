@@ -20,3 +20,5 @@ regression_8926
 to_radix_error
 reference_cancelling
 brillig_cow_regression
+clone_index_object_dereference_1
+clone_index_field_dereference

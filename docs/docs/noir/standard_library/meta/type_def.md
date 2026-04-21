@@ -10,7 +10,7 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 
 ### add_abi
 
-#include_code add_attribute noir_stdlib/src/meta/type_def.nr rust
+#include_code add_abi noir_stdlib/src/meta/type_def.nr rust
 
 Adds an abi attribute to the data type with the specified argument.
 

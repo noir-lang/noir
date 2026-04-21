@@ -42,6 +42,7 @@ impl BasicBlock {
         &self.parameters
     }
 
+    /// Returns the parameters of this block
     pub(crate) fn parameters_mut(&mut self) -> &mut Vec<ValueId> {
         &mut self.parameters
     }

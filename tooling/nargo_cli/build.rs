@@ -176,7 +176,7 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -193,6 +193,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     "simple_shield",
     "strings",
     // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
     // This relies on maximum inliner setting
@@ -205,7 +206,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -222,6 +223,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     "regression_10466",
     // bug
     "trait_associated_constant",
+    // Globals evaluate to invalid utf-8 which don't display correctly in a source file
+    "regression_12269",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -234,7 +237,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -250,6 +253,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
     "workspace_reexport_bug",
     // bug
     "trait_call_in_global",
+    // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
+    "regression_7648",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.

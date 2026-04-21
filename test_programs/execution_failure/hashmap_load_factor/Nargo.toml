@@ -1,7 +1,0 @@
-[package]
-name = "hashmap_load_factor"
-type = "bin"
-authors = [""]
-
-[dependencies]
-poseidon = { tag = "v0.2.4", git = "https://github.com/noir-lang/poseidon" }

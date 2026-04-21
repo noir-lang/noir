@@ -1,0 +1,7 @@
+[package]
+name = "regression_inner_if_else_collapse"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

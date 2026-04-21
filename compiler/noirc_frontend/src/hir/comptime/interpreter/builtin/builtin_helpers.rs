@@ -18,7 +18,6 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_map::fully_qualified_module_path;
-use crate::hir_def::function::FuncMeta;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
@@ -211,16 +210,6 @@ pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldEl
     match value {
         Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
-    }
-}
-
-pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Shared<Value>>> {
-    match value {
-        Value::Tuple(values) => Ok(values),
-        value => {
-            let expected = "tuple";
-            type_mismatch(value, expected, location)
-        }
     }
 }
 
@@ -583,29 +572,6 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
     Value::Vector(statements, typ)
-}
-
-pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
-where
-    F: FnOnce(&mut FuncMeta),
-{
-    let (name_id, function_type) = {
-        let func_meta = interner.function_meta_mut(&func_id);
-        f(func_meta);
-        (func_meta.name.id, func_meta.typ.clone())
-    };
-
-    interner.push_definition_type(name_id, function_type);
-}
-
-pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
-    match typ {
-        Type::Function(parameters, _, _, _) => {
-            *parameters = parameter_types;
-        }
-        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
-        _ => {}
-    }
 }
 
 pub(super) fn has_named_attribute(

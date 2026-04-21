@@ -33,6 +33,7 @@ use super::Elaborator;
 impl Elaborator<'_> {
     /// Order the set of unresolved globals by their [GlobalId].
     /// This set will be used to determine the ordering in which globals are elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
         for global in globals {
             self.unresolved_globals.insert(global.global_id, global);
@@ -40,6 +41,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborate any globals which were not brought into scope by other items through [Self::elaborate_global_if_unresolved].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_remaining_globals(&mut self) {
         // Start at the first global IDs to maintain the dependency order
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
@@ -50,6 +52,7 @@ impl Elaborator<'_> {
     /// Elaborates a global constant definition, performing name resolution, type checking, and compile-time evaluation.
     ///
     /// See the [module-level documentation][self] for more details.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
@@ -120,6 +123,7 @@ impl Elaborator<'_> {
     /// The comptime [interpreter][crate::hir::comptime::Interpreter] is used for evaluating the expression.
     ///
     /// See the [module-level documentation][self] for more details.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_global(&mut self, global_id: GlobalId) {
         // Retrieve the HIR let statement that was generated in elaborate_global.
         let let_statement = self
@@ -160,6 +164,7 @@ impl Elaborator<'_> {
     /// while elaborating another item, we check if that global needs to be elaborated first.
     /// Returns true if the global was unresolved and has now been elaborated, false if it was
     /// already elaborated (or doesn't exist in the unresolved set).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
             self.elaborate_global(global);

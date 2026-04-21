@@ -304,7 +304,6 @@ impl Kind {
         match (typ.as_ref(), &value) {
             // First case: exact match, integer is already of type
             (Type::FieldElement, Integer::Field(_))
-            | (Type::Integer(Unsigned, One), Integer::U1(_))
             | (Type::Integer(Unsigned, Eight), Integer::U8(_))
             | (Type::Integer(Unsigned, Sixteen), Integer::U16(_))
             | (Type::Integer(Unsigned, ThirtyTwo), Integer::U32(_))
@@ -2038,10 +2037,20 @@ impl Type {
     }
 
     pub(crate) fn contains_reference(&self) -> bool {
-        self.contains_reference_helper(TypeRecursionContext::default())
+        self.contains_reference_helper(TypeRecursionContext::default(), false)
     }
 
-    fn contains_reference_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
+    /// Returns true if this type contains a mutable reference anywhere in its structure.
+    /// Immutable references are not counted.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        self.contains_reference_helper(TypeRecursionContext::default(), true)
+    }
+
+    fn contains_reference_helper(
+        &self,
+        mut type_recursion_context: TypeRecursionContext,
+        mutable_only: bool,
+    ) -> bool {
         match self {
             Type::Unit
             | Type::Bool
@@ -2054,29 +2063,39 @@ impl Type {
             | Type::Forall(..)
             | Type::Error => false,
             Type::Array(length, typ) => {
-                length.contains_reference_helper(type_recursion_context.clone().recur())
-                    || typ.contains_reference_helper(type_recursion_context.recur())
+                length
+                    .contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
+                    || typ.contains_reference_helper(type_recursion_context.recur(), mutable_only)
             }
-            Type::Vector(typ) => typ.contains_reference_helper(type_recursion_context.recur()),
+            Type::Vector(typ) => {
+                typ.contains_reference_helper(type_recursion_context.recur(), mutable_only)
+            }
             Type::FmtString(length, typ) => {
-                length.contains_reference_helper(type_recursion_context.clone().recur())
-                    || typ.contains_reference_helper(type_recursion_context.recur())
+                length
+                    .contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
+                    || typ.contains_reference_helper(type_recursion_context.recur(), mutable_only)
             }
-            Type::Tuple(types) => types
-                .iter()
-                .any(|typ| typ.contains_reference_helper(type_recursion_context.clone().recur())),
+            Type::Tuple(types) => types.iter().any(|typ| {
+                typ.contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
+            }),
             Type::DataType(typ, generics) => {
                 let typ = typ.borrow();
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
                         if fields.iter().any(|(_, field, _)| {
-                            field.contains_reference_helper(type_recursion_context.clone().recur())
+                            field.contains_reference_helper(
+                                type_recursion_context.clone().recur(),
+                                mutable_only,
+                            )
                         }) {
                             return true;
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
                         && variants.iter().flat_map(|(_, args)| args).any(|typ| {
-                            typ.contains_reference_helper(type_recursion_context.clone().recur())
+                            typ.contains_reference_helper(
+                                type_recursion_context.clone().recur(),
+                                mutable_only,
+                            )
                         })
                     {
                         return true;
@@ -2089,7 +2108,7 @@ impl Type {
                     alias
                         .borrow()
                         .get_type(generics)
-                        .contains_reference_helper(type_recursion_context.recur())
+                        .contains_reference_helper(type_recursion_context.recur(), mutable_only)
                 } else {
                     false
                 }
@@ -2097,25 +2116,32 @@ impl Type {
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.contains_reference_helper(type_recursion_context.recur())
-                    }
+                    TypeBinding::Bound(binding) => binding
+                        .contains_reference_helper(type_recursion_context.recur(), mutable_only),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from: _, to } => {
-                to.contains_reference_helper(type_recursion_context.recur())
+                to.contains_reference_helper(type_recursion_context.recur(), mutable_only)
             }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.contains_reference_helper(type_recursion_context.clone().recur())
-                    || rhs.contains_reference_helper(type_recursion_context.recur())
+                lhs.contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
+                    || rhs.contains_reference_helper(type_recursion_context.recur(), mutable_only)
             }
             Type::Function(_args, _ret, env, _unconstrained) => {
                 // The only part of a function type that actually holds types is the `env` portion as that's
                 // carried with the function. Arguments are passed in and the return type is returned.
-                env.contains_reference_helper(type_recursion_context.recur())
+                env.contains_reference_helper(type_recursion_context.recur(), mutable_only)
             }
-            Type::Reference(..) => true,
+            Type::Reference(inner, mutable) => {
+                if !mutable_only || *mutable {
+                    true
+                } else {
+                    // An immutable reference: when mutable_only is set, check if the inner type
+                    // contains a mutable reference (e.g. `&&mut Field` should still trigger).
+                    inner.contains_reference_helper(type_recursion_context.recur(), mutable_only)
+                }
+            }
         }
     }
 
@@ -2552,29 +2578,40 @@ impl Type {
     /// is used and generic substitutions are provided manually by users.
     ///
     /// Expects the given type vector to be the same length as the Forall type variables.
+    /// `direct_generic_ids` lists the type variable ids of the function's user-declared
+    /// generics, in the same order the turbofish provides them. Any typevar in the `Forall`
+    /// quantifier whose id is not in that list is treated as an implicit generic (e.g. from
+    /// `impl Trait` desugaring or an enclosing generic impl) and receives a fresh type
+    /// variable of the matching kind.
     pub fn instantiate_with_bindings_and_turbofish(
         &self,
         bindings: TypeBindings,
         turbofish_types: Vec<Type>,
         interner: &NodeInterner,
-        implicit_generic_count: usize,
+        direct_generic_ids: &[TypeVariableId],
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
+                let direct_count =
+                    typevars.iter().filter(|var| direct_generic_ids.contains(&var.id())).count();
                 assert_eq!(
-                    turbofish_types.len() + implicit_generic_count,
-                    typevars.len(),
+                    turbofish_types.len(),
+                    direct_count,
                     "Turbofish operator used with incorrect generic count which was not caught by name resolution"
                 );
 
-                let implicit_and_turbofish_bindings = (0..implicit_generic_count)
-                    .map(|_| interner.next_type_variable())
-                    .chain(turbofish_types);
-
+                let mut turbofish_iter = turbofish_types.into_iter();
                 let mut replacements: TypeBindings = typevars
                     .iter()
-                    .zip_eq(implicit_and_turbofish_bindings)
-                    .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
+                    .map(|var| {
+                        let kind = var.kind();
+                        let binding = if direct_generic_ids.contains(&var.id()) {
+                            turbofish_iter.next().expect("direct_count == turbofish_types.len()")
+                        } else {
+                            interner.next_type_variable_with_kind(kind.clone())
+                        };
+                        (var.id(), (var.clone(), kind, binding))
+                    })
                     .collect();
 
                 for (binding_key, binding_value) in bindings {
@@ -3197,7 +3234,6 @@ impl Type {
             Type::Integer(Signed, ThirtyTwo) => Some(32),
             Type::Integer(Signed, SixtyFour) => Some(64),
             Type::Integer(Signed, HundredTwentyEight) => Some(128),
-            Type::Integer(Unsigned, One) => Some(1),
             Type::Integer(Unsigned, Eight) => Some(8),
             Type::Integer(Unsigned, Sixteen) => Some(16),
             Type::Integer(Unsigned, ThirtyTwo) => Some(32),

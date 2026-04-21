@@ -81,6 +81,7 @@ pub(super) enum BindableTypeVariableKind {
 impl Elaborator<'_> {
     /// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_defaultable_type_variable(&mut self, typ: Type) {
         self.get_function_context_mut().defaultable_type_variables.push(typ);
     }
@@ -93,6 +94,7 @@ impl Elaborator<'_> {
     /// across a loop's iterations, so a type can temporarily remain as `Type<_>` where
     /// `_` is bound by the interpreter evaluating an expression's type being unified with
     /// that type.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_required_type_variable(
         &mut self,
         type_variable_id: TypeVariableId,
@@ -108,6 +110,7 @@ impl Elaborator<'_> {
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_trait_constraint(
         &mut self,
         constraint: TraitConstraint,
@@ -123,21 +126,25 @@ impl Elaborator<'_> {
 
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_function_context(&mut self) {
         self.function_context.push(FunctionContext::default());
     }
 
     /// Defaults all type variables used in this function context then solves
     /// all still-unsolved trait constraints in this context.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.check_defaultable_type_variables(context.defaultable_type_variables);
@@ -155,6 +162,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_integer_literal_fit_their_type(&mut self, expr_ids: Vec<ExprId>) {
         for expr_id in expr_ids {
             if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
@@ -163,6 +171,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
         let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
 
@@ -181,6 +190,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn select_impl(
         &mut self,
         function_ident_id: ExprId,
@@ -219,6 +229,7 @@ impl Elaborator<'_> {
         self.interner.select_impl_for_expression(function_ident_id, impl_kind);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_trait_constraint_error(
         &mut self,
         object_type: &Type,
@@ -251,6 +262,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn check_required_type_variables(&mut self, type_variables: Vec<RequiredTypeVariable>) {
         for var in type_variables {
             let id = var.type_variable_id;

@@ -5,6 +5,6 @@ fn main(mut x: u32, y: u32) {
     x = x.wrapping_mul(x);
     assert(y == x);
 
-    let c: u1 = 0;
-    assert(x as u1 > c);
+    let c: u8 = 0;
+    assert(x as u8 % 2 > c);
 }
