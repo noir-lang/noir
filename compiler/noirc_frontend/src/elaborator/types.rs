@@ -1473,7 +1473,12 @@ impl Elaborator<'_> {
         matches
     }
 
-    /// This resolves a method in the form `Type::method` where `method` is a trait method
+    /// Resolves a path of the form `Type::method` or `Type::<turbofish>::method`.
+    ///
+    /// When turbofish generics are present, uses type-directed lookup to select the correct impl
+    /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
+    /// Without turbofish, returns `None` so the caller falls back to module-based lookup, which
+    /// handles `Self::method`, visibility checks, and associated constants correctly.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_type_trait_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
         if path.segments.len() < 2 {
