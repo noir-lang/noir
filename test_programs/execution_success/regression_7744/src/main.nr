@@ -4,7 +4,7 @@ use std::embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint};
 
 // is_active = false
 fn main(is_active: bool) -> pub EmbeddedCurvePoint {
-    let bad = EmbeddedCurvePoint { x: 0, y: 5 };
+    let bad = EmbeddedCurvePoint::new(0, 5);
     if is_active {
         embedded_curve_add(bad, bad)
     } else {

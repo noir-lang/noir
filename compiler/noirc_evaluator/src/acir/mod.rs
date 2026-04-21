@@ -552,7 +552,7 @@ impl<'a> Context<'a> {
             Instruction::Noop => (),
         }
 
-        self.acir_context.set_call_stack(CallStack::new());
+        self.acir_context.set_call_stack(CallStack::empty());
         Ok(warnings)
     }
 
