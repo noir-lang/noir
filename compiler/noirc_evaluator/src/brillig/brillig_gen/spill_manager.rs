@@ -211,10 +211,14 @@ impl SpillManager {
                 // Re-evicting a permanently-spilled value: keep permanent, slot data is valid.
                 record.status = SpillStatus::Permanent;
             }
-            _ => {
-                // New transient spill or re-evicting a transient-reloaded value.
+            SpillStatus::TransientReloaded | SpillStatus::Transient => {
                 record.status = SpillStatus::Transient;
                 record.variable = variable;
+            }
+            SpillStatus::Permanent => {
+                unreachable!(
+                    "record_spill called on a Permanent record — is_spilled should have caught this as a double-spill"
+                );
             }
         }
     }
