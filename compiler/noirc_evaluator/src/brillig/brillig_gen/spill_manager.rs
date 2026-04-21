@@ -1,10 +1,51 @@
 //! Register spill management for the Brillig code generator.
 //!
-//! When register pressure exceeds the available register count, the [`SpillManager`] coordinates
-//! evicting the least-recently-used (LRU) values to a spill region in heap memory, and reloading
-//! them on demand. It distinguishes between transient spills (temporary within a basic block)
-//! and permanent spills (values that must survive across block boundaries), allocating stable
-//! heap slots for the latter.
+//! # When spilling kicks in
+//!
+//! Most functions fit comfortably inside the per-frame register budget, in which case the
+//! code generator just uses coalescing to reuse registers and never constructs a
+//! [`SpillManager`]. Spilling activates only when [`VariableLiveness::max_live_count`]
+//! exceeds the available registers for the current [`LayoutConfig`] — i.e. there is some
+//! program point where too many values are simultaneously live. When the spill manager is
+//! active coalescing is disabled: the two are mutually exclusive allocation strategies.
+//!
+//! # Scope of decisions
+//!
+//! The spill manager operates one basic block at a time. Inside a block, spilled values can
+//! be reloaded into any free register and their heap slot re-used by a later spill, so the
+//! manager effectively acts as a pool allocator for _transient_ spills. Across blocks this
+//! is unsafe — the next block can't predict which register a predecessor left a value in —
+//! so live-across-block values (block parameters, non-param live-ins) are promoted to
+//! _permanent_ spills: their slot is reserved for the remainder of the function and every
+//! use reloads from it.
+//!
+//! Transient slots are freed as soon as the value dies; permanent slots are never freed
+//! (see <https://github.com/noir-lang/noir/issues/11695>). Each block begins with
+//! [`SpillManager::begin_block`], which (a) asserts no transient spills leaked from the
+//! previous block, (b) re-marks permanent slots as "currently spilled" so their owners
+//! must reload before use, and (c) rebuilds the LRU with this block's live-in set.
+//!
+//! # Per-use flow
+//!
+//! The code generator calls into the spill manager at a small number of well-defined points:
+//!
+//! - Before making room for a fresh value, [`BrilligBlock::ensure_register_capacity`] asks
+//!   [`SpillManager::lru_victim`] for the least-recently-used non-spilled value and spills
+//!   it via [`BrilligBlock::spill_value`]. That emits the store and frees the register.
+//! - When a spilled value is needed, [`BrilligBlock::reload_spilled_value`] allocates a
+//!   fresh register, emits the load, and calls [`SpillManager::unmark_spilled`] to record
+//!   that the value is once again in a register (the slot still holds a valid copy).
+//! - When a value is used, [`SpillManager::touch`] bumps it to the most-recently-used end
+//!   of the LRU, so that freshly-loaded and just-produced values aren't the first victims
+//!   of the next eviction.
+//! - When a value dies, [`SpillManager::remove_spill`] frees its transient slot (permanent
+//!   slots are kept for the rest of the function).
+//!
+//! [`VariableLiveness::max_live_count`]: super::variable_liveness::VariableLiveness::max_live_count
+//! [`LayoutConfig`]: crate::brillig::brillig_ir::LayoutConfig
+//! [`BrilligBlock::ensure_register_capacity`]: super::brillig_block::BrilligBlock::ensure_register_capacity
+//! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
+//! [`BrilligBlock::reload_spilled_value`]: super::brillig_block::BrilligBlock::reload_spilled_value
 
 use std::collections::hash_map::Entry;
 
@@ -15,9 +56,7 @@ use crate::ssa::ir::value::ValueId;
 
 /// Tracks register values that have been spilled to the spill region in heap memory.
 ///
-/// When register pressure exceeds the stack frame limit, the SpillManager coordinates
-/// evicting the least-recently-used values from registers to the spill region,
-/// and reloading them when needed.
+/// See the [module docs][self] for an overview of when and how the spill manager is used.
 pub(crate) struct SpillManager {
     /// Map of all spill records
     records: HashMap<ValueId, SpillRecord>,
