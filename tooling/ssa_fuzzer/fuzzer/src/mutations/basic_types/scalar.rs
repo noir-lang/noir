@@ -1,6 +1,6 @@
 use crate::fuzz_lib::instruction::Scalar;
 use crate::mutations::configuration::{BASIC_SCALAR_MUTATION_CONFIGURATION, ScalarMutationOptions};
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) fn generate_random_scalar(rng: &mut StdRng) -> Scalar {
     Scalar {

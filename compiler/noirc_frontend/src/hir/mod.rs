@@ -47,6 +47,10 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub debug_instrumenter: DebugInstrumenter,
 
+    /// The CrateId of the `__debug` crate, if it has been linked.
+    /// Used to identify debug functions during monomorphization.
+    pub debug_crate_id: Option<CrateId>,
+
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<FileId, Location>,
@@ -85,6 +89,7 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
@@ -105,6 +110,7 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
@@ -130,6 +136,7 @@ impl Context<'_, '_> {
             crate_graph,
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),

@@ -375,7 +375,16 @@ impl Type {
             // environment is the interpreter. In this environment, they are valid.
             Type::Quoted(_) => true,
 
-            Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
+            // Mutable references cannot cross the constrained/unconstrained boundary.
+            // Immutable references are allowed if their inner type is also valid.
+            Type::Reference(inner, mutable) => {
+                if *mutable {
+                    false
+                } else {
+                    inner.is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
+                }
+            }
+            Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
                 if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
@@ -412,6 +421,7 @@ impl Type {
                             )
                         })
                     } else {
+                        // enum (unimplemented)
                         false
                     }
                 } else {

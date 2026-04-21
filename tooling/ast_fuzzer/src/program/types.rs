@@ -28,11 +28,7 @@ pub fn type_depth(typ: &Type) -> usize {
 /// Some types don't compile in Noir, so avoid those as we couldn't
 /// put any related failures into an integration test.
 pub fn can_be_global(typ: &Type) -> bool {
-    !matches!(
-        typ,
-        Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
-            | Type::Integer(Signedness::Unsigned, IntegerBitSize::One)
-    )
+    !matches!(typ, Type::Integer(Signedness::Signed, IntegerBitSize::HundredTwentyEight))
 }
 
 /// Check if a type can be used in the `main` function.
@@ -98,11 +94,8 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 for size in IntegerBitSize::iter()
                     .filter(|size| size.bit_size() > integer_bit_size.bit_size())
                 {
-                    // We don't want to produce `i1` or `i128`
-                    if sign.is_signed()
-                        && (size == IntegerBitSize::One
-                            || size == IntegerBitSize::HundredTwentyEight)
-                    {
+                    // We don't want to produce `i128`
+                    if sign.is_signed() && size == IntegerBitSize::HundredTwentyEight {
                         continue;
                     }
 

@@ -86,14 +86,14 @@ fn evaluate_const_argument_call(
 /// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
 fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -> InterpreterValue {
     let typ = dfg.type_of_value(value_id);
-    match typ {
+    match &*typ {
         Type::Numeric(numeric_type) => {
             let constant =
                 dfg.get_numeric_constant(value_id).expect("Should have a numeric constant");
-            InterpreterValue::from_constant(constant, numeric_type)
+            InterpreterValue::from_constant(constant, *numeric_type)
                 .expect("Should be a valid constant")
         }
-        Type::Reference(_) => unreachable!("References cannot be constant values"),
+        Type::Reference(..) => unreachable!("References cannot be constant values"),
         Type::Array(element_types, _) => {
             let (array_constant, _) =
                 dfg.get_array_constant(value_id).expect("Should have an array constant");
@@ -110,7 +110,7 @@ fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -
             for element in array_constant {
                 elements.push(const_ir_value_to_interpreter_value(element, dfg));
             }
-            InterpreterValue::vector(elements, element_types)
+            InterpreterValue::vector(elements, element_types.clone())
         }
         Type::Function => unreachable!("Functions cannot be constant values"),
     }
@@ -161,6 +161,6 @@ fn interpreter_value_to_ir_value(
             dfg[block_id].instructions_mut().push(instruction_id);
             dfg.instruction_result::<1>(instruction_id)[0]
         }
-        Type::Function | Type::Reference(_) => unreachable!("Cannot be a constant value"),
+        Type::Function | Type::Reference(..) => unreachable!("Cannot be a constant value"),
     }
 }
