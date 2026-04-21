@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776785560704,
+  "lastUpdate": 1776785771151,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23246,48 +23246,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6e31b8ef20ff4242979c92f53efbf8c5343ed5bc",
-          "message": "fix(ssa): Check aliases when invalidating references passed to calls (#12320)",
-          "timestamp": "2026-04-15T18:06:44Z",
-          "tree_id": "b33ee29b68c9edac52ec63756f58368d6d04b6c9",
-          "url": "https://github.com/noir-lang/noir/commit/6e31b8ef20ff4242979c92f53efbf8c5343ed5bc"
-        },
-        "date": 1776277760126,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127641,
-            "range": "± 366",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113207,
-            "range": "± 3875",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043874,
-            "range": "± 10191",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "95edf9a57a4df3a32932f12f3ab3ecf163104eb9",
           "message": "chore(ssa): Always inline single caller functions (#12319)",
           "timestamp": "2026-04-15T18:28:31Z",
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043412,
             "range": "± 2521",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0ff80453087fed238ceb584be8e0603fa2d0179",
+          "message": "chore: error when duplicate memory block initialisation (#12103)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-21T15:07:12Z",
+          "tree_id": "1e8a3a3ad52fbc453825aa9afba6a6192673df82",
+          "url": "https://github.com/noir-lang/noir/commit/e0ff80453087fed238ceb584be8e0603fa2d0179"
+        },
+        "date": 1776785713544,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175667,
+            "range": "± 704",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145475,
+            "range": "± 360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651292,
+            "range": "± 3408",
             "unit": "ns/iter"
           }
         ]
