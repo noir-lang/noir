@@ -70,10 +70,10 @@ If you're writing a binary, the `main` function is the starting point of your pr
 
 Valid signatures (fixed-size types):
 
-- `fn main(x: Field)` — a single `Field`.
-- `fn main(x: [Field; 2])` — a fixed-size array whose length is known at compile time.
-- `fn main(x: (Field, bool))` — a tuple of two fixed-size elements.
-- `fn main(x: str<5>)` — a string whose length is known at compile time.
+- `fn main(x: Field)` - a single `Field`.
+- `fn main(x: [Field; 2])` - a fixed-size array whose length is known at compile time.
+- `fn main(x: (Field, bool))` - a tuple of two fixed-size elements.
+- `fn main(x: str<5>)` - a string whose length is known at compile time.
 
 Invalid signatures (variable-size types):
 
