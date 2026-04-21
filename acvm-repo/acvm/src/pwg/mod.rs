@@ -495,17 +495,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 blackbox::solve(self.backend, &mut self.witness_map, bb_func)
             }
             Opcode::MemoryInit { block_id, init, .. } => {
-                MemoryOpSolver::new(init, &self.witness_map).and_then(|solver| {
-                    if self.block_solvers.insert(*block_id, solver).is_some() {
-                        // Memory block is already initialized
-                        Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                            opcode_location: ErrorLocation::Unresolved,
-                            payload: None,
-                        })
-                    } else {
-                        Ok(())
-                    }
-                })
+                self.solve_memory_init_opcode(*block_id, init)
             }
             Opcode::MemoryOp { block_id, op } => {
                 let solver = self
@@ -606,6 +596,24 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             selector: error_selector,
             data: fields,
         }))
+    }
+
+    /// Initializes a memory block with values loaded from the witness map.
+    ///
+    /// Fails if the block has already been initialized.
+    fn solve_memory_init_opcode(
+        &mut self,
+        block_id: BlockId,
+        init: &[Witness],
+    ) -> Result<(), OpcodeResolutionError<F>> {
+        let solver = MemoryOpSolver::new(init, &self.witness_map)?;
+        if self.block_solvers.insert(block_id, solver).is_some() {
+            return Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Unresolved,
+                payload: None,
+            });
+        }
+        Ok(())
     }
 
     /// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
