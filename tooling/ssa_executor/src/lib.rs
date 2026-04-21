@@ -179,7 +179,7 @@ mod tests {
         (inline) fn main f0 {
           b0(v0: u1, v1: i32, v2: i32, v3: u1, v4: u1, v5: u1, v6: u1):
             jmp b1()
-            b1():
+          b1():
             v7 = allocate -> &mut u1
             store v0 at v7
             v8 = cast v0 as Field
