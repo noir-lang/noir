@@ -1977,7 +1977,7 @@ __metadata:
     ts-loader: "npm:^9.5.7"
     tsx: "npm:^4.21.0"
     typescript: "npm:^6.0.2"
-    unzipit: "npm:^2.0.0"
+    unzipit: "npm:^2.0.1"
     url: "npm:^0.11.4"
     webpack: "npm:^5.105.4"
     webpack-cli: "npm:^7.0.2"
@@ -12095,10 +12095,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unzipit@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "unzipit@npm:2.0.0"
-  checksum: 10/fbd0e34514bc5b0b965f64da5636581c7106917da7b101cc1bee3f5d41ebd6e610c6f5eff59bd6300c6773133c4c558fc9cb4024c2a58de9c5ab6fa469f67fb5
+"unzipit@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "unzipit@npm:2.0.1"
+  checksum: 10/0a2d3f935f9003d3b4d52d99ad463babab67eaed9f7c313b5d0d75354e46f24a4ff951e3f6b1c31ca048eb7ff5ceb178214e7884904b8e592adbdd93b155bafb
   languageName: node
   linkType: hard
 
