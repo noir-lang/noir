@@ -184,8 +184,8 @@ impl ItemPrinter<'_, '_> {
             Type::Forall(..) => {
                 panic!("Should not need to print Type::Forall")
             }
-            Type::Constant(field_element, _) => {
-                self.push_str(&field_element.to_string());
+            Type::Constant(constant) => {
+                self.push_str(&constant.to_string());
             }
             Type::InfixExpr(lhs, op, rhs, _) => {
                 self.show_type_maybe_in_parentheses(lhs);

@@ -9,4 +9,5 @@ bug: Brillig function call isn't properly covered by a manual constraint
   │     ---------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
   │
   = Call stack:
-    1. src/main.nr:7:5
+    1: main
+            at src/main.nr:7:5

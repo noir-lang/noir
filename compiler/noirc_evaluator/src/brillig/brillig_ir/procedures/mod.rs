@@ -193,13 +193,13 @@ mod tests {
          5: @9 = u32 add @3, @4
          6: @10 = @3
          7: @11 = @5
-         8: @12 = u32 eq @10, @9
-         9: jump if @12 to 15
-        10: @8 = load @10
-        11: store @8 at @11
-        12: @10 = u32 add @10, @2
-        13: @11 = u32 add @11, @2
-        14: jump to 8
+         8: jump to 13
+         9: @8 = load @10
+        10: store @8 at @11
+        11: @10 = u32 add @10, @2
+        12: @11 = u32 add @11, @2
+        13: @12 = u32 lt @10, @9
+        14: jump if @12 to 9
         15: @5 = indirect const u32 1
         16: jump to 18
         17: @5 = @3

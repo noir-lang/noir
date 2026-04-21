@@ -164,33 +164,49 @@ impl Loop {
     ///
     /// There is an example in the tests where a loop does not have an induction variable,
     /// but rather loads a reference in the header, in which case this will return `None`.
-    fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
+    ///
+    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
+    pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
 
     /// Check if the loop will be fully executed, that is, there is no early `break` in it.
-    ///
-    /// Our SSA code generation restricts loops to having one exit block.
-    /// If the exit block has only one predecessor, that means there is no `break` in the loop.
-    ///
-    /// If a loop can have several exit blocks, we would need to update this function.
     ///
     /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
     /// rather than a `for` loop. Even if such blocks don't have a `break` (e.g. they are infinite),
     /// we don't consider them fully executed.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
         // A typical for-loop header has 2 successors: the loop body and the exit block.
+        let mut has_header_exit = false;
         for block in cfg.successors(self.header) {
             // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
                 // If the exit block can be reached from the header and somewhere else in the loop,
                 // then there must be a `break`.
-                return cfg.predecessors(block).len() == 1;
+                if cfg.predecessors(block).len() != 1 {
+                    return false;
+                }
+                has_header_exit = true;
             }
         }
-        // If we are here then we haven't found an exit block from the header,
-        // which means we must be dealing with a `loop` or `while`.
-        false
+        // If we haven't found an exit block from the header,
+        // we must be dealing with a `loop` or `while`.
+        if !has_header_exit {
+            return false;
+        }
+        // Check that no body block has a successor outside the loop,
+        // which would indicate a `break` from inside the loop body.
+        for block in &self.blocks {
+            if *block == self.header {
+                continue;
+            }
+            for successor in cfg.successors(*block) {
+                if !self.blocks.contains(&successor) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
@@ -742,7 +758,9 @@ impl<'f> LoopInvariantContext<'f> {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
-                if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
+                if let (Type::Array(_, len), Some(upper_bound)) =
+                    (array_typ.into_owned(), upper_bound)
+                {
                     upper_bound.apply(|i| i <= len.0.into(), |i| i <= len.0.into())
                 } else {
                     // We're dealing with a loop that doesn't have a fixed upper bound.
@@ -802,7 +820,8 @@ fn get_induction_var_bounds(
     loop_: &Loop,
     pre_header: BasicBlockId,
 ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
-    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header)?;
+    let bounds =
+        loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
     Some((induction_variable, bounds))
 }
@@ -918,11 +937,70 @@ mod tests {
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::{LoopOrder, Loops};
-    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use crate::ssa::opt::{
+        assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+        assert_ssa_does_not_change,
+    };
     use acvm::AcirField;
     use acvm::acir::brillig::lengths::SemanticLength;
     use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
+
+    #[test]
+    fn signed_mul_overflow_at_lower_bound_not_converted_to_unchecked() {
+        // Regression: the loop invariant pass checked only the upper bound when deciding
+        // whether to convert a signed checked mul to unchecked. For signed types, the lower
+        // bound can overflow in the opposite direction.
+        //
+        // i8 206 = -50 in two's complement. Range is -50..40.
+        //   upper check: 3 * 40 = 120 < 128  (passes, no overflow)
+        //   lower check: 3 * (-50) = -150 < -128  (overflows!)
+        //
+        // The pass must keep the mul checked so the overflow is caught at runtime.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 40
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = mul v0, i8 3
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn signed_sub_overflow_at_upper_bound_not_converted_to_unchecked() {
+        // i - (-100) overflows at the upper bound: 99 - (-100) = 199 > 127.
+        // i8 206 = -50, i8 156 = -100. Range is -50..100.
+        // The pass checks only lower: -50 - (-100) = 50 (safe), missing upper: 99 - (-100) = 199.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 100
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = sub v0, i8 156
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
 
     #[test]
     fn hoists_casts() {

@@ -7,6 +7,7 @@ use petgraph::{
 };
 
 use crate::{
+    Type,
     hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
     node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId},
 };
@@ -107,6 +108,9 @@ impl NodeInterner {
                 }
                 DependencyId::Alias(alias_id) => {
                     let alias = self.get_type_alias(alias_id);
+                    // If type aliases form a cycle, break the cycle to prevent infinite recursion in later phases.
+                    alias.borrow_mut().typ = Type::Error;
+
                     let alias = alias.borrow();
                     push_error(alias.name.to_string(), scc, scc_index, alias.name.location());
                     true

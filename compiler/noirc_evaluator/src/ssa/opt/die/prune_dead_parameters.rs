@@ -72,6 +72,7 @@
 //! ```text
 //! v0 = call f1() -> Field
 //! ```
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -147,7 +148,7 @@ impl Ssa {
                         // Filter the arguments using keep_list
                         let new_args: Vec<ValueId> = arguments
                             .iter()
-                            .zip(keep_list.iter())
+                            .zip_eq(keep_list.iter())
                             .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
                             .collect();
 
@@ -295,7 +296,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -347,7 +348,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -369,7 +370,7 @@ mod tests {
         assert_eq!(b3_unused[0].to_u32(), 2);
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -405,7 +406,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -449,7 +450,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 2);
         let function = die_result
@@ -499,7 +500,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
         // b0 in f1 has both parameters removed as it is not the program entry point
         // and we can rewrite its call site.
@@ -533,7 +534,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -556,7 +557,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -613,7 +614,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -637,7 +638,7 @@ mod tests {
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -678,7 +679,7 @@ mod tests {
 
         // Now check that calling the DIE -> parameter pruning feedback loop produces the same result
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination_with_pruning(false);
+        let ssa = ssa.dead_instruction_elimination();
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
@@ -726,7 +727,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner();
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
         // Of b1's params, expect only `v2` above to get removed

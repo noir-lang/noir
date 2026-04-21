@@ -1,0 +1,58 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(hashed_message: [u8; 32], pub_key_x: [u8; 32], pub_key_y: [u8; 32], signature: [u8; 64]) {
+    let signature: [u8; 64] = normalize_ecdsa_signature(signature);
+    let valid_signature: bool =
+        std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+    assert(valid_signature);
+}
+
+fn normalize_ecdsa_signature(signature: [u8; 64]) -> [u8; 64] {
+    let order: [u8; 32] = [
+        255_u8, 255_u8, 255_u8, 255_u8, 0_u8, 0_u8, 0_u8, 0_u8, 255_u8, 255_u8, 255_u8, 255_u8,
+        255_u8, 255_u8, 255_u8, 255_u8, 188_u8, 230_u8, 250_u8, 173_u8, 167_u8, 23_u8, 158_u8,
+        132_u8, 243_u8, 185_u8, 202_u8, 194_u8, 252_u8, 99_u8, 37_u8, 81_u8,
+    ];
+    let half_order: [u8; 32] = [
+        127_u8, 255_u8, 255_u8, 255_u8, 128_u8, 0_u8, 0_u8, 0_u8, 127_u8, 255_u8, 255_u8, 255_u8,
+        255_u8, 255_u8, 255_u8, 255_u8, 222_u8, 115_u8, 125_u8, 86_u8, 211_u8, 139_u8, 207_u8,
+        66_u8, 121_u8, 220_u8, 229_u8, 97_u8, 126_u8, 49_u8, 146_u8, 168_u8,
+    ];
+    let mut s_is_high: bool = false;
+    let mut stop: bool = false;
+    for i in 0_u32..32_u32 {
+        if !stop {
+            if signature[32_u32 + i] > half_order[i] {
+                s_is_high = true;
+                stop = true;
+            } else if signature[32_u32 + i] < half_order[i] {
+                stop = true;
+            }
+        }
+    }
+    let mut result: [u8; 64] = signature;
+    if s_is_high {
+        let mut borrow: u32 = 0_u32;
+        for j in 0_u32..32_u32 {
+            let i: u32 = 31_u32 - j;
+            let a: u32 = order[i] as u32;
+            let b: u32 = (signature[32_u32 + i] as u32) + borrow;
+            if a >= b {
+                {
+                    let i_0: u32 = 32_u32 + i;
+                    result[i_0] = (a - b) as u8;
+                };
+                borrow = 0_u32;
+            } else {
+                {
+                    let i_1: u32 = 32_u32 + i;
+                    result[i_1] = ((256_u32 + a) - b) as u8;
+                };
+                borrow = 1_u32;
+            }
+        }
+    };
+    result
+}

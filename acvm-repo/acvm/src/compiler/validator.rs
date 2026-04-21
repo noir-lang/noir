@@ -17,6 +17,7 @@ use acir::{
 use acvm_blackbox_solver::{
     BlackBoxFunctionSolver, bit_and, bit_xor, blake2s, blake3, keccakf1600,
 };
+use itertools::Itertools;
 use std::collections::HashMap;
 
 fn unsatisfied_constraint<F>(opcode_index: usize, message: String) -> OpcodeResolutionError<F> {
@@ -77,8 +78,8 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-                        assert_eq!(outputs.len(), ciphertext.len());
-                        for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext.into_iter())
+                        {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
                             if witness_value != output_value {
@@ -293,13 +294,14 @@ pub fn validate_witness<F: AcirField>(
                     }
                     BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
                         let mut state = [0; 25];
-                        for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
+                        for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                             let witness_assignment = input_to_value(&witness_map, *input)?;
                             let lane = witness_assignment.try_to_u64();
                             *it = lane.unwrap();
                         }
                         let output_state = keccakf1600(state)?;
-                        for (output_witness, value) in outputs.iter().zip(output_state.into_iter())
+                        for (output_witness, value) in
+                            outputs.iter().zip_eq(output_state.into_iter())
                         {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             if witness_value != F::from(u128::from(value)) {
@@ -320,14 +322,7 @@ pub fn validate_witness<F: AcirField>(
                             &witness_map,
                             inputs,
                         )?;
-                        assert_eq!(
-                            outputs.len(),
-                            state.len(),
-                            "Poseidon2Permutation opcode violation: expected {} but found {} results",
-                            state.len(),
-                            outputs.len()
-                        );
-                        for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
@@ -348,7 +343,7 @@ pub fn validate_witness<F: AcirField>(
                             hash_values,
                         )?;
 
-                        for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;

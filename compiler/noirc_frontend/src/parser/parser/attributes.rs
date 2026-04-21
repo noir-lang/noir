@@ -304,32 +304,53 @@ impl Parser<'_> {
         mut arguments: Vec<Expression>,
     ) -> SecondaryAttributeKind {
         if arguments.is_empty() {
-            return SecondaryAttributeKind::Deprecated(None);
+            return SecondaryAttributeKind::Deprecated(false, None);
         }
 
-        if arguments.len() > 1 {
-            self.push_error(
-                ParserErrorReason::WrongNumberOfAttributeArguments {
-                    name: ident.to_string(),
-                    min: 0,
-                    max: 1,
-                    found: arguments.len(),
-                },
-                ident.location(),
-            );
-            return SecondaryAttributeKind::Deprecated(None);
+        if arguments.len() > 2 {
+            let name = ident.to_string();
+            let found = arguments.len();
+            let reason =
+                ParserErrorReason::WrongNumberOfAttributeArguments { name, min: 0, max: 2, found };
+            self.push_error(reason, ident.location());
+            return SecondaryAttributeKind::Deprecated(false, None);
         }
+
+        let mut message = None;
+        let mut deny = false;
 
         let argument = arguments.remove(0);
-        let ExpressionKind::Literal(Literal::Str(message)) = argument.kind else {
-            self.push_error(
-                ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
-                argument.location,
-            );
-            return SecondaryAttributeKind::Deprecated(None);
-        };
+        match argument.kind {
+            ExpressionKind::Literal(Literal::Str(s)) if message.is_none() => {
+                message = Some(s);
+            }
+            ExpressionKind::Variable(variable)
+                if !deny && variable.as_ident().is_some_and(|ident| ident == "deny") =>
+            {
+                deny = true;
+            }
+            _ => {
+                let reason = ParserErrorReason::DeprecatedAttributeInvalidArgument;
+                self.push_error(reason, argument.location);
+                return SecondaryAttributeKind::Deprecated(deny, message);
+            }
+        }
 
-        SecondaryAttributeKind::Deprecated(Some(message))
+        // Should have exactly 0 or 1 remaining arguments
+        if let Some(argument) = arguments.pop() {
+            match argument.kind {
+                ExpressionKind::Literal(Literal::Str(s)) if message.is_none() => {
+                    message = Some(s);
+                }
+                _ => {
+                    let reason = ParserErrorReason::DeprecatedAttributeInvalidArgument;
+                    self.push_error(reason, argument.location);
+                    return SecondaryAttributeKind::Deprecated(deny, message);
+                }
+            }
+        }
+
+        SecondaryAttributeKind::Deprecated(deny, message)
     }
 
     fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {
@@ -608,14 +629,30 @@ mod tests {
     #[test]
     fn parses_inner_attribute_deprecated() {
         let src = "#![deprecated]";
-        let expected = SecondaryAttributeKind::Deprecated(None);
+        let expected = SecondaryAttributeKind::Deprecated(false, None);
+        parse_inner_secondary_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_inner_attribute_deprecated_with_deny() {
+        let src = "#![deprecated(deny)]";
+        let expected = SecondaryAttributeKind::Deprecated(true, None);
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
     #[test]
     fn parses_inner_attribute_deprecated_with_message() {
         let src = "#![deprecated(\"use something else\")]";
-        let expected = SecondaryAttributeKind::Deprecated(Some("use something else".to_string()));
+        let expected =
+            SecondaryAttributeKind::Deprecated(false, Some("use something else".to_string()));
+        parse_inner_secondary_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_inner_attribute_deprecated_with_message_and_deny() {
+        let src = "#![deprecated(deny, \"use something else\")]";
+        let expected =
+            SecondaryAttributeKind::Deprecated(true, Some("use something else".to_string()));
         parse_inner_secondary_attribute_no_errors(src, expected);
     }
 
@@ -822,7 +859,7 @@ mod tests {
         let Attribute::Secondary(attr) = attr else {
             panic!("Expected secondary attribute");
         };
-        assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(None)));
+        assert!(matches!(attr.kind, SecondaryAttributeKind::Deprecated(false, None)));
     }
 
     #[test]

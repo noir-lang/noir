@@ -16,6 +16,7 @@ use crate::ssa::ir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::brillig::MemoryAddress};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -219,6 +220,42 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.store_instruction(scratch_addr, source_reg);
     }
 
+    /// Spill a value: record it in the spill manager, optionally emit a store to its slot,
+    /// and free its register. Returns the slot offset.
+    ///
+    /// Assumes spilling is enabled.
+    /// `permanent` indicates whether the spill is to be permanent.
+    /// `emit_store = false` is used only for block parameters,
+    /// whose registers don't yet contain the final value.
+    /// The Jmp terminators write the value directly into the slot later.
+    pub(crate) fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) {
+        let sm = self
+            .function_context
+            .spill_manager
+            .as_mut()
+            .expect("ICE: spill_value called without spill manager");
+
+        // Check fist permanent because ensure_permanent_spill() modifies the record.
+        if (permanent && sm.ensure_permanent_spill(&value_id)) || sm.is_spilled(&value_id) {
+            return;
+        }
+
+        let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
+        let offset = sm.get_spill_offset(&value_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        sm.remove_from_lru(&value_id);
+        if permanent {
+            sm.record_permanent_spill(value_id, offset, var);
+        } else {
+            sm.record_spill(value_id, offset, var);
+        }
+
+        if emit_store {
+            self.codegen_spill_store(offset, var.extract_register());
+        }
+
+        self.variables.remove_variable(&value_id, self.function_context, self.brillig_context);
+    }
+
     /// Emit a 3-instruction sequence to load a value from the spill region
     /// at the given offset into `dest_reg`.
     fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
@@ -236,26 +273,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Spill the least-recently-used value to the spill region
     fn spill_lru_value(&mut self) {
-        // Extract data from spill_manager first (borrow checker prevents mutably borrowing
-        // the spill manager while also accessing ssa_value_allocations immutably)
+        // Ask the spill_manager for the LRU variable, and then spill it.
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
-        // Reuse the permanent spill slot if one exists (the data is already there
-        // since SSA values are immutable), otherwise allocate a fresh slot.
-        let offset =
-            sm.get_permanent_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
-
-        let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
-        let victim_reg = victim_var.extract_register();
-
-        self.codegen_spill_store(offset, victim_reg);
-
-        // Free the victim's register so it can be reused
-        self.brillig_context.deallocate_register(victim_reg);
-
-        // Record the spill
-        let sm = self.function_context.spill_manager.as_mut().unwrap();
-        sm.record_spill(victim_id, offset, victim_var);
+        self.spill_value(victim_id, false, true);
     }
 
     /// Reload a previously spilled value into a freshly allocated register
@@ -320,29 +341,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 continue;
             }
 
-            let sm = self.function_context.spill_manager.as_mut().unwrap();
-
-            // If a record already exists, ensure it is permanent and spilled.
-            if sm.ensure_permanent_spill(&value_id) {
-                continue;
-            }
-
-            // First encounter: allocate a permanent slot and store the value.
-            let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-            let sm = self.function_context.spill_manager.as_mut().unwrap();
-            let off = sm.allocate_spill_offset();
-            sm.record_permanent_spill(value_id, off, var);
-
-            let source_reg = var.extract_register();
-            self.codegen_spill_store(off, source_reg);
-
-            // Free the register: the value is now safely in the spill slot.
-            // Without this, the register stays allocated but the value is marked
-            // as spilled — `lru_victim()` can't reclaim it, creating "phantom"
-            // allocations that exhaust the register space.
-            // If the value is needed later (e.g., as a Jmp argument),
-            // `convert_ssa_value` will see it's spilled and reload on demand.
-            self.brillig_context.deallocate_register(source_reg);
+            self.spill_value(value_id, true, true);
         }
     }
 
@@ -508,8 +507,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let destination_block = &dfg[destination];
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
-        assert_eq!(arguments.len(), destination_block.parameters().len());
-        for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
             let arg_var = self.convert_ssa_value(*arg, dfg);
             let arg_reg = arg_var.extract_register();
 
@@ -615,7 +613,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: Only Param type values should appear in block parameters");
             };
             match param_type {
-                Type::Numeric(_) | Type::Array(..) | Type::Vector(..) | Type::Reference(_) => {
+                Type::Numeric(_) | Type::Array(..) | Type::Vector(..) | Type::Reference(..) => {
                     // Simple parameters and arrays are passed as already filled registers.
                     // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
                     // For vectors, two registers are passed, the pointer to the data and a register holding the size of the vector.
@@ -628,17 +626,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // Params of the current block are skipped
                     // because they already hold valid data from the predecessor.
                     if !own_params.contains(&param_id)
-                        && let Some(sm) = self.function_context.spill_manager.as_mut()
+                        && self.function_context.spill_manager.is_some()
                     {
-                        sm.remove_from_lru(&param_id);
-                        let offset = sm.allocate_spill_offset();
-                        let var =
-                            *self.function_context.ssa_value_allocations.get(&param_id).unwrap();
-                        sm.record_permanent_spill(param_id, offset, var);
-                        // Free the register — it holds no valid data.
-                        let reg = var.extract_register();
-                        self.brillig_context.deallocate_register(reg);
-                        self.variables.mark_unavailable(&param_id);
+                        self.spill_value(param_id, true, false);
                     }
                 }
                 Type::Function => unreachable!(
@@ -814,14 +804,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
     ///
     /// This method also first checks whether the SSA value is a hoisted global constant.
-    /// If it has already been initialized in the global space, we return the already existing variable.
+    /// If the value has already been initialized in the global space, we return the already existing variable.
+    ///
     /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
-    /// otherwise the method panics.
+    /// otherwise the method panics. All globals should already have been allocated at this point, we just need to
+    /// look them up in [BrilligBlock::globals].
     pub(crate) fn convert_ssa_value(
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
+        // Get the value; note that if the value is global, the DFG resolves it from its globals map.
         let value = &dfg[value_id];
 
         if let Some(variable) = self.get_hoisted_global(dfg, value_id) {
@@ -830,14 +823,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         match value {
             Value::Global(_) => {
-                unreachable!("Expected global value to be resolve to its inner value");
+                // We should not see the `Global` wrapper any more, because the DFG indexing resolves to the underlying `Value`
+                // in the globals graph. We shouldn't have to convert the `Value`, just look up the `BrilligVariable` by its
+                // `ValueId` in the `globals` mapping.
+                unreachable!("Expected global value to be resolve to its inner value by the DFG");
             }
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
                 if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value not found in cache {value_id}")
+                        panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
                 } else {
                     // Check if spilled, reload if needed
@@ -868,7 +864,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     var
                 } else if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value not found in cache {value_id}")
+                        panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
                 } else {
                     let new_variable = self.define_variable(value_id, dfg);
@@ -1027,6 +1023,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 BrilligVariable::BrilligArray(then_array),
                 BrilligVariable::BrilligArray(else_array),
             ) => {
+                debug_assert_eq!(
+                    then_array.size, else_array.size,
+                    "ICE: then and else arrays in if-else must have the same size, but got {} and {}",
+                    then_array.size, else_array.size
+                );
                 // Pointer to the array which result from the if-else
                 let pointer = self.brillig_context.allocate_register();
                 self.brillig_context.conditional_move_instruction(
@@ -1068,7 +1069,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
         }
-        (_, Type::Reference(_)) | (Type::Reference(_), _) => {
+        (_, Type::Reference(..)) | (Type::Reference(..), _) => {
             unreachable!("References are invalid in binary operations")
         }
         (_, Type::Array(..)) | (Type::Array(..), _) => {

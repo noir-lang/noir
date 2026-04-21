@@ -124,6 +124,7 @@ use acvm::acir::brillig::lengths::{
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 
 use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
@@ -397,7 +398,7 @@ impl Context<'_> {
                 Type::Array(item_type, _) | Type::Vector(item_type) => item_type
                     .iter()
                     .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
                 _ => None,
             }
         } else {
@@ -511,7 +512,7 @@ impl Context<'_> {
                     dummy_values.len(),
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, dummy_val)?);
                 }
 
@@ -537,7 +538,7 @@ impl Context<'_> {
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
                 let mut elements = im::Vector::new();
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
 
@@ -716,7 +717,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Reference(reference_type) => {
+            Type::Reference(reference_type, _) => {
                 self.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
@@ -743,7 +744,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(values))
             }
             Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
-            Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
+            Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
             }
@@ -954,7 +955,7 @@ impl Context<'_> {
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         let flattened_len = flattened_value_size(&array_acir_value);
-        match array_acir_value {
+        let result = match array_acir_value {
             AcirValue::Array(_) => {
                 self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
             }
@@ -990,7 +991,16 @@ impl Context<'_> {
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into()),
+        }?;
+
+        // Remap this array_id to point at the reused block. This ensures subsequent lookups via
+        // type_sizes_block_id(array_id) find the initialized block.
+        // But not for growth operations (Increase/Decrease) which do not match with the base mapping.
+        if result != element_type_sizes && matches!(shift, ElementTypeSizesArrayShift::None) {
+            self.element_type_sizes_blocks.insert(array_id, result);
         }
+
+        Ok(result)
     }
 
     /// Helper to calculate and initialize `element_type_sizes` array from a flattened length.
@@ -1188,7 +1198,7 @@ impl Context<'_> {
     /// array containing zero length arrays has zero size, but we can still
     /// access its elements.
     pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
-        if let Type::Array(_, size) = dfg.type_of_value(array) {
+        if let Type::Array(_, size) = &*dfg.type_of_value(array) {
             size.0 == 0
         } else {
             match &dfg[array] {

@@ -39,4 +39,4 @@ tracing-appender = "0.2.3"
 
 [dev-dependencies]
 rand.workspace = true
-proptest = "1.2.0"
+proptest = "1.11.0"

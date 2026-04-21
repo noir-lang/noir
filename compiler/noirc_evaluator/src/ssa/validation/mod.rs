@@ -13,6 +13,7 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use acvm::{
@@ -22,6 +23,7 @@ use acvm::{
         brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
     },
 };
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
@@ -77,7 +79,7 @@ impl<'f> Validator<'f> {
             _ => return,
         };
 
-        if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
+        if !matches!(*dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
             return;
         }
 
@@ -164,7 +166,7 @@ impl<'f> Validator<'f> {
                     "Left-hand side and right-hand side of `{operator}` must have the same type"
                 );
 
-                if lhs_type == Type::field()
+                if *lhs_type == Type::field()
                     && matches!(
                         operator,
                         BinaryOp::Lt
@@ -181,7 +183,7 @@ impl<'f> Validator<'f> {
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
-                if !matches!(index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+                if !matches!(*index_type, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
@@ -213,11 +215,11 @@ impl<'f> Validator<'f> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
 
-                let composite_type = match result_type {
+                let composite_type = match &*result_type {
                     Type::Array(composite_type, length) => {
                         let types_length =
                             ElementTypesLength(crate::brillig::assert_u32(composite_type.len()));
-                        let array_semi_flattened_length = types_length * length;
+                        let array_semi_flattened_length = types_length * *length;
                         let elements_length =
                             SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
                         if elements_length != array_semi_flattened_length {
@@ -254,7 +256,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &element_type != expected_type {
+                    if &*element_type != expected_type {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {}, got {}",
                             expected_type, element_type
@@ -264,15 +266,34 @@ impl<'f> Validator<'f> {
             }
             Instruction::Store { address, value } => {
                 let address_type = dfg.type_of_value(*address);
-                let Type::Reference(address_value_type) = address_type else {
+                let Type::Reference(address_value_type, _) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if *address_value_type != value_type {
+                if **address_value_type != *value_type {
                     panic!(
                         "Store address type {} does not match value type {}",
                         address_value_type, value_type
+                    );
+                }
+            }
+            Instruction::Truncate { value, .. } => {
+                // Truncating an unchecked signed sub is not allowed, because the truncate
+                // is not compatible with a potential underflow due to the unchecked subtraction.
+                // Unsigned unchecked subs must have already proven that the underflow is impossible.
+                if let Value::Instruction { instruction, .. } = &dfg[*value]
+                    && let Instruction::Binary(Binary {
+                        lhs,
+                        operator: BinaryOp::Sub { unchecked: true },
+                        ..
+                    }) = &dfg[*instruction]
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    panic!(
+                        "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
+                         Use Field arithmetic with an explicit 2^bit_size addition before the \
+                         Sub to prevent integer underflow, then Truncate the Field result."
                     );
                 }
             }
@@ -308,10 +329,12 @@ impl<'f> Validator<'f> {
                 );
 
                 for (index, (argument, parameter_type)) in
-                    arguments.iter().zip(parameter_types).enumerate()
+                    arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if argument_type != parameter_type {
+                    if *argument_type != parameter_type
+                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
+                    {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -330,7 +353,7 @@ impl<'f> Validator<'f> {
                         );
                     }
                     for (index, (instruction_result, return_value)) in
-                        instruction_results.iter().zip(returns).enumerate()
+                        instruction_results.iter().zip_eq(returns).enumerate()
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
@@ -597,13 +620,12 @@ impl<'f> Validator<'f> {
                     assert_array(&result_type, "DerivePedersenGenerators result");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected derive_pedersen_generators result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
-                assert_field(&result_elements[0], "embedded_curve_add result x");
-                assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
+                assert_field(&result_elements[0], "derive_pedersen_generators result x");
+                assert_field(&result_elements[1], "derive_pedersen_generators result y");
             }
             Intrinsic::FieldLessThan => {
                 // fn __field_less_than(x: Field, y: Field) -> bool {}
@@ -651,7 +673,7 @@ impl<'f> Validator<'f> {
                 let value_typ = dfg.type_of_value(arguments[0]);
                 assert!(
                     matches!(
-                        value_typ,
+                        *value_typ,
                         Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
                     ),
                     "Bitwise operation performed on non-integer type"
@@ -883,13 +905,17 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Type {
+    fn assert_one_argument(&self, arguments: &[ValueId], object: &'static str) -> Cow<Type> {
         assert_arguments_length(arguments, 1, object);
 
         self.function.dfg.type_of_value(arguments[0])
     }
 
-    fn assert_two_arguments(&self, arguments: &[ValueId], object: &'static str) -> (Type, Type) {
+    fn assert_two_arguments(
+        &self,
+        arguments: &[ValueId],
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 2, object);
 
         (
@@ -902,7 +928,7 @@ impl<'f> Validator<'f> {
         &self,
         arguments: &[ValueId],
         object: &'static str,
-    ) -> (Type, Type, Type) {
+    ) -> (Cow<Type>, Cow<Type>, Cow<Type>) {
         assert_arguments_length(arguments, 3, object);
 
         (
@@ -917,13 +943,17 @@ impl<'f> Validator<'f> {
         assert_eq!(results.len(), 0, "Expected zero result for {object}",);
     }
 
-    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
+    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Cow<Type> {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 1, "Expected one result for {object}",);
         self.function.dfg.type_of_value(results[0])
     }
 
-    fn assert_two_results(&self, instruction: InstructionId, object: &'static str) -> (Type, Type) {
+    fn assert_two_results(
+        &self,
+        instruction: InstructionId,
+        object: &'static str,
+    ) -> (Cow<Type>, Cow<Type>) {
         let results = self.function.dfg.instruction_results(instruction);
         assert_eq!(results.len(), 2, "Expected two results for {object}",);
         (self.function.dfg.type_of_value(results[0]), self.function.dfg.type_of_value(results[1]))
@@ -974,17 +1004,22 @@ impl<'f> Validator<'f> {
         if called_function.runtime().is_acir() {
             return;
         }
+        // Simple immutable references (&T where T contains no references) may cross the
+        // ACIR->Brillig boundary. Nested or container references (&&T, [&T; N], etc.) may not.
         for arg_id in arguments {
-            let typ = self.function.dfg.type_of_value(*arg_id);
-            if typ.contains_reference() {
-                // If we don't panic here, we would have a different, more obscure panic later on.
+            let arg_type = self.function.dfg.type_of_value(*arg_id);
+            let has_unsupported_ref = match &*arg_type {
+                Type::Reference(inner, _) => inner.contains_reference(),
+                _ => arg_type.contains_reference(),
+            };
+            if has_unsupported_ref {
                 panic!(
-                    "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
+                    "Trying to pass a nested reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {arg_type}",
                     self.function.name(),
                     self.function.id(),
                     called_function.name(),
-                    called_function.id()
-                )
+                    called_function.id(),
+                );
             }
         }
         for result_id in self.function.dfg.instruction_results(instruction) {
@@ -1031,7 +1066,7 @@ impl<'f> Validator<'f> {
                     "Entry block cannot be the target of a jump"
                 );
                 assert_eq!(
-                    condition_type,
+                    *condition_type,
                     Type::bool(),
                     "JmpIf conditions should have boolean type"
                 );
@@ -1044,7 +1079,7 @@ impl<'f> Validator<'f> {
                     block_parameters.len(),
                     "Number of arguments in jmp must match number of block parameters"
                 );
-                for (argument, parameter) in arguments.iter().zip(block_parameters) {
+                for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
                     let parameter_type = self.function.dfg.type_of_value(*parameter);
                     assert_eq!(
@@ -1088,6 +1123,15 @@ impl<'f> Validator<'f> {
 pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     let mut validator = Validator::new(function, ssa);
     validator.run();
+}
+
+/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
+/// A mutable reference is compatible with an immutable reference parameter.
+fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
+    matches!(
+        (arg, param),
+        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
+    )
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1783,19 +1827,21 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
+        expected = "Trying to pass a nested reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v2: &mut &mut u32"
     )]
-    fn disallows_passing_refs_from_acir_to_brillig() {
+    fn disallows_passing_nested_refs_from_acir_to_brillig() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
             store v0 at v1
-            call f1(v1)
+            v2 = allocate -> &mut &mut u32
+            store v1 at v2
+            call f1(v2)
             return
         }
         brillig(inline) fn foo f1 {
-          b0(v0: &mut u32):
+          b0(v0: &mut &mut u32):
             return
         }
         ";
@@ -2015,6 +2061,56 @@ mod tests {
         let ssa = builder.finish();
 
         Validator::new(&ssa.functions[&main_id], &ssa).run();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow. Use Field arithmetic with an explicit 2^bit_size addition before the Sub to prevent integer underflow, then Truncate the Field result."
+    )]
+    fn signed_unchecked_sub_before_truncate_is_rejected() {
+        // An unchecked Sub on signed types whose result feeds a Truncate may underflow:
+        // lhs - rhs wraps to near `p` in the field, making the Truncate output wrong.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn unsigned_unchecked_sub_before_truncate_is_allowed() {
+        // An unchecked Sub on unsigned types feeding a Truncate is fine:
+        // checked_to_unchecked only marks a sub as unchecked when underflow
+        // is proven impossible, so the truncation is safe.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn field_unchecked_sub_before_truncate_is_allowed() {
+        // A Sub on Field type feeding a Truncate is fine: Field arithmetic handles the
+        // wrap-around, and the caller must ensure the value fits in `max_bit_size` bits
+        // (e.g. by adding 2^bit_size to the lhs before subtracting).
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]

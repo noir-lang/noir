@@ -207,8 +207,7 @@ impl Formatter<'_> {
     pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
         for word in comment.split_inclusive([' ', '\n', '\t']) {
-            if self.current_line_width() + word.trim().chars().count() >= self.config.comment_width
-            {
+            if self.current_line_width() + word.trim().chars().count() > self.config.comment_width {
                 self.start_new_line();
                 if !prefix.is_empty() {
                     self.write(prefix);
@@ -242,7 +241,7 @@ impl Formatter<'_> {
 
             for word in line.split_inclusive([' ', '\n', '\t']) {
                 if self.current_line_width() + word.trim().chars().count()
-                    >= self.config.comment_width
+                    > self.config.comment_width
                 {
                     self.start_new_line();
                     if all_stars {
@@ -258,7 +257,7 @@ impl Formatter<'_> {
             self.start_new_line();
         }
 
-        if self.current_line_width() + 2 >= self.config.comment_width {
+        if self.current_line_width() + 2 > self.config.comment_width {
             self.start_new_line();
         }
 
@@ -988,9 +987,9 @@ global x: Field = 1;
         }
         ";
         let expected = "mod moo {
-    // This is a long
-    // comment that's going
-    // to be wrapped.
+    // This is a long comment
+    // that's going to be
+    // wrapped.
     global x: Field = 1;
 }
 ";
@@ -1017,9 +1016,9 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    // This is a long
-    // comment that's going
-    // to be wrapped.
+    // This is a long comment
+    // that's going to be
+    // wrapped.
     let x = 1;
 }
 ";
@@ -1109,8 +1108,8 @@ This is a long comment that's going to be wrapped.
 global x: Field = 1;
         ";
         let expected = "/*
-This is a long comment
-that's going to be wrapped.
+This is a long comment that's
+going to be wrapped.
 */
 global x: Field = 1;
 ";
@@ -1127,10 +1126,10 @@ This is a long comment that's wrapped.
 global x: Field = 1;
         ";
         let expected = "/*
-This is a long comment
-that's wrapped.
-This is a long comment
-that's wrapped.
+This is a long comment that's
+wrapped.
+This is a long comment that's
+wrapped.
 */
 global x: Field = 1;
 ";
@@ -1165,9 +1164,9 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    /* This is a long
-    comment that's going to
-    be wrapped. */
+    /* This is a long comment
+    that's going to be
+    wrapped. */
     let x = 1;
 }
 ";
@@ -1187,19 +1186,19 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    /* This is a long
-    comment that's going to
-    be wrapped.
+    /* This is a long comment
+    that's going to be
+    wrapped.
     This is a long comment
     that's going to be
     wrapped.
     */
-    // This is a long
-    // comment that's going
-    // to be wrapped.
-    /* This is a long
-    comment that's going to
-    be wrapped. */
+    // This is a long comment
+    // that's going to be
+    // wrapped.
+    /* This is a long comment
+    that's going to be
+    wrapped. */
     let x = 1;
 }
 ";
@@ -1220,6 +1219,14 @@ global x: Field = 1;
 }
 ";
         assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_line_comment_when_at_max() {
+        let src = "// One two three
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 16);
     }
 
     #[test]

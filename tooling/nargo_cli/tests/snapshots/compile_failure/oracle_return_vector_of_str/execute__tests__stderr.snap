@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
+   ┌─ src/main.nr:15:36
+   │
+15 │ unconstrained fn byte_vec_vec() -> [[u8]] {}
+   │                                    ------ Try to use a constant sized array or BoundedVec instead
+   │
+
+error: Oracle functions cannot return vectors containing nested arrays
+  ┌─ src/main.nr:3:18
+  │
+3 │ unconstrained fn byte_array_vec() -> [[u8; 2]] {}
+  │                  -------------- Vectors with nested arrays are not yet supported for foreign call returns
+  │
+
+error: Oracle functions cannot return vectors containing nested arrays
+  ┌─ src/main.nr:7:18
+  │
+7 │ unconstrained fn byte_array_vec_in_tuple() -> (u32, [[u8; 2]], bool) {}
+  │                  ----------------------- Vectors with nested arrays are not yet supported for foreign call returns
+  │
+
+error: Oracle functions cannot return vectors containing nested arrays
+   ┌─ src/main.nr:11:18
+   │
+11 │ unconstrained fn str_vec() -> [str<2>] {}
+   │                  ------- Vectors with nested arrays are not yet supported for foreign call returns
+   │
+
+error: Oracle functions cannot return multiple vectors
+   ┌─ src/main.nr:15:18
+   │
+15 │ unconstrained fn byte_vec_vec() -> [[u8]] {}
+   │                  ------------
+   │
+
+error: Oracle functions cannot return vectors containing nested arrays
+   ┌─ src/main.nr:15:18
+   │
+15 │ unconstrained fn byte_vec_vec() -> [[u8]] {}
+   │                  ------------ Vectors with nested arrays are not yet supported for foreign call returns
+   │
+
+Aborting due to 6 previous errors

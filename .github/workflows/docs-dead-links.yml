@@ -5,6 +5,8 @@ on:
     # Run a check at 9 AM UTC
     - cron: "0 9 * * *"
 
+permissions: {}
+
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -18,8 +20,8 @@ jobs:
       contents: read
       issues: write
     steps:
-    - uses: actions/checkout@master
-    - uses: gaurav-nelson/github-action-markdown-link-check@v1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+    - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
       with:
         use-quiet-mode: 'yes'
         config-file: ./docs/link-check.config.json
@@ -27,7 +29,7 @@ jobs:
 
     # Raise an issue if the previous step failed due to dead links being found
     - name: Alert on dead links
-      uses: JasonEtco/create-an-issue@v2
+      uses: JasonEtco/create-an-issue@1b14a70e4d8dc185e5cc76d3bec9eab20257b2c5 # v2
       if: ${{ failure() }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

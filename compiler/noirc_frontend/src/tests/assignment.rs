@@ -168,7 +168,7 @@ fn nested_array_index_side_effect_ordering() {
 
         fn main() {
             let mut counter = 0;
-            let mut arr = [[[0; 2]; 2]; 2];
+            let mut arr = [[[0; 3]; 3]; 3];
 
             arr[inc(&mut counter)][inc(&mut counter)][inc(&mut counter)] = 42;
 
@@ -187,7 +187,7 @@ fn nested_array_index_side_effect_ordering() {
 
     fn main() {
         let mut counter: Field = 0_Field;
-        let mut arr: [[[Field; 2]; 2]; 2] = [[[0_Field; 2]; 2]; 2];
+        let mut arr: [[[Field; 3]; 3]; 3] = [[[0_Field; 3]; 3]; 3];
         {
             let i_0: u32 = inc(&mut counter);
             let i_1: u32 = inc(&mut counter);

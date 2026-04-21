@@ -37,43 +37,93 @@ After declaring a Field, you can use these common methods on it:
 
 Transforms the field into an array of bits, Little Endian.
 
-#include_code to_le_bits noir_stdlib/src/field/mod.nr rust
+```rust title="to_le_bits" showLineNumbers 
+pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L29-L31</a></sub></sup>
+
 
 example:
 
-#include_code to_le_bits_example noir_stdlib/src/field/mod.nr rust
+```rust title="to_le_bits_example" showLineNumbers 
+fn test_to_le_bits() {
+        let field = 2;
+        let bits: [u1; 8] = field.to_le_bits();
+        assert_eq(bits, [0, 1, 0, 0, 0, 0, 0, 0]);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L356-L362" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L356-L362</a></sub></sup>
+
 
 
 ### to_be_bits
 
 Transforms the field into an array of bits, Big Endian.
 
-#include_code to_be_bits noir_stdlib/src/field/mod.nr rust
+```rust title="to_be_bits" showLineNumbers 
+pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L61-L63" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L61-L63</a></sub></sup>
+
 
 example:
 
-#include_code to_be_bits_example noir_stdlib/src/field/mod.nr rust
+```rust title="to_be_bits_example" showLineNumbers 
+fn test_to_be_bits() {
+        let field = 2;
+        let bits: [u1; 8] = field.to_be_bits();
+        assert_eq(bits, [0, 0, 0, 0, 0, 0, 1, 0]);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L347-L353" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L347-L353</a></sub></sup>
+
 
 
 ### to_le_bytes
 
 Transforms into an array of bytes, Little Endian
 
-#include_code to_le_bytes noir_stdlib/src/field/mod.nr rust
+```rust title="to_le_bytes" showLineNumbers 
+pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L93-L95" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L93-L95</a></sub></sup>
+
 
 example:
 
-#include_code to_le_bytes_example noir_stdlib/src/field/mod.nr rust
+```rust title="to_le_bytes_example" showLineNumbers 
+fn test_to_le_bytes() {
+        let field = 2;
+        let bytes: [u8; 8] = field.to_le_bytes();
+        assert_eq(bytes, [2, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq(Field::from_le_bytes::<8>(bytes), field);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L375-L382" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L375-L382</a></sub></sup>
+
 
 ### to_be_bytes
 
 Transforms into an array of bytes, Big Endian
 
-#include_code to_be_bytes noir_stdlib/src/field/mod.nr rust
+```rust title="to_be_bytes" showLineNumbers 
+pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L130-L132" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L130-L132</a></sub></sup>
+
 
 example:
 
-#include_code to_be_bytes_example noir_stdlib/src/field/mod.nr rust
+```rust title="to_be_bytes_example" showLineNumbers 
+fn test_to_be_bytes() {
+        let field = 2;
+        let bytes: [u8; 8] = field.to_be_bytes();
+        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq(Field::from_be_bytes::<8>(bytes), field);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L365-L372" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L365-L372</a></sub></sup>
+
 
 ### pow_32
 
@@ -97,7 +147,11 @@ fn main() {
 
 Adds a constraint to specify that the field can be represented with `bit_size` number of bits
 
-#include_code assert_max_bit_size noir_stdlib/src/field/mod.nr rust
+```rust title="assert_max_bit_size" showLineNumbers 
+pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/field/mod.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L10-L12</a></sub></sup>
+
 
 example:
 

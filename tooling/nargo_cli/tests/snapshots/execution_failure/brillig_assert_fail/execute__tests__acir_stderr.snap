@@ -9,7 +9,8 @@ bug: Input to Brillig function is in a separate subgraph to output
   │                          ------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
   │
   = Call stack:
-    1. src/main.nr:6:26
+    1: main
+            at src/main.nr:6:26
 
 error: Failed to solve program: 'Failed to solve brillig function'
    ┌─ src/main.nr:10:12
@@ -18,7 +19,9 @@ error: Failed to solve program: 'Failed to solve brillig function'
    │            -
    │
    = Call stack:
-     1. src/main.nr:6:26
-     2. src/main.nr:10:12
+     1: main
+             at src/main.nr:6:26
+     2: conditional
+             at src/main.nr:10:12
 
 Failed to solve program: 'Failed to solve brillig function'

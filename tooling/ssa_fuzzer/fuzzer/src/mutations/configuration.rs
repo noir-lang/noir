@@ -1,5 +1,5 @@
 //! This file contains configurations for selecting particular behaviors during mutations
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) const MAX_NUMBER_OF_MUTATIONS: usize = 25;
 pub(crate) const SIZE_OF_SMALL_ARBITRARY_BUFFER: usize = 25;
@@ -44,9 +44,9 @@ pub(crate) enum FuzzerDataMutationOptions {
 pub(crate) type FuzzerDataMutationConfig = WeightedSelectionConfig<FuzzerDataMutationOptions, 3>;
 pub(crate) const BASIC_FUZZER_DATA_MUTATION_CONFIGURATION: FuzzerDataMutationConfig =
     FuzzerDataMutationConfig::new([
-        (FuzzerDataMutationOptions::Functions, 1),
-        (FuzzerDataMutationOptions::InstructionBlocks, 1),
-        (FuzzerDataMutationOptions::Witnesses, 4),
+        (FuzzerDataMutationOptions::Functions, 15),
+        (FuzzerDataMutationOptions::InstructionBlocks, 30),
+        (FuzzerDataMutationOptions::Witnesses, 1),
     ]);
 
 /// Mutations config for function mutations
@@ -61,8 +61,8 @@ pub(crate) enum FunctionMutationOptions {
 pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 4>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
     (FunctionMutationOptions::ReturnBlockIdx, 1),
-    (FunctionMutationOptions::FunctionFuzzerCommands, 1),
-    (FunctionMutationOptions::ReturnType, 1),
+    (FunctionMutationOptions::FunctionFuzzerCommands, 15),
+    (FunctionMutationOptions::ReturnType, 8),
     (FunctionMutationOptions::InputTypes, 1),
 ]);
 
@@ -164,10 +164,10 @@ pub(crate) enum VecMutationOptions {
 pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 5>;
 
 pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutationConfig::new([
-    (VecMutationOptions::Insertion, 7),
-    (VecMutationOptions::Deletion, 22),
-    (VecMutationOptions::Swap, 20),
-    (VecMutationOptions::ElementMutation, 100),
+    (VecMutationOptions::Insertion, 30),
+    (VecMutationOptions::Deletion, 12),
+    (VecMutationOptions::Swap, 10),
+    (VecMutationOptions::ElementMutation, 50),
     (VecMutationOptions::PushDefault, 15),
 ]);
 pub(crate) const ARRAY_WITNESS_MUTATION_CONFIGURATION: VecMutationConfig =
@@ -554,6 +554,7 @@ pub(crate) enum GenerateInstruction {
     Blake2sHash,
     Blake3Hash,
     Keccakf1600Hash,
+    Poseidon2Permutation,
     Aes128Encrypt,
     Sha256Compression,
     PointAdd,
@@ -561,7 +562,7 @@ pub(crate) enum GenerateInstruction {
     EcdsaSecp256r1,
     EcdsaSecp256k1,
 }
-pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 34>;
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 35>;
 pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
     GenerateInstructionConfig::new([
         (GenerateInstruction::AddChecked, 100),
@@ -593,6 +594,7 @@ pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionCo
         (GenerateInstruction::Blake2sHash, 5),
         (GenerateInstruction::Blake3Hash, 5),
         (GenerateInstruction::Keccakf1600Hash, 5),
+        (GenerateInstruction::Poseidon2Permutation, 5),
         (GenerateInstruction::Aes128Encrypt, 5),
         (GenerateInstruction::Sha256Compression, 5),
         (GenerateInstruction::PointAdd, 5),

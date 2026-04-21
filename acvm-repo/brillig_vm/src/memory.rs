@@ -109,7 +109,11 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
-            IntegerBitSize::U1 => MemoryValue::U1(value != 0),
+            IntegerBitSize::U1 => MemoryValue::U1(match value {
+                0 => false,
+                1 => true,
+                _ => panic!("{value} is out of 1 bit range"),
+            }),
             IntegerBitSize::U8 => {
                 MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
             }
@@ -379,29 +383,39 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
 /// - On 32-bit: Hard limit of ~44 million addressable slots
 ///
 /// Exceeding these limits will cause a panic with "capacity overflow".
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Memory<F> {
     // Internal memory representation
     inner: Vec<MemoryValue<F>>,
+    /// Cached stack pointer to avoid a memory read + enum match on every
+    /// relative address resolution.
+    ///
+    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+    /// and must remain there for downstream ZK VM proving. We mirror it here
+    /// because [Self::resolve] is called on every memory access
+    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+    /// which are more rare than reads.
+    stack_pointer: u32,
+}
+
+impl<F> Default for Memory<F> {
+    fn default() -> Self {
+        Self { inner: Vec::new(), stack_pointer: STACK_POINTER_ADDRESS.to_u32() }
+    }
 }
 
 impl<F: AcirField> Memory<F> {
-    /// Read the value from slot 0.
-    ///
-    /// Panics if it's not a `U32`.
-    fn get_stack_pointer(&self) -> u32 {
-        self.read(STACK_POINTER_ADDRESS).to_u32()
-    }
-
     /// Resolve an address to either:
     /// * itself, if it's a direct address, or
-    /// * the current stack pointer plus the offset, if it's relative.
+    /// * the cached stack pointer plus the offset, if it's relative.
     ///
     /// Returns a memory slot index.
     fn resolve(&self, address: MemoryAddress) -> u32 {
         match address {
             MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Relative(offset) => {
+                self.stack_pointer.checked_add(offset).expect("stack pointer offset overflow")
+            }
         }
     }
 
@@ -416,7 +430,21 @@ impl<F: AcirField> Memory<F> {
     /// Reads the value at the address and returns it as a direct memory address,
     /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
-        MemoryAddress::direct(self.read(ptr).to_u32())
+        let resolved = assert_usize(self.resolve(ptr));
+        if resolved >= self.inner.len() {
+            panic!(
+                "read_ref: address {ptr:?} (resolved to {resolved}) is out of bounds (memory size: {})",
+                self.inner.len()
+            );
+        }
+        let value = self.inner[resolved];
+        let MemoryValue::U32(addr) = value else {
+            panic!(
+                "read_ref: expected a U32 pointer at address {ptr:?}, but found {value} ({})",
+                value.bit_size()
+            );
+        };
+        MemoryAddress::direct(addr)
     }
 
     /// Sets `ptr` to point at `address`.
@@ -435,7 +463,14 @@ impl<F: AcirField> Memory<F> {
             return &[];
         }
         let resolved_addr = assert_usize(self.resolve(address));
-        &self.inner[resolved_addr..(resolved_addr + len)]
+        let end = resolved_addr.checked_add(len).expect("read_slice: address + len overflows");
+        assert!(
+            end <= self.inner.len(),
+            "read_slice: out of bounds — reading {len} elements from address {resolved_addr} \
+             exceeds memory size {}. Callers should validate sizes before calling read_slice.",
+            self.inner.len()
+        );
+        &self.inner[resolved_addr..end]
     }
 
     /// Sets the value at `address` to `value`
@@ -443,6 +478,11 @@ impl<F: AcirField> Memory<F> {
         let resolved_addr = assert_usize(self.resolve(address));
         self.resize_to_fit(resolved_addr + 1);
         self.inner[resolved_addr] = value;
+        if address == STACK_POINTER_ADDRESS
+            && let MemoryValue::U32(sp) = value
+        {
+            self.stack_pointer = sp;
+        }
     }
 
     /// Maximum number of memory slots that can be allocated.
@@ -478,6 +518,16 @@ impl<F: AcirField> Memory<F> {
         let end_addr = resolved_addr + values.len();
         self.resize_to_fit(end_addr);
         self.inner[resolved_addr..end_addr].copy_from_slice(values);
+        if address == STACK_POINTER_ADDRESS
+            && let Some(MemoryValue::U32(sp)) = values.first()
+        {
+            self.stack_pointer = *sp;
+        }
+    }
+
+    /// Returns the number of memory slots currently allocated.
+    pub(crate) fn len(&self) -> usize {
+        self.inner.len()
     }
 
     /// Returns the values of the memory
@@ -490,6 +540,7 @@ impl<F: AcirField> Memory<F> {
 mod tests {
     use super::*;
     use acir::FieldElement;
+    use test_case::test_case;
 
     #[test]
     fn direct_write_and_read() {
@@ -620,7 +671,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
+    #[should_panic(expected = "read_slice: out of bounds")]
     fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);
@@ -632,5 +683,24 @@ mod tests {
         let mut memory = Memory::<FieldElement>::default();
         // Attempting to resize beyond i32::MAX should panic
         memory.resize_to_fit(Memory::<FieldElement>::MAX_MEMORY_SIZE + 1);
+    }
+
+    #[test_case(IntegerBitSize::U1, 2)]
+    #[test_case(IntegerBitSize::U8, 256)]
+    #[test_case(IntegerBitSize::U16, u128::from(u16::MAX) + 1)]
+    #[test_case(IntegerBitSize::U32, u128::from(u32::MAX) + 1)]
+    #[test_case(IntegerBitSize::U64, u128::from(u64::MAX) + 1)]
+    #[should_panic(expected = "range")]
+    fn memory_value_new_integer_out_of_range(bit_size: IntegerBitSize, value: u128) {
+        let _ = MemoryValue::<FieldElement>::new_integer(value, bit_size);
+    }
+
+    #[test]
+    #[should_panic = "stack pointer offset overflow"]
+    fn memory_resolve_overflow() {
+        let mut memory = Memory::<FieldElement>::default();
+        memory.write(STACK_POINTER_ADDRESS, MemoryValue::from(u32::MAX - 10));
+        let addr = MemoryAddress::relative(20);
+        let _wrap = memory.resolve(addr);
     }
 }

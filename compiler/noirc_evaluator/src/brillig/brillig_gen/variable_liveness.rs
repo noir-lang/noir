@@ -19,7 +19,7 @@ use crate::ssa::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::constant_allocation::ConstantAllocation;
+use super::constant_allocation::{ConstantAllocation, InstructionLocation};
 
 /// A set of [ValueId]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
@@ -68,6 +68,18 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
+/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+fn variables_returned_by_instruction(
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+) -> Variables {
+    dfg.instruction_results(instruction_id)
+        .iter()
+        .copied()
+        .filter(|result_id| is_variable(*result_id, dfg))
+        .collect()
+}
+
 /// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
@@ -82,7 +94,7 @@ fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables
         .collect();
 
     // We consider block parameters used, so they live up to the block that owns them.
-    used.extend(block.parameters().iter());
+    used.extend(block.parameters());
 
     if let Some(terminator) = block.terminator() {
         terminator.for_each_value(|value_id| {
@@ -123,24 +135,17 @@ impl VariableLiveness {
         let back_edges: LoopMap = loops
             .yet_to_unroll
             .into_iter()
-            .map(|_loop| {
-                let back_edge = BackEdge { header: _loop.header, start: _loop.back_edge_start };
-                let loop_body = _loop.blocks;
-                (back_edge, loop_body)
+            .map(|loop_| {
+                let back_edge = BackEdge { header: loop_.header, start: loop_.back_edge_start };
+                (back_edge, loop_.blocks)
             })
             .collect();
 
-        Self {
-            cfg: loops.cfg,
-            live_in: HashMap::default(),
-            last_uses: HashMap::default(),
-            param_definitions: HashMap::default(),
-            max_live_count: 0,
-        }
-        .compute_block_param_definitions(func, &loops.dom)
-        .compute_live_in_of_blocks(func, constants, back_edges)
-        .compute_last_uses(func)
-        .compute_max_live_count(func)
+        Self { cfg: loops.cfg, ..Default::default() }
+            .compute_block_param_definitions(func, &loops.dom)
+            .compute_live_in_of_blocks(func, constants, back_edges)
+            .compute_last_uses(func)
+            .compute_max_live_count(func, constants)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -369,9 +374,9 @@ impl VariableLiveness {
             let live_out = self.get_live_out(&block_id);
 
             // Variables we have already visited, ie. they are used in "later" instructions or the terminator.
-            let mut used_after: Variables = Default::default();
+            let mut used_after = Variables::default();
             // Variables becoming dead after each instruction.
-            let mut block_last_uses: LastUses = Default::default();
+            let mut block_last_uses = LastUses::default();
 
             // First, handle the terminator; none of the instructions should cause these to go dead.
             if let Some(terminator_instruction) = block.terminator() {
@@ -386,12 +391,27 @@ impl VariableLiveness {
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
-                let instruction_last_uses = variables_used_in_instruction(instruction, &func.dfg)
-                    .into_iter()
-                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                    .collect();
-                // Remember that we have already handled these.
+                let mut instruction_last_uses: HashSet<ValueId> =
+                    variables_used_in_instruction(instruction, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                        .collect();
+
+                // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
+
+                // Check results as well: if they are not used by anything after,
+                // they can be deallocated. DIE should remove these, but in isolated
+                // unit tests they can be expected to be removed.
+                let unused_instruction_results =
+                    variables_returned_by_instruction(*instruction_id, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id));
+
+                // We can immediately free unused results.
+                // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
+                instruction_last_uses.extend(unused_instruction_results);
+
                 // Remember that we can deallocate these after this instruction.
                 block_last_uses.insert(*instruction_id, instruction_last_uses);
             }
@@ -404,47 +424,65 @@ impl VariableLiveness {
 
     /// Compute [VariableLiveness::max_live_count].
     ///
-    /// Walk each block instruction-by-instruction, tracking how many variables are
-    /// simultaneously alive: start with `live_in`, add variables defined by each
-    /// instruction (including block param definitions), and subtract dead variables
-    /// from `last_uses`. Record the highest count across all blocks.
+    /// Walk each block instruction-by-instruction, tracking the set of variables
+    /// simultaneously alive: start with `live_in` plus block param definitions,
+    /// materialize constants at their allocation points, add instruction results,
+    /// and remove dead variables from `last_uses`. Record the highest count.
     ///
-    /// For `MakeArray` instructions, also account for the element count: during Brillig
-    /// codegen, each unique element value is materialized as a separate register, which
-    /// can far exceed the SSA-level variable count.
-    fn compute_max_live_count(mut self, func: &Function) -> Self {
+    /// # Safety
+    /// This is a rough estimate. Until we have solidified an exact live count we expect consumers
+    /// of the max live count to have some extra margin to account for potentially temporary allocated registers.
+    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+    fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
-            let live_in = self.get_live_in(&block_id);
             let last_uses = self.get_last_uses(&block_id);
 
-            // Start with the live-in set plus variables defined at block entry
-            // (block param definitions are allocated before the first instruction).
-            let param_defs = self.defined_block_params(&block_id);
-            let mut current_count = live_in.len() + param_defs.len();
-            max_count = max_count.max(current_count);
+            let mut live_set: HashSet<ValueId> =
+                self.get_live_in(&block_id).iter().copied().collect();
+            live_set.extend(self.defined_block_params(&block_id));
+            max_count = max_count.max(live_set.len());
 
             for instruction_id in block.instructions() {
-                let instruction = &func.dfg[*instruction_id];
+                // Materialize constants allocated at this instruction location.
+                if let Some(new_consts) = constants.allocated_at_location(
+                    block_id,
+                    InstructionLocation::Instruction(*instruction_id),
+                ) {
+                    live_set.extend(new_consts.iter().copied());
+                    max_count = max_count.max(live_set.len());
+                }
 
-                // MakeArray materializes each element as a register during Brillig codegen.
-                // Count the number of unique element values to estimate register pressure.
+                // MakeArray materializes each unique element as a register during
+                // Brillig codegen. Include them in the live set so the peak accounts
+                // for non-constant element values as well.
+                let instruction = &func.dfg[*instruction_id];
                 if let Instruction::MakeArray { elements, .. } = instruction {
-                    let unique_elements: HashSet<_> = elements.iter().copied().collect();
-                    max_count = max_count.max(current_count + unique_elements.len());
+                    live_set.extend(elements.iter().copied());
+                    max_count = max_count.max(live_set.len());
                 }
 
                 // Add results defined by this instruction.
                 let results = func.dfg.instruction_results(*instruction_id);
-                current_count += results.len();
-                max_count = max_count.max(current_count);
+                live_set.extend(results.iter().copied());
+                max_count = max_count.max(live_set.len());
 
                 // Subtract variables that die after this instruction.
                 if let Some(dead) = last_uses.get(instruction_id) {
-                    current_count = current_count.saturating_sub(dead.len());
+                    for d in dead {
+                        live_set.remove(d);
+                    }
                 }
+            }
+
+            // Handle constants allocated at the terminator.
+            if let Some(new_consts) =
+                constants.allocated_at_location(block_id, InstructionLocation::Terminator)
+            {
+                live_set.extend(new_consts.iter().copied());
+                max_count = max_count.max(live_set.len());
             }
         }
 
@@ -852,11 +890,10 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 10
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = sp[4]
-        4: return
+        0: sp[3] = const field 10
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = sp[4]
+        3: return
         ");
     }
 
@@ -886,15 +923,42 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 1
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = const field 2
-        4: sp[3] = field add sp[4], sp[2]
-        5: sp[2] = const field 3
-        6: sp[4] = field add sp[3], sp[2]
-        7: sp[2] = sp[4]
-        8: return
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = const field 2
+        3: sp[3] = field add sp[4], sp[2]
+        4: sp[2] = const field 3
+        5: sp[4] = field add sp[3], sp[2]
+        6: sp[2] = sp[4]
+        7: return
+        ");
+    }
+
+    #[test]
+    fn test_never_use_deallocation() {
+        // When an instruction result is never used, its register can be reused ASAP.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v0, Field 2
+            v3 = add v0, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 2
+        3: sp[4] = field add sp[2], sp[3]
+        4: sp[3] = const field 3
+        5: sp[4] = field add sp[2], sp[3]
+        6: sp[2] = sp[4]
+        7: return
         ");
     }
 
@@ -930,22 +994,21 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const u32 0
-         2: sp[5] = const u32 1
-         3: sp[3] = sp[4]
-         4: jump to 0 // -> 5: f0/b1
-         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-         6: jump if sp[4] to 0 // -> 10: f0/b2
-         7: jump to 0 // -> 8: f0/b3
-         8: sp[2] = sp[3] // f0/b3
-         9: return
-        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
-        11: sp[6] = u32 lt_eq sp[3], sp[4]
-        12: jump if sp[6] to 0 // -> 14: f0/b2/1
-        13: call 0 // -> ErrorWithString
-        14: sp[3] = sp[4] // f0/b2/1
-        15: jump to 0 // -> 5: f0/b1
+         0: sp[4] = const u32 0
+         1: sp[5] = const u32 1
+         2: sp[3] = sp[4]
+         3: jump to 0 // -> 4: f0/b1
+         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         5: jump if sp[4] to 0 // -> 9: f0/b2
+         6: jump to 0 // -> 7: f0/b3
+         7: sp[2] = sp[3] // f0/b3
+         8: return
+         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+        10: sp[6] = u32 lt_eq sp[3], sp[4]
+        11: jump if sp[6] to 0 // -> 13: f0/b2/1
+        12: call 0 // -> ErrorWithString
+        13: sp[3] = sp[4] // f0/b2/1
+        14: jump to 0 // -> 4: f0/b1
         ");
     }
 
@@ -980,17 +1043,16 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 42
-         2: jump if sp[2] to 0 // -> 6: f0/b1
-         3: jump to 0 // -> 4: f0/b2
-         4: sp[3] = sp[4] // f0/b2
-         5: jump to 0 // -> 9: f0/b3
-         6: sp[2] = const field 27 // f0/b1
-         7: sp[3] = field add sp[2], sp[4]
-         8: jump to 0 // -> 9: f0/b3
-         9: sp[2] = sp[3] // f0/b3
-        10: return
+         0: sp[4] = const field 42
+         1: jump if sp[2] to 0 // -> 5: f0/b1
+         2: jump to 0 // -> 3: f0/b2
+         3: sp[3] = sp[4] // f0/b2
+         4: jump to 0 // -> 8: f0/b3
+         5: sp[2] = const field 27 // f0/b1
+         6: sp[3] = field add sp[2], sp[4]
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
+         9: return
         ");
     }
 
@@ -1020,14 +1082,43 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 100
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[3] = const field 200
-        4: sp[5] = field mul sp[2], sp[3]
-        5: sp[2] = field add sp[4], sp[5]
-        6: return
+        0: sp[3] = const field 100
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 200
+        3: sp[5] = field mul sp[2], sp[3]
+        4: sp[2] = field add sp[4], sp[5]
+        5: return
         ");
+    }
+
+    #[test]
+    fn max_live_count_includes_constants_outside_make_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // The constant `Field 1` should be allocated in b0.
+        let allocated_in_entry = constants.allocated_in_block(func.entry_block());
+        assert!(
+            !allocated_in_entry.is_empty(),
+            "expected Field 1 to be allocated in the entry block, but nothing was"
+        );
+
+        // The true peak is 3 registers: v0 + Field 1 + v1 must coexist during the add.
+        // If we did not account for constants, we would incorrectly report 2.
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected max_live_count >= 3 (v0 + Field 1 + v1 live during the add), got {}",
+            liveness.max_live_count
+        );
     }
 
     #[test]
@@ -1058,16 +1149,40 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 1
-         2: sp[5] = field add sp[2], sp[4]
-         3: sp[2] = const field 2
-         4: sp[4] = field add sp[5], sp[2]
-         5: sp[2] = const field 3
-         6: sp[3] = field mul sp[4], sp[2]
-         7: jump to 0 // -> 8: f0/b1
-         8: sp[2] = sp[3] // f0/b1
-         9: return
+        0: sp[4] = const field 1
+        1: sp[5] = field add sp[2], sp[4]
+        2: sp[2] = const field 2
+        3: sp[4] = field add sp[5], sp[2]
+        4: sp[2] = const field 3
+        5: sp[3] = field mul sp[4], sp[2]
+        6: jump to 0 // -> 7: f0/b1
+        7: sp[2] = sp[3] // f0/b1
+        8: return
         ");
+    }
+
+    #[test]
+    fn make_array_peak_includes_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = make_array [v0, v1, v2] : [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+        // The elements are already in the live set as block params, but
+        // the result register is allocated simultaneously during codegen.
+        assert_eq!(
+            liveness.max_live_count, 4,
+            "MakeArray peak must include the result register: \
+             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count
+        );
     }
 }

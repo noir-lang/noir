@@ -87,11 +87,9 @@ impl VariableContext {
     fn new(func: &Function) -> Self {
         let (next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
 
-        let locals = ScopeStack::from_variables(
-            func.parameters
-                .iter()
-                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
-        );
+        let locals = ScopeStack::from_variables(func.parameters.iter().map(
+            |(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.as_ref().clone()),
+        ));
 
         Self { next_local_id, next_ident_id, locals }
     }
@@ -296,19 +294,21 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
+    use std::rc::Rc;
+
     use crate::targets::orig_vs_morph::{
         VariableContext,
         helpers::{has_side_effect, reassign_ids},
     };
 
     use super::helpers::gen_expr;
-    use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
+        Type as HirType,
         ast::BinaryOpKind,
+        hir::comptime::Integer,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
-        signed_field::SignedField,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -390,7 +390,7 @@ mod rules {
     fn num_op(op: BinaryOpKind, rhs: u32) -> Rule {
         Rule::new(num_rule_matches, move |_u, _locals, expr| {
             let typ = expr.return_type().expect("only called on matching type").into_owned();
-            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, false, typ)));
+            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, typ)));
             Ok(())
         })
     }
@@ -433,24 +433,34 @@ mod rules {
                     unreachable!("generated a literal of the same type");
                 };
 
-                // Make them have the same sign, so they are on the same side of 0 and a single number
-                // can add up to them without overflow. (e.g. there is no x such that `i32::MIN + x == i32::MAX`)
-                if a.is_negative() && !b.is_negative() {
-                    *b = SignedField::negative(b.absolute_value());
-                } else if !a.is_negative() && b.is_negative() {
-                    *b = SignedField::positive(b.absolute_value() - FieldElement::one()); // -1 just to avoid the potential of going from e.g. i8 -128 to 128 where the maximum is 127.
-                }
+                let Type::Integer(sign, bits) = typ else {
+                    return Ok(());
+                };
+                let hir_type = HirType::Integer(*sign, *bits);
 
-                let (op, c) = if *a >= *b {
-                    (BinaryOpKind::Add, (*a - *b))
-                } else {
-                    (BinaryOpKind::Subtract, (*b - *a))
+                // Convert to Integer for correct signed/unsigned comparison.
+                // FieldElement ordering does not match signed integer ordering.
+                let Some(a_int) = Integer::try_from_type(*a, &hir_type) else {
+                    return Ok(());
+                };
+                let Some(b_int) = Integer::try_from_type(*b, &hir_type) else {
+                    return Ok(());
                 };
 
+                let (op, c) = if a_int >= b_int {
+                    (BinaryOpKind::Add, *a - *b)
+                } else {
+                    (BinaryOpKind::Subtract, *b - *a)
+                };
+
+                // Verify c fits in the type (modular subtraction can yield out-of-range values
+                // for signed integers, e.g. 100_i8 - (-28_i8) = 128 which overflows i8).
+                if Integer::try_from_type(c, &hir_type).is_none() {
+                    return Ok(());
+                }
+
                 let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), *loc));
-
                 *expr = expr::binary(b_expr, op, c_expr);
-
                 Ok(())
             },
         )
@@ -552,7 +562,7 @@ mod rules {
                         definition: Definition::Local(*id),
                         mutable: *mutable,
                         name: name.clone(),
-                        typ: typ.clone(),
+                        typ: Rc::new(typ.clone()),
                         id: vars.next_ident_id(),
                     })
                 };
@@ -621,7 +631,7 @@ mod rules {
 }
 
 mod helpers {
-    use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
+    use std::{cell::RefCell, collections::HashMap};
 
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{Config, expr, types};
@@ -720,7 +730,56 @@ mod helpers {
         // Choose a random operation.
         let op = u.choose_iter(ops)?;
 
-        let type_options = TYPES.get_or_init(|| {
+        // let type_options = TYPES.get_or_init(|| {
+        //     let mut types = vec![Type::Bool, Type::Field];
+
+        //     for sign in [Signedness::Signed, Signedness::Unsigned] {
+        //         for size in IntegerBitSize::iter() {
+        //             if sign.is_signed() && size.bit_size() == 1 {
+        //                 continue;
+        //             }
+        //             // Avoid negative literals; the frontend makes them difficult to work with in expressions
+        //             // where no type inference information is available.
+        //             if sign.is_signed() {
+        //                 continue;
+        //             }
+        //             // Avoid large integers; frontend doesn't like them.
+        //             if size.bit_size() > 32 {
+        //                 continue;
+        //             }
+        //             types.push(Type::Integer(sign, size));
+        //         }
+        //     }
+        //     types
+        // });
+
+        TYPES.with(|types| {
+            // Select input types that can produce the output we want.
+            let type_options = types
+                .iter()
+                .filter(|input| types::can_binary_op_return_from_input(&op, input, typ))
+                .collect::<Vec<_>>();
+            // Choose a type for the LHS and RHS.
+            let lhs_type = u.choose_iter(type_options)?;
+
+            // Generate expressions for LHS and RHS.
+            let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
+            let rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
+
+            let mut expr = expr::binary(lhs_expr, op, rhs_expr);
+
+            // If we have chosen e.g. u8 and need u32 we need to cast.
+            if !(lhs_type == typ || types::is_bool(typ) && op.is_comparator()) {
+                expr = expr::cast(expr, typ.clone());
+            }
+
+            Ok(Some(expr))
+        })
+    }
+
+    thread_local! {
+        /// Types we can consider using in this context.
+        static TYPES: Vec<Type> = {
             let mut types = vec![Type::Bool, Type::Field];
 
             for sign in [Signedness::Signed, Signedness::Unsigned] {
@@ -741,33 +800,8 @@ mod helpers {
                 }
             }
             types
-        });
-
-        // Select input types that can produce the output we want.
-        let type_options = type_options
-            .iter()
-            .filter(|input| types::can_binary_op_return_from_input(&op, input, typ))
-            .collect::<Vec<_>>();
-
-        // Choose a type for the LHS and RHS.
-        let lhs_type = u.choose_iter(type_options)?;
-
-        // Generate expressions for LHS and RHS.
-        let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
-        let rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
-
-        let mut expr = expr::binary(lhs_expr, op, rhs_expr);
-
-        // If we have chosen e.g. u8 and need u32 we need to cast.
-        if !(lhs_type == typ || types::is_bool(typ) && op.is_comparator()) {
-            expr = expr::cast(expr, typ.clone());
-        }
-
-        Ok(Some(expr))
+        };
     }
-
-    /// Types we can consider using in this context.
-    static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 
     /// Assign new IDs to variables and identifiers created in the expression.
     pub(super) fn reassign_ids(vars: &mut VariableContext, expr: &mut Expression) {

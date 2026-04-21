@@ -23,7 +23,7 @@ fn absorb_full_permutations<let NUM_ITEMS: u32, let MAX_PERMUTATIONS: u32>(
                 // This conditional array_set was not optimized well.
                 sponge.state[j] += sponge.cache[j];
             }
-            sponge.state = std::hash::poseidon2_permutation(sponge.state, 4);
+            sponge.state = std::hash::poseidon2_permutation(sponge.state);
             sponge.cache[0] = input[chunk_base_index + 2];
         }
     }

@@ -1,4 +1,5 @@
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::{CustomDiagnostic, Location};
 use thiserror::Error;
 
@@ -60,16 +61,13 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
-    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
-    StructDefinitionDeprecated { location: Location },
 }
 
 impl PathResolutionError {
     pub fn location(&self) -> Location {
         match self {
             PathResolutionError::NoSuper(location)
-            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. }
-            | PathResolutionError::StructDefinitionDeprecated { location } => *location,
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
@@ -141,14 +139,6 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                         traits.join(", ")
                     ),
                     ident.location(),
-                )
-            }
-            PathResolutionError::StructDefinitionDeprecated { location } => {
-                CustomDiagnostic::simple_warning(
-                    "`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"
-                        .to_string(),
-                    String::new(),
-                    *location,
                 )
             }
         }
@@ -383,7 +373,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
-            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
+            path.segments.iter().tuple_windows().enumerate()
         {
             let last_ident = &last_segment.ident;
             let current_ident = &current_segment.ident;

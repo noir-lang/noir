@@ -11,6 +11,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap};
+use itertools::Itertools;
 use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
@@ -302,7 +303,7 @@ impl Abi {
                 }
             }
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
-                for (value, typ) in vec_elements.into_iter().zip(fields) {
+                for (value, typ) in vec_elements.into_iter().zip_eq(fields) {
                     encoded_value.extend(Self::encode_value(value, typ)?);
                 }
             }
@@ -332,7 +333,7 @@ impl Abi {
                 })?;
                 pointer += num_fields;
 
-                decode_value(&mut param_witness_values.into_iter(), &typ)
+                decode_value(&mut param_witness_values.into_iter(), &typ, &name)
                     .map(|input_value| (name.clone(), input_value))
             })?;
 
@@ -350,7 +351,11 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
+                Some(decode_value(
+                    &mut return_witness_values.into_iter(),
+                    &return_type.abi_type,
+                    MAIN_RETURN_NAME,
+                )?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -368,20 +373,23 @@ impl Abi {
 pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     value_type: &AbiType,
+    name: &str,
 ) -> Result<InputValue, AbiError> {
     // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
     // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
     let value = match value_type {
         AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-            let field_element = field_iterator.next().unwrap();
+            let field_element =
+                field_iterator.next().ok_or_else(|| AbiError::MissingParam(name.to_string()))?;
 
             InputValue::Field(field_element)
         }
         AbiType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
-            for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ)?);
+            for i in 0..length {
+                let indexed_name = format!("{name}[{i}]");
+                array_elements.push(decode_value(field_iterator, typ, &indexed_name)?);
             }
 
             InputValue::Vec(array_elements)
@@ -395,7 +403,8 @@ pub fn decode_value(
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_value(field_iterator, param_type)?;
+                let struct_name = format!("{name}.{field_key}");
+                let field_value = decode_value(field_iterator, param_type, &struct_name)?;
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -404,8 +413,9 @@ pub fn decode_value(
         }
         AbiType::Tuple { fields } => {
             let mut tuple_elements = Vec::with_capacity(fields.len());
-            for field_typ in fields {
-                tuple_elements.push(decode_value(field_iterator, field_typ)?);
+            for (i, field_typ) in fields.iter().enumerate() {
+                let indexed_name = format!("{name}.{i}");
+                tuple_elements.push(decode_value(field_iterator, field_typ, &indexed_name)?);
             }
 
             InputValue::Vec(tuple_elements)

@@ -31,6 +31,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         source_array: BrilligArray,
         destination_array: BrilligArray,
     ) {
+        debug_assert_eq!(
+            source_array.size, destination_array.size,
+            "ICE: source and destination arrays in copy must have the same size, but got {} and {}",
+            source_array.size, destination_array.size
+        );
         let [
             source_array_pointer_arg,
             source_array_memory_size_arg,

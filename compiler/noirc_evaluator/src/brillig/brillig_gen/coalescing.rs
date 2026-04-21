@@ -5,6 +5,8 @@
 //! with a parameter, the instruction defining the argument writes directly to the
 //! parameter's register, eliminating the mov at the jmp site.
 
+use itertools::Itertools;
+
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     cfg::ControlFlowGraph,
@@ -15,6 +17,7 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use super::union_find::connected_components;
 use super::variable_liveness::VariableLiveness;
 
 /// Check if param-side coalescing is safe: the destination must have exactly
@@ -36,13 +39,13 @@ fn can_coalesce_param_side(
 ///   writes directly to the parameter's register.
 /// - Param-side (`param -> arg`): a block parameter reuses the register of an already-allocated
 ///   value (block param passthrough, cross-block instruction result).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
-    /// Reverse mapping: values that are targets of coalescing.
-    /// Maps a coalescing target back to all its sources (multiple values
-    /// can map to the same hub value).
-    coalesced_reverse: HashMap<ValueId, Vec<ValueId>>,
+    /// Maps each coalesced value to its connected component group ID.
+    groups: HashMap<ValueId, usize>,
+    /// All members of each connected component group.
+    group_members: Vec<Vec<ValueId>>,
 }
 
 impl CoalescingMap {
@@ -76,7 +79,7 @@ impl CoalescingMap {
             // two params of the same destination from reusing the same register.
             let mut param_side_targets = HashSet::default();
 
-            for (arg, param) in arguments.iter().zip(params.iter()) {
+            for (arg, param) in arguments.iter().zip_eq(params.iter()) {
                 if arg == param {
                     continue;
                 }
@@ -154,11 +157,9 @@ impl CoalescingMap {
             }
         }
 
-        let mut coalesced_reverse: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
-        for (k, v) in &coalesced {
-            coalesced_reverse.entry(*v).or_default().push(*k);
-        }
-        Self { coalesced, coalesced_reverse }
+        let (groups, group_members) = connected_components(&coalesced);
+
+        Self { coalesced, groups, group_members }
     }
 
     /// Forward-only lookup: if `value_id` is a coalesced arg, returns the param
@@ -177,38 +178,19 @@ impl CoalescingMap {
     /// Check whether any value sharing a register with `value_id` through
     /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
     ///
-    /// Multiple values can share a register through a "hub" pattern:
-    /// e.g., `v1 -> v_hub <- v3` means v1, v_hub, and v3 all share one register.
-    /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
-    /// is still alive before deallocating the register.
+    /// Coalescing can create transitive chains (e.g., `v1 -> v2 -> v3 -> v_root`)
+    /// where all values share the same register. This method checks ALL values
+    /// in the connected component, not just direct neighbors, to avoid premature
+    /// register deallocation.
     pub(crate) fn has_live_partner(
         &self,
         value_id: &ValueId,
         is_alive: impl Fn(&ValueId) -> bool,
     ) -> bool {
-        // Forward: check the hub this value maps to
-        if let Some(hub) = self.coalesced.get(value_id) {
-            if is_alive(hub) {
-                return true;
-            }
-            // Also check siblings: other values that map to the same hub
-            if let Some(siblings) = self.coalesced_reverse.get(hub) {
-                for sibling in siblings {
-                    if sibling != value_id && is_alive(sibling) {
-                        return true;
-                    }
-                }
-            }
-        }
-        // Reverse: this value is a hub — check all values that map to it
-        if let Some(sources) = self.coalesced_reverse.get(value_id) {
-            for source in sources {
-                if is_alive(source) {
-                    return true;
-                }
-            }
-        }
-        false
+        let Some(&group_id) = self.groups.get(value_id) else {
+            return false;
+        };
+        self.group_members[group_id].iter().any(|member| member != value_id && is_alive(member))
     }
 
     #[cfg(test)]

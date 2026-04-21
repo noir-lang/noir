@@ -114,8 +114,8 @@ array and the index.
 
 #include_code as_integer noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an integer literal, return the integer as a field
-as well as whether the integer is negative (true) or not (false).
+If this expression is an integer literal, return the integer as a field.
+Negative integers are encoded as the equivalent negative field value.
 
 ### as_lambda
 

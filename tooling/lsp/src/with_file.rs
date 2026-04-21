@@ -4,15 +4,15 @@ use noirc_errors::Location;
 use noirc_frontend::{
     ParsedModule,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
-        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
-        FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
-        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, ModuleDeclaration,
-        NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
-        TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Documented,
+        EnumVariant, Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange,
+        FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+        LoopStatement, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+        Param, Path, PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField,
+        TraitBound, TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
         UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -548,6 +548,10 @@ fn unresolved_type_expression_with_file(
                 location_with_file(location, file),
             )
         }
+        UnresolvedTypeExpression::Negation(rhs, location) => UnresolvedTypeExpression::Negation(
+            Box::new(unresolved_type_expression_with_file(*rhs, file)),
+            location_with_file(location, file),
+        ),
         UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
             UnresolvedTypeExpression::AsTraitPath(Box::new(as_trait_path_with_file(
                 *as_trait_path,
@@ -596,7 +600,7 @@ fn secondary_attribute_with_file(
         SecondaryAttributeKind::Meta(meta_attribute) => {
             SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttributeKind::Deprecated(_)
+        SecondaryAttributeKind::Deprecated(..)
         | SecondaryAttributeKind::ContractLibraryMethod
         | SecondaryAttributeKind::Export
         | SecondaryAttributeKind::Field(_)
@@ -905,6 +909,9 @@ fn statement_kind_with_file(kind: StatementKind, file: FileId) -> StatementKind 
         StatementKind::Assign(assign_statement) => {
             StatementKind::Assign(assign_statement_with_file(assign_statement, file))
         }
+        StatementKind::AssignOp(assign_op_statement) => {
+            StatementKind::AssignOp(assign_op_statement_with_file(assign_op_statement, file))
+        }
         StatementKind::For(for_loop_statement) => {
             StatementKind::For(for_loop_statement_with_file(for_loop_statement, file))
         }
@@ -957,6 +964,14 @@ fn for_bounds_with_file(for_bounds: ForBounds, file: FileId) -> ForBounds {
 fn assign_statement_with_file(assign: AssignStatement, file: FileId) -> AssignStatement {
     AssignStatement {
         lvalue: lvalue_with_file(assign.lvalue, file),
+        expression: expression_with_file(assign.expression, file),
+    }
+}
+
+fn assign_op_statement_with_file(assign: AssignOpStatement, file: FileId) -> AssignOpStatement {
+    AssignOpStatement {
+        lvalue: lvalue_with_file(assign.lvalue, file),
+        op: assign.op,
         expression: expression_with_file(assign.expression, file),
     }
 }

@@ -494,11 +494,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        let is_self = pattern_is_self(pattern, args.interner);
+        let is_self = pattern.is_self(args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
+        if is_self && let Type::Reference(_, mutable) = typ {
+            if *mutable {
+                string.push_str("&mut ");
+            } else {
+                string.push('&');
+            }
         }
 
         if enum_variant.is_some() {
@@ -613,38 +617,49 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
-    if let DefinitionKind::Global(global_id) = &definition_info.kind {
-        return format_global(*global_id, args);
-    }
 
-    let DefinitionKind::Local(expr_id) = definition_info.kind else {
-        panic!("Expected a local reference to reference a local definition")
-    };
-    let typ = args.interner.definition_type(id);
+    match &definition_info.kind {
+        DefinitionKind::Global(global_id) => format_global(*global_id, args),
+        DefinitionKind::Local(expr_id) => {
+            let typ = args.interner.definition_type(id);
 
-    let mut string = String::new();
-    string.push_str("    ");
-    if definition_info.comptime {
-        string.push_str("comptime ");
-    }
-    if expr_id.is_some() {
-        string.push_str("let ");
-    }
-    if definition_info.mutable {
-        if expr_id.is_none() {
-            string.push_str("let ");
+            let mut string = String::new();
+            string.push_str("    ");
+            if definition_info.comptime {
+                string.push_str("comptime ");
+            }
+            if expr_id.is_some() {
+                string.push_str("let ");
+            }
+            if definition_info.mutable {
+                if expr_id.is_none() {
+                    string.push_str("let ");
+                }
+                string.push_str("mut ");
+            }
+            string.push_str(&definition_info.name);
+            if !matches!(typ, Type::Error) {
+                string.push_str(": ");
+                string.push_str(&format!("{typ}"));
+            }
+
+            string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+            string
         }
-        string.push_str("mut ");
+        DefinitionKind::NumericGeneric(_, typ) => {
+            let mut string = String::new();
+            string.push_str("    ");
+            string.push_str("let ");
+            string.push_str(&definition_info.name);
+            string.push_str(": ");
+            string.push_str(&typ.to_string());
+            string
+        }
+        other => {
+            panic!("Unexpected definition kind: {other:?}")
+        }
     }
-    string.push_str(&definition_info.name);
-    if !matches!(typ, Type::Error) {
-        string.push_str(": ");
-        string.push_str(&format!("{typ}"));
-    }
-
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
-
-    string
 }
 
 fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
@@ -709,17 +724,6 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
         HirPattern::Tuple(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
 

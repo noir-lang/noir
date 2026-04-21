@@ -45,12 +45,8 @@ impl<K, V> Default for Slot<K, V> {
 }
 
 impl<K, V> Slot<K, V> {
-    fn is_valid(self) -> bool {
+    fn is_valid(&self) -> bool {
         !self._is_deleted & self._is_present
-    }
-
-    fn is_available(self) -> bool {
-        self._is_deleted | !self._is_present
     }
 
     fn set(&mut self, key: K, value: V) {
@@ -72,7 +68,7 @@ impl<K, V> Slot<K, V> {
 // that if we have went that far without finding desired,
 // it is very unlikely to be after - performance will be heavily degraded.
 impl<K, V, B> UHashMap<K, V, B> {
-    // Creates a new instance of UHashMap with specified BuildHasher.
+    /// Creates a new instance of UHashMap with specified BuildHasher.
     // docs:start:with_hasher
     pub fn with_hasher(_build_hasher: B) -> Self
     where
@@ -88,7 +84,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     where
         B: BuildHasher,
     {
-        // docs:end:with_hasher
         let mut _table = [].as_vector();
         for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
@@ -97,7 +92,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         Self { _table, _len, _build_hasher }
     }
 
-    // Clears the map, removing all key-value entries.
+    /// Clears the map, removing all key-value entries.
     // docs:start:clear
     pub fn clear(&mut self) {
         // docs:end:clear
@@ -105,9 +100,9 @@ impl<K, V, B> UHashMap<K, V, B> {
         self._len = 0;
     }
 
-    // Returns true if the map contains a value for the specified key.
+    /// Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(self, key: K) -> bool
+    pub fn contains_key(&self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
@@ -117,21 +112,21 @@ impl<K, V, B> UHashMap<K, V, B> {
         unsafe { self.get(key) }.is_some()
     }
 
-    // Returns true if the map contains no elements.
+    /// Returns true if the map contains no elements.
     // docs:start:is_empty
-    pub fn is_empty(self) -> bool {
+    pub fn is_empty(&self) -> bool {
         // docs:end:is_empty
         self._len == 0
     }
 
-    // Returns a BoundedVec of all valid entries in this UHashMap.
-    // The length of the returned vector will always match the length of this UHashMap.
+    /// Returns a vector of all valid entries in this UHashMap.
+    /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:entries
-    pub fn entries(self) -> [(K, V)] {
+    pub fn entries(&self) -> [(K, V)] {
         // docs:end:entries
         let mut entries = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 // SAFETY: slot.is_valid() should ensure there is a valid key-value pairing here
                 entries = entries.push_back((slot._key, slot._value));
@@ -147,14 +142,14 @@ impl<K, V, B> UHashMap<K, V, B> {
         entries
     }
 
-    // Returns a BoundedVec containing all the keys within this UHashMap.
-    // The length of the returned vector will always match the length of this UHashMap.
+    /// Returns a vector containing all the keys within this UHashMap.
+    /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:keys
-    pub fn keys(self) -> [K] {
+    pub fn keys(&self) -> [K] {
         // docs:end:keys
         let mut keys = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 keys = keys.push_back(slot._key);
             }
@@ -169,14 +164,14 @@ impl<K, V, B> UHashMap<K, V, B> {
         keys
     }
 
-    // Returns a BoundedVec containing all the values within this UHashMap.
-    // The length of the returned vector will always match the length of this UHashMap.
+    /// Returns a vector containing all the values within this UHashMap.
+    /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:values
-    pub fn values(self) -> [V] {
+    pub fn values(&self) -> [V] {
         // docs:end:values
         let mut values = [].as_vector();
 
-        for slot in self._table {
+        for slot in &self._table {
             if slot.is_valid() {
                 values = values.push_back(slot._value);
             }
@@ -191,7 +186,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         values
     }
 
-    // For each key-value entry applies mutator function.
+    /// For each key-value entry applies mutator function.
     // docs:start:iter_mut
     pub unconstrained fn iter_mut(&mut self, f: fn(K, V) -> (K, V))
     where
@@ -207,11 +202,11 @@ impl<K, V, B> UHashMap<K, V, B> {
             new_map.insert(key, value);
         }
 
-        self._table = new_map._table;
         self._len = new_map._len;
+        self._table = new_map._table;
     }
 
-    // For each key applies mutator function.
+    /// For each key applies mutator function.
     // docs:start:iter_keys_mut
     pub unconstrained fn iter_keys_mut(&mut self, f: fn(K) -> K)
     where
@@ -227,11 +222,13 @@ impl<K, V, B> UHashMap<K, V, B> {
             new_map.insert(key, value);
         }
 
-        self._table = new_map._table;
         self._len = new_map._len;
+        // The ownership pass being unsophisticated means we avoid a clone if we
+        // set the table after the len instead of before
+        self._table = new_map._table;
     }
 
-    // For each value applies mutator function.
+    /// For each value applies mutator function.
     // docs:start:iter_values_mut
     pub fn iter_values_mut(&mut self, f: fn(V) -> V) {
         // docs:end:iter_values_mut
@@ -244,7 +241,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
     }
 
-    // Retains only the elements specified by the predicate.
+    /// Retains only the elements specified by the predicate.
     // docs:start:retain
     pub fn retain(&mut self, f: fn(K, V) -> bool) {
         // docs:end:retain
@@ -260,23 +257,23 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
     }
 
-    // Amount of active key-value entries.
+    /// Amount of active key-value entries.
     // docs:start:len
-    pub fn len(self) -> u32 {
+    pub fn len(&self) -> u32 {
         // docs:end:len
         self._len
     }
 
-    // Get the current capacity of the inner table.
+    /// Get the current capacity of the inner table.
     // docs:start:capacity
-    pub fn capacity(self: Self) -> u32 {
+    pub fn capacity(&self) -> u32 {
         // docs:end:capacity
         self._table.len()
     }
 
-    // Get the value by key. If it does not exist, returns none().
+    /// Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    pub unconstrained fn get(self, key: K) -> Option<V>
+    pub unconstrained fn get(&self, key: K) -> Option<V>
     where
         K: Eq + Hash,
         B: BuildHasher,
@@ -302,7 +299,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         result
     }
 
-    // Insert key-value entry. In case key was already present, value is overridden.
+    /// Insert key-value entry. In case key was already present, value is overridden.
     // docs:start:insert
     pub unconstrained fn insert(&mut self, key: K, value: V)
     where
@@ -313,27 +310,43 @@ impl<K, V, B> UHashMap<K, V, B> {
         self.try_resize();
 
         let hash = self.hash(key);
+        let mut insert_index: u32 = 0;
+        let mut increment_length = false;
+        let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
-            let index = self.linear_probe(hash, attempt as u32);
-            let mut slot = self._table[index];
-            let mut insert = false;
+            let index = self.linear_probe(hash, attempt);
+            let slot = self._table[index];
 
-            // Either marked as deleted or has unset key-value.
-            if slot.is_available() {
-                insert = true;
-                self._len += 1;
-            } else {
+            if slot.is_valid() {
                 if slot._key == key {
-                    insert = true;
+                    // Key exists: update in place without changing length.
+                    insert_index = index;
+                    break;
                 }
-            }
-
-            if insert {
-                slot.set(key, value);
-                self._table[index] = slot;
+            } else if slot._is_deleted {
+                // Deleted slot: remember as candidate but keep probing for existing key.
+                if !found_deleted_candidate {
+                    insert_index = index;
+                    found_deleted_candidate = true;
+                }
+            } else {
+                // Empty slot: key cannot exist beyond this point.
+                // Insert at a deleted slot, if we found one previously, or at the current slot.
+                if !found_deleted_candidate {
+                    insert_index = index;
+                }
+                increment_length = true;
                 break;
             }
+        }
+
+        let mut s = self._table[insert_index];
+        s.set(key, value);
+        self._table[insert_index] = s;
+
+        if increment_length {
+            self._len += 1;
         }
     }
 
@@ -353,7 +366,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
     }
 
-    // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
+    /// Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
     pub unconstrained fn remove(&mut self, key: K)
     where
@@ -379,22 +392,20 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
     }
 
-    // Apply UHashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash(self, key: K) -> u32
+    /// Apply UHashMap's hasher onto key to obtain pre-hash for probing.
+    fn hash(&self, key: K) -> u32
     where
         K: Hash,
         B: BuildHasher,
     {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
-        hasher.finish() as u32
+        hasher.finish_ref() as u32
     }
 
-    // Probing scheme: quadratic function.
-    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two.
-    fn linear_probe(self: Self, hash: u32, attempt: u32) -> u32 {
+    /// Probing scheme: linear probing.
+    /// Each attempt increments the index by one, wrapping around the table.
+    fn linear_probe(&self, hash: u32, attempt: u32) -> u32 {
         (hash + attempt) % self._table.len()
     }
 }
@@ -445,5 +456,27 @@ where
     fn default() -> Self {
         // docs:end:default
         UHashMap::with_hasher(B::default())
+    }
+}
+
+mod test {
+    use crate::hash::BuildHasherDefault;
+    use crate::hash::poseidon2::Poseidon2Hasher;
+    use super::UHashMap;
+
+    #[test]
+    unconstrained fn test_no_duplicate_keys_after_deletion_and_insertion() {
+        // The capacity and keys used here, with the Poseidon2Hasher, have the keys 5 and 8 end up in slot 0.
+        let mut map = UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<Poseidon2Hasher> {},
+            8,
+        );
+        map.insert(5, 5);
+        map.insert(8, 8);
+        map.remove(5);
+        map.insert(8, 9);
+
+        assert_eq(map.entries(), @[(8, 9)]);
+        assert_eq(map.keys(), @[8]);
     }
 }

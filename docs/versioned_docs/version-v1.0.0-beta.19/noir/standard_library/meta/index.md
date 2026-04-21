@@ -11,7 +11,11 @@ and types used for inspecting and modifying Noir programs.
 
 ### type_of
 
-#include_code type_of noir_stdlib/src/meta/mod.nr rust
+```rust title="type_of" showLineNumbers 
+pub comptime fn type_of<T>(x: T) -> Type {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L29-L31</a></sub></sup>
+
 
 Returns the type of a variable at compile-time.
 
@@ -27,7 +31,11 @@ comptime {
 
 ### unquote
 
-#include_code unquote noir_stdlib/src/meta/mod.nr rust
+```rust title="unquote" showLineNumbers 
+pub comptime fn unquote(code: Quoted) -> Quoted {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L21-L23</a></sub></sup>
+
 
 Unquotes the passed-in token stream where this function was called.
 
@@ -43,7 +51,12 @@ comptime {
 
 ### derive
 
-#include_code derive noir_stdlib/src/meta/mod.nr rust
+```rust title="derive" showLineNumbers 
+#[varargs]
+pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L50-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L50-L53</a></sub></sup>
+
 
 Attribute placed on type definitions.
 
@@ -69,7 +82,11 @@ fn main() {
 
 ### derive_via
 
-#include_code derive_via_signature noir_stdlib/src/meta/mod.nr rust
+```rust title="derive_via_signature" showLineNumbers 
+pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L70-L72" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L70-L72</a></sub></sup>
+
 
 Attribute placed on trait definitions.
 
@@ -105,11 +122,44 @@ comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
 As another example, `derive_eq` in the stdlib is used to derive the `Eq`
 trait for any type definition. It makes use of `make_trait_impl` to do this:
 
-#include_code derive_eq noir_stdlib/src/cmp.nr rust
+```rust title="derive_eq" showLineNumbers 
+comptime fn derive_eq(s: TypeDefinition) -> Quoted {
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let body = |fields| {
+        if s.fields_as_written().len() == 0 {
+            quote { true }
+        } else {
+            fields
+        }
+    };
+    crate::meta::make_trait_impl(
+        s,
+        quote { $crate::cmp::Eq },
+        signature,
+        for_each_field,
+        quote { & },
+        body,
+    )
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L10-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L10-L30</a></sub></sup>
+
 
 ### make_trait_impl
 
-#include_code make_trait_impl noir_stdlib/src/meta/mod.nr rust
+```rust title="make_trait_impl" showLineNumbers 
+pub comptime fn make_trait_impl<Env1, Env2>(
+    s: TypeDefinition,
+    trait_name: Quoted,
+    function_signature: Quoted,
+    for_each_field: fn[Env1](Quoted) -> Quoted,
+    join_fields_with: Quoted,
+    body: fn[Env2](Quoted) -> Quoted,
+) -> Quoted {
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L89-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L89-L98</a></sub></sup>
+
 
 A helper function to more easily create trait impls while deriving traits.
 
@@ -134,8 +184,42 @@ way to write your derive handler. The arguments are as follows:
 
 Example deriving `Hash`:
 
-#include_code derive_hash noir_stdlib/src/hash/mod.nr rust
+```rust title="derive_hash" showLineNumbers 
+comptime fn derive_hash(s: TypeDefinition) -> Quoted {
+    let name = quote { $crate::hash::Hash };
+    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: $crate::hash::Hasher };
+    let for_each_field = |name| quote { _self.$name.hash(_state); };
+    crate::meta::make_trait_impl(
+        s,
+        name,
+        signature,
+        for_each_field,
+        quote {},
+        |fields| fields,
+    )
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L157-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L157-L171</a></sub></sup>
+
 
 Example deriving `Ord`:
 
-#include_code derive_ord noir_stdlib/src/cmp.nr rust
+```rust title="derive_ord" showLineNumbers 
+comptime fn derive_ord(s: TypeDefinition) -> Quoted {
+    let name = quote { $crate::cmp::Ord };
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> $crate::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == $crate::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let body = |fields| quote {
+        let mut result = $crate::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, body)
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L223-L239" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L223-L239</a></sub></sup>
+

@@ -35,9 +35,10 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::AcirField;
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -47,7 +48,6 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
@@ -56,7 +56,6 @@ use crate::monomorphization::{
 };
 use crate::node_interner::GlobalValue;
 use crate::shared::{ForeignCall, Signedness};
-use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
     Shared, Type, TypeBindings,
@@ -221,7 +220,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
-        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
+        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip_eq(arguments) {
             let result = self.define_pattern(parameter, typ, argument, arg_location);
             if let Err(err) = result {
                 self.exit_function(previous_state);
@@ -277,20 +276,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Why do we only unbind generics from the previous function here?
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
-        self.rebind_generics_from_previous_function();
-        result
-    }
-
-    /// Run the given function with an elaborator in the context of the given module.
-    /// Temporarily undoes any generics from the previous function.
-    fn elaborate_in_module<T>(
-        &mut self,
-        module: ModuleId,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
-        self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -383,7 +368,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
 
-        let parameters = closure.parameters.iter().zip(arguments);
+        let parameters = closure.parameters.iter().zip_eq(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
             let result = self.define_pattern(parameter, typ, argument, arg_location);
             if let Err(err) = result {
@@ -392,7 +377,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        for (param, arg) in closure.captures.into_iter().zip(environment) {
+        for (param, arg) in closure.captures.into_iter().zip_eq(environment) {
             self.define(param.ident.id, arg);
         }
 
@@ -529,7 +514,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         if fields.len() == pattern_fields.len() =>
                     {
                         for ((pattern, typ), argument) in
-                            pattern_fields.iter().zip(type_fields).zip(fields)
+                            pattern_fields.iter().zip_eq(type_fields).zip_eq(fields)
                         {
                             let argument = argument.borrow().clone();
                             self.define_pattern(pattern, typ, argument, location)?;
@@ -660,7 +645,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_),
-            HirExpression::Match(_) => todo!("Evaluate match in comptime code"),
+            HirExpression::Match(_) => {
+                let location = self.elaborator.interner.expr_location(&id);
+                Err(InterpreterError::Unimplemented {
+                    item: "Match expressions in comptime code".to_string(),
+                    location,
+                })
+            }
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens),
@@ -705,7 +696,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
-                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolved(value) => {
+                        // Enum variant globals with generics are instantiated with a Type::Forall
+                        // We need to resolve the type, but it has already been done by the elaborator
+                        if let Value::Enum(tag, fields, _) = value {
+                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
+                        } else {
+                            Ok(value.clone())
+                        }
+                    }
                     GlobalValue::Resolving => {
                         // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
                         // but the general dependency cycle detector will give a better error later on during compilation.
@@ -742,11 +742,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .expect("Expected to find associated type");
 
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_integer(value, id),
+                    Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -761,14 +759,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let err = Box::new(err);
                 let location = self.elaborator.interner.expr_location(&id);
                 InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
-        self.evaluate_integer(value, id)
+        self.evaluate_field_as_integer(value.as_field(), id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -788,8 +786,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
+            HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
+            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }
@@ -834,17 +832,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        let typ = self.elaborator.interner.id_type(id);
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
+    fn evaluate_field_as_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
-
-        evaluate_integer(typ, value, location)
+        Integer::try_from_type(value, &typ).map(Value::Integer).ok_or_else(|| {
+            let typ = typ.clone();
+            InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+        })
     }
 
     pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
@@ -1033,9 +1033,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // `<`:  `ordering == Ordering::Less`
             BinaryOpKind::Less => ordering.is_zero(),
             // `<=`: `ordering != Ordering::Greater`
-            BinaryOpKind::LessEqual => ordering != SignedField::positive(2_u128),
+            BinaryOpKind::LessEqual => ordering != 2_u128.into(),
             // `>`:  `ordering == Ordering::Greater`
-            BinaryOpKind::Greater => ordering == SignedField::positive(2_u128),
+            BinaryOpKind::Greater => ordering == 2_u128.into(),
             // `>=`: `ordering != Ordering::Less`
             BinaryOpKind::GreaterEqual => !ordering.is_zero(),
             _ => unreachable!("evaluate_ordering called with non-ordering operator"),
@@ -1193,12 +1193,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Type::apply_type_bindings(bindings);
             }
             Err(UnificationError) => {
-                let error = TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: actual_type.to_string(),
-                    expr_location: location,
-                };
-                self.elaborator.push_err(error);
+                self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
+                    &actual_type,
+                    &expected_type,
+                    location,
+                ));
             }
         }
     }
@@ -1437,7 +1436,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     This should have been caught by type checking."
                 );
 
-                for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
+                for (lvalue, rvalue) in lvalue_fields.iter().zip_eq(rvalue_fields) {
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
@@ -1534,7 +1533,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::Integer(Integer::U1(_)) => |i| Value::Integer(Integer::U1(i == 1)),
                 Value::Integer(Integer::U8(_)) => |i| Value::Integer(Integer::U8(i as u8)),
                 Value::Integer(Integer::U16(_)) => |i| Value::Integer(Integer::U16(i as u16)),
                 Value::Integer(Integer::U32(_)) => |i| Value::Integer(Integer::U32(i as u32)),
@@ -1741,76 +1739,6 @@ fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     }
 }
 
-fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
-    use IntegerBitSize::*;
-    use Signedness::*;
-    use Type::*;
-
-    macro_rules! evaluate_unsigned {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_unsigned()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    macro_rules! evaluate_signed {
-        ($typ:ident) => {{
-            let value = value
-                .try_to_signed()
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    match typ {
-        FieldElement => Ok(Value::field(value)),
-        Integer(Unsigned, One) => {
-            let field_value = value.to_field_element();
-            if field_value.is_zero() {
-                Ok(Value::u1(false))
-            } else if field_value.is_one() {
-                Ok(Value::u1(true))
-            } else {
-                Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-            }
-        }
-        Integer(Unsigned, Eight) => {
-            evaluate_unsigned!(u8)
-        }
-        Integer(Unsigned, Sixteen) => {
-            evaluate_unsigned!(u16)
-        }
-        Integer(Unsigned, ThirtyTwo) => {
-            evaluate_unsigned!(u32)
-        }
-        Integer(Unsigned, SixtyFour) => {
-            evaluate_unsigned!(u64)
-        }
-        Integer(Unsigned, HundredTwentyEight) => {
-            evaluate_unsigned!(u128)
-        }
-        Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
-        Integer(Signed, Eight) => {
-            evaluate_signed!(i8)
-        }
-        Integer(Signed, Sixteen) => {
-            evaluate_signed!(i16)
-        }
-        Integer(Signed, ThirtyTwo) => {
-            evaluate_signed!(i32)
-        }
-        Integer(Signed, SixtyFour) => {
-            evaluate_signed!(i64)
-        }
-        Integer(Signed, HundredTwentyEight) => {
-            Err(InterpreterError::TypeUnsupported { typ, location })
-        }
-        _ => Err(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
-    }
-}
-
 /// Bounds check the given array and index pair.
 /// This will also ensure the given arguments are in fact an array and u32.
 fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vector<Value>, usize)> {
@@ -1864,9 +1792,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::i64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::Integer(Integer::U1(_)) => {
-                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" })
-            }
             Value::Integer(Integer::U8(_)) => {
                 Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" })
             }
@@ -1894,7 +1819,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::Integer(Integer::I16(value)) => Ok(Value::i16(!value)),
             Value::Integer(Integer::I32(value)) => Ok(Value::i32(!value)),
             Value::Integer(Integer::I64(value)) => Ok(Value::i64(!value)),
-            Value::Integer(Integer::U1(value)) => Ok(Value::u1(!value)),
             Value::Integer(Integer::U8(value)) => Ok(Value::u8(!value)),
             Value::Integer(Integer::U16(value)) => Ok(Value::u16(!value)),
             Value::Integer(Integer::U32(value)) => Ok(Value::u32(!value)),
@@ -1926,7 +1850,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U1(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U32(value)) => Some(u128::from(value)),

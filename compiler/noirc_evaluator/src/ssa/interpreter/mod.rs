@@ -18,6 +18,7 @@ use crate::ssa::{
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::Shared;
 use num_traits::{CheckedShl, CheckedShr};
 use rustc_hash::FxHashMap as HashMap;
@@ -195,15 +196,20 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
 
-            if expected_type != actual_type {
+            if *expected_type != actual_type {
                 // Special case for ZST (Zero-Sized Type) arrays: Allow length mismatches.
                 // In early SSA passes, ZST arrays like [(); 3] are represented with empty element lists.
                 // Later optimization passes will fix the representation.
-                let types_compatible = match (&expected_type, &actual_type) {
+                let types_compatible = match (&*expected_type, &actual_type) {
                     (Type::Array(expected_elem, _), Type::Array(actual_elem, actual_len)) => {
                         expected_elem == actual_elem
                             && expected_elem.is_empty()
                             && actual_len.to_usize() == 0
+                    }
+                    // Reference mutability doesn't affect runtime behavior —
+                    // the interpreter treats &T and &mut T identically.
+                    (Type::Reference(expected_elem, _), Type::Reference(actual_elem, _)) => {
+                        expected_elem == actual_elem
                     }
                     _ => false,
                 };
@@ -318,7 +324,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }));
             }
 
-            for (parameter, argument) in block.parameters().iter().zip(arguments) {
+            for (parameter, argument) in block.parameters().iter().zip_eq(arguments) {
                 self.define(*parameter, argument)?;
             }
 
@@ -772,10 +778,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
+        // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
             matches!(
                 self.dfg()[instruction],
-                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: false }, .. })
             )
         } else {
             false
@@ -967,10 +975,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
-            vecmap(results, |result| {
-                let typ = self.dfg().type_of_value(*result);
-                Value::uninitialized(&typ, *result)
-            })
+            self.uninitialized_call_results(&function, argument_ids, results)?
         };
 
         if new_results.len() != results.len() {
@@ -983,10 +988,69 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }));
         }
 
-        for (result, new_result) in results.iter().zip(new_results) {
+        for (result, new_result) in results.iter().zip_eq(new_results) {
             self.define(*result, new_result)?;
         }
         Ok(())
+    }
+
+    /// Create uninitialized results for a call that was skipped due to disabled side effects.
+    ///
+    /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
+    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+    /// merge the vector from a 'side effect disabled' branch.
+    fn uninitialized_call_results(
+        &self,
+        function: &Value,
+        argument_ids: &[ValueId],
+        results: &[ValueId],
+    ) -> IResult<Vec<Value>> {
+        use crate::ssa::ir::instruction::Intrinsic;
+        // Get the length of the vector
+        if let Value::Intrinsic(intrinsic) = function {
+            let input_vector_info = match intrinsic {
+                Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorRemove => {
+                    let vec = self.lookup_array_or_vector(
+                        argument_ids[1],
+                        "uninitialized vector intrinsic",
+                    )?;
+                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
+                }
+                _ => None,
+            };
+
+            if let Some((input_len, element_types)) = input_vector_info {
+                let element_count = element_types.len();
+                let output_len = match intrinsic {
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorInsert => input_len + element_count,
+                    Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
+                    _ => unreachable!(),
+                };
+
+                return Ok(vecmap(results, |result| {
+                    let typ = self.dfg().type_of_value(*result);
+                    if matches!(*typ, Type::Vector(_)) {
+                        Value::uninitialized_vector(&element_types, output_len, *result)
+                    } else {
+                        Value::uninitialized(&typ, *result)
+                    }
+                }));
+            }
+        }
+
+        Ok(vecmap(results, |result| {
+            let typ = self.dfg().type_of_value(*result);
+            Value::uninitialized(&typ, *result)
+        }))
     }
 
     /// Try to get a function's name or approximate it if it is not known
@@ -1013,10 +1077,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             | Value::Intrinsic(_)
             | Value::ForeignFunction(_) => Ok(()),
 
-            Value::Reference(value) => {
-                let value = value.to_string();
-                Err(internal(InternalError::ReferenceValueCrossedUnconstrainedBoundary { value }))
-            }
+            // Immutable references are allowed to cross the constrained->unconstrained
+            // boundary. Mutable references are rejected earlier by the frontend type check.
+            Value::Reference(_) => Ok(()),
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
@@ -1031,14 +1094,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
-        let result_type = self.dfg().type_of_value(result);
-        let element_type = match result_type {
-            Type::Reference(element_type) => element_type,
+        let result_type = self.dfg().type_of_value(result).into_owned();
+        let (element_type, mutable) = match result_type {
+            Type::Reference(element_type, mutable) => (element_type, mutable),
             other => unreachable!(
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        let value = Value::reference(result, element_type);
+        let value = Value::reference(result, element_type, mutable);
         self.define(result, value)
     }
 
@@ -1115,7 +1178,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // Find a valid index
                 let typ = self.dfg().type_of_value(result);
                 for (i, element) in array.elements.borrow().iter().enumerate() {
-                    if element.get_type() == typ {
+                    if element.get_type() == *typ {
                         index = i as u32;
                         break;
                     }
@@ -1826,11 +1889,11 @@ fn interpret_u1_binary_op(
             }
         }
         BinaryOp::Sub { unchecked: true } => {
-            // (0, 0) -> 0
-            // (0, 1) -> 1  (underflow)
-            // (1, 0) -> 1
-            // (1, 1) -> 0
-            lhs ^ rhs
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
+            }
         }
         BinaryOp::Sub { unchecked: false } => {
             if !lhs && rhs {

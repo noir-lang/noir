@@ -186,6 +186,13 @@ impl FuzzerBuilder {
         let init_bit_length = value.bit_length();
 
         let mut value_id = value.value_id;
+
+        // If we cast Field -> u1 we should cast to u8 first
+        if value.is_field() && cast_type == Type::Numeric(NumericType::Boolean) {
+            let casted_to_u8 = self.insert_cast(value, Type::Numeric(NumericType::U8));
+            return self.insert_cast(casted_to_u8, cast_type);
+        }
+
         // if not field, truncate
         if cast_type.bit_length() != 254 {
             value_id = self.builder.insert_truncate(
@@ -324,7 +331,7 @@ impl FuzzerBuilder {
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
         let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable), true))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
@@ -570,6 +577,41 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
+    /// Inserts a poseidon2 permutation intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of field values to permute
+    ///
+    /// # Returns
+    /// An array of field values representing the poseidon2 permutation
+    pub fn insert_poseidon2_permutation(&mut self, input: TypedValue) -> TypedValue {
+        match &input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(
+                    matches!(type_of_array[0], Type::Numeric(NumericType::Field)),
+                    "poseidon2_permutation requires an array of fields as input, but received {type_of_array:?}"
+                );
+                assert!(
+                    *array_size == 4,
+                    "poseidon2_permutation requires an array of 4 fields as input, but received {array_size}"
+                );
+            }
+            _ => unreachable!("poseidon2_permutation requires an array as input"),
+        }
+        let return_type = input.type_of_variable.clone();
+        let intrinsic = self
+            .builder
+            .import_intrinsic("poseidon2_permutation")
+            .expect("poseidon2_permutation intrinsic should be available");
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
     /// Inserts a aes128_encrypt intrinsic call
     ///
     /// # Arguments
@@ -719,7 +761,7 @@ impl FuzzerBuilder {
         safe_index: bool,
     ) -> TypedValue {
         let Type::Array(array_type, array_length) = array.type_of_variable.clone() else {
-            unreachable!("Array type expected");
+            unreachable!("Array type expected")
         };
 
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
@@ -728,6 +770,13 @@ impl FuzzerBuilder {
         } else {
             index
         };
+        // In Brillig, arrays use reference counting for copy-on-write.
+        // We must increment the RC before array_set so the original array is preserved
+        // if it's used again later, then decrement after (during ssa passes).
+        // In ACIR, IncrementRc/DecrementRc are not supported (they hit unreachable!).
+        if matches!(self.runtime, RuntimeType::Brillig(_)) {
+            self.builder.insert_inc_rc(array.value_id);
+        }
         let res =
             self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
         TypedValue::new(res, Type::Array(array_type, array_length))

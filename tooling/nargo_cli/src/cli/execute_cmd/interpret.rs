@@ -4,6 +4,7 @@ use std::rc::Rc;
 use acvm::AcirField;
 use fm::FileManager;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use nargo::ops::report_errors;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
@@ -20,7 +21,6 @@ use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::{Shared, Type};
 
 use crate::cli::compile_cmd::parse_workspace;
@@ -52,6 +52,7 @@ fn run_package_comptime(
     match report_errors(
         result,
         &context.file_manager,
+        &context.parsed_files,
         args.compile_options.deny_warnings,
         args.compile_options.silence_warnings,
     ) {
@@ -109,7 +110,8 @@ fn run_package_comptime(
             let errors = vec![diagnostic];
             report_errors(
                 Ok(((), errors)),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 args.compile_options.deny_warnings,
                 args.compile_options.silence_warnings,
             )?;
@@ -167,7 +169,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .expect("Could not convert field value to integer");
             match numeric_value {
                 NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::u1(value),
+                NumericValue::U1(value) => Value::Bool(value),
                 NumericValue::U8(fitted) => match fitted {
                     Fitted::Fit(value) => Value::u8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
@@ -210,7 +212,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::field(SignedField::positive(*value))
+            Value::field(*value)
         }
         Type::Array(length, element_typ) => {
             let length =
@@ -240,7 +242,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 panic!("expected vec input for tuple type");
             };
             assert_eq!(inputs.len(), types.len(), "Tuple length does not match input length");
-            let tuple = vecmap(inputs.iter().zip(types.iter()), |(input, typ)| {
+            let tuple = vecmap(inputs.iter().zip_eq(types.iter()), |(input, typ)| {
                 let value = input_value_to_comptime_value(input, typ, location);
                 Shared::new(value)
             });

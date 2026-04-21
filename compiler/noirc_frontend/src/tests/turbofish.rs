@@ -1,4 +1,5 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::elaborator::UnstableFeature;
+use crate::tests::{assert_no_errors, check_errors, get_program_using_features};
 
 #[test]
 fn turbofish_numeric_generic_nested_function_call() {
@@ -509,6 +510,22 @@ fn incorrect_turbofish_count_method_call() {
 }
 
 #[test]
+fn incorrect_turbofish_count_with_fewer_generics_than_expected() {
+    // Regression: when fewer turbofish generics than expected are provided,
+    // the returned list had fewer elements than expected, which caused a
+    // duplicate "incorrect generic count" error from a redundant check downstream.
+    let src = r#"
+        fn two_generics<A, B>(_a: A, _b: B) {}
+
+        fn main() {
+            two_generics::<Field>(1, 2);
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 2 generics from this function, but 1 was provided
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
     let src = r#"
     fn foo<T>() {}
@@ -682,6 +699,260 @@ fn regression_10363() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn concrete_impl_with_dual_turbofish() {
+    // Regression: https://github.com/noir-lang/noir/pull/11848
+    // Concrete impl's method generics were incorrectly bound to the type
+    // turbofish arguments because all_generics only contained direct_generics.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn concrete_impl_with_dual_turbofish_mismatch() {
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<bool>::foo::<Field>(x);
+        ^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_impl_with_dual_turbofish() {
+    // Ensure the generic impl case still works correctly after the fix.
+    let src = r#"
+    struct S<T> {}
+
+    impl<T> S<T> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_binds_correct_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_reverse_direction() {
+    // The first struct param is the impl generic, the second is concrete.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<A> S<A, u32> {
+        fn foo(x: A) -> A {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, u32>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_three_params_middle_generic() {
+    // Three struct params where only the middle one is an impl generic.
+    let src = r#"
+    struct S<A, B, C> {}
+
+    impl<B> S<u32, B, Field> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool, Field>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
+    // Turbofish type conflicts with the impl's concrete param.
+    // S::<bool, bool>::foo(...) but impl hardcodes A=u32.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, bool>::foo(x);
+                            ^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_7648_impl_trait_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_u64_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u64> {}
+
+    struct Wrapper {}
+
+    global ONE: u64 = 1;
+
+    impl Foo<ONE> for Wrapper {}
+
+    fn my_fn<let N: u64>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<ONE>(Wrapper {});
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_mixed_generics_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<T, let N: u32>(_value: T, _input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<Field, 0>(1, []);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_method_in_generic_impl_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    struct Container<T> {}
+
+    impl<T> Container<T> {
+        fn my_fn<let N: u32>(_self: Self, _input: impl Foo<N>) {}
+    }
+
+    fn main() {
+        let c: Container<Field> = Container {};
+        c.my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_without_turbofish_still_infers() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn concrete_impl_dual_turbofish_type_mismatch() {
+    // The method turbofish binds the method generic, so passing a wrong type should error.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        S::<u32>::foo::<Field>(true);
+                               ^^^^ Expected type Field, found type bool
+    }
     "#;
     check_errors(src);
 }

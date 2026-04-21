@@ -1,3 +1,13 @@
+//! Register spill management for the Brillig code generator.
+//!
+//! When register pressure exceeds the available register count, the [`SpillManager`] coordinates
+//! evicting the least-recently-used (LRU) values to a spill region in heap memory, and reloading
+//! them on demand. It distinguishes between transient spills (temporary within a basic block)
+//! and permanent spills (values that must survive across block boundaries), allocating stable
+//! heap slots for the latter.
+
+use std::collections::hash_map::Entry;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -99,9 +109,7 @@ impl SpillManager {
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
-        if let std::collections::hash_map::Entry::Occupied(mut entry) =
-            self.records.entry(*value_id)
-        {
+        if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
             if entry.get().is_permanent {
                 entry.get_mut().is_currently_spilled = false;
             } else {
@@ -164,15 +172,12 @@ impl SpillManager {
             is_permanent: false,
             is_currently_spilled: true,
         });
-        if record.is_permanent {
-            // Permanent record — preserve offset, just re-mark as spilled.
-            assert_eq!(offset, record.offset);
-            record.is_currently_spilled = true;
-        } else {
+        // Always preserve the offset, so we don't leak free slots.
+        assert_eq!(offset, record.offset, "Spill of {value_id} orphaned existing slot");
+        record.is_currently_spilled = true;
+        if !record.is_permanent {
             // Transient record from a previous spill/reload cycle — update it.
-            record.offset = offset;
             record.variable = variable;
-            record.is_currently_spilled = true;
         }
     }
 
@@ -234,6 +239,14 @@ impl SpillManager {
         self.records.get(value_id).filter(|r| r.is_permanent).map(|r| r.offset)
     }
 
+    /// Get the spill slot offset for a value, if any.
+    ///
+    /// Unlike `get_permanent_spill_offset` this could be a permanent or a transient spill;
+    /// there should be only one at any point.
+    pub(crate) fn get_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
+        self.records.get(value_id).map(|r| r.offset)
+    }
+
     /// Re-mark permanently-spilled values as currently spilled at block entry.
     ///
     /// A reload in a previous block clears `is_currently_spilled`, but the
@@ -260,28 +273,22 @@ impl SpillManager {
 
     /// Ensure a value has a permanent spill slot.
     ///
-    /// Handles all three cases where a record already exists with a single lookup:
+    /// Handles all cases where a record already exists with a single lookup:
     /// - Permanent + currently spilled -> no-op (slot has correct data)
     /// - Currently spilled but not permanent -> promote to permanent
     /// - Permanent but not currently spilled (reloaded) -> re-mark as spilled
+    /// - Not currently spilled (reloaded) and not permanent -> re-mark as spilled and permanent
     ///
     /// # Returns
-    /// `true` if a record existed (caller should skip further processing),
-    /// `false` if no record exists (first encounter — caller must allocate a slot).
+    /// * `true` if a record already exists (caller should skip further processing),
+    /// * `false` if no record exists (first encounter - caller must allocate a slot).
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
-        if let Some(record) = self.records.get_mut(value_id) {
-            if record.is_permanent && record.is_currently_spilled {
-                // Already permanent and spilled — nothing to do.
-            } else if record.is_currently_spilled {
-                // Transient spill — promote to permanent.
-                record.is_permanent = true;
-            } else if record.is_permanent {
-                // Permanent but reloaded — re-mark as spilled.
-                record.is_currently_spilled = true;
-            }
-            return true;
-        }
-        false
+        let Some(record) = self.records.get_mut(value_id) else {
+            return false;
+        };
+        record.is_permanent = true;
+        record.is_currently_spilled = true;
+        true
     }
 }
 
@@ -456,6 +463,19 @@ mod tests {
     }
 
     #[test]
+    fn ensure_permanent_spill_for_not_spilled() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        // Record a transient spill
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+
+        assert!(sm.ensure_permanent_spill(&v0), "expect true because the record exists");
+    }
+
+    #[test]
     #[should_panic(expected = "Transient spill leaked across block boundary")]
     fn begin_block_panics_on_transient_spill_leak() {
         let mut sm = SpillManager::new();
@@ -482,6 +502,35 @@ mod tests {
         // Attempting to spill v0 again without unmark/remove should panic
         let off2 = sm.allocate_spill_offset();
         sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "orphaned existing slot")]
+    fn record_spill_panics_on_orphaned_slot() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+
+        sm.unmark_spilled(&v0);
+
+        assert_eq!(sm.get_spill_offset(&v0), Some(off));
+
+        // Attempting to spill v0 again with a different offset should panic.
+        let off2 = sm.allocate_spill_offset();
+        sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    fn record_spill_of_unmarked_with_same_offset() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+        sm.record_spill(v0, off, test_var(1)); // Different BrilligVariable to show it's not checked.
     }
 
     #[test]

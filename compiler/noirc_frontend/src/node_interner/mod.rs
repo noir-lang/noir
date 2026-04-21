@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -596,7 +597,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -788,11 +788,16 @@ impl NodeInterner {
 
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
+        self.expression_ref(expr_id).clone()
+    }
+
+    /// Returns the interned expression corresponding to `expr_id`
+    pub fn expression_ref(&self, expr_id: &ExprId) -> &HirExpression {
         let def =
             self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
-            Node::Expression(expr) => expr.clone(),
+            Node::Expression(expr) => expr,
             _ => {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
@@ -1273,7 +1278,6 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1565,7 +1569,8 @@ impl NodeInterner {
             (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
         );
 
-        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
+        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
+        {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
@@ -1599,7 +1604,8 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        for parent_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(

@@ -1,4 +1,4 @@
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn indexing_array_with_default_numeric_type_does_not_produce_an_error() {
@@ -121,11 +121,34 @@ fn array_length_overflow_during_monomorphization() {
     let src = r#"
     fn main() {
         let _array = [0; 4294967296];
-                     ^^^^^^^^^^^^^^^ Invalid array length
-                     ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+                         ^^^^^^^^^^ The value `4294967296` cannot fit into `u32` which has range `0..=4294967295`
     }
     "#;
-    check_monomorphization_error(src);
+    check_errors(src);
+}
+
+#[test]
+fn constant_index_out_of_bounds() {
+    let src = r#"
+    fn main(a: u32, mut c: [u32; 2]) {
+        if (a == c[0]) {
+            assert((c[0] == 12));
+        } else if (a == c[1]) {
+            assert((c[1] == 0));
+        } else if (a == c[2]) {
+                          ^ Index 2 is out of bounds for this array of length 2
+            assert((c[2] == 0));
+                      ^ Index 2 is out of bounds for this array of length 2
+        } else if (a == c[3]) {
+                          ^ Index 3 is out of bounds for this array of length 2
+            assert((c[3] == 0));
+                      ^ Index 3 is out of bounds for this array of length 2
+        } else {
+            assert((c[0] == 10));
+        }
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]
@@ -134,8 +157,7 @@ fn array_length_overflow_at_comptime() {
     fn main() {
         comptime {
             let _array = [0; 4294967296];
-                         ^^^^^^^^^^^^^^^ Invalid array length
-                         ~~~~~~~~~~~~~~~ The value `4294967296` cannot fit into `u32` which has a maximum size of `4294967295`
+                             ^^^^^^^^^^ The value `4294967296` cannot fit into `u32` which has range `0..=4294967295`
         }
     }
     "#;

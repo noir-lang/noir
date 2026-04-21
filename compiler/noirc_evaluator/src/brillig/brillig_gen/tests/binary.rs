@@ -18,13 +18,12 @@ fn brillig_add() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 add sp[2], sp[3]
-    2: sp[5] = u32 lt_eq sp[2], sp[4]
-    3: jump if sp[5] to 0 // -> 5: f0/b0/1
-    4: call 0 // -> ErrorWithString
-    5: sp[2] = sp[4] // f0/b0/1
-    6: return
+    0: sp[4] = u32 add sp[2], sp[3]
+    1: sp[5] = u32 lt_eq sp[2], sp[4]
+    2: jump if sp[5] to 0 // -> 4: f0/b0/1
+    3: call 0 // -> ErrorWithString
+    4: sp[2] = sp[4] // f0/b0/1
+    5: return
     ");
 }
 
@@ -43,13 +42,12 @@ fn brillig_sub() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 sub sp[2], sp[3]
-    2: sp[5] = u32 lt_eq sp[3], sp[2]
-    3: jump if sp[5] to 0 // -> 5: f0/b0/1
-    4: call 0 // -> ErrorWithString
-    5: sp[2] = sp[4] // f0/b0/1
-    6: return
+    0: sp[4] = u32 sub sp[2], sp[3]
+    1: sp[5] = u32 lt_eq sp[3], sp[2]
+    2: jump if sp[5] to 0 // -> 4: f0/b0/1
+    3: call 0 // -> ErrorWithString
+    4: sp[2] = sp[4] // f0/b0/1
+    5: return
     ");
 }
 
@@ -69,17 +67,16 @@ fn brillig_mul() {
 
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[4] = u32 mul sp[2], sp[3]
-     2: sp[6] = const u32 0
-     3: sp[5] = u32 eq sp[6], sp[3]
-     4: jump if sp[5] to 0 // -> 9: f0/b0/1
-     5: sp[8] = u32 div sp[4], sp[3]
-     6: sp[7] = u32 eq sp[8], sp[2]
-     7: jump if sp[7] to 0 // -> 9: f0/b0/2
-     8: call 0 // -> ErrorWithString
-     9: sp[2] = sp[4] // f0/b0/1, f0/b0/2
-    10: return
+     0: sp[4] = u32 mul sp[2], sp[3]
+     1: sp[6] = const u32 0
+     2: sp[5] = u32 eq sp[6], sp[3]
+     3: jump if sp[5] to 0 // -> 8: f0/b0/1
+     4: sp[8] = u32 div sp[4], sp[3]
+     5: sp[7] = u32 eq sp[8], sp[2]
+     6: jump if sp[7] to 0 // -> 8: f0/b0/2
+     7: call 0 // -> ErrorWithString
+     8: sp[2] = sp[4] // f0/b0/1, f0/b0/2
+     9: return
     ");
 }
 
@@ -98,10 +95,9 @@ fn brillig_div() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 div sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 div sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -119,12 +115,11 @@ fn brillig_mod() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[5] = u32 div sp[2], sp[3]
-    2: sp[6] = u32 mul sp[5], sp[3]
-    3: sp[4] = u32 sub sp[2], sp[6]
-    4: sp[2] = sp[4]
-    5: return
+    0: sp[5] = u32 div sp[2], sp[3]
+    1: sp[6] = u32 mul sp[5], sp[3]
+    2: sp[4] = u32 sub sp[2], sp[6]
+    3: sp[2] = sp[4]
+    4: return
     ");
 }
 
@@ -143,10 +138,9 @@ fn brillig_eq() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 eq sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 eq sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -165,10 +159,9 @@ fn brillig_lt() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 lt sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 lt sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -187,10 +180,9 @@ fn brillig_and() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 and sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 and sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -209,10 +201,9 @@ fn brillig_or() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 or sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 or sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -231,10 +222,9 @@ fn brillig_xor() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = u32 xor sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = u32 xor sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -253,14 +243,13 @@ fn brillig_shl() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[6] = const u32 32
-    2: sp[5] = u32 lt sp[3], sp[6]
-    3: jump if sp[5] to 0 // -> 5: f0/b0/1
-    4: call 0 // -> ErrorWithString
-    5: sp[4] = u32 shl sp[2], sp[3] // f0/b0/1
-    6: sp[2] = sp[4]
-    7: return
+    0: sp[6] = const u32 32
+    1: sp[5] = u32 lt sp[3], sp[6]
+    2: jump if sp[5] to 0 // -> 4: f0/b0/1
+    3: call 0 // -> ErrorWithString
+    4: sp[4] = u32 shl sp[2], sp[3] // f0/b0/1
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -279,14 +268,13 @@ fn brillig_shr() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[6] = const u32 32
-    2: sp[5] = u32 lt sp[3], sp[6]
-    3: jump if sp[5] to 0 // -> 5: f0/b0/1
-    4: call 0 // -> ErrorWithString
-    5: sp[4] = u32 shr sp[2], sp[3] // f0/b0/1
-    6: sp[2] = sp[4]
-    7: return
+    0: sp[6] = const u32 32
+    1: sp[5] = u32 lt sp[3], sp[6]
+    2: jump if sp[5] to 0 // -> 4: f0/b0/1
+    3: call 0 // -> ErrorWithString
+    4: sp[4] = u32 shr sp[2], sp[3] // f0/b0/1
+    5: sp[2] = sp[4]
+    6: return
     ");
 }
 
@@ -305,10 +293,9 @@ fn brillig_add_field() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = field add sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = field add sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -327,10 +314,9 @@ fn brillig_sub_field() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = field sub sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = field sub sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -349,10 +335,9 @@ fn brillig_mul_field() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = field mul sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = field mul sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -371,9 +356,8 @@ fn brillig_div_field() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = field field_div sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = field field_div sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }

@@ -4,6 +4,7 @@ comptime global BN254_MODULUS_BE_BYTES: [u8] = [
 ]
     .as_vector();
 
+/// True if the current field is bn254
 pub fn is_bn254() -> bool {
     comptime {
         // We can't use the `Eq` trait here due to limitations on calling non-comptime functions

@@ -294,6 +294,7 @@ fn write_location_information(
     let call_stack = dfg.get_instruction_call_stack(instruction);
 
     if let Some(location) = call_stack.last()
+        && !location.is_dummy()
         && let Ok(name) = fm.as_file_map().get_name(location.file)
     {
         let files = fm.as_file_map();

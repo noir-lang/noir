@@ -7,6 +7,7 @@ mod simple_files;
 pub use file_map::{File, FileId, FileMap, PathString};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -122,7 +123,7 @@ impl FileManager {
             .path_to_id
             .iter()
             .filter(|(path, _id)| {
-                path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
+                path.components().rev().zip_eq(suffix_path.iter()).all(|(x, y)| &x == y)
             })
             .collect();
         if results.is_empty() {

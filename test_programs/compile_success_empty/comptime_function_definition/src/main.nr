@@ -66,39 +66,8 @@ comptime fn check_visibility(f: FunctionDefinition) {
     assert_eq(f.visibility(), quote { pub(crate) })
 }
 
-#[mutate_add_one]
-fn add_one() {}
-
-comptime fn mutate_add_one(f: FunctionDefinition) {
-    // fn add_one(x: Field)
-    assert_eq(f.parameters().len(), 0);
-    f.set_parameters([(quote { x }, type_of(0))].as_vector());
-    assert_eq(f.parameters().len(), 1);
-
-    // fn add_one(x: Field) -> Field
-    assert_eq(f.return_type(), type_of(()));
-    f.set_return_type(type_of(0));
-    assert_eq(f.return_type(), type_of(0));
-
-    // fn add_one(x: Field) -> Field { x + 1 }
-    f.set_body(quote { x + 1 }.as_expr().unwrap());
-}
-
 fn main() {
-    assert_eq(add_one(41), 42);
     pub_crate_fn();
-}
-
-contract some_contract {
-    // No pub on the return type is an error
-    #[super::set_pub_return]
-    pub fn bar() -> Field {
-        1
-    }
-}
-
-comptime fn set_pub_return(f: FunctionDefinition) {
-    f.set_return_public(true);
 }
 
 mod foo {
@@ -107,13 +76,6 @@ mod foo {
 
     comptime fn attr(f: FunctionDefinition) {
         assert_eq(f.module().name(), quote { foo });
-
-        assert(!f.is_unconstrained());
-
-        f.set_unconstrained(true);
-        assert(f.is_unconstrained());
-
-        f.set_unconstrained(false);
         assert(!f.is_unconstrained());
     }
 }

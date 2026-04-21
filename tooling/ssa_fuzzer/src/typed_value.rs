@@ -7,7 +7,20 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum_macros::EnumCount;
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize, EnumCount)]
+#[derive(
+    Arbitrary,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Copy,
+    Serialize,
+    Deserialize,
+    EnumCount,
+)]
 pub enum NumericType {
     Field,
     Boolean,
@@ -59,10 +72,12 @@ impl From<NumericType> for SsaNumericType {
     }
 }
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
+#[derive(
+    Arbitrary, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, EnumCount,
+)]
 pub enum Type {
     Numeric(NumericType),
-    Reference(Arc<Type>),
+    Reference(Arc<Type>, /* mutable */ bool),
     Array(Arc<Vec<Type>>, u32),
     Vector(Arc<Vec<Type>>),
 }
@@ -80,7 +95,7 @@ impl Type {
             Type::Numeric(numeric_type) => numeric_type.bit_length(),
             Type::Array(_, _) => unreachable!("Array type unexpected"),
             Type::Vector(_) => unreachable!("Vector type unexpected"),
-            Type::Reference(value_type) => value_type.bit_length(),
+            Type::Reference(value_type, _) => value_type.bit_length(),
         }
     }
 
@@ -89,18 +104,39 @@ impl Type {
     }
 
     pub fn is_reference(&self) -> bool {
-        matches!(self, Type::Reference(_))
+        matches!(self, Type::Reference(..))
     }
 
     pub fn type_contains_reference(&self) -> bool {
         match self {
-            Type::Reference(_) => true,
+            Type::Reference(..) => true,
             Type::Array(element_types, _) => {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
             Type::Vector(element_types) => {
                 element_types.iter().any(|t| t.type_contains_reference())
             }
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn contains_vector_element(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Vector(_) => true,
+            Type::Reference(element, _) => element.contains_vector_element(),
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn is_nested_vector(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Reference(element, _) => element.is_nested_vector(),
             Type::Numeric(_) => false,
         }
     }
@@ -130,7 +166,7 @@ impl Type {
 
     pub fn unwrap_reference(&self) -> Type {
         match self {
-            Type::Reference(value_type) => value_type.as_ref().clone(),
+            Type::Reference(value_type, _) => value_type.as_ref().clone(),
             _ => panic!("Expected Reference, found {self:?}"),
         }
     }
@@ -239,8 +275,8 @@ impl From<SsaType> for Type {
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
                 length.0,
             ),
-            SsaType::Reference(element_type) => {
-                Type::Reference(Arc::new((*element_type).clone().into()))
+            SsaType::Reference(element_type, mutable) => {
+                Type::Reference(Arc::new((*element_type).clone().into()), mutable)
             }
             SsaType::Vector(element_types) => {
                 Type::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
@@ -258,8 +294,8 @@ impl From<Type> for SsaType {
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),
                 SemanticLength(length),
             ),
-            Type::Reference(element_type) => {
-                SsaType::Reference(Arc::new((*element_type).clone().into()))
+            Type::Reference(element_type, mutable) => {
+                SsaType::Reference(Arc::new((*element_type).clone().into()), mutable)
             }
             Type::Vector(element_types) => {
                 SsaType::Vector(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))

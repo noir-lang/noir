@@ -7,6 +7,7 @@ use crate::ssa::{
 
 use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
+use super::unrolling::MAX_UNROLL_ITERATIONS;
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
@@ -59,9 +60,15 @@ impl Ssa {
             function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             // Use default threshold for force-unrolling.
-            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD, &callee_costs);
+            let _ = function.unroll_loops_iteratively(
+                MAX_UNROLL_ITERATIONS,
+                FORCE_UNROLL_THRESHOLD,
+                &callee_costs,
+            );
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
+            function.load_store_forwarding();
+            function.remove_redundant_params();
 
             // Try to reduce the number of blocks.
             function.simplify_function();
@@ -73,7 +80,7 @@ impl Ssa {
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
         // Remove leftover instructions.
-        Ok(ssa.dead_instruction_elimination_pre_flattening())
+        Ok(ssa.dead_instruction_elimination())
     }
 }
 

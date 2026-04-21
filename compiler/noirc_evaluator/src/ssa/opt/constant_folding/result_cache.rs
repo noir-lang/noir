@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -53,7 +55,7 @@ impl InstructionResultCache {
                 results.len() == old_results.len()
                     && old_results
                         .iter()
-                        .zip(results.iter())
+                        .zip_eq(results.iter())
                         .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
             } else {
                 true
