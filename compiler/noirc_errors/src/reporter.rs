@@ -244,7 +244,7 @@ pub fn report<'files>(
 
     let stack_trace = stack_trace(files, function_locations, &custom_diagnostic.call_stack);
     let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
-    term::emit(&mut writer.lock(), &config, files, &diagnostic).unwrap();
+    term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
     deny_warnings || custom_diagnostic.is_error()
 }
