@@ -196,8 +196,8 @@ fn uses_self_type_in_trait_where_clause() {
     struct Bar {}
 
     impl Foo for Bar {
-                 ^^^ The trait bound `_: Trait` is not satisfied
-                 ~~~ The trait `Trait` is not implemented for `_`
+                 ^^^ The trait bound `Bar: Trait` is not satisfied
+                 ~~~ The trait `Trait` is not implemented for `Bar`
 
     }
 

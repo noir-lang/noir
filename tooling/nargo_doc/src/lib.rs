@@ -254,7 +254,8 @@ impl DocItemBuilder<'_> {
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
-                let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
+                let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+                let parents = vecmap(&parent_bounds, |bound| self.convert_trait_bound(bound));
 
                 let mut associated_types = Vec::new();
                 let mut associated_constants = Vec::new();
