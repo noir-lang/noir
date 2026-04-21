@@ -96,14 +96,7 @@ impl Function {
             &mut block_states,
             &cfg,
         );
-        add_terminator_arguments(
-            &blocks,
-            &variables,
-            &param_locations,
-            &mut inserter,
-            &block_states,
-            &cfg,
-        );
+        add_terminator_arguments(&blocks, &param_locations, &mut inserter, &block_states, &cfg);
         commit(&mut inserter, &variables, blocks);
     }
 }
@@ -292,9 +285,10 @@ fn get_value_from_visited_predecessor(
 /// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
 ///
 /// Only blocks in a variable's IDF have block parameters that need arguments wired.
+/// For each such (block, address) pair we push the predecessor's exit value onto each
+/// incoming edge's terminator argument list.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &BlockStates,
@@ -303,17 +297,19 @@ fn add_terminator_arguments(
     for block in blocks.iter().copied() {
         let block_state = &block_states[&block];
 
-        for predecessor in cfg.predecessors(block) {
-            let pred_state = &block_states[&predecessor];
-            for_each_terminator_edge_mut(&mut inserter.function.dfg, predecessor, block, |args| {
-                for address in block_state.entry_state.keys() {
-                    // Only wire arguments for IDF blocks (those with block parameters).
-                    // Declaration blocks and inherited-value blocks don't have params to wire.
-                    if block != variables[address] && param_locations[address].contains(&block) {
-                        args.push(pred_state.get_exit_value(*address));
-                    }
-                }
-            });
+        for address in block_state.entry_state.keys() {
+            if !param_locations[address].contains(&block) {
+                continue;
+            }
+            for predecessor in cfg.predecessors(block) {
+                let value = block_states[&predecessor].get_exit_value(*address);
+                for_each_terminator_edge_mut(
+                    &mut inserter.function.dfg,
+                    predecessor,
+                    block,
+                    |args| args.push(value),
+                );
+            }
         }
     }
 }
