@@ -724,10 +724,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         if !self.building_globals {
-            let dead_variables = self
-                .last_uses
-                .get(&instruction_id)
-                .expect("Last uses for instruction should have been computed");
+            // Instructions with no last uses are omitted from `last_uses` to save memory;
+            // a missing entry is equivalent to an empty set.
+            let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
 
             for dead_variable in dead_variables {
                 // Globals are reserved throughout the entirety of the program
