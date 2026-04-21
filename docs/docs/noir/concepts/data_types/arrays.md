@@ -64,6 +64,8 @@ let array: [Field; 32] = [0; 32];
 let sl = array.as_vector()
 ```
 
+You can also create vectors directly using the `@[...]` literal syntax. See [Vectors](./vectors.mdx) for details.
+
 You can define multidimensional arrays:
 
 ```rust

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
 use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
@@ -110,7 +111,7 @@ impl From<&BrokenLink> for CustomDiagnostic {
             kind: DiagnosticKind::Warning,
             deprecated: false,
             unnecessary: false,
-            call_stack: vec![],
+            call_stack: CallStack::empty(),
         }
     }
 }
@@ -253,7 +254,8 @@ impl DocItemBuilder<'_> {
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
-                let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
+                let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+                let parents = vecmap(&parent_bounds, |bound| self.convert_trait_bound(bound));
 
                 let mut associated_types = Vec::new();
                 let mut associated_constants = Vec::new();

@@ -796,7 +796,6 @@ impl<'context> Elaborator<'context> {
 
         self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, noir_function) in &trait_impl.methods.functions {

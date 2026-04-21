@@ -262,9 +262,15 @@ fn compute_function_should_be_inlined(
     let is_simple_function = entry_block.successors().next().is_none()
         && instruction_weight < small_function_max_instructions;
 
+    // Single-caller inlining has zero code duplication: the function body exists
+    // in exactly one place before and after inlining. Aggressiveness controls
+    // duplication tolerance, so it should not gate this decision.
+    let called_once = times == 1;
+
     let should_inline = !runtime.is_inline_never()
         && (is_simple_function
             || net_cost < aggressiveness
+            || called_once
             || runtime.is_inline_always()
             || should_inline_no_pred_function
             || contains_static_assertion
@@ -648,5 +654,153 @@ mod tests {
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(!f1.should_inline, "Brillig entry points should never be inlined");
+    }
+
+    #[test]
+    fn called_once_non_simple_function_is_inlined() {
+        // f1 is a non-simple Brillig function (has control flow via jmpif, so
+        // entry block has successors) called exactly once by main.
+        // Even at minimum aggressiveness, it should be inlined because
+        // single-caller inlining has zero code duplication.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn big f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            f1.should_inline,
+            "A non-simple function called exactly once should be inlined regardless of aggressiveness"
+        );
+    }
+
+    #[test]
+    fn called_twice_non_simple_function_not_inlined_at_min_aggressiveness() {
+        // f1 is called twice (once by f2, once by f3). It should NOT be inlined
+        // at minimum aggressiveness since the single-caller heuristic does not apply.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f2(v0) -> u1
+            v3 = call f3(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn big f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        brillig(inline) fn caller_a f2 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> u1
+            return v1
+        }
+        brillig(inline) fn caller_b f3 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> u1
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "A non-simple function called more than once should NOT be inlined at minimum aggressiveness"
+        );
+    }
+
+    #[test]
+    fn called_once_inline_never_not_inlined() {
+        // f1 is called once but marked inline_never. The inline_never attribute
+        // must take precedence over the single-caller heuristic.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline_never) fn never f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "inline_never must take precedence over the single-caller heuristic"
+        );
+    }
+
+    #[test]
+    fn called_once_recursive_not_inlined() {
+        // f1 is self-recursive and called once externally by main.
+        // Recursive Brillig functions early-return before reaching the
+        // should_inline decision, so the single-caller heuristic has no effect.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = call f1(v0) -> u1
+            return v2
+        }
+        brillig(inline) fn recursive f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = call f1(v0) -> u1
+            jmp b3(v2)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.is_recursive, "f1 should be detected as recursive");
+        assert!(
+            !f1.should_inline,
+            "Recursive functions should not be inlined even if called once externally"
+        );
     }
 }

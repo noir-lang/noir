@@ -937,11 +937,70 @@ mod tests {
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::{LoopOrder, Loops};
-    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use crate::ssa::opt::{
+        assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+        assert_ssa_does_not_change,
+    };
     use acvm::AcirField;
     use acvm::acir::brillig::lengths::SemanticLength;
     use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
+
+    #[test]
+    fn signed_mul_overflow_at_lower_bound_not_converted_to_unchecked() {
+        // Regression: the loop invariant pass checked only the upper bound when deciding
+        // whether to convert a signed checked mul to unchecked. For signed types, the lower
+        // bound can overflow in the opposite direction.
+        //
+        // i8 206 = -50 in two's complement. Range is -50..40.
+        //   upper check: 3 * 40 = 120 < 128  (passes, no overflow)
+        //   lower check: 3 * (-50) = -150 < -128  (overflows!)
+        //
+        // The pass must keep the mul checked so the overflow is caught at runtime.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 40
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = mul v0, i8 3
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn signed_sub_overflow_at_upper_bound_not_converted_to_unchecked() {
+        // i - (-100) overflows at the upper bound: 99 - (-100) = 199 > 127.
+        // i8 206 = -50, i8 156 = -100. Range is -50..100.
+        // The pass checks only lower: -50 - (-100) = 50 (safe), missing upper: 99 - (-100) = 199.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 100
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = sub v0, i8 156
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
 
     #[test]
     fn hoists_casts() {

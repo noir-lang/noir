@@ -247,8 +247,8 @@ mod tests {
     use crate::source_code_printer::render_location;
     use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
-    use noirc_artifacts::debug::{DebugArtifact, DebugInfo, LocationNodeDebugInfo, LocationTree};
-    use noirc_errors::call_stack::CallStackId;
+    use noirc_artifacts::debug::{DebugArtifact, DebugInfo, LocationTree};
+    use noirc_errors::call_stack::{CallStackHelper, CallStackId};
     use noirc_errors::{Location, Span};
     use std::collections::BTreeMap;
     use std::ops::Range;
@@ -292,13 +292,9 @@ mod tests {
         // we just use a dummy to construct debug_symbols
         let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
         opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
-        let mut location_tree = LocationTree::default();
-        location_tree
-            .locations
-            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
-        location_tree
-            .locations
-            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
+        let mut call_stack = CallStackHelper::default();
+        call_stack.add_location_to_root(loc);
+        let location_tree = LocationTree::from(&call_stack);
 
         let debug_symbols = vec![DebugInfo::new(
             BTreeMap::default(),
