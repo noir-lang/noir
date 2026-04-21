@@ -1480,7 +1480,10 @@ impl Elaborator<'_> {
     /// Without turbofish, returns `None` so the caller falls back to module-based lookup, which
     /// handles `Self::method`, visibility checks, and associated constants correctly.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_type_trait_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
+    fn resolve_type_method_or_trait_method(
+        &mut self,
+        path: &TypedPath,
+    ) -> Option<TraitPathResolution> {
         if path.segments.len() < 2 {
             return None;
         }
@@ -1667,7 +1670,7 @@ impl Elaborator<'_> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
-            .or_else(|| self.resolve_type_trait_method(path))
+            .or_else(|| self.resolve_type_method_or_trait_method(path))
     }
 
     /// Unify two types, modifying both in the process.
