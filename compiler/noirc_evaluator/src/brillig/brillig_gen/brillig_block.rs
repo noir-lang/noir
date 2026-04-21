@@ -237,7 +237,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-        let offset = sm.get_spill_offset(&value_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        let prior_offset = sm.get_spill_offset(&value_id);
+        let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
         sm.remove_from_lru(&value_id);
         if permanent {
             sm.record_permanent_spill(value_id, offset, var);
@@ -245,7 +246,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             sm.record_spill(value_id, offset, var);
         }
 
-        if emit_store {
+        // Only store when we've just allocated the slot. If the value already had a slot,
+        // the slot still holds the correct value (SSA values are immutable) so the store
+        // would be redundant.
+        if emit_store && prior_offset.is_none() {
             self.codegen_spill_store(offset, var.extract_register());
         }
 
