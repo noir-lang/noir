@@ -1112,7 +1112,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "583f52b0658b321b25fd6b209b6c76cf058f433071297de64e5980c3d9aad937"
 dependencies = [
- "codespan-reporting 0.13.1",
+ "codespan-reporting",
  "serde",
 ]
 
@@ -1122,19 +1122,9 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b93929a224896b211d7a3a6121e3819584ef0d1413e5dbb1eaee8492ffffc40"
 dependencies = [
- "codespan-reporting 0.13.1",
+ "codespan-reporting",
  "lsp-types 0.88.0",
  "url",
-]
-
-[[package]]
-name = "codespan-reporting"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
-dependencies = [
- "termcolor",
- "unicode-width",
 ]
 
 [[package]]
@@ -1957,7 +1947,7 @@ dependencies = [
 name = "fm"
 version = "1.0.0-beta.20"
 dependencies = [
- "codespan-reporting 0.11.1",
+ "codespan-reporting",
  "iter-extended",
  "itertools 0.14.0",
  "serde",
@@ -3594,7 +3584,7 @@ dependencies = [
  "assert_cmd",
  "bn254_blackbox_solver",
  "build-data",
- "codespan-reporting 0.11.1",
+ "codespan-reporting",
  "dap",
  "easy-repl",
  "fm",
@@ -3840,7 +3830,7 @@ dependencies = [
  "acir",
  "acvm",
  "base64",
- "codespan-reporting 0.11.1",
+ "codespan-reporting",
  "flate2",
  "fm",
  "noirc_abi",
@@ -3890,7 +3880,7 @@ dependencies = [
 name = "noirc_errors"
 version = "1.0.0-beta.20"
 dependencies = [
- "codespan-reporting 0.11.1",
+ "codespan-reporting",
  "fm",
  "noirc_span",
  "rangemap",
