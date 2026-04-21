@@ -9,7 +9,9 @@ error: Assertion failed: Attempt to divide with overflow
    │              -----------
    │
    = Call stack:
-     1. src/main.nr:4:9
-     2. src/main.nr:13:14
+     1: main
+             at src/main.nr:4:9
+     2: func_1
+             at src/main.nr:13:14
 
 Failed assertion

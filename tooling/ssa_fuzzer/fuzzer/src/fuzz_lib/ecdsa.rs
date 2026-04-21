@@ -1,7 +1,15 @@
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 
-use k256::elliptic_curve::Generate;
 use sha2::{Digest, Sha256};
+
+/// Creates a deterministic RNG seeded from the message hash.
+/// This ensures the same message always produces the same key/signature.
+fn rng_from_msg(msg: &[u8]) -> StdRng {
+    let hash = Sha256::digest(msg);
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&hash);
+    StdRng::from_seed(seed)
+}
 
 #[derive(Debug)]
 pub(crate) struct SignatureSsaPrepared {
@@ -15,7 +23,10 @@ pub(crate) struct SignatureSsaPrepared {
 fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use k256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use k256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::generate();
+    let mut rng = rng_from_msg(msg);
+    let mut key_bytes = [0u8; 32];
+    rng.fill_bytes(&mut key_bytes);
+    let signing_key = SigningKey::from_slice(&key_bytes).expect("valid k256 signing key");
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_sec1_point(/*compress = */ false).to_bytes();
@@ -37,7 +48,10 @@ fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepar
 fn generate_ecdsa_signature_secp256r1_internal(msg: &[u8]) -> SignatureSsaPrepared {
     use p256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer};
     use p256::elliptic_curve::scalar::IsHigh;
-    let signing_key = SigningKey::generate();
+    let mut rng = rng_from_msg(msg);
+    let mut key_bytes = [0u8; 32];
+    rng.fill_bytes(&mut key_bytes);
+    let signing_key = SigningKey::from_slice(&key_bytes).expect("valid p256 signing key");
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
     let public_key_bytes = verifying_key.to_sec1_point(/*compress = */ false).to_bytes();
@@ -71,7 +85,7 @@ pub(crate) fn generate_ecdsa_signature_and_corrupt_it(
     corrupt_pubkey_y: bool,
     corrupt_signature: bool,
 ) -> SignatureSsaPrepared {
-    let mut rng = rand::rng();
+    let mut rng = rng_from_msg(msg);
     let mut prepared_signature = match target_curve {
         Curve::Secp256k1 => generate_ecdsa_signature_secp256k1_internal(msg),
         Curve::Secp256r1 => generate_ecdsa_signature_secp256r1_internal(msg),

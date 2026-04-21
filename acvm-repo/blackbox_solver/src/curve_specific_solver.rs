@@ -26,6 +26,7 @@ pub trait BlackBoxFunctionSolver<F> {
         input2_infinite: &F,
         predicate: bool,
     ) -> Result<(F, F, F), BlackBoxResolutionError>;
+
     fn poseidon2_permutation(&self, inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 pub struct StubbedBlackBoxSolver;

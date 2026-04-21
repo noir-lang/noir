@@ -284,7 +284,7 @@ fn lock_workspace(
     }
 
     let mut locks = Vec::new();
-    for pkg in workspace.into_iter() {
+    for pkg in workspace {
         let toml_path = get_package_manifest(&pkg.root_dir)?;
         let path_display = toml_path.display();
 

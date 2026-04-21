@@ -337,7 +337,7 @@ mod tests {
             v30 = cast v23 as i64
             v31 = lt v30, v19
             v32 = not v31
-            jmpif v32 then: b1, else: b2
+            jmpif v32 then: b1(), else: b2()
         "#;
 
     #[test]
@@ -363,7 +363,7 @@ mod tests {
             v_ = cast v_ as i64
             v_ = lt v_, v_
             v_ = not v_
-            jmpif v_ then: b_, else: b_
+            jmpif v_ then: b_(), else: b_()
         "#
         )
     }
@@ -403,7 +403,7 @@ mod tests {
             v46 = cast v42 as i64
             v47 = lt v46, v40
             v48 = not v47
-            jmpif v48 then: b1, else: b2
+            jmpif v48 then: b1(), else: b2()
         "#,
         );
         assert!(0.0 < s && s < 1.0, "somewhat similar with insertions")

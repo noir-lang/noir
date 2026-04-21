@@ -333,8 +333,8 @@ pub(crate) fn execute_program_with_acir_fuzzing<
         }
     }
 }
-#[tracing::instrument(level = "trace", skip_all)]
 
+#[tracing::instrument(level = "trace", skip_all)]
 fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,

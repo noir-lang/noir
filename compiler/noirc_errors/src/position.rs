@@ -90,6 +90,10 @@ impl Location {
             self
         }
     }
+
+    pub fn is_dummy(&self) -> bool {
+        *self == Location::dummy()
+    }
 }
 
 impl Ord for Location {

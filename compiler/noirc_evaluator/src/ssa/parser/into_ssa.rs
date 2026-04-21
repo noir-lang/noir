@@ -5,7 +5,11 @@ use std::{
 };
 
 use acvm::acir::circuit::ErrorSelector;
-use noirc_errors::{Location, call_stack::CallStackId};
+use itertools::Itertools;
+use noirc_errors::{
+    Location,
+    call_stack::{CallStack, CallStackId},
+};
 
 use crate::ssa::{
     function_builder::{
@@ -164,7 +168,7 @@ impl Translator {
 
                 // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.
                 // Thus, we set a dummy location here so that translated instructions have a location associated with them.
-                let stack = vec![Location::dummy()];
+                let stack = CallStack::new(vec![Location::dummy()]);
                 let call_stack_data = &mut self.builder.current_function.dfg.call_stack_data;
                 let call_stack = call_stack_data.get_or_insert_locations(&stack);
                 self.builder.set_call_stack(call_stack);
@@ -295,11 +299,25 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
-            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+            ParsedTerminator::Jmpif {
+                condition,
+                then_block,
+                then_arguments,
+                else_block,
+                else_arguments,
+            } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(&then_block)?;
+                let then_arguments = self.translate_values(then_arguments)?;
                 let else_destination = self.lookup_block(&else_block)?;
-                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+                let else_arguments = self.translate_values(else_arguments)?;
+                self.builder.terminate_with_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                );
             }
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
@@ -316,7 +334,13 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
+                // The parsed type is the full reference type (e.g. &mut u32).
+                // insert_allocate_with_mutability expects the element type and mutability separately.
+                let value_id = if let Type::Reference(element, mutable) = typ {
+                    self.builder.insert_allocate_with_mutability(element.as_ref().clone(), mutable)
+                } else {
+                    self.builder.insert_allocate(typ)
+                };
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
@@ -352,7 +376,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
                     self.define_variable(target, value_id)?;
                 }
             }
@@ -562,7 +586,7 @@ impl Translator {
 
         self.global_values.insert(identifier.name, value_id);
 
-        let typ = self.globals_function.dfg.type_of_value(value_id);
+        let typ = self.globals_function.dfg.type_of_value(value_id).into_owned();
         self.global_types.push(typ);
 
         Ok(())

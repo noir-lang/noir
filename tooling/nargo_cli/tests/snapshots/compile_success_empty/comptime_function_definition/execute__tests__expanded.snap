@@ -64,33 +64,8 @@ comptime fn check_visibility(f: FunctionDefinition) {
     assert(f.visibility() == quote { pub(crate) })
 }
 
-fn add_one(x: Field) -> Field {
-    x + 1_Field
-}
-
-comptime fn mutate_add_one(f: FunctionDefinition) {
-    assert(f.parameters().len() == 0_u32);
-    f.set_parameters([(quote { x }, type_of(0_Field))].as_vector());
-    assert(f.parameters().len() == 1_u32);
-    assert(f.return_type() == type_of(()));
-    f.set_return_type(type_of(0_Field));
-    assert(f.return_type() == type_of(0_Field));
-    f.set_body(quote { x + 1 }.as_expr().unwrap());
-}
-
 fn main() {
-    assert(add_one(41_Field) == 42_Field);
     pub_crate_fn();
-}
-
-contract some_contract {
-    pub fn bar() -> pub Field {
-        1_Field
-    }
-}
-
-comptime fn set_pub_return(f: FunctionDefinition) {
-    f.set_return_public(true);
 }
 
 mod foo {
@@ -98,10 +73,6 @@ mod foo {
 
     comptime fn attr(f: FunctionDefinition) {
         assert(f.module().name() == quote { foo });
-        assert(!f.is_unconstrained());
-        f.set_unconstrained(true);
-        assert(f.is_unconstrained());
-        f.set_unconstrained(false);
         assert(!f.is_unconstrained());
     }
 }

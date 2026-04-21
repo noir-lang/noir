@@ -1,5 +1,4 @@
 use noirc_errors::call_stack::CallStackId;
-use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
@@ -17,7 +16,7 @@ use crate::{
     brillig::assert_u32,
     ssa::ir::{
         basic_block::BasicBlockId,
-        dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
+        dfg::DataFlowGraph,
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         integer::IntegerConstant,
         types::{NumericType, Type},
@@ -59,9 +58,7 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
@@ -82,9 +79,7 @@ pub(super) fn simplify_call(
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {
@@ -101,12 +96,12 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            let length = match dfg.type_of_value(arguments[0]) {
+            let length = match *dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
                     dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
-                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
+                    assert!(matches!(*dfg.type_of_value(arguments[1]), Type::Vector(_)));
                     arguments[0]
                 }
                 _ => panic!("First argument to ArrayLen must be an array or a vector length"),
@@ -132,43 +127,41 @@ pub(super) fn simplify_call(
         }
         Intrinsic::VectorPushBack => {
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
-                // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-                // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                if element_type.element_size() != ElementTypesLength(1) {
-                    if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
-                        dfg.get_integer_constant(arguments[0])
-                    {
-                        // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                        // the length of the vector.
-                        if vector_len as usize == vector.len() {
-                            // Old code before implementing multiple vector mergers
-                            for elem in &arguments[2..] {
-                                vector.push_back(*elem);
-                            }
+            if let Some((mut vector, vector_type)) = vector {
+                if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                    dfg.get_integer_constant(arguments[0])
+                {
+                    let elements_size = vector_type.element_size();
+                    let semi_flattened_vector_len =
+                        SemanticLength(vector_len as u32) * elements_size;
 
-                            let new_vector_length =
-                                increment_vector_length(arguments[0], dfg, block, call_stack);
-
-                            let new_vector =
-                                make_array(dfg, vector, element_type, block, call_stack);
-                            return SimplifyResult::SimplifiedToMultiple(vec![
-                                new_vector_length,
-                                new_vector,
-                            ]);
+                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                    // the length of the vector (taking the elements size into account).
+                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
+                        // Old code before implementing multiple vector mergers
+                        for elem in &arguments[2..] {
+                            vector.push_back(*elem);
                         }
+
+                        let new_vector_length =
+                            increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                        let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+                        return SimplifyResult::SimplifiedToMultiple(vec![
+                            new_vector_length,
+                            new_vector,
+                        ]);
                     }
-                    return SimplifyResult::None;
                 }
 
-                simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
+                simplify_vector_push_back(vector, vector_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::VectorPushFront => {
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
+            if let Some((mut vector, vector_type)) = vector {
                 for elem in arguments[2..].iter().rev() {
                     vector.push_front(*elem);
                 }
@@ -176,7 +169,7 @@ pub(super) fn simplify_call(
                 let new_vector_length =
                     increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
             } else {
                 SimplifyResult::None
@@ -384,7 +377,7 @@ pub(super) fn simplify_call(
         (return_type, &simplified_result)
     {
         assert_eq!(
-            dfg.type_of_value(*result),
+            *dfg.type_of_value(*result),
             expected_types,
             "Simplification should not alter return type"
         );
@@ -507,6 +500,16 @@ fn decrement_vector_length(
     update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
+/// Simplify a vector push back when the length is not known to equal capacity, ie. we don't
+/// know whether we to push new items and grow the capacity of the vector, or overwrite the
+/// next padding item.
+///
+/// The strategy is to:
+/// 1. Create a new vector where the new item is pushed to the end, extending its capacity
+/// 2. Set the item at the original semantic length as well
+///
+/// There result is that the vector will physically always be extended by 1, with the pushed
+/// item appearing at the end, and potentially in the middle of the vector if we weren't at capacity.
 fn simplify_vector_push_back(
     mut vector: im::Vector<ValueId>,
     element_type: Type,
@@ -515,64 +518,34 @@ fn simplify_vector_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the vector length
-    let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
-    let len_equals_capacity_instr =
-        Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
-    let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
-        .first();
-    let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
-    let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
-        .first();
+    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
+    }
+    assert_eq!(arguments.len(), 3, "should only push a single item");
 
     let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
 
-    for elem in &arguments[2..] {
-        vector.push_back(*elem);
-    }
-    let vector_size = SemiFlattenedLength(assert_u32(vector.len()));
-    let element_size = element_type.element_size();
-    let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+    vector.push_back(arguments[2]);
 
-    let set_last_vector_value_instr = Instruction::ArraySet {
-        array: new_vector,
+    let extended_vector = make_array(dfg, vector, element_type, block, call_stack);
+
+    // Set the value at the semantic length: if the vector had extra capacity, this will set the first
+    // padding to the item we wanted to push. By doing this on the extended vector, we guarantee that
+    // there will be extra capacity. If we tried to do this on the original, we could get Index OOB if
+    // the capacity and the size were the same.
+    let set_last_vector_instr = Instruction::ArraySet {
+        array: extended_vector,
         index: arguments[0],
         value: arguments[2],
         mutable: false,
     };
 
-    let set_last_vector_value = dfg
-        .insert_instruction_and_results(set_last_vector_value_instr, block, None, call_stack)
-        .first();
+    let set_last_vector =
+        dfg.insert_instruction_and_results(set_last_vector_instr, block, None, call_stack).first();
 
-    let mut vector_sizes = HashMap::default();
-    vector_sizes.insert(set_last_vector_value, vector_size / element_size);
-    vector_sizes.insert(new_vector, vector_size / element_size);
-
-    let array_get_optimization_side_effects = None;
-    let mut value_merger = ValueMerger::new(
-        dfg,
-        block,
-        &vector_sizes,
-        call_stack,
-        array_get_optimization_side_effects,
-    );
-
-    let Ok(new_vector) = value_merger.merge_values(
-        len_not_equals_capacity,
-        len_equals_capacity,
-        set_last_vector_value,
-        new_vector,
-    ) else {
-        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
-        // all of ssa. Instead we just choose not to simplify the vector call since this should
-        // be a rare case.
-        return SimplifyResult::None;
-    };
-
-    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
+    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
 }
 
 fn simplify_vector_pop_back(
@@ -772,7 +745,6 @@ fn simplify_derive_generators(
                 num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
             let mut results = Vec::new();
             for generator in generators {
                 let x_big: BigUint = generator.x.into();
@@ -781,17 +753,14 @@ fn simplify_derive_generators(
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
-                results.push(is_infinite);
             }
             let len = results.len() as u32;
             assert!(
-                len.is_multiple_of(3),
-                "The number of results from derive_generators must be a multiple of 3"
+                len.is_multiple_of(2),
+                "The number of results from derive_generators must be a multiple of 2"
             );
-            let typ = Type::Array(
-                vec![Type::field(), Type::field(), Type::unsigned(1)].into(),
-                SemanticLength(len / 3),
-            );
+            let typ =
+                Type::Array(vec![Type::field(), Type::field()].into(), SemanticLength(len / 2));
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
@@ -804,7 +773,10 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
@@ -814,7 +786,7 @@ mod tests {
                 separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field); 1]
 
                 return result
             }
@@ -825,8 +797,8 @@ mod tests {
         brillig(inline) fn main f0 {
           b0():
             v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-            v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-            return v19
+            v18 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332] : [(Field, Field); 1]
+            return v18
         }
         "#);
     }
@@ -980,5 +952,189 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_simple() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 3) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v4
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_complex() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_complex()
+     {
+        // Here the semantic length is different from the vector capacity.
+        // A situation like this is possible when we merge vectors of different length across different branches,
+        // which results in the ValueMerger allocating elements to hold the longer one, and the semantic length
+        // becoming a formula. Then, if constant folding with Brillig optimizes out the condition, the semantic
+        // length can become a known constant.
+        // At the moment the only handling for complex type is the pushing to the last position.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v9, v10 = call vector_push_back(u32 1, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v9, v10
+        }
+        ");
+    }
+
+    #[test]
+    fn simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_simple() {
+        // Here the semantic length is different from the vector capacity, but the elements are simple.
+        // In this case we can do a merge strategy.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v5 = make_array [Field 1, Field 2, Field 3, Field 5] : [Field]
+            v7 = array_set v5, index u32 1, value Field 5
+            return u32 2, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_with_unknown_length() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v2, v3 = call vector_push_back(v0, v1, Field 5) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see how we start with a `make_array` that pushed `Field 5` to the end of the
+        // original `make_array`, sets the element at `v0` to `Field 5` (which can result in
+        // one of `[5, 4, 5]`, `[3, 5, 5]` or `[3, 4, 5]` depending on the value of `v0`),
+        // and then merge that new array with `[3, 4, 5]`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = add v0, u32 1
+            v7 = make_array [Field 3, Field 4, Field 5] : [Field]
+            v8 = array_set v7, index v0, value Field 5
+            return v5, v8
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_middle_index() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 1, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 2, Field 4] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_index_right_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 2, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 4, Field 2] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_insert_on_make_array_and_known_index_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 3, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

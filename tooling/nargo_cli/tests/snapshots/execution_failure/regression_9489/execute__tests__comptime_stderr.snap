@@ -9,7 +9,9 @@ error: vector_pop_front called on empty vector
   │             --------------- Assertion failed
   │
   = Call stack:
-    1. src/main.nr:2:4
-    2. src/main.nr:3:13
+    1: ?
+            at src/main.nr:2:4
+    2: main
+            at src/main.nr:3:13
 
 Error interpreting main function

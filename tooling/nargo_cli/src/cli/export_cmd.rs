@@ -86,7 +86,8 @@ fn compile_exported_functions(
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             )?;

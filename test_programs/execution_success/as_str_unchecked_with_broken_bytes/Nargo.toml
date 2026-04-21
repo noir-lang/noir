@@ -1,0 +1,6 @@
+[package]
+name = "as_str_unchecked_with_broken_bytes"
+type = "bin"
+authors = [""]
+
+[dependencies]

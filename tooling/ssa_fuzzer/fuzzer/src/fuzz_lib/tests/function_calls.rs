@@ -154,7 +154,7 @@ fn several_functions_several_calls() {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = allocate -> &mut Field
 ///       store v0 at v7
-///       jmpif v6 then: b1, else: b2
+///       jmpif v6 then: b1(), else: b2()
 ///     b1():
 ///       v11 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///       store v11 at v7

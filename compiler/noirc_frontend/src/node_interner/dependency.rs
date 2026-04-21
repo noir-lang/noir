@@ -7,6 +7,7 @@ use petgraph::{
 };
 
 use crate::{
+    Type,
     hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
     node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId},
 };
@@ -25,7 +26,7 @@ use super::NodeInterner;
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
-    Struct(TypeId),
+    DataType(TypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -42,7 +43,7 @@ impl NodeInterner {
     /// Register that `dependent` depends on `dependency`.
     /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
     pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: TypeId) {
-        self.add_dependency(dependent, DependencyId::Struct(dependency));
+        self.add_dependency(dependent, DependencyId::DataType(dependency));
     }
 
     /// Mark a [DependencyId] as being dependant on a [GlobalId].
@@ -92,7 +93,7 @@ impl NodeInterner {
 
         let mut push_error_from_index = |scc: &[_], scc_index, node_index: PetGraphIndex| -> bool {
             match self.dependency_graph[node_index] {
-                DependencyId::Struct(struct_id) => {
+                DependencyId::DataType(struct_id) => {
                     let struct_type = self.get_type(struct_id);
                     let struct_type = struct_type.borrow();
                     let name = &struct_type.name;
@@ -107,6 +108,9 @@ impl NodeInterner {
                 }
                 DependencyId::Alias(alias_id) => {
                     let alias = self.get_type_alias(alias_id);
+                    // If type aliases form a cycle, break the cycle to prevent infinite recursion in later phases.
+                    alias.borrow_mut().typ = Type::Error;
+
                     let alias = alias.borrow();
                     push_error(alias.name.to_string(), scc, scc_index, alias.name.location());
                     true
@@ -167,7 +171,7 @@ impl NodeInterner {
     /// element at the given start index.
     fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
-            DependencyId::Struct(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
+            DependencyId::DataType(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())

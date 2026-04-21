@@ -9,11 +9,10 @@ use crate::{
         type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    signed_field::SignedField,
     token::Token,
 };
-use acvm::BlackBoxResolutionError;
-use noirc_errors::{CustomDiagnostic, Location};
+use acvm::{BlackBoxResolutionError, FieldElement};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,7 +39,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: SignedField,
+        value: FieldElement,
         typ: Type,
         location: Location,
     },
@@ -190,6 +189,10 @@ pub enum InterpreterError {
     NoImpl {
         location: Location,
     },
+    NoTraitItemInImpl {
+        item_name: String,
+        location: Location,
+    },
     NoMatchingImplFound {
         error: NoMatchingImplFoundError,
     },
@@ -245,7 +248,7 @@ pub enum InterpreterError {
         location: Location,
     },
     GenericNameShouldBeAnIdent {
-        name: Rc<String>,
+        name: String,
         location: Location,
     },
     DuplicateGeneric {
@@ -390,6 +393,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
@@ -529,7 +533,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 let diagnostic = CustomDiagnostic::simple_error(primary, secondary, *location);
 
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
@@ -717,6 +721,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "No impl found due to prior type error".into();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
+            InterpreterError::NoTraitItemInImpl { item_name, location } => {
+                let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
                 let msg = format!(
                     "Impl method type {actual} does not unify with trait method type {expected}"
@@ -862,7 +870,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Exceeded the recursion limit".to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::EvaluationDepthOverflow { location, call_stack } => {
                 let diagnostic = CustomDiagnostic::simple_error(
@@ -871,7 +879,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                         .to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::AttributeRecursionLimitExceeded { location } => {
                 CustomDiagnostic::simple_error(

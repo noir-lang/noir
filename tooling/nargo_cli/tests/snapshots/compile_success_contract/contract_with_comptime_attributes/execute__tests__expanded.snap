@@ -5,12 +5,11 @@ expression: expanded_code
 pub contract SomeContract {
     fn fn1() {}
 
-    #['custom]
     fn fn2() {}
 }
 
 comptime fn utility(f: FunctionDefinition) {
-    f.add_attribute("'custom")
+    println(f.name());
 }
 
 comptime fn add_utility(_: FunctionDefinition) -> Quoted {

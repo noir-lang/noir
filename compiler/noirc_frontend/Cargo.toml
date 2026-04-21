@@ -20,6 +20,7 @@ noirc_artifacts.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
 iter-extended.workspace = true
+itertools.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
 im.workspace = true
@@ -31,7 +32,7 @@ small-ord-set = "0.1.3"
 cfg-if.workspace = true
 tracing.workspace = true
 petgraph.workspace = true
-rangemap = "1.4.0"
+rangemap.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 rustc-hash.workspace = true
@@ -41,6 +42,7 @@ base64.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
 insta.workspace = true
+test-case.workspace = true
 
 [features]
 bn254 = []

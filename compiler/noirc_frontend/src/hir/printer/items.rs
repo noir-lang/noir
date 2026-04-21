@@ -93,7 +93,7 @@ pub struct TraitImpl {
     pub external_types: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Import {
     pub name: Ident,
     pub id: ModuleDefId,
@@ -418,7 +418,6 @@ impl<'context> ItemBuilder<'context> {
 
     pub(super) fn add_primitive_types(&self, items: &mut Vec<(ItemVisibility, Item)>) {
         self.add_primitive_type(Type::Bool, items);
-        self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::One), items);
         self.add_primitive_type(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight), items);
         self.add_primitive_type(
             Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),

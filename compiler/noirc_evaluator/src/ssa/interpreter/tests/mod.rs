@@ -307,7 +307,7 @@ fn loads_passed_to_a_call() {
         jmp b1(Field 0)
       b1(v0: Field):
         v4 = eq v0, Field 0
-        jmpif v4 then: b3, else: b2
+        jmpif v4 then: b3(), else: b2()
       b2():
         v9 = load v1 -> Field
         v10 = eq v9, Field 2
@@ -342,7 +342,7 @@ fn without_defunctionalize() {
     b0(v0: u1):
       v1 = allocate -> &mut function
       store f1 at v1
-      jmpif v0 then: b1, else: b2
+      jmpif v0 then: b1(), else: b2()
     b1():
       call f2(v1, f1)
       jmp b3()
@@ -390,7 +390,7 @@ fn keep_repeat_loads_with_alias_store() {
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u1):
-        jmpif v0 then: b2, else: b1
+        jmpif v0 then: b2(), else: b1()
       b1():
         v6 = allocate -> &mut Field
         store Field 1 at v6
@@ -508,7 +508,7 @@ fn is_odd_is_even_recursive_calls() {
         brillig(inline) fn is_even f1 {
           b0(v0: u32):
             v3 = eq v0, u32 0
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             v5 = call f3(v0) -> u32
             v7 = call f2(v5) -> u1
@@ -521,7 +521,7 @@ fn is_odd_is_even_recursive_calls() {
         brillig(inline) fn is_odd f2 {
           b0(v0: u32):
             v3 = eq v0, u32 0
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             v5 = call f3(v0) -> u32
             v7 = call f1(v5) -> u1
@@ -554,7 +554,7 @@ fn store_with_aliases() {
             jmp b1(Field 0)
           b1(v3: Field):
             v4 = eq v3, Field 0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v5 = load v2 -> &mut Field
             store Field 2 at v5
@@ -636,7 +636,7 @@ acir(inline) fn main f0 {
     jmp b1(u32 0)
   b1(v2: u32):
     v52 = lt v2, u32 5
-    jmpif v52 then: b2, else: b3
+    jmpif v52 then: b2(), else: b3()
   b2():
     v167 = load v49 -> u32
     v168 = load v50 -> [u32]
@@ -767,7 +767,7 @@ acir(inline) fn append f1 {
     jmp b1(u32 0)
   b1(v4: u32):
     v8 = lt v4, v2
-    jmpif v8 then: b2, else: b3
+    jmpif v8 then: b2(), else: b3()
   b2():
     v11 = lt v4, v2
     constrain v11 == u1 1, "Index out of bounds"
@@ -794,7 +794,7 @@ acir(inline) fn map f2 {
     jmp b1(u32 0)
   b1(v3: u32):
     v8 = lt v3, v0
-    jmpif v8 then: b2, else: b3
+    jmpif v8 then: b2(), else: b3()
   b2():
     v11 = lt v3, v0
     constrain v11 == u1 1, "Index out of bounds"
@@ -825,7 +825,7 @@ acir(inline) fn eq f4 {
     jmp b1(u32 0)
   b1(v4: u32):
     v8 = lt v4, v0
-    jmpif v8 then: b2, else: b3
+    jmpif v8 then: b2(), else: b3()
   b2():
     v10 = load v6 -> u1
     v11 = lt v4, v0
@@ -850,7 +850,7 @@ acir(inline) fn fold f5 {
     jmp b1(u32 0)
   b1(v4: u32):
     v7 = lt v4, v0
-    jmpif v7 then: b2, else: b3
+    jmpif v7 then: b2(), else: b3()
   b2():
     v9 = lt v4, v0
     constrain v9 == u1 1, "Index out of bounds"
@@ -879,7 +879,7 @@ acir(inline) fn reduce f7 {
     jmp b1(u32 1)
   b1(v3: u32):
     v10 = lt v3, v0
-    jmpif v10 then: b2, else: b3
+    jmpif v10 then: b2(), else: b3()
   b2():
     v12 = load v8 -> Field
     v13 = lt v3, v0
@@ -905,7 +905,7 @@ acir(inline) fn all f9 {
     jmp b1(u32 0)
   b1(v3: u32):
     v7 = lt v3, v0
-    jmpif v7 then: b2, else: b3
+    jmpif v7 then: b2(), else: b3()
   b2():
     v9 = lt v3, v0
     constrain v9 == u1 1, "Index out of bounds"
@@ -932,7 +932,7 @@ acir(inline) fn any f11 {
     jmp b1(u32 0)
   b1(v3: u32):
     v7 = lt v3, v0
-    jmpif v7 then: b2, else: b3
+    jmpif v7 then: b2(), else: b3()
   b2():
     v9 = lt v3, v0
     constrain v9 == u1 1, "Index out of bounds"
@@ -989,7 +989,7 @@ acir(inline) fn regression_4418 f16 {
     store v2 at v3
     v5 = eq v0, Field 0
     v6 = not v5
-    jmpif v6 then: b1, else: b2
+    jmpif v6 then: b1(), else: b2()
   b1():
     v7 = load v3 -> [u8; 32]
     v10 = array_set v7, index u32 0, value u8 10
@@ -1007,7 +1007,7 @@ acir(inline) fn regression_vector_call_result f17 {
     store v4 at v6
     v8 = eq v0, Field 0
     v9 = not v8
-    jmpif v9 then: b1, else: b2
+    jmpif v9 then: b1(), else: b2()
   b1():
     v16 = load v5 -> u32
     v17 = load v6 -> [Field]
@@ -1081,11 +1081,11 @@ acir(inline) fn merge_vectors_return f19 {
     v7 = make_array [Field 0, Field 0] : [Field]
     v8 = eq v0, v1
     v9 = not v8
-    jmpif v9 then: b1, else: b2
+    jmpif v9 then: b1(), else: b2()
   b1():
     v12 = eq v0, Field 20
     v13 = not v12
-    jmpif v13 then: b3, else: b4
+    jmpif v13 then: b3(), else: b4()
   b2():
     jmp b6(u32 2, v7)
   b3():
@@ -1111,11 +1111,11 @@ acir(inline) fn to_be_bytes f20 {
     jmp b1(u32 0)
   b1(v1: u32):
     v56 = lt v1, u32 32
-    jmpif v56 then: b2, else: b3
+    jmpif v56 then: b2(), else: b3()
   b2():
     v59 = load v52 -> u1
     v60 = not v59
-    jmpif v60 then: b4, else: b5
+    jmpif v60 then: b4(), else: b5()
   b3():
     v57 = load v52 -> u1
     constrain v57 == u1 1
@@ -1129,7 +1129,7 @@ acir(inline) fn to_be_bytes f20 {
     v64 = array_get v51, index v1 -> u8
     v65 = eq v62, v64
     v66 = not v65
-    jmpif v66 then: b6, else: b7
+    jmpif v66 then: b6(), else: b7()
   b5():
     v73 = unchecked_add v1, u32 1
     jmp b1(v73)
@@ -1296,7 +1296,7 @@ acir(inline) fn merge_vectors_mutate f24 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1330,7 +1330,7 @@ acir(inline) fn merge_vectors_mutate_in_loop f25 {
     store v4 at v7
     v8 = eq v0, v1
     v9 = not v8
-    jmpif v9 then: b1, else: b2
+    jmpif v9 then: b1(), else: b2()
   b1():
     jmp b3(u32 0)
   b2():
@@ -1342,7 +1342,7 @@ acir(inline) fn merge_vectors_mutate_in_loop f25 {
     jmp b6()
   b3(v2: u32):
     v17 = lt v2, u32 5
-    jmpif v17 then: b4, else: b5
+    jmpif v17 then: b4(), else: b5()
   b4():
     v20 = load v5 -> u32
     v21 = load v7 -> [Field]
@@ -1368,7 +1368,7 @@ acir(inline) fn merge_vectors_mutate_two_ifs f26 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1390,7 +1390,7 @@ acir(inline) fn merge_vectors_mutate_two_ifs f26 {
     jmp b3()
   b3():
     v23 = eq v0, Field 20
-    jmpif v23 then: b4, else: b5
+    jmpif v23 then: b4(), else: b5()
   b4():
     v24 = load v4 -> u32
     v25 = load v6 -> [Field]
@@ -1422,7 +1422,7 @@ acir(inline) fn merge_vectors_mutate_between_ifs f27 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1449,7 +1449,7 @@ acir(inline) fn merge_vectors_mutate_between_ifs f27 {
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
-    jmpif v28 then: b4, else: b5
+    jmpif v28 then: b4(), else: b5()
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
@@ -1465,7 +1465,7 @@ acir(inline) fn merge_vectors_mutate_between_ifs f27 {
     store v37 at v6
     v38 = eq v0, Field 20
     v39 = not v38
-    jmpif v39 then: b6, else: b7
+    jmpif v39 then: b6(), else: b7()
   b6():
     v40 = load v4 -> u32
     v41 = load v6 -> [Field]
@@ -1492,7 +1492,7 @@ acir(inline) fn merge_vectors_push_then_pop f28 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1519,7 +1519,7 @@ acir(inline) fn merge_vectors_push_then_pop f28 {
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
-    jmpif v28 then: b4, else: b5
+    jmpif v28 then: b4(), else: b5()
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
@@ -1551,7 +1551,7 @@ acir(inline) fn merge_vectors_push_then_insert f29 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1578,7 +1578,7 @@ acir(inline) fn merge_vectors_push_then_insert f29 {
     store v25 at v4
     store v26 at v6
     v28 = eq v0, Field 20
-    jmpif v28 then: b4, else: b5
+    jmpif v28 then: b4(), else: b5()
   b4():
     v29 = load v4 -> u32
     v30 = load v6 -> [Field]
@@ -1621,7 +1621,7 @@ acir(inline) fn merge_vectors_remove_between_ifs f30 {
     store v3 at v6
     v7 = eq v0, v1
     v8 = not v7
-    jmpif v8 then: b1, else: b2
+    jmpif v8 then: b1(), else: b2()
   b1():
     v14 = load v4 -> u32
     v15 = load v6 -> [Field]
@@ -1654,7 +1654,7 @@ acir(inline) fn merge_vectors_remove_between_ifs f30 {
     v32 = eq v29, v1
     constrain v29 == v1
     v34 = eq v0, Field 20
-    jmpif v34 then: b4, else: b5
+    jmpif v34 then: b4(), else: b5()
   b4():
     v35 = load v30 -> u32
     v36 = load v31 -> [Field]
@@ -1670,7 +1670,7 @@ acir(inline) fn merge_vectors_remove_between_ifs f30 {
     store v43 at v31
     v44 = eq v0, Field 20
     v45 = not v44
-    jmpif v45 then: b6, else: b7
+    jmpif v45 then: b6(), else: b7()
   b6():
     v46 = load v30 -> u32
     v47 = load v31 -> [Field]
@@ -1840,7 +1840,7 @@ fn infinite_loop_with_step_limit() {
       b0(v0: u1):
         jmp b1()
       b1():
-        jmpif v0 then: b2, else: b3
+        jmpif v0 then: b2(), else: b3()
       b2():
         return
       b3():

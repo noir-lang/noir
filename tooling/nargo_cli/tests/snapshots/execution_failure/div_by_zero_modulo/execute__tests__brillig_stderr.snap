@@ -9,6 +9,7 @@ error: Assertion failed: attempt to calculate the remainder with a divisor of ze
   │               -----------
   │
   = Call stack:
-    1. src/main.nr:5:15
+    1: main
+            at src/main.nr:5:15
 
 Failed assertion

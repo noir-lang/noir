@@ -118,7 +118,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 },
                 BrilligInputs::Array(expr_arr) => {
                     // Attempt to fetch all array input values
-                    for expr in expr_arr.iter() {
+                    for expr in expr_arr {
                         match get_value(expr, initial_witness) {
                             Ok(value) => calldata.push(value),
                             Err(_) => {
@@ -280,7 +280,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     ) -> Result<(), OpcodeResolutionError<F>> {
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
-        for output in outputs.iter() {
+        for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
                     let value = memory
@@ -291,7 +291,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                         current_ret_data_idx.checked_add(1).expect("Return data index overflow");
                 }
                 BrilligOutputs::Array(witness_arr) => {
-                    for witness in witness_arr.iter() {
+                    for witness in witness_arr {
                         let value = memory
                             .get(current_ret_data_idx)
                             .expect("Return data index exceeds memory bounds");

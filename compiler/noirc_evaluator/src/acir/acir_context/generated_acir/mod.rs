@@ -299,6 +299,17 @@ impl<F: AcirField> GeneratedAcir<F> {
                 let [input2_2] = expect_into(input2_2);
                 let [predicate] = expect_into(predicate);
                 let [output0, output1, output2] = expect_into(outputs);
+                // Sanity Check: Ensure coordinates of a point are both constant or both witness.
+                assert_eq!(
+                    input1_0.is_constant(),
+                    input1_1.is_constant(),
+                    "EmbeddedCurveAdd: point 1 has mixed constant/witness coordinates"
+                );
+                assert_eq!(
+                    input2_0.is_constant(),
+                    input2_1.is_constant(),
+                    "EmbeddedCurveAdd: point 2 has mixed constant/witness coordinates"
+                );
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1: Box::new([input1_0, input1_1, input1_2]),
                     input2: Box::new([input2_0, input2_1, input2_2]),
@@ -633,7 +644,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        for (error_selector, error_type) in generated_brillig.error_types.iter() {
+        for (error_selector, error_type) in &generated_brillig.error_types {
             self.record_error_type(*error_selector, error_type.clone());
         }
 
@@ -641,15 +652,14 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        for (procedure_id, (start_index, end_index)) in generated_brillig.procedure_locations.iter()
-        {
+        for (procedure_id, (start_index, end_index)) in &generated_brillig.procedure_locations {
             self.brillig_procedure_locs
                 .entry(brillig_function_index)
                 .or_default()
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
-        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
+        for (brillig_index, call_stack) in &generated_brillig.locations {
             self.brillig_locations
                 .entry(brillig_function_index)
                 .or_default()
@@ -665,7 +675,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         let acir_index = match opcode_location {
             OpcodeLocation::Acir(index) => index,
-            _ => panic!("should not have brillig index"),
+            OpcodeLocation::Brillig { .. } => panic!("should not have brillig index"),
         };
 
         match &mut self.opcodes[acir_index] {
@@ -783,9 +793,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
 fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
-    let expected_num_inputs = match black_box_func_expected_input_size(name) {
-        Some(expected_num_inputs) => expected_num_inputs,
-        None => return,
+    let Some(expected_num_inputs) = black_box_func_expected_input_size(name) else {
+        return;
     };
 
     assert_eq!(
@@ -816,9 +825,8 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
 /// ) -> [Field; N] {}
 /// ``
 fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
-    let expected_num_outputs = match black_box_expected_output_size(name) {
-        Some(expected_num_inputs) => expected_num_inputs,
-        None => return,
+    let Some(expected_num_outputs) = black_box_expected_output_size(name) else {
+        return;
     };
 
     assert_eq!(

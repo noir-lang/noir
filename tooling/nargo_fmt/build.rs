@@ -41,7 +41,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
 
         let config = input_source
             .lines()
-            .flat_map(|line| line.strip_prefix("//@"))
+            .filter_map(|line| line.strip_prefix("//@"))
             .collect::<Vec<_>>()
             .join("\n");
 

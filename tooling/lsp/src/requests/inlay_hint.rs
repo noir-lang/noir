@@ -187,6 +187,8 @@ impl<'a> InlayHintCollector<'a> {
                 parameters_count -= 1;
             }
 
+            // Note: we use `zip` and not `zip_eq` because the user might have passed a different number of arguments
+            // than parameters expected.
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
                     to_lsp_location(self.files, self.file_id, call_argument.location.span)
@@ -541,7 +543,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
                 Kind::IntegerOrField => parts.push(string_part("Field")),
             },
-            _ => {
+            TypeBinding::Bound(_) => {
                 push_type_variable_parts(binding, parts, files);
             }
         },
@@ -951,6 +953,12 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
         }
+    }
+
+    #[test]
+    async fn test_collect_parameter_inlay_hints_in_function_call_with_missing_arguments() {
+        let inlay_hints = get_inlay_hints(141, 143, parameter_hints()).await;
+        assert_eq!(inlay_hints.len(), 0);
     }
 
     #[test]

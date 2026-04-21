@@ -9,9 +9,13 @@ error: Field failed to decompose into specified 1 limbs
     │         -------------------------- Assertion failed
     │
     = Call stack:
-      1. src/main.nr:1:4
-      2. src/main.nr:3:5
-      3. std/field/mod.nr:138:21
-      4. std/field/mod.nr:175:9
+      1: ?
+              at src/main.nr:1:4
+      2: main
+              at src/main.nr:3:5
+      3: Field::to_be_bytes
+              at std/field/mod.nr:138:21
+      4: Field::to_be_radix
+              at std/field/mod.nr:175:9
 
 Error interpreting main function

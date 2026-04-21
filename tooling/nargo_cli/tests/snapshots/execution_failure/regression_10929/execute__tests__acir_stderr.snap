@@ -15,7 +15,8 @@ bug: Assertion is always false: QPA
    │ ╰─────────────────────────────' As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
    │  
    = Call stack:
-     1. src/main.nr:8:17
+     1: main
+             at src/main.nr:8:17
 
 error: Assertion failed: QPA
    ┌─ src/main.nr:8:17
@@ -30,6 +31,7 @@ error: Assertion failed: QPA
    │ ╰─────────────────────────────'
    │  
    = Call stack:
-     1. src/main.nr:8:17
+     1: main
+             at src/main.nr:8:17
 
 Failed assertion

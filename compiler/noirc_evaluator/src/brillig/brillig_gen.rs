@@ -7,9 +7,11 @@ pub(crate) mod brillig_globals;
 mod brillig_instructions;
 mod coalescing;
 pub(crate) mod constant_allocation;
+mod live_intervals;
 pub(crate) mod spill_manager;
 #[cfg(test)]
 mod tests;
+mod union_find;
 mod variable_liveness;
 
 use acvm::FieldElement;
@@ -72,7 +74,7 @@ pub(crate) fn gen_brillig_for(
         arguments,
         return_parameters,
         func.id(),
-        true,
+        globals_memory_size > 0,
         globals_memory_size,
         func.name(),
         &options,
@@ -81,15 +83,12 @@ pub(crate) fn gen_brillig_for(
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
         let artifact = &brillig.find_by_label(unresolved_fn_label.clone(), &options, stack_start);
-        let artifact = match artifact {
-            Some(artifact) => artifact,
-            None => {
-                return Err(InternalError::General {
-                    message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                    call_stack: CallStack::new(),
-                }
-                .into());
+        let Some(artifact) = artifact else {
+            return Err(InternalError::General {
+                message: format!("Cannot find linked fn {unresolved_fn_label}"),
+                call_stack: CallStack::empty(),
             }
+            .into());
         };
         entry_point.link_with(artifact);
         // Insert the range of opcode locations occupied by a procedure
@@ -134,56 +133,46 @@ mod entry_point {
         let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
         let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
 
-        // foo is a very simple function returning the addition of its inputs, which is done at line 18.
-        // The rest of the code is some overhead added to every brillig function for handling inputs, outputs, globals, ...
+        // A simple function returning the addition of its inputs (line 16).
+        // The rest is entry point overhead for handling inputs, outputs, and stack checks.
         //
-        // Here is a breakdown of the code:
-        // Line 1-9: The function starts with the handling of the inputs via the 'calldata copy'
-        // The inputs are put in registers 1 and 2
-        // Line 10: Calling the part that deals with brillig globals. In this simple example, there are no globals so
-        // it just returns immediately.
-        // Line 11: Calling the check_max_stack_depth_procedure (Lines 24-29), via the call 24. Returning from
-        // this procedure is going to line 18 (right after the call 24 on line 17)
-        // Line 18: the actual body of the function, which is a single add instruction.
-        // Line 19-21: An overflow check on the addition, which will trap if the addition overflowed.
-        // Line 22: Moving the result of the addition into the return register (register 1)
-        // Line 23: Returning from the function body, which goes back to line 12
-        // Line 12-15: Handling the return data, moving the return value into the right place in memory and stopping execution.
+        // Lines 0-2: Reserved register setup (usize_one, free_memory_pointer, stack_pointer).
+        // Lines 3-9: Calldata copy — the two u32 inputs are copied and cast into sp[2] and sp[3].
+        //            There is no globals init call because this function has no globals.
+        // Line 10: call 15 — jumps to the function body.
+        // Line 11: Moves the return value out of the function's register.
+        // Lines 12-14: Return data handling — places the result in memory and stops execution.
+        // Line 15: call 22 — check_max_stack_depth procedure (lines 22-27).
+        // Line 16: The actual add instruction.
+        // Lines 17-19: Overflow check on the addition; traps via lines 28-30 if it overflowed.
+        // Line 20: Moves the result into the return register.
+        // Line 21: Returns from the function body back to line 11.
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
-         1: @1 = const u32 32839
-         2: @0 = const u32 71
-         3: call 16
-         4: sp[4] = const u32 2
-         5: sp[5] = const u32 0
-         6: @68 = calldata copy [sp[5]; sp[4]]
+         1: @1 = const u32 32838
+         2: @0 = const u32 70
+         3: sp[4] = const u32 2
+         4: sp[5] = const u32 0
+         5: @67 = calldata copy [sp[5]; sp[4]]
+         6: @67 = cast @67 to u32
          7: @68 = cast @68 to u32
-         8: @69 = cast @69 to u32
-         9: sp[2] = @68
-        10: sp[3] = @69
-        11: call 17
-        12: @70 = sp[2]
-        13: sp[3] = const u32 70
-        14: sp[4] = const u32 1
-        15: stop @[sp[3]; sp[4]]
-        16: return
-        17: call 24
-        18: sp[4] = u32 add sp[2], sp[3]
-        19: sp[5] = u32 lt_eq sp[2], sp[4]
-        20: jump if sp[5] to 22
-        21: call 30
-        22: sp[2] = sp[4]
+         8: sp[2] = @67
+         9: sp[3] = @68
+        10: call 15
+        11: @69 = sp[2]
+        12: sp[3] = const u32 69
+        13: sp[4] = const u32 1
+        14: stop @[sp[3]; sp[4]]
+        15: sp[4] = u32 add sp[2], sp[3]
+        16: sp[5] = u32 lt_eq sp[2], sp[4]
+        17: jump if sp[5] to 19
+        18: call 21
+        19: sp[2] = sp[4]
+        20: return
+        21: @1 = indirect const u64 14990209321349310352
+        22: trap @[@1; @2]
         23: return
-        24: @4 = const u32 30791
-        25: @3 = u32 lt @0, @4
-        26: jump if @3 to 29
-        27: @1 = indirect const u64 15764276373176857197
-        28: trap @[@1; @2]
-        29: return
-        30: @1 = indirect const u64 14990209321349310352
-        31: trap @[@1; @2]
-        32: return
         ");
     }
 
@@ -233,79 +222,70 @@ mod entry_point {
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
-         1: @1 = const u32 263
-         2: @0 = const u32 71
-         3: call 16
-         4: sp[4] = const u32 2
-         5: sp[5] = const u32 0
-         6: @68 = calldata copy [sp[5]; sp[4]]
+         1: @1 = const u32 262
+         2: @0 = const u32 70
+         3: sp[4] = const u32 2
+         4: sp[5] = const u32 0
+         5: @67 = calldata copy [sp[5]; sp[4]]
+         6: @67 = cast @67 to u32
          7: @68 = cast @68 to u32
-         8: @69 = cast @69 to u32
-         9: sp[2] = @68
-        10: sp[3] = @69
-        11: call 17
-        12: @70 = sp[2]
-        13: sp[3] = const u32 70
-        14: sp[4] = const u32 1
-        15: stop @[sp[3]; sp[4]]
-        16: return
-        17: call 68
-        18: sp[1] = @1
-        19: @3 = const u32 3
-        20: @1 = u32 add @1, @3
-        21: sp[4] = u32 add sp[2], sp[3]
-        22: sp[5] = const u32 2
-        23: sp[6] = u32 add sp[2], sp[5]
-        24: sp[5] = const u32 3
-        25: sp[7] = u32 add sp[2], sp[5]
-        26: sp[5] = const u32 4
-        27: sp[8] = u32 add sp[3], sp[5]
-        28: sp[5] = const u32 5
-        29: sp[9] = u32 add sp[3], sp[5]
-        30: sp[5] = const u32 6
-        31: sp[10] = u32 add sp[2], sp[5]
-        32: sp[5] = const u32 7
-        33: sp[11] = u32 add sp[3], sp[5]
-        34: sp[5] = const u32 8
-        35: @4 = const u32 0
-        36: @3 = u32 add sp[1], @4
-        37: store sp[4] at @3
-        38: sp[4] = u32 add sp[2], sp[5]
-        39: sp[5] = const u32 9
-        40: @4 = const u32 1
-        41: @3 = u32 add sp[1], @4
-        42: store sp[6] at @3
-        43: sp[6] = u32 add sp[3], sp[5]
-        44: sp[3] = const u32 10
-        45: sp[5] = u32 add sp[2], sp[3]
-        46: @4 = const u32 0
+         8: sp[2] = @67
+         9: sp[3] = @68
+        10: call 15
+        11: @69 = sp[2]
+        12: sp[3] = const u32 69
+        13: sp[4] = const u32 1
+        14: stop @[sp[3]; sp[4]]
+        15: sp[1] = @1
+        16: @3 = const u32 3
+        17: @1 = u32 add @1, @3
+        18: sp[4] = u32 add sp[2], sp[3]
+        19: sp[5] = const u32 2
+        20: sp[6] = u32 add sp[2], sp[5]
+        21: sp[5] = const u32 3
+        22: sp[7] = u32 add sp[2], sp[5]
+        23: sp[5] = const u32 4
+        24: sp[8] = u32 add sp[3], sp[5]
+        25: sp[5] = const u32 5
+        26: sp[9] = u32 add sp[3], sp[5]
+        27: sp[5] = const u32 6
+        28: sp[10] = u32 add sp[2], sp[5]
+        29: sp[5] = const u32 7
+        30: sp[11] = u32 add sp[3], sp[5]
+        31: sp[5] = const u32 8
+        32: @4 = const u32 0
+        33: @3 = u32 add sp[1], @4
+        34: store sp[4] at @3
+        35: sp[4] = u32 add sp[2], sp[5]
+        36: sp[5] = const u32 9
+        37: @4 = const u32 1
+        38: @3 = u32 add sp[1], @4
+        39: store sp[6] at @3
+        40: sp[6] = u32 add sp[3], sp[5]
+        41: sp[3] = const u32 10
+        42: sp[5] = u32 add sp[2], sp[3]
+        43: @4 = const u32 0
+        44: @3 = u32 add sp[1], @4
+        45: sp[3] = load @3
+        46: @4 = const u32 2
         47: @3 = u32 add sp[1], @4
-        48: sp[3] = load @3
-        49: @4 = const u32 2
+        48: store sp[7] at @3
+        49: @4 = const u32 1
         50: @3 = u32 add sp[1], @4
-        51: store sp[7] at @3
-        52: @4 = const u32 1
-        53: @3 = u32 add sp[1], @4
-        54: sp[7] = load @3
-        55: sp[2] = u32 add sp[3], sp[7]
-        56: @4 = const u32 2
-        57: @3 = u32 add sp[1], @4
-        58: sp[7] = load @3
-        59: sp[3] = u32 add sp[2], sp[7]
-        60: sp[2] = u32 add sp[3], sp[8]
-        61: sp[3] = u32 add sp[2], sp[9]
-        62: sp[2] = u32 add sp[3], sp[10]
-        63: sp[3] = u32 add sp[2], sp[11]
-        64: sp[2] = u32 add sp[3], sp[4]
-        65: sp[3] = u32 add sp[2], sp[6]
-        66: sp[2] = u32 add sp[3], sp[5]
-        67: return
-        68: @4 = const u32 251
-        69: @3 = u32 lt @0, @4
-        70: jump if @3 to 73
-        71: @1 = indirect const u64 15764276373176857197
-        72: trap @[@1; @2]
-        73: return
+        51: sp[7] = load @3
+        52: sp[2] = u32 add sp[3], sp[7]
+        53: @4 = const u32 2
+        54: @3 = u32 add sp[1], @4
+        55: sp[7] = load @3
+        56: sp[3] = u32 add sp[2], sp[7]
+        57: sp[2] = u32 add sp[3], sp[8]
+        58: sp[3] = u32 add sp[2], sp[9]
+        59: sp[2] = u32 add sp[3], sp[10]
+        60: sp[3] = u32 add sp[2], sp[11]
+        61: sp[2] = u32 add sp[3], sp[4]
+        62: sp[3] = u32 add sp[2], sp[6]
+        63: sp[2] = u32 add sp[3], sp[5]
+        64: return
         ");
     }
 }

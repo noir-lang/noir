@@ -30,7 +30,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
-        types::NumericType,
+        types::{NumericType, Type},
         value::{Value, ValueId, ValueMapping},
     },
     opt::{LoopOrder, Loops, pure::Purity},
@@ -159,7 +159,8 @@ impl Function {
             .collect::<HashMap<_, _>>();
 
         let mut dom = loops.dom;
-        let mut context = Context::new(use_constraint_info);
+        let mutated_types = find_mutated_block_param_array_types(self);
+        let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
         context.enqueue(&dom, [self.entry_block()]);
 
@@ -190,7 +191,7 @@ impl Function {
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
-            context = Context::new(use_constraint_info);
+            context = Context::new(use_constraint_info, mutated_types.clone());
             context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
         }
@@ -214,6 +215,58 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
         context.values_to_replace.value_types_are_consistent(dfg),
         "Constant folding should not map a ValueId to another of a different type"
     );
+}
+
+/// Pre-scan the function to find array types that are mutated through block parameters.
+///
+/// In RPO traversal, loop bodies are processed after loop exit blocks. This means if a
+/// MakeArray is cached before a loop, and the loop body mutates the array through a block
+/// parameter, the mutation won't be seen before a duplicate MakeArray in the exit block
+/// gets incorrectly deduplicated. We find these types upfront so we can skip caching them.
+fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
+    if !function.runtime().is_brillig() {
+        return HashSet::new();
+    }
+
+    let dfg = &function.dfg;
+    let mut result = HashSet::new();
+
+    for block_id in function.reachable_blocks() {
+        for instruction_id in dfg[block_id].instructions() {
+            let instruction = &dfg[*instruction_id];
+            match instruction {
+                Instruction::ArraySet { array, .. } => {
+                    if !matches!(&dfg[*array], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*array);
+                        if typ.is_array() {
+                            result.insert(typ.into_owned());
+                        }
+                    }
+                }
+                Instruction::Store { value, .. } => {
+                    if !matches!(&dfg[*value], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*value);
+                        if typ.is_array() {
+                            result.insert(typ.into_owned());
+                        }
+                    }
+                }
+                Instruction::Call { arguments, .. } => {
+                    for arg in arguments {
+                        if !matches!(&dfg[*arg], Value::Instruction { .. }) {
+                            let typ = dfg.type_of_value(*arg);
+                            if typ.is_array() {
+                                result.insert(typ.into_owned());
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    result
 }
 
 struct Context {
@@ -255,10 +308,17 @@ struct Context {
 
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
+
+    /// Array types that are mutated through block parameters in brillig.
+    /// In RPO traversal, loop bodies are processed after loop exits, so we may encounter
+    /// a duplicate MakeArray in the exit block before seeing the mutation in the loop body.
+    /// We pre-scan the function to find these types and skip caching MakeArray instructions
+    /// that produce them to avoid incorrect deduplication.
+    mutated_block_param_array_types: HashSet<Type>,
 }
 
 impl Context {
-    fn new(use_constraint_info: bool) -> Self {
+    fn new(use_constraint_info: bool, mutated_block_param_array_types: HashSet<Type>) -> Self {
         Self {
             use_constraint_info,
             block_queue: Default::default(),
@@ -266,6 +326,7 @@ impl Context {
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
             blocks_to_revisit: Default::default(),
+            mutated_block_param_array_types,
         }
     }
 
@@ -411,21 +472,30 @@ impl Context {
                         }
                     }
 
-                    // During revisits we can visit a block which dominates something we already cached instructions from,
-                    // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
-                    // schedule a revisit of *this* block after again, because something must have prevented this instruction
-                    // from being reused already (e.g. an array mutation).
-                    if dominator != block {
-                        self.blocks_to_revisit.insert(dominator);
-                    }
+                    // If we couldn't escape past the loop header (the instruction uses
+                    // header-defined values), don't hoist into the header at all.
+                    // Loop unrolling only maps header *parameters* to final-iteration values,
+                    // not instruction results. Hoisting into the header would create
+                    // dangling references after unrolling.
+                    if loop_headers.contains_key(&dominator) {
+                        // Keep the instruction in its original block; don't hoist.
+                    } else {
+                        // During revisits we can visit a block which dominates something we already cached instructions from,
+                        // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
+                        // schedule a revisit of *this* block after again, because something must have prevented this instruction
+                        // from being reused already (e.g. an array mutation).
+                        if dominator != block {
+                            self.blocks_to_revisit.insert(dominator);
+                        }
 
-                    // Just change the block to insert in the common dominator instead.
-                    // This will only move the current instance of the instruction right now.
-                    // When constant folding is run a second time later on, it'll catch
-                    // that the previous instance can be deduplicated to this instance.
-                    // Another effect is going to be that the cache should be updated to
-                    // point at the dominator, so subsequent blocks can use the result.
-                    target_block = dominator;
+                        // Just change the block to insert in the common dominator instead.
+                        // This will only move the current instance of the instruction right now.
+                        // When constant folding is run a second time later on, it'll catch
+                        // that the previous instance can be deduplicated to this instance.
+                        // Another effect is going to be that the cache should be updated to
+                        // point at the dominator, so subsequent blocks can use the result.
+                        target_block = dominator;
+                    }
                 }
             }
         }
@@ -530,7 +600,7 @@ impl Context {
     ) -> Vec<ValueId> {
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result)));
+            .then(|| vecmap(old_results, |result| dfg.type_of_value(*result).into_owned()));
 
         let call_stack = dfg.get_instruction_call_stack_id(id);
         let results = dfg.insert_instruction_and_results_if_simplified(
@@ -616,7 +686,12 @@ impl Context {
         let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
 
         let use_constraint_info = self.use_constraint_info;
-        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
+        let is_safe_make_array = match instruction {
+            Instruction::MakeArray { typ, .. } => {
+                !self.mutated_block_param_array_types.contains(typ)
+            }
+            _ => false,
+        };
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
@@ -633,8 +708,9 @@ impl Context {
         match can_be_deduplicated {
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
-            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
-            _ if is_make_array => cache_instruction(),
+            // We also allow deduplicating MakeArray instructions whose type isn't mutated
+            // through block parameters (which we can't track due to RPO ordering).
+            _ if is_safe_make_array => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
@@ -1225,7 +1301,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 v4 = shl v0, u32 1
                 v5 = lt v0, v4
@@ -1233,7 +1309,7 @@ mod test {
                 jmp b2()
               b2():
                 v7 = lt u32 1000, v0
-                jmpif v7 then: b3, else: b4
+                jmpif v7 then: b3(), else: b4()
               b3():
                 v8 = shl v0, u32 1
                 v9 = lt v0, v8
@@ -1255,14 +1331,14 @@ mod test {
           b0(v0: u32):
             v2 = lt u32 1000, v0
             v4 = shl v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v5 = shl v0, u32 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
           b2():
-            jmpif v2 then: b3, else: b4
+            jmpif v2 then: b3(), else: b4()
           b3():
             v8 = lt v0, v4
             constrain v8 == u1 1
@@ -1279,7 +1355,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 v4 = make_array [u1 0] : [u1; 1]
                 v5 = array_get v4, index u32 0 -> u1
@@ -1305,7 +1381,7 @@ mod test {
               b0(v0: u32):
                 v3 = lt u32 1000, v0
                 v5 = make_array [u1 0] : [u1; 1]
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
               b1():
                 inc_rc v5
                 jmp b3(u1 0)
@@ -1329,7 +1405,7 @@ mod test {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v5 = unchecked_mul v1, i8 127
             v6 = cast v5 as u16
@@ -1338,7 +1414,7 @@ mod test {
             store v8 at v2
             jmp b2()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             v9 = unchecked_mul v1, i8 127
             v10 = cast v9 as u16
@@ -1347,7 +1423,7 @@ mod test {
             store v12 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             v13 = unchecked_mul v1, i8 127
             v14 = cast v13 as u16
@@ -1381,7 +1457,7 @@ mod test {
             v2 = allocate -> &mut i8
             store i8 0 at v2
             v5 = unchecked_mul v1, i8 127
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v6 = unchecked_mul v1, i8 127
             v7 = cast v6 as u16
@@ -1391,7 +1467,7 @@ mod test {
             jmp b2()
           b2():
             v10 = cast v5 as u16
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             v11 = cast v5 as u16
             v12 = truncate v11 to 8 bits, max_bit_size: 16
@@ -1399,7 +1475,7 @@ mod test {
             store v13 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             v14 = truncate v10 to 8 bits, max_bit_size: 16
             v15 = cast v14 as i8
@@ -1425,17 +1501,17 @@ mod test {
             v6 = cast v5 as u16
             v7 = truncate v6 to 8 bits, max_bit_size: 16
             v8 = cast v7 as i8
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store v8 at v2
             jmp b2()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             store v8 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             store v8 at v2
             jmp b6()
@@ -1471,13 +1547,13 @@ mod test {
               v18 = unchecked_add v17, u32 1
               v19 = array_get v13, index v18 -> Field
               v20 = eq v19, Field 2
-              jmpif v20 then: b1, else: b2
+              jmpif v20 then: b1(), else: b2()
             b1():
               v32 = make_array b"ABC"
               jmp b3(v32)
             b2():
               v21 = eq v19, Field 3
-              jmpif v21 then: b4, else: b5
+              jmpif v21 then: b4(), else: b5()
             b3(v1: [u8; 3]):
               v33 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
               v34 = lt v0, u32 2
@@ -1486,19 +1562,19 @@ mod test {
               v36 = unchecked_add v35, u32 1
               v37 = array_get v33, index v36 -> Field
               v38 = eq v37, Field 2
-              jmpif v38 then: b6, else: b7
+              jmpif v38 then: b6(), else: b7()
             b4():
               v31 = make_array b"ABC"
               jmp b8(v31)
             b5():
               v22 = eq v19, Field 4
-              jmpif v22 then: b9, else: b10
+              jmpif v22 then: b9(), else: b10()
             b6():
               v44 = make_array b"ABC"
               jmp b11(v44)
             b7():
               v39 = eq v37, Field 3
-              jmpif v39 then: b12, else: b13
+              jmpif v39 then: b12(), else: b13()
             b8(v2: [u8; 3]):
               jmp b3(v2)
             b9():
@@ -1521,7 +1597,7 @@ mod test {
               jmp b15(v43)
             b13():
               v40 = eq v37, Field 4
-              jmpif v40 then: b16, else: b17
+              jmpif v40 then: b16(), else: b17()
             b14(v4: [u8; 3]):
               jmp b8(v4)
             b15(v5: [u8; 3]):
@@ -1568,13 +1644,13 @@ mod test {
             v20 = eq v19, Field 2
             v24 = make_array b"ABC"
             v28 = make_array b"DEF"
-            jmpif v20 then: b1, else: b2
+            jmpif v20 then: b1(), else: b2()
           b1():
             inc_rc v24
             jmp b3(v24)
           b2():
             v29 = eq v19, Field 3
-            jmpif v29 then: b4, else: b5
+            jmpif v29 then: b4(), else: b5()
           b3(v1: [u8; 3]):
             inc_rc v13
             v31 = lt v0, u32 2
@@ -1583,20 +1659,20 @@ mod test {
             v33 = unchecked_add v32, u32 1
             v34 = array_get v13, index v33 -> Field
             v35 = eq v34, Field 2
-            jmpif v35 then: b6, else: b7
+            jmpif v35 then: b6(), else: b7()
           b4():
             inc_rc v24
             jmp b8(v24)
           b5():
             v30 = eq v19, Field 4
             inc_rc v28
-            jmpif v30 then: b9, else: b11
+            jmpif v30 then: b9(), else: b11()
           b6():
             inc_rc v24
             jmp b13(v24)
           b7():
             v36 = eq v34, Field 3
-            jmpif v36 then: b14, else: b15
+            jmpif v36 then: b14(), else: b15()
           b8(v2: [u8; 3]):
             jmp b3(v2)
           b9():
@@ -1619,7 +1695,7 @@ mod test {
             jmp b17(v24)
           b15():
             v37 = eq v34, Field 4
-            jmpif v37 then: b18, else: b19
+            jmpif v37 then: b18(), else: b19()
           b16(v4: [u8; 3]):
             jmp b8(v4)
           b17(v5: [u8; 3]):
@@ -1653,9 +1729,9 @@ mod test {
               v4 = make_array [u8 0]: [u8; 1] // cannot be deduplicated with v1, it's not in the cache
               v5 = array_set v4, index u32 0, value u8 1  // removes v3 from the cache
               v6 = lt v3, u32 5
-              jmpif v6 then: b2, else: b6     // iterate the body or exit
+              jmpif v6 then: b2(), else: b6()     // iterate the body or exit
             b2():                             // loop body
-              jmpif v0 then: b3, else: b4     // if-then-else with then and else sharing instructions
+              jmpif v0 then: b3(), else: b4()     // if-then-else with then and else sharing instructions
             b3():
               v7 = make_array [u8 0]: [u8; 1] // v3 not in cache; stays in place
               jmp b5()
@@ -1697,12 +1773,12 @@ mod test {
             jmp b1(u32 0)
           b1(v1: u32):
             inc_rc v5
-            v8 = make_array [u8 1] : [u8; 1]
+            v8 = array_set v5, index u32 0, value u8 1
             v10 = lt v1, u32 5
-            jmpif v10 then: b2, else: b6
+            jmpif v10 then: b2(), else: b6()
           b2():
             v11 = make_array [u8 0] : [u8; 1]
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             inc_rc v11
             jmp b5()
@@ -1759,7 +1835,7 @@ mod test {
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1, else: b10
+            jmpif v0 then: b1(), else: b10()
           b1():
             jmp b2()
           b2():
@@ -1771,7 +1847,7 @@ mod test {
           b5():
             jmp b6()
           b6():
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b7():
             v2 = make_array [u8 0] : [u8; 1]
             v3 = make_array [u8 2] : [u8; 1]
@@ -1782,7 +1858,7 @@ mod test {
           b9():
             jmp b16()
           b10():
-            jmpif v1 then: b11, else: b12
+            jmpif v1 then: b11(), else: b12()
           b11():
             v5 = make_array [u8 0] : [u8; 1]
             v7 = make_array [u8 1] : [u8; 1]
@@ -1805,7 +1881,7 @@ mod test {
             jmp b17()
           b17():
             inc_rc v9
-            jmpif v1 then: b18, else: b19
+            jmpif v1 then: b18(), else: b19()
           b18():
             v11 = make_array [u8 3] : [u8; 1]
             jmp b20()
@@ -1824,7 +1900,7 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
             v3 = make_array [u8 0] : [u8; 1]
-            jmpif v0 then: b1, else: b10
+            jmpif v0 then: b1(), else: b10()
           b1():
             jmp b2()
           b2():
@@ -1837,7 +1913,7 @@ mod test {
             jmp b6()
           b6():
             v8 = make_array [u8 2] : [u8; 1]
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b7():
             v9 = make_array [u8 0] : [u8; 1]
             inc_rc v8
@@ -1849,7 +1925,7 @@ mod test {
             jmp b16()
           b10():
             v5 = make_array [u8 1] : [u8; 1]
-            jmpif v1 then: b11, else: b12
+            jmpif v1 then: b11(), else: b12()
           b11():
             inc_rc v3
             inc_rc v5
@@ -1873,7 +1949,7 @@ mod test {
           b17():
             inc_rc v3
             v12 = make_array [u8 3] : [u8; 1]
-            jmpif v1 then: b18, else: b19
+            jmpif v1 then: b18(), else: b19()
           b18():
             inc_rc v12
             jmp b20()
@@ -2132,7 +2208,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
                 v3 = eq v0, Field 0
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
               b1():
                 v5 = eq v1, Field 1
                 constrain v1 == Field 1
@@ -2152,13 +2228,13 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
                 v2 = eq v0, Field 0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 constrain v1 == Field 1
                 jmp b2()
               b2():
                 v3 = eq v0, Field 1
-                jmpif v3 then: b3, else: b4
+                jmpif v3 then: b3(), else: b4()
               b3():
                 constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
                 jmp b4()
@@ -2175,10 +2251,10 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u32):
                 v2 = eq v0, u32 0
-                jmpif v2 then: b4, else: b1
+                jmpif v2 then: b4(), else: b1()
               b1():
                 v3 = eq v0, u32 1
-                jmpif v3 then: b3, else: b2
+                jmpif v3 then: b3(), else: b2()
               b2():
                 jmp b5()
               b3():
@@ -2456,7 +2532,7 @@ mod test {
             v8 = truncate v0 to 32 bits, max_bit_size: 254
             v9 = cast v8 as u32
             v11 = eq v9, u32 0
-            jmpif v11 then: b1, else: b2
+            jmpif v11 then: b1(), else: b2()
           b1():
             v13 = add v0, Field 1
             jmp b3(v0, v13)
@@ -2484,7 +2560,7 @@ mod test {
             constrain v0 == Field 1
             v7 = eq v1, Field 0
             constrain v1 == Field 0
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2551,10 +2627,10 @@ mod test {
             jmp b1(u32 0)
           b1(v8: u32):
             v10 = lt v8, u32 3
-            jmpif v10 then: b2, else: b3
+            jmpif v10 then: b2(), else: b3()
           b2():
             v19 = lt v8, v18
-            jmpif v19 then: b4, else: b5
+            jmpif v19 then: b4(), else: b5()
           b3():
             v11 = load v5 -> [Field; 4]
             inc_rc v11
@@ -2701,7 +2777,7 @@ mod test {
             jmp b1()
           b1():
             v9 = load v7 -> u1
-            jmpif v9 then: b2, else: b3
+            jmpif v9 then: b2(), else: b3()
           b2():
             v22 = load v1 -> [Field; 2]
             v23 = array_get v22, index u32 0 -> Field
@@ -2719,7 +2795,7 @@ mod test {
             jmp b4()
           b4():
             v13 = load v12 -> u1
-            jmpif v13 then: b5, else: b6
+            jmpif v13 then: b5(), else: b6()
           b5():
             v17 = load v10 -> [Field; 2]
             v18 = array_get v17, index u32 0 -> Field
@@ -2749,6 +2825,59 @@ mod test {
         folded.interpret(Vec::new()).unwrap();
     }
 
+    /// Regression test for MakeArray deduplication in brillig with loops.
+    /// When a MakeArray's result flows into a loop where it's mutated via a block parameter,
+    /// a duplicate MakeArray after the loop must not be deduplicated to the first one,
+    /// because in brillig the first array was mutated in place.
+    #[test]
+    fn do_not_deduplicate_make_array_mutated_through_block_param() {
+        // This SSA represents two sequential loops that each mutate a fresh [Field; 2] array.
+        // The second make_array (v10 in b3) must not be deduplicated to v8 (in b0),
+        // because v8's underlying memory is mutated by the array_set in the first loop (b2).
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v8 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b1(v8, u1 1)
+          b1(v0: [Field; 2], v1: u1):
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v32 = array_get v0, index u32 0 -> Field
+            v33 = add Field 3, v32
+            v34 = array_set v0, index u32 0, value v33
+            jmp b1(v34, u1 0)
+          b3():
+            v10 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b4(v10, u1 1)
+          b4(v4: [Field; 2], v5: u1):
+            jmpif v5 then: b5(), else: b6()
+          b5():
+            v28 = array_get v4, index u32 0 -> Field
+            v30 = add Field 3, v28
+            v31 = array_set v4, index u32 0, value v30
+            jmp b4(v31, u1 0)
+          b6():
+            v12 = array_get v4, index u32 0 -> Field
+            return v12
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Before folding, the interpreter should return Field(1):
+        // First loop: array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Second loop (fresh array): array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Return index 0 → 1
+        let before = ssa.interpret(Vec::new()).unwrap();
+
+        let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        let after = folded.interpret(Vec::new()).unwrap();
+
+        assert_eq!(
+            before, after,
+            "MakeArray should not be deduplicated when mutated through a block parameter in a loop"
+        );
+    }
+
     /// Regression test: constant folding's instruction hoisting can orphan values when
     /// a hoisted instruction self-deduplicates during a revisit.
     ///
@@ -2771,11 +2900,11 @@ mod test {
             jmp b1()
           b1():
             v2 = load v1 -> u1
-            jmpif v2 then: b2, else: b7
+            jmpif v2 then: b2(), else: b7()
           b2():
-            jmpif v2 then: b3, else: b6
+            jmpif v2 then: b3(), else: b6()
           b3():
-            jmpif v2 then: b4, else: b5
+            jmpif v2 then: b4(), else: b5()
           b4():
             v3 = not v2
             jmp b6()
@@ -2845,7 +2974,7 @@ mod test {
           b1(v0: u32):
             v8 = eq v0, u32 0
             v9 = make_array [u8 0] : [u8; 1]
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
             v19 = make_array [v9] : [[u8; 1]; 1]
             v20 = allocate -> &mut [[u8; 1]; 1]
@@ -2862,7 +2991,7 @@ mod test {
             jmp b5(u32 0)
           b5(v2: u32):
             v13 = eq v2, u32 0
-            jmpif v13 then: b6, else: b7
+            jmpif v13 then: b6(), else: b7()
           b6():
             v17 = array_get v12, index u32 0 -> u8
             v18 = unchecked_add v2, u32 1
@@ -2873,7 +3002,7 @@ mod test {
             jmp b4(v16)
           b8(v3: u32):
             v22 = eq v3, u32 0
-            jmpif v22 then: b9, else: b10
+            jmpif v22 then: b9(), else: b10()
           b9():
             v26 = array_get v21, index u32 0 -> u8
             v27 = unchecked_add v3, u32 1
@@ -2901,13 +3030,13 @@ mod test {
           b1(v0: u32):
             v9 = eq v0, u32 0
             inc_rc v7
-            jmpif v9 then: b2, else: b3
+            jmpif v9 then: b2(), else: b3()
           b2():
-            v18 = make_array [v7] : [[u8; 1]; 1]
-            v19 = allocate -> &mut [[u8; 1]; 1]
-            store v18 at v19
-            v20 = load v6 -> [u8; 1]
-            v21 = array_get v20, index u32 0 -> u8
+            v19 = make_array [v7] : [[u8; 1]; 1]
+            v20 = allocate -> &mut [[u8; 1]; 1]
+            store v19 at v20
+            v21 = load v6 -> [u8; 1]
+            v22 = array_get v21, index u32 0 -> u8
             jmp b8(u32 0)
           b3():
             v10 = allocate -> &mut [u8; 1]
@@ -2916,27 +3045,28 @@ mod test {
           b4(v1: u32):
             v11 = make_array [u8 0] : [u8; 1]
             v12 = load v10 -> [u8; 1]
-            v13 = array_get v12, index u32 0 -> u8
             jmp b5(u32 0)
           b5(v2: u32):
-            v14 = eq v2, u32 0
-            jmpif v14 then: b6, else: b7
+            v13 = eq v2, u32 0
+            jmpif v13 then: b6(), else: b7()
           b6():
-            v17 = unchecked_add v2, u32 1
-            jmp b5(v17)
+            v17 = array_get v12, index u32 0 -> u8
+            v18 = unchecked_add v2, u32 1
+            jmp b5(v18)
           b7():
+            v14 = array_get v12, index u32 0 -> u8
             v16 = unchecked_add v1, u32 1
             jmp b4(v16)
           b8(v3: u32):
-            v22 = eq v3, u32 0
-            jmpif v22 then: b9, else: b10
+            v23 = eq v3, u32 0
+            jmpif v23 then: b9(), else: b10()
           b9():
-            v25 = unchecked_add v3, u32 1
-            jmp b8(v25)
+            v26 = unchecked_add v3, u32 1
+            jmp b8(v26)
           b10():
-            v23 = make_array [u8 0] : [u8; 1]
-            v24 = unchecked_add v0, u32 1
-            jmp b1(v24)
+            v24 = make_array [u8 0] : [u8; 1]
+            v25 = unchecked_add v0, u32 1
+            jmp b1(v25)
         }
         ");
     }
@@ -2948,7 +3078,7 @@ mod test {
         let src = r#"
         brillig(inline) impure fn main f1 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(u8 1)
           b2():
@@ -2960,7 +3090,7 @@ mod test {
             jmp b4(u8 0)
           b4(v2: u8):
             v8 = lt v2, v4
-            jmpif v8 then: b5, else: b6
+            jmpif v8 then: b5(), else: b6()
           b5():
             v31 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
             call print(u1 1, v2, v31, u1 0)
@@ -2968,7 +3098,7 @@ mod test {
             jmp b4(v32)
           b6():
             v9 = load v5 -> u1
-            jmpif v9 then: b7, else: b8
+            jmpif v9 then: b7(), else: b8()
           b7():
             v28 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
             call print(u1 1, v4, v28, u1 0)
@@ -2983,7 +3113,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(u8 1)
           b2():
@@ -2996,7 +3126,7 @@ mod test {
             jmp b4(u8 0)
           b4(v2: u8):
             v27 = lt v2, v4
-            jmpif v27 then: b5, else: b6
+            jmpif v27 then: b5(), else: b6()
           b5():
             inc_rc v25
             call print(u1 1, v2, v25, u1 0)
@@ -3004,7 +3134,7 @@ mod test {
             jmp b4(v31)
           b6():
             v28 = load v5 -> u1
-            jmpif v28 then: b7, else: b8
+            jmpif v28 then: b7(), else: b8()
           b7():
             inc_rc v25
             call print(u1 1, v4, v25, u1 0)
@@ -3016,11 +3146,13 @@ mod test {
     }
 
     #[test]
-    fn may_hoist_into_while_loop_header() {
+    fn does_not_hoist_into_while_loop_header() {
         // Here b1 is a header of a `while` loop, and its condition
         // v3 is used in both b2 and b3 to define a `not v3` variable.
-        // That can be hoisted as a duplicate, but only into b1 itself,
-        // not its pre-header b0, because v3 is not available there.
+        // The common dominator is b1 (the loop header), but since `not v3`
+        // uses v3 (defined in the header), we can't escape to the pre-header.
+        // We must not hoist into the header either — loop unrolling only maps
+        // header parameters, not instruction results.
         let src = r#"
         brillig(inline) impure fn main f0 {
           b0(v1: u1):
@@ -3029,7 +3161,7 @@ mod test {
             jmp b1()
           b1():
             v3 = load v2 -> u1
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             v4 = not v3
             jmp b4(v4)
@@ -3044,6 +3176,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
+        // `not v3` stays in b2 and b3 — not hoisted into the header.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
@@ -3052,11 +3185,12 @@ mod test {
             jmp b1()
           b1():
             v3 = load v2 -> u1
-            v4 = not v3
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
-            jmp b4(v4)
+            v5 = not v3
+            jmp b4(v5)
           b3():
+            v4 = not v3
             jmp b4(v4)
           b4(v1: u1):
             store v1 at v2
@@ -3076,7 +3210,7 @@ mod test {
           v9 = array_set v0, index u32 1, value v8
           jmp b1(v9, u1 1)
         b1(v1: [Field; 2], v2: u1):
-          jmpif v2 then: b2, else: b3
+          jmpif v2 then: b2(), else: b3()
         b2():
           v18 = array_get v1, index u32 0 -> Field
           v19 = add Field 3, v18
@@ -3086,7 +3220,7 @@ mod test {
           v11 = array_set v0, index u32 1, value v8
           jmp b4(v11, u1 1)
         b4(v3: [Field; 2], v4: u1):
-          jmpif v4 then: b5, else: b6
+          jmpif v4 then: b5(), else: b6()
         b5():
           v14 = array_get v3, index u32 0 -> Field
           v15 = add Field 3, v14
@@ -3104,9 +3238,8 @@ mod test {
         let results = ssa.interpret(vec![inputs]).unwrap();
         assert_eq!(results[0], Value::field(1u32.into()));
 
-        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4.
-        // If we do not account for v3 being defined in the loop header,
-        // we risk hoisting to b3 which dominates b4 (thus panicking on usage of an undefined value).
+        // `array_get v3, index u32 0` stays in b5 and b6 — not hoisted into
+        // loop header b4, because v3 is defined there.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
           b0(v0: [Field; 2]):
@@ -3116,87 +3249,59 @@ mod test {
             v9 = array_set v0, index u32 1, value v8
             jmp b1(v9, u1 1)
           b1(v1: [Field; 2], v2: u1):
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
-            v17 = array_get v1, index u32 0 -> Field
-            v18 = add Field 3, v17
-            v19 = array_set v1, index u32 0, value v18
-            jmp b1(v19, u1 0)
+            v18 = array_get v1, index u32 0 -> Field
+            v19 = add Field 3, v18
+            v20 = array_set v1, index u32 0, value v19
+            jmp b1(v20, u1 0)
           b3():
             v11 = array_set v0, index u32 1, value v8
             jmp b4(v11, u1 1)
           b4(v3: [Field; 2], v4: u1):
-            v13 = array_get v3, index u32 0 -> Field
-            jmpif v4 then: b5, else: b6
+            jmpif v4 then: b5(), else: b6()
           b5():
-            v14 = add Field 3, v13
-            v15 = array_set v3, index u32 0, value v14
-            jmp b4(v15, u1 0)
+            v14 = array_get v3, index u32 0 -> Field
+            v15 = add Field 3, v14
+            v16 = array_set v3, index u32 0, value v15
+            jmp b4(v16, u1 0)
           b6():
+            v13 = array_get v3, index u32 0 -> Field
             return v13
         }
         ");
     }
 
+    /// Regression test: CSE must not hoist an instruction into a loop header when
+    /// it can't escape to the pre-header because it uses header-defined values.
+    ///
+    /// Here `mul v2, v2` appears in both the loop body (b2) and exit block (b3),
+    /// and their common dominator is the loop header (b1). The instruction uses `v2`
+    /// (a header parameter), so the escape-past-header logic correctly can't move
+    /// it to the pre-header. But it must also not leave the target at the header
+    /// itself — that would break loop unrolling, which only maps header *parameters*
+    /// to final-iteration values, not instruction results.
     #[test]
-    fn hoist_to_loop_header_tracks_new_values() {
-        // Regression test for hoisting through loop headers with stale value tracking.
-        //
-        // When b3 (loop body) and b4 (loop exit) both contain identical instructions
-        // (array_get v2 followed by mul), constant folding:
-        // 1. Processes b3 first and caches results
-        // 2. When processing b4, finds cache hits and hoists array_get to the common
-        //    dominator b1 (a loop header)
-        // 3. Without the appropriate tracking, the loop_headers set becomes stale after step 2 — it doesn't
-        //    include the newly hoisted array_get's result. So when b4's mul tries to
-        //    hoist, the code incorrectly escapes past the loop header to b0, creating invalid
-        //    SSA where the mul uses a value not yet defined.
+    fn does_not_hoist_into_loop_header_using_header_param() {
+        // Both `mul v2, v2` should stay in their original blocks.
+        // They must NOT be hoisted into the loop header b1.
         let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 1]):
+        acir(inline) fn main f0 {
+          b0(v0: Field):
             jmp b1(u8 0, v0)
-          b2():
-            return
-          b1(v1: u8, v2: [Field; 1]):
+          b1(v1: u8, v2: Field):
             v3 = lt v1, u8 2
-            jmpif v3 then: b3, else: b4
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = mul v2, v2
+            v5 = add v4, Field 1
+            v6 = add v1, u8 1
+            jmp b1(v6, v5)
           b3():
-            v4 = array_get v2, index u32 0 -> Field
-            v5 = mul v4, v4
-            v6 = array_set v2, index u32 0, value v5
-            v7 = unchecked_add v1, u8 1
-            jmp b1(v7, v6)
-          b4():
-            v8 = array_get v2, index u32 0 -> Field
-            v9 = mul v8, v8
-            jmp b2()
+            v7 = mul v2, v2
+            return v7
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
-
-        let elements = vec![Value::field((2u32).into())];
-        let inputs = Value::array(elements, vec![Type::field()]);
-        let _ = ssa.interpret(vec![inputs]).unwrap();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 1]):
-            jmp b2(u8 0, v0)
-          b1():
-            return
-          b2(v1: u8, v2: [Field; 1]):
-            v5 = lt v1, u8 2
-            v7 = array_get v2, index u32 0 -> Field
-            v8 = mul v7, v7
-            jmpif v5 then: b3, else: b4
-          b3():
-            v9 = array_set v2, index u32 0, value v8
-            v11 = unchecked_add v1, u8 1
-            jmp b2(v11, v9)
-          b4():
-            jmp b1()
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(DEFAULT_MAX_ITER));
     }
 }

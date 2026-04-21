@@ -77,7 +77,7 @@ impl NargoErrorWithTypes {
                 },
             },
             NargoError::ForeignCallError(error) => Some(error.to_string()),
-            _ => None,
+            NargoError::CompilationError => None,
         }
     }
 }

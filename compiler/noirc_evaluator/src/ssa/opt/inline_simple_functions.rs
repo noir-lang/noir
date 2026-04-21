@@ -318,7 +318,7 @@ mod tests {
 
         acir(inline) fn foo f1 {
           b0(v0: Field, v1: bool):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
 
           b1():
             v3 = add v0, Field 1

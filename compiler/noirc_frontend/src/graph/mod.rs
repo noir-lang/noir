@@ -209,7 +209,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -257,7 +257,7 @@ impl CrateGraph {
     }
 
     pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_stdlib() {
                 panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
             }
@@ -275,7 +275,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root_and_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -319,7 +319,7 @@ impl CrateGraph {
             if !visited.insert(source) {
                 return;
             }
-            for dep in graph[source].dependencies.iter() {
+            for dep in &graph[source].dependencies {
                 go(graph, visited, res, dep.crate_id);
             }
             res.push(source);

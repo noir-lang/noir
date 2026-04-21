@@ -14,7 +14,7 @@ use noir_ssa_fuzzer::{
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     hash::Hash,
 };
 use strum_macros::EnumCount;
@@ -108,9 +108,9 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Instruction blocks
     instruction_blocks: &'a Vec<InstructionBlock>,
     /// Hashmap of stored variables in blocks
-    stored_variables_for_block: HashMap<BasicBlockId, HashMap<Type, Vec<TypedValue>>>,
+    stored_variables_for_block: BTreeMap<BasicBlockId, BTreeMap<Type, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
-    stored_blocks: HashMap<BasicBlockId, StoredBlock>,
+    stored_blocks: BTreeMap<BasicBlockId, StoredBlock>,
     /// Options of the program context
     function_context_options: FunctionContextOptions,
     /// Number of instructions inserted in the program
@@ -119,7 +119,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     inserted_ssa_blocks_count: usize,
 
     /// Stored cycles info, to handle loops in Jmp, JmpIf and finalization
-    cycle_bodies_to_iters_ids: HashMap<BasicBlockId, CycleInfo>,
+    cycle_bodies_to_iters_ids: BTreeMap<BasicBlockId, CycleInfo>,
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
 
@@ -138,7 +138,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut ids = HashMap::new();
+        let mut ids = BTreeMap::new();
         for type_ in types {
             let id = builder.insert_variable(type_.clone().into());
             ids.entry(type_.clone()).or_insert(Vec::new()).push(id);
@@ -159,12 +159,12 @@ impl<'a> FuzzerFunctionContext<'a> {
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables_for_block: HashMap::new(),
-            stored_blocks: HashMap::new(),
+            stored_variables_for_block: BTreeMap::new(),
+            stored_blocks: BTreeMap::new(),
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
-            cycle_bodies_to_iters_ids: HashMap::new(),
+            cycle_bodies_to_iters_ids: BTreeMap::new(),
             parent_iterations_count: 1,
             defined_functions,
             return_type,
@@ -182,9 +182,9 @@ impl<'a> FuzzerFunctionContext<'a> {
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut ids = HashMap::new();
+        let mut ids = BTreeMap::new();
 
-        for (value, type_) in values_types.into_iter() {
+        for (value, type_) in values_types {
             let field_element = value;
             ids.entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
@@ -206,12 +206,12 @@ impl<'a> FuzzerFunctionContext<'a> {
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables_for_block: HashMap::new(),
-            stored_blocks: HashMap::new(),
+            stored_variables_for_block: BTreeMap::new(),
+            stored_blocks: BTreeMap::new(),
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
-            cycle_bodies_to_iters_ids: HashMap::new(),
+            cycle_bodies_to_iters_ids: BTreeMap::new(),
             parent_iterations_count: 1,
             defined_functions,
             return_type,
@@ -439,7 +439,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///     jmp b1(u32 0) <--------------------------------- create iter (0) and jump to the "if_block"
     ///   b1(v1: u32): <------------------------------------ "if_block"
     ///     v5 = lt v1, u32 10 <---------------------------- compare iter with end_iter (10)
-    ///     jmpif v5 then: b3, else: b2 <------------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
+    ///     jmpif v5 then: b3(), else: b2() <--------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
     ///   b2(): <------------------------------------------- "end_block"
     ///     v6 = load v2 -> Field
     ///     return v6
@@ -719,9 +719,8 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// This function is used to find end of the block for merging
     /// If block has no end, it means it has branches in the sub CFG, so we need to merge children blocks first
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        let block = match self.stored_blocks.get(&block_id) {
-            Some(block) => block,
-            None => unreachable!("Block not found in stored blocks."),
+        let Some(block) = self.stored_blocks.get(&block_id) else {
+            unreachable!("Block not found in stored blocks.");
         };
 
         if block.context.children_blocks.is_empty() {
@@ -812,7 +811,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // save all not-terminated blocks to stored_blocks
         self.finalize_cycles();
         self.not_terminated_blocks.push_back(self.current_block.clone());
-        for block in self.not_terminated_blocks.iter() {
+        for block in &self.not_terminated_blocks {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
 

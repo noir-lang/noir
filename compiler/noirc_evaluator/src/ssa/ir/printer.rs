@@ -205,15 +205,19 @@ fn display_terminator(
         Some(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
+            then_arguments,
             else_destination,
+            else_arguments,
             call_stack: _,
         }) => {
             writeln!(
                 f,
-                "    jmpif {} then: {}, else: {}",
+                "    jmpif {} then: {}({}), else: {}({})",
                 value(dfg, *condition),
                 then_destination,
-                else_destination
+                value_list(dfg, then_arguments),
+                else_destination,
+                value_list(dfg, else_arguments),
             )
         }
         Some(TerminatorInstruction::Return { return_values, .. }) => {
@@ -290,6 +294,7 @@ fn write_location_information(
     let call_stack = dfg.get_instruction_call_stack(instruction);
 
     if let Some(location) = call_stack.last()
+        && !location.is_dummy()
         && let Ok(name) = fm.as_file_map().get_name(location.file)
     {
         let files = fm.as_file_map();

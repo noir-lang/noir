@@ -28,6 +28,8 @@ for greater analysis and modification of programs.
 - `comptime fn` to define functions which execute exclusively during compile-time.
 - `comptime global` to define a global variable which is evaluated at compile-time.
   - Unlike runtime globals, `comptime global`s can be mutable.
+- `comptime struct` to define structs that refer to some comptime-only types
+- `comptime type` to define type aliases that refer to some comptime-only types
 - `comptime { ... }` to execute a block of statements during compile-time.
 - `comptime let` to define a variable whose value is evaluated at compile-time.
 - `comptime for` to run a for loop at compile-time. Syntax sugar for `comptime { for .. }`.

@@ -68,7 +68,6 @@
 <li><a href="../primitive.Type.html">Type</a></div></li>
 <li><a href="../primitive.TypeDefinition.html">TypeDefinition</a></div></li>
 <li><a href="../primitive.TypedExpr.html">TypedExpr</a></div></li>
-<li><a href="../primitive.u1.html">u1</a></div></li>
 <li><a href="../primitive.u128.html">u128</a></div></li>
 <li><a href="../primitive.u16.html">u16</a></div></li>
 <li><a href="../primitive.u32.html">u32</a></div></li>
@@ -92,7 +91,7 @@
 <h2 id="structs">Structs</h2><ul class="item-list">
 <li><div class="item-name"><a href="struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></div><div class="item-description">A point on the embedded elliptic curve
 By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
-x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.</div></li>
+x and y denotes the Weierstrass coordinates of the point.</div></li>
 <li><div class="item-name"><a href="struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></div><div class="item-description">Scalar for the embedded curve represented as low and high limbs
 By definition, the scalar field of the embedded curve is base field of the proving system curve.
 It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</div></li>
@@ -107,7 +106,8 @@ IMPORTANT: this function is expected to perform a full addition in order to hand
 As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
 </ul></div></li>
 <li><div class="item-name"><a href="fn.fixed_base_scalar_mul.html" class="fn">fixed_base_scalar_mul</a></div><div class="item-description"></div></li>
-<li><div class="item-name"><a href="fn.multi_scalar_mul.html" class="fn">multi_scalar_mul</a></div><div class="item-description"></div></li>
+<li><div class="item-name"><a href="fn.multi_scalar_mul.html" class="fn">multi_scalar_mul</a></div><div class="item-description">Computes a multi scalar multiplication over the embedded curve.
+For bn254, We have Grumpkin.</div></li>
 </ul>
 </main>
 </span>

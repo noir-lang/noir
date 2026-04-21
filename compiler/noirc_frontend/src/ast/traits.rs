@@ -123,7 +123,7 @@ impl Display for TypeImpl {
 
         writeln!(f, "impl{} {} {{", generics, self.object_type)?;
 
-        for (method, _) in self.methods.iter() {
+        for (method, _) in &self.methods {
             let method = method.to_string();
             for line in method.lines() {
                 writeln!(f, "    {line}")?;
@@ -160,7 +160,7 @@ impl Display for NoirTrait {
 
         writeln!(f, " {{")?;
 
-        for item in self.items.iter() {
+        for item in &self.items {
             let item = item.to_string();
             for line in item.lines() {
                 writeln!(f, "    {line}")?;
@@ -265,7 +265,7 @@ impl Display for NoirTraitImpl {
         }
         writeln!(f, "{{")?;
 
-        for item in self.items.iter() {
+        for item in &self.items {
             let item = item.to_string();
             for line in item.lines() {
                 writeln!(f, "    {line}")?;

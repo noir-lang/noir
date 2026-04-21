@@ -10,8 +10,10 @@
 use std::path::Path;
 
 use crate::elaborator::FrontendOptions;
+use crate::error_reporting::report_all;
 
 use iter_extended::vecmap;
+use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
 use crate::hir::Context;
@@ -55,9 +57,14 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
 /// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
 pub fn get_monomorphized_with_stdlib(
     user_src: &str,
-    stdlib_src: &str,
+    stdlib_src: &[&str],
 ) -> Result<Program, MonomorphizationError> {
-    let src = format!("{stdlib_src}\n\n{user_src}");
+    let mut src = String::new();
+    for s in stdlib_src {
+        src.push_str(s);
+        src.push_str("\n\n");
+    }
+    src.push_str(user_src);
     get_monomorphized_with_options(
         &src,
         GetProgramOptions { root_and_stdlib: true, ..Default::default() },
@@ -74,6 +81,8 @@ pub fn get_monomorphized_with_options(
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
     if !options.allow_elaborator_errors && !only_warnings || !has_defs && !errors.is_empty() {
+        let diagnostics = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        report_all(&context.file_manager, &context.parsed_files, &diagnostics, false, false);
         panic!(
             "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
         )
@@ -255,16 +264,22 @@ pub mod stdlib_src {
         pub fn modulus_num_bits() -> u64 {}
 
         #[builtin(modulus_be_bits)]
-        pub fn modulus_be_bits() -> [u1] {}
+        pub fn modulus_be_bits() -> [bool] {}
 
         #[builtin(modulus_le_bits)]
-        pub fn modulus_le_bits() -> [u1] {}
+        pub fn modulus_le_bits() -> [bool] {}
 
         #[builtin(modulus_be_bytes)]
         pub fn modulus_be_bytes() -> [u8] {}
 
         #[builtin(modulus_le_bytes)]
         pub fn modulus_le_bytes() -> [u8] {}
+    ";
+
+    // This is also a `comptime` function in stdlib.
+    pub const POSEIDON2: &str = "
+        #[foreign(poseidon2_config_state_size)]
+        pub fn poseidon2_config_state_size() -> u32 {}
     ";
 
     pub const PRINT: &str = "

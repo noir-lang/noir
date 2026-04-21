@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use noirc_abi::input_parser::InputValue;
-use rand::Rng;
+use rand::RngExt;
 use rand_xorshift::XorShiftRng;
 
 use crate::mutation::configurations::{BASIC_SPLICE_MUTATION_CONFIGURATION, SpliceMutationOptions};
@@ -84,14 +84,12 @@ impl<'a> ArrayMutator<'a> {
 
     /// Generate a combination of two string inputs
     pub fn splice(&mut self, first_input: &InputValue, second_input: &InputValue) -> InputValue {
-        let first_buffer = match first_input {
-            InputValue::Vec(inner_vec) => inner_vec,
-            _ => panic!("Shouldn't be used with other input value types"),
+        let InputValue::Vec(first_buffer) = first_input else {
+            panic!("Shouldn't be used with other input value types");
         };
 
-        let second_buffer = match second_input {
-            InputValue::Vec(inner_vec) => inner_vec,
-            _ => panic!("Shouldn't be used with other input value types"),
+        let InputValue::Vec(second_buffer) = second_input else {
+            panic!("Shouldn't be used with other input value types");
         };
 
         assert!(!first_buffer.is_empty());

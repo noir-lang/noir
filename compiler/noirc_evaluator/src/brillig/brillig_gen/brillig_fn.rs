@@ -44,7 +44,7 @@ pub(crate) struct FunctionContext {
     /// allocator for each block we process, and something that is allocated in e.g. block 1
     /// might be deallocated in block 2, so it has to be done manually.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
-    /// The block ids of the function in Reverse Post Order.
+    /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
@@ -84,7 +84,7 @@ impl FunctionContext {
     ) -> Self {
         let id = function.id();
 
-        let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
+        let post_order = PostOrder::with_function(function).into_vec();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
         let needs_spill_support =
@@ -103,7 +103,7 @@ impl FunctionContext {
         Self {
             function_id: Some(id),
             ssa_value_allocations: HashMap::default(),
-            blocks: reverse_post_order,
+            blocks: post_order,
             liveness,
             is_entry_point,
             constant_allocation: constants,
@@ -156,7 +156,7 @@ impl FunctionContext {
     /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) => {
+            Type::Numeric(_) | Type::Reference(..) | Type::Function => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
@@ -166,20 +166,16 @@ impl FunctionContext {
             Type::Vector(_) => {
                 panic!("ICE: Vector parameters cannot be derived from type information")
             }
-            // Treat functions as field values
-            Type::Function => {
-                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
-            }
         }
     }
 
     /// Iterate blocks in Post Order.
     pub(crate) fn post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
-        self.blocks.iter().copied().rev()
+        self.blocks.iter().copied()
     }
 
     /// Iterate blocks in Reverse Post Order.
     pub(crate) fn reverse_post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
-        self.blocks.iter().copied()
+        self.blocks.iter().copied().rev()
     }
 }

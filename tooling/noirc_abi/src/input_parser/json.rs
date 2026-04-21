@@ -235,7 +235,7 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        AbiType,
+        Abi, AbiParameter, AbiType, AbiVisibility,
         arbitrary::arb_abi_and_input_map,
         input_parser::{InputValue, arbitrary::arb_signed_integer_type_and_value, json::JsonTypes},
     };
@@ -287,5 +287,31 @@ mod tests {
             panic!("Expected field");
         };
         assert_eq!(field, FieldElement::from(255_u128));
+    }
+
+    #[test]
+    fn try_from_json_tuple_array_length_mismatch() {
+        let typ = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let abi = Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let json = r#"{"input": [0]}"#;
+        let input = parse_json(json, &abi).unwrap();
+        let value = &input["input"];
+        assert!(matches!(value, InputValue::Vec(vec) if vec.len() == 1));
+    }
+
+    #[test]
+    fn try_from_input_value_toml_array_length_mismatch() {
+        let value = InputValue::Vec(vec![InputValue::Field(0.into())]);
+        let abi_type = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let result = JsonTypes::try_from_input_value(&value, &abi_type).unwrap();
+        assert!(matches!(result, JsonTypes::Array(array) if array.len() == 1));
     }
 }

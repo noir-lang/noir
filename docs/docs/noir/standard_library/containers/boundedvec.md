@@ -5,17 +5,11 @@ keywords: [noir, vector, bounded vector, vector]
 sidebar_position: 1
 ---
 
-A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
-is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
-via vectors and thus is not subject to the same restrictions vectors are (notably, nested
-vectors - and thus nested vectors as well - are disallowed).
+A `BoundedVec<T, MaxLen>` is a growable storage backed by a normal array under the hood,
+bounded with a maximum possible length.
 
-Since a BoundedVec is backed by a normal array under the hood, growing the BoundedVec by
-pushing an additional element is also more efficient - the length only needs to be increased
-by one.
-
-For these reasons `BoundedVec<T, N>` should generally be preferred over `Vec<T>` when there
-is a reasonable maximum bound that can be placed on the vector.
+Since a BoundedVec is backed by a normal array, growing the BoundedVec by pushing an
+additional element is efficient - the length only needs to be increased by one.
 
 Example:
 

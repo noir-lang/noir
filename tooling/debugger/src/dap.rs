@@ -120,9 +120,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         self.send_stopped_event(StoppedEventReason::Entry)?;
 
         while self.running {
-            let req = match self.server.poll_request()? {
-                Some(req) => req,
-                None => break,
+            let Some(req) = self.server.poll_request()? else {
+                break;
             };
             match req.command {
                 Command::Disconnect(_) => {
@@ -585,7 +584,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         let variables: Vec<_> = match scope {
             ScopeReferences::Locals => self.build_local_variables(),
             ScopeReferences::WitnessMap => self.build_witness_map(),
-            _ => {
+            ScopeReferences::InvalidScope => {
                 eprintln!(
                     "handle_variables with an unknown variables_reference {}",
                     args.variables_reference

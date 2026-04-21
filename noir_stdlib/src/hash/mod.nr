@@ -6,6 +6,10 @@ use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
+use crate::static_assert;
+
+/// The size of the state accepted by the backend in `poseidon2_permutation`.
+global POSEIDON2_CONFIG_STATE_SIZE: u32 = poseidon2_config_state_size();
 
 #[foreign(sha256_compression)]
 // docs:start:sha256_compression
@@ -61,8 +65,7 @@ pub fn pedersen_commitment_with_separator<let N: u32>(
 ) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
-        // we use the unsafe version because the multi_scalar_mul will constrain the scalars.
-        points[i] = from_field_unsafe(input[i]);
+        points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
     multi_scalar_mul(generators, points)
@@ -85,7 +88,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
         derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
 
     for i in 0..N {
-        scalars[i] = from_field_unsafe(input[i]);
+        scalars[i] = EmbeddedCurveScalar::from_field(input[i]);
         generators[i] = domain_generators[i];
     }
     scalars[N] = EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field };
@@ -114,34 +117,19 @@ fn __derive_generators<let N: u32, let M: u32>(
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {}
 
-#[field(bn254)]
-// Decompose the input 'bn254 scalar' into two 128 bits limbs.
-// It is called 'unsafe' because it does not assert the limbs are 128 bits
-// Assuming the limbs are 128 bits:
-// Assert the decomposition does not overflow the field size.
-fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
-    // Safety: xlo and xhi decomposition is checked below
-    let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
-    // Check that the decomposition is correct
-    assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
-    // Check that the decomposition does not overflow the field size
-    let (a, b) = if xhi == crate::field::bn254::PHI {
-        (xlo, crate::field::bn254::PLO)
-    } else {
-        (xhi, crate::field::bn254::PHI)
-    };
-    crate::field::bn254::assert_lt(a, b);
-
-    EmbeddedCurveScalar { lo: xlo, hi: xhi }
-}
-
-pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
-    assert_eq(input.len(), state_len);
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
+    static_assert(
+        N == POSEIDON2_CONFIG_STATE_SIZE,
+        f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+    );
     poseidon2_permutation_internal(input)
 }
 
 #[foreign(poseidon2_permutation)]
 fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
+
+#[foreign(poseidon2_config_state_size)]
+comptime fn poseidon2_config_state_size() -> u32 {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.
@@ -174,6 +162,13 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
 // TODO: consider making the types generic here ([u8], [Field], etc.)
 pub trait Hasher {
     fn finish(self) -> Field;
+
+    /// Returns the hash value without consuming the hasher.
+    /// Override this for more efficient implementations that avoid copying.
+    /// TODO: deprecate finish() and replace it
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
+    }
 
     fn write(&mut self, input: Field);
 }
@@ -213,15 +208,6 @@ impl Hash for Field {
         H: Hasher,
     {
         H::write(state, self);
-    }
-}
-
-impl Hash for u1 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self as Field);
     }
 }
 
@@ -433,7 +419,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402,
             y: 0x209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126,
-            is_infinite: false,
         },
     );
 
@@ -446,7 +431,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x2e2b3b191e49541fe468ec6877721d445dcaffe41728df0a0eafeb15e87b0753,
             y: 0x2ff4482400ad3a6228be17a2af33e2bcdf41be04795f9782bd96efe7e24f8778,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -458,7 +442,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x1fee4e8cf8d2f527caa2684236b07c4b1bad7342c01b0f75e9a877a71827dc85,
             y: 0x2f9fedb9a090697ab69bf04c8bc15f7385b3e4b68c849c1536e5ae15ff138fd1,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -470,7 +453,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x07ae3e202811e1fca39c2d81eabe6f79183978e6f12be0d3b8eda095b79bdbc9,
             y: 0x0afc6f892593db6fbba60f2da558517e279e0ae04f95758587760ba193145014,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -482,7 +464,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x1754b12bd475a6984a1094b5109eeca9838f4f81ac89c5f0a41dbce53189bb29,
             y: 0x2da030e3cfcdc7ddad80eaf2599df6692cae0717d4e9f7bfbee8d073d5d278f7,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -494,7 +475,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x190f6c0e97ad83e1e28da22a98aae156da083c5a4100e929b77e750d3106a697,
             y: 0x1f4b60f34ef91221a0b49756fa0705da93311a61af73d37a0c458877706616fb,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -506,7 +486,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x015441e9d29491b06563fac16fc76abf7a9534c715421d0de85d20dbe2965939,
             y: 0x1d2575b0276f4e9087e6e07c2cb75aa1baafad127af4be5918ef8a2ef2fea8fc,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -518,7 +497,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x1657737676968887fceb6dd516382ea13b3a2c557f509811cd86d5d1199bc443,
             y: 0x1f39f0cb569040105fa1e2f156521e8b8e08261e635a2b210bdc94e8d6d65f77,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -530,7 +508,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x0a3ceae42d14914a432aa60ec7fded4af7dad7dd4acdbf2908452675ec67e06d,
             y: 0xfc19761eaaf621ad4aec9a8b2e84a4eceffdba78f60f8b9391b0bd9345a2f2,
-            is_infinite: false,
         },
     );
     assert_eq(
@@ -542,7 +519,6 @@ fn assert_pedersen() {
         EmbeddedCurvePoint {
             x: 0x2fb3f8b3d41ddde007c8c3c62550f9a9380ee546fcc639ffbb3fd30c8d8de30c,
             y: 0x300783be23c446b11a4c0fabf6c91af148937cea15fcf5fb054abf7f752ee245,
-            is_infinite: false,
         },
     );
 }

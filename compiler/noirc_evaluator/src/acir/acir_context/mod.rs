@@ -239,11 +239,8 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Converts an [`AcirVar`] to an [`Expression`]
     pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression<F>, InternalError> {
-        let var_data = match self.vars.get(&var) {
-            Some(var_data) => var_data,
-            None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
-            }
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
         };
         Ok(var_data.to_expression().into_owned())
     }
@@ -657,7 +654,7 @@ impl<F: AcirField> AcirContext<F> {
                 if expression.is_linear() =>
             {
                 let mut expr = Expression::default();
-                for term in expression.linear_combinations.iter() {
+                for term in &expression.linear_combinations {
                     expr.push_multiplication_term(term.0, term.1, witness);
                 }
                 expr.push_addition_term(expression.q_c, witness);
@@ -674,7 +671,7 @@ impl<F: AcirField> AcirContext<F> {
                 if let Some((lin, univariate)) = degree_one {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
-                    for term in lin.linear_combinations.iter() {
+                    for term in &lin.linear_combinations {
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
@@ -976,7 +973,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// `lhs<=rhs` is done by constraining `rhs-lhs` to a bit size of `bits`:
     /// - if `lhs<=rhs`, `0 <= rhs-lhs <= b < 2^bits`
-    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) >= bits + 1`)
+    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) > bits + 1`)
     ///
     /// n.b: we do NOT check here that `lhs` and `rhs` are indeed `bits` size
     pub(super) fn bound_constraint_with_offset(
@@ -996,9 +993,18 @@ impl<F: AcirField> AcirContext<F> {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
+        // When offset is 1, we have the inequality `2^(bits) - 1 > rhs - (lhs + 1) >= 0 - 2^(bits)` by passing the
+        // extreme values of `lhs` and `rhs`.
+        //
+        // To distinguish the two cases, we need to ensure that `p - 2^(bits) > 2^(bits) - 1`, so that when `lhs > rhs`,
+        // `rhs - (lhs + offset)` will overflow the field and become a large integer which cannot be represented
+        // in `bits` bits, and thus fail the range constraint.
+        //
+        // Rearranging `2^(bits) - 1 < p - 2^(bits)` gives the condition `bits + 1 < log2(p)` for the constraints
+        // to be valid.
         assert!(
-            bits < F::max_num_bits(),
-            "range check with bit size >= the prime field size is not implemented yet"
+            bits + 1 < F::max_num_bits(),
+            "range check with bit size + 1 >= the prime field bit size is not implemented yet"
         );
 
         // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if

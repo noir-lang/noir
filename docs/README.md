@@ -87,6 +87,35 @@ yarn production:serve
 ```
 Access at: `http://localhost:3000/docs/`
 
+## Cutting a New Version
+
+When a new Noir version is released, a versioned snapshot of the docs needs to be created. This is
+normally done automatically by the release workflow (`.github/workflows/release.yml`), but can also
+be done manually.
+
+From the _docs_ directory, run:
+
+```sh
+yarn cut_version <VERSION>
+```
+
+For example: `yarn cut_version v1.0.0-beta.20`
+
+This script does three things:
+
+1. Removes the new version from `versions.json` (since `yarn version::stables` will have added it
+   from the GitHub release, but the versioned docs snapshot doesn't exist yet).
+2. Builds the docs (running preprocessing to resolve `#include_code` directives and generate the
+   Nargo CLI reference).
+3. Runs `yarn docusaurus docs:version <VERSION>` to snapshot the current docs into
+   `versioned_docs/version-<VERSION>/` and create a matching sidebar in `versioned_sidebars/`.
+
+After this, the new version will appear in the version dropdown on the site.
+
+> **Important**: The `#include_code` directives must be resolved _before_ the snapshot is taken.
+> The `versioned_docs/` directory should never contain raw `#include_code` directives — CI will
+> reject PRs that introduce them.
+
 ## Quick Commands Reference
 
 All commands should be run from the `docs` directory:
@@ -98,4 +127,5 @@ All commands should be run from the `docs` directory:
 | `yarn build` | Build production site |
 | `yarn serve` | Serve built site locally |
 | `yarn version::stables` | Update stable versions list |
+| `yarn cut_version <VERSION>` | Cut a new versioned docs snapshot |
 | `yarn clean` | Clean build artifacts |

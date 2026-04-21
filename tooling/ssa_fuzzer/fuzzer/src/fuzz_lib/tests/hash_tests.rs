@@ -4,6 +4,7 @@
 //! 3) aes128_encrypt
 //! 4) keccakf1600
 //! 5) sha256_compression
+//! 6) poseidon2_permutation
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
@@ -243,6 +244,51 @@ fn smoke_test_sha256_compression() {
         }
         false => {
             assert_eq!(result.get_return_witnesses()[0], FieldElement::from(3205228454_u32));
+        }
+    }
+}
+
+/// fn main(a: Field, b: Field) -> pub Field {
+///     let input: [Field; 4] = [0, 0, 0, 0];
+///     std::hash::poseidon2_permutation(input, 4)[3]
+/// }
+///
+/// [bn254_blackbox_solver] Circuit output: Field(11146950474414891597227044764052461669681231042712299889367802215497079123309)
+#[test]
+fn smoke_test_poseidon2_permutation() {
+    let _ = env_logger::try_init();
+    let poseidon2_permutation_block = InstructionBlock {
+        instructions: vec![Instruction::Poseidon2Permutation {
+            field_indices: [0; 4],
+            load_elements_of_array: true,
+        }],
+    };
+    let instructions_blocks = vec![poseidon2_permutation_block];
+    let commands = vec![];
+    let main_func = FunctionData {
+        input_types: default_input_types(),
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: Type::Numeric(NumericType::Field),
+    };
+    let fuzzer_data = FuzzerData {
+        instruction_blocks: instructions_blocks,
+        functions: vec![main_func],
+        initial_witness: default_witness(),
+    };
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::try_from_str(
+                    "11146950474414891597227044764052461669681231042712299889367802215497079123309"
+                )
+                .unwrap()
+            );
         }
     }
 }

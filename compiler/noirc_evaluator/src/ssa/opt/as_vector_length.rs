@@ -41,9 +41,8 @@ impl Function {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
-            let (target_func, arguments) = match &instruction {
-                Instruction::Call { func, arguments } => (func, arguments),
-                _ => return,
+            let Instruction::Call { func: target_func, arguments } = &instruction else {
+                return;
             };
 
             if *target_func != as_vector {
@@ -53,9 +52,10 @@ impl Function {
             let first_argument =
                 arguments.first().expect("AsVector should always have one argument");
             let array_typ = context.dfg.type_of_value(*first_argument);
-            let Type::Array(_, length) = array_typ else {
+            let Type::Array(_, length) = &*array_typ else {
                 unreachable!("AsVector called with non-array {}", array_typ);
             };
+            let length = *length;
 
             let [original_vector_length, _] = context.dfg.instruction_result(instruction_id);
             let known_length =

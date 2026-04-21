@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 use std::{field::modulus_num_bits, meta::unquote};
 
-global three_field: Field = 3;
+global three_field: Field = 0x03;
 
 fn main() {
     ()

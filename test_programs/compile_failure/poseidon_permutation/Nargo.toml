@@ -1,0 +1,6 @@
+[package]
+name = "poseidon_permutation"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -9,8 +9,8 @@
 //! - A function is reachable if it is called from another reachable function
 //! - A function is reachable if it is stored in a reference (e.g., in a `Store` instruction) from another reachable function.
 //!   Even if not immediately called, it may later be dynamically loaded and invoked.
-//!   This marking is conservative but ensures correctness. We should instead rely on [mem2reg][crate::ssa::opt::mem2reg]
-//!   for resolving loads/stores.
+//!   This marking is conservative but ensures correctness. We should instead rely on
+//!   [crate::ssa::opt::mem2reg] for resolving loads/stores.
 //! - A function is reachable if it is used in a block terminator (e.g., returned from a function)
 //!
 //! The pass builds a call graph based upon the definition of reachability above.
@@ -190,7 +190,7 @@ mod tests {
             b0(v0: u1):
               v1 = allocate -> &mut function
               store f1 at v1
-              jmpif v0 then: b1, else: b2
+              jmpif v0 then: b1(), else: b2()
             b1():
               store f2 at v1
               jmp b2()

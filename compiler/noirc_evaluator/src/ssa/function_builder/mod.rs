@@ -189,7 +189,7 @@ impl FunctionBuilder {
 
     /// Returns the type of the given value.
     pub fn type_of_value(&self, value: ValueId) -> Type {
-        self.current_function.dfg.type_of_value(value)
+        self.current_function.dfg.type_of_value(value).into_owned()
     }
 
     /// Insert a new block into the current function and return it.
@@ -254,7 +254,17 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        let reference_type = Type::Reference(Arc::new(element_type));
+        self.insert_allocate_with_mutability(element_type, true)
+    }
+
+    /// Like `insert_allocate`, but allows specifying whether the resulting reference
+    /// is mutable (`&mut T`) or immutable (`&T`).
+    pub fn insert_allocate_with_mutability(
+        &mut self,
+        element_type: Type,
+        mutable: bool,
+    ) -> ValueId {
+        let reference_type = Type::Reference(Arc::new(element_type), mutable);
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
@@ -421,15 +431,36 @@ impl FunctionBuilder {
         &mut self,
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
     ) {
         let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
+            then_arguments,
             else_destination,
+            else_arguments,
             call_stack,
         });
+    }
+
+    /// Terminate the current block with a jmpif instruction to jmp with the given arguments
+    /// block with no arguments.
+    pub fn terminate_with_jmpif_no_args(
+        &mut self,
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+    ) {
+        self.terminate_with_jmpif(
+            condition,
+            then_destination,
+            Vec::new(),
+            else_destination,
+            Vec::new(),
+        );
     }
 
     /// Terminate the current block with a return instruction
@@ -506,7 +537,7 @@ impl FunctionBuilder {
             return None;
         }
         match self.type_of_value(value) {
-            Type::Numeric(_) | Type::Function | Type::Reference(_) => None,
+            Type::Numeric(_) | Type::Function | Type::Reference(..) => None,
             Type::Array(..) | Type::Vector(..) => {
                 // If there are nested arrays or vectors, we wait until ArrayGet
                 // is issued to increment the count of that array.
@@ -567,7 +598,7 @@ fn validate_numeric_type(typ: &NumericType) {
                 );
             }
         },
-        _ => (),
+        NumericType::NativeField => (),
     }
 }
 

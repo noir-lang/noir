@@ -1,3 +1,4 @@
+/// Create a new `Self` value from the given `T` value
 // docs:start:from-trait
 pub trait From<T> {
     fn from(input: T) -> Self;
@@ -10,6 +11,7 @@ impl<T> From<T> for T {
     }
 }
 
+/// Convert a `Self` value into a `T` value
 // docs:start:into-trait
 pub trait Into<T> {
     fn into(self) -> T;

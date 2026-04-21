@@ -163,8 +163,9 @@ impl<'local> SsaBuilder<'local> {
 
     /// Run a list of SSA passes.
     pub fn run_passes(mut self, passes: &[SsaPass]) -> Result<Self, RuntimeError> {
-        for pass in passes {
-            self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg)?;
+        for (index, pass) in passes.iter().enumerate() {
+            let last = index == passes.len() - 1;
+            self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg, last)?;
         }
         Ok(self)
     }
@@ -180,14 +181,15 @@ impl<'local> SsaBuilder<'local> {
     }
 
     /// The same as `run_pass` but for passes that may fail
-    fn try_run_pass<F>(mut self, pass: F, msg: &str) -> Result<Self, RuntimeError>
+    fn try_run_pass<F>(mut self, pass: F, msg: &str, last: bool) -> Result<Self, RuntimeError>
     where
         F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
     {
         // Count the number of times we have seen this message.
         let cnt = *self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
         let step = self.passed.values().sum::<usize>();
-        let msg = format!("{msg} ({cnt}) (step {step})");
+        let last_step_msg = if last { " (last step)" } else { "" };
+        let msg = format!("{msg} ({cnt}) (step {step}){last_step_msg}");
 
         // See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
         let skip = self.skip_passes.iter().any(|s| msg.contains(s));

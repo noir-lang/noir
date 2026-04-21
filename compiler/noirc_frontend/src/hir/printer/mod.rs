@@ -388,12 +388,21 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&trait_.name.to_string());
         self.show_generics(&trait_.generics);
 
-        if !trait_.trait_bounds.is_empty() {
+        let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+        if !parent_bounds.is_empty() {
             self.push_str(": ");
-            self.show_trait_bounds(&trait_.trait_bounds);
+            self.show_trait_bounds(&parent_bounds);
         }
 
-        self.show_where_clause(&trait_.where_clause);
+        // Filter out the parent bounds we already printed with colon syntax.
+        let self_id = trait_.self_type_typevar.id();
+        let where_only: Vec<_> = trait_
+            .where_clause
+            .iter()
+            .filter(|c| !matches!(&c.typ, Type::TypeVariable(v) if v.id() == self_id))
+            .cloned()
+            .collect();
+        self.show_where_clause(&where_only);
         self.push_str(" {\n");
         self.increase_indent();
 
@@ -586,11 +595,15 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('(');
         let parameters = &func_meta.parameters;
         for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-            let is_self = self.pattern_is_self(pattern);
+            let is_self = pattern.is_self(self.interner);
 
-            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-            if is_self && matches!(typ, Type::Reference(..)) {
-                self.push_str("&mut ");
+            // `&mut self` and `& self` are represented as a reference type, not as a pattern
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.push_str("&mut ");
+                } else {
+                    self.push_str("&");
+                }
             }
 
             self.show_pattern(pattern);
@@ -870,18 +883,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         match value {
             Value::Unit => self.push_str("()"),
             Value::Bool(bool) => self.push_str(&bool.to_string()),
-            Value::Field(value) => self.push_str(&value.to_string()),
-            Value::I8(value) => self.push_str(&value.to_string()),
-            Value::I16(value) => self.push_str(&value.to_string()),
-            Value::I32(value) => self.push_str(&value.to_string()),
-            Value::I64(value) => self.push_str(&value.to_string()),
-            Value::U1(value) => self.push_str(&value.to_string()),
-            Value::U8(value) => self.push_str(&value.to_string()),
-            Value::U16(value) => self.push_str(&value.to_string()),
-            Value::U32(value) => self.push_str(&value.to_string()),
-            Value::U64(value) => self.push_str(&value.to_string()),
-            Value::U128(value) => self.push_str(&value.to_string()),
-            Value::String(string) => self.push_str(&format!("{string:?}")),
+            Value::Integer(int) => self.push_str(&int.to_string()),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                self.push_str(&format!("{string:?}"));
+            }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
                     .iter()
@@ -928,7 +934,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     self.push_str(" }");
                 }
             }
-            Value::CtString(string) => {
+            Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
                     "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
@@ -1265,24 +1272,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str("}");
     }
 
-    fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
-        match pattern {
-            HirPattern::Identifier(ident) => {
-                let definition = self.interner.definition(ident.id);
-                definition.name == "self"
-            }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
-        }
-    }
-
     fn pattern_is_self_or_underscore_self(&self, pattern: &HirPattern) -> bool {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
                 definition.name == "self" || definition.name == "_self"
             }
-            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
+            HirPattern::Mutable(pattern, _) => pattern.is_self(self.interner),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }

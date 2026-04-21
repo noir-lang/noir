@@ -13,7 +13,8 @@ warning: Return variable contains a constant value
    │ ╰─────' This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
    │  
    = Call stack:
-     1. src/main.nr:14:5
+     1: main
+             at src/main.nr:14:5
 
 bug: Assertion is always false: attempt to add with overflow
    ┌─ src/main.nr:29:21
@@ -22,8 +23,10 @@ bug: Assertion is always false: attempt to add with overflow
    │                     ----- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
    │
    = Call stack:
-     1. src/main.nr:5:16
-     2. src/main.nr:29:21
+     1: main
+             at src/main.nr:5:16
+     2: func_1
+             at src/main.nr:29:21
 
 error: Assertion failed: attempt to add with overflow
    ┌─ src/main.nr:29:21
@@ -32,7 +35,9 @@ error: Assertion failed: attempt to add with overflow
    │                     -----
    │
    = Call stack:
-     1. src/main.nr:5:16
-     2. src/main.nr:29:21
+     1: main
+             at src/main.nr:5:16
+     2: func_1
+             at src/main.nr:29:21
 
 Failed assertion

@@ -16,7 +16,10 @@ use nargo::{
 use nargo_toml::PackageSelection;
 use noirc_abi::input_parser::{Format, json::serialize_to_json};
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_frontend::{
+    error_reporting::report_one,
+    hir::{FunctionNameMatch, ParsedFiles},
+};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -121,10 +124,10 @@ fn list_harnesses_command(
         })
         .collect::<Result<_, _>>()?;
     let mut found_harness = false;
-    for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
+    for (crate_name, discovered_harnesses) in &all_harnesses_by_package {
         if !discovered_harnesses.is_empty() {
             println!("Package {crate_name} contains fuzzing harnesses:");
-            for harness in discovered_harnesses.iter() {
+            for harness in discovered_harnesses {
                 println!("\t{harness}");
             }
             found_harness = true;
@@ -263,7 +266,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     )?;
 
     let mut fuzzing_reports = Vec::new();
-    for fuzzing_harness_name in fuzzing_harnesses.into_iter() {
+    for fuzzing_harness_name in fuzzing_harnesses {
         let status = run_fuzzing_harness::<S>(
             file_manager,
             parsed_files,
@@ -283,6 +286,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
             root_path.clone(),
             fuzz_folder_config.fuzzing_failure_dir.clone(),
             file_manager,
+            parsed_files,
             package,
             compile_options,
             &fuzzing_reports[fuzzing_reports.len() - 1],
@@ -360,6 +364,7 @@ fn display_fuzzing_report_and_store(
     root_path: Option<PathBuf>,
     fuzzing_failure_folder: Option<String>,
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     fuzzing_report: &(String, FuzzingRunStatus),
@@ -477,18 +482,20 @@ fn display_fuzzing_report_and_store(
                 writer.reset().expect("Failed to reset writer");
             }
             if let Some(diag) = error_diagnostic {
-                noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    std::slice::from_ref(diag),
+                report_one(
+                    diag,
+                    file_manager,
+                    parsed_files,
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
             }
         }
         FuzzingRunStatus::CompileError(err) => {
-            noirc_errors::reporter::report_all(
-                file_manager.as_file_map(),
-                std::slice::from_ref(err),
+            report_one(
+                err,
+                file_manager,
+                parsed_files,
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             );

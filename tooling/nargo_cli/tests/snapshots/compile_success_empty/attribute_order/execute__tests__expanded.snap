@@ -44,7 +44,7 @@ fn main() {
     assert(19_Field == 19_Field);
 }
 
-comptime mut global attributes_run: Field = 19;
+comptime mut global attributes_run: Field = 0x13;
 
 pub comptime fn assert_run_order_function(_f: FunctionDefinition, order: Field) {
     assert(order == attributes_run);

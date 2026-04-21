@@ -309,7 +309,7 @@ impl<F: AcirField> Expression<F> {
             let mut found_x = false;
             let mut found_y = false;
 
-            for term in self.linear_combinations.iter() {
+            for term in &self.linear_combinations {
                 let witness = &term.1;
                 let x = &mul_term.1;
                 let y = &mul_term.2;

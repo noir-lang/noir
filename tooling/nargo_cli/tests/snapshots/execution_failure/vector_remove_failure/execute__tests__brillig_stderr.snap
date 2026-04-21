@@ -23,6 +23,7 @@ error: Assertion failed: Index out of bounds
    │                                          -------------
    │
    = Call stack:
-     1. src/main.nr:10:42
+     1: main
+             at src/main.nr:10:42
 
 Failed assertion

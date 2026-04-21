@@ -8,8 +8,13 @@ use acvm::{
 use std::collections::BTreeSet;
 
 use noirc_evaluator::ssa::{
-    SsaEvaluatorOptions, ir::map::Id, opt::FORCE_UNROLL_THRESHOLD, optimize_ssa_builder_into_acir,
-    primary_passes,
+    SsaEvaluatorOptions,
+    ir::map::Id,
+    opt::{
+        DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
+        FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS,
+    },
+    optimize_ssa_builder_into_acir, primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 use noirc_evaluator::ssa::{
@@ -255,9 +260,11 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
         small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
+        max_unroll_iterations: MAX_UNROLL_ITERATIONS,
         force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+        specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+        max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
         brillig_options: BrilligOptions::default(),
-        enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
         ssa_logging_hide_unchanged: false,
     };
@@ -272,7 +279,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
 
     let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
-    for acir_func in acir_functions.iter() {
+    for acir_func in &acir_functions {
         let mut private_params: BTreeSet<Witness> =
             acir_func.input_witnesses.clone().into_iter().collect();
         let ret_values: BTreeSet<Witness> =

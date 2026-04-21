@@ -15,6 +15,7 @@
 use std::collections::HashSet;
 
 use acvm::acir::AcirField;
+use itertools::Itertools;
 
 use crate::ssa::{
     ir::{
@@ -151,9 +152,10 @@ fn simplify_current_block(
 
     while simplified {
         simplified = check_for_negated_jmpif_condition(function, block, cfg)
-            | check_for_constant_jmpif(function, block, cfg)
-            | check_for_converging_jmpif(function, block, cfg)
-            | try_inline_successor(function, cfg, block, values_to_replace);
+            || check_for_constant_jmpif(function, block, cfg)
+            || check_for_redundant_same_target_jmpif(function, block, cfg)
+            || check_for_converging_jmpif(function, block, cfg)
+            || try_inline_successor(function, cfg, block, values_to_replace);
 
         ever_simplified |= simplified;
 
@@ -177,18 +179,19 @@ fn check_for_constant_jmpif(
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack,
     }) = function.dfg[block].terminator()
         && let Some(constant) = function.dfg.get_numeric_constant(*condition)
     {
-        let (destination, unchosen_destination) = if constant.is_zero() {
-            (*else_destination, *then_destination)
+        let (destination, arguments, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, else_arguments.clone(), *then_destination)
         } else {
-            (*then_destination, *else_destination)
+            (*then_destination, then_arguments.clone(), *else_destination)
         };
 
-        let arguments = Vec::new();
         let call_stack = *call_stack;
         let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
         function.dfg[block].set_terminator(jmp);
@@ -239,17 +242,23 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let then_destination =
                     if then_destination == block { final_destination } else { then_destination };
                 let else_destination =
                     if else_destination == block { final_destination } else { else_destination };
+                assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
+                assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments: Vec::new(),
                     else_destination,
+                    else_arguments: Vec::new(),
                     call_stack,
                 }
             }
@@ -306,7 +315,9 @@ fn check_for_negated_jmpif_condition(
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack,
     }) = function.dfg[block].terminator()
         && let Value::Instruction { instruction, .. } = function.dfg[*condition]
@@ -316,7 +327,9 @@ fn check_for_negated_jmpif_condition(
         let jmpif = TerminatorInstruction::JmpIf {
             condition: negated_condition,
             then_destination: *else_destination,
+            then_arguments: else_arguments.clone(),
             else_destination: *then_destination,
+            else_arguments: then_arguments.clone(),
             call_stack,
         };
         function.dfg[block].set_terminator(jmpif);
@@ -326,68 +339,113 @@ fn check_for_negated_jmpif_condition(
     false
 }
 
-/// Attempts to simplify a `jmpif` terminator if both branches converge.
+/// Attempts to simplify a `jmpif` whose `then_destination` and `else_destination` are
+/// the same block.
 ///
-/// We define convergence as when two branches of a `jmpif` ultimately lead to the same
-/// destination block, after following chains of empty blocks. If they do, the conditional
-/// jump is unnecessary and can be replaced with a simple `jmp`.
+/// `jmpif v then: b1(args_t), else: b1(args_e)`:
+/// - If `args_t == args_e`, the condition is observationally irrelevant, and we fold
+///   to `jmp b1(args)` preserving the shared arguments. The previous implementation
+///   silently dropped the arguments here, producing malformed SSA when the target
+///   block had parameters.
+/// - If the argument lists differ, the jmpif is semantically meaningful (the
+///   condition selects between the two argument lists) and we leave it alone.
+fn check_for_redundant_same_target_jmpif(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) -> bool {
+    let (destination, arguments, call_stack) = match function.dfg[block].terminator() {
+        Some(TerminatorInstruction::JmpIf {
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            call_stack,
+            ..
+        }) if then_destination == else_destination && then_arguments == else_arguments => {
+            (*then_destination, then_arguments.clone(), *call_stack)
+        }
+        _ => return false,
+    };
+
+    let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+    function.dfg[block].set_terminator(jmp);
+    cfg.recompute_block(function, block);
+    // No successor becomes unreachable — both edges already pointed at the same block.
+    true
+}
+
+/// Attempts to simplify a `jmpif` whose two distinct immediate destinations resolve,
+/// through chains of empty param-less blocks, to the same final block.
+///
+/// `resolve_jmp_chain` only walks through empty blocks via argless jmps, so in valid
+/// SSA both edge argument vectors are empty when the chains converge (see the
+/// `debug_assert!`). The fold therefore produces a plain `jmp final()`.
+///
+/// This helper assumes the same-destination case has already been handled by
+/// [`check_for_redundant_same_target_jmpif`] and bails out if it finds it.
 fn check_for_converging_jmpif(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    let Some(TerminatorInstruction::JmpIf {
-        then_destination, else_destination, call_stack, ..
-    }) = function.dfg[block].terminator()
-    else {
-        return false;
-    };
+    // Snapshot everything we need while the immutable borrow on the dfg is live, so
+    // `resolve_jmp_chain` and the later mutable borrow don't conflict.
+    let (then_destination, then_arguments, else_destination, else_arguments, call_stack) =
+        match function.dfg[block].terminator() {
+            Some(TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                call_stack,
+                ..
+            }) if then_destination != else_destination => (
+                *then_destination,
+                then_arguments.clone(),
+                *else_destination,
+                else_arguments.clone(),
+                *call_stack,
+            ),
+            _ => return false,
+        };
 
-    let then_final = resolve_jmp_chain(function, *then_destination);
-    let else_final = resolve_jmp_chain(function, *else_destination);
+    let then_final = resolve_jmp_chain(function, then_destination);
+    let else_final = resolve_jmp_chain(function, else_destination);
 
-    if matches!(function.runtime(), RuntimeType::Acir(_)) && then_final != else_final {
-        // The `flatten_cfg` pass expects two blocks to join to the same block.
-        // If we have a nested if the inner if statement could potentially be a converging jmpif.
-        // This may change the final block we converge into.
-        // However, if both branches resolve to the same block, the jmpif is a no-op and can
-        // always be safely replaced with a jmp.
+    if then_final != else_final {
         return false;
     }
 
-    // If both branches end at the same target, we can replace the jmpif with a jmp
-    if then_final == else_final {
-        let then_destination = *then_destination;
-        let else_destination = *else_destination;
-        // For ACIR functions, jump to the immediate target rather than the resolved
-        // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
-        // intermediate blocks can create asymmetric paths that break branch analysis.
-        // try_inline_successor will safely collapse the remaining chain later.
-        let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
-            then_destination
-        } else {
-            then_final
-        };
-        let jmp = TerminatorInstruction::Jmp {
-            destination,
-            // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
-            arguments: Vec::new(),
-            call_stack: *call_stack,
-        };
-        function.dfg[block].set_terminator(jmp);
-        cfg.recompute_block(function, block);
+    // `resolve_jmp_chain` only advances through empty, param-less blocks via argless
+    // jmps, so advancing past either immediate destination proves that destination
+    // had no parameters and therefore the incoming edge's argument vector is empty.
+    assert!(
+        then_arguments.is_empty() && else_arguments.is_empty(),
+        "chain-converging jmpif should have empty edge arguments in valid SSA",
+    );
 
-        // The old branch targets may now be unreachable. Cascade-invalidate their
-        // successors so that downstream blocks no longer see them as predecessors,
-        // enabling further inlining.
-        for dest in [then_destination, else_destination] {
-            cascade_invalidate_unreachable(function, cfg, dest);
-        }
-
-        true
+    // For ACIR functions, jump to the immediate target rather than the resolved
+    // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
+    // intermediate blocks can create asymmetric paths that break branch analysis.
+    // try_inline_successor will safely collapse the remaining chain later.
+    let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        then_destination
     } else {
-        false
+        then_final
+    };
+    let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new(), call_stack };
+    function.dfg[block].set_terminator(jmp);
+    cfg.recompute_block(function, block);
+
+    // The old branch targets may now be unreachable. Cascade-invalidate their
+    // successors so that downstream blocks no longer see them as predecessors,
+    // enabling further inlining.
+    for dest in [then_destination, else_destination] {
+        cascade_invalidate_unreachable(function, cfg, dest);
     }
+
+    true
 }
 
 /// Follow a chain of empty blocks to find the real destination.
@@ -445,8 +503,7 @@ fn remove_block_parameters(
             ),
         };
 
-        assert_eq!(block_params.len(), jump_args.len());
-        for (param, arg) in block_params.iter().zip(jump_args) {
+        for (param, arg) in block_params.iter().zip_eq(jump_args) {
             values_to_replace.insert(*param, arg);
         }
     }
@@ -546,7 +603,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             return Field 1
           b2():
@@ -572,7 +629,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 0 at v1
             v3 = not v0
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -590,7 +647,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 0 at v1
             v3 = not v0
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -609,7 +666,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1):
             v1 = not v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             constrain v0 == u1 0
             jmp b2()
@@ -625,14 +682,14 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v4 = lt i16 5, v0
-            jmpif v4 then: b4, else: b5
+            jmpif v4 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -664,7 +721,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -679,7 +736,7 @@ mod tests {
             jmp b7()
           b7():
             v2 = lt i16 2, v0
-            jmpif v2 then: b8, else: b9
+            jmpif v2 then: b8(), else: b9()
           b8():
             jmp b10()
           b9():
@@ -708,7 +765,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -737,7 +794,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b1()
           b2():
@@ -752,23 +809,23 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v23 = array_get v13, index u32 8 -> u1
-            jmpif v23 then: b1, else: b2
+            jmpif v23 then: b1(), else: b2()
           b1():
             v45 = array_get v13, index u32 4 -> u1
-            jmpif v45 then: b3, else: b4
+            jmpif v45 then: b3(), else: b4()
           b2():
             v25 = array_get v13, index u32 4 -> u1
             jmp b5(v25)
           b3():
             v46 = array_get v13, index u32 5 -> u1
-            jmpif v46 then: b6, else: b7
+            jmpif v46 then: b6(), else: b7()
           b4():
             jmp b8()
           b5(v14: u1):
             return v14
           b6():
             v47 = array_get v13, index u32 8 -> u1
-            jmpif v47 then: b11, else: b12
+            jmpif v47 then: b11(), else: b12()
           b7():
             jmp b9()
           b8():
@@ -782,7 +839,7 @@ mod tests {
           b12():
             jmp b13()
           b13():
-            jmpif v47 then: b14, else: b15
+            jmpif v47 then: b14(), else: b15()
           b14():
             jmp b16()
           b15():
@@ -801,16 +858,16 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v3 = array_get v0, index u32 8 -> u1
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
             v6 = array_get v0, index u32 4 -> u1
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b2():
             v5 = array_get v0, index u32 4 -> u1
             jmp b5(v5)
           b3():
             v8 = array_get v0, index u32 5 -> u1
-            jmpif v8 then: b6, else: b7
+            jmpif v8 then: b6(), else: b7()
           b4():
             jmp b8()
           b5(v1: u1):
@@ -838,7 +895,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = unchecked_add i16 1, v0
             jmp b3()
@@ -859,7 +916,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b2()
           b2():
@@ -874,7 +931,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b1, else: b1
+            jmpif v2 then: b1(), else: b1()
           b1():
             jmp b1()
         }
@@ -886,7 +943,7 @@ mod tests {
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -919,13 +976,13 @@ mod tests {
             "
         {runtime}(inline) impure fn main f0 {{
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
             jmp b3(u1 0)
           b3(v0: u1):
-            jmpif v0 then: b4, else: b5
+            jmpif v0 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -957,7 +1014,7 @@ mod tests {
             jmp b1(u1 1)
           b1(v0: u1):
             v1 = not v0
-            jmpif v1 then: b2, else: b3
+            jmpif v1 then: b2(), else: b3()
           b2():
             jmp b4(u1 0)
           b3():
@@ -1063,11 +1120,11 @@ mod tests {
             jmp b1(u1 0)
           b1(v0: u1):
             v1 = not v0
-            jmpif v1 then: b2, else: b3
+            jmpif v1 then: b2(), else: b3()
           b2():
             jmp b4()
           b3():
-            jmpif v0 then: b4, else: b4
+            jmpif v0 then: b4(), else: b4()
           b4():
             return
         }
@@ -1096,23 +1153,23 @@ mod tests {
         acir(inline) impure fn main f0 {
           b0(v1: u1, v2: u1, v3: u1, v4: u32):
             v5 = eq v4, u32 1
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
             v6 = eq v4, u32 2
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3():
             jmp b6()
           b4():
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b5():
             jmp b9()
           b6():
             jmp b10()
           b7():
             v7 = not v2
-            jmpif v2 then: b11, else: b12
+            jmpif v2 then: b11(), else: b12()
           b8():
             jmp b13()
           b9():
@@ -1181,11 +1238,11 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b6()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             jmp b5()
           b4():
@@ -1193,11 +1250,11 @@ mod tests {
           b5():
             jmp b6()
           b6():
-            jmpif v0 then: b7, else: b8
+            jmpif v0 then: b7(), else: b8()
           b7():
             jmp b12()
           b8():
-            jmpif v0 then: b9, else: b10
+            jmpif v0 then: b9(), else: b10()
           b9():
             jmp b11()
           b10():
@@ -1205,7 +1262,7 @@ mod tests {
           b11():
             jmp b12()
           b12():
-            jmpif u1 1 then: b13, else: b13
+            jmpif u1 1 then: b13(), else: b13()
           b13():
             return
         }
@@ -1219,6 +1276,31 @@ mod tests {
           b0(v0: u1):
             return
         }
+        ");
+    }
+
+    #[test]
+    fn constant_jmpif_with_args() {
+        let src = r#"
+            brillig(inline) fn func f0 {
+              b0():
+                jmpif u1 1 then: b1(Field 2), else: b2(Field 3)
+              b1(v1: Field):
+                jmp b3(v1)
+              b2(v2: Field):
+                jmp b3(v2)
+              b3(v3: Field):
+                return v3
+            }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0():
+                return Field 2
+            }
         ");
     }
 
@@ -1238,17 +1320,17 @@ mod tests {
           b1():
             return
           b2():
-            jmpif v0 then: b4, else: b3
+            jmpif v0 then: b4(), else: b3()
           b3():
-            jmpif v0 then: b4, else: b4
+            jmpif v0 then: b4(), else: b4()
           b4():
-            jmpif v0 then: b7, else: b5
+            jmpif v0 then: b7(), else: b5()
           b5():
             jmp b6()
           b6():
             jmp b7()
           b7():
-            jmpif u1 1 then: b1, else: b1
+            jmpif u1 1 then: b1(), else: b1()
         }
         ";
 
@@ -1259,6 +1341,60 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1):
             return
+        }
+        ");
+    }
+
+    /// A `jmpif` whose two edges point at the same block with *matching* arguments is
+    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+    /// preserving the shared arguments — the previous implementation silently
+    /// constructed the replacement `jmp` with an empty argument vector, producing
+    /// malformed SSA whenever the target block had parameters.
+    #[test]
+    fn fold_jmpif_same_target_matching_arguments_preserves_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 42), else: b1(Field 42)
+          b1(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return Field 42
+        }
+        ");
+    }
+
+    /// A `jmpif` whose two edges point at the same block with *differing* arguments
+    /// is semantically meaningful — the condition selects between the two argument
+    /// lists. simplify_cfg must leave it alone rather than folding.
+    #[test]
+    fn preserve_jmpif_same_target_differing_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 1), else: b1(Field 2)
+          b1(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(Field 1), else: b1(Field 2)
+          b1(v1: Field):
+            return v1
         }
         ");
     }
