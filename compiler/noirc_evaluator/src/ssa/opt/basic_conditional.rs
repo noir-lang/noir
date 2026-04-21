@@ -9,11 +9,9 @@
 //!
 //! This pass does not have any pre/post conditions.
 
-use std::collections::HashSet;
-
 use iter_extended::vecmap;
 use itertools::Itertools;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     Ssa,
@@ -45,10 +43,9 @@ impl Ssa {
     /// Apply the basic_conditional pass to all functions of the program.
     /// It first retrieve the `no_predicates` attribute of each function which will be used during the flattening.
     pub(crate) fn flatten_basic_conditionals(mut self) -> Ssa {
-        // Collect the set of 'no_predicates' functions ahead of time, to avoid problems with
-        // borrowing. In practice this will have zero or only a few entries.
-        let no_predicates: FxHashSet<FunctionId> =
+        let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
+
         for function in self.functions.values_mut() {
             flatten_function(function, &no_predicates);
         }
@@ -278,14 +275,14 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
 }
 
 /// Identifies all simple conditionals in the function and flattens them
-fn flatten_function(function: &mut Function, no_predicates: &FxHashSet<FunctionId>) {
+fn flatten_function(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
     // This pass is dedicated to brillig functions
     if !function.runtime().is_brillig() {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);
     let mut stack = vec![function.entry_block()];
-    let mut processed = HashSet::new();
+    let mut processed = HashSet::default();
     // List of all the simple conditionals that we will identify in the function
     let mut conditionals = Vec::new();
 
@@ -332,7 +329,7 @@ fn flatten_function(function: &mut Function, no_predicates: &FxHashSet<FunctionI
 fn flatten_multiple(
     conditionals: &Vec<BasicConditional>,
     function: &mut Function,
-    no_predicates: &FxHashSet<FunctionId>,
+    no_predicates: &HashSet<FunctionId>,
 ) {
     // 1. process each basic conditional, using a new context per conditional
     let post_order = PostOrder::with_function(function);
@@ -378,7 +375,7 @@ impl Context<'_> {
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
-        no_predicates: &FxHashSet<FunctionId>,
+        no_predicates: &HashSet<FunctionId>,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         let old_target = self.target_block;

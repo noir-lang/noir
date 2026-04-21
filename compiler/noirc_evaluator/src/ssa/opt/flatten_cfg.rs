@@ -173,10 +173,6 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        // Collect the set of 'no_predicates' functions ahead of time, to avoid problems with
-        // borrowing. In practice this will have zero or only a few entries: brillig functions
-        // are skipped below and only ACIR functions with the `#[no_predicates]` attribute land
-        // in the set.
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
@@ -807,18 +803,14 @@ impl<'f> Context<'f> {
     /// the argument from the 'then_branch' or the 'else_branch' depending the the condition.
     ///
     /// The arguments are prepared for the destination to consume in the next immediate inlining.
-    fn inline_branch_end(
-        &mut self,
-        destination: BasicBlockId,
-        mut cond_context: ConditionalContext,
-    ) {
+    fn inline_branch_end(&mut self, destination: BasicBlockId, cond_context: ConditionalContext) {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
         // When JmpIf's else_destination is the exit block, the else_arguments were stored
         // in jmpif_else_arguments since there is no separate else block to read them from.
-        let else_args = if let Some(args) = cond_context.jmpif_else_arguments.take() {
+        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
             args
         } else if cond_context.else_branch.is_some() {
             let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
