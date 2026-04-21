@@ -23,8 +23,11 @@ use crate::{
     hir::{
         comptime::Integer,
         def_collector::dc_crate::CompilationError,
-        def_map::{ModuleDefId, fully_qualified_module_path},
-        resolution::{errors::ResolverError, import::PathResolutionError},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        resolution::{
+            errors::ResolverError, import::PathResolutionError,
+            visibility::item_in_module_is_visible,
+        },
         type_check::{
             Source, TypeCheckError,
             generics::{Generic, TraitGenerics},
@@ -1552,7 +1555,26 @@ impl Elaborator<'_> {
                 self.interner.lookup_direct_method(&typ, method_name, check_self_param)
             {
                 self.push_errors(errors);
-                let all_errors = path_resolution.errors;
+                let mut all_errors = path_resolution.errors;
+
+                let visibility = self.interner.function_visibility(func_id);
+                if let Some(func_meta) = self.interner.try_function_meta(&func_id) {
+                    let source_module = ModuleId {
+                        krate: func_meta.source_crate,
+                        local_id: func_meta.source_module,
+                    };
+                    let importing_module =
+                        ModuleId { krate: self.crate_id, local_id: self.local_module() };
+                    if !item_in_module_is_visible(
+                        self.def_maps,
+                        importing_module,
+                        source_module,
+                        visibility,
+                    ) {
+                        all_errors.push(PathResolutionError::Private(last_segment.ident.clone()));
+                    }
+                }
+
                 let item = match path_resolution.item {
                     PathResolutionItem::Type(type_id) => {
                         PathResolutionItem::Method(type_id, turbofish, func_id)

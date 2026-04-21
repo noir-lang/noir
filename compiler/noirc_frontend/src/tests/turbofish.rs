@@ -996,3 +996,27 @@ fn struct_turbofish_mixed_generics() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn struct_turbofish_mixed_generics_visibility_error() {
+    let src = r#"
+    struct S<A, B> {}
+
+    mod moo {
+        impl<T> super::S<T, u64> {
+            fn foo() {}
+        }
+
+        impl super::S<u32, u32> {
+            fn foo() {}
+        }
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ foo is private and not visible from the current module
+                       ~~~ foo is private
+    }
+    "#;
+    check_errors(src);
+}
