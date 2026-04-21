@@ -5767,6 +5767,7 @@ dependencies = [
  "base64",
  "env_logger",
  "flate2",
+ "hex",
  "itertools 0.14.0",
  "k256",
  "libfuzzer-sys",
