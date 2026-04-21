@@ -62,7 +62,7 @@ impl Function {
         let blocks = post_order.into_vec_reverse();
 
         // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
-        // instruction result. Downstream passes iterate these in key order when adding block
+        // instruction result. These are iterated on in key order when adding block
         // parameters and terminator arguments, so the maps must have a deterministic ordering
         // for arguments to line up with parameters.
         let (variables, def_sites) =
