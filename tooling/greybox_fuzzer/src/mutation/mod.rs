@@ -11,7 +11,7 @@ use field::mutate_field_input_value;
 use int::mutate_int_input_value;
 use itertools::Itertools;
 use noirc_abi::{Abi, AbiType, InputMap, input_parser::InputValue};
-use rand::Rng;
+use rand::RngExt;
 use rand_xorshift::XorShiftRng;
 use std::{
     collections::{BTreeMap, HashSet},

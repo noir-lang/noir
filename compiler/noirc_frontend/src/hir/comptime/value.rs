@@ -12,8 +12,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, Ident, LValue, LetStatement, Path, PathKind, PathSegment, Pattern,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ExpressionKind, Ident, LValue, LetStatement, MethodCallExpression, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -28,7 +28,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    token::{FmtStrFragment, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -128,10 +128,6 @@ impl Value {
         Value::Integer(Integer::Field(x))
     }
 
-    pub fn u1(x: bool) -> Self {
-        Value::Integer(Integer::U1(x))
-    }
-
     int_constructor!(u8, U8);
     int_constructor!(u16, U16);
     int_constructor!(u32, U32);
@@ -222,10 +218,7 @@ impl Value {
             Value::Unit => Literal(Unit),
             Value::Bool(value) => Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
-            Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                Literal(Str(string.to_string()))
-            }
+            Value::String(bytes) => Self::string_bytes_into_expression(&bytes, location),
             Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
@@ -253,8 +246,8 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let string = String::from_utf8_lossy(&bytes);
-                let contents = Expression { kind: Literal(Str(string.into_owned())), location };
+                let string = Self::string_bytes_into_expression(&bytes, location);
+                let contents = Expression { kind: string, location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -343,13 +336,16 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
                 }
-                let typ = Type::DataType(data_type, generics);
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
 
+                let typ = Type::DataType(data_type, generics);
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
@@ -448,6 +444,31 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
+    fn string_bytes_into_expression(bytes: &[u8], location: Location) -> ExpressionKind {
+        use crate::ast::Literal::*;
+        use ExpressionKind::Literal;
+
+        match str::from_utf8(bytes) {
+            Ok(string) => Literal(Str(string.to_string())),
+            Err(_) => {
+                // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                let bytes = vecmap(bytes.iter(), |byte| Expression {
+                    kind: Literal(Integer((*byte).into(), Some(IntegerTypeSuffix::U8))),
+                    location,
+                });
+                let bytes = Literal(Array(ArrayLiteral::Standard(bytes)));
+                let bytes = Expression { kind: bytes, location };
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: bytes,
+                    method_name: Ident::new("as_str_unchecked".to_string(), location),
+                    generics: None,
+                    arguments: vec![],
+                    is_macro_call: false,
+                }))
+            }
+        }
+    }
+
     /// Lowers this compile-time value into a HIR expression to be used at runtime.
     /// This means that comptime-only types will panic.
     /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
@@ -463,8 +484,7 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
             Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+                HirExpression::Literal(HirLiteral::Str(Rc::unwrap_or_clone(bytes)))
             }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -510,13 +530,16 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
                     ordered_fields.push((Ident::new(name.to_string(), location), field));
                 }
 
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
                 HirExpression::Constructor(HirConstructorExpression {
                     r#type: data_type,
                     struct_generics: generics,
@@ -624,8 +647,30 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::String(bytes) | Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                vec![Token::Str(string.to_string())]
+                match str::from_utf8(&bytes) {
+                    Ok(string) => {
+                        vec![Token::Str(string.to_string())]
+                    }
+                    Err(_) => {
+                        // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                        let mut tokens = Vec::new();
+                        tokens.push(Token::LeftBracket);
+
+                        for (i, byte) in bytes.iter().enumerate() {
+                            if i > 0 {
+                                tokens.push(Token::Comma);
+                            }
+                            tokens.push(Token::Int((*byte).into(), Some(IntegerTypeSuffix::U8)));
+                        }
+
+                        tokens.push(Token::RightBracket);
+                        tokens.push(Token::Dot);
+                        tokens.push(Token::Ident("as_str_unchecked".to_string()));
+                        tokens.push(Token::LeftParen);
+                        tokens.push(Token::RightParen);
+                        tokens
+                    }
+                }
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
@@ -668,11 +713,11 @@ impl Value {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::FormatString(_, typ, _) => typ.contains_function(),
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
             | Value::String(_)
-            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)

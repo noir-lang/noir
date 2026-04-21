@@ -81,8 +81,8 @@ pub(crate) mod notification {
 
     // Re-providing lsp_types that we don't need to override
     pub(crate) use async_lsp::lsp_types::notification::{
-        DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument,
-        DidSaveTextDocument, Exit, Initialized,
+        DidChangeConfiguration, DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument,
+        DidOpenTextDocument, DidSaveTextDocument, Exit, Initialized,
     };
 
     pub(crate) struct NargoUpdateTests;

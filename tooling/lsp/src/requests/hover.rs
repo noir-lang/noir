@@ -550,4 +550,12 @@ Like a tomato"
         )
         .await;
     }
+
+    #[test]
+    async fn hover_on_numeric_generic() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 126, character: 12 })
+                .await;
+        assert_eq!(&hover_text, "    let N: u32");
+    }
 }

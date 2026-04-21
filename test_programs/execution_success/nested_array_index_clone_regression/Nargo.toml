@@ -1,0 +1,6 @@
+[package]
+name = "nested_array_index_clone_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

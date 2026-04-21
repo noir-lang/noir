@@ -469,7 +469,6 @@ impl<'a> Lexer<'a> {
             ("i16", IntegerTypeSuffix::I16),
             ("i32", IntegerTypeSuffix::I32),
             ("i64", IntegerTypeSuffix::I64),
-            ("u1", IntegerTypeSuffix::U1),
             ("u8", IntegerTypeSuffix::U8),
             ("u16", IntegerTypeSuffix::U16),
             ("u32", IntegerTypeSuffix::U32),
@@ -1348,7 +1347,6 @@ mod tests {
             ("0x_01", Token::Int(0x1_u128.into(), None)),
             ("1_000_000", Token::Int(1_000_000_u128.into(), None)),
             ("1__0___Field", Token::Int(10_u32.into(), Some(IntegerTypeSuffix::Field))),
-            ("0x1u1", Token::Int(1_u32.into(), Some(IntegerTypeSuffix::U1))),
             ("97_i64", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::I64))),
             ("97_u128", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::U128))),
         ];

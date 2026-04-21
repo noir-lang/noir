@@ -244,6 +244,7 @@ impl TypedPath {
     /// Removes and returns the last segment.
     ///
     /// Panics if there are no more segments in the path.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn pop(&mut self) -> TypedPathSegment {
         self.segments.pop().unwrap()
     }
@@ -377,6 +378,7 @@ impl std::fmt::Display for TypedPathSegment {
 
 impl Elaborator<'_> {
     /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: TypedPath,
@@ -386,6 +388,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn use_path_or_error(
         &mut self,
         path: TypedPath,
@@ -397,6 +400,7 @@ impl Elaborator<'_> {
     /// Try to resolve a [TypedPath] into a [PathResolutionItem].
     ///
     /// Pushes the `errors` from the [PathResolution], returning only the `item`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: TypedPath,
@@ -411,6 +415,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(
             path,
@@ -420,6 +425,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn use_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
@@ -429,6 +435,7 @@ impl Elaborator<'_> {
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_inner(
         &mut self,
         mut path: TypedPath,
@@ -500,6 +507,7 @@ impl Elaborator<'_> {
     /// Resolves a [TypedPath].
     ///
     /// `importing_module` is the module where the lookup originally started.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_in_module(
         &mut self,
         path: TypedPath,
@@ -541,6 +549,7 @@ impl Elaborator<'_> {
     ///
     /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
     /// Pushes errors if segments refer to private items.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_name_in_module(
         &mut self,
         path: TypedPath,
@@ -774,6 +783,7 @@ impl Elaborator<'_> {
     /// Transform a result from [PerNs] into a [PathResolutionItem],
     /// pushing any visibility errors.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn per_ns_item_to_path_resolution_item(
         &mut self,
         path: TypedPath,
@@ -954,6 +964,7 @@ impl Elaborator<'_> {
     /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
     /// a primitive type. Because they do not have module, we look up the method directly
     /// like what is done in [Self::resolve_primitive_type_or_function].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_primitive_type_alias_method(
         &mut self,
         typ: Type,
@@ -963,12 +974,70 @@ impl Elaborator<'_> {
         importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionResult {
+        self.resolve_primitive_type_method(typ, method_name_ident, importing_module_id, errors).map(
+            |func_id| {
+                let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+                PathResolution { item, errors: std::mem::take(errors) }
+            },
+        )
+    }
+
+    /// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
+    ///
+    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
+    /// or an unambiguous trait method among the traits which are in scope.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_primitive_type_or_function(
+        &mut self,
+        path: TypedPath,
+        importing_module_id: ModuleId,
+    ) -> Option<PathResolutionResult> {
+        if path.segments.len() != 1 && path.segments.len() != 2 {
+            return None;
+        }
+
+        let object_name = path.segments[0].ident.as_str();
+        let turbofish = path.segments[0].turbofish();
+        let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
+        let typ = primitive_type.to_type();
+        let mut errors = Vec::new();
+
+        if path.segments.len() == 1 {
+            let item = PathResolutionItem::PrimitiveType(primitive_type);
+            return Some(Ok(PathResolution { item, errors }));
+        }
+
+        let method_name_ident = &path.segments[1].ident;
+        let method = self.resolve_primitive_type_method(
+            typ,
+            method_name_ident,
+            importing_module_id,
+            &mut errors,
+        );
+        Some(method.map(|func_id| PathResolution {
+            item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
+            errors,
+        }))
+    }
+
+    fn resolve_primitive_type_method(
+        &mut self,
+        typ: Type,
+        method_name_ident: &Ident,
+        importing_module_id: ModuleId,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> Result<FuncId, PathResolutionError> {
+        // Note: the logic here is similar to that of resolve_method, except that that one works by
+        // searching through modules, and this one works by searching through primitive types.
+        // It would be nice to refactor this to a common logic though it's a bit hard.
+        // That said, the logic is "just" searching through direct methods, then through trait methods
+        // checking which ones are in scope, and is unlikely to change.
+
         let method_name = method_name_ident.as_str();
 
         // First check for a direct (inherent) method
         if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
-            let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
-            return Ok(PathResolution { item, errors: std::mem::take(errors) });
+            return Ok(func_id);
         }
 
         // Otherwise look through trait methods
@@ -989,8 +1058,7 @@ impl Elaborator<'_> {
                 let trait_name = self.fully_qualified_trait_path(trait_);
                 let ident = method_name_ident.clone();
                 errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
-                let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, *func_id);
-                return Ok(PathResolution { item, errors: std::mem::take(errors) });
+                return Ok(*func_id);
             } else if trait_methods.is_empty() {
                 return Err(PathResolutionError::Unresolved(method_name_ident.clone()));
             } else {
@@ -1017,100 +1085,7 @@ impl Elaborator<'_> {
         }
 
         let (_, func_id, _) = results.remove(0);
-        let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
-        Ok(PathResolution { item, errors: std::mem::take(errors) })
-    }
-
-    /// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
-    ///
-    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
-    /// or an unambiguous trait method among the traits which are in scope.
-    fn resolve_primitive_type_or_function(
-        &mut self,
-        path: TypedPath,
-        importing_module_id: ModuleId,
-    ) -> Option<PathResolutionResult> {
-        if path.segments.len() != 1 && path.segments.len() != 2 {
-            return None;
-        }
-
-        let object_name = path.segments[0].ident.as_str();
-        let turbofish = path.segments[0].turbofish();
-        let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
-        let typ = primitive_type.to_type();
-        let mut errors = Vec::new();
-
-        if path.segments.len() == 1 {
-            let item = PathResolutionItem::PrimitiveType(primitive_type);
-            return Some(Ok(PathResolution { item, errors }));
-        }
-
-        let method_name_ident = &path.segments[1].ident;
-        let method_name = method_name_ident.as_str();
-
-        // Note: the logic here is similar to that of resolve_method, except that that one works by
-        // searching through modules, and this one works by searching through primitive types.
-        // It would be nice to refactor this to a common logic though it's a bit hard.
-        // That said, the logic is "just" searching through direct methods, then through trait methods
-        // checking which ones are in scope, and is unlikely to change.
-
-        if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
-            let item = PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id);
-            return Some(Ok(PathResolution { item, errors }));
-        }
-
-        let starting_module = self.get_module(importing_module_id);
-
-        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
-
-        let mut results = Vec::new();
-        for (func_id, trait_id) in &trait_methods {
-            if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
-                results.push((*trait_id, *func_id, name));
-            }
-        }
-
-        if results.is_empty() {
-            if trait_methods.len() == 1 {
-                // This is the backwards-compatible case where there's a single trait method but it's not in scope
-                let (func_id, trait_id) = trait_methods.first().expect("Expected an item");
-                let trait_ = self.interner.get_trait(*trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
-                let ident = method_name_ident.clone();
-                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
-                let item =
-                    PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, *func_id);
-                return Some(Ok(PathResolution { item, errors }));
-            } else if trait_methods.is_empty() {
-                return Some(Err(PathResolutionError::Unresolved(method_name_ident.clone())));
-            } else {
-                let traits = vecmap(trait_methods, |(_, trait_id)| {
-                    self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
-                });
-                let ident = method_name_ident.clone();
-                let error =
-                    PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
-                return Some(Err(error));
-            }
-        }
-
-        if results.len() > 1 {
-            let traits = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
-            let traits = vecmap(traits, |(trait_id, name)| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.usage_tracker.mark_as_used(importing_module_id, &name);
-                self.fully_qualified_trait_path(trait_)
-            });
-            let ident = method_name_ident.clone();
-            let error = PathResolutionError::MultipleTraitsInScope { ident, traits };
-            return Some(Err(error));
-        }
-
-        let (_, func_id, _) = results.remove(0);
-        Some(Ok(PathResolution {
-            item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
-            errors,
-        }))
+        Ok(func_id)
     }
 }
 

@@ -1,8 +1,12 @@
+use acvm::FieldElement;
+
 use crate::{
     assert_artifact_snapshot,
     brillig::{
         BrilligOptions,
-        brillig_gen::tests::ssa_to_brillig_artifacts_with_options,
+        brillig_gen::tests::{
+            execute_brillig_from_ssa_with_options, ssa_to_brillig_artifacts_with_options,
+        },
         brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
     },
     ssa::ir::map::Id,
@@ -185,4 +189,44 @@ fn brillig_spill_jmpif_diamond_dead_else_condition() {
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert!(!main.to_string().is_empty());
+}
+
+/// Regression test for `ensure_permanent_spill` when the record is not permanent and not currently spilled.
+#[test]
+fn brillig_spill_case4_diamond_wrong_output() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = unchecked_add v0, v1
+        v3 = unchecked_add v0, u32 2
+        v4 = unchecked_add v1, u32 3
+        v5 = unchecked_add v2, v3
+        v6 = eq v0, u32 0
+        jmpif v6 then: b1(), else: b2()
+      b1():
+        v11 = unchecked_add v2, v4
+        jmp b3(v11)
+      b2():
+        v7 = unchecked_add v4, u32 10
+        v8 = unchecked_add v5, u32 20
+        v9 = unchecked_add v7, v8
+        v10 = unchecked_add v2, v9
+        jmp b3(v10)
+      b3(v12: u32):
+        return v12
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v0=0, v1=42 → v6=true → takes b1.
+    // Correct: v2=42, v4=45, v11=42+45=87
+    // Wrong:  v11=45 (if reads v4's register instead of v2's)
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(0u32), FieldElement::from(42u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(87u32)]);
 }

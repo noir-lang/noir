@@ -138,9 +138,9 @@ impl<'f> FunctionInserter<'f> {
     ) -> InsertInstructionResult<'_> {
         let results = self.function.dfg.instruction_results(id).to_vec();
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
+        let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+            vecmap(&results, |result| self.function.dfg.type_of_value(*result).into_owned())
+        });
 
         let new_results = self.function.dfg.insert_instruction_and_results_if_simplified(
             instruction,

@@ -1,4 +1,5 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::elaborator::UnstableFeature;
+use crate::tests::{assert_no_errors, check_errors, get_program_using_features};
 
 #[test]
 fn turbofish_numeric_generic_nested_function_call() {
@@ -837,6 +838,105 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn regression_7648_impl_trait_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_u64_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u64> {}
+
+    struct Wrapper {}
+
+    global ONE: u64 = 1;
+
+    impl Foo<ONE> for Wrapper {}
+
+    fn my_fn<let N: u64>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<ONE>(Wrapper {});
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_mixed_generics_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<T, let N: u32>(_value: T, _input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<Field, 0>(1, []);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_method_in_generic_impl_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    struct Container<T> {}
+
+    impl<T> Container<T> {
+        fn my_fn<let N: u32>(_self: Self, _input: impl Foo<N>) {}
+    }
+
+    fn main() {
+        let c: Container<Field> = Container {};
+        c.my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_without_turbofish_still_infers() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
 }
 
 #[test]

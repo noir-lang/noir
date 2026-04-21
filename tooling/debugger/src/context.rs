@@ -17,7 +17,7 @@ use nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_
 use noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 
 use noirc_artifacts::program::CompiledProgram;
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::call_stack::{CallStack, CallStackId};
 use noirc_printable_type::{PrintableType, PrintableValue};
 use thiserror::Error;
 
@@ -546,7 +546,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                         .location_tree
                         .get_call_stack(call_stack_id)
                 } else {
-                    vec![]
+                    CallStack::empty()
                 }
             })
             .into_iter()
@@ -1049,7 +1049,7 @@ fn add_opcode_locations_map(
 ) {
     for (opcode_location, source_locations) in opcode_to_locations {
         let source_locations = debug_info.location_tree.get_call_stack(*source_locations);
-        source_locations.iter().for_each(|source_location| {
+        source_locations.into_iter().for_each(|source_location| {
             let span = source_location.span;
             let file_id = source_location.file;
             let Some(file) = simple_files.get(&file_id) else {
