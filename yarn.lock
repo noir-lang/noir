@@ -7953,7 +7953,7 @@ __metadata:
     hardhat: "npm:^3.3.0"
     prettier: "npm:3.8.1"
     smol-toml: "npm:^1.6.1"
-    toml: "npm:^3.0.0"
+    toml: "npm:^4.1.1"
     tslog: "npm:^4.10.2"
   languageName: unknown
   linkType: soft
@@ -11723,10 +11723,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"toml@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "toml@npm:3.0.0"
-  checksum: 10/cfef0966868d552bd02e741f30945a611f70841b7cddb07ea2b17441fe32543985bc0a7c0dcf7971af26fcaf8a17712a485d911f46bfe28644536e9a71a2bd09
+"toml@npm:^4.1.1":
+  version: 4.1.1
+  resolution: "toml@npm:4.1.1"
+  checksum: 10/5f4d56f16a2352872829214a41bb423d5bc047ed4d224a0a032fa992d8e635b1a4cc59a4607bdcf19c76cd1fc1a79c5a41d2ef1adef7d3234b8d5d1920fc0c58
   languageName: node
   linkType: hard
 
