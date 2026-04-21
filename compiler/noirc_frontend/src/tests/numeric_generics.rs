@@ -1091,3 +1091,44 @@ fn numeric_generic_type(typ: &str) {
     );
     assert_no_errors(&src);
 }
+
+#[test]
+fn signed_numeric_generic_in_trait_and_where_clause() {
+    let src = r#"
+    trait HasValue<let N: i32> {
+        fn value(self) -> i32;
+    }
+
+    struct Wrapper {}
+
+    impl<let N: i32> HasValue<N> for Wrapper {
+        fn value(self) -> i32 { N }
+    }
+
+    fn extract_value<T, let N: i32>(t: T) -> i32 where T: HasValue<N> {
+        t.value()
+    }
+
+    fn main() {
+        let w = Wrapper {};
+        let _ = extract_value::<Wrapper, 10i32>(w);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test_case("i8", "-1i8", "-1")]
+#[test_case("i32", "-5i32", "-5")]
+#[test_case("i64", "-100i64", "-100")]
+fn signed_numeric_generic_negative_turbofish(typ: &str, literal: &str, expected: &str) {
+    let src = format!(
+        r#"
+    pub fn foo<let N: {typ}>() -> {typ} {{ N }}
+
+    fn main() {{
+        assert(foo::<{literal}>() == {expected});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
+}

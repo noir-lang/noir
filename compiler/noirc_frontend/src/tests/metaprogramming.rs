@@ -1190,6 +1190,26 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 }
 
 #[test]
+fn no_duplicate_comptime_type_error_for_self_type_variable() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+            self
+        }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    // 2 uses of Quoted in non-comptime positions (the Self types) (with duplicates we were getting 4 diagnostics)
+    assert_eq!(errors.len(), 2);
+}
+
+#[test]
 fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
     let src = r#"
     trait Trait {

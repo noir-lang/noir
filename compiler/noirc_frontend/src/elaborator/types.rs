@@ -346,7 +346,11 @@ impl Elaborator<'_> {
                 }
 
                 if let Some(trait_id) = self.current_trait
-                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(trait_id, name)
+                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                        trait_id,
+                        name,
+                        &mut BTreeSet::new(),
+                    )
                 {
                     return Some(typ);
                 }
@@ -391,7 +395,7 @@ impl Elaborator<'_> {
         }
 
         let parent_trait_ids: Vec<_> =
-            the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
+            the_trait.parent_bounds().map(|bound| bound.trait_id).collect();
         for parent_id in parent_trait_ids {
             self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
@@ -402,9 +406,14 @@ impl Elaborator<'_> {
         &self,
         trait_id: TraitId,
         name: &str,
+        visited: &mut BTreeSet<TraitId>,
     ) -> Option<Type> {
+        if !visited.insert(trait_id) {
+            return None;
+        }
+
         let the_trait = self.interner.get_trait(trait_id);
-        let parent_bounds = the_trait.trait_bounds.clone();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         let self_type = self.self_type.as_ref()?;
 
         for parent_bound in &parent_bounds {
@@ -449,7 +458,7 @@ impl Elaborator<'_> {
 
             // Recurse into grandparent traits
             if let Some(typ) =
-                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name)
+                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name, visited)
             {
                 return Some(typ);
             }
@@ -566,7 +575,6 @@ impl Elaborator<'_> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
-            self.check_comptime_type_in_non_comptime_item(&typ, location);
             return typ;
         }
 
@@ -591,14 +599,6 @@ impl Elaborator<'_> {
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
             return Type::Alias(type_alias, args);
-        }
-
-        // Check if the name refers to a global used as a numeric type. This is checked after type aliases so that a type alias
-        // in the types namespace takes priority over a same-named global in the values namespace.
-        if args.is_empty()
-            && let Some(typ) = self.lookup_global_type(&path, mode)
-        {
-            return typ;
         }
 
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
@@ -648,6 +648,16 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Ok(item) => {
+                // Fall back to the numeric-global shortcut so that `global N: u32 = 5`
+                // used in a type position like `[u8; N]` still resolves. A name that
+                // also exists in the types namespace as a real type takes priority via
+                // the match arms above.
+                if args.is_empty()
+                    && let Some(typ) = self.lookup_global_type(&path, mode)
+                {
+                    return typ;
+                }
+
                 self.push_err(ResolverError::Expected {
                     expected: "type",
                     found: item.description(self.interner),
@@ -657,6 +667,12 @@ impl Elaborator<'_> {
                 Type::Error
             }
             Err(err) => {
+                if args.is_empty()
+                    && let Some(typ) = self.lookup_global_type(&path, mode)
+                {
+                    return typ;
+                }
+
                 self.push_err(err);
 
                 Type::Error
@@ -1441,7 +1457,8 @@ impl Elaborator<'_> {
             matches.push((method, the_trait.id));
         }
 
-        for trait_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for trait_bound in &parent_bounds {
             let parent_trait = self.interner.get_trait(trait_bound.trait_id);
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
@@ -2841,9 +2858,8 @@ impl Elaborator<'_> {
         }
 
         // Search in the parent traits, if any.
-        // Note that `trait_bounds` represent `Foo: Bar + Baz`,
-        // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
-        for parent_trait_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_trait_bound in &parent_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
