@@ -1545,6 +1545,7 @@ impl Elaborator<'_> {
         };
 
         let method_name = last_segment.ident.as_str();
+        let mut trait_methods = None;
 
         // When turbofish generics are provided, use type-directed method lookup to pick the
         // correct impl. Without turbofish, fall through to module-based lookup, which handles
@@ -1592,12 +1593,15 @@ impl Elaborator<'_> {
             }
 
             let has_self_arg = false;
-            let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
+            let type_trait_methods =
+                self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
 
             // If no method matches the turbofish type but the name is a known method for this
             // type (just incompatible), report an error. If the name isn't a method at all
             // (e.g. it's an associated constant), return None and let the fallback handle it.
-            if trait_methods.is_empty() && self.interner.has_method_with_name(&typ, method_name) {
+            if type_trait_methods.is_empty()
+                && self.interner.has_method_with_name(&typ, method_name)
+            {
                 self.push_errors(errors);
                 let mut all_errors = path_resolution.errors;
                 let available_impls = self
@@ -1616,10 +1620,13 @@ impl Elaborator<'_> {
                     errors: all_errors,
                 });
             }
+
+            trait_methods = Some(type_trait_methods);
         }
 
         let has_self_arg = false;
-        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
+        let trait_methods = trait_methods
+            .unwrap_or_else(|| self.interner.lookup_trait_methods(&typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
