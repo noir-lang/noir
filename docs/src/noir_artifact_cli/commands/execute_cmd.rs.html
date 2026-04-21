@@ -122,7 +122,7 @@
 <a href=#122 id=122 data-nosnippet>122</a>    // default, rather than trying to match it to the transcript.
 <a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">let </span>transcript_executor = <span class="kw">match </span>args.oracle_file {
 <a href=#124 id=124 data-nosnippet>124</a>        <span class="prelude-val">Some</span>(<span class="kw-2">ref </span>path) =&gt; layers::Either::Left(ReplayForeignCallExecutor::from_file(path)<span class="question-mark">?</span>),
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="prelude-val">None </span>=&gt; layers::Either::Right(layers::Empty),
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="prelude-val">None </span>=&gt; layers::Either::Right(layers::Unhandled),
 <a href=#126 id=126 data-nosnippet>126</a>    };
 <a href=#127 id=127 data-nosnippet>127</a>
 <a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder {
