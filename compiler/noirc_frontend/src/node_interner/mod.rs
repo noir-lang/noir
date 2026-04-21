@@ -1100,6 +1100,13 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,

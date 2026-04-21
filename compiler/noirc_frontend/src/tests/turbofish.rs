@@ -735,7 +735,7 @@ fn concrete_impl_with_dual_turbofish_mismatch() {
     fn main() {
         let x: Field = 10;
         S::<bool>::foo::<Field>(x);
-        ^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+                   ^^^ Could not resolve 'foo' in path
     }
     "#;
     check_errors(src);
@@ -834,7 +834,7 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     fn main() {
         let x: bool = true;
         let _result: bool = S::<bool, bool>::foo(x);
-                            ^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+                                             ^^^ Could not resolve 'foo' in path
     }
     "#;
     check_errors(src);
@@ -955,4 +955,41 @@ fn concrete_impl_dual_turbofish_type_mismatch() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_same_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, T> {
+        fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ Could not resolve 'foo' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_mixed_generics() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, u64> {
+        fn foo() {}
+    }
+
+    impl S<u32, u32> {
+        fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+    }
+    "#;
+    assert_no_errors(src);
 }

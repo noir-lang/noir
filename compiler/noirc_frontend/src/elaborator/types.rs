@@ -1535,10 +1535,48 @@ impl Elaborator<'_> {
 
         let method_name = last_segment.ident.as_str();
 
-        // If we can find a method on the type, this is definitely not a trait method
-        let check_self_param = false;
-        if self.interner.lookup_direct_method(&typ, method_name, check_self_param).is_some() {
-            return None;
+        // When turbofish generics are provided, use type-directed method lookup to pick the
+        // correct impl. Without turbofish, fall through to module-based lookup, which handles
+        // Self::method resolution, visibility checking, and associated constants correctly.
+        if turbofish.is_some() {
+            let check_self_param = false;
+            if let Some(func_id) =
+                self.interner.lookup_direct_method(&typ, method_name, check_self_param)
+            {
+                self.push_errors(errors);
+                let all_errors = path_resolution.errors;
+                let item = match path_resolution.item {
+                    PathResolutionItem::Type(type_id) => {
+                        PathResolutionItem::Method(type_id, turbofish, func_id)
+                    }
+                    PathResolutionItem::TypeAlias(type_alias_id) => {
+                        PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
+                    }
+                    PathResolutionItem::PrimitiveType(primitive_type) => {
+                        PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
+                    }
+                    _ => unreachable!("An early return should have triggered before in this case"),
+                };
+                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
+                return Some(TraitPathResolution { method, item: Some(item), errors: all_errors });
+            }
+
+            let has_self_arg = false;
+            let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
+
+            // If no method matches the turbofish type but the name is a known method for this
+            // type (just incompatible), report an error. If the name isn't a method at all
+            // (e.g. it's an associated constant), return None and let the fallback handle it.
+            if trait_methods.is_empty() && self.interner.has_method_with_name(&typ, method_name) {
+                self.push_errors(errors);
+                let mut all_errors = path_resolution.errors;
+                all_errors.push(PathResolutionError::Unresolved(last_segment.ident.clone()));
+                return Some(TraitPathResolution {
+                    method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                    item: None,
+                    errors: all_errors,
+                });
+            }
         }
 
         let has_self_arg = false;
