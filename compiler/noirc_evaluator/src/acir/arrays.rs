@@ -717,7 +717,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Reference(reference_type) => {
+            Type::Reference(reference_type, _) => {
                 self.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
@@ -744,7 +744,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(values))
             }
             Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
-            Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
+            Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
             }

@@ -2,7 +2,7 @@
 name = "acvm"
 description = "The virtual machine that processes ACIR given a backend/proof system."
 # x-release-please-start-version
-version = "1.0.0-beta.19"
+version = "1.0.0-beta.20"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -42,6 +42,7 @@ bn254_blackbox_solver.workspace = true
 insta.workspace = true
 proptest.workspace = true
 num-bigint.workspace = true
+test-case.workspace = true
 
 criterion.workspace = true
 pprof.workspace = true

@@ -879,7 +879,7 @@ impl BlockContext {
             }
             // On reference, try to find value with reference type,
             // allocate and store it in memory
-            Type::Reference(reference_type) => {
+            Type::Reference(reference_type, _) => {
                 let value = self.find_values_with_type(builder, reference_type.as_ref(), None);
                 let value = builder.insert_add_to_memory(value);
                 self.store_variable(&value);

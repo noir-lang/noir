@@ -265,7 +265,6 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
         max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
         brillig_options: BrilligOptions::default(),
-        enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
         ssa_logging_hide_unchanged: false,
     };

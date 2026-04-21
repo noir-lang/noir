@@ -230,7 +230,7 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => brillig_context
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => brillig_context
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context

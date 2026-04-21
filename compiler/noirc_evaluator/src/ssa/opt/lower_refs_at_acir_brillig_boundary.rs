@@ -125,7 +125,7 @@ fn try_collect_transformation(
     if !callee.runtime().is_brillig() {
         return None;
     }
-    if !arguments.iter().any(|&arg| matches!(*function.dfg.type_of_value(arg), Type::Reference(_)))
+    if !arguments.iter().any(|&arg| matches!(*function.dfg.type_of_value(arg), Type::Reference(..)))
     {
         return None;
     }
@@ -177,7 +177,7 @@ fn insert_loads_for_ref_args(
     args: &mut [ValueId],
 ) {
     for arg in args {
-        let Type::Reference(inner_type) = function.dfg.type_of_value(*arg).into_owned() else {
+        let Type::Reference(inner_type, _) = function.dfg.type_of_value(*arg).into_owned() else {
             continue;
         };
         let load = function.dfg.insert_instruction_and_results_without_simplification(
@@ -210,7 +210,7 @@ fn build_wrapper(
     // Change each reference parameter to a non-reference parameter holding its element type.
     let params = vecmap(callee_param_types, |typ| {
         let param_type = match typ {
-            Type::Reference(inner) => (**inner).clone(),
+            Type::Reference(inner, _) => (**inner).clone(),
             _ => typ.clone(),
         };
         builder.add_parameter(param_type)
@@ -218,8 +218,8 @@ fn build_wrapper(
 
     // Build the argument list for the inner call.
     let inner_args = vecmap(params.iter().copied().enumerate(), |(pos, param_val)| {
-        if let Type::Reference(inner) = &callee_param_types[pos] {
-            let alloc = builder.insert_allocate(inner.as_ref().clone());
+        if let Type::Reference(inner, mutable) = &callee_param_types[pos] {
+            let alloc = builder.insert_allocate_with_mutability(inner.as_ref().clone(), *mutable);
             builder.insert_store(alloc, param_val);
             alloc
         } else {

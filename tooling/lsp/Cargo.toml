@@ -41,5 +41,5 @@ fuzzy-matcher = "0.3.7"
 wasm-bindgen.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["macros", "rt"] }
+tokio = { version = "1.52", features = ["macros", "rt"] }
 insta.workspace = true

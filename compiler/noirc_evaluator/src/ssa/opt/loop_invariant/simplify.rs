@@ -258,8 +258,10 @@ impl LoopInvariantContext<'_> {
         };
 
         // Handle arithmetic operations:
-        // Check if we can simplify either `lower op const` or `const op upper` into an unchecked version of the operation.
-        if let Some((lhs, rhs)) = match binary.operator {
+        // Check if we can simplify into an unchecked version of the operation.
+        // For signed types, overflow can happen in both directions (underflow and overflow),
+        // so we evaluate the operation at both extremes of the induction variable range.
+        if let Some(checks) = match binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
@@ -270,39 +272,38 @@ impl LoopInvariantContext<'_> {
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    // `i - const` won't overflow if the lowest `i` doesn't.
-                    Some((lower_bound, constant))
+                    // `i - const` can overflow at either extreme of `i`.
+                    Some([(lower_bound, constant), (upper_bound, constant)])
                 } else {
-                    // `const - i` won't overflow if the highest `i` doesn't.
-                    Some((constant, upper_bound))
+                    // `const - i` can overflow at either extreme of `i`.
+                    Some([(constant, lower_bound), (constant, upper_bound)])
                 }
             }
             BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
-                // `i + const` won't overflow if the highest `i` value doesn't.
-                Some((constant, upper_bound))
+                // `i + const` / `i * const` can overflow at either extreme of `i`.
+                Some([(constant, lower_bound), (constant, upper_bound)])
             }
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
         } {
-            // We evaluate this expression using the upper bounds (or lower in the case of sub)
-            // of its inputs to check whether it will ever overflow.
-            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
-            let lhs = lhs.into_numeric_constant().0;
-            let rhs = rhs.into_numeric_constant().0;
-            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
-                BinaryEvaluationResult::Success(..) => {
-                    // Unchecked version of the binary operation
-                    let unchecked = Instruction::Binary(Binary {
-                        operator: binary.operator.into_unchecked(),
-                        lhs: binary.lhs,
-                        rhs: binary.rhs,
-                    });
-                    return SimplifyResult::SimplifiedToInstruction(unchecked);
-                }
-                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                    return SimplifyResult::None;
+            // Evaluate the operation at both bound extremes to check whether it will ever overflow.
+            for (lhs, rhs) in checks {
+                let lhs = lhs.into_numeric_constant().0;
+                let rhs = rhs.into_numeric_constant().0;
+                match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                    BinaryEvaluationResult::Success(..) => {}
+                    BinaryEvaluationResult::CouldNotEvaluate
+                    | BinaryEvaluationResult::Failure(..) => {
+                        return SimplifyResult::None;
+                    }
                 }
             }
+            let unchecked = Instruction::Binary(Binary {
+                operator: binary.operator.into_unchecked(),
+                lhs: binary.lhs,
+                rhs: binary.rhs,
+            });
+            return SimplifyResult::SimplifiedToInstruction(unchecked);
         }
 
         // Handle comparisons. (The upper_bound is exclusive).
