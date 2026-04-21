@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776793986601,
+  "lastUpdate": 1776799917665,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23245,48 +23245,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "7734c5876a540842fc953d8b354a66947fb06e0d",
-          "message": "chore(ssa): Merge provably equivalent sets in load_store_forwarding (#12338)",
-          "timestamp": "2026-04-16T18:50:00Z",
-          "tree_id": "daf9cb1113f982212479045c144ff90e1ac0b5e2",
-          "url": "https://github.com/noir-lang/noir/commit/7734c5876a540842fc953d8b354a66947fb06e0d"
-        },
-        "date": 1776366807299,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169001,
-            "range": "± 358",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138707,
-            "range": "± 5696",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645154,
-            "range": "± 2056",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "681b9c6b181d6651cf195226590cf68a34e254c4",
           "message": "chore(ssa): Inlining pass module doc comments (#12337)",
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041229,
             "range": "± 11612",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cc5759234d7a54c4e79a392ea9d874b1a9ab1a97",
+          "message": "fix: Fix more small refactorings (#12385)",
+          "timestamp": "2026-04-21T19:02:53Z",
+          "tree_id": "56e6b67306cfa295b77e7d5c2837dbcfe0861598",
+          "url": "https://github.com/noir-lang/noir/commit/cc5759234d7a54c4e79a392ea9d874b1a9ab1a97"
+        },
+        "date": 1776799850131,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174228,
+            "range": "± 625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143257,
+            "range": "± 3267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652606,
+            "range": "± 2257",
             "unit": "ns/iter"
           }
         ]
