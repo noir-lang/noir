@@ -398,7 +398,7 @@ impl Context<'_> {
                 Type::Array(item_type, _) | Type::Vector(item_type) => item_type
                     .iter()
                     .enumerate()
-                    .find_map(|(index, typ)| (result_type == *typ).then_some(index)),
+                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
                 _ => None,
             }
         } else {
@@ -717,7 +717,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Reference(reference_type) => {
+            Type::Reference(reference_type, _) => {
                 self.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
@@ -744,7 +744,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(values))
             }
             Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
-            Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
+            Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
             }
@@ -1198,7 +1198,7 @@ impl Context<'_> {
     /// array containing zero length arrays has zero size, but we can still
     /// access its elements.
     pub(super) fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
-        if let Type::Array(_, size) = dfg.type_of_value(array) {
+        if let Type::Array(_, size) = &*dfg.type_of_value(array) {
             size.0 == 0
         } else {
             match &dfg[array] {

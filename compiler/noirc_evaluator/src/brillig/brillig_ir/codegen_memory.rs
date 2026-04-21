@@ -121,15 +121,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     brillig_context.memory_op_inc_by_usize_one(**target_iterator);
                 },
                 |brillig_context, (source_iterator, _)| {
-                    // We have finished when the source iterator reaches the end pointer.
-                    let finish_condition = brillig_context.allocate_single_addr_bool();
+                    // Continue while the source iterator hasn't reached the end pointer.
+                    let continue_condition = brillig_context.allocate_single_addr_bool();
                     brillig_context.memory_op_instruction(
                         **source_iterator,
                         *end_source_pointer,
-                        finish_condition.address,
-                        BrilligBinaryOp::Equals,
+                        continue_condition.address,
+                        BrilligBinaryOp::LessThan,
                     );
-                    finish_condition
+                    continue_condition
                 },
                 |brillig_context, (source_iterator, target_iterator)| {
                     brillig_context.load_instruction(*value_register, **source_iterator);
@@ -149,7 +149,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// When `num_elements = 0`, the subtraction `num_elements - 1` underflows to `2^32 - 1`.
     /// This is safe because:
     /// 1. `source_pointer = source_start + (2^32 - 1)` wraps to `source_start - 1`
-    /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
+    /// 2. The loop continue condition `source_start <= source_pointer` becomes `false` immediately
+    ///    (since `source_start <= source_start - 1` is false for `source_start > 0`)
     /// 3. The loop exits without any iterations, which is correct for 0 elements
     ///
     /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this
@@ -204,15 +205,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 );
             },
             |brillig_context, (source_pointer, _)| {
-                // We have finished when the source/target pointer is less than the source/target start
-                let finish_condition = brillig_context.allocate_single_addr_bool();
+                // Continue while the source pointer hasn't gone below the start.
+                let continue_condition = brillig_context.allocate_single_addr_bool();
                 brillig_context.memory_op_instruction(
-                    **source_pointer,
                     source_start,
-                    finish_condition.address,
-                    BrilligBinaryOp::LessThan,
+                    **source_pointer,
+                    continue_condition.address,
+                    BrilligBinaryOp::LessThanEquals,
                 );
-                finish_condition
+                continue_condition
             },
             |brillig_context, (source_pointer, target_pointer)| {
                 let value_register = brillig_context.allocate_register();
@@ -256,16 +257,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 ctx.codegen_usize_op_in_place(*start, BrilligBinaryOp::Add, 1);
                 ctx.codegen_usize_op_in_place(*end, BrilligBinaryOp::Sub, 1);
             },
-            // Finish condition: start_ptr >= end_ptr
+            // Continue condition: start_ptr < end_ptr
             |ctx, (start, end)| {
-                let finished = ctx.allocate_single_addr_bool();
+                let should_continue = ctx.allocate_single_addr_bool();
                 ctx.memory_op_instruction(
-                    *end,
                     *start,
-                    finished.address,
-                    BrilligBinaryOp::LessThanEquals,
+                    *end,
+                    should_continue.address,
+                    BrilligBinaryOp::LessThan,
                 );
-                finished
+                should_continue
             },
             // Body: swap values at start_ptr and end_ptr
             |ctx, (_start, _end)| {

@@ -1003,8 +1003,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            return Ok(Type::Reference(Arc::new(typ)));
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            return Ok(Type::Reference(Arc::new(typ), mutable));
         }
 
         if self.eat_keyword(Keyword::Function)? {
@@ -1016,22 +1016,22 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type`, returns `Type` if `&mut` was found, errors otherwise.
     fn parse_mutable_reference_type_or_error(&mut self) -> ParseResult<Type> {
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            Ok(typ)
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            Ok(Type::Reference(Arc::new(typ), mutable))
         } else {
             self.expected_token(Token::Ampersand)
         }
     }
 
-    /// Parses `&mut Type`, returns `Some(Type)` if `&mut` was found, `None` otherwise.
-    fn parse_mutable_reference_type(&mut self) -> ParseResult<Option<Type>> {
+    /// Parses `&mut Type` or `&Type`, returns `Some((Type, mutable))` if `&` was found.
+    fn parse_reference_type(&mut self) -> ParseResult<Option<(Type, bool)>> {
         if !self.eat(Token::Ampersand)? {
             return Ok(None);
         }
 
-        self.eat_or_error(Token::Keyword(Keyword::Mut))?;
+        let mutable = self.eat_keyword(Keyword::Mut)?;
         let typ = self.parse_type()?;
-        Ok(Some(typ))
+        Ok(Some((typ, mutable)))
     }
 
     fn eat_identifier_or_error(&mut self) -> ParseResult<Identifier> {

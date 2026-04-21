@@ -1190,6 +1190,26 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 }
 
 #[test]
+fn no_duplicate_comptime_type_error_for_self_type_variable() {
+    let src = r#"
+    trait Trait {
+        fn foo(self) -> Self;
+    }
+
+    impl Trait for Quoted {
+        fn foo(self: Self) -> Self {
+            self
+        }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    // 2 uses of Quoted in non-comptime positions (the Self types) (with duplicates we were getting 4 diagnostics)
+    assert_eq!(errors.len(), 2);
+}
+
+#[test]
 fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_implicit_self() {
     let src = r#"
     trait Trait {
@@ -1576,6 +1596,29 @@ fn match_in_comptime_errors_instead_of_panicking() {
             match foo { Foo::Bar => {} }
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
         };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn runtime_variable_in_macro_gives_specific_error() {
+    let src = r#"
+    comptime fn ident(val: Quoted) -> Quoted {
+        val
+    }
+
+    comptime fn wrap_with_add(x: Field) -> Quoted {
+        quote { $x + 41 }
+    }
+
+    fn main() {
+        let x = 1;
+            ^ unused variable x
+            ~ unused variable
+        let _y: Field = wrap_with_add!(ident!(quote { x }));
+                                                      ^ variable `x` is a runtime variable and cannot be used in comptime code
+                                                      ~ this variable is not available in comptime
     }
     "#;
     check_errors(src);

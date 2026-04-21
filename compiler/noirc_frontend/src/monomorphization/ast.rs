@@ -5,6 +5,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
+use strum_macros::EnumIter;
 
 use crate::token::FmtStrFragment;
 use crate::{
@@ -102,7 +103,13 @@ impl Expression {
                     xs[*idx].return_type()
                 }
                 x => {
-                    let typ = x.return_type()?;
+                    let mut typ = x.return_type()?;
+
+                    // Unwrap reference types to get the underlying tuple type
+                    while let Type::Reference(reference_type, _) = typ.as_ref() {
+                        typ = Cow::Owned(reference_type.as_ref().clone());
+                    }
+
                     let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
@@ -284,7 +291,7 @@ pub enum Literal {
     Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(
         Vec<FmtStrFragment>,
         /* Number of variables in the format string. */ u64,
@@ -428,7 +435,18 @@ pub type Parameters =
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
 #[derive(
-    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialOrd,
+    Ord,
+    EnumIter,
 )]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.

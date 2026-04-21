@@ -28,7 +28,9 @@ use nargo::{
     parse_all,
     workspace::Workspace,
 };
-use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
+use nargo_toml::{
+    ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
+};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     ParsedModule,
@@ -45,8 +47,9 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 use notifications::{
-    on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
-    on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
+    on_did_change_configuration, on_did_change_text_document, on_did_change_watched_files,
+    on_did_close_text_document, on_did_open_text_document, on_did_save_text_document, on_exit,
+    on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
@@ -92,6 +95,9 @@ pub enum LspError {
     /// Error while Resolving Workspace.
     #[error("Failed to Resolve Workspace - {0}")]
     WorkspaceResolutionError(String),
+    /// Error while parsing Nargo.toml.
+    #[error("{1}")]
+    ManifestError(PathBuf, ManifestError),
 }
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
@@ -109,6 +115,9 @@ pub struct LspState {
 
     // Tracks files that currently have errors, by package root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+
+    // Tracks Nargo.toml files that currently have diagnostics published to them.
+    toml_files_with_errors: HashSet<Url>,
 }
 
 struct WorkspaceCacheData {
@@ -139,6 +148,7 @@ impl LspState {
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
+            toml_files_with_errors: HashSet::new(),
         }
     }
 }
@@ -184,6 +194,7 @@ impl NargoLspService {
             .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
             .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
             .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
+            .notification::<notification::DidChangeWatchedFiles>(on_did_change_watched_files)
             .notification::<notification::Exit>(on_exit);
         Self { router }
     }
@@ -286,7 +297,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {}: {error}", toml_path.display());
+                return Err(LspError::ManifestError(toml_path, error));
             }
         }
     }

@@ -1,0 +1,31 @@
+name: Install Playwright
+description: Install Playwright browsers with caching for faster CI runs
+
+inputs:
+  browsers:
+    description: 'Space-separated list of browsers to install (e.g. "chromium" or "chromium webkit")'
+    required: false
+    default: 'chromium'
+  playwright-version:
+    description: 'Playwright version to install'
+    required: false
+    default: '1.55.0'
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
+
+    - name: Install Playwright browsers
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
+
+    - name: Install Playwright system dependencies
+      shell: bash
+      run: npx -y playwright@${{ inputs.playwright-version }} install-deps ${{ inputs.browsers }}

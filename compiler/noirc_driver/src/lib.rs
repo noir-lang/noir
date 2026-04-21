@@ -12,7 +12,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::{CustomDiagnostic, DiagnosticKind};
+use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
@@ -20,7 +20,8 @@ use noirc_evaluator::brillig::brillig_ir::{
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
-    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+    DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
     MAX_UNROLL_ITERATIONS,
 };
 use noirc_evaluator::ssa::{
@@ -169,12 +170,6 @@ pub struct CompileOptions {
     #[arg(long)]
     pub count_array_copies: bool,
 
-    /// Flag to turn on the lookback feature of the Brillig call constraints
-    /// check, allowing tracking argument values before the call happens preventing
-    /// certain rare false positives (leads to a slowdown on large rollout functions)
-    #[arg(long)]
-    pub enable_brillig_constraints_check_lookback: bool,
-
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -213,6 +208,15 @@ pub struct CompileOptions {
     /// Set to 0 to disable force-unrolling.
     #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
     pub force_unroll_threshold: usize,
+
+    /// Minimum percentage cost reduction required to keep a specialized
+    /// Brillig function clone. Set to 0 to disable specialization.
+    #[arg(long, hide = true, default_value_t = DEFAULT_SPECIALIZATION_THRESHOLD)]
+    pub specialization_threshold: usize,
+
+    /// Maximum number of specialized clones per original Brillig function.
+    #[arg(long, hide = true, default_value_t = DEFAULT_MAX_SPECIALIZATIONS_PER_FN)]
+    pub max_specializations_per_fn: usize,
 
     /// Maximum size of a single Brillig stack frame.
     #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
@@ -280,13 +284,14 @@ impl Default for CompileOptions {
             skip_brillig_constraints_check: false,
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
-            enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             max_stack_frame_size: MAX_STACK_FRAME_SIZE,
             num_stack_frames: NUM_STACK_FRAMES,
             max_scratch_space: MAX_SCRATCH_SPACE,
@@ -321,17 +326,16 @@ impl CompileOptions {
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
-            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
-            enable_brillig_constraints_check_lookback: self
-                .enable_brillig_constraints_check_lookback,
-            skip_brillig_constraints_check: !self.silence_warnings
-                && self.skip_brillig_constraints_check,
+            skip_underconstrained_check: self.skip_underconstrained_check,
+            skip_brillig_constraints_check: self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             max_unroll_iterations: self.max_unroll_iterations,
             force_unroll_threshold: self.force_unroll_threshold,
+            specialization_threshold: self.specialization_threshold,
+            max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
         }
@@ -447,6 +451,7 @@ pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
     let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
     let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
     add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
+    context.debug_crate_id = Some(debug_crate_id);
 }
 
 // Adds the file from the file system at `Path` to the crate graph
@@ -500,7 +505,7 @@ pub fn check_crate(
         .map(CustomDiagnostic::from)
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
-            !options.silence_warnings || diagnostic.kind != DiagnosticKind::Warning
+            !options.silence_warnings || !diagnostic.is_warning()
         })
         .filter(|error| {
             // Only keep warnings from the crate we are checking
@@ -530,6 +535,7 @@ pub fn compute_function_abi(
 /// On error this returns the non-empty list of warnings and errors.
 ///
 /// See [compile_no_check] for further information about the use of `cached_program`.
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -553,12 +559,17 @@ pub fn compile_main(
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    if !options.silence_warnings {
-        warnings.extend(compilation_warnings);
-    }
+
+    // Make sure we don't hide bugs, only warnings can be silenced.
+    warnings.extend(
+        compilation_warnings
+            .into_iter()
+            .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning()),
+    );
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
@@ -569,6 +580,7 @@ pub fn compile_main(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
@@ -903,6 +915,7 @@ pub fn compile_no_check(
             main_function,
             &mut context.def_interner,
             &context.debug_instrumenter,
+            context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
@@ -998,10 +1011,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic =
-                CustomDiagnostic::simple_warning(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Warning to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_warning(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
         SsaReport::Bug(bug) => {
@@ -1020,9 +1034,11 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
                         ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
                     }
                 };
-            let call_stack = vecmap(call_stack, |location| location);
-            let location = call_stack.last().expect("Expected RuntimeError to have a location");
-            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, *location);
+            let location = call_stack.last_or_dummy();
+            if location.is_dummy() {
+                tracing::warn!("expected SsaReport::Bug to have a location");
+            }
+            let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
     }

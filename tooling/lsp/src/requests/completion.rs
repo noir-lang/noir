@@ -247,9 +247,20 @@ impl<'a> NodeFinder<'a> {
             return;
         }
 
+        // First try to autocomplete in the path generics
+        for segment in &path.segments {
+            if let Some(generics) = &segment.generics {
+                for generic in generics {
+                    generic.accept(self);
+                }
+            }
+        }
+
         let after_colons = self.byte == Some(b':');
 
         let mut idents: Vec<Ident> = Vec::new();
+
+        let mut found_segment_to_complete = false;
 
         // Find in which ident we are in, and in which part of it
         // (it could be that we are completing in the middle of an ident)
@@ -259,6 +270,7 @@ impl<'a> NodeFinder<'a> {
             // Check if we are at the end of the ident
             if self.byte_index == ident.span().end() as usize {
                 idents.push(ident.clone());
+                found_segment_to_complete = true;
                 break;
             }
 
@@ -277,15 +289,21 @@ impl<'a> NodeFinder<'a> {
                 );
                 idents.push(ident);
                 in_the_middle = true;
+                found_segment_to_complete = true;
                 break;
             }
 
             idents.push(ident.clone());
 
-            // Stop if the cursor is right after this ident and '::'
-            if after_colons && self.byte_index == ident.span().end() as usize + 2 {
+            // Stop if the cursor is right after this segment and '::'
+            if after_colons && self.byte_index == segment.location.span.end() as usize + 2 {
+                found_segment_to_complete = true;
                 break;
             }
+        }
+
+        if !found_segment_to_complete {
+            return;
         }
 
         if idents.len() < path.segments.len() {
@@ -1741,7 +1759,8 @@ impl Visitor for NodeFinder<'_> {
         constructor_expression: &ConstructorExpression,
         _: Span,
     ) -> bool {
-        let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ else {
+        let UnresolvedTypeData::Named(path, generic_type_args, _) = &constructor_expression.typ.typ
+        else {
             return true;
         };
 
@@ -1756,6 +1775,8 @@ impl Visitor for NodeFinder<'_> {
             self.complete_constructor_field_name(constructor_expression);
             return false;
         }
+
+        generic_type_args.accept(self);
 
         for (_field_name, expression) in &constructor_expression.fields {
             expression.accept(self);

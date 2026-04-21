@@ -273,13 +273,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                ctx.mov_instruction(absolute_value.address, twos_complement.address);
-            } else {
-                ctx.mov_instruction(absolute_value.address, num.address);
-            }
-        });
+        self.conditional_move_instruction(
+            result_is_negative.address,
+            twos_complement.address,
+            num.address,
+            absolute_value.address,
+        );
     }
 
     pub(crate) fn convert_signed_division(
@@ -713,7 +712,7 @@ pub(crate) mod tests {
     /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
-    /// This test directly verifies the loop exit condition is immediately `true`.
+    /// This test directly verifies the loop continue condition is immediately `false`.
     #[test]
     fn mem_copy_from_end_zero_elements_condition_is_immediately_true() {
         let options = BrilligOptions {
@@ -762,14 +761,16 @@ pub(crate) mod tests {
 
         let bytecode = context.into_artifact().finish().byte_code;
 
-        // Find the LessThan opcode (the loop exit condition check) and its destination register.
-        // There should be exactly one LessThan in codegen_mem_copy_from_the_end.
-        let (less_than_idx, condition_dest) = bytecode
+        // Find the LessThanEquals opcode (the loop continue condition check) and its destination register.
+        // There should be exactly one LessThanEquals in codegen_mem_copy_from_the_end.
+        let (less_than_eq_idx, condition_dest) = bytecode
             .iter()
             .enumerate()
             .find_map(|(idx, op)| {
                 if let BrilligOpcode::BinaryIntOp {
-                    op: BinaryIntOp::LessThan, destination, ..
+                    op: BinaryIntOp::LessThanEquals,
+                    destination,
+                    ..
                 } = op
                 {
                     Some((idx, *destination))
@@ -777,16 +778,16 @@ pub(crate) mod tests {
                     None
                 }
             })
-            .expect("Should find LessThan opcode in bytecode");
+            .expect("Should find LessThanEquals opcode in bytecode");
 
-        // Step through opcodes until we've executed the LessThan operation
+        // Step through opcodes until we've executed the LessThanEquals operation
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
-        for _ in 0..=less_than_idx {
+        for _ in 0..=less_than_eq_idx {
             vm.process_opcode();
         }
 
         // Read the condition register value from memory.
-        // After the LessThan executes, this should be true (1) if the protection works.
+        // After the LessThanEquals executes, this should be false (0) so the loop doesn't continue.
         let memory = vm.get_memory();
         let condition_addr = match condition_dest {
             MemoryAddress::Relative(offset) => {
@@ -805,17 +806,18 @@ pub(crate) mod tests {
 
         let condition_value = &memory[condition_addr];
 
-        // The condition should be true (U1(true)) because:
+        // The condition should be false (U1(false)) because:
         // source_pointer = source_start + (2^32 - 1) = source_start - 1 (wrapping)
-        // source_start - 1 < source_start = true
+        // source_start <= source_start - 1 = false (for source_start > 0)
         assert_eq!(
             *condition_value,
-            MemoryValue::U1(true),
-            "Loop exit condition should be immediately true when num_elements=0"
+            MemoryValue::U1(false),
+            "Loop continue condition should be immediately false when num_elements=0"
         );
 
-        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
-        for _ in less_than_idx..(less_than_idx + 2) {
+        // We will process a JmpIf based upon the condition which will NOT jump (condition is false),
+        // falling through to a Stop
+        for _ in less_than_eq_idx..(less_than_eq_idx + 2) {
             let opcode = &bytecode[vm.program_counter()];
             match opcode {
                 BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {

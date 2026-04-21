@@ -1,6 +1,7 @@
 use crate::meta::ctstring::AsCtString;
 use crate::meta::derive_via;
 
+/// Compare two values for equality
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
 pub trait Eq {
@@ -61,12 +62,6 @@ impl Eq for u8 {
         self == other
     }
 }
-impl Eq for u1 {
-    fn eq(self, other: u1) -> bool {
-        self == other
-    }
-}
-
 impl Eq for i8 {
     fn eq(self, other: i8) -> bool {
         self == other
@@ -217,6 +212,8 @@ impl Eq for Ordering {
 
 // Noir doesn't have enums yet so we emulate (Lt | Eq | Gt) with a struct
 // that has 3 public functions for constructing the struct.
+/// A value with three states: `Ordering::less()`, `Ordering::equal()` or `Ordering::greater()`.
+/// Most often used to encode the result of a comparison operation.
 pub struct Ordering {
     result: Field,
 }
@@ -238,6 +235,8 @@ impl Ordering {
     }
 }
 
+/// Compare one object to another, returning whether it is less-than, equal-to,
+/// or greater-than the other object.
 #[derive_via(derive_ord)]
 // docs:start:ord-trait
 pub trait Ord {
@@ -525,18 +524,18 @@ impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: 
     }
 }
 
-// Compares and returns the maximum of two values.
-//
-// Returns the second argument if the comparison determines them to be equal.
-//
-// # Examples
-//
-// ```
-// use std::cmp;
-//
-// assert_eq(cmp::max(1, 2), 2);
-// assert_eq(cmp::max(2, 2), 2);
-// ```
+/// Compares and returns the maximum of two values.
+///
+/// Returns the second argument if the comparison determines them to be equal.
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp;
+///
+/// assert_eq(cmp::max(1, 2), 2);
+/// assert_eq(cmp::max(2, 2), 2);
+/// ```
 pub fn max<T>(v1: T, v2: T) -> T
 where
     T: Ord,
@@ -548,18 +547,18 @@ where
     }
 }
 
-// Compares and returns the minimum of two values.
-//
-// Returns the first argument if the comparison determines them to be equal.
-//
-// # Examples
-//
-// ```
-// use std::cmp;
-//
-// assert_eq(cmp::min(1, 2), 1);
-// assert_eq(cmp::min(2, 2), 2);
-// ```
+/// Compares and returns the minimum of two values.
+///
+/// Returns the first argument if the comparison determines them to be equal.
+///
+/// # Examples
+///
+/// ```
+/// use std::cmp;
+///
+/// assert_eq(cmp::min(1, 2), 1);
+/// assert_eq(cmp::min(2, 2), 2);
+/// ```
 pub fn min<T>(v1: T, v2: T) -> T
 where
     T: Ord,

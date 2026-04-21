@@ -562,7 +562,7 @@ impl Instruction {
                 | BinaryOp::Sub { unchecked: false }
                 | BinaryOp::Mul { unchecked: false } => {
                     let typ = dfg.type_of_value(binary.lhs);
-                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                    !matches!(*typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
                     // If we don't know rhs at compile time, it might be zero or -1

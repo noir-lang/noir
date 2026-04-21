@@ -169,7 +169,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .expect("Could not convert field value to integer");
             match numeric_value {
                 NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::u1(value),
+                NumericValue::U1(value) => Value::Bool(value),
                 NumericValue::U8(fitted) => match fitted {
                     Fitted::Fit(value) => Value::u8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
