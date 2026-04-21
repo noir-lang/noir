@@ -244,7 +244,7 @@
 <a href=#244 id=244 data-nosnippet>244</a>
 <a href=#245 id=245 data-nosnippet>245</a>    <span class="kw">let </span>stack_trace = stack_trace(files, function_locations, <span class="kw-2">&amp;</span>custom_diagnostic.call_stack);
 <a href=#246 id=246 data-nosnippet>246</a>    <span class="kw">let </span>diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
-<a href=#247 id=247 data-nosnippet>247</a>    term::emit(<span class="kw-2">&amp;mut </span>writer.lock(), <span class="kw-2">&amp;</span>config, files, <span class="kw-2">&amp;</span>diagnostic).unwrap();
+<a href=#247 id=247 data-nosnippet>247</a>    term::emit_to_write_style(<span class="kw-2">&amp;mut </span>writer.lock(), <span class="kw-2">&amp;</span>config, files, <span class="kw-2">&amp;</span>diagnostic).unwrap();
 <a href=#248 id=248 data-nosnippet>248</a>
 <a href=#249 id=249 data-nosnippet>249</a>    deny_warnings || custom_diagnostic.is_error()
 <a href=#250 id=250 data-nosnippet>250</a>}
