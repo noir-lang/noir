@@ -395,7 +395,7 @@ impl Elaborator<'_> {
         }
 
         let parent_trait_ids: Vec<_> =
-            the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
+            the_trait.parent_bounds().map(|bound| bound.trait_id).collect();
         for parent_id in parent_trait_ids {
             self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
@@ -413,7 +413,7 @@ impl Elaborator<'_> {
         }
 
         let the_trait = self.interner.get_trait(trait_id);
-        let parent_bounds = the_trait.trait_bounds.clone();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         let self_type = self.self_type.as_ref()?;
 
         for parent_bound in &parent_bounds {
@@ -1457,7 +1457,8 @@ impl Elaborator<'_> {
             matches.push((method, the_trait.id));
         }
 
-        for trait_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for trait_bound in &parent_bounds {
             let parent_trait = self.interner.get_trait(trait_bound.trait_id);
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
@@ -2857,9 +2858,8 @@ impl Elaborator<'_> {
         }
 
         // Search in the parent traits, if any.
-        // Note that `trait_bounds` represent `Foo: Bar + Baz`,
-        // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
-        for parent_trait_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_trait_bound in &parent_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);

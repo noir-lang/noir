@@ -2011,7 +2011,7 @@ __metadata:
     cspell: "npm:^9.7.0"
     eslint: "npm:^10.2.0"
     eslint-plugin-prettier: "npm:^5.5.5"
-    globals: "npm:^17.4.0"
+    globals: "npm:^17.5.0"
     mocha: "npm:^11.7.5"
     prettier: "npm:3.8.1"
     tsx: "npm:^4.21.0"
@@ -7403,10 +7403,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"globals@npm:^17.4.0":
-  version: 17.4.0
-  resolution: "globals@npm:17.4.0"
-  checksum: 10/ffad244617e94efcb3da72b7beefc941167c21316148ce378f322db7af72db06468f370e23224b3c7b17b5173a7c75b134e5e7b0949f2828519054a76892508d
+"globals@npm:^17.5.0":
+  version: 17.5.0
+  resolution: "globals@npm:17.5.0"
+  checksum: 10/c405a95e1ecf14a1a17caaecd4dadbad38166b3c1b514e07924604ee224e922c043fc93ae21164d124dae5536e5a812566355469e34a689601db7d3d424dc8e7
   languageName: node
   linkType: hard
 
