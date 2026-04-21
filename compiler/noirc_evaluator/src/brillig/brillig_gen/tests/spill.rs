@@ -367,3 +367,53 @@ fn brillig_spill_does_not_cause_transient_spill_leak() {
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let _ = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 }
+
+/// Regression: the condition register of a `jmpif` was freed by the second
+/// `spill_non_param_live_ins` call inside `jmp_setup`, then reused for a u32 arg.
+///
+/// Both the condition `v3` and the then-arg `v2` are non-param live-ins to `b1`
+/// (`v2` appears as the IfElse else-value). The first `spill_non_param_live_ins`
+/// permanently spills both. `convert_ssa_single_addr_value` reloads `v3` into
+/// R_cond. Inside `jmp_setup`, `spill_non_param_live_ins` fires a second time.
+/// The buggy code detected that `v3` had a spill record and was not currently
+/// marked spilled (`was_reloaded`), and freed R_cond. `convert_ssa_value(v2)` then
+/// reloaded `v2` (u32) into the freed R_cond slot. `JumpIf R_cond` failed at
+/// runtime with "condition value is not a boolean: Bit size for value 32".
+///
+/// The fix checks `was_transient_reloaded` instead, which excludes already-permanent
+/// records, so R_cond is kept alive through the `JumpIf`.
+#[test]
+fn brillig_spill_jmpif_condition_register_reuse() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v3 = eq v0, v1
+        v4 = not v3
+        jmpif v3 then: b1(v2), else: b2()
+      b1(v5: u32):
+        v6 = if v3 then v5 else (if v4) v2
+        jmp b3(v6)
+      b2():
+        jmp b3(v1)
+      b3(v7: u32):
+        return v7
+    }
+    ";
+
+    // 5 usable registers (sp[2..6]). The 3 params plus the two successor-block params
+    // (v5 for b1, v7 for b3) fill all 5 slots; the successor params are immediately
+    // spilled and freed, leaving exactly enough room for v3 and v4. By the time
+    // jmpif fires, v2, v3, and v4 are all in registers and all get permanently
+    // spilled by spill_non_param_live_ins(b1). Both v3 and v2 end up as non-param
+    // live-ins to b1, triggering the double-call pattern that exposed the bug.
+    let layout = LayoutConfig::new(7, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v0=1, v1=1 → v3=true → then-branch taken; v5=v2=42, v6=42.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(1u32), FieldElement::from(1u32), FieldElement::from(42u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(42u32)]);
+}

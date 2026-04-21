@@ -238,12 +238,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // For a permanent spill, try to promote an existing record first.
         // ensure_permanent_spill() modifies the record, so capture the pre-call state first.
         if permanent {
-            // A reloaded value has a record but is not currently spilled — it holds a register
-            // that must be freed when the permanent-spill short-circuit fires.
-            let was_reloaded =
-                !sm.is_spilled(&value_id) && sm.get_spill_offset(&value_id).is_some();
+            // A transient-reloaded value has a record that is not yet permanent and is not
+            // currently spilled — it holds a register that must be freed when promoted to a
+            // permanent spill. Values that were already permanently spilled must not have their
+            // register freed here, as they may still be live (e.g. the condition register of a
+            // jmpif instruction that gets spill_non_param_live_ins called multiple times).
+            let was_transient_reloaded = !sm.is_spilled(&value_id)
+                && sm.get_spill_offset(&value_id).is_some()
+                && sm.get_permanent_spill_offset(&value_id).is_none();
             if sm.ensure_permanent_spill(&value_id) {
-                if was_reloaded {
+                if was_transient_reloaded {
                     sm.remove_from_lru(&value_id);
                     self.variables.remove_variable(
                         &value_id,
