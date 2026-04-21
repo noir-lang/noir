@@ -70,6 +70,7 @@ dependencies = [
  "proptest",
  "rustc-hash",
  "serde",
+ "test-case",
  "thiserror 2.0.18",
  "tracing",
 ]

@@ -42,6 +42,7 @@ bn254_blackbox_solver.workspace = true
 insta.workspace = true
 proptest.workspace = true
 num-bigint.workspace = true
+test-case.workspace = true
 
 criterion.workspace = true
 pprof.workspace = true
