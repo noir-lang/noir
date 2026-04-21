@@ -61,8 +61,8 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
-    #[error("Could not resolve '{ident}' in path")]
-    UnresolvedMethodForType { ident: Ident, available_impls: Vec<String> },
+    #[error("No function named '{ident}' found for '{typ}' in the current scope")]
+    UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
 }
 
 impl PathResolutionError {
@@ -142,12 +142,12 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ident.location(),
                 )
             }
-            PathResolutionError::UnresolvedMethodForType { ident, available_impls } => {
+            PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
                 let secondary = if available_impls.is_empty() {
                     String::new()
                 } else {
                     let impls = vecmap(available_impls, |t| format!("`{t}`"));
-                    format!("the method was found for: {}", impls.join(", "))
+                    format!("the function was found for: {}", impls.join(", "))
                 };
                 CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
             }

@@ -1603,6 +1603,7 @@ impl Elaborator<'_> {
                     .map(|t| t.to_string())
                     .collect();
                 all_errors.push(PathResolutionError::UnresolvedMethodForType {
+                    typ: typ.to_string(),
                     ident: last_segment.ident.clone(),
                     available_impls,
                 });
