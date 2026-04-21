@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776800927527,
+  "lastUpdate": 1776802565416,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23246,48 +23246,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "681b9c6b181d6651cf195226590cf68a34e254c4",
-          "message": "chore(ssa): Inlining pass module doc comments (#12337)",
-          "timestamp": "2026-04-16T18:52:42Z",
-          "tree_id": "016697455b213231781de6dfbdd4899257943fc7",
-          "url": "https://github.com/noir-lang/noir/commit/681b9c6b181d6651cf195226590cf68a34e254c4"
-        },
-        "date": 1776366967690,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167990,
-            "range": "± 1530",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138306,
-            "range": "± 372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645146,
-            "range": "± 5928",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2596078362361dd562827400a21f909d59735af8",
           "message": "fix(brillig): Use value set for tracking max live count (#12334)",
           "timestamp": "2026-04-16T19:15:21Z",
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652606,
             "range": "± 2257",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9619f96e7c3bad0ecf2c1d0deb064111dfddbaee",
+          "message": "fix: lookup method on struct with turbofish separately (#12381)",
+          "timestamp": "2026-04-21T19:49:12Z",
+          "tree_id": "6bd55cccafaf874c3df550b74849ab992e05761c",
+          "url": "https://github.com/noir-lang/noir/commit/9619f96e7c3bad0ecf2c1d0deb064111dfddbaee"
+        },
+        "date": 1776802517598,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 99156,
+            "range": "± 555",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87714,
+            "range": "± 1040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2362322,
+            "range": "± 18567",
             "unit": "ns/iter"
           }
         ]
