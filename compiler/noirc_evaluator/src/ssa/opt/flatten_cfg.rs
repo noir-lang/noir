@@ -812,8 +812,8 @@ impl<'f> Context<'f> {
         // in jmpif_else_arguments since there is no separate else block to read them from.
         let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
             args
-        } else if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
+        } else if let Some(else_branch) = &cond_context.else_branch {
+            let last_else = else_branch.last_block.unwrap();
             self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
         } else {
             Vec::new()
