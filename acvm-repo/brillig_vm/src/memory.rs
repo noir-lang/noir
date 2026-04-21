@@ -430,7 +430,21 @@ impl<F: AcirField> Memory<F> {
     /// Reads the value at the address and returns it as a direct memory address,
     /// without dereferencing the pointer itself to a numeric value.
     pub fn read_ref(&self, ptr: MemoryAddress) -> MemoryAddress {
-        MemoryAddress::direct(self.read(ptr).to_u32())
+        let resolved = assert_usize(self.resolve(ptr));
+        if resolved >= self.inner.len() {
+            panic!(
+                "read_ref: address {ptr:?} (resolved to {resolved}) is out of bounds (memory size: {})",
+                self.inner.len()
+            );
+        }
+        let value = self.inner[resolved];
+        let MemoryValue::U32(addr) = value else {
+            panic!(
+                "read_ref: expected a U32 pointer at address {ptr:?}, but found {value} ({})",
+                value.bit_size()
+            );
+        };
+        MemoryAddress::direct(addr)
     }
 
     /// Sets `ptr` to point at `address`.
@@ -449,7 +463,14 @@ impl<F: AcirField> Memory<F> {
             return &[];
         }
         let resolved_addr = assert_usize(self.resolve(address));
-        &self.inner[resolved_addr..(resolved_addr + len)]
+        let end = resolved_addr.checked_add(len).expect("read_slice: address + len overflows");
+        assert!(
+            end <= self.inner.len(),
+            "read_slice: out of bounds — reading {len} elements from address {resolved_addr} \
+             exceeds memory size {}. Callers should validate sizes before calling read_slice.",
+            self.inner.len()
+        );
+        &self.inner[resolved_addr..end]
     }
 
     /// Sets the value at `address` to `value`
@@ -502,6 +523,11 @@ impl<F: AcirField> Memory<F> {
         {
             self.stack_pointer = *sp;
         }
+    }
+
+    /// Returns the number of memory slots currently allocated.
+    pub(crate) fn len(&self) -> usize {
+        self.inner.len()
     }
 
     /// Returns the values of the memory
@@ -645,7 +671,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "range end index 30 out of range for slice of length 0")]
+    #[should_panic(expected = "read_slice: out of bounds")]
     fn read_vector_from_non_existent_memory() {
         let memory = Memory::<FieldElement>::default();
         let _ = memory.read_slice(MemoryAddress::direct(20), 10);

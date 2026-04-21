@@ -194,9 +194,7 @@ use crate::{
         function::FuncMeta,
         traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
-    node_interner::{
-        DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
-    },
+    node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
 use super::{Elaborator, generics::GenericsState};
@@ -294,10 +292,17 @@ impl Elaborator<'_> {
                 self.interner.add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
             }
 
-            // TODO (https://github.com/noir-lang/noir/issues/10642):
-            // combine `where_clause` and `resolved_trait_bounds`
+            // Lower super-trait bounds (`trait Foo: Bar`) into where-clause constraints
+            // keyed on `Self`, so that parent bounds and explicit where-clause entries
+            // share a single representation on `Trait`.
+            let self_type =
+                self.self_type.clone().expect("Expected Self type to be set inside collect_traits");
+            let mut where_clause = where_clause;
+            for trait_bound in resolved_trait_bounds {
+                where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
+            }
+
             self.interner.update_trait(*trait_id, |trait_def| {
-                trait_def.set_trait_bounds(resolved_trait_bounds);
                 trait_def.set_where_clause(where_clause);
                 trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 trait_def.set_associated_type_bounds(associated_type_bounds);
@@ -602,7 +607,7 @@ impl Elaborator<'_> {
     /// associated types. This creates fresh type variables for the parent associated types
     /// so that `M::Key` syntax can be resolved via `self.trait_bounds`.
     ///
-    /// The parent trait bounds are obtained from `Trait.trait_bounds` (already resolved
+    /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
     /// during `collect_traits` with associated type variables) and instantiated via
     /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
     /// named (associated) types are then replaced with fresh per-function type variables
@@ -653,7 +658,7 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = self
             .interner
             .try_get_trait(trait_id)
-            .map(|t| t.trait_bounds.clone())
+            .map(|t| t.parent_bounds().cloned().collect())
             .unwrap_or_default();
 
         for parent_bound in &parent_bounds {
@@ -795,8 +800,10 @@ impl Elaborator<'_> {
         }
 
         // Also add assumed implementations for the parent traits, if any
-        if let Some(trait_bounds) =
-            self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        if let Some(trait_bounds) = self
+            .interner
+            .try_get_trait(trait_id)
+            .map(|the_trait| the_trait.parent_bounds().cloned().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
@@ -986,10 +993,11 @@ impl Elaborator<'_> {
 ///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
-    interner: &NodeInterner,
+    elaborator: &Elaborator,
     function: FuncId,
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
+    let interner = &elaborator.interner;
     let meta = interner.function_meta(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
@@ -1082,6 +1090,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 
         check_function_type_matches_expected_type(
+            elaborator,
             &declaration_type,
             meta,
             method_name,
@@ -1104,6 +1113,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 /// This is used to check if a trait impl's function type matches the declared function in the
 /// original trait declaration - while handling the appropriate generic substitutions.
 fn check_function_type_matches_expected_type(
+    elaborator: &Elaborator,
     expected: &Type,
     meta: &FuncMeta,
     method_name: &str,
@@ -1149,11 +1159,11 @@ fn check_function_type_matches_expected_type(
             }
 
             if ret_b.try_unify(ret_a, &mut bindings).is_err() {
-                errors.push(TypeCheckError::TypeMismatch {
-                    expected_typ: ret_a.to_string(),
-                    expr_typ: ret_b.to_string(),
-                    expr_location: meta.return_type.location(),
-                });
+                errors.push(elaborator.new_type_mismatch_error(
+                    ret_b,
+                    ret_a,
+                    meta.return_type.location(),
+                ));
             }
         } else {
             errors.push(TypeCheckError::MismatchTraitImplNumParameters {
@@ -1170,12 +1180,6 @@ fn check_function_type_matches_expected_type(
     // signatures were not a perfect match. Note that this relies on us already binding
     // all the expected generics to each other prior to this check.
     if !bindings.is_empty() {
-        let expected_typ = expected.to_string();
-        let expr_typ = actual.to_string();
-        errors.push(TypeCheckError::TypeMismatch {
-            expected_typ,
-            expr_typ,
-            expr_location: location,
-        });
+        errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
     }
 }

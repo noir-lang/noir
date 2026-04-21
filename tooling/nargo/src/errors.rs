@@ -10,7 +10,11 @@ use acvm::{
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
 use noirc_artifacts::debug::DebugInfo;
-use noirc_errors::{CustomDiagnostic, call_stack::CallStackId, reporter::ReportedErrors};
+use noirc_errors::{
+    CustomDiagnostic,
+    call_stack::{CallStack, CallStackId},
+    reporter::ReportedErrors,
+};
 
 pub use noirc_errors::Location;
 
@@ -114,7 +118,7 @@ pub enum ExecutionError<F: AcirField> {
 fn extract_locations_from_error<F: AcirField>(
     error: &ExecutionError<F>,
     debug: &[DebugInfo],
-) -> Option<Vec<Location>> {
+) -> Option<CallStack> {
     let mut opcode_locations = match error {
         ExecutionError::SolvingError(
             OpcodeResolutionError::BrilligFunctionFailed { .. },
@@ -170,7 +174,7 @@ fn extract_locations_from_error<F: AcirField>(
         ExecutionError::SolvingError(..) => None,
     };
 
-    Some(
+    Some(CallStack::new(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
@@ -190,7 +194,7 @@ fn extract_locations_from_error<F: AcirField>(
                     .get_call_stack(call_stack_id)
             })
             .collect(),
-    )
+    ))
 }
 
 fn extract_message_from_error(
@@ -229,7 +233,8 @@ fn extract_message_from_error(
     }
 }
 
-/// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
+/// Tries to generate a runtime diagnostic from a nargo error.
+/// It will successfully do so if it's a runtime error with a non-empty call stack.
 pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
@@ -241,9 +246,12 @@ pub fn try_to_diagnose_runtime_error(
         }
         _ => return None,
     };
+    if source_locations.is_empty() {
+        return None;
+    }
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
-    let location = *source_locations.last()?;
+    let location = source_locations.last_or_dummy();
     let message = extract_message_from_error(&abi.error_types, nargo_err);
     let error = CustomDiagnostic::simple_error(message, String::new(), location);
     Some(error.with_call_stack(source_locations))

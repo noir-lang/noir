@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+   ┌─ src/main.nr:11:43
+   │
+11 │     let result = unsafe { read_double_ref(&&x) };
+   │                                           ---
+   │
+
+Aborting due to 1 previous error

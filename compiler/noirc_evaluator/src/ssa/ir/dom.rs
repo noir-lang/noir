@@ -165,7 +165,7 @@ impl DominatorTree {
     #[cfg(test)]
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
-        let post_order = PostOrder::with_function(func);
+        let post_order = PostOrder::with_cfg(&cfg);
         Self::with_cfg_and_post_order(&cfg, &post_order)
     }
 
@@ -310,9 +310,34 @@ impl DominatorTree {
     /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
     /// Calling this method on a dominator tree will return a function's dominance frontiers,
     /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
+    ///
+    /// Note: this variant filters out back-edges, so loop headers are NOT included in the
+    /// frontier of loop body blocks. Use `compute_dominance_frontiers_with_back_edges` for
+    /// the standard definition needed by SSA construction (block parameter placement).
     pub(crate) fn compute_dominance_frontiers(
         &mut self,
         cfg: &ControlFlowGraph,
+    ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
+        self.compute_dominance_frontiers_inner(cfg, false)
+    }
+
+    /// Compute dominance frontiers using the standard definition (Cytron et al. 1991).
+    ///
+    /// Unlike `compute_dominance_frontiers`, this includes loop headers in the frontier of
+    /// loop body blocks. This matches the standard definition: DF(X) = { Y | ∃ pred Z of Y:
+    /// X dom Z ∧ X !sdom Y }. The standard definition is required for correct block parameter
+    /// placement during SSA construction (e.g., in mem2reg).
+    pub(crate) fn compute_dominance_frontiers_with_back_edges(
+        &mut self,
+        cfg: &ControlFlowGraph,
+    ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
+        self.compute_dominance_frontiers_inner(cfg, true)
+    }
+
+    fn compute_dominance_frontiers_inner(
+        &mut self,
+        cfg: &ControlFlowGraph,
+        include_back_edges: bool,
     ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
         let mut dominance_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>> =
             HashMap::default();
@@ -340,7 +365,11 @@ impl DominatorTree {
                     // Checking if the current block dominates the predecessor;
                     // for example a loop header has the loop body as one of its predecessors, which it dominates,
                     // but we don't consider following back-edges as alternative paths on which we reach the header first.
-                    if self.dominates(block_id, runner) {
+                    //
+                    // When `include_back_edges` is true (standard SSA definition), we skip this check
+                    // so loop headers ARE included in the frontier of loop body blocks. This is needed
+                    // for correct block parameter placement in mem2reg.
+                    if !include_back_edges && self.dominates(block_id, runner) {
                         break;
                     }
                     dominance_frontiers.entry(runner).or_default().insert(block_id);

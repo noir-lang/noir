@@ -904,8 +904,7 @@ fn to_le_radix(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
-    let return_type_is_bits =
-        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+    let return_type_is_bits = *element_type == Type::Bool;
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value, radix);
@@ -928,7 +927,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::u1(digit != 0) } else { Value::u8(digit) }
+        if return_type_is_bits { Value::Bool(digit != 0) } else { Value::u8(digit) }
     });
 
     let len: u32 = decomposed_integer
@@ -1417,13 +1416,11 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::u1(false),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Value::u8(0),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::u16(0),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::u32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::u64(0),
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::u128(0),
-            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::i8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::i16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::i32(0),
@@ -1435,7 +1432,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new(vec![0; length as usize]))
+                Value::String(Rc::new(vec![0u8; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -2762,10 +2759,9 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::u1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
 
-    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
-    let typ = Type::Vector(Box::new(int_type));
+    let typ = Type::Vector(Box::new(Type::Bool));
     Ok(Value::Vector(bits_vector, typ))
 }
 
@@ -2916,10 +2912,8 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
-    let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
     for generator in generators {
         let x_big: BigUint = generator.x.into();
@@ -2929,8 +2923,6 @@ fn derive_generators(
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
         embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
-        embedded_curve_point_fields
-            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

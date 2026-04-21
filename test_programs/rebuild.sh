@@ -48,7 +48,11 @@ process_dir() {
 export -f process_dir
 
 # Reactive `regression_7323` once enums are ready
-excluded_dirs=("workspace" "workspace_default_member" "regression_7323")
+excluded_dirs=(
+    "workspace"
+    "workspace_default_member"
+    "regression_7323"
+)
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 dirs_to_process=()
@@ -71,7 +75,7 @@ else
     done
 
     for dir in $current_dir/benchmarks/*; do
-        if [[ ! -d $dir ]]; then
+        if [[ ! -d $dir ]] || [[ " ${excluded_dirs[@]} " =~ " $(basename "$dir") " ]]; then
             continue
         fi
         dirs_to_process+=("$dir")

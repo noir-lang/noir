@@ -470,12 +470,10 @@ impl<'context> Elaborator<'context> {
         let expected_type = expected_type.as_ref();
 
         if &parameters[0] != expected_type {
-            return Err(InterpreterError::TypeMismatch {
-                expected: parameters[0].to_string(),
-                actual: expected_type.clone(),
-                location,
-            }
-            .into());
+            return Err(interpreter
+                .elaborator
+                .new_type_mismatch_error(&parameters[0], expected_type, location)
+                .into());
         }
 
         // Remove the initial parameter for the comptime item since that is not included
@@ -531,14 +529,14 @@ impl<'context> Elaborator<'context> {
                     param_type,
                     expr_id,
                     arg_location,
-                    interpreter.elaborator.interner,
+                    interpreter.elaborator,
                     &mut errors,
-                    || {
-                        CompilationError::InterpreterError(InterpreterError::TypeMismatch {
-                            expected: param_type.to_string(),
-                            actual: expr_type.clone(),
-                            location: arg_location,
-                        })
+                    |elaborator| {
+                        CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                            &expr_type,
+                            param_type,
+                            arg_location,
+                        ))
                     },
                 );
 

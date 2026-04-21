@@ -129,7 +129,7 @@ pub enum HirLiteral {
     Vector(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement),
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
 }
