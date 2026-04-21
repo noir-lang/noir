@@ -3388,7 +3388,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "similar 2.7.0",
+ "similar 3.0.0",
  "similar-asserts",
  "tempfile",
  "termcolor",
