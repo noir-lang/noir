@@ -5,6 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     BinaryTypeOperator, Kind, QuotedType, Type, TypeBinding, TypeBindings, TypeVariable,
+    elaborator::Elaborator,
     hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
@@ -516,9 +517,9 @@ impl Type {
         expected: &Type,
         expression: ExprId,
         location: Location,
-        interner: &mut NodeInterner,
+        elaborator: &mut Elaborator,
         errors: &mut Vec<CompilationError>,
-        make_error: impl FnOnce() -> CompilationError,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
         let mut bindings = TypeBindings::default();
 
@@ -527,11 +528,11 @@ impl Type {
             return;
         }
 
-        if self.try_array_to_vector_coercion(expected, expression, interner) {
+        if self.try_array_to_vector_coercion(expected, expression, elaborator.interner) {
             return;
         }
 
-        if self.try_string_to_ctstring_coercion(expected, expression, interner) {
+        if self.try_string_to_ctstring_coercion(expected, expression, elaborator.interner) {
             return;
         }
 
@@ -541,17 +542,17 @@ impl Type {
 
         // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
         match self.try_fn_to_unconstrained_fn_coercion(expected) {
-            FunctionCoercionResult::NoCoercion => errors.push(make_error()),
+            FunctionCoercionResult::NoCoercion => errors.push(make_error(elaborator)),
             FunctionCoercionResult::Coerced(coerced_self) => {
                 coerced_self.unify_with_coercions(
-                    expected, expression, location, interner, errors, make_error,
+                    expected, expression, location, elaborator, errors, make_error,
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
                 errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
 
                 coerced_self.unify_with_coercions(
-                    expected, expression, location, interner, errors, make_error,
+                    expected, expression, location, elaborator, errors, make_error,
                 );
             }
         }

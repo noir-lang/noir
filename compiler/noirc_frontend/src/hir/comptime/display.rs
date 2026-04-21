@@ -6,12 +6,13 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression,
+        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        WhileStatement,
     },
     hir::comptime::interpreter::builtin_helpers::fragments_to_string,
     hir_def::traits::TraitConstraint,
@@ -820,6 +821,11 @@ fn remove_interned_in_statement_kind(
         StatementKind::Assign(assign) => StatementKind::Assign(AssignStatement {
             lvalue: assign.lvalue,
             expression: remove_interned_in_expression(interner, assign.expression),
+        }),
+        StatementKind::AssignOp(assign_op) => StatementKind::AssignOp(AssignOpStatement {
+            lvalue: assign_op.lvalue,
+            op: assign_op.op,
+            expression: remove_interned_in_expression(interner, assign_op.expression),
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {

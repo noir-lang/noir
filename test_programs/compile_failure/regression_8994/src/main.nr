@@ -1,4 +1,4 @@
 fn main() -> pub bool {
-    let b: [(bool, &mut u1); 1] = [(false, &mut 0)];
+    let b: [(bool, &mut bool); 1] = [(false, &mut false)];
     b[1].0
 }

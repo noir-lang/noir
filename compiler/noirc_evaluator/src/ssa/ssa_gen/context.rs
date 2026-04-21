@@ -204,7 +204,8 @@ impl<'a> FunctionContext<'a> {
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let element_type = self.builder.current_function.dfg.type_of_value(value_to_store);
+        let element_type =
+            self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
 
         let alloc = self.builder.insert_allocate(element_type);
         self.builder.insert_store(alloc, value_to_store);
@@ -228,10 +229,13 @@ impl<'a> FunctionContext<'a> {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
-            // A mutable reference wraps each element into a reference.
+            // A reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
-            ast::Type::Reference(element, _) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
+            ast::Type::Reference(element, mutable) => {
+                let mutable = *mutable;
+                Self::map_type_helper(element, &mut |typ| {
+                    f(Type::Reference(Arc::new(typ), mutable))
+                })
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -283,10 +287,10 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Vector(_) => panic!("convert_non_tuple_type called on a vector: {typ}"),
-            ast::Type::Reference(element, _) => {
+            ast::Type::Reference(element, mutable) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Arc::new(element))
+                Type::Reference(Arc::new(element), *mutable)
             }
         }
     }
@@ -693,6 +697,25 @@ impl<'a> FunctionContext<'a> {
                 self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and store directly to it.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                {
+                    let field_ref = Self::get_field(variable, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // store directly to it instead of loading/storing all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(_) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
@@ -783,6 +806,30 @@ impl<'a> FunctionContext<'a> {
                 Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and dereference just that field.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                    && let ast::Type::Tuple(field_types) = &*ident.typ
+                {
+                    let field_ref = Self::get_field(variable, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // dereference just that field instead of all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(field_types) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();

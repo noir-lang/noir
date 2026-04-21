@@ -11,7 +11,7 @@ use crate::mutations::configuration::{
     NumericWitnessMutationConfig, SIZE_OF_SMALL_ARBITRARY_BUFFER, WitnessMutationOptions,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) fn generate_element_of_the_same_type(
     rng: &mut StdRng,

@@ -2,6 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: u1) {
-    assert(!x == 0_u1);
+fn main(x: bool) {
+    assert(x);
 }

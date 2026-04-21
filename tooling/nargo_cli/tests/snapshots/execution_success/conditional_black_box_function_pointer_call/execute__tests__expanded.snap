@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn encrypt_me(encryption_fn: fn([u8; 4]) -> [u8; 32], input: [u8; 4]) -> [u8; 32] {
+    encryption_fn(input)
+}
+
+fn another_hash(input: [u8; 4]) -> [u8; 32] {
+    let mut output: [u8; 32] = [0_u8; 32];
+    for i in 0_u32..4_u32 {
+        output[i] = input[i];
+    }
+    output
+}
+
+pub fn main(input: pub [u8; 4]) -> pub [u8; 32] {
+    let fun: fn([u8; 4]) -> [u8; 32] = if input[0_u32] == 0_u8 {
+        std::hash::blake2s
+    } else {
+        another_hash
+    };
+    let output: [u8; 32] = encrypt_me(fun, input);
+    {
+        let ___i0: [u8; 32] = output;
+        for ___i1 in 0_u32..___i0.len() {
+            let byte: u8 = ___i0[___i1];
+            {
+                assert(byte <= 255_u8);
+            }
+        }
+    };
+    output
+}
