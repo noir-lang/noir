@@ -152,10 +152,10 @@ fn simplify_current_block(
 
     while simplified {
         simplified = check_for_negated_jmpif_condition(function, block, cfg)
-            | check_for_constant_jmpif(function, block, cfg)
-            | check_for_redundant_same_target_jmpif(function, block, cfg)
-            | check_for_converging_jmpif(function, block, cfg)
-            | try_inline_successor(function, cfg, block, values_to_replace);
+            || check_for_constant_jmpif(function, block, cfg)
+            || check_for_redundant_same_target_jmpif(function, block, cfg)
+            || check_for_converging_jmpif(function, block, cfg)
+            || try_inline_successor(function, cfg, block, values_to_replace);
 
         ever_simplified |= simplified;
 
