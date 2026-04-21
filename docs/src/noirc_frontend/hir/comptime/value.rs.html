@@ -341,7 +341,7 @@
 <a href=#341 id=341 data-nosnippet>341</a>                        </span>);
 <a href=#342 id=342 data-nosnippet>342</a>                    };
 <a href=#343 id=343 data-nosnippet>343</a>                    <span class="kw">let </span>field = field.unwrap_or_clone().into_expression(elaborator, location)<span class="question-mark">?</span>;
-<a href=#344 id=344 data-nosnippet>344</a>                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+<a href=#344 id=344 data-nosnippet>344</a>                    ordered_fields.push((Ident::new(name.clone(), location), field));
 <a href=#345 id=345 data-nosnippet>345</a>                }
 <a href=#346 id=346 data-nosnippet>346</a>                <span class="macro">assert!</span>(fields.is_empty(), <span class="string">"There should be no remaining fields to add"</span>);
 <a href=#347 id=347 data-nosnippet>347</a>
@@ -536,7 +536,7 @@
 <a href=#536 id=536 data-nosnippet>536</a>                    };
 <a href=#537 id=537 data-nosnippet>537</a>                    <span class="kw">let </span>field =
 <a href=#538 id=538 data-nosnippet>538</a>                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)<span class="question-mark">?</span>;
-<a href=#539 id=539 data-nosnippet>539</a>                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+<a href=#539 id=539 data-nosnippet>539</a>                    ordered_fields.push((Ident::new(name.clone(), location), field));
 <a href=#540 id=540 data-nosnippet>540</a>                }
 <a href=#541 id=541 data-nosnippet>541</a>
 <a href=#542 id=542 data-nosnippet>542</a>                <span class="macro">assert!</span>(fields.is_empty(), <span class="string">"There should be no remaining fields to add"</span>);
