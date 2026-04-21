@@ -977,6 +977,32 @@ mod tests {
     }
 
     #[test]
+    fn errors_on_duplicate_memory_init() {
+        let initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(1u128)),
+            (Witness(2), FieldElement::from(2u128)),
+        ]));
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+
+        let src = "
+        INIT b0 = [w1, w2]
+        INIT b0 = [w1, w2]
+        ";
+        let opcodes = parse_opcodes(src).unwrap();
+
+        let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
+        let status = acvm.solve();
+        assert!(
+            matches!(
+                status,
+                ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain { .. })
+            ),
+            "expected UnsatisfiedConstrain failure, got {status:?}",
+        );
+        assert_eq!(acvm.get_status(), &status, "status field should reflect the returned failure");
+    }
+
+    #[test]
     fn errors_when_calling_function_zero() {
         let initial_witness =
             WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
