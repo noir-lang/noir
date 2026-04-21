@@ -1162,6 +1162,103 @@ mod tests {
     }
 
     #[test]
+    fn max_live_count_counts_terminator_constants() {
+        // A constant used in multiple branches whose common dominator is a block that
+        // doesn't itself use the constant is allocated at the dominator's terminator.
+        // The `InstructionLocation::Terminator` branch of compute_max_live_count was
+        // previously untested.
+        //
+        // b0 has four block params live through the jmpif. If the terminator branch
+        // contributes, `Field 100` is added to the live set at b0's terminator, pushing
+        // the peak from 5 (v0-v3 + b3's v6 allocated via dominator) to 6. Removing
+        // lines 481-486 would drop the result to 5.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field, v3: Field):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v4 = add Field 100, v1
+            jmp b3(v4)
+          b2():
+            v5 = mul Field 100, v2
+            jmp b3(v5)
+          b3(v6: Field):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 6,
+            "expected peak at b0 terminator (v0-v3 + v6 + Field 100), got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_drops_dead_variables() {
+        // A value must leave the live set once it's been consumed. Otherwise the count
+        // keeps growing across a chain of additions. With correct dead-variable removal
+        // the peak is bounded by {previous, constant, new_result} = 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "peak should be {{prev, const, new}} = 3; got {} (did dead values carry over?)",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_takes_max_across_blocks() {
+        // The per-block peak is computed independently but the final value must be the
+        // max across blocks — not the last block's value, not an average.
+        //
+        // b0 and b2 are small (≤ 2 live values each); b1 is the hot block. If the
+        // implementation collapsed `max_count` per block instead of folding, b2's
+        // peak of 1 would win and this assertion would fire.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v2 = unchecked_add v1, u32 1
+            v3 = unchecked_add v2, u32 2
+            v4 = unchecked_add v3, u32 3
+            v5 = unchecked_add v4, v1
+            jmp b2(v5)
+          b2(v6: u32):
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
+        // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
+        // (allocated at this instruction), and v3 (just produced) = 5.
+        // b0 peak = 2, b2 peak = 1.
+        assert_eq!(liveness.max_live_count, 5, "got {}", liveness.max_live_count);
+    }
+
+    #[test]
     fn make_array_peak_includes_result() {
         let src = "
         brillig(inline) fn main f0 {
