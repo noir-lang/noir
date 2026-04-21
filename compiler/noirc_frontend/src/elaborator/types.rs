@@ -19,7 +19,7 @@ use crate::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
-    elaborator::{UnstableFeature, path_resolution::PathResolution},
+    elaborator::{Turbofish, UnstableFeature, path_resolution::PathResolution},
     hir::{
         comptime::Integer,
         def_collector::dc_crate::CompilationError,
@@ -1576,20 +1576,12 @@ impl Elaborator<'_> {
                     }
                 }
 
-                let item = match path_resolution.item {
-                    PathResolutionItem::Type(type_id) => {
-                        PathResolutionItem::Method(type_id, turbofish, func_id)
-                    }
-                    PathResolutionItem::TypeAlias(type_alias_id) => {
-                        PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
-                    }
-                    PathResolutionItem::PrimitiveType(primitive_type) => {
-                        PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
-                    }
-                    _ => unreachable!("An early return should have triggered before in this case"),
-                };
-                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-                return Some(TraitPathResolution { method, item: Some(item), errors: all_errors });
+                return Some(Self::type_method_or_trait_method_func_id_resolution(
+                    path_resolution.item,
+                    turbofish,
+                    func_id,
+                    all_errors,
+                ));
             }
 
             let has_self_arg = false;
@@ -1644,20 +1636,12 @@ impl Elaborator<'_> {
                     errors.push(error);
                 }
 
-                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-                let item = match path_resolution.item {
-                    PathResolutionItem::Type(type_id) => {
-                        PathResolutionItem::Method(type_id, turbofish, func_id)
-                    }
-                    PathResolutionItem::TypeAlias(type_alias_id) => {
-                        PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
-                    }
-                    PathResolutionItem::PrimitiveType(primitive_type) => {
-                        PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
-                    }
-                    _ => unreachable!("An early return should have triggered before in this case"),
-                };
-                Some(TraitPathResolution { method, item: Some(item), errors })
+                Some(Self::type_method_or_trait_method_func_id_resolution(
+                    path_resolution.item,
+                    turbofish,
+                    func_id,
+                    errors,
+                ))
             }
             HirMethodReference::TraitItemId(HirTraitMethodReference {
                 definition,
@@ -1685,6 +1669,28 @@ impl Elaborator<'_> {
                 Some(TraitPathResolution { method, item: Some(item), errors })
             }
         }
+    }
+
+    fn type_method_or_trait_method_func_id_resolution(
+        path_resolution_item: PathResolutionItem,
+        turbofish: Option<Turbofish>,
+        func_id: FuncId,
+        errors: Vec<PathResolutionError>,
+    ) -> TraitPathResolution {
+        let item = match path_resolution_item {
+            PathResolutionItem::Type(type_id) => {
+                PathResolutionItem::Method(type_id, turbofish, func_id)
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
+            }
+            PathResolutionItem::PrimitiveType(primitive_type) => {
+                PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
+            }
+            _ => unreachable!("An early return should have triggered before in this case"),
+        };
+        let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
+        TraitPathResolution { method, item: Some(item), errors }
     }
 
     /// Try to resolve a [TypedPath] to a trait method path.
