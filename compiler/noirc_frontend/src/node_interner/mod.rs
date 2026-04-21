@@ -1107,6 +1107,16 @@ impl NodeInterner {
         self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
     }
 
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,

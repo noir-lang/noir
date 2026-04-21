@@ -736,6 +736,7 @@ fn concrete_impl_with_dual_turbofish_mismatch() {
         let x: Field = 10;
         S::<bool>::foo::<Field>(x);
                    ^^^ Could not resolve 'foo' in path
+                   ~~~ the method was found for: `S<u32>`
     }
     "#;
     check_errors(src);
@@ -835,6 +836,7 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
         let x: bool = true;
         let _result: bool = S::<bool, bool>::foo(x);
                                              ^^^ Could not resolve 'foo' in path
+                                             ~~~ the method was found for: `S<u32, B>`
     }
     "#;
     check_errors(src);
@@ -969,6 +971,7 @@ fn struct_turbofish_same_generic() {
     fn main() {
         S::<u32, u64>::foo();
                        ^^^ Could not resolve 'foo' in path
+                       ~~~ the method was found for: `S<T, T>`
     }
     "#;
     check_errors(src);

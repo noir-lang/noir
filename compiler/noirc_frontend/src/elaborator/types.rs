@@ -1575,7 +1575,16 @@ impl Elaborator<'_> {
             if trait_methods.is_empty() && self.interner.has_method_with_name(&typ, method_name) {
                 self.push_errors(errors);
                 let mut all_errors = path_resolution.errors;
-                all_errors.push(PathResolutionError::Unresolved(last_segment.ident.clone()));
+                let available_impls = self
+                    .interner
+                    .get_direct_method_impl_types(&typ, method_name)
+                    .into_iter()
+                    .map(|t| t.to_string())
+                    .collect();
+                all_errors.push(PathResolutionError::UnresolvedMethodForType {
+                    ident: last_segment.ident.clone(),
+                    available_impls,
+                });
                 return Some(TraitPathResolution {
                     method: TraitPathResolutionMethod::MultipleTraitsInScope,
                     item: None,
