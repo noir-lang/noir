@@ -61,10 +61,10 @@ impl Function {
 
         let blocks = post_order.into_vec_reverse();
 
-        // Note that `variables` and `entry_values` in variable_states are all keyed by the original
-        // ValueId of the `allocate` instruction result. These are all iterated over at some point
-        // so it is important we use a deterministic order so that block arguments always correspond
-        // to block parameters in the same order.
+        // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
+        // instruction result. These are iterated on in key order when adding block
+        // parameters and terminator arguments, so the maps must have a deterministic ordering
+        // for arguments to line up with parameters.
         let (variables, def_sites) =
             collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
@@ -140,8 +140,8 @@ fn compute_param_locations(
 ) -> ParamLocations {
     let mut result = BTreeMap::new();
     for var in variables.keys() {
-        let sites = def_sites.get(var).cloned().unwrap_or_default();
-        result.insert(*var, iterated_dominance_frontier(&sites, dom_frontiers));
+        let sites = def_sites.get(var).expect("def_sites has an entry for every eligible variable");
+        result.insert(*var, iterated_dominance_frontier(sites, dom_frontiers));
     }
     result
 }
@@ -442,12 +442,12 @@ fn collect_eligible_variables_and_def_sites(
                 Instruction::Store { address, value } => {
                     variables.remove(value);
 
-                    if variables.contains_key(address) {
+                    if let Some(decl_block) = variables.get(address) {
+                        let is_decl_block = *decl_block == block_id;
                         def_sites.entry(*address).or_default().insert(block_id);
-                    }
-
-                    if variables.get(address) == Some(&block_id) {
-                        variables_with_stores_in_decl_block.insert(*address);
+                        if is_decl_block {
+                            variables_with_stores_in_decl_block.insert(*address);
+                        }
                     }
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
@@ -502,9 +502,7 @@ fn commit(
 
         *inserter.function.dfg[block].instructions_mut() = instructions;
 
-        let mut terminator = inserter.function.dfg[block].take_terminator();
-        terminator.map_values_mut(|value| inserter.resolve(value));
-        inserter.function.dfg[block].set_terminator(terminator);
+        inserter.map_terminator_in_place(block);
     }
 }
 
