@@ -931,6 +931,7 @@ impl Elaborator<'_> {
             self.interner,
         );
 
+        let trait_constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
@@ -987,10 +988,12 @@ impl Elaborator<'_> {
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
-        // Argument unification may have made some queued trait constraints' object types
-        // concrete. Resolve them now so any associated-type variables they bind are
-        // available before the caller unifies `typ` against an outer annotation.
-        self.try_resolve_pending_trait_constraints();
+        // Argument unification may have made some constraints pushed by `type_check_variable`
+        // concrete. Resolve those now so any associated-type variables they bind are
+        // available before the caller unifies `typ` against an outer annotation. We bound
+        // the scan to constraints introduced by *this* call so per-call cost stays O(1)
+        // in the size of the surrounding function's accumulated constraint queue.
+        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
 
         (function_call, typ)
     }

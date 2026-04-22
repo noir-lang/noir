@@ -124,16 +124,22 @@ impl Elaborator<'_> {
         });
     }
 
-    /// Try to resolve any pending trait constraints in the current FunctionContext whose
-    /// object type has become concrete. Successfully resolving an impl applies its type
-    /// bindings, which can bind associated-type variables that subsequent unifications
-    /// (e.g. of a call's return type against a let-binding annotation) need to see as
-    /// already bound. Constraints remain in the queue and are re-validated at function end.
+    /// Number of trait constraints currently queued in the FunctionContext. Pair with
+    /// [Self::try_resolve_trait_constraints_since] to apply eager resolution to only
+    /// the constraints pushed after this checkpoint.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn try_resolve_pending_trait_constraints(&mut self) {
-        let constraints: Vec<_> = self
-            .get_function_context_mut()
-            .trait_constraints
+    pub(super) fn pending_trait_constraint_checkpoint(&mut self) -> usize {
+        self.get_function_context_mut().trait_constraints.len()
+    }
+
+    /// Try to resolve trait constraints pushed since `checkpoint` whose object type has
+    /// become concrete. Successfully resolving an impl applies its type bindings, which
+    /// can bind associated-type variables that subsequent unifications (e.g. of a call's
+    /// return type against a let-binding annotation) need to see as already bound.
+    /// Constraints remain in the queue and are re-validated at function end.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn try_resolve_trait_constraints_since(&mut self, checkpoint: usize) {
+        let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
             .iter()
             .filter(|local| !local.constraint.typ.follow_bindings().is_bindable())
             .map(|local| local.constraint.clone())
