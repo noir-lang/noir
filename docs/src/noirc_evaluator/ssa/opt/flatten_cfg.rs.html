@@ -2534,116 +2534,283 @@
 <a href=#2534 id=2534 data-nosnippet>2534</a>        "</span>);
 <a href=#2535 id=2535 data-nosnippet>2535</a>    }
 <a href=#2536 id=2536 data-nosnippet>2536</a>
-<a href=#2537 id=2537 data-nosnippet>2537</a>    <span class="doccomment">/// Test that merges with non-matching values are NOT collapsed.
-<a href=#2538 id=2538 data-nosnippet>2538</a>    /// Uses Field values so there are 3 distinct constants (no boolean overlap).
-<a href=#2539 id=2539 data-nosnippet>2539</a>    </span><span class="attr">#[test]
-<a href=#2540 id=2540 data-nosnippet>2540</a>    </span><span class="kw">fn </span>no_collapse_when_values_differ() {
-<a href=#2541 id=2541 data-nosnippet>2541</a>        <span class="comment">// Inner: then=30, else=20. Outer: else=10. No values match, no collapse.
-<a href=#2542 id=2542 data-nosnippet>2542</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#2543 id=2543 data-nosnippet>2543</a>            acir(inline) fn main f0 {
-<a href=#2544 id=2544 data-nosnippet>2544</a>              b0(v0: u1, v1: u1):
-<a href=#2545 id=2545 data-nosnippet>2545</a>                jmpif v0 then: b1(), else: b4(Field 10)
-<a href=#2546 id=2546 data-nosnippet>2546</a>              b1():
-<a href=#2547 id=2547 data-nosnippet>2547</a>                jmpif v1 then: b2(), else: b3(Field 20)
-<a href=#2548 id=2548 data-nosnippet>2548</a>              b2():
-<a href=#2549 id=2549 data-nosnippet>2549</a>                jmp b3(Field 30)
-<a href=#2550 id=2550 data-nosnippet>2550</a>              b3(v2: Field):
-<a href=#2551 id=2551 data-nosnippet>2551</a>                jmp b4(v2)
-<a href=#2552 id=2552 data-nosnippet>2552</a>              b4(v3: Field):
-<a href=#2553 id=2553 data-nosnippet>2553</a>                return v3
-<a href=#2554 id=2554 data-nosnippet>2554</a>            }
-<a href=#2555 id=2555 data-nosnippet>2555</a>        "</span>;
-<a href=#2556 id=2556 data-nosnippet>2556</a>
-<a href=#2557 id=2557 data-nosnippet>2557</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#2558 id=2558 data-nosnippet>2558</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
-<a href=#2559 id=2559 data-nosnippet>2559</a>        <span class="comment">// All three values differ, so both inner and outer merges are preserved
-<a href=#2560 id=2560 data-nosnippet>2560</a>        // (two mul+add pairs: one for the inner merge, one for the outer merge).
-<a href=#2561 id=2561 data-nosnippet>2561</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#2562 id=2562 data-nosnippet>2562</a>        acir(inline) fn main f0 {
-<a href=#2563 id=2563 data-nosnippet>2563</a>          b0(v0: u1, v1: u1):
-<a href=#2564 id=2564 data-nosnippet>2564</a>            enable_side_effects v0
-<a href=#2565 id=2565 data-nosnippet>2565</a>            v2 = unchecked_mul v0, v1
-<a href=#2566 id=2566 data-nosnippet>2566</a>            enable_side_effects v2
-<a href=#2567 id=2567 data-nosnippet>2567</a>            v3 = not v1
-<a href=#2568 id=2568 data-nosnippet>2568</a>            v4 = unchecked_mul v0, v3
-<a href=#2569 id=2569 data-nosnippet>2569</a>            enable_side_effects v0
-<a href=#2570 id=2570 data-nosnippet>2570</a>            v5 = cast v2 as Field
-<a href=#2571 id=2571 data-nosnippet>2571</a>            v6 = cast v4 as Field
-<a href=#2572 id=2572 data-nosnippet>2572</a>            v8 = mul v5, Field 30
-<a href=#2573 id=2573 data-nosnippet>2573</a>            v10 = mul v6, Field 20
-<a href=#2574 id=2574 data-nosnippet>2574</a>            v11 = add v8, v10
-<a href=#2575 id=2575 data-nosnippet>2575</a>            v12 = not v0
-<a href=#2576 id=2576 data-nosnippet>2576</a>            enable_side_effects u1 1
-<a href=#2577 id=2577 data-nosnippet>2577</a>            v14 = cast v0 as Field
-<a href=#2578 id=2578 data-nosnippet>2578</a>            v15 = cast v12 as Field
-<a href=#2579 id=2579 data-nosnippet>2579</a>            v16 = mul v14, v11
-<a href=#2580 id=2580 data-nosnippet>2580</a>            v18 = mul v15, Field 10
-<a href=#2581 id=2581 data-nosnippet>2581</a>            v19 = add v16, v18
-<a href=#2582 id=2582 data-nosnippet>2582</a>            return v19
-<a href=#2583 id=2583 data-nosnippet>2583</a>        }
-<a href=#2584 id=2584 data-nosnippet>2584</a>        "</span>);
-<a href=#2585 id=2585 data-nosnippet>2585</a>    }
-<a href=#2586 id=2586 data-nosnippet>2586</a>
-<a href=#2587 id=2587 data-nosnippet>2587</a>    <span class="doccomment">/// Regression test: non-collapsed merge provenance must not leak to a
-<a href=#2588 id=2588 data-nosnippet>2588</a>    /// subsequent unrelated conditional.
-<a href=#2589 id=2589 data-nosnippet>2589</a>    ///
-<a href=#2590 id=2590 data-nosnippet>2590</a>    /// Pattern:
-<a href=#2591 id=2591 data-nosnippet>2591</a>    ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
-<a href=#2592 id=2592 data-nosnippet>2592</a>    ///   2nd: `if v1 { y = R } else { y = Field 200 }`
-<a href=#2593 id=2593 data-nosnippet>2593</a>    ///
-<a href=#2594 id=2594 data-nosnippet>2594</a>    /// R has provenance {else_value = Field 200}. The second conditional also has
-<a href=#2595 id=2595 data-nosnippet>2595</a>    /// else_arg = Field 200, which would match R's provenance. If provenance
-<a href=#2596 id=2596 data-nosnippet>2596</a>    /// leaked, the second merge would incorrectly collapse to
-<a href=#2597 id=2597 data-nosnippet>2597</a>    /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
-<a href=#2598 id=2598 data-nosnippet>2598</a>    ///
-<a href=#2599 id=2599 data-nosnippet>2599</a>    /// With inputs (v0=1, v1=0) the correct result is Field 200, but the buggy
-<a href=#2600 id=2600 data-nosnippet>2600</a>    /// result would be Field 100.
-<a href=#2601 id=2601 data-nosnippet>2601</a>    </span><span class="attr">#[test]
-<a href=#2602 id=2602 data-nosnippet>2602</a>    </span><span class="kw">fn </span>non_collapsed_provenance_does_not_leak_to_subsequent_conditional() {
-<a href=#2603 id=2603 data-nosnippet>2603</a>        <span class="comment">// First conditional produces R = if_else(v0, 100, !v0, 200).
-<a href=#2604 id=2604 data-nosnippet>2604</a>        // Second conditional passes R through its then-branch so R appears
-<a href=#2605 id=2605 data-nosnippet>2605</a>        // as then_arg with its provenance still live.
-<a href=#2606 id=2606 data-nosnippet>2606</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#2607 id=2607 data-nosnippet>2607</a>            acir(inline) fn main f0 {
-<a href=#2608 id=2608 data-nosnippet>2608</a>              b0(v0: u1, v1: u1):
-<a href=#2609 id=2609 data-nosnippet>2609</a>                jmpif v0 then: b1(), else: b2(Field 200)
-<a href=#2610 id=2610 data-nosnippet>2610</a>              b1():
-<a href=#2611 id=2611 data-nosnippet>2611</a>                jmp b2(Field 100)
-<a href=#2612 id=2612 data-nosnippet>2612</a>              b2(v2: Field):
-<a href=#2613 id=2613 data-nosnippet>2613</a>                jmpif v1 then: b3(), else: b4(Field 200)
-<a href=#2614 id=2614 data-nosnippet>2614</a>              b3():
-<a href=#2615 id=2615 data-nosnippet>2615</a>                jmp b4(v2)
-<a href=#2616 id=2616 data-nosnippet>2616</a>              b4(v3: Field):
-<a href=#2617 id=2617 data-nosnippet>2617</a>                return v3
-<a href=#2618 id=2618 data-nosnippet>2618</a>            }
-<a href=#2619 id=2619 data-nosnippet>2619</a>        "</span>;
-<a href=#2620 id=2620 data-nosnippet>2620</a>
-<a href=#2621 id=2621 data-nosnippet>2621</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#2622 id=2622 data-nosnippet>2622</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
-<a href=#2623 id=2623 data-nosnippet>2623</a>        <span class="comment">// The second merge (lines v12–v16) must use v1 as its condition,
-<a href=#2624 id=2624 data-nosnippet>2624</a>        // producing v1*v10 + !v1*200. If provenance leaked from the first
-<a href=#2625 id=2625 data-nosnippet>2625</a>        // conditional, it would incorrectly collapse to v0*100 + !v0*200.
-<a href=#2626 id=2626 data-nosnippet>2626</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#2627 id=2627 data-nosnippet>2627</a>        acir(inline) fn main f0 {
-<a href=#2628 id=2628 data-nosnippet>2628</a>          b0(v0: u1, v1: u1):
-<a href=#2629 id=2629 data-nosnippet>2629</a>            enable_side_effects v0
-<a href=#2630 id=2630 data-nosnippet>2630</a>            v2 = not v0
-<a href=#2631 id=2631 data-nosnippet>2631</a>            enable_side_effects u1 1
-<a href=#2632 id=2632 data-nosnippet>2632</a>            v4 = cast v0 as Field
-<a href=#2633 id=2633 data-nosnippet>2633</a>            v5 = cast v2 as Field
-<a href=#2634 id=2634 data-nosnippet>2634</a>            v7 = mul v4, Field 100
-<a href=#2635 id=2635 data-nosnippet>2635</a>            v9 = mul v5, Field 200
-<a href=#2636 id=2636 data-nosnippet>2636</a>            v10 = add v7, v9
-<a href=#2637 id=2637 data-nosnippet>2637</a>            enable_side_effects v1
-<a href=#2638 id=2638 data-nosnippet>2638</a>            v11 = not v1
-<a href=#2639 id=2639 data-nosnippet>2639</a>            enable_side_effects u1 1
-<a href=#2640 id=2640 data-nosnippet>2640</a>            v12 = cast v1 as Field
-<a href=#2641 id=2641 data-nosnippet>2641</a>            v13 = cast v11 as Field
-<a href=#2642 id=2642 data-nosnippet>2642</a>            v14 = mul v12, v10
-<a href=#2643 id=2643 data-nosnippet>2643</a>            v15 = mul v13, Field 200
-<a href=#2644 id=2644 data-nosnippet>2644</a>            v16 = add v14, v15
-<a href=#2645 id=2645 data-nosnippet>2645</a>            return v16
-<a href=#2646 id=2646 data-nosnippet>2646</a>        }
-<a href=#2647 id=2647 data-nosnippet>2647</a>        "</span>);
-<a href=#2648 id=2648 data-nosnippet>2648</a>    }
-<a href=#2649 id=2649 data-nosnippet>2649</a>}</code></pre></div></section></main></body></html>
+<a href=#2537 id=2537 data-nosnippet>2537</a>    <span class="doccomment">/// Group 2, inner merge as outer `then_arg`:
+<a href=#2538 id=2538 data-nosnippet>2538</a>    /// `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`.
+<a href=#2539 id=2539 data-nosnippet>2539</a>    ///
+<a href=#2540 id=2540 data-nosnippet>2540</a>    /// Pins the second return of `try_collapse_merge` (the `prov_then == else_arg`
+<a href=#2541 id=2541 data-nosnippet>2541</a>    /// arm in the `then_arg` provenance block). Without that arm firing, the outer
+<a href=#2542 id=2542 data-nosnippet>2542</a>    /// merge would emit a second cast+mul+add; with it firing, only the inner
+<a href=#2543 id=2543 data-nosnippet>2543</a>    /// mul+add pair remains.
+<a href=#2544 id=2544 data-nosnippet>2544</a>    </span><span class="attr">#[test]
+<a href=#2545 id=2545 data-nosnippet>2545</a>    </span><span class="kw">fn </span>collapse_nested_merge_shared_then_value_inner_as_then() {
+<a href=#2546 id=2546 data-nosnippet>2546</a>        <span class="comment">// Outer: if v0 { inner_result } else { 100 }
+<a href=#2547 id=2547 data-nosnippet>2547</a>        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer else-value
+<a href=#2548 id=2548 data-nosnippet>2548</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#2549 id=2549 data-nosnippet>2549</a>            acir(inline) fn main f0 {
+<a href=#2550 id=2550 data-nosnippet>2550</a>              b0(v0: u1, v1: u1):
+<a href=#2551 id=2551 data-nosnippet>2551</a>                jmpif v0 then: b1(), else: b4(Field 100)
+<a href=#2552 id=2552 data-nosnippet>2552</a>              b1():
+<a href=#2553 id=2553 data-nosnippet>2553</a>                jmpif v1 then: b2(), else: b3(Field 200)
+<a href=#2554 id=2554 data-nosnippet>2554</a>              b2():
+<a href=#2555 id=2555 data-nosnippet>2555</a>                jmp b3(Field 100)
+<a href=#2556 id=2556 data-nosnippet>2556</a>              b3(v2: Field):
+<a href=#2557 id=2557 data-nosnippet>2557</a>                jmp b4(v2)
+<a href=#2558 id=2558 data-nosnippet>2558</a>              b4(v3: Field):
+<a href=#2559 id=2559 data-nosnippet>2559</a>                return v3
+<a href=#2560 id=2560 data-nosnippet>2560</a>            }
+<a href=#2561 id=2561 data-nosnippet>2561</a>        "</span>;
+<a href=#2562 id=2562 data-nosnippet>2562</a>
+<a href=#2563 id=2563 data-nosnippet>2563</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2564 id=2564 data-nosnippet>2564</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
+<a href=#2565 id=2565 data-nosnippet>2565</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#2566 id=2566 data-nosnippet>2566</a>        acir(inline) fn main f0 {
+<a href=#2567 id=2567 data-nosnippet>2567</a>          b0(v0: u1, v1: u1):
+<a href=#2568 id=2568 data-nosnippet>2568</a>            enable_side_effects v0
+<a href=#2569 id=2569 data-nosnippet>2569</a>            v2 = unchecked_mul v0, v1
+<a href=#2570 id=2570 data-nosnippet>2570</a>            enable_side_effects v2
+<a href=#2571 id=2571 data-nosnippet>2571</a>            v3 = not v1
+<a href=#2572 id=2572 data-nosnippet>2572</a>            v4 = unchecked_mul v0, v3
+<a href=#2573 id=2573 data-nosnippet>2573</a>            enable_side_effects v0
+<a href=#2574 id=2574 data-nosnippet>2574</a>            v5 = cast v2 as Field
+<a href=#2575 id=2575 data-nosnippet>2575</a>            v6 = cast v4 as Field
+<a href=#2576 id=2576 data-nosnippet>2576</a>            v8 = mul v5, Field 100
+<a href=#2577 id=2577 data-nosnippet>2577</a>            v10 = mul v6, Field 200
+<a href=#2578 id=2578 data-nosnippet>2578</a>            v11 = add v8, v10
+<a href=#2579 id=2579 data-nosnippet>2579</a>            v12 = not v0
+<a href=#2580 id=2580 data-nosnippet>2580</a>            enable_side_effects u1 1
+<a href=#2581 id=2581 data-nosnippet>2581</a>            v14 = not v4
+<a href=#2582 id=2582 data-nosnippet>2582</a>            v15 = cast v4 as Field
+<a href=#2583 id=2583 data-nosnippet>2583</a>            v16 = cast v14 as Field
+<a href=#2584 id=2584 data-nosnippet>2584</a>            v17 = mul v15, Field 200
+<a href=#2585 id=2585 data-nosnippet>2585</a>            v18 = mul v16, Field 100
+<a href=#2586 id=2586 data-nosnippet>2586</a>            v19 = add v17, v18
+<a href=#2587 id=2587 data-nosnippet>2587</a>            return v19
+<a href=#2588 id=2588 data-nosnippet>2588</a>        }
+<a href=#2589 id=2589 data-nosnippet>2589</a>        "</span>);
+<a href=#2590 id=2590 data-nosnippet>2590</a>    }
+<a href=#2591 id=2591 data-nosnippet>2591</a>
+<a href=#2592 id=2592 data-nosnippet>2592</a>    <span class="doccomment">/// Group 1, inner merge as outer `else_arg`:
+<a href=#2593 id=2593 data-nosnippet>2593</a>    /// `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`.
+<a href=#2594 id=2594 data-nosnippet>2594</a>    ///
+<a href=#2595 id=2595 data-nosnippet>2595</a>    /// Pins the third return of `try_collapse_merge` (the `prov_else == then_arg`
+<a href=#2596 id=2596 data-nosnippet>2596</a>    /// arm in the `else_arg` provenance block).
+<a href=#2597 id=2597 data-nosnippet>2597</a>    </span><span class="attr">#[test]
+<a href=#2598 id=2598 data-nosnippet>2598</a>    </span><span class="kw">fn </span>collapse_nested_merge_shared_else_value_inner_as_else() {
+<a href=#2599 id=2599 data-nosnippet>2599</a>        <span class="comment">// Outer: if v0 { 100 } else { inner_result }
+<a href=#2600 id=2600 data-nosnippet>2600</a>        // Inner: if v1 { 200 } else { 100 }       // inner else-value == outer then-value
+<a href=#2601 id=2601 data-nosnippet>2601</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#2602 id=2602 data-nosnippet>2602</a>            acir(inline) fn main f0 {
+<a href=#2603 id=2603 data-nosnippet>2603</a>              b0(v0: u1, v1: u1):
+<a href=#2604 id=2604 data-nosnippet>2604</a>                jmpif v0 then: b1(), else: b2()
+<a href=#2605 id=2605 data-nosnippet>2605</a>              b1():
+<a href=#2606 id=2606 data-nosnippet>2606</a>                jmp b5(Field 100)
+<a href=#2607 id=2607 data-nosnippet>2607</a>              b2():
+<a href=#2608 id=2608 data-nosnippet>2608</a>                jmpif v1 then: b3(), else: b4(Field 100)
+<a href=#2609 id=2609 data-nosnippet>2609</a>              b3():
+<a href=#2610 id=2610 data-nosnippet>2610</a>                jmp b4(Field 200)
+<a href=#2611 id=2611 data-nosnippet>2611</a>              b4(v2: Field):
+<a href=#2612 id=2612 data-nosnippet>2612</a>                jmp b5(v2)
+<a href=#2613 id=2613 data-nosnippet>2613</a>              b5(v3: Field):
+<a href=#2614 id=2614 data-nosnippet>2614</a>                return v3
+<a href=#2615 id=2615 data-nosnippet>2615</a>            }
+<a href=#2616 id=2616 data-nosnippet>2616</a>        "</span>;
+<a href=#2617 id=2617 data-nosnippet>2617</a>
+<a href=#2618 id=2618 data-nosnippet>2618</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2619 id=2619 data-nosnippet>2619</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
+<a href=#2620 id=2620 data-nosnippet>2620</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#2621 id=2621 data-nosnippet>2621</a>        acir(inline) fn main f0 {
+<a href=#2622 id=2622 data-nosnippet>2622</a>          b0(v0: u1, v1: u1):
+<a href=#2623 id=2623 data-nosnippet>2623</a>            enable_side_effects v0
+<a href=#2624 id=2624 data-nosnippet>2624</a>            v2 = not v0
+<a href=#2625 id=2625 data-nosnippet>2625</a>            enable_side_effects v2
+<a href=#2626 id=2626 data-nosnippet>2626</a>            v3 = unchecked_mul v2, v1
+<a href=#2627 id=2627 data-nosnippet>2627</a>            enable_side_effects v3
+<a href=#2628 id=2628 data-nosnippet>2628</a>            v4 = not v1
+<a href=#2629 id=2629 data-nosnippet>2629</a>            v5 = unchecked_mul v2, v4
+<a href=#2630 id=2630 data-nosnippet>2630</a>            enable_side_effects v2
+<a href=#2631 id=2631 data-nosnippet>2631</a>            v6 = cast v3 as Field
+<a href=#2632 id=2632 data-nosnippet>2632</a>            v7 = cast v5 as Field
+<a href=#2633 id=2633 data-nosnippet>2633</a>            v9 = mul v6, Field 200
+<a href=#2634 id=2634 data-nosnippet>2634</a>            v11 = mul v7, Field 100
+<a href=#2635 id=2635 data-nosnippet>2635</a>            v12 = add v9, v11
+<a href=#2636 id=2636 data-nosnippet>2636</a>            enable_side_effects u1 1
+<a href=#2637 id=2637 data-nosnippet>2637</a>            v14 = not v3
+<a href=#2638 id=2638 data-nosnippet>2638</a>            v15 = cast v3 as Field
+<a href=#2639 id=2639 data-nosnippet>2639</a>            v16 = cast v14 as Field
+<a href=#2640 id=2640 data-nosnippet>2640</a>            v17 = mul v15, Field 200
+<a href=#2641 id=2641 data-nosnippet>2641</a>            v18 = mul v16, Field 100
+<a href=#2642 id=2642 data-nosnippet>2642</a>            v19 = add v17, v18
+<a href=#2643 id=2643 data-nosnippet>2643</a>            return v19
+<a href=#2644 id=2644 data-nosnippet>2644</a>        }
+<a href=#2645 id=2645 data-nosnippet>2645</a>        "</span>);
+<a href=#2646 id=2646 data-nosnippet>2646</a>    }
+<a href=#2647 id=2647 data-nosnippet>2647</a>
+<a href=#2648 id=2648 data-nosnippet>2648</a>    <span class="doccomment">/// Group 2, inner merge as outer `else_arg`:
+<a href=#2649 id=2649 data-nosnippet>2649</a>    /// `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`.
+<a href=#2650 id=2650 data-nosnippet>2650</a>    ///
+<a href=#2651 id=2651 data-nosnippet>2651</a>    /// Pins the fourth return of `try_collapse_merge` (the `prov_then == then_arg`
+<a href=#2652 id=2652 data-nosnippet>2652</a>    /// arm in the `else_arg` provenance block).
+<a href=#2653 id=2653 data-nosnippet>2653</a>    </span><span class="attr">#[test]
+<a href=#2654 id=2654 data-nosnippet>2654</a>    </span><span class="kw">fn </span>collapse_nested_merge_shared_then_value_inner_as_else() {
+<a href=#2655 id=2655 data-nosnippet>2655</a>        <span class="comment">// Outer: if v0 { 100 } else { inner_result }
+<a href=#2656 id=2656 data-nosnippet>2656</a>        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer then-value
+<a href=#2657 id=2657 data-nosnippet>2657</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#2658 id=2658 data-nosnippet>2658</a>            acir(inline) fn main f0 {
+<a href=#2659 id=2659 data-nosnippet>2659</a>              b0(v0: u1, v1: u1):
+<a href=#2660 id=2660 data-nosnippet>2660</a>                jmpif v0 then: b1(), else: b2()
+<a href=#2661 id=2661 data-nosnippet>2661</a>              b1():
+<a href=#2662 id=2662 data-nosnippet>2662</a>                jmp b5(Field 100)
+<a href=#2663 id=2663 data-nosnippet>2663</a>              b2():
+<a href=#2664 id=2664 data-nosnippet>2664</a>                jmpif v1 then: b3(), else: b4(Field 200)
+<a href=#2665 id=2665 data-nosnippet>2665</a>              b3():
+<a href=#2666 id=2666 data-nosnippet>2666</a>                jmp b4(Field 100)
+<a href=#2667 id=2667 data-nosnippet>2667</a>              b4(v2: Field):
+<a href=#2668 id=2668 data-nosnippet>2668</a>                jmp b5(v2)
+<a href=#2669 id=2669 data-nosnippet>2669</a>              b5(v3: Field):
+<a href=#2670 id=2670 data-nosnippet>2670</a>                return v3
+<a href=#2671 id=2671 data-nosnippet>2671</a>            }
+<a href=#2672 id=2672 data-nosnippet>2672</a>        "</span>;
+<a href=#2673 id=2673 data-nosnippet>2673</a>
+<a href=#2674 id=2674 data-nosnippet>2674</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2675 id=2675 data-nosnippet>2675</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
+<a href=#2676 id=2676 data-nosnippet>2676</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#2677 id=2677 data-nosnippet>2677</a>        acir(inline) fn main f0 {
+<a href=#2678 id=2678 data-nosnippet>2678</a>          b0(v0: u1, v1: u1):
+<a href=#2679 id=2679 data-nosnippet>2679</a>            enable_side_effects v0
+<a href=#2680 id=2680 data-nosnippet>2680</a>            v2 = not v0
+<a href=#2681 id=2681 data-nosnippet>2681</a>            enable_side_effects v2
+<a href=#2682 id=2682 data-nosnippet>2682</a>            v3 = unchecked_mul v2, v1
+<a href=#2683 id=2683 data-nosnippet>2683</a>            enable_side_effects v3
+<a href=#2684 id=2684 data-nosnippet>2684</a>            v4 = not v1
+<a href=#2685 id=2685 data-nosnippet>2685</a>            v5 = unchecked_mul v2, v4
+<a href=#2686 id=2686 data-nosnippet>2686</a>            enable_side_effects v2
+<a href=#2687 id=2687 data-nosnippet>2687</a>            v6 = cast v3 as Field
+<a href=#2688 id=2688 data-nosnippet>2688</a>            v7 = cast v5 as Field
+<a href=#2689 id=2689 data-nosnippet>2689</a>            v9 = mul v6, Field 100
+<a href=#2690 id=2690 data-nosnippet>2690</a>            v11 = mul v7, Field 200
+<a href=#2691 id=2691 data-nosnippet>2691</a>            v12 = add v9, v11
+<a href=#2692 id=2692 data-nosnippet>2692</a>            enable_side_effects u1 1
+<a href=#2693 id=2693 data-nosnippet>2693</a>            v14 = not v5
+<a href=#2694 id=2694 data-nosnippet>2694</a>            v15 = cast v5 as Field
+<a href=#2695 id=2695 data-nosnippet>2695</a>            v16 = cast v14 as Field
+<a href=#2696 id=2696 data-nosnippet>2696</a>            v17 = mul v15, Field 200
+<a href=#2697 id=2697 data-nosnippet>2697</a>            v18 = mul v16, Field 100
+<a href=#2698 id=2698 data-nosnippet>2698</a>            v19 = add v17, v18
+<a href=#2699 id=2699 data-nosnippet>2699</a>            return v19
+<a href=#2700 id=2700 data-nosnippet>2700</a>        }
+<a href=#2701 id=2701 data-nosnippet>2701</a>        "</span>);
+<a href=#2702 id=2702 data-nosnippet>2702</a>    }
+<a href=#2703 id=2703 data-nosnippet>2703</a>
+<a href=#2704 id=2704 data-nosnippet>2704</a>    <span class="doccomment">/// Test that merges with non-matching values are NOT collapsed.
+<a href=#2705 id=2705 data-nosnippet>2705</a>    /// Uses Field values so there are 3 distinct constants (no boolean overlap).
+<a href=#2706 id=2706 data-nosnippet>2706</a>    </span><span class="attr">#[test]
+<a href=#2707 id=2707 data-nosnippet>2707</a>    </span><span class="kw">fn </span>no_collapse_when_values_differ() {
+<a href=#2708 id=2708 data-nosnippet>2708</a>        <span class="comment">// Inner: then=30, else=20. Outer: else=10. No values match, no collapse.
+<a href=#2709 id=2709 data-nosnippet>2709</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#2710 id=2710 data-nosnippet>2710</a>            acir(inline) fn main f0 {
+<a href=#2711 id=2711 data-nosnippet>2711</a>              b0(v0: u1, v1: u1):
+<a href=#2712 id=2712 data-nosnippet>2712</a>                jmpif v0 then: b1(), else: b4(Field 10)
+<a href=#2713 id=2713 data-nosnippet>2713</a>              b1():
+<a href=#2714 id=2714 data-nosnippet>2714</a>                jmpif v1 then: b2(), else: b3(Field 20)
+<a href=#2715 id=2715 data-nosnippet>2715</a>              b2():
+<a href=#2716 id=2716 data-nosnippet>2716</a>                jmp b3(Field 30)
+<a href=#2717 id=2717 data-nosnippet>2717</a>              b3(v2: Field):
+<a href=#2718 id=2718 data-nosnippet>2718</a>                jmp b4(v2)
+<a href=#2719 id=2719 data-nosnippet>2719</a>              b4(v3: Field):
+<a href=#2720 id=2720 data-nosnippet>2720</a>                return v3
+<a href=#2721 id=2721 data-nosnippet>2721</a>            }
+<a href=#2722 id=2722 data-nosnippet>2722</a>        "</span>;
+<a href=#2723 id=2723 data-nosnippet>2723</a>
+<a href=#2724 id=2724 data-nosnippet>2724</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2725 id=2725 data-nosnippet>2725</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
+<a href=#2726 id=2726 data-nosnippet>2726</a>        <span class="comment">// All three values differ, so both inner and outer merges are preserved
+<a href=#2727 id=2727 data-nosnippet>2727</a>        // (two mul+add pairs: one for the inner merge, one for the outer merge).
+<a href=#2728 id=2728 data-nosnippet>2728</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#2729 id=2729 data-nosnippet>2729</a>        acir(inline) fn main f0 {
+<a href=#2730 id=2730 data-nosnippet>2730</a>          b0(v0: u1, v1: u1):
+<a href=#2731 id=2731 data-nosnippet>2731</a>            enable_side_effects v0
+<a href=#2732 id=2732 data-nosnippet>2732</a>            v2 = unchecked_mul v0, v1
+<a href=#2733 id=2733 data-nosnippet>2733</a>            enable_side_effects v2
+<a href=#2734 id=2734 data-nosnippet>2734</a>            v3 = not v1
+<a href=#2735 id=2735 data-nosnippet>2735</a>            v4 = unchecked_mul v0, v3
+<a href=#2736 id=2736 data-nosnippet>2736</a>            enable_side_effects v0
+<a href=#2737 id=2737 data-nosnippet>2737</a>            v5 = cast v2 as Field
+<a href=#2738 id=2738 data-nosnippet>2738</a>            v6 = cast v4 as Field
+<a href=#2739 id=2739 data-nosnippet>2739</a>            v8 = mul v5, Field 30
+<a href=#2740 id=2740 data-nosnippet>2740</a>            v10 = mul v6, Field 20
+<a href=#2741 id=2741 data-nosnippet>2741</a>            v11 = add v8, v10
+<a href=#2742 id=2742 data-nosnippet>2742</a>            v12 = not v0
+<a href=#2743 id=2743 data-nosnippet>2743</a>            enable_side_effects u1 1
+<a href=#2744 id=2744 data-nosnippet>2744</a>            v14 = cast v0 as Field
+<a href=#2745 id=2745 data-nosnippet>2745</a>            v15 = cast v12 as Field
+<a href=#2746 id=2746 data-nosnippet>2746</a>            v16 = mul v14, v11
+<a href=#2747 id=2747 data-nosnippet>2747</a>            v18 = mul v15, Field 10
+<a href=#2748 id=2748 data-nosnippet>2748</a>            v19 = add v16, v18
+<a href=#2749 id=2749 data-nosnippet>2749</a>            return v19
+<a href=#2750 id=2750 data-nosnippet>2750</a>        }
+<a href=#2751 id=2751 data-nosnippet>2751</a>        "</span>);
+<a href=#2752 id=2752 data-nosnippet>2752</a>    }
+<a href=#2753 id=2753 data-nosnippet>2753</a>
+<a href=#2754 id=2754 data-nosnippet>2754</a>    <span class="doccomment">/// Regression test: non-collapsed merge provenance must not leak to a
+<a href=#2755 id=2755 data-nosnippet>2755</a>    /// subsequent unrelated conditional.
+<a href=#2756 id=2756 data-nosnippet>2756</a>    ///
+<a href=#2757 id=2757 data-nosnippet>2757</a>    /// Pattern:
+<a href=#2758 id=2758 data-nosnippet>2758</a>    ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
+<a href=#2759 id=2759 data-nosnippet>2759</a>    ///   2nd: `if v1 { y = R } else { y = Field 200 }`
+<a href=#2760 id=2760 data-nosnippet>2760</a>    ///
+<a href=#2761 id=2761 data-nosnippet>2761</a>    /// R has provenance {else_value = Field 200}. The second conditional also has
+<a href=#2762 id=2762 data-nosnippet>2762</a>    /// else_arg = Field 200, which would match R's provenance. If provenance
+<a href=#2763 id=2763 data-nosnippet>2763</a>    /// leaked, the second merge would incorrectly collapse to
+<a href=#2764 id=2764 data-nosnippet>2764</a>    /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
+<a href=#2765 id=2765 data-nosnippet>2765</a>    ///
+<a href=#2766 id=2766 data-nosnippet>2766</a>    /// With inputs (v0=1, v1=0) the correct result is Field 200, but the buggy
+<a href=#2767 id=2767 data-nosnippet>2767</a>    /// result would be Field 100.
+<a href=#2768 id=2768 data-nosnippet>2768</a>    </span><span class="attr">#[test]
+<a href=#2769 id=2769 data-nosnippet>2769</a>    </span><span class="kw">fn </span>non_collapsed_provenance_does_not_leak_to_subsequent_conditional() {
+<a href=#2770 id=2770 data-nosnippet>2770</a>        <span class="comment">// First conditional produces R = if_else(v0, 100, !v0, 200).
+<a href=#2771 id=2771 data-nosnippet>2771</a>        // Second conditional passes R through its then-branch so R appears
+<a href=#2772 id=2772 data-nosnippet>2772</a>        // as then_arg with its provenance still live.
+<a href=#2773 id=2773 data-nosnippet>2773</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#2774 id=2774 data-nosnippet>2774</a>            acir(inline) fn main f0 {
+<a href=#2775 id=2775 data-nosnippet>2775</a>              b0(v0: u1, v1: u1):
+<a href=#2776 id=2776 data-nosnippet>2776</a>                jmpif v0 then: b1(), else: b2(Field 200)
+<a href=#2777 id=2777 data-nosnippet>2777</a>              b1():
+<a href=#2778 id=2778 data-nosnippet>2778</a>                jmp b2(Field 100)
+<a href=#2779 id=2779 data-nosnippet>2779</a>              b2(v2: Field):
+<a href=#2780 id=2780 data-nosnippet>2780</a>                jmpif v1 then: b3(), else: b4(Field 200)
+<a href=#2781 id=2781 data-nosnippet>2781</a>              b3():
+<a href=#2782 id=2782 data-nosnippet>2782</a>                jmp b4(v2)
+<a href=#2783 id=2783 data-nosnippet>2783</a>              b4(v3: Field):
+<a href=#2784 id=2784 data-nosnippet>2784</a>                return v3
+<a href=#2785 id=2785 data-nosnippet>2785</a>            }
+<a href=#2786 id=2786 data-nosnippet>2786</a>        "</span>;
+<a href=#2787 id=2787 data-nosnippet>2787</a>
+<a href=#2788 id=2788 data-nosnippet>2788</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2789 id=2789 data-nosnippet>2789</a>        <span class="kw">let </span>ssa = ssa.flatten_cfg();
+<a href=#2790 id=2790 data-nosnippet>2790</a>        <span class="comment">// The second merge (lines v12–v16) must use v1 as its condition,
+<a href=#2791 id=2791 data-nosnippet>2791</a>        // producing v1*v10 + !v1*200. If provenance leaked from the first
+<a href=#2792 id=2792 data-nosnippet>2792</a>        // conditional, it would incorrectly collapse to v0*100 + !v0*200.
+<a href=#2793 id=2793 data-nosnippet>2793</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#2794 id=2794 data-nosnippet>2794</a>        acir(inline) fn main f0 {
+<a href=#2795 id=2795 data-nosnippet>2795</a>          b0(v0: u1, v1: u1):
+<a href=#2796 id=2796 data-nosnippet>2796</a>            enable_side_effects v0
+<a href=#2797 id=2797 data-nosnippet>2797</a>            v2 = not v0
+<a href=#2798 id=2798 data-nosnippet>2798</a>            enable_side_effects u1 1
+<a href=#2799 id=2799 data-nosnippet>2799</a>            v4 = cast v0 as Field
+<a href=#2800 id=2800 data-nosnippet>2800</a>            v5 = cast v2 as Field
+<a href=#2801 id=2801 data-nosnippet>2801</a>            v7 = mul v4, Field 100
+<a href=#2802 id=2802 data-nosnippet>2802</a>            v9 = mul v5, Field 200
+<a href=#2803 id=2803 data-nosnippet>2803</a>            v10 = add v7, v9
+<a href=#2804 id=2804 data-nosnippet>2804</a>            enable_side_effects v1
+<a href=#2805 id=2805 data-nosnippet>2805</a>            v11 = not v1
+<a href=#2806 id=2806 data-nosnippet>2806</a>            enable_side_effects u1 1
+<a href=#2807 id=2807 data-nosnippet>2807</a>            v12 = cast v1 as Field
+<a href=#2808 id=2808 data-nosnippet>2808</a>            v13 = cast v11 as Field
+<a href=#2809 id=2809 data-nosnippet>2809</a>            v14 = mul v12, v10
+<a href=#2810 id=2810 data-nosnippet>2810</a>            v15 = mul v13, Field 200
+<a href=#2811 id=2811 data-nosnippet>2811</a>            v16 = add v14, v15
+<a href=#2812 id=2812 data-nosnippet>2812</a>            return v16
+<a href=#2813 id=2813 data-nosnippet>2813</a>        }
+<a href=#2814 id=2814 data-nosnippet>2814</a>        "</span>);
+<a href=#2815 id=2815 data-nosnippet>2815</a>    }
+<a href=#2816 id=2816 data-nosnippet>2816</a>}</code></pre></div></section></main></body></html>
