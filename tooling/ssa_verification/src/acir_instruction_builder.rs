@@ -7,22 +7,12 @@ use acvm::{
 };
 use std::collections::BTreeSet;
 
+use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{
-    SsaEvaluatorOptions,
-    ir::map::Id,
-    opt::{
-        DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
-        FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS,
-    },
-    optimize_ssa_builder_into_acir, primary_passes,
+    SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-use noirc_evaluator::ssa::{
-    opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
-    ssa_gen::Ssa,
-};
 
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
     SsaBuilder,
     function_builder::FunctionBuilder,
@@ -250,24 +240,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         print_codegen_timings,
         files,
     );
-    let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: SsaLogging::None,
-        print_codegen_timings: false,
-        emit_ssa: { None },
-        skip_underconstrained_check: true,
-        skip_brillig_constraints_check: true,
-        inliner_aggressiveness: 0,
-        constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-        max_bytecode_increase_percent: None,
-        max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-        force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-        specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
-        max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-        brillig_options: BrilligOptions::default(),
-        skip_passes: vec![],
-        ssa_logging_hide_unchanged: false,
-    };
+    let ssa_evaluator_options = SsaEvaluatorOptions::default();
     let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
         builder,
         &ssa_evaluator_options,

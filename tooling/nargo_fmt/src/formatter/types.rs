@@ -170,6 +170,10 @@ impl Formatter<'_> {
         self.write_token(Token::Greater);
         self.write_token(Token::DoubleColon);
         self.write_identifier(as_trait_path.impl_item);
+        if let Some(turbofish) = as_trait_path.turbofish {
+            self.write_token(Token::DoubleColon);
+            self.format_generic_type_args(turbofish);
+        }
     }
 }
 

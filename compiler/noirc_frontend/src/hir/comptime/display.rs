@@ -727,6 +727,9 @@ fn remove_interned_in_expression_kind(
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
             path.trait_generics =
                 remove_interned_in_generic_type_args(interner, path.trait_generics);
+            path.turbofish = path
+                .turbofish
+                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
             ExpressionKind::AsTraitPath(path)
         }
         ExpressionKind::TypePath(mut path) => {
@@ -957,6 +960,9 @@ fn remove_interned_in_unresolved_type_data(
                     interner,
                     as_trait_path.trait_generics,
                 ),
+                turbofish: as_trait_path
+                    .turbofish
+                    .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish)),
                 ..*as_trait_path
             }))
         }

@@ -1621,6 +1621,16 @@ global y = 1;
     }
 
     #[test]
+    fn format_as_trait_path_with_turbofish() {
+        let src = "fn main ( ) { < i32 as foo > :: bar :: < Field > ( ) ; }";
+        let expected = "fn main() {
+    <i32 as foo>::bar::<Field>();
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_index() {
         let src = "global x = foo [ bar ] ;";
         let expected = "global x = foo[bar];\n";

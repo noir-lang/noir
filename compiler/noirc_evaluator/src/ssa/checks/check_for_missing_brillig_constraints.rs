@@ -62,7 +62,7 @@ use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 ///
 /// The higher this value the longer it will take to check them all,
 /// which can slow down the compilation of larger rollup circuits.
-const MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
+pub const DEFAULT_MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
 
 /// Limit how far back the BFS traverses to try to find a relation between
 /// the ancestors of constrained values and Brillig inputs/outputs.
@@ -71,13 +71,17 @@ const MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
 /// such as `rollup-checkpoint-root` and `rollup-checkpoint-root-single-block`,
 /// which have hundreds of thousands of constraints that we need to check,
 /// even though they are only checked against a few dozen of Brillig outputs.
-const MAX_ANCESTOR_DISTANCE: u32 = 10;
+pub const DEFAULT_MAX_ANCESTOR_DISTANCE: u32 = 10;
 
 impl Ssa {
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn check_for_missing_brillig_constraints(&mut self) -> Vec<SsaReport> {
+    pub(crate) fn check_for_missing_brillig_constraints(
+        &mut self,
+        max_array_output_length: u32,
+        max_ancestor_distance: u32,
+    ) -> Vec<SsaReport> {
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
@@ -88,7 +92,7 @@ impl Ssa {
             .filter(|func| func.runtime().is_acir() && has_call_to_brillig(func, &self.functions))
             .par_bridge()
             .flat_map(|func| {
-                Context::new(func)
+                Context::new(func, max_array_output_length, max_ancestor_distance)
                     .build_tainted(func, &self.functions)
                     .build_parent_graph(func)
                     .constrain_tainted(func, &self.functions)
@@ -157,7 +161,12 @@ impl TaintedDescendants {
     ///
     /// Populates `single_outputs` and `array_outputs` according to the result types.
     /// Leaves `arg_ancestors` to be populated later.
-    fn new(func: &Function, arguments: Vec<ValueId>, result_ids: &[ValueId]) -> Self {
+    fn new(
+        func: &Function,
+        arguments: Vec<ValueId>,
+        result_ids: &[ValueId],
+        max_array_output_length: u32,
+    ) -> Self {
         let mut single_outputs = HashSet::new();
         let mut array_outputs = HashMap::new();
         for result_id in result_ids {
@@ -165,7 +174,7 @@ impl TaintedDescendants {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) if length.0 > 0 && length.0 <= MAX_ARRAY_OUTPUT_LENGTH => {
+                Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
                     let mut index_outputs = HashMap::new();
                     for i in 0..length.0 {
                         index_outputs.insert(i, HashSet::new());
@@ -216,6 +225,7 @@ impl TaintedDescendants {
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
         all_constrained: &mut ValueSet,
+        max_ancestor_distance: u32,
     ) -> bool {
         // Make sure this constraint has something to do with the outputs.
         if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
@@ -235,6 +245,7 @@ impl TaintedDescendants {
                 equivalences,
                 all_tainted,
                 all_constrained,
+                max_ancestor_distance,
             )
         {
             return false;
@@ -242,9 +253,9 @@ impl TaintedDescendants {
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            let constrained = constrained_values
-                .iter()
-                .any(|value| any_ancestor(*value, |a| a == *output, parents, equivalences));
+            let constrained = constrained_values.iter().any(|value| {
+                any_ancestor(*value, |a| a == *output, parents, equivalences, max_ancestor_distance)
+            });
 
             if constrained {
                 all_constrained.insert(*output);
@@ -255,9 +266,9 @@ impl TaintedDescendants {
 
         self.array_outputs.retain(|array, index_outputs| {
             // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
-            let can_constrain = constrained_values
-                .iter()
-                .any(|value| any_ancestor(*value, |a| a == *array, parents, equivalences));
+            let can_constrain = constrained_values.iter().any(|value| {
+                any_ancestor(*value, |a| a == *array, parents, equivalences, max_ancestor_distance)
+            });
 
             if !can_constrain {
                 return true;
@@ -271,7 +282,13 @@ impl TaintedDescendants {
                     return true;
                 }
                 let constrained = constrained_values.iter().any(|value| {
-                    any_ancestor(*value, |a| descendants.contains(&a), parents, equivalences)
+                    any_ancestor(
+                        *value,
+                        |a| descendants.contains(&a),
+                        parents,
+                        equivalences,
+                        max_ancestor_distance,
+                    )
                 });
 
                 if constrained {
@@ -298,6 +315,7 @@ impl TaintedDescendants {
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
         all_constrained: &ValueSet,
+        max_ancestor_distance: u32,
     ) -> bool {
         for &cv in constrained_values {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
@@ -308,13 +326,14 @@ impl TaintedDescendants {
             if all_tainted.contains(&cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences)
+                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences, max_ancestor_distance)
                     // Tainted because it's the output of this call itself.
                     || any_ancestor(
                         cv,
                         |a| self.single_outputs.contains(&a) || self.array_outputs.contains_key(&a),
                         parents,
                         equivalences,
+                        max_ancestor_distance
                     )
                 )
             {
@@ -322,7 +341,13 @@ impl TaintedDescendants {
             }
             // arg_ancestors contains the arguments themselves and all their transitive ancestors.
             // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
-            if any_ancestor(cv, |a| self.arg_ancestors.contains(&a), parents, equivalences) {
+            if any_ancestor(
+                cv,
+                |a| self.arg_ancestors.contains(&a),
+                parents,
+                equivalences,
+                max_ancestor_distance,
+            ) {
                 return true;
             }
         }
@@ -383,16 +408,24 @@ struct Context {
     /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
     /// and vice versa. BFS follows these edges alongside `parents` edges.
     equivalences: HashMap<ValueId, Vec<ValueId>>,
+
+    /// Maximum length of an array for which we consider constraining items per index.
+    max_array_output_length: u32,
+
+    /// Maximum distance to travel looking for an intersecting ancestor.
+    max_ancestor_distance: u32,
 }
 
 impl Context {
-    fn new(func: &Function) -> Self {
+    fn new(func: &Function, max_array_output_length: u32, max_ancestor_distance: u32) -> Self {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
             tainted: HashMap::default(),
             constraints: HashSet::default(),
             parents: HashMap::default(),
             equivalences: HashMap::default(),
+            max_array_output_length,
+            max_ancestor_distance,
         }
     }
 
@@ -574,7 +607,7 @@ impl Context {
 
                     // Only extend if we will not exceed the traversal limit to reach them.
                     if let Some(dist) = min_dist
-                        && dist < MAX_ANCESTOR_DISTANCE
+                        && dist < self.max_ancestor_distance
                     {
                         all_constrainable.extend(results.iter().map(|r| (*r, dist + 1)));
                         self.extend_constrainable(&arguments, &results);
@@ -623,7 +656,12 @@ impl Context {
 
                     // Skip if we have a similar one already.
                     if !visited {
-                        let tainted = TaintedDescendants::new(func, arguments, &results);
+                        let tainted = TaintedDescendants::new(
+                            func,
+                            arguments,
+                            &results,
+                            self.max_array_output_length,
+                        );
                         self.tainted.insert(*instruction_id, tainted);
                         // Look out for constraints on these outputs.
                         // We don't need to consider the inputs: the constraints which are relevant will have to constrain
@@ -710,6 +748,7 @@ impl Context {
                             equivalences,
                             &all_tainted,
                             &mut all_constrained,
+                            self.max_ancestor_distance,
                         );
 
                         if constrained {
@@ -904,21 +943,36 @@ fn any_ancestor(
     predicate: impl Fn(ValueId) -> bool,
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
+    max_ancestor_distance: u32,
 ) -> bool {
     let mut found = false;
     bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
         if predicate(a) {
             found = true;
         }
-        !found && d <= MAX_ANCESTOR_DISTANCE
+        !found && d <= max_ancestor_distance
     });
     found
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::Ssa;
+    use crate::ssa::{
+        Ssa,
+        checks::check_for_missing_brillig_constraints::{
+            DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+        },
+    };
+    use noirc_artifacts::ssa::SsaReport;
     use tracing_test::traced_test;
+
+    fn check_for_missing_brillig_constraints_in_ssa(src: &str) -> Vec<SsaReport> {
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.check_for_missing_brillig_constraints(
+            DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            DEFAULT_MAX_ANCESTOR_DISTANCE,
+        )
+    }
 
     #[test]
     #[traced_test]
@@ -984,8 +1038,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1015,8 +1068,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1045,8 +1097,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1074,8 +1125,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1128,8 +1178,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1157,8 +1206,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 2);
     }
 
@@ -1191,8 +1239,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1218,8 +1265,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1247,8 +1293,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1320,8 +1365,7 @@ mod tests {
 
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1348,8 +1392,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1373,8 +1416,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 2);
     }
 
@@ -1406,8 +1448,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1432,8 +1473,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1458,8 +1498,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1495,8 +1534,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1517,8 +1555,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1540,8 +1577,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1564,8 +1600,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0, "Expected no warnings but found some.");
     }
 
@@ -1590,8 +1625,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0, "Expected no warnings but found some.");
     }
 
@@ -1616,8 +1650,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(
             ssa_level_warnings.len(),
             0,
@@ -1647,8 +1680,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(
             ssa_level_warnings.len(),
             0,
@@ -1680,8 +1712,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(
             ssa_level_warnings.len(),
             0,
@@ -1705,8 +1736,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(
             ssa_level_warnings.len(),
             1,
@@ -1730,8 +1760,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1756,8 +1785,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1795,8 +1823,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1819,8 +1846,7 @@ mod tests {
         }
         "#;
 
-        let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
