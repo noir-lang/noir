@@ -1163,27 +1163,124 @@
 <a href=#1163 id=1163 data-nosnippet>1163</a>    }
 <a href=#1164 id=1164 data-nosnippet>1164</a>
 <a href=#1165 id=1165 data-nosnippet>1165</a>    <span class="attr">#[test]
-<a href=#1166 id=1166 data-nosnippet>1166</a>    </span><span class="kw">fn </span>make_array_peak_includes_result() {
-<a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#1168 id=1168 data-nosnippet>1168</a>        brillig(inline) fn main f0 {
-<a href=#1169 id=1169 data-nosnippet>1169</a>          b0(v0: Field, v1: Field, v2: Field):
-<a href=#1170 id=1170 data-nosnippet>1170</a>            v3 = make_array [v0, v1, v2] : [Field; 3]
-<a href=#1171 id=1171 data-nosnippet>1171</a>            return v3
-<a href=#1172 id=1172 data-nosnippet>1172</a>        }
-<a href=#1173 id=1173 data-nosnippet>1173</a>        "</span>;
-<a href=#1174 id=1174 data-nosnippet>1174</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#1175 id=1175 data-nosnippet>1175</a>        <span class="kw">let </span>func = ssa.main();
-<a href=#1176 id=1176 data-nosnippet>1176</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
-<a href=#1177 id=1177 data-nosnippet>1177</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
-<a href=#1178 id=1178 data-nosnippet>1178</a>
-<a href=#1179 id=1179 data-nosnippet>1179</a>        <span class="comment">// Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
-<a href=#1180 id=1180 data-nosnippet>1180</a>        // The elements are already in the live set as block params, but
-<a href=#1181 id=1181 data-nosnippet>1181</a>        // the result register is allocated simultaneously during codegen.
-<a href=#1182 id=1182 data-nosnippet>1182</a>        </span><span class="macro">assert_eq!</span>(
-<a href=#1183 id=1183 data-nosnippet>1183</a>            liveness.max_live_count, <span class="number">4</span>,
-<a href=#1184 id=1184 data-nosnippet>1184</a>            <span class="string">"MakeArray peak must include the result register: \
-<a href=#1185 id=1185 data-nosnippet>1185</a>             3 element params + 1 result = 4, got {}"</span>,
-<a href=#1186 id=1186 data-nosnippet>1186</a>            liveness.max_live_count
-<a href=#1187 id=1187 data-nosnippet>1187</a>        );
-<a href=#1188 id=1188 data-nosnippet>1188</a>    }
-<a href=#1189 id=1189 data-nosnippet>1189</a>}</code></pre></div></section></main></body></html>
+<a href=#1166 id=1166 data-nosnippet>1166</a>    </span><span class="kw">fn </span>max_live_count_counts_terminator_constants() {
+<a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="comment">// A constant used in multiple branches whose common dominator is a block that
+<a href=#1168 id=1168 data-nosnippet>1168</a>        // doesn't itself use the constant is allocated at the dominator's terminator.
+<a href=#1169 id=1169 data-nosnippet>1169</a>        // The `InstructionLocation::Terminator` branch of compute_max_live_count was
+<a href=#1170 id=1170 data-nosnippet>1170</a>        // previously untested.
+<a href=#1171 id=1171 data-nosnippet>1171</a>        //
+<a href=#1172 id=1172 data-nosnippet>1172</a>        // b0 has four block params live through the jmpif. If the terminator branch
+<a href=#1173 id=1173 data-nosnippet>1173</a>        // contributes, `Field 100` is added to the live set at b0's terminator, pushing
+<a href=#1174 id=1174 data-nosnippet>1174</a>        // the peak from 5 (v0-v3 + b3's v6 allocated via dominator) to 6. Removing
+<a href=#1175 id=1175 data-nosnippet>1175</a>        // lines 481-486 would drop the result to 5.
+<a href=#1176 id=1176 data-nosnippet>1176</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1177 id=1177 data-nosnippet>1177</a>        brillig(inline) fn main f0 {
+<a href=#1178 id=1178 data-nosnippet>1178</a>          b0(v0: u1, v1: Field, v2: Field, v3: Field):
+<a href=#1179 id=1179 data-nosnippet>1179</a>            jmpif v0 then: b1(), else: b2()
+<a href=#1180 id=1180 data-nosnippet>1180</a>          b1():
+<a href=#1181 id=1181 data-nosnippet>1181</a>            v4 = add Field 100, v1
+<a href=#1182 id=1182 data-nosnippet>1182</a>            jmp b3(v4)
+<a href=#1183 id=1183 data-nosnippet>1183</a>          b2():
+<a href=#1184 id=1184 data-nosnippet>1184</a>            v5 = mul Field 100, v2
+<a href=#1185 id=1185 data-nosnippet>1185</a>            jmp b3(v5)
+<a href=#1186 id=1186 data-nosnippet>1186</a>          b3(v6: Field):
+<a href=#1187 id=1187 data-nosnippet>1187</a>            return v6
+<a href=#1188 id=1188 data-nosnippet>1188</a>        }
+<a href=#1189 id=1189 data-nosnippet>1189</a>        "</span>;
+<a href=#1190 id=1190 data-nosnippet>1190</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1191 id=1191 data-nosnippet>1191</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1192 id=1192 data-nosnippet>1192</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1193 id=1193 data-nosnippet>1193</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1194 id=1194 data-nosnippet>1194</a>
+<a href=#1195 id=1195 data-nosnippet>1195</a>        <span class="macro">assert_eq!</span>(
+<a href=#1196 id=1196 data-nosnippet>1196</a>            liveness.max_live_count, <span class="number">6</span>,
+<a href=#1197 id=1197 data-nosnippet>1197</a>            <span class="string">"expected peak at b0 terminator (v0-v3 + v6 + Field 100), got {}"</span>,
+<a href=#1198 id=1198 data-nosnippet>1198</a>            liveness.max_live_count
+<a href=#1199 id=1199 data-nosnippet>1199</a>        );
+<a href=#1200 id=1200 data-nosnippet>1200</a>    }
+<a href=#1201 id=1201 data-nosnippet>1201</a>
+<a href=#1202 id=1202 data-nosnippet>1202</a>    <span class="attr">#[test]
+<a href=#1203 id=1203 data-nosnippet>1203</a>    </span><span class="kw">fn </span>max_live_count_drops_dead_variables() {
+<a href=#1204 id=1204 data-nosnippet>1204</a>        <span class="comment">// A value must leave the live set once it's been consumed. Otherwise the count
+<a href=#1205 id=1205 data-nosnippet>1205</a>        // keeps growing across a chain of additions. With correct dead-variable removal
+<a href=#1206 id=1206 data-nosnippet>1206</a>        // the peak is bounded by {previous, constant, new_result} = 3.
+<a href=#1207 id=1207 data-nosnippet>1207</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1208 id=1208 data-nosnippet>1208</a>        brillig(inline) fn main f0 {
+<a href=#1209 id=1209 data-nosnippet>1209</a>          b0(v0: Field):
+<a href=#1210 id=1210 data-nosnippet>1210</a>            v1 = add v0, Field 1
+<a href=#1211 id=1211 data-nosnippet>1211</a>            v2 = add v1, Field 2
+<a href=#1212 id=1212 data-nosnippet>1212</a>            v3 = add v2, Field 3
+<a href=#1213 id=1213 data-nosnippet>1213</a>            return v3
+<a href=#1214 id=1214 data-nosnippet>1214</a>        }
+<a href=#1215 id=1215 data-nosnippet>1215</a>        "</span>;
+<a href=#1216 id=1216 data-nosnippet>1216</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1218 id=1218 data-nosnippet>1218</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1219 id=1219 data-nosnippet>1219</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1220 id=1220 data-nosnippet>1220</a>
+<a href=#1221 id=1221 data-nosnippet>1221</a>        <span class="macro">assert_eq!</span>(
+<a href=#1222 id=1222 data-nosnippet>1222</a>            liveness.max_live_count, <span class="number">3</span>,
+<a href=#1223 id=1223 data-nosnippet>1223</a>            <span class="string">"peak should be {{prev, const, new}} = 3; got {} (did dead values carry over?)"</span>,
+<a href=#1224 id=1224 data-nosnippet>1224</a>            liveness.max_live_count
+<a href=#1225 id=1225 data-nosnippet>1225</a>        );
+<a href=#1226 id=1226 data-nosnippet>1226</a>    }
+<a href=#1227 id=1227 data-nosnippet>1227</a>
+<a href=#1228 id=1228 data-nosnippet>1228</a>    <span class="attr">#[test]
+<a href=#1229 id=1229 data-nosnippet>1229</a>    </span><span class="kw">fn </span>max_live_count_takes_max_across_blocks() {
+<a href=#1230 id=1230 data-nosnippet>1230</a>        <span class="comment">// The per-block peak is computed independently but the final value must be the
+<a href=#1231 id=1231 data-nosnippet>1231</a>        // max across blocks — not the last block's value, not an average.
+<a href=#1232 id=1232 data-nosnippet>1232</a>        //
+<a href=#1233 id=1233 data-nosnippet>1233</a>        // b0 and b2 are small (≤ 2 live values each); b1 is the hot block. If the
+<a href=#1234 id=1234 data-nosnippet>1234</a>        // implementation collapsed `max_count` per block instead of folding, b2's
+<a href=#1235 id=1235 data-nosnippet>1235</a>        // peak of 1 would win and this assertion would fire.
+<a href=#1236 id=1236 data-nosnippet>1236</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1237 id=1237 data-nosnippet>1237</a>        brillig(inline) fn main f0 {
+<a href=#1238 id=1238 data-nosnippet>1238</a>          b0(v0: u32):
+<a href=#1239 id=1239 data-nosnippet>1239</a>            jmp b1(v0)
+<a href=#1240 id=1240 data-nosnippet>1240</a>          b1(v1: u32):
+<a href=#1241 id=1241 data-nosnippet>1241</a>            v2 = unchecked_add v1, u32 1
+<a href=#1242 id=1242 data-nosnippet>1242</a>            v3 = unchecked_add v2, u32 2
+<a href=#1243 id=1243 data-nosnippet>1243</a>            v4 = unchecked_add v3, u32 3
+<a href=#1244 id=1244 data-nosnippet>1244</a>            v5 = unchecked_add v4, v1
+<a href=#1245 id=1245 data-nosnippet>1245</a>            jmp b2(v5)
+<a href=#1246 id=1246 data-nosnippet>1246</a>          b2(v6: u32):
+<a href=#1247 id=1247 data-nosnippet>1247</a>            return v6
+<a href=#1248 id=1248 data-nosnippet>1248</a>        }
+<a href=#1249 id=1249 data-nosnippet>1249</a>        "</span>;
+<a href=#1250 id=1250 data-nosnippet>1250</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1251 id=1251 data-nosnippet>1251</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1252 id=1252 data-nosnippet>1252</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1253 id=1253 data-nosnippet>1253</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1254 id=1254 data-nosnippet>1254</a>
+<a href=#1255 id=1255 data-nosnippet>1255</a>        <span class="comment">// Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
+<a href=#1256 id=1256 data-nosnippet>1256</a>        // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
+<a href=#1257 id=1257 data-nosnippet>1257</a>        // (allocated at this instruction), and v3 (just produced) = 5.
+<a href=#1258 id=1258 data-nosnippet>1258</a>        // b0 peak = 2, b2 peak = 1.
+<a href=#1259 id=1259 data-nosnippet>1259</a>        </span><span class="macro">assert_eq!</span>(liveness.max_live_count, <span class="number">5</span>, <span class="string">"got {}"</span>, liveness.max_live_count);
+<a href=#1260 id=1260 data-nosnippet>1260</a>    }
+<a href=#1261 id=1261 data-nosnippet>1261</a>
+<a href=#1262 id=1262 data-nosnippet>1262</a>    <span class="attr">#[test]
+<a href=#1263 id=1263 data-nosnippet>1263</a>    </span><span class="kw">fn </span>make_array_peak_includes_result() {
+<a href=#1264 id=1264 data-nosnippet>1264</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1265 id=1265 data-nosnippet>1265</a>        brillig(inline) fn main f0 {
+<a href=#1266 id=1266 data-nosnippet>1266</a>          b0(v0: Field, v1: Field, v2: Field):
+<a href=#1267 id=1267 data-nosnippet>1267</a>            v3 = make_array [v0, v1, v2] : [Field; 3]
+<a href=#1268 id=1268 data-nosnippet>1268</a>            return v3
+<a href=#1269 id=1269 data-nosnippet>1269</a>        }
+<a href=#1270 id=1270 data-nosnippet>1270</a>        "</span>;
+<a href=#1271 id=1271 data-nosnippet>1271</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="kw">let </span>func = ssa.main();
+<a href=#1273 id=1273 data-nosnippet>1273</a>        <span class="kw">let </span>constants = ConstantAllocation::from_function(func);
+<a href=#1274 id=1274 data-nosnippet>1274</a>        <span class="kw">let </span>liveness = VariableLiveness::from_function(func, <span class="kw-2">&amp;</span>constants);
+<a href=#1275 id=1275 data-nosnippet>1275</a>
+<a href=#1276 id=1276 data-nosnippet>1276</a>        <span class="comment">// Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
+<a href=#1277 id=1277 data-nosnippet>1277</a>        // The elements are already in the live set as block params, but
+<a href=#1278 id=1278 data-nosnippet>1278</a>        // the result register is allocated simultaneously during codegen.
+<a href=#1279 id=1279 data-nosnippet>1279</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#1280 id=1280 data-nosnippet>1280</a>            liveness.max_live_count, <span class="number">4</span>,
+<a href=#1281 id=1281 data-nosnippet>1281</a>            <span class="string">"MakeArray peak must include the result register: \
+<a href=#1282 id=1282 data-nosnippet>1282</a>             3 element params + 1 result = 4, got {}"</span>,
+<a href=#1283 id=1283 data-nosnippet>1283</a>            liveness.max_live_count
+<a href=#1284 id=1284 data-nosnippet>1284</a>        );
+<a href=#1285 id=1285 data-nosnippet>1285</a>    }
+<a href=#1286 id=1286 data-nosnippet>1286</a>}</code></pre></div></section></main></body></html>
