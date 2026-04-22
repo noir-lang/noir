@@ -142,14 +142,27 @@ impl AliasAnalysis {
         analysis.return_values = HashMap::default();
         analysis.reference_types = HashMap::default();
 
-        // Count members per alias class for `is_unique` queries.
+        // Count members per alias class for `is_aliased` queries.
         analysis.class_sizes = analysis.aliases.class_sizes();
 
         analysis
     }
 
     /// Walk every block in one function, processing instructions and terminators.
+    /// If the function is an entry point of the SSA, also unify its
+    /// same-typed reference parameters.
     fn analyze_function(&mut self, ssa: &Ssa, function: &Function) {
+        if ssa.is_entry_point(function.id()) {
+            // Unify the reference parameters of the entry point because the
+            // external caller may pass the same reference to 2 reference parameters.
+            // In practice entry points don't allow reference parameters
+            // so this method is doing nothing for real programs. It exists to keep the
+            // analysis sound on hand-written SSA fixtures in unit tests, and as a
+            // safety net if the ABI ever relaxes.
+            let params = function.dfg[function.entry_block()].parameters().to_vec();
+            self.unresolved_call(function, &params, &[]);
+        }
+
         for block_id in function.reachable_blocks() {
             self.analyze_block(function, block_id, ssa);
         }
@@ -617,6 +630,10 @@ impl AliasAnalysis {
     /// Takes `&mut self` because of path compression.
     /// This has no visible side-effect and is perfectly safe.
     pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
+        if a == b {
+            return true;
+        }
+
         // Field-insensitivity may alias values with distinct types, but such values cannot alias.
         // Types are canonicalized first so `&T` and `&mut T` compare equal
         let type_a = canonicalize_type(&function.dfg.type_of_value(a));
