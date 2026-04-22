@@ -42,7 +42,7 @@
 //! ## References
 //!
 //! Bjarne Steensgaard, "Points-to Analysis in Almost Linear Time", POPL 1996.
-//! https://dl.acm.org/doi/abs/10.1145/237721.237727
+//! <https://dl.acm.org/doi/abs/10.1145/237721.237727>
 
 use std::sync::Arc;
 
