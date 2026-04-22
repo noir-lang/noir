@@ -2083,3 +2083,48 @@ fn associated_constant_type_mismatch_does_not_crash() {
     "#;
     check_errors(src);
 }
+
+/// TODO(https://github.com/noir-lang/noir/issues/9430): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn explicit_type_annotation_matches_trait_method_call_with_associated_constant() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [u32; N];
+    }
+
+    impl Serialize for u32 {
+        let N: u32 = 1;
+
+        fn serialize(self) -> [u32; Self::N] {
+            [self; 1]
+        }
+    }
+
+    impl<let N: u32, T: Serialize> Serialize for [T; N] {
+        let N: u32 = <T as Serialize>::N * N;
+
+        fn serialize(self) -> [u32; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    pub struct CompressedString<let N: u32> {
+        value: [u32; N],
+    }
+
+    impl<let N: u32> Serialize for CompressedString<N> {
+        let N: u32 = N;
+
+        fn serialize(self) -> [u32; Self::N] {
+            let _: [u32; N] = self.value.serialize();
+            [0; Self::N]
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
