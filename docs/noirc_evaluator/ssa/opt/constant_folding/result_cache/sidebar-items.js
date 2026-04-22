@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CacheResult"],"struct":["InstructionResultCache","ResultCache"]};
+window.SIDEBAR_ITEMS = {"enum":["CacheResult"],"struct":["CacheKey","CacheKeyRef","InstructionResultCache","ResultCache"]};
