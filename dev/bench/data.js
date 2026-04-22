@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776899336772,
+  "lastUpdate": 1776899766035,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "73dad8e14d09fe89570532c9f83d295fefeb26a0",
-          "message": "fix(licm): Check lower bound when simplifying checked arithmetic to unchecked (#12301)",
-          "timestamp": "2026-04-17T17:31:33Z",
-          "tree_id": "3ccd733755f19619dd714a4a860aef4a79bb75fa",
-          "url": "https://github.com/noir-lang/noir/commit/73dad8e14d09fe89570532c9f83d295fefeb26a0"
-        },
-        "date": 1776451733599,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 286.66,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 324.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 278.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 355.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1570,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1570,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 537.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 472.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 353.88,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 78.47,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 75.85,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -19295,6 +19206,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-merge",
             "value": 353.82,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 77.27,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 75.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f39ac4f5748a1ea5dc7bcb8eb5b2c2a8032a2199",
+          "message": "chore: remove Circuit::current_witness_index in a backwards-compatible way (#12400)",
+          "timestamp": "2026-04-22T22:27:23Z",
+          "tree_id": "f3cfb4b69500ade8e83d7b692b1dbd414c074fc7",
+          "url": "https://github.com/noir-lang/noir/commit/f39ac4f5748a1ea5dc7bcb8eb5b2c2a8032a2199"
+        },
+        "date": 1776899708160,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 282.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 307.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 276.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 355.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 466.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 471.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 353.81,
             "unit": "MB"
           },
           {
