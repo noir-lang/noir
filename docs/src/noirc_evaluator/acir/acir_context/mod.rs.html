@@ -1348,7 +1348,7 @@
 <a href=#1348 id=1348 data-nosnippet>1348</a>        <span class="kw">let </span>value_read_witness = <span class="self">self</span>.var_to_witness(value_read_var)<span class="question-mark">?</span>;
 <a href=#1349 id=1349 data-nosnippet>1349</a>
 <a href=#1350 id=1350 data-nosnippet>1350</a>        <span class="comment">// Add the memory read operation to the list of opcodes
-<a href=#1351 id=1351 data-nosnippet>1351</a>        </span><span class="kw">let </span>op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
+<a href=#1351 id=1351 data-nosnippet>1351</a>        </span><span class="kw">let </span>op = MemOp::read_at_mem_index(index_witness, value_read_witness);
 <a href=#1352 id=1352 data-nosnippet>1352</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 <a href=#1353 id=1353 data-nosnippet>1353</a>
 <a href=#1354 id=1354 data-nosnippet>1354</a>        <span class="prelude-val">Ok</span>(value_read_var)
@@ -1370,7 +1370,7 @@
 <a href=#1370 id=1370 data-nosnippet>1370</a>        <span class="kw">let </span>value_write_witness = <span class="self">self</span>.var_to_witness(value_write_var)<span class="question-mark">?</span>;
 <a href=#1371 id=1371 data-nosnippet>1371</a>
 <a href=#1372 id=1372 data-nosnippet>1372</a>        <span class="comment">// Add the memory write operation to the list of opcodes
-<a href=#1373 id=1373 data-nosnippet>1373</a>        </span><span class="kw">let </span>op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
+<a href=#1373 id=1373 data-nosnippet>1373</a>        </span><span class="kw">let </span>op = MemOp::write_to_mem_index(index_witness, value_write_witness);
 <a href=#1374 id=1374 data-nosnippet>1374</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 <a href=#1375 id=1375 data-nosnippet>1375</a>
 <a href=#1376 id=1376 data-nosnippet>1376</a>        <span class="prelude-val">Ok</span>(())

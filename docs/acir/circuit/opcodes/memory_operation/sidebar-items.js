@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BlockId","MemOp"]};
+window.SIDEBAR_ITEMS = {"enum":["MemOpKind"],"struct":["BlockId","MemOp","MemOpWire"]};
