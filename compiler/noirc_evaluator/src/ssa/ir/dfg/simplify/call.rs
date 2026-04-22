@@ -319,21 +319,19 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
-            let max_bit_size = dfg.get_numeric_constant(arguments[1]);
-            if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.to_u128() as u32;
-                let max_potential_bits = dfg.get_value_max_num_bits(value);
-                if max_potential_bits < max_bit_size {
-                    SimplifyResult::Remove
-                } else {
-                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                        value,
-                        max_bit_size,
-                        assert_message: Some("call to assert_max_bit_size".to_owned()),
-                    })
-                }
+            let max_bit_size = dfg
+                .get_numeric_constant(arguments[1])
+                .expect("ApplyRangeConstraint bit-size must be a numeric constant")
+                .to_u128() as u32;
+            let max_potential_bits = dfg.get_value_max_num_bits(value);
+            if max_potential_bits < max_bit_size {
+                SimplifyResult::Remove
             } else {
-                SimplifyResult::None
+                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                    value,
+                    max_bit_size,
+                    assert_message: Some("call to assert_max_bit_size".to_owned()),
+                })
             }
         }
         Intrinsic::Hint(Hint::BlackBox) => SimplifyResult::None,

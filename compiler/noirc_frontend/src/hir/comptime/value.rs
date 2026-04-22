@@ -341,7 +341,7 @@ impl Value {
                         );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
 
@@ -536,7 +536,7 @@ impl Value {
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
@@ -713,11 +713,11 @@ impl Value {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::FormatString(_, typ, _) => typ.contains_function(),
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
             | Value::String(_)
-            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)
