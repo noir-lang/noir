@@ -50,14 +50,14 @@ mod reflection {
     use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
     use serde_reflection::{
-        ContainerFormat, Format, Named, Registry, Tracer, TracerConfig, VariantFormat,
+        ContainerFormat, Format, Named, Registry, Samples, Tracer, TracerConfig, VariantFormat,
     };
 
     use crate::{
         circuit::{
             AssertionPayload, Circuit, ExpressionOrMemory, Opcode, OpcodeLocation, Program,
             brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput},
+            opcodes::{BlackBoxFuncCall, BlockType, FunctionInput, MemOp},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };
@@ -84,12 +84,31 @@ mod reflection {
 
     #[test]
     fn serde_acir_cpp_codegen() {
-        let mut tracer = Tracer::new(TracerConfig::default());
+        // MemOp has a custom Deserialize impl with validation that rejects the zero-expression
+        // samples that trace_simple_type generates. Enable record_samples_for_structs so that
+        // pre-registered samples are used when the tracer encounters a known struct type.
+        let config = TracerConfig::default().record_samples_for_structs(true);
+        let mut tracer = Tracer::new(config);
+
+        let mut samples = Samples::new();
+        tracer
+            .trace_value(
+                &mut samples,
+                &MemOp::<FieldElement>::read_at_mem_index(Witness(0), Witness(0)),
+            )
+            .unwrap();
+        tracer
+            .trace_value(
+                &mut samples,
+                &MemOp::<FieldElement>::write_to_mem_index(Witness(0), Witness(0)),
+            )
+            .unwrap();
+
         tracer.trace_simple_type::<BlockType>().unwrap();
         tracer.trace_simple_type::<Program<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ProgramWithoutBrillig<FieldElement>>().unwrap();
         tracer.trace_simple_type::<Circuit<FieldElement>>().unwrap();
-        tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
+        tracer.trace_type::<Opcode<FieldElement>>(&samples).unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
         tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
