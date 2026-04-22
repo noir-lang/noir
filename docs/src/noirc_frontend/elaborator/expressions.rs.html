@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>    hir::{
 <a href=#26 id=26 data-nosnippet>26</a>        comptime::{<span class="self">self</span>, InterpreterError},
 <a href=#27 id=27 data-nosnippet>27</a>        def_collector::dc_crate::CompilationError,
-<a href=#28 id=28 data-nosnippet>28</a>        resolution::errors::ResolverError,
+<a href=#28 id=28 data-nosnippet>28</a>        resolution::{errors::ResolverError, import::PathResolutionError},
 <a href=#29 id=29 data-nosnippet>29</a>        type_check::{Source, TypeCheckError, generics::TraitGenerics},
 <a href=#30 id=30 data-nosnippet>30</a>    },
 <a href=#31 id=31 data-nosnippet>31</a>    hir_def::{
@@ -1897,24 +1897,40 @@
 <a href=#1897 id=1897 data-nosnippet>1897</a>            impl_kind: ImplKind::TraitItem(trait_item),
 <a href=#1898 id=1898 data-nosnippet>1898</a>        };
 <a href=#1899 id=1899 data-nosnippet>1899</a>
-<a href=#1900 id=1900 data-nosnippet>1900</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>), location);
-<a href=#1901 id=1901 data-nosnippet>1901</a>
-<a href=#1902 id=1902 data-nosnippet>1902</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#1903 id=1903 data-nosnippet>1903</a>
-<a href=#1904 id=1904 data-nosnippet>1904</a>        <span class="comment">// In `&lt;Type as Trait&gt;::method` we know `Self` is `Type` so we bind that now
-<a href=#1905 id=1905 data-nosnippet>1905</a>        </span>bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
-<a href=#1906 id=1906 data-nosnippet>1906</a>
-<a href=#1907 id=1907 data-nosnippet>1907</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#1908 id=1908 data-nosnippet>1908</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#1909 id=1909 data-nosnippet>1909</a>
-<a href=#1910 id=1910 data-nosnippet>1910</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#1911 id=1911 data-nosnippet>1911</a>            ident,
-<a href=#1912 id=1912 data-nosnippet>1912</a>            <span class="kw-2">&amp;</span>id,
-<a href=#1913 id=1913 data-nosnippet>1913</a>            <span class="prelude-val">None</span>,
-<a href=#1914 id=1914 data-nosnippet>1914</a>            bindings,
-<a href=#1915 id=1915 data-nosnippet>1915</a>            push_required_type_variables,
-<a href=#1916 id=1916 data-nosnippet>1916</a>        );
-<a href=#1917 id=1917 data-nosnippet>1917</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#1918 id=1918 data-nosnippet>1918</a>        (id, typ)
-<a href=#1919 id=1919 data-nosnippet>1919</a>    }
-<a href=#1920 id=1920 data-nosnippet>1920</a>}</code></pre></div></section></main></body></html>
+<a href=#1900 id=1900 data-nosnippet>1900</a>        <span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = path.turbofish {
+<a href=#1901 id=1901 data-nosnippet>1901</a>            <span class="kw">let </span>definition_kind = <span class="self">self</span>.interner.definition(definition).kind.clone();
+<a href=#1902 id=1902 data-nosnippet>1902</a>            <span class="kw">if let </span>DefinitionKind::Function(func_id) = definition_kind {
+<a href=#1903 id=1903 data-nosnippet>1903</a>                <span class="kw">let </span>ident_location = path.impl_item.location();
+<a href=#1904 id=1904 data-nosnippet>1904</a>                <span class="prelude-val">Some</span>(<span class="self">self</span>.use_type_args(turbofish, func_id, ident_location).<span class="number">0</span>)
+<a href=#1905 id=1905 data-nosnippet>1905</a>            } <span class="kw">else </span>{
+<a href=#1906 id=1906 data-nosnippet>1906</a>                <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+<a href=#1907 id=1907 data-nosnippet>1907</a>                    item: <span class="macro">format!</span>(<span class="string">"associated item `{}`"</span>, path.impl_item),
+<a href=#1908 id=1908 data-nosnippet>1908</a>                    location: path.impl_item.location(),
+<a href=#1909 id=1909 data-nosnippet>1909</a>                });
+<a href=#1910 id=1910 data-nosnippet>1910</a>                <span class="prelude-val">None
+<a href=#1911 id=1911 data-nosnippet>1911</a>            </span>}
+<a href=#1912 id=1912 data-nosnippet>1912</a>        } <span class="kw">else </span>{
+<a href=#1913 id=1913 data-nosnippet>1913</a>            <span class="prelude-val">None
+<a href=#1914 id=1914 data-nosnippet>1914</a>        </span>};
+<a href=#1915 id=1915 data-nosnippet>1915</a>
+<a href=#1916 id=1916 data-nosnippet>1916</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), location);
+<a href=#1917 id=1917 data-nosnippet>1917</a>
+<a href=#1918 id=1918 data-nosnippet>1918</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#1919 id=1919 data-nosnippet>1919</a>
+<a href=#1920 id=1920 data-nosnippet>1920</a>        <span class="comment">// In `&lt;Type as Trait&gt;::method` we know `Self` is `Type` so we bind that now
+<a href=#1921 id=1921 data-nosnippet>1921</a>        </span>bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
+<a href=#1922 id=1922 data-nosnippet>1922</a>
+<a href=#1923 id=1923 data-nosnippet>1923</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+<a href=#1924 id=1924 data-nosnippet>1924</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
+<a href=#1925 id=1925 data-nosnippet>1925</a>
+<a href=#1926 id=1926 data-nosnippet>1926</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
+<a href=#1927 id=1927 data-nosnippet>1927</a>            ident,
+<a href=#1928 id=1928 data-nosnippet>1928</a>            <span class="kw-2">&amp;</span>id,
+<a href=#1929 id=1929 data-nosnippet>1929</a>            generics,
+<a href=#1930 id=1930 data-nosnippet>1930</a>            bindings,
+<a href=#1931 id=1931 data-nosnippet>1931</a>            push_required_type_variables,
+<a href=#1932 id=1932 data-nosnippet>1932</a>        );
+<a href=#1933 id=1933 data-nosnippet>1933</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#1934 id=1934 data-nosnippet>1934</a>        (id, typ)
+<a href=#1935 id=1935 data-nosnippet>1935</a>    }
+<a href=#1936 id=1936 data-nosnippet>1936</a>}</code></pre></div></section></main></body></html>
