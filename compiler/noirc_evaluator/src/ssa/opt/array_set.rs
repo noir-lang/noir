@@ -61,6 +61,7 @@ use std::collections::HashMap;
 use acvm::AcirField;
 use im::Vector;
 use noirc_errors::call_stack::CallStackId;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -78,12 +79,12 @@ impl Ssa {
     /// See the [`array_set`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
-        for func in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, func)| {
             #[cfg(debug_assertions)]
             array_set_optimization_pre_check(func);
 
             func.array_set_optimization();
-        }
+        });
         self
     }
 }

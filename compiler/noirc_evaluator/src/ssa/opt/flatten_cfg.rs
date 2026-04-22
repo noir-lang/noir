@@ -161,6 +161,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 mod branch_analysis;
 
@@ -176,12 +177,12 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
             if function.runtime().is_brillig() {
-                continue;
+                return;
             }
 
             #[cfg(debug_assertions)]
@@ -191,7 +192,7 @@ impl Ssa {
 
             #[cfg(debug_assertions)]
             flatten_cfg_post_check(function);
-        }
+        });
         self
     }
 }

@@ -45,6 +45,7 @@
 //! redundant parameters when promoting memory variables.  
 
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -63,9 +64,9 @@ impl Ssa {
     /// See [`remove_redundant_params`][self] module for more information.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn remove_redundant_params(mut self) -> Self {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.remove_redundant_params();
-        }
+        });
         self
     }
 }

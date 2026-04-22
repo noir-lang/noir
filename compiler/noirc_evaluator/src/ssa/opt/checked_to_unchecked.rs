@@ -4,6 +4,7 @@
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
 use acvm::AcirField as _;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -21,9 +22,9 @@ impl Ssa {
     /// See [`checked_to_unchecked`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn checked_to_unchecked(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.checked_to_unchecked();
-        }
+        });
         self
     }
 }

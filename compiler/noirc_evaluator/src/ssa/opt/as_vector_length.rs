@@ -6,6 +6,8 @@
 //!
 //! Note that this pass must be placed before loop unrolling to be useful.
 
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+
 use crate::ssa::{
     ir::{
         function::Function,
@@ -21,9 +23,9 @@ impl Ssa {
     #[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_vector_optimization(mut self) -> Self {
-        for func in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, func)| {
             func.as_vector_optimization();
-        }
+        });
         self
     }
 }

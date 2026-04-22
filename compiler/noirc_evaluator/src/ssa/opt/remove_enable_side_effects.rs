@@ -24,6 +24,7 @@
 //! - This pass must run once ACIR functions only have one basic block.
 
 use acvm::{FieldElement, acir::AcirField};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{dfg::DataFlowGraph, function::Function, instruction::Instruction, types::NumericType},
@@ -34,12 +35,12 @@ impl Ssa {
     /// See [`remove_enable_side_effects`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             #[cfg(debug_assertions)]
             remove_enable_side_effects_pre_check(function);
 
             function.remove_enable_side_effects();
-        }
+        });
         self
     }
 }

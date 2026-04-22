@@ -12,6 +12,7 @@
 //! For blocks not in the IDF (the common case in unrolled code with single-predecessor chains),
 //! the variable's value is inherited directly from the predecessor's exit state. This avoids
 //! the O(variables × blocks) cost of adding block parameters everywhere.
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 
@@ -34,20 +35,20 @@ impl Ssa {
     /// Run mem2reg on all functions (both ACIR and Brillig).
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.mem2reg();
-        }
+        });
         self
     }
 
     /// Run mem2reg only on Brillig functions.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_brillig(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             if function.runtime().is_brillig() {
                 function.mem2reg();
             }
-        }
+        });
         self
     }
 }

@@ -16,6 +16,7 @@ use std::collections::HashSet;
 
 use acvm::acir::AcirField;
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -32,12 +33,12 @@ impl Ssa {
     /// See [`simplify_cfg`][self] module for more information
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.simplify_function();
 
             #[cfg(debug_assertions)]
             simplify_cfg_post_check(function);
-        }
+        });
         self
     }
 }

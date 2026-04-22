@@ -66,6 +66,7 @@ use acvm::{
     FieldElement,
     acir::{AcirField, brillig::lengths::SemanticLength},
 };
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -83,9 +84,9 @@ impl Ssa {
     /// Go through every ACIR function replacing bit shifts with more primitive arithmetic operations,
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.remove_bit_shifts();
-        }
+        });
         self
     }
 }

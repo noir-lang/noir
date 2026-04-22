@@ -9,6 +9,7 @@
 //! so this SSA pass has no effect for Brillig functions.
 use acvm::{AcirField, FieldElement};
 use num_bigint::BigUint;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -26,9 +27,9 @@ impl Ssa {
     /// See [`check_u128_mul_overflow`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_u128_mul_overflow(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.check_u128_mul_overflow();
-        }
+        });
         self
     }
 }

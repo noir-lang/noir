@@ -90,6 +90,7 @@
 use std::collections::HashMap;
 
 use acvm::{AcirField, FieldElement};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -107,9 +108,9 @@ impl Ssa {
     /// previous instructions. See the [`array_get`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_get_optimization(mut self) -> Self {
-        for func in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, func)| {
             func.array_get_optimization();
-        }
+        });
         self
     }
 }

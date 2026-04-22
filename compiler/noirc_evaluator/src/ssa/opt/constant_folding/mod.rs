@@ -21,6 +21,7 @@ use std::{
 
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     interpreter::{Interpreter, InterpreterOptions},
@@ -68,21 +69,10 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        let mut interpreter = Interpreter::new_from_functions(
-            &brillig_functions,
-            InterpreterOptions {
-                no_foreign_calls: true,
-                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
-                ..Default::default()
-            },
-            std::io::empty(),
-        );
-        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
+            let mut interpreter = fresh_constant_folding_interpreter(&brillig_functions);
             function.constant_fold(false, max_iter, &mut interpreter);
-        }
+        });
         self
     }
 
@@ -98,23 +88,31 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        let mut interpreter = Interpreter::new_from_functions(
-            &brillig_functions,
-            InterpreterOptions {
-                no_foreign_calls: true,
-                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
-                ..Default::default()
-            },
-            std::io::empty(),
-        );
-        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
+            let mut interpreter = fresh_constant_folding_interpreter(&brillig_functions);
             function.constant_fold(true, max_iter, &mut interpreter);
-        }
+        });
         self
     }
+}
+
+/// Builds a fresh [Interpreter] suitable for constant folding a single function in parallel.
+/// Interpreting globals is repeated per task because the interpreter's internal values use
+/// `Rc<RefCell<_>>` (via `Shared`) and cannot safely cross thread boundaries.
+fn fresh_constant_folding_interpreter(
+    brillig_functions: &BTreeMap<FunctionId, Function>,
+) -> Interpreter<'_, Empty> {
+    let mut interpreter = Interpreter::new_from_functions(
+        brillig_functions,
+        InterpreterOptions {
+            no_foreign_calls: true,
+            step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+            ..Default::default()
+        },
+        std::io::empty(),
+    );
+    interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+    interpreter
 }
 
 /// Clones all brillig functions stored within `all_functions` returning these in a new map.

@@ -148,12 +148,14 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 impl Ssa {
     pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions(function.id() == self.main_id);
-        }
+        let main_id = self.main_id;
+        self.functions.par_iter_mut().for_each(|(_, function)| {
+            function.remove_unreachable_instructions(function.id() == main_id);
+        });
         self
     }
 }

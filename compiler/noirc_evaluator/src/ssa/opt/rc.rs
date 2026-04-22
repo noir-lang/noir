@@ -7,6 +7,7 @@
 //! the given array may alias another array (e.g. function parameters or
 //! a `load`ed array from a reference).
 
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -26,9 +27,9 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     #[allow(dead_code)]
     pub(crate) fn remove_paired_rc(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.remove_paired_rc();
-        }
+        });
         self
     }
 }

@@ -50,6 +50,7 @@ use std::collections::{BTreeSet, HashSet};
 
 use acvm::acir::AcirField;
 use noirc_errors::call_stack::{CallStack, CallStackId};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
     errors::RuntimeError,
@@ -99,7 +100,7 @@ impl Ssa {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> Result<Ssa, RuntimeError> {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().try_for_each(|(_, function)| {
             let is_brillig = function.runtime().is_brillig();
 
             // Take a snapshot in case we have to restore it.
@@ -129,7 +130,8 @@ impl Ssa {
                     *function = orig_function;
                 }
             }
-        }
+            Ok::<(), RuntimeError>(())
+        })?;
         Ok(self)
     }
 }

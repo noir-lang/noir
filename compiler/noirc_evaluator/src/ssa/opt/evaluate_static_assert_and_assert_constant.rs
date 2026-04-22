@@ -13,6 +13,7 @@
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -54,9 +55,9 @@ impl Ssa {
         mut self,
         error_on_failure: bool,
     ) -> Result<Ssa, RuntimeError> {
-        for function in self.functions.values_mut() {
-            function.evaluate_static_assert_and_assert_constant(error_on_failure)?;
-        }
+        self.functions.par_iter_mut().try_for_each(|(_, function)| {
+            function.evaluate_static_assert_and_assert_constant(error_on_failure)
+        })?;
         Ok(self)
     }
 }

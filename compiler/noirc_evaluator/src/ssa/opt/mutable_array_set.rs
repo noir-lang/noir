@@ -27,6 +27,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
@@ -35,7 +36,7 @@ impl Ssa {
     /// no potential shared references to it.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn mutable_array_set_optimization(mut self) -> Self {
-        for func in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, func)| {
             #[cfg(debug_assertions)]
             mutable_array_set_optimization_pre_check(func);
 
@@ -43,7 +44,7 @@ impl Ssa {
 
             #[cfg(debug_assertions)]
             mutable_array_set_optimization_post_check(func);
-        }
+        });
         self
     }
 }

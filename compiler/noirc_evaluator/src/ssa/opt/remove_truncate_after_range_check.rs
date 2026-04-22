@@ -3,6 +3,7 @@
 //! the bits to truncate (the truncate isn't needed then as it won't change the
 //! underlying value).
 
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -18,9 +19,9 @@ impl Ssa {
     /// have a `range_check` on them, where the checked range is less or equal than
     /// the bits to truncate.
     pub(crate) fn remove_truncate_after_range_check(mut self) -> Self {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.remove_truncate_after_range_check();
-        }
+        });
         self
     }
 }

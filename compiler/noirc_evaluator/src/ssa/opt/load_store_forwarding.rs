@@ -26,6 +26,7 @@
 //! Calls are handled conservatively: simple reference arguments invalidate
 //! that address and all its potential aliases; containers or nested
 //! references clear all state.
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -45,9 +46,9 @@ use crate::ssa::{
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn load_store_forwarding(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.load_store_forwarding();
-        }
+        });
         self
     }
 }

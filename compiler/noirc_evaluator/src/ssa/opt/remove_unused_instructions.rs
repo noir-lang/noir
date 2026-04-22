@@ -3,14 +3,16 @@
 
 use std::collections::HashSet;
 
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+
 use crate::ssa::{ir::function::Function, ssa_gen::Ssa};
 
 impl Ssa {
     /// Remove instructions in all functions which aren't used in any blocks.
     pub(crate) fn remove_unused_instructions(mut self) -> Self {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.remove_unused_instructions();
-        }
+        });
         self
     }
 }

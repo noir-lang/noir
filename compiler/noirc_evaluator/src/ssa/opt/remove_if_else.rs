@@ -102,6 +102,7 @@ use std::collections::hash_map::Entry;
 
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{AcirField, FieldElement};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
@@ -136,9 +137,7 @@ impl Ssa {
     /// so before then this pass will have no effect.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_if_else(mut self) -> RtResult<Ssa> {
-        for function in self.functions.values_mut() {
-            function.remove_if_else()?;
-        }
+        self.functions.par_iter_mut().try_for_each(|(_, function)| function.remove_if_else())?;
         Ok(self)
     }
 }

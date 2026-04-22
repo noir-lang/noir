@@ -55,6 +55,8 @@
 //! deduplicated across instructions. Doing this during Brillig codegen would be too late, as at
 //! that time we have a read-only DFG and we would be forced to generate more Brillig opcodes.
 
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
@@ -69,9 +71,9 @@ impl Ssa {
     /// See [`brillig_array_get_and_set`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn brillig_array_get_and_set(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.brillig_array_get_and_set();
-        }
+        });
 
         self
     }

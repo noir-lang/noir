@@ -5,6 +5,7 @@
 //! "div" and "mod" operations (for simplicity), while also allowing further optimizations to
 //! be done during subsequent SSA passes on the expanded instructions.
 use acvm::FieldElement;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -25,9 +26,9 @@ impl Ssa {
     /// See [`expand_signed_math`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn expand_signed_math(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.expand_signed_math();
-        }
+        });
         self
     }
 }

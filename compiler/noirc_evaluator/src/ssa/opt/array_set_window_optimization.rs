@@ -52,6 +52,7 @@ use std::collections::{HashMap, HashSet};
 
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::ElementTypesLength};
 use im::Vector;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
     brillig::assert_u32,
@@ -76,9 +77,9 @@ impl Ssa {
     /// See the [`array_set_to_make_array`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_window_optimization(mut self) -> Self {
-        for func in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, func)| {
             func.array_set_window_optimization();
-        }
+        });
         self
     }
 }

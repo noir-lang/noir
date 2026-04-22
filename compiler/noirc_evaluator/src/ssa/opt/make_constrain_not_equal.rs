@@ -28,6 +28,7 @@
 //! - this pass must be placed after [`CFG flattening`](super::flatten_cfg)
 //!   as the flattening pass cannot handle this instruction.
 use acvm::AcirField;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -44,9 +45,9 @@ impl Ssa {
     /// See the [`make_constrain_not_equal`](self) module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn make_constrain_not_equal(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.make_constrain_not_equal();
-        }
+        });
         self
     }
 }

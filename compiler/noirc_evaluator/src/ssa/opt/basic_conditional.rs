@@ -11,6 +11,7 @@
 
 use iter_extended::vecmap;
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -46,9 +47,9 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             flatten_function(function, &no_predicates);
-        }
+        });
         self
     }
 }

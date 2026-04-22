@@ -16,6 +16,7 @@
 
 use iter_extended::vecmap;
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::ssa::{
     ir::{
@@ -36,9 +37,9 @@ impl Ssa {
     /// This step should come before defunctionalization.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn black_box_bypass(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
+        self.functions.par_iter_mut().for_each(|(_, function)| {
             function.black_box_bypass();
-        }
+        });
         self
     }
 }
