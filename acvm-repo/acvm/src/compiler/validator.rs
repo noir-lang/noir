@@ -5,12 +5,13 @@ use crate::pwg::{
     blackbox::{self, hash::get_hash_input},
     get_value, input_to_value,
     memory_op::MemoryOpSolver,
+    witness_to_value,
 };
 use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode, OpcodeLocation,
-        opcodes::{BlackBoxFuncCall, BlockId, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, MemOp, MemOpKind},
     },
     native_types::{Witness, WitnessMap},
 };
@@ -410,33 +411,30 @@ impl<F: AcirField> MemoryOpSolver<F> {
         witness_map: &WitnessMap<F>,
         opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        let operation = get_value(&op.operation, witness_map)?;
-
         // Find the memory index associated with this memory operation.
-        let index = get_value(&op.index, witness_map)?;
+        let index = *witness_to_value(witness_map, op.index)?;
         let memory_index = self.index_from_field(index)?;
 
-        // Calculate the value associated with this memory operation.
-        let value = get_value(&op.value, witness_map)?;
+        let value = *witness_to_value(witness_map, op.value)?;
 
-        // `operation == 0` for read operation, `operation == 1` for write operation.
-        let is_read_operation = operation.is_zero();
-
-        if is_read_operation {
-            // `value = arr[memory_index]`
-            let value_in_array = self.read_memory_index(memory_index)?;
-            if value != value_in_array {
-                return Err(unsatisfied_constraint(
-                    opcode_index,
-                    format!(
-                        "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
-                    ),
-                ));
+        match op.operation {
+            MemOpKind::Read => {
+                // `value = arr[memory_index]`
+                let value_in_array = self.read_memory_index(memory_index)?;
+                if value != value_in_array {
+                    return Err(unsatisfied_constraint(
+                        opcode_index,
+                        format!(
+                            "Memory read opcode violation at index {memory_index}: expected {value_in_array} but found {value}",
+                        ),
+                    ));
+                }
+                Ok(())
             }
-            Ok(())
-        } else {
-            // `arr[memory_index] = value`
-            self.write_memory_index(memory_index, value)
+            MemOpKind::Write => {
+                // `arr[memory_index] = value`
+                self.write_memory_index(memory_index, value)
+            }
         }
     }
 }
@@ -773,14 +771,12 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            // Read from index 0 into witness 3
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(3)),
-            },
+            // Read from index 0 (Witness(0)=0) into witness 3
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)),
             (Witness(2), FieldElement::from(43u128)),
             (Witness(3), FieldElement::from(42u128)), // Should match value at index 0
@@ -802,13 +798,11 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(3)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(3)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)),
             (Witness(2), FieldElement::from(43u128)),
             (Witness(3), FieldElement::from(99u128)), // Wrong! Should be 42
@@ -831,19 +825,14 @@ mod tests {
                 init: vec![Witness(1), Witness(2)],
                 block_type: acir::circuit::opcodes::BlockType::Memory,
             },
-            // Write value from witness 3 to index 0
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::write_to_mem_index(FieldElement::zero().into(), Witness(3).into()),
-            },
+            // Write value from witness 3 to index 0 (Witness(0)=0)
+            Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(Witness(0), Witness(3)) },
             // Read from index 0 into witness 4
-            Opcode::MemoryOp {
-                block_id,
-                op: MemOp::read_at_mem_index(FieldElement::zero().into(), Witness(4)),
-            },
+            Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(Witness(0), Witness(4)) },
         ]);
 
         let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::zero()),
             (Witness(1), FieldElement::from(42u128)), // Initial value at index 0
             (Witness(2), FieldElement::from(43u128)), // Initial value at index 1
             (Witness(3), FieldElement::from(100u128)), // Value to write
