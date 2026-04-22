@@ -289,8 +289,7 @@ impl VariableLiveness {
 
                 let block = &func.dfg[block_id];
 
-                // Check if all successors (except back edges) have been processed
-                let mut all_successors_processed = true;
+                // Collect successors (except back edges) that have not yet been processed.
                 let mut unprocessed_successors = Vec::new();
 
                 for successor_id in block.successors() {
@@ -301,18 +300,16 @@ impl VariableLiveness {
                     }
                     // If successor hasn't been processed yet, we need to process it first
                     if !self.live_in.contains_key(&successor_id) {
-                        all_successors_processed = false;
                         unprocessed_successors.push(successor_id);
                     }
                 }
 
-                // Push this block back with processed = true (for after successors)
+                // Push this block back with processed = true (for after successors).
+                // If every successor was already processed, `unprocessed_successors` is empty and
+                // the block below is a no-op.
                 stack.push((block_id, true));
-                if !all_successors_processed {
-                    // Push unprocessed successors with processed = false
-                    for successor_id in unprocessed_successors {
-                        stack.push((successor_id, false));
-                    }
+                for successor_id in unprocessed_successors {
+                    stack.push((successor_id, false));
                 }
             }
         }
@@ -412,8 +409,12 @@ impl VariableLiveness {
                 // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
                 instruction_last_uses.extend(unused_instruction_results);
 
-                // Remember that we can deallocate these after this instruction.
-                block_last_uses.insert(*instruction_id, instruction_last_uses);
+                // Remember that we can deallocate these after this instruction. Skip
+                // instructions with no last uses to keep the map small; consumers default to
+                // an empty set for missing keys.
+                if !instruction_last_uses.is_empty() {
+                    block_last_uses.insert(*instruction_id, instruction_last_uses);
+                }
             }
 
             self.last_uses.insert(block_id, block_last_uses);

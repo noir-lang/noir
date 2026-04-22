@@ -266,9 +266,9 @@ impl SpillManager {
     /// because the reload code may execute again in a loop iteration. Only `remove_spill`
     /// (used when the value is truly dead) should free the slot.
     pub(crate) fn unmark_spilled(&mut self, value_id: &ValueId) {
-        if let Some(record) = self.records.get_mut(value_id) {
-            record.is_currently_spilled = false;
-        }
+        let record = self.records.get_mut(value_id).expect("No record for value");
+        assert!(record.is_currently_spilled, "value is not currently spilled");
+        record.is_currently_spilled = false;
     }
 
     /// Ensure a value has a permanent spill slot.
