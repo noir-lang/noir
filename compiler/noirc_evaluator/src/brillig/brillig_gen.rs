@@ -253,39 +253,35 @@ mod entry_point {
         29: sp[5] = const u32 7
         30: sp[11] = u32 add sp[3], sp[5]
         31: sp[5] = const u32 8
-        32: @4 = const u32 0
-        33: @3 = u32 add sp[1], @4
-        34: store sp[4] at @3
-        35: sp[4] = u32 add sp[2], sp[5]
-        36: sp[5] = const u32 9
-        37: @4 = const u32 1
-        38: @3 = u32 add sp[1], @4
-        39: store sp[6] at @3
-        40: sp[6] = u32 add sp[3], sp[5]
-        41: sp[3] = const u32 10
-        42: sp[5] = u32 add sp[2], sp[3]
-        43: @4 = const u32 0
-        44: @3 = u32 add sp[1], @4
-        45: sp[3] = load @3
-        46: @4 = const u32 2
-        47: @3 = u32 add sp[1], @4
-        48: store sp[7] at @3
-        49: @4 = const u32 1
+        32: store sp[4] at sp[1]
+        33: sp[4] = u32 add sp[2], sp[5]
+        34: sp[5] = const u32 9
+        35: @4 = const u32 1
+        36: @3 = u32 add sp[1], @4
+        37: store sp[6] at @3
+        38: sp[6] = u32 add sp[3], sp[5]
+        39: sp[3] = const u32 10
+        40: sp[5] = u32 add sp[2], sp[3]
+        41: sp[3] = load sp[1]
+        42: @4 = const u32 2
+        43: @3 = u32 add sp[1], @4
+        44: store sp[7] at @3
+        45: @4 = const u32 1
+        46: @3 = u32 add sp[1], @4
+        47: sp[7] = load @3
+        48: sp[2] = u32 add sp[3], sp[7]
+        49: @4 = const u32 2
         50: @3 = u32 add sp[1], @4
         51: sp[7] = load @3
-        52: sp[2] = u32 add sp[3], sp[7]
-        53: @4 = const u32 2
-        54: @3 = u32 add sp[1], @4
-        55: sp[7] = load @3
-        56: sp[3] = u32 add sp[2], sp[7]
-        57: sp[2] = u32 add sp[3], sp[8]
-        58: sp[3] = u32 add sp[2], sp[9]
-        59: sp[2] = u32 add sp[3], sp[10]
-        60: sp[3] = u32 add sp[2], sp[11]
-        61: sp[2] = u32 add sp[3], sp[4]
-        62: sp[3] = u32 add sp[2], sp[6]
-        63: sp[2] = u32 add sp[3], sp[5]
-        64: return
+        52: sp[3] = u32 add sp[2], sp[7]
+        53: sp[2] = u32 add sp[3], sp[8]
+        54: sp[3] = u32 add sp[2], sp[9]
+        55: sp[2] = u32 add sp[3], sp[10]
+        56: sp[3] = u32 add sp[2], sp[11]
+        57: sp[2] = u32 add sp[3], sp[4]
+        58: sp[3] = u32 add sp[2], sp[6]
+        59: sp[2] = u32 add sp[3], sp[5]
+        60: return
         ");
     }
 }

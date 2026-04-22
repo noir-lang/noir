@@ -358,8 +358,12 @@ impl VariableLiveness {
                 // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
                 instruction_last_uses.extend(unused_instruction_results);
 
-                // Remember that we can deallocate these after this instruction.
-                block_last_uses.insert(*instruction_id, instruction_last_uses);
+                // Remember that we can deallocate these after this instruction. Skip
+                // instructions with no last uses to keep the map small; consumers default to
+                // an empty set for missing keys.
+                if !instruction_last_uses.is_empty() {
+                    block_last_uses.insert(*instruction_id, instruction_last_uses);
+                }
             }
 
             self.last_uses.insert(block_id, block_last_uses);
