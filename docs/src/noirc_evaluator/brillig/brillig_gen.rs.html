@@ -253,39 +253,35 @@
 <a href=#253 id=253 data-nosnippet>253</a>        29: sp[5] = const u32 7
 <a href=#254 id=254 data-nosnippet>254</a>        30: sp[11] = u32 add sp[3], sp[5]
 <a href=#255 id=255 data-nosnippet>255</a>        31: sp[5] = const u32 8
-<a href=#256 id=256 data-nosnippet>256</a>        32: @4 = const u32 0
-<a href=#257 id=257 data-nosnippet>257</a>        33: @3 = u32 add sp[1], @4
-<a href=#258 id=258 data-nosnippet>258</a>        34: store sp[4] at @3
-<a href=#259 id=259 data-nosnippet>259</a>        35: sp[4] = u32 add sp[2], sp[5]
-<a href=#260 id=260 data-nosnippet>260</a>        36: sp[5] = const u32 9
-<a href=#261 id=261 data-nosnippet>261</a>        37: @4 = const u32 1
-<a href=#262 id=262 data-nosnippet>262</a>        38: @3 = u32 add sp[1], @4
-<a href=#263 id=263 data-nosnippet>263</a>        39: store sp[6] at @3
-<a href=#264 id=264 data-nosnippet>264</a>        40: sp[6] = u32 add sp[3], sp[5]
-<a href=#265 id=265 data-nosnippet>265</a>        41: sp[3] = const u32 10
-<a href=#266 id=266 data-nosnippet>266</a>        42: sp[5] = u32 add sp[2], sp[3]
-<a href=#267 id=267 data-nosnippet>267</a>        43: @4 = const u32 0
-<a href=#268 id=268 data-nosnippet>268</a>        44: @3 = u32 add sp[1], @4
-<a href=#269 id=269 data-nosnippet>269</a>        45: sp[3] = load @3
-<a href=#270 id=270 data-nosnippet>270</a>        46: @4 = const u32 2
-<a href=#271 id=271 data-nosnippet>271</a>        47: @3 = u32 add sp[1], @4
-<a href=#272 id=272 data-nosnippet>272</a>        48: store sp[7] at @3
-<a href=#273 id=273 data-nosnippet>273</a>        49: @4 = const u32 1
+<a href=#256 id=256 data-nosnippet>256</a>        32: store sp[4] at sp[1]
+<a href=#257 id=257 data-nosnippet>257</a>        33: sp[4] = u32 add sp[2], sp[5]
+<a href=#258 id=258 data-nosnippet>258</a>        34: sp[5] = const u32 9
+<a href=#259 id=259 data-nosnippet>259</a>        35: @4 = const u32 1
+<a href=#260 id=260 data-nosnippet>260</a>        36: @3 = u32 add sp[1], @4
+<a href=#261 id=261 data-nosnippet>261</a>        37: store sp[6] at @3
+<a href=#262 id=262 data-nosnippet>262</a>        38: sp[6] = u32 add sp[3], sp[5]
+<a href=#263 id=263 data-nosnippet>263</a>        39: sp[3] = const u32 10
+<a href=#264 id=264 data-nosnippet>264</a>        40: sp[5] = u32 add sp[2], sp[3]
+<a href=#265 id=265 data-nosnippet>265</a>        41: sp[3] = load sp[1]
+<a href=#266 id=266 data-nosnippet>266</a>        42: @4 = const u32 2
+<a href=#267 id=267 data-nosnippet>267</a>        43: @3 = u32 add sp[1], @4
+<a href=#268 id=268 data-nosnippet>268</a>        44: store sp[7] at @3
+<a href=#269 id=269 data-nosnippet>269</a>        45: @4 = const u32 1
+<a href=#270 id=270 data-nosnippet>270</a>        46: @3 = u32 add sp[1], @4
+<a href=#271 id=271 data-nosnippet>271</a>        47: sp[7] = load @3
+<a href=#272 id=272 data-nosnippet>272</a>        48: sp[2] = u32 add sp[3], sp[7]
+<a href=#273 id=273 data-nosnippet>273</a>        49: @4 = const u32 2
 <a href=#274 id=274 data-nosnippet>274</a>        50: @3 = u32 add sp[1], @4
 <a href=#275 id=275 data-nosnippet>275</a>        51: sp[7] = load @3
-<a href=#276 id=276 data-nosnippet>276</a>        52: sp[2] = u32 add sp[3], sp[7]
-<a href=#277 id=277 data-nosnippet>277</a>        53: @4 = const u32 2
-<a href=#278 id=278 data-nosnippet>278</a>        54: @3 = u32 add sp[1], @4
-<a href=#279 id=279 data-nosnippet>279</a>        55: sp[7] = load @3
-<a href=#280 id=280 data-nosnippet>280</a>        56: sp[3] = u32 add sp[2], sp[7]
-<a href=#281 id=281 data-nosnippet>281</a>        57: sp[2] = u32 add sp[3], sp[8]
-<a href=#282 id=282 data-nosnippet>282</a>        58: sp[3] = u32 add sp[2], sp[9]
-<a href=#283 id=283 data-nosnippet>283</a>        59: sp[2] = u32 add sp[3], sp[10]
-<a href=#284 id=284 data-nosnippet>284</a>        60: sp[3] = u32 add sp[2], sp[11]
-<a href=#285 id=285 data-nosnippet>285</a>        61: sp[2] = u32 add sp[3], sp[4]
-<a href=#286 id=286 data-nosnippet>286</a>        62: sp[3] = u32 add sp[2], sp[6]
-<a href=#287 id=287 data-nosnippet>287</a>        63: sp[2] = u32 add sp[3], sp[5]
-<a href=#288 id=288 data-nosnippet>288</a>        64: return
-<a href=#289 id=289 data-nosnippet>289</a>        "</span>);
-<a href=#290 id=290 data-nosnippet>290</a>    }
-<a href=#291 id=291 data-nosnippet>291</a>}</code></pre></div></section></main></body></html>
+<a href=#276 id=276 data-nosnippet>276</a>        52: sp[3] = u32 add sp[2], sp[7]
+<a href=#277 id=277 data-nosnippet>277</a>        53: sp[2] = u32 add sp[3], sp[8]
+<a href=#278 id=278 data-nosnippet>278</a>        54: sp[3] = u32 add sp[2], sp[9]
+<a href=#279 id=279 data-nosnippet>279</a>        55: sp[2] = u32 add sp[3], sp[10]
+<a href=#280 id=280 data-nosnippet>280</a>        56: sp[3] = u32 add sp[2], sp[11]
+<a href=#281 id=281 data-nosnippet>281</a>        57: sp[2] = u32 add sp[3], sp[4]
+<a href=#282 id=282 data-nosnippet>282</a>        58: sp[3] = u32 add sp[2], sp[6]
+<a href=#283 id=283 data-nosnippet>283</a>        59: sp[2] = u32 add sp[3], sp[5]
+<a href=#284 id=284 data-nosnippet>284</a>        60: return
+<a href=#285 id=285 data-nosnippet>285</a>        "</span>);
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>}</code></pre></div></section></main></body></html>
