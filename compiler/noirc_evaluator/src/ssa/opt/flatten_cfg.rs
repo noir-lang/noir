@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
@@ -180,7 +180,7 @@ impl Ssa {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
-            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+            if function.runtime().is_brillig() {
                 continue;
             }
 
@@ -198,28 +198,23 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function has at least 1 loop
-///   - Any ACIR function has a `ConstrainNotEqual` instruction
+/// Panics if the ACIR function being flattened has at least 1 loop or contains a
+/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_no_loops(function);
-        super::checks::for_each_instruction(function, |instruction, _dfg| {
-            super::checks::assert_not_constrain_not_equal(instruction);
-        });
-    }
+    super::checks::assert_no_loops(function);
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
+        super::checks::assert_not_constrain_not_equal(instruction);
+    });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function contains > 1 block
+/// Panics if the ACIR function contains more than one block. The caller already
+/// skipped Brillig functions.
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_cfg_is_flattened(function);
-    }
+    super::checks::assert_cfg_is_flattened(function);
 }
 
 /// Mutable context threaded through the CFG flattening pass.
