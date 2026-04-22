@@ -106,8 +106,9 @@ impl HirExpression {
                 // displaying these values anyway
                 ExpressionKind::Literal(Literal::Integer(*value, None))
             }
-            HirExpression::Literal(HirLiteral::Str(string)) => {
-                ExpressionKind::Literal(Literal::Str(string.clone()))
+            HirExpression::Literal(HirLiteral::Str(bytes)) => {
+                // [String::from_utf8_lossy] here should be okay since this is only for display purposes
+                ExpressionKind::Literal(Literal::Str(String::from_utf8_lossy(bytes).into_owned()))
             }
             HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?

@@ -85,7 +85,7 @@ pub(crate) fn gen_brillig_for(
         let Some(artifact) = artifact else {
             return Err(InternalError::General {
                 message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                call_stack: CallStack::new(),
+                call_stack: CallStack::empty(),
             }
             .into());
         };

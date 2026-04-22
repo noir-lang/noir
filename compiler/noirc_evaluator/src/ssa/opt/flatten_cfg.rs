@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
@@ -173,15 +173,14 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
-        let no_predicates: HashMap<_, _> =
-            self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
+        let no_predicates: HashSet<FunctionId> =
+            self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
-            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+            if function.runtime().is_brillig() {
                 continue;
             }
 
@@ -199,28 +198,23 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function has at least 1 loop
-///   - Any ACIR function has a `ConstrainNotEqual` instruction
+/// Panics if the ACIR function being flattened has at least 1 loop or contains a
+/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_no_loops(function);
-        super::checks::for_each_instruction(function, |instruction, _dfg| {
-            super::checks::assert_not_constrain_not_equal(instruction);
-        });
-    }
+    super::checks::assert_no_loops(function);
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
+        super::checks::assert_not_constrain_not_equal(instruction);
+    });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function contains > 1 block
+/// Panics if the ACIR function contains more than one block. The caller already
+/// skipped Brillig functions.
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_cfg_is_flattened(function);
-    }
+    super::checks::assert_cfg_is_flattened(function);
 }
 
 /// Mutable context threaded through the CFG flattening pass.
@@ -339,7 +333,7 @@ struct ConditionalContext {
 
 /// Flattens the control flow graph of the function such that it is left with a
 /// single block containing all instructions and no more control-flow.
-fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
+fn flatten_function_cfg(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
     // Creates a context that will perform the flattening
     // We give it the map of the conditional branches in the CFG
     // and the target block where the flattened instructions should be added.
@@ -402,7 +396,7 @@ impl<'f> Context<'f> {
     ///
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
-    pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
+    pub(crate) fn flatten(&mut self, no_predicates: &HashSet<FunctionId>) {
         let mut work_list = WorkList::new();
         work_list.insert(self.target_block);
         while let Some(block) = work_list.pop() {
@@ -443,13 +437,13 @@ impl<'f> Context<'f> {
     /// Use the provided map to say if the instruction is a call to a `no_predicates` function
     fn is_call_to_no_predicate_function(
         &self,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
         instruction: &InstructionId,
     ) -> bool {
         if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction]
             && let Value::Function(fid) = self.inserter.function.dfg[func]
         {
-            return no_predicates.get(&fid).copied().unwrap_or_default();
+            return no_predicates.contains(&fid);
         }
         false
     }
@@ -479,7 +473,7 @@ impl<'f> Context<'f> {
     pub(crate) fn inline_block(
         &mut self,
         block: BasicBlockId,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
     ) {
         // We do not inline the target block into itself.
         // This is the case in the beginning for the entry block.
@@ -811,10 +805,10 @@ impl<'f> Context<'f> {
         // rather than rely on argument passing in the context.
         // When JmpIf's else_destination is the exit block, the else_arguments were stored
         // in jmpif_else_arguments since there is no separate else block to read them from.
-        let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
-            args.clone()
-        } else if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
+        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
+            args
+        } else if let Some(else_branch) = &cond_context.else_branch {
+            let last_else = else_branch.last_block.unwrap();
             self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
         } else {
             Vec::new()
@@ -875,8 +869,16 @@ impl<'f> Context<'f> {
             // the next outer condition. Provenance is also consumed (removed) on
             // use by `try_collapse_merge`, preventing stale entries from matching
             // at unrelated merge points. Skip when the IfElse simplified to an
-            // existing value (e.g. then_value == else_value).
-            if collapsed.is_none() && result != then_value && result != else_value {
+            // existing value (e.g. then_value == else_value, or one of the conditions).
+            // If we don't skip conditions, an inner merge that simplifies to its
+            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+            // to v0, causing false collapses at outer merges that use v0 as an argument.
+            if collapsed.is_none()
+                && result != then_condition
+                && result != then_value
+                && result != else_condition
+                && result != else_value
+            {
                 self.merge_provenance.insert(
                     result,
                     MergeProvenance { then_condition, then_value, else_condition, else_value },
@@ -1222,11 +1224,14 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
+            interpreter::value::Value as InterpreterValue,
             ir::{
                 dfg::DataFlowGraph,
                 instruction::{Instruction, TerminatorInstruction},
+                types::NumericType,
                 value::{Value, ValueId},
             },
+            opt::assert_pass_does_not_affect_execution,
         },
     };
 
@@ -1526,7 +1531,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple();
+        let ssa = ssa.flatten_cfg().mem2reg();
 
         let main = ssa.main();
         let ret = match main.dfg[main.entry_block()].terminator() {
@@ -1911,7 +1916,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         let main = ssa.main();
 
@@ -1976,7 +1981,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.flatten_cfg().mem2reg_simple().fold_constants(1);
+        let ssa = ssa.flatten_cfg().mem2reg().fold_constants(1);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2018,7 +2023,7 @@ mod tests {
 
         let ssa = ssa
             .flatten_cfg()
-            .mem2reg_simple()
+            .mem2reg()
             .remove_if_else()
             .unwrap()
             .fold_constants(1)
@@ -2189,7 +2194,7 @@ mod tests {
 
     /// Regression test: when JmpIf's else_destination IS the exit/merge block
     /// (no separate else block), the else_arguments carry the "no-change" value
-    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// directly to the merge. This is the pattern mem2reg produces when
     /// the else branch has no stores (just falls through to the merge block).
     #[test]
     fn flatten_jmpif_else_args_to_exit_block() {
@@ -2218,6 +2223,63 @@ mod tests {
             v8 = mul v4, Field 5
             v9 = add v6, v8
             return v9
+        }
+        ");
+    }
+
+    /// Regression test: when an inner IfElse simplifies to its own condition
+    /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
+    /// value. Otherwise the outer merge sees the provenance on v0 and
+    /// incorrectly collapses.
+    ///
+    /// Pattern:
+    ///   if v0 {
+    ///       // inner: if v0 { 1 } else { 0 } -- simplifies to v0 itself
+    ///       result = 1  // b6 ignores inner merge, passes constant
+    ///   } else {
+    ///       result = v0
+    ///   }
+    ///
+    /// Correct result: v0 (returns v0=0 for false input, 1 for true).
+    /// Bug: provenance on v0 causes outer merge to collapse to `not(v0*not(v0))` = 1 always.
+    #[test]
+    fn no_collapse_when_inner_merge_simplifies_to_condition() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmpif v0 then: b4(), else: b5()
+              b2():
+                jmp b3(v0)
+              b3(v1: u1):
+                return v1
+              b4():
+                jmp b6(u1 1)
+              b5():
+                jmp b6(u1 0)
+              b6(v2: u1):
+                jmp b3(u1 1)
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // With v0 = false, the else branch returns v0 = false.
+        // Before the fix, flatten_cfg collapsed incorrectly and always returned true.
+        let false_value =
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap();
+        let inputs = vec![false_value.clone()];
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![false_value]);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects u1 1
+            return v0
         }
         ");
     }
@@ -2314,10 +2376,8 @@ mod merge_provenance_tests {
         let promoted_ssa = Ssa::from_str(promoted_src).unwrap();
         let store_load_ssa = Ssa::from_str(store_load_src).unwrap();
 
-        let promoted_flat =
-            promoted_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
-        let store_load_flat =
-            store_load_ssa.flatten_cfg().mem2reg_simple().dead_instruction_elimination();
+        let promoted_flat = promoted_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
+        let store_load_flat = store_load_ssa.flatten_cfg().mem2reg().dead_instruction_elimination();
 
         let count = |ssa: &Ssa| -> usize {
             let main = ssa.main();
@@ -2408,10 +2468,9 @@ mod merge_provenance_tests {
             v7 = not v1
             v8 = unchecked_mul v0, v7
             enable_side_effects v0
-            v9 = not v4
-            v10 = not v0
+            v9 = not v0
             enable_side_effects u1 1
-            v12 = unchecked_mul v0, v4
+            v11 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
             constrain v0 == u1 1
@@ -2470,14 +2529,12 @@ mod merge_provenance_tests {
             v5 = unchecked_mul v0, v4
             enable_side_effects v0
             v6 = not v0
-            enable_side_effects u1 1
-            v8 = not v3
             enable_side_effects v2
-            v9 = not v2
+            v7 = not v2
             enable_side_effects u1 1
-            v10 = unchecked_mul v9, v3
-            v11 = unchecked_add v2, v10
-            constrain v11 == u1 1
+            v9 = unchecked_mul v7, v3
+            v10 = unchecked_add v2, v9
+            constrain v10 == u1 1
             return
         }
         ");

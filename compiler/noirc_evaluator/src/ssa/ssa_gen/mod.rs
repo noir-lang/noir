@@ -165,7 +165,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::empty() };
         Err(err)
     } else {
         Ok(ssa)
@@ -338,7 +338,7 @@ impl FunctionContext<'_> {
 
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let string = self.codegen_string(&string);
+                let string = self.codegen_string(string.as_bytes());
                 let field_count = self
                     .builder
                     .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
@@ -357,8 +357,8 @@ impl FunctionContext<'_> {
         try_vecmap(elements, |element| self.codegen_expression(element))
     }
 
-    fn codegen_string(&mut self, string: &str) -> Values {
-        let elements = vecmap(string.as_bytes(), |byte| {
+    fn codegen_string(&mut self, bytes: &[u8]) -> Values {
+        let elements = vecmap(bytes, |byte| {
             self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
@@ -434,7 +434,7 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable: _ } => {
+            UnaryOp::Reference { mutable } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
@@ -445,7 +445,8 @@ impl FunctionContext<'_> {
                         value::Value::Normal(value) => {
                             let rhs_type =
                                 self.builder.current_function.dfg.type_of_value(value).into_owned();
-                            let alloc = self.builder.insert_allocate(rhs_type);
+                            let alloc =
+                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -1239,6 +1240,31 @@ impl FunctionContext<'_> {
         tuple: &Expression,
         field_index: usize,
     ) -> Result<Values, RuntimeError> {
+        // Optimization: for ExtractTupleField(Dereference(x), N), extract the field's
+        // reference first, then dereference only that field. This avoids loading all
+        // fields of a struct through &mut self when only one field is needed.
+        if let Expression::Unary(unary) = tuple
+            && matches!(unary.operator, UnaryOp::Dereference { .. })
+            && !unary.skip
+            && let ast::Type::Tuple(fields) = &unary.result_type
+        {
+            let field_type = &fields[field_index];
+            let references = self.codegen_expression(&unary.rhs)?;
+            let field_ref = Self::get_field(references, field_index);
+            return Ok(self.dereference(&field_ref, field_type));
+        }
+
+        // Optimization: for ExtractTupleField(Ident(mutable_local), N), get the
+        // references without loading, then extract and load only the needed field.
+        if let Expression::Ident(ident) = tuple
+            && ident.mutable
+            && matches!(ident.definition, ast::Definition::Local(_))
+        {
+            let references = self.codegen_ident_reference(ident);
+            let field = Self::get_field(references, field_index);
+            return Ok(field.map(|value| value.eval(self).into()));
+        }
+
         let tuple = self.codegen_expression(tuple)?;
         Ok(Self::get_field(tuple, field_index))
     }
@@ -1512,7 +1538,8 @@ impl FunctionContext<'_> {
         let (assert_message_expression, assert_message_typ) = assert_message_payload.as_ref();
 
         if let Expression::Literal(ast::Literal::Str(static_string)) = assert_message_expression {
-            Ok(Some(ConstrainError::StaticString(static_string.clone())))
+            let message = String::from_utf8_lossy(static_string).into_owned();
+            Ok(Some(ConstrainError::StaticString(message)))
         } else {
             let error_type = ErrorType::Dynamic(assert_message_typ.clone());
             let selector = error_type.selector();
@@ -1556,7 +1583,7 @@ impl FunctionContext<'_> {
         let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
@@ -1570,7 +1597,7 @@ impl FunctionContext<'_> {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
 
-        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::empty() })
     }
 
     /// Evaluate the given expression, increment the reference count of each array within,

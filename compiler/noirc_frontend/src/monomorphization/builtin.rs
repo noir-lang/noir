@@ -182,7 +182,7 @@ impl Monomorphizer<'_> {
                 })
             }
             ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+                ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))
             }
             ast::Type::FmtString(length, fields) => {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);

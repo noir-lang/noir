@@ -3,6 +3,7 @@
 use core::panic;
 
 use acvm::{AcirField, FieldElement};
+use test_case::test_case;
 
 use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
@@ -308,4 +309,122 @@ fn no_stack_overflow_from_unification_of_unfoldable_constant_exprs() {
     "#;
     let errors = get_program_errors(src);
     assert!(!errors.is_empty(), "Expected type errors but got none");
+}
+
+// === Signed arithmetic generics ===
+
+// Signed and Field binary arithmetic operations on numeric generics
+#[test_case("i32", "+", "3i32", "4i32", "7" ; "signed addition")]
+#[test_case("i32", "-", "3i32", "10i32", "-7" ; "signed subtraction producing negative")]
+#[test_case("i32", "*", "-3i32", "4i32", "-12" ; "signed multiplication with negatives")]
+#[test_case("i32", "/", "-12i32", "4i32", "-3" ; "signed division with negatives")]
+#[test_case("Field", "+", "3Field", "7Field", "10" ; "field addition")]
+#[test_case("Field", "-", "10Field", "3Field", "7" ; "field subtraction")]
+#[test_case("Field", "*", "3Field", "7Field", "21" ; "field multiplication")]
+fn arithmetic_generic_binary_op(typ: &str, op: &str, a: &str, b: &str, expected: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn binop<let A: {typ}, let B: {typ}>(_x: W<A>, _y: W<B>) -> W<A {op} B> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{a}> = W {{}};
+            let b: W<{b}> = W {{}};
+            let c = binop(a, b);
+            assert(value(c) == {expected});
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Variable cancellation (A - A == 0) for signed and field generics
+#[test_case("i32", "42i32" ; "signed variable cancellation")]
+#[test_case("Field", "42Field" ; "field variable cancellation")]
+fn arithmetic_generic_variable_cancellation(typ: &str, val: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn cancel<let A: {typ}>(_x: W<A>) -> W<A - A> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{val}> = W {{}};
+            let c = cancel(a);
+            assert(value(c) == 0);
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Constant folding in generic expressions
+#[test_case("i32", "10i32", "A + 3i32 - 1i32", "12" ; "signed constant folding")]
+#[test_case("Field", "10Field", "A + 5Field - 2Field", "13" ; "field constant folding")]
+fn arithmetic_generic_constant_folding(typ: &str, input: &str, expr: &str, expected: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn foo<let A: {typ}>(_x: W<A>) -> W<{expr}> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{input}> = W {{}};
+            let c = foo(a);
+            assert(value(c) == {expected});
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Overflow and underflow detection for signed generics
+#[test_case("127i8 + 1i8" ; "signed overflow")]
+#[test_case("-128i8 - 1i8" ; "signed underflow")]
+fn signed_arithmetic_generic_overflow_or_underflow_detected(expr: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: i8> {{}}
+
+        fn value<let N: i8>(_w: W<N>) -> i8 {{ N }}
+
+        fn main() {{
+            let a: W<{expr}> = W {{}};
+            let _ = value(a);
+        }}
+    "#,
+    );
+    let errors = get_program_errors(&src);
+    assert!(!errors.is_empty(), "Expected overflow/underflow error for `{expr}` but got none");
+}
+
+#[test]
+fn field_arithmetic_generic_large_value() {
+    let src = r#"
+        struct W<let N: Field> {}
+
+        fn value<let N: Field>(_w: W<N>) -> Field { N }
+
+        // A value larger than u32::MAX
+        global BIG: Field = 4294967297;
+
+        fn main() {
+            let w: W<BIG> = W {};
+            assert(value(w) == 4294967297);
+        }
+    "#;
+    assert_no_errors(src);
 }
