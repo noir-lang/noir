@@ -19,6 +19,7 @@ use noirc_evaluator::brillig::brillig_ir::{
 };
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::checks;
 use noirc_evaluator::ssa::opt::{
     CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
     DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
@@ -162,6 +163,15 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_brillig_constraints_check: bool,
 
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    #[arg(long, hide = true, default_value_t = checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH)]
+    pub brillig_constraints_check_max_array_output_length: u32,
+
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    #[arg(long, hide = true, default_value_t = checks::DEFAULT_MAX_ANCESTOR_DISTANCE)]
+    pub brillig_constraints_check_max_ancestor_distance: u32,
+
     /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
@@ -178,12 +188,12 @@ pub struct CompileOptions {
 
     /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
     /// A value of 0 effectively disables constant folding.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
+    #[arg(long, hide = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
     pub constant_folding_max_iter: usize,
 
     /// Setting to decide the maximum weight threshold at which we designate a function
     /// as "small" and thus to always be inlined.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
+    #[arg(long, hide = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
@@ -282,6 +292,9 @@ impl Default for CompileOptions {
             show_artifact_paths: false,
             skip_underconstrained_check: false,
             skip_brillig_constraints_check: false,
+            brillig_constraints_check_max_array_output_length:
+                checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
             inliner_aggressiveness: i64::MAX,
@@ -328,6 +341,10 @@ impl CompileOptions {
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: self.skip_underconstrained_check,
             skip_brillig_constraints_check: self.skip_brillig_constraints_check,
+            brillig_constraints_check_max_array_output_length: self
+                .brillig_constraints_check_max_array_output_length,
+            brillig_constraints_check_max_ancestor_distance: self
+                .brillig_constraints_check_max_ancestor_distance,
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
