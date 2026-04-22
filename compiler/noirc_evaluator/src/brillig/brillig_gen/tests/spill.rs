@@ -264,70 +264,54 @@ fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode() {
      0: sp[1] = @1
      1: @3 = const u32 7
      2: @1 = u32 add @1, @3
-     3: @4 = const u32 0
-     4: @3 = u32 add sp[1], @4
-     5: store sp[2] at @3
-     6: @4 = const u32 4
-     7: @3 = u32 add sp[1], @4
-     8: store sp[3] at @3
-     9: @4 = const u32 0
-    10: @3 = u32 add sp[1], @4
-    11: sp[3] = load @3
-    12: @4 = const u32 5
-    13: @3 = u32 add sp[1], @4
-    14: store sp[4] at @3
-    15: @4 = const u32 4
+     3: store sp[2] at sp[1]
+     4: @4 = const u32 4
+     5: @3 = u32 add sp[1], @4
+     6: store sp[3] at @3
+     7: sp[3] = load sp[1]
+     8: @4 = const u32 5
+     9: @3 = u32 add sp[1], @4
+    10: store sp[4] at @3
+    11: @4 = const u32 4
+    12: @3 = u32 add sp[1], @4
+    13: sp[4] = load @3
+    14: sp[2] = u32 add sp[3], sp[4]
+    15: @4 = const u32 6
     16: @3 = u32 add sp[1], @4
-    17: sp[4] = load @3
-    18: sp[2] = u32 add sp[3], sp[4]
-    19: @4 = const u32 6
-    20: @3 = u32 add sp[1], @4
-    21: store sp[2] at @3
-    22: @4 = const u32 0
-    23: @3 = u32 add sp[1], @4
-    24: store sp[3] at @3
-    25: @4 = const u32 6
-    26: @3 = u32 add sp[1], @4
-    27: sp[3] = load @3
-    28: @4 = const u32 4
-    29: @3 = u32 add sp[1], @4
-    30: store sp[4] at @3
-    31: @4 = const u32 0
-    32: @3 = u32 add sp[1], @4
-    33: sp[4] = load @3
-    34: sp[2] = u32 add sp[3], sp[4]
-    35: @4 = const u32 0
-    36: @3 = u32 add sp[1], @4
-    37: sp[2] = load @3
-    38: @4 = const u32 1
-    39: @3 = u32 add sp[1], @4
-    40: store sp[2] at @3
+    17: store sp[2] at @3
+    18: @4 = const u32 6
+    19: @3 = u32 add sp[1], @4
+    20: sp[3] = load @3
+    21: sp[4] = load sp[1]
+    22: sp[2] = u32 add sp[3], sp[4]
+    23: sp[2] = load sp[1]
+    24: @4 = const u32 1
+    25: @3 = u32 add sp[1], @4
+    26: store sp[2] at @3
+    27: @4 = const u32 4
+    28: @3 = u32 add sp[1], @4
+    29: sp[3] = load @3
+    30: @4 = const u32 2
+    31: @3 = u32 add sp[1], @4
+    32: store sp[3] at @3
+    33: @4 = const u32 5
+    34: @3 = u32 add sp[1], @4
+    35: sp[4] = load @3
+    36: @4 = const u32 3
+    37: @3 = u32 add sp[1], @4
+    38: store sp[4] at @3
+    39: jump to 0 // -> 40: f0/b1
+    40: sp[3] = load sp[1] // f0/b1
     41: @4 = const u32 4
     42: @3 = u32 add sp[1], @4
-    43: sp[3] = load @3
-    44: @4 = const u32 2
-    45: @3 = u32 add sp[1], @4
-    46: store sp[3] at @3
-    47: @4 = const u32 5
-    48: @3 = u32 add sp[1], @4
-    49: sp[4] = load @3
-    50: @4 = const u32 3
-    51: @3 = u32 add sp[1], @4
-    52: store sp[4] at @3
-    53: jump to 0 // -> 54: f0/b1
-    54: @4 = const u32 0 // f0/b1
-    55: @3 = u32 add sp[1], @4
-    56: sp[3] = load @3
-    57: @4 = const u32 4
-    58: @3 = u32 add sp[1], @4
-    59: sp[4] = load @3
-    60: sp[2] = u32 add sp[3], sp[4]
-    61: @4 = const u32 5
-    62: @3 = u32 add sp[1], @4
-    63: sp[4] = load @3
-    64: sp[3] = u32 add sp[2], sp[4]
-    65: sp[2] = sp[3]
-    66: return
+    43: sp[4] = load @3
+    44: sp[2] = u32 add sp[3], sp[4]
+    45: @4 = const u32 5
+    46: @3 = u32 add sp[1], @4
+    47: sp[4] = load @3
+    48: sp[3] = u32 add sp[2], sp[4]
+    49: sp[2] = sp[3]
+    50: return
     ");
 }
 
