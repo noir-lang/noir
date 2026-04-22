@@ -396,57 +396,56 @@
 <a href=#396 id=396 data-nosnippet>396</a>    </span><span class="kw">fn </span>returns_error_from_failing_foreign_call() {
 <a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>function = [Circuit {
 <a href=#398 id=398 data-nosnippet>398</a>            function_name: <span class="string">"main"</span>.to_string(),
-<a href=#399 id=399 data-nosnippet>399</a>            current_witness_index: <span class="number">0</span>,
-<a href=#400 id=400 data-nosnippet>400</a>            opcodes: <span class="macro">vec!</span>[Opcode::BrilligCall {
-<a href=#401 id=401 data-nosnippet>401</a>                id: BrilligFunctionId(<span class="number">0</span>),
-<a href=#402 id=402 data-nosnippet>402</a>                inputs: Vec::new(),
-<a href=#403 id=403 data-nosnippet>403</a>                outputs: Vec::new(),
-<a href=#404 id=404 data-nosnippet>404</a>                predicate: Expression::&lt;FieldElement&gt;::one(),
-<a href=#405 id=405 data-nosnippet>405</a>            }],
-<a href=#406 id=406 data-nosnippet>406</a>            private_parameters: BTreeSet::new(),
-<a href=#407 id=407 data-nosnippet>407</a>            public_parameters: PublicInputs::default(),
-<a href=#408 id=408 data-nosnippet>408</a>            return_values: PublicInputs::default(),
-<a href=#409 id=409 data-nosnippet>409</a>            assert_messages: Vec::new(),
-<a href=#410 id=410 data-nosnippet>410</a>        }];
-<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">let </span>unconstrained_function = [BrilligBytecode {
-<a href=#412 id=412 data-nosnippet>412</a>            function_name: <span class="string">"oracle_wrapper"</span>.to_string(),
-<a href=#413 id=413 data-nosnippet>413</a>            bytecode: <span class="macro">vec!</span>[BrilligOpcode::ForeignCall {
-<a href=#414 id=414 data-nosnippet>414</a>                function: <span class="string">"failing_oracle"</span>.to_string(),
-<a href=#415 id=415 data-nosnippet>415</a>                destinations: Vec::new(),
-<a href=#416 id=416 data-nosnippet>416</a>                destination_value_types: Vec::new(),
-<a href=#417 id=417 data-nosnippet>417</a>                inputs: Vec::new(),
-<a href=#418 id=418 data-nosnippet>418</a>                input_value_types: Vec::new(),
-<a href=#419 id=419 data-nosnippet>419</a>            }],
-<a href=#420 id=420 data-nosnippet>420</a>        }];
-<a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>        <span class="comment">// We pass a foreign call executor which always fails.
-<a href=#423 id=423 data-nosnippet>423</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>failing_foreign_call_executor = FailingForeignCallExecutor;
-<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
-<a href=#425 id=425 data-nosnippet>425</a>            <span class="kw-2">&amp;</span>function,
-<a href=#426 id=426 data-nosnippet>426</a>            <span class="kw-2">&amp;</span>unconstrained_function,
-<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw-2">&amp;</span>StubbedBlackBoxSolver,
-<a href=#428 id=428 data-nosnippet>428</a>            <span class="kw-2">&amp;mut </span>failing_foreign_call_executor,
-<a href=#429 id=429 data-nosnippet>429</a>            <span class="bool-val">false</span>,
-<a href=#430 id=430 data-nosnippet>430</a>        );
-<a href=#431 id=431 data-nosnippet>431</a>        executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
-<a href=#432 id=432 data-nosnippet>432</a>
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">let </span><span class="prelude-val">Err</span>(error) = executor.execute_circuit(WitnessMap::new()) <span class="kw">else </span>{
-<a href=#434 id=434 data-nosnippet>434</a>            <span class="macro">panic!</span>(<span class="string">"Execution succeeded when it should not."</span>)
-<a href=#435 id=435 data-nosnippet>435</a>        };
-<a href=#436 id=436 data-nosnippet>436</a>
-<a href=#437 id=437 data-nosnippet>437</a>        <span class="macro">assert!</span>(
-<a href=#438 id=438 data-nosnippet>438</a>            <span class="macro">matches!</span>(
-<a href=#439 id=439 data-nosnippet>439</a>                error,
-<a href=#440 id=440 data-nosnippet>440</a>                NargoError::ForeignCallError(
-<a href=#441 id=441 data-nosnippet>441</a>                    ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
-<a href=#442 id=442 data-nosnippet>442</a>                )
-<a href=#443 id=443 data-nosnippet>443</a>                 <span class="kw">if </span>error_message == <span class="kw-2">*</span><span class="string">"ORACLE_CALL_BROKE"
-<a href=#444 id=444 data-nosnippet>444</a>            </span>),
-<a href=#445 id=445 data-nosnippet>445</a>            <span class="string">"Execution did not fail with expected message"
-<a href=#446 id=446 data-nosnippet>446</a>        </span>);
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="macro">assert!</span>(
-<a href=#448 id=448 data-nosnippet>448</a>            executor.failing_partial_witness.is_some(),
-<a href=#449 id=449 data-nosnippet>449</a>            <span class="string">"Failing witness map should be set but wasn't"
-<a href=#450 id=450 data-nosnippet>450</a>        </span>);
-<a href=#451 id=451 data-nosnippet>451</a>    }
-<a href=#452 id=452 data-nosnippet>452</a>}</code></pre></div></section></main></body></html>
+<a href=#399 id=399 data-nosnippet>399</a>            opcodes: <span class="macro">vec!</span>[Opcode::BrilligCall {
+<a href=#400 id=400 data-nosnippet>400</a>                id: BrilligFunctionId(<span class="number">0</span>),
+<a href=#401 id=401 data-nosnippet>401</a>                inputs: Vec::new(),
+<a href=#402 id=402 data-nosnippet>402</a>                outputs: Vec::new(),
+<a href=#403 id=403 data-nosnippet>403</a>                predicate: Expression::&lt;FieldElement&gt;::one(),
+<a href=#404 id=404 data-nosnippet>404</a>            }],
+<a href=#405 id=405 data-nosnippet>405</a>            private_parameters: BTreeSet::new(),
+<a href=#406 id=406 data-nosnippet>406</a>            public_parameters: PublicInputs::default(),
+<a href=#407 id=407 data-nosnippet>407</a>            return_values: PublicInputs::default(),
+<a href=#408 id=408 data-nosnippet>408</a>            assert_messages: Vec::new(),
+<a href=#409 id=409 data-nosnippet>409</a>        }];
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>unconstrained_function = [BrilligBytecode {
+<a href=#411 id=411 data-nosnippet>411</a>            function_name: <span class="string">"oracle_wrapper"</span>.to_string(),
+<a href=#412 id=412 data-nosnippet>412</a>            bytecode: <span class="macro">vec!</span>[BrilligOpcode::ForeignCall {
+<a href=#413 id=413 data-nosnippet>413</a>                function: <span class="string">"failing_oracle"</span>.to_string(),
+<a href=#414 id=414 data-nosnippet>414</a>                destinations: Vec::new(),
+<a href=#415 id=415 data-nosnippet>415</a>                destination_value_types: Vec::new(),
+<a href=#416 id=416 data-nosnippet>416</a>                inputs: Vec::new(),
+<a href=#417 id=417 data-nosnippet>417</a>                input_value_types: Vec::new(),
+<a href=#418 id=418 data-nosnippet>418</a>            }],
+<a href=#419 id=419 data-nosnippet>419</a>        }];
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="comment">// We pass a foreign call executor which always fails.
+<a href=#422 id=422 data-nosnippet>422</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>failing_foreign_call_executor = FailingForeignCallExecutor;
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
+<a href=#424 id=424 data-nosnippet>424</a>            <span class="kw-2">&amp;</span>function,
+<a href=#425 id=425 data-nosnippet>425</a>            <span class="kw-2">&amp;</span>unconstrained_function,
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="kw-2">&amp;</span>StubbedBlackBoxSolver,
+<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw-2">&amp;mut </span>failing_foreign_call_executor,
+<a href=#428 id=428 data-nosnippet>428</a>            <span class="bool-val">false</span>,
+<a href=#429 id=429 data-nosnippet>429</a>        );
+<a href=#430 id=430 data-nosnippet>430</a>        executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
+<a href=#431 id=431 data-nosnippet>431</a>
+<a href=#432 id=432 data-nosnippet>432</a>        <span class="kw">let </span><span class="prelude-val">Err</span>(error) = executor.execute_circuit(WitnessMap::new()) <span class="kw">else </span>{
+<a href=#433 id=433 data-nosnippet>433</a>            <span class="macro">panic!</span>(<span class="string">"Execution succeeded when it should not."</span>)
+<a href=#434 id=434 data-nosnippet>434</a>        };
+<a href=#435 id=435 data-nosnippet>435</a>
+<a href=#436 id=436 data-nosnippet>436</a>        <span class="macro">assert!</span>(
+<a href=#437 id=437 data-nosnippet>437</a>            <span class="macro">matches!</span>(
+<a href=#438 id=438 data-nosnippet>438</a>                error,
+<a href=#439 id=439 data-nosnippet>439</a>                NargoError::ForeignCallError(
+<a href=#440 id=440 data-nosnippet>440</a>                    ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
+<a href=#441 id=441 data-nosnippet>441</a>                )
+<a href=#442 id=442 data-nosnippet>442</a>                 <span class="kw">if </span>error_message == <span class="kw-2">*</span><span class="string">"ORACLE_CALL_BROKE"
+<a href=#443 id=443 data-nosnippet>443</a>            </span>),
+<a href=#444 id=444 data-nosnippet>444</a>            <span class="string">"Execution did not fail with expected message"
+<a href=#445 id=445 data-nosnippet>445</a>        </span>);
+<a href=#446 id=446 data-nosnippet>446</a>        <span class="macro">assert!</span>(
+<a href=#447 id=447 data-nosnippet>447</a>            executor.failing_partial_witness.is_some(),
+<a href=#448 id=448 data-nosnippet>448</a>            <span class="string">"Failing witness map should be set but wasn't"
+<a href=#449 id=449 data-nosnippet>449</a>        </span>);
+<a href=#450 id=450 data-nosnippet>450</a>    }
+<a href=#451 id=451 data-nosnippet>451</a>}</code></pre></div></section></main></body></html>
