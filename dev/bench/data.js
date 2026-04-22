@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776804777712,
+  "lastUpdate": 1776855264880,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23236,48 +23236,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ad02a20cd80b3e8a6189722b11a625998e578435",
-          "message": "fix: Fix prioritize types over globals for resolution (#12274)",
-          "timestamp": "2026-04-16T20:28:41Z",
-          "tree_id": "7d65fa382f56469a0ee3cf16a5254a30a32db4fe",
-          "url": "https://github.com/noir-lang/noir/commit/ad02a20cd80b3e8a6189722b11a625998e578435"
-        },
-        "date": 1776372741364,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168054,
-            "range": "± 925",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137537,
-            "range": "± 434",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645293,
-            "range": "± 42461",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25329,6 +25287,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654298,
             "range": "± 3895",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f0f28879f8da2bc47960c262a67d394652e2b54",
+          "message": "chore(ssa,brillig): three more small audit cleanups (#12258, #12293, #12302) (#12386)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-04-22T10:24:28Z",
+          "tree_id": "13fd4fa04785772f6b4812cc044cdf12beda9e7b",
+          "url": "https://github.com/noir-lang/noir/commit/9f0f28879f8da2bc47960c262a67d394652e2b54"
+        },
+        "date": 1776855208630,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174584,
+            "range": "± 1528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144400,
+            "range": "± 1028",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651557,
+            "range": "± 1847",
             "unit": "ns/iter"
           }
         ]
