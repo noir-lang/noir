@@ -1054,3 +1054,28 @@ fn trait_method_and_struct_method_with_same_name() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn trait_method_and_struct_method_with_same_name_and_turbofish() {
+    let src = r#"
+    pub struct MyStruct<T> {}
+    impl<T> MyStruct<T> {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait<T> {
+        fn foo();
+    }
+
+    impl<T> MyTrait<T> for MyStruct<T> {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::<T>::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
