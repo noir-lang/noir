@@ -613,7 +613,6 @@ pub fn convert_generated_acir_into_circuit(
     debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index();
 
     let GeneratedAcir {
         return_witnesses,
@@ -635,9 +634,6 @@ pub fn convert_generated_acir_into_circuit(
 
     let circuit = Circuit {
         function_name: name.clone(),
-        // XXX: The Circuit cannot differentiate between having 0 or 1 witnesses,
-        // but making this field optional could break serialization.
-        current_witness_index: current_witness_index.unwrap_or_default().witness_index(),
         opcodes,
         private_parameters,
         public_parameters,

@@ -22,7 +22,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as Deser
 
 use std::collections::BTreeSet;
 
-use self::{brillig::BrilligBytecode, opcodes::BlockId};
+use self::{
+    brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
+    opcodes::{BlockId, FunctionInput},
+};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
@@ -35,26 +38,16 @@ pub struct Program<F: AcirField> {
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
-    #[serde(default)] // For backwards compatibility
     pub function_name: String,
-    /// The current highest witness index in the circuit.
-    ///
-    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
-    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
-    ///
-    /// Note that if the current witness index is 0, it might mean that there were no witnesses created at all,
-    /// or that there was exactly one witness.
-    pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
-
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
     // ACIR distinguishes between the public inputs which are provided externally or calculated within the circuit and returned.
@@ -72,6 +65,51 @@ pub struct Circuit<F: AcirField> {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
+}
+
+/// Wire format for `Circuit` — preserves backwards-compatible serialization that includes
+/// `current_witness_index`. The `serde(rename)` ensures this type registers under the same
+/// name ("Circuit") as the public type so that `serde_reflection` traces it correctly.
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "Circuit")]
+struct CircuitWire<F: AcirField> {
+    #[serde(default)]
+    function_name: String,
+    current_witness_index: u32,
+    opcodes: Vec<Opcode<F>>,
+    private_parameters: BTreeSet<Witness>,
+    public_parameters: PublicInputs,
+    return_values: PublicInputs,
+    assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
+}
+
+impl<F: AcirField + Serialize> Serialize for Circuit<F> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        CircuitWire {
+            function_name: self.function_name.clone(),
+            current_witness_index: self.max_witness_index(),
+            opcodes: self.opcodes.clone(),
+            private_parameters: self.private_parameters.clone(),
+            public_parameters: self.public_parameters.clone(),
+            return_values: self.return_values.clone(),
+            assert_messages: self.assert_messages.clone(),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for Circuit<F> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = CircuitWire::<F>::deserialize(deserializer)?;
+        Ok(Circuit {
+            function_name: wire.function_name,
+            opcodes: wire.opcodes,
+            private_parameters: wire.private_parameters,
+            public_parameters: wire.public_parameters,
+            return_values: wire.return_values,
+            assert_messages: wire.assert_messages,
+        })
+    }
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
@@ -237,6 +275,96 @@ impl std::fmt::Display for BrilligOpcodeLocation {
 }
 
 impl<F: AcirField> Circuit<F> {
+    /// Returns the maximum witness index used anywhere in the circuit.
+    /// This is the value serialized as `current_witness_index` in the wire format.
+    pub fn max_witness_index(&self) -> u32 {
+        fn update(max: &mut u32, w: Witness) {
+            *max = (*max).max(w.witness_index());
+        }
+        fn scan_expr<F: AcirField>(max: &mut u32, expr: &Expression<F>) {
+            for &(_, w1, w2) in &expr.mul_terms {
+                update(max, w1);
+                update(max, w2);
+            }
+            for &(_, w) in &expr.linear_combinations {
+                update(max, w);
+            }
+        }
+        fn scan_inputs<F>(max: &mut u32, inputs: &[FunctionInput<F>]) {
+            for input in inputs {
+                if let FunctionInput::Witness(w) = input {
+                    update(max, *w);
+                }
+            }
+        }
+
+        let mut max = 0u32;
+        for &w in &self.private_parameters {
+            update(&mut max, w);
+        }
+        for &w in &self.public_parameters.0 {
+            update(&mut max, w);
+        }
+        for &w in &self.return_values.0 {
+            update(&mut max, w);
+        }
+        for opcode in &self.opcodes {
+            match opcode {
+                Opcode::AssertZero(expr) => scan_expr(&mut max, expr),
+                Opcode::BlackBoxFuncCall(call) => {
+                    scan_inputs(&mut max, &call.get_inputs_vec());
+                    for w in call.get_outputs_vec() {
+                        update(&mut max, w);
+                    }
+                }
+                Opcode::MemoryOp { op, .. } => {
+                    scan_expr(&mut max, &op.operation);
+                    scan_expr(&mut max, &op.index);
+                    scan_expr(&mut max, &op.value);
+                }
+                Opcode::MemoryInit { init, .. } => {
+                    for &w in init {
+                        update(&mut max, w);
+                    }
+                }
+                Opcode::BrilligCall { inputs, outputs, predicate, .. } => {
+                    scan_expr(&mut max, predicate);
+                    for input in inputs {
+                        match input {
+                            BrilligInputs::Single(expr) => scan_expr(&mut max, expr),
+                            BrilligInputs::Array(exprs) => {
+                                for expr in exprs {
+                                    scan_expr(&mut max, expr);
+                                }
+                            }
+                            BrilligInputs::MemoryArray(_) => {}
+                        }
+                    }
+                    for output in outputs {
+                        match output {
+                            BrilligOutputs::Simple(w) => update(&mut max, *w),
+                            BrilligOutputs::Array(witnesses) => {
+                                for &w in witnesses {
+                                    update(&mut max, w);
+                                }
+                            }
+                        }
+                    }
+                }
+                Opcode::Call { inputs, outputs, predicate, .. } => {
+                    scan_expr(&mut max, predicate);
+                    for &w in inputs {
+                        update(&mut max, w);
+                    }
+                    for &w in outputs {
+                        update(&mut max, w);
+                    }
+                }
+            }
+        }
+        max
+    }
+
     /// Returns all witnesses which are required to execute the circuit successfully.
     pub fn circuit_arguments(&self) -> BTreeSet<Witness> {
         self.private_parameters.union(&self.public_parameters.0).copied().collect()
@@ -492,6 +620,17 @@ mod tests {
         BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
+    }
+
+    #[test]
+    fn computes_max_witness_index() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: [w3]
+        return values: [w2]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(circuit.max_witness_index(), 3);
     }
 
     /// Property based testing for serialization
