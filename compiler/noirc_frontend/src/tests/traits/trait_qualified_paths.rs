@@ -271,7 +271,6 @@ fn as_trait_path_self_type() {
 }
 
 /// Regression test for https://github.com/noir-lang/noir/issues/9562
-/// and https://github.com/noir-lang/noir/issues/12395
 #[test]
 fn as_trait_path_with_method_turbofish() {
     let src = r#"
