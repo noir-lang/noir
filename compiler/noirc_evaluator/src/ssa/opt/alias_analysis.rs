@@ -54,12 +54,29 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         instruction::{Instruction, Intrinsic, TerminatorInstruction},
-        types::Type,
+        types::{CompositeType, Type},
         union_find::UnionFind,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
+
+/// Canonicalize a type so that `&T` and `&mut T` are treated as the same type
+/// for aliasing. Every `Reference(_, _)` is rewritten to have `mutable = false`.
+fn canonicalize_type(typ: &Type) -> Type {
+    match typ {
+        Type::Reference(inner, _) => Type::Reference(Arc::new(canonicalize_type(inner)), false),
+        Type::Array(composite, size) => {
+            let slots: CompositeType = composite.iter().map(canonicalize_type).collect();
+            Type::Array(Arc::new(slots), *size)
+        }
+        Type::Vector(composite) => {
+            let slots: CompositeType = composite.iter().map(canonicalize_type).collect();
+            Type::Vector(Arc::new(slots))
+        }
+        Type::Numeric(_) | Type::Function => typ.clone(),
+    }
+}
 
 /// GlobalValueId are ValueId along with their FunctionId,
 /// allowing to globally use ValueIds coming from several functions.
@@ -401,6 +418,8 @@ impl AliasAnalysis {
                 if !typ.contains_reference() {
                     return None;
                 }
+                // Canonicalize so `&T` and `&mut T` have the cache entries
+                let typ = canonicalize_type(&typ);
                 let refs = self.get_ref_types(&typ);
                 Some((v, typ, refs))
             })
@@ -448,7 +467,7 @@ impl AliasAnalysis {
     /// - `[&T; N]` contains `&T`, which transitively contains `T`.
     fn type_can_contain(outer: &Type, inner: &Type) -> bool {
         match outer {
-            Type::Reference(t) => t.as_ref() == inner || Self::type_can_contain(t, inner),
+            Type::Reference(t, _) => t.as_ref() == inner || Self::type_can_contain(t, inner),
             Type::Array(composite, _) | Type::Vector(composite) => {
                 composite.iter().any(|slot| slot == inner || Self::type_can_contain(slot, inner))
             }
@@ -464,7 +483,7 @@ impl AliasAnalysis {
         }
         let mut refs = HashSet::default();
         match typ {
-            Type::Reference(inner) => {
+            Type::Reference(inner, _) => {
                 refs.insert(typ.clone());
                 // Recurse through the cache so `inner` gets cached too.
                 let inner_refs = self.get_ref_types(inner);
@@ -493,9 +512,9 @@ impl AliasAnalysis {
     /// when a function f(a,b) does `a.1 = &(*b.0)`, a and b alias in a subtle way.
     fn could_have_sub_ref_aliasing(refs_a: &HashSet<Type>, refs_b: &HashSet<Type>) -> bool {
         for ref_a in refs_a {
-            let Type::Reference(inner_a) = ref_a else { continue };
+            let Type::Reference(inner_a, _) = ref_a else { continue };
             for ref_b in refs_b {
-                let Type::Reference(inner_b) = ref_b else { continue };
+                let Type::Reference(inner_b, _) = ref_b else { continue };
                 if Self::type_contains_structurally(inner_a, inner_b)
                     || Self::type_contains_structurally(inner_b, inner_a)
                 {
@@ -612,7 +631,11 @@ impl AliasAnalysis {
     /// This has no visible side-effect and is perfectly safe.
     pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
         // Field-insensitivity may alias values with distinct types, but such values cannot alias.
-        if function.dfg.type_of_value(a) != function.dfg.type_of_value(b) {
+        // Types are canonicalized first so `&T` and `&mut T` compare equal — both are addresses
+        // at runtime and can legitimately reach the same allocation.
+        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
+        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
+        if type_a != type_b {
             return false;
         }
         let a = GlobalValueId::new(function, a);
@@ -797,6 +820,29 @@ mod tests {
         // Neither ref was involved in a merge → both singletons → not aliased.
         assert!(!analysis.is_aliased(ssa.main(), allocs[0]));
         assert!(!analysis.is_aliased(ssa.main(), allocs[1]));
+    }
+
+    /// `&T` and `&mut T` can legitimately point to the same memory at runtime.
+    /// Types are canonicalized throughout the analysis so the `may_alias` type guard
+    /// treats them as equivalent.
+    #[test]
+    fn mutable_and_immutable_refs_are_treated_as_same_type() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &Field
+            call print(v0, v1)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // The opaque call canonicalizes both arg types to `&Field`, so Case 1
+        // of `unresolved_call` fires and merges v0 with v1. `may_alias` also
+        // canonicalizes before the type guard → returns true.
+        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
     }
 
     #[test]
