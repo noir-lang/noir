@@ -1616,7 +1616,7 @@ impl Elaborator<'_> {
 
             trait_methods = Some(type_trait_methods);
         } else if direct_method.is_some() {
-            // If there's no turbofish, but there's a direct method, let the lookup continue reguarly
+            // If there's no turbofish, but there's a direct method, let the lookup continue regularly
             // (outside of this method) as the resolution will not be a trait method.
             return None;
         }
