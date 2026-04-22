@@ -68,7 +68,6 @@ Fortunately for Noir developers, when needing a particular function a Rust imple
 A few things to do when converting Rust code to Noir:
 - `println!` is not a macro, use `println` function (same for `assert_eq`)
 - No early `return` in function. Use constrain via assertion instead
-- No passing by reference. Remove `&` operator to pass by value (copy)
 - No boolean operators (`&&`, `||`). Use bitwise operators (`&`, `|`) with boolean values
 - No type `usize`. Use types `u8`, `u32`, `u64`, ...
 - `main` return must be public, `pub`
@@ -178,7 +177,7 @@ Use an [unconstrained function](../noir/concepts/unconstrained.md) to perform ga
 
 Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) equals the dividend will be more efficient.
 
-Use `  if is_unconstrained() { /`, to conditionally execute code if being called in an unconstrained vs constrained way.
+Use `if is_unconstrained() { ... }` to conditionally execute code if being called in an unconstrained vs constrained way.
 
 ## Advanced
 

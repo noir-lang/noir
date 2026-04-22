@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
@@ -173,15 +173,14 @@ impl Ssa {
     /// For more information, see the module-level comment at the top of this file.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
-        let no_predicates: HashMap<_, _> =
-            self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
+        let no_predicates: HashSet<FunctionId> =
+            self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
             // there are still any loops present in the program.
-            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+            if function.runtime().is_brillig() {
                 continue;
             }
 
@@ -199,28 +198,23 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function has at least 1 loop
-///   - Any ACIR function has a `ConstrainNotEqual` instruction
+/// Panics if the ACIR function being flattened has at least 1 loop or contains a
+/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_no_loops(function);
-        super::checks::for_each_instruction(function, |instruction, _dfg| {
-            super::checks::assert_not_constrain_not_equal(instruction);
-        });
-    }
+    super::checks::assert_no_loops(function);
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
+        super::checks::assert_not_constrain_not_equal(instruction);
+    });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
-/// Panics if:
-///   - Any ACIR function contains > 1 block
+/// Panics if the ACIR function contains more than one block. The caller already
+/// skipped Brillig functions.
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    if function.runtime().is_acir() {
-        super::checks::assert_cfg_is_flattened(function);
-    }
+    super::checks::assert_cfg_is_flattened(function);
 }
 
 /// Mutable context threaded through the CFG flattening pass.
@@ -339,7 +333,7 @@ struct ConditionalContext {
 
 /// Flattens the control flow graph of the function such that it is left with a
 /// single block containing all instructions and no more control-flow.
-fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
+fn flatten_function_cfg(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
     // Creates a context that will perform the flattening
     // We give it the map of the conditional branches in the CFG
     // and the target block where the flattened instructions should be added.
@@ -402,7 +396,7 @@ impl<'f> Context<'f> {
     ///
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
-    pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
+    pub(crate) fn flatten(&mut self, no_predicates: &HashSet<FunctionId>) {
         let mut work_list = WorkList::new();
         work_list.insert(self.target_block);
         while let Some(block) = work_list.pop() {
@@ -443,13 +437,13 @@ impl<'f> Context<'f> {
     /// Use the provided map to say if the instruction is a call to a `no_predicates` function
     fn is_call_to_no_predicate_function(
         &self,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
         instruction: &InstructionId,
     ) -> bool {
         if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction]
             && let Value::Function(fid) = self.inserter.function.dfg[func]
         {
-            return no_predicates.get(&fid).copied().unwrap_or_default();
+            return no_predicates.contains(&fid);
         }
         false
     }
@@ -479,7 +473,7 @@ impl<'f> Context<'f> {
     pub(crate) fn inline_block(
         &mut self,
         block: BasicBlockId,
-        no_predicates: &HashMap<FunctionId, bool>,
+        no_predicates: &HashSet<FunctionId>,
     ) {
         // We do not inline the target block into itself.
         // This is the case in the beginning for the entry block.
@@ -811,10 +805,10 @@ impl<'f> Context<'f> {
         // rather than rely on argument passing in the context.
         // When JmpIf's else_destination is the exit block, the else_arguments were stored
         // in jmpif_else_arguments since there is no separate else block to read them from.
-        let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
-            args.clone()
-        } else if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.as_ref().unwrap().last_block.unwrap();
+        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
+            args
+        } else if let Some(else_branch) = &cond_context.else_branch {
+            let last_else = else_branch.last_block.unwrap();
             self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
         } else {
             Vec::new()
@@ -1046,11 +1040,7 @@ impl<'f> Context<'f> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 // Replace value with `value * predicate` to zero out value when predicate is inactive.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, value, call_stack);
-                let predicate_value = self.mul_by_condition(value, casted_condition, call_stack);
+                let predicate_value = self.mul_by_condition(value, condition, call_stack);
                 // Issue #8617: update the value to be the predicated value.
                 // This ensures that the value has the correct bit size in all cases.
                 self.predicate_value(value, predicate_value);
@@ -1110,9 +1100,7 @@ impl<'f> Context<'f> {
         match intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => {
                 let field = arguments[0];
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, field, call_stack);
-                let field = self.mul_by_condition(field, casted_condition, call_stack);
+                let field = self.mul_by_condition(field, condition, call_stack);
 
                 arguments[0] = field;
 

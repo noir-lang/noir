@@ -11,7 +11,19 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
+use crate::{
+    acir::ssa::Artifacts,
+    brillig::BrilligOptions,
+    errors::RuntimeError,
+    ssa::{
+        checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
+        opt::{
+            CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+            MAX_UNROLL_ITERATIONS,
+        },
+    },
+};
 use acvm::{
     FieldElement,
     acir::{
@@ -42,7 +54,7 @@ pub use builder::{SsaBuilder, SsaPass};
 
 mod artifact;
 mod builder;
-mod checks;
+pub mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
@@ -98,6 +110,11 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    pub brillig_constraints_check_max_array_output_length: u32,
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    pub brillig_constraints_check_max_ancestor_distance: u32,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -132,6 +149,32 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+}
+
+/// Defaults used in tests.
+impl Default for SsaEvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            ssa_logging: SsaLogging::None,
+            ssa_logging_hide_unchanged: false,
+            brillig_options: BrilligOptions::default(),
+            print_codegen_timings: false,
+            emit_ssa: None,
+            skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
+            inliner_aggressiveness: 0,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            skip_passes: Vec::new(),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -417,7 +460,12 @@ pub fn optimize_ssa_builder_into_acir(
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
-            || ssa.check_for_missing_brillig_constraints(),
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.brillig_constraints_check_max_array_output_length,
+                    options.brillig_constraints_check_max_ancestor_distance,
+                )
+            },
         ));
     }
 

@@ -14,7 +14,7 @@ declarations in the source program.
 ```rust title="child_modules" showLineNumbers 
 pub comptime fn child_modules(self) -> [Module] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L25-L27" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L25-L27</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L25-L27" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L25-L27</a></sub></sup>
 
 
 Returns all the child modules of the current module.
@@ -39,7 +39,7 @@ fn child_modules_test() {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_module/src/main.nr#L135-L154" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L135-L154</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/compile_success_empty/comptime_module/src/main.nr#L135-L154" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L135-L154</a></sub></sup>
 
 
 ### functions
@@ -47,7 +47,7 @@ fn child_modules_test() {
 ```rust title="functions" showLineNumbers 
 pub comptime fn functions(self) -> [FunctionDefinition] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L15-L17" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L15-L17</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L15-L17" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L15-L17</a></sub></sup>
 
 
 Returns each function defined in the module.
@@ -57,7 +57,7 @@ Returns each function defined in the module.
 ```rust title="has_named_attribute" showLineNumbers 
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L5-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L5-L7</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L5-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L5-L7</a></sub></sup>
 
 
 Returns true if this module has a custom attribute with the given name.
@@ -67,7 +67,7 @@ Returns true if this module has a custom attribute with the given name.
 ```rust title="is_contract" showLineNumbers 
 pub comptime fn is_contract(self) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L10-L12</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L10-L12</a></sub></sup>
 
 
 `true` if this module is a contract module (was declared via `contract foo { ... }`).
@@ -77,7 +77,7 @@ pub comptime fn is_contract(self) -> bool {}
 ```rust title="name" showLineNumbers 
 pub comptime fn name(self) -> Quoted {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L30-L32" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L30-L32</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L30-L32" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L30-L32</a></sub></sup>
 
 
 Returns the name of the module.
@@ -88,7 +88,7 @@ The top-level module in each crate has no name and is thus empty.
 ```rust title="parent" showLineNumbers 
 pub comptime fn parent(self) -> Option<Module> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L35-L37" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L35-L37</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L35-L37" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L35-L37</a></sub></sup>
 
 
 Returns the parent module of the given module, if any.
@@ -113,7 +113,7 @@ fn parent_test() {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_module/src/main.nr#L114-L133" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L114-L133</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/compile_success_empty/comptime_module/src/main.nr#L114-L133" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L114-L133</a></sub></sup>
 
 
 ### structs
@@ -121,7 +121,7 @@ fn parent_test() {
 ```rust title="structs" showLineNumbers 
 pub comptime fn structs(self) -> [TypeDefinition] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L20-L22" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L20-L22</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/module.nr#L20-L22" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L20-L22</a></sub></sup>
 
 
 Returns each struct defined in the module.
