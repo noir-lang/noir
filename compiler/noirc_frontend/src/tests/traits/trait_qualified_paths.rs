@@ -312,6 +312,45 @@ fn as_trait_path_with_turbofish_no_args() {
     assert_no_errors(src);
 }
 
+/// Regression test for https://github.com/noir-lang/noir/issues/12395
+#[test]
+fn as_trait_path_with_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let M: u32>() -> u32;
+    }
+
+    impl Trait for Field {
+        fn foo<let M: u32>() -> u32 { M }
+    }
+
+    fn main() {
+        assert(<Field as Trait>::foo::<7>() == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12395
+#[test]
+fn as_trait_path_with_mixed_type_and_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<T, let M: u32>(x: T) -> (T, u32);
+    }
+
+    impl Trait for Field {
+        fn foo<T, let M: u32>(x: T) -> (T, u32) { (x, M) }
+    }
+
+    fn main() {
+        let (_, n) = <Field as Trait>::foo::<bool, 7>(true);
+        assert(n == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Turbofish on an associated constant is a user error, not a parse error.
 #[test]
 fn as_trait_path_turbofish_on_associated_constant_errors() {
