@@ -124,6 +124,26 @@ impl Elaborator<'_> {
         });
     }
 
+    /// Try to resolve any pending trait constraints in the current FunctionContext whose
+    /// object type has become concrete. Successfully resolving an impl applies its type
+    /// bindings, which can bind associated-type variables that subsequent unifications
+    /// (e.g. of a call's return type against a let-binding annotation) need to see as
+    /// already bound. Constraints remain in the queue and are re-validated at function end.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn try_resolve_pending_trait_constraints(&mut self) {
+        let constraints: Vec<_> = self
+            .get_function_context_mut()
+            .trait_constraints
+            .iter()
+            .filter(|local| !local.constraint.typ.follow_bindings().is_bindable())
+            .map(|local| local.constraint.clone())
+            .collect();
+
+        for constraint in constraints {
+            let _ = constraint.find_impl(self.interner, None);
+        }
+    }
+
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
     #[tracing::instrument(level = "trace", skip_all)]

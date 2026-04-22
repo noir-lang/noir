@@ -987,6 +987,11 @@ impl Elaborator<'_> {
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
+        // Argument unification may have made some queued trait constraints' object types
+        // concrete. Resolve them now so any associated-type variables they bind are
+        // available before the caller unifies `typ` against an outer annotation.
+        self.try_resolve_pending_trait_constraints();
+
         (function_call, typ)
     }
 

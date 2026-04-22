@@ -2084,9 +2084,8 @@ fn associated_constant_type_mismatch_does_not_crash() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/9430): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/9430
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn explicit_type_annotation_matches_trait_method_call_with_associated_constant() {
     let src = r#"
     trait Serialize {
