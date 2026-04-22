@@ -1029,3 +1029,28 @@ fn type_path_generic_tuple_method() {
     "#;
     check_monomorphization_error(src);
 }
+
+#[test]
+fn trait_method_and_struct_method_with_same_name() {
+    let src = r#"
+    pub struct MyStruct {}
+    impl MyStruct {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait {
+        fn foo();
+    }
+
+    impl MyTrait for MyStruct {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
