@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776863490383,
+  "lastUpdate": 1776863610233,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "799f4a2334b7023f3091e095c5ad76be5141891d",
-          "message": "chore(ssa): Add last_stores aliases check test (#12339)",
-          "timestamp": "2026-04-17T13:32:11Z",
-          "tree_id": "203c3e87616fb4f05d6a1169dd4bc7647f331809",
-          "url": "https://github.com/noir-lang/noir/commit/799f4a2334b7023f3091e095c5ad76be5141891d"
-        },
-        "date": 1776434031890,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166815,
-            "range": "± 2154",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139410,
-            "range": "± 2402",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644056,
-            "range": "± 2697",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3046045,
             "range": "± 7137",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8a55e9413479e19332416bf211ad8e8459444ee7",
+          "message": "chore: Update `noir_stdlib` version to match that of `nargo` (#12377)",
+          "timestamp": "2026-04-22T12:47:34Z",
+          "tree_id": "a3c1f823f715e9013e2ff4afc76cb5aeab10f15a",
+          "url": "https://github.com/noir-lang/noir/commit/8a55e9413479e19332416bf211ad8e8459444ee7"
+        },
+        "date": 1776863554730,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173468,
+            "range": "± 1061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144071,
+            "range": "± 3394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652354,
+            "range": "± 5131",
             "unit": "ns/iter"
           }
         ]
