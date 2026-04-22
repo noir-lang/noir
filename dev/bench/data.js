@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776875076480,
+  "lastUpdate": 1776877056762,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23211,48 +23211,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b88f7599fb9c7e6dff76a348add786f57a397e9e",
-          "message": "chore(deps): bump the hardhat group with 8 updates (#12285)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-17T17:27:42Z",
-          "tree_id": "f753333ff19d47a6089c5ec47c422b30494bd1f7",
-          "url": "https://github.com/noir-lang/noir/commit/b88f7599fb9c7e6dff76a348add786f57a397e9e"
-        },
-        "date": 1776449300840,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167670,
-            "range": "± 485",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138803,
-            "range": "± 2663",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644102,
-            "range": "± 7471",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "76e8866871412be4ea4617bf2b37e59dbbfc217a",
           "message": "chore(deps): bump googleapis/release-please-action from 4.4.0 to 4.4.1 (#12284)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-04-17T17:28:01Z",
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2358013,
             "range": "± 10972",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "242d6e6ccb89f10c634683a478c63174d2377ef5",
+          "message": "chore(ssa): Re-run constant folding if simplified instruction is in cache (#12109)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-22T16:27:46Z",
+          "tree_id": "e1698a3604ee71596b9a369b0e7c122381b024e9",
+          "url": "https://github.com/noir-lang/noir/commit/242d6e6ccb89f10c634683a478c63174d2377ef5"
+        },
+        "date": 1776876998768,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174406,
+            "range": "± 1262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145157,
+            "range": "± 1020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2656804,
+            "range": "± 5023",
             "unit": "ns/iter"
           }
         ]
