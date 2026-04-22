@@ -33,7 +33,6 @@
 //!
 //! Unresolved function calls are not handled in Steensgaard analysis.
 //! We do a conservative analysis based on the types of the function's signature.
-//! The more complex cases are escaped and assumed to alias anything.
 //! This part is quadratic in the number of arguments/results. The classic Steensgaard analysis is quasi-linear.
 //!
 //! After processing all instructions, the union-find partitions every reference
@@ -102,10 +101,6 @@ pub(crate) struct AliasAnalysis {
     /// This is used during the analysis and is discarded afterwards.
     return_values: HashMap<FunctionId, Vec<GlobalValueId>>,
 
-    /// Escaped alias classes that escaped function call analysis.
-    /// They are conservatively assumed to alias anything.
-    escaped: HashSet<GlobalValueId>,
-
     /// Map a type with the reference types recursively contained into it.
     /// Used (and computed) during analysis of unresolved function calls.
     /// `Arc<HashSet<_>>` is used to avoid borrow checker issues
@@ -136,7 +131,6 @@ impl AliasAnalysis {
             points_to: HashMap::default(),
             aliases: UnionFind::new(),
             return_values: HashMap::default(),
-            escaped: HashSet::default(),
             reference_types: HashMap::default(),
             class_sizes: HashMap::default(),
         };
@@ -147,10 +141,6 @@ impl AliasAnalysis {
         // free transient data structures used only during analysis
         analysis.return_values = HashMap::default();
         analysis.reference_types = HashMap::default();
-
-        // Canonicalize escaped values into class representatives. After this,
-        // queries can check `escaped.contains(&find(v))` in O(1).
-        analysis.escaped = analysis.escaped.iter().map(|v| analysis.aliases.find(*v)).collect();
 
         // Count members per alias class for `is_unique` queries.
         analysis.class_sizes = analysis.aliases.class_sizes();
@@ -394,9 +384,11 @@ impl AliasAnalysis {
     /// 1. Same type => `merge_alias`: they might be the same value.
     /// 2. `outer` can contain `inner`'s type => `merge_reference(inner, outer)`:
     ///    `inner` could be a pointee/element of `outer`.
-    /// 3. They share some inner reference type deeper (neither contains the other)
-    ///    => `merge_alias`: further extractions land in the same alias class.
-    /// 4. Complex sub references relations => default to escaped values
+    /// 3. Any other case where a reference sub-type of one could reach a
+    ///    structural sub-type of the other => `merge_alias`: further
+    ///    extractions on either side may land in the same alias class. This
+    ///    subsumes the simpler "share an inner reference type" case, since
+    ///    `type_contains_structurally(T, T)` is trivially true.
     ///
     /// Note that this analysis is quadratic in the number of arguments/results
     /// because we analyze every pair. It can be improved in several ways, but
@@ -439,19 +431,14 @@ impl AliasAnalysis {
                 } else if Self::type_can_contain(type_b, type_a) {
                     // Case 2 (other direction): a could be an element/pointee of b.
                     self.merge_reference(function, *a, *b);
-                } else if refs_a.intersection(refs_b).next().is_some() {
-                    // Case 3: neither contains the other, but they share some
-                    // inner ref type. Link their pointee classes via
-                    // merge_alias so future extractions unify correctly.
+                } else if Self::could_have_sub_ref_aliasing(refs_a, refs_b) {
+                    // Case 3: a reference sub-type of one may reach a
+                    // structural sub-type of the other (including the case
+                    // where they simply share an inner ref type, since
+                    // `T` structurally contains `T`).
                     let a_rep = GlobalValueId::new(function, *a);
                     let b_rep = GlobalValueId::new(function, *b);
                     self.merge_alias(a_rep, b_rep);
-                } else if Self::could_have_sub_ref_aliasing(refs_a, refs_b) {
-                    // Case 4: all other cases that may alias because a sub-type in a is in a reference sub-type of b.
-                    let a_rep = GlobalValueId::new(function, *a);
-                    let b_rep = GlobalValueId::new(function, *b);
-                    self.escaped.insert(a_rep);
-                    self.escaped.insert(b_rep);
                 }
             }
         }
@@ -476,7 +463,7 @@ impl AliasAnalysis {
     }
 
     /// Collect every `Type::Reference(_)` appearing at any depth of `typ`.
-    /// The result is cached per value and used in Case 3 and Case 4.
+    /// The result is cached per value and used in Case 3 of `unresolved_call`.
     fn get_ref_types(&mut self, typ: &Type) -> Arc<HashSet<Type>> {
         if let Some(cached) = self.reference_types.get(typ) {
             return Arc::clone(cached);
@@ -631,8 +618,7 @@ impl AliasAnalysis {
     /// This has no visible side-effect and is perfectly safe.
     pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
         // Field-insensitivity may alias values with distinct types, but such values cannot alias.
-        // Types are canonicalized first so `&T` and `&mut T` compare equal — both are addresses
-        // at runtime and can legitimately reach the same allocation.
+        // Types are canonicalized first so `&T` and `&mut T` compare equal
         let type_a = canonicalize_type(&function.dfg.type_of_value(a));
         let type_b = canonicalize_type(&function.dfg.type_of_value(b));
         if type_a != type_b {
@@ -642,12 +628,6 @@ impl AliasAnalysis {
         let b = GlobalValueId::new(function, b);
         let a_root = self.aliases.find(a);
         let b_root = self.aliases.find(b);
-
-        // Escape fallback: if either class escaped via a pattern we can't
-        // model precisely, conservatively say they may alias.
-        if self.escaped.contains(&a_root) || self.escaped.contains(&b_root) {
-            return true;
-        }
 
         a_root == b_root
     }
@@ -665,10 +645,6 @@ impl AliasAnalysis {
     pub(crate) fn is_aliased(&mut self, function: &Function, v: ValueId) -> bool {
         let rep = GlobalValueId::new(function, v);
         let root = self.aliases.find(rep);
-        if self.escaped.contains(&root) {
-            return true;
-        }
-
         !matches!(self.class_sizes.get(&root), None | Some(1))
     }
 
@@ -1681,13 +1657,10 @@ mod tests {
         assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
     }
 
-    /// Case 4 (sub-reference escape): when two args have types that neither
+    /// Case 3 : when two args have types that neither
     /// contain each other nor share a common ref type, but one's pointee
     /// appears as a structural field of the other's pointee, the callee
-    /// could create a sub-reference. We can't model that precisely, so we
-    /// mark both values as "escaped". Subsequent `may_alias` queries
-    /// involving them return `true` for any same-type value (conservative),
-    /// while different-type values are still filtered out.
+    /// could create a sub-reference.
     #[test]
     fn opaque_call_with_sub_ref_pattern_marks_values_as_escaped() {
         let src = "
@@ -1704,19 +1677,17 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let mut analysis = analyze_main(&ssa);
-        // v0's pointee (Field) appears inside v1's pointee ([Field; 2]) — sub-ref
-        // pattern detected → v0 and v1 are escaped. `v2` is another &Field, not
-        // involved in the call. The escape fallback conservatively treats
-        // v0 as may-alias with any same-type value, including v2.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[2]));
-        // v3 is &u32, a different type: the type check rejects it regardless
-        // of escape, preserving at least some precision.
+        // v0 and v2 are &Field but v2 is not involved in the call and
+        // cannot alias with v1
+        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[2]));
+        // v3 is &u32, a different type: the type check rejects it
+        // preserving at least some precision.
         assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[3]));
         // Escape marks v0 and v1 as aliased — even though their classes are
-        // singletons, the escape fallback reports them as aliased.
+        // singletons.
         assert!(analysis.is_aliased(ssa.main(), allocs[0]));
         assert!(analysis.is_aliased(ssa.main(), allocs[1]));
-        // v2 wasn't in any call and wasn't escaped → not aliased.
+        // v2 wasn't in any call → not aliased.
         assert!(!analysis.is_aliased(ssa.main(), allocs[2]));
     }
 
