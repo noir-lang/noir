@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["is_numeric_constant"],"mod":["check_for_missing_brillig_constraints","check_for_underconstrained_values"]};
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_MAX_ANCESTOR_DISTANCE","DEFAULT_MAX_ARRAY_OUTPUT_LENGTH"],"fn":["is_numeric_constant"],"mod":["check_for_missing_brillig_constraints","check_for_underconstrained_values"]};
