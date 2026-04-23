@@ -69,10 +69,12 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        self.functions.par_iter_mut().for_each(|(_, function)| {
-            let mut interpreter = fresh_constant_folding_interpreter(&brillig_functions);
-            function.constant_fold(false, max_iter, &mut interpreter);
-        });
+        self.functions.par_iter_mut().for_each_init(
+            || fresh_constant_folding_interpreter(&brillig_functions),
+            |interpreter, (_, function)| {
+                function.constant_fold(false, max_iter, interpreter);
+            },
+        );
         self
     }
 
@@ -88,17 +90,20 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        self.functions.par_iter_mut().for_each(|(_, function)| {
-            let mut interpreter = fresh_constant_folding_interpreter(&brillig_functions);
-            function.constant_fold(true, max_iter, &mut interpreter);
-        });
+        self.functions.par_iter_mut().for_each_init(
+            || fresh_constant_folding_interpreter(&brillig_functions),
+            |interpreter, (_, function)| {
+                function.constant_fold(true, max_iter, interpreter);
+            },
+        );
         self
     }
 }
 
-/// Builds a fresh [Interpreter] suitable for constant folding a single function in parallel.
-/// Interpreting globals is repeated per task because the interpreter's internal values use
-/// `Rc<RefCell<_>>` (via `Shared`) and cannot safely cross thread boundaries.
+/// Builds a fresh [Interpreter] with globals interpreted, so that one interpreter is used
+/// across all functions in a single rayon job, reusing the global scope without re-running
+/// `interpret_globals` each time. We can't just share a single one across jobs because the
+/// interpreter's values use `Shared`, which is not `Send` or `Sync`.
 fn fresh_constant_folding_interpreter(
     brillig_functions: &BTreeMap<FunctionId, Function>,
 ) -> Interpreter<'_, Empty> {
