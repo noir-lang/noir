@@ -35,6 +35,9 @@
 //! We do a conservative analysis based on the types of the function's signature.
 //! This part is quadratic in the number of arguments/results. The classic Steensgaard analysis is quasi-linear.
 //!
+//! Supporting unresolved function calls allows us to do the analysis for a single function.
+//! Thus the analysis can be run on the whole program (recommended) or for one function in isolation.
+//!
 //! After processing all instructions, the union-find partitions every reference
 //! into alias classes. Two references are *may-alias* if and only if they
 //! belong to the same class (and have the same type).
@@ -77,6 +80,30 @@ fn canonicalize_type(typ: &Type) -> Type {
     }
 }
 
+/// Scope of the analysis
+enum Scope<'a> {
+    /// Analyze a single function
+    Single(&'a Function),
+    /// Analyze the whole program. More precise; preferred over the single-function analysis.
+    Ssa(&'a Ssa),
+}
+
+impl Scope<'_> {
+    fn is_entry_point(&self, function_id: FunctionId) -> bool {
+        match self {
+            Scope::Single(_) => true,
+            Scope::Ssa(ssa) => ssa.is_entry_point(function_id),
+        }
+    }
+
+    fn functions(&self) -> Vec<&Function> {
+        match self {
+            Scope::Single(f) => vec![*f],
+            Scope::Ssa(ssa) => ssa.functions.values().collect(),
+        }
+    }
+}
+
 /// GlobalValueId are ValueId along with their FunctionId,
 /// allowing to globally use ValueIds coming from several functions.
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
@@ -107,8 +134,9 @@ pub(crate) struct AliasAnalysis {
     reference_types: HashMap<Type, Arc<HashSet<Type>>>,
 
     /// Number of values in each alias class, keyed by the class representative.
-    /// Populated at the end of `analyze` so that `is_aliased` queries are O(1).
-    class_sizes: HashMap<GlobalValueId, u32>,
+    /// Populated lazily on the first `is_aliased` call so that `analyze` stays
+    /// cheap for consumers that only query `may_alias`.
+    class_sizes: Option<HashMap<GlobalValueId, u32>>,
 }
 
 impl AliasAnalysis {
@@ -116,10 +144,22 @@ impl AliasAnalysis {
     ///
     /// The constraints are monotone and converge in a single pass.
     pub(crate) fn analyze(ssa: &Ssa) -> Self {
+        Self::analyze_with_scope(Scope::Ssa(ssa))
+    }
+
+    /// Build an analysis for one function in isolation. All calls are treated as
+    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
+    /// when the whole SSA is unavailable.
+    pub(crate) fn analyze_single_function(function: &Function) -> Self {
+        Self::analyze_with_scope(Scope::Single(function))
+    }
+
+    fn analyze_with_scope(scope: Scope) -> Self {
         // Precondition: globals are expected to be pure constants (numeric or
         // composite-of-numeric) as documented.
-        if let Some(function) = ssa.functions.values().next() {
-            for (_, global) in function.dfg.globals.values_iter() {
+        let functions = scope.functions();
+        if let Some(first) = functions.first() {
+            for (_, global) in first.dfg.globals.values_iter() {
                 assert!(
                     !global.get_type().contains_reference(),
                     "ICE: alias_analysis assumes globals do not have references"
@@ -132,18 +172,15 @@ impl AliasAnalysis {
             aliases: UnionFind::new(),
             return_values: HashMap::default(),
             reference_types: HashMap::default(),
-            class_sizes: HashMap::default(),
+            class_sizes: None,
         };
 
-        for function in ssa.functions.values() {
-            analysis.analyze_function(ssa, function);
+        for function in functions {
+            analysis.analyze_function(&scope, function);
         }
         // free transient data structures used only during analysis
         analysis.return_values = HashMap::default();
         analysis.reference_types = HashMap::default();
-
-        // Count members per alias class for `is_aliased` queries.
-        analysis.class_sizes = analysis.aliases.class_sizes();
 
         analysis
     }
@@ -151,20 +188,16 @@ impl AliasAnalysis {
     /// Walk every block in one function, processing instructions and terminators.
     /// If the function is an entry point of the SSA, also unify its
     /// same-typed reference parameters.
-    fn analyze_function(&mut self, ssa: &Ssa, function: &Function) {
-        if ssa.is_entry_point(function.id()) {
+    fn analyze_function(&mut self, scope: &Scope, function: &Function) {
+        if scope.is_entry_point(function.id()) {
             // Unify the reference parameters of the entry point because the
             // external caller may pass the same reference to 2 reference parameters.
-            // In practice entry points don't allow reference parameters
-            // so this method is doing nothing for real programs. It exists to keep the
-            // analysis sound on hand-written SSA fixtures in unit tests, and as a
-            // safety net if the ABI ever relaxes.
             let params = function.dfg[function.entry_block()].parameters().to_vec();
             self.unresolved_call(function, &params, &[]);
         }
 
         for block_id in function.reachable_blocks() {
-            self.analyze_block(function, block_id, ssa);
+            self.analyze_block(function, block_id, scope);
         }
     }
 
@@ -180,7 +213,7 @@ impl AliasAnalysis {
     }
 
     /// Process all instructions in a single block, updating the alias sets.
-    fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, ssa: &Ssa) {
+    fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, scope: &Scope) {
         let block = &function.dfg[block_id];
 
         for instruction_id in block.instructions() {
@@ -202,28 +235,33 @@ impl AliasAnalysis {
                 }
                 Instruction::Call { func: callee_id, arguments } => {
                     let results = function.dfg.instruction_results(*instruction_id);
-                    match &function.dfg[*callee_id] {
-                        // Inter-procedural analysis for resolved functions:
+                    match (&function.dfg[*callee_id], scope) {
+                        // Inter-procedural analysis for resolved functions
                         // - merge arguments with their parameters,
                         // - process the function body (i.e analyze the instructions, but only once since it context-insensitive).
                         //   This is done through analyze_function() which process all the functions.
                         // - merge return values with the instruction results
-                        Value::Function(callee_id) => self.unify_call_arguments_and_return(
-                            ssa, *callee_id, function, arguments, results,
-                        ),
-                        Value::Intrinsic(Intrinsic::Hint(_)) => {
+                        (Value::Function(callee_id), Scope::Ssa(ssa)) => {
+                            self.unify_call_arguments_and_return(
+                                ssa, *callee_id, function, arguments, results,
+                            );
+                        }
+                        (Value::Intrinsic(Intrinsic::Hint(_)), _) => {
                             self.unresolved_call(function, arguments, results);
                         }
-                        Value::Intrinsic(intrinsic) if Self::is_vector_intrinsic(intrinsic) => {
+                        (Value::Intrinsic(intrinsic), _)
+                            if Self::is_vector_intrinsic(intrinsic) =>
+                        {
                             // Merge input vector with output,
                             // Add the elements to the vector's pointee set
                             self.unify_vector_intrinsic(function, intrinsic, arguments, results);
                         }
-                        Value::Intrinsic(intrinsic) => {
+                        (Value::Intrinsic(intrinsic), _) => {
                             // Only Hint or Vector operations may alias.
                             assert!(!Self::intrinsic_may_alias(intrinsic));
                         }
-                        // Conservative analysis based on signature types for unresolved functions.
+                        // Fallthrough for unresolved functions whose function body
+                        // is not available, via a conservative type-based analysis.
                         _ => self.unresolved_call(function, arguments, results),
                     }
                 }
@@ -649,20 +687,19 @@ impl AliasAnalysis {
         a_root == b_root
     }
 
-    /// Returns `true` if `v` may be aliased with some other value in the program.
+    /// Returns `true` if `value` may be aliased with some other value in the program.
     ///
-    /// Returns `true` when:
-    /// - `v`'s class has more than one member (definitely may alias), or
-    /// - `v`'s class has been escaped via `unresolved_call`'s sub-reference
-    ///   fallback — it may alias any same-type value.
-    ///
-    /// Returns `false` otherwise:
-    /// - `v`'s class is a known singleton (and not escaped).
-    /// - `v` has not been tracked by the analysis at all. Nobody can reference it.
-    pub(crate) fn is_aliased(&mut self, function: &Function, v: ValueId) -> bool {
-        let rep = GlobalValueId::new(function, v);
+    /// The per-class size table is populated on demand the first time this is
+    /// called — consumers that only use [`Self::may_alias`] do not pay for it.
+    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
+        let rep = GlobalValueId::new(function, value);
         let root = self.aliases.find(rep);
-        !matches!(self.class_sizes.get(&root), None | Some(1))
+        if self.class_sizes.is_none() {
+            // Count members per alias class
+            self.class_sizes = Some(self.aliases.class_sizes());
+        }
+        let sizes = self.class_sizes.as_ref().expect("just populated");
+        !matches!(sizes.get(&root), None | Some(1))
     }
 
     /// Unify call arguments with callee's formal parameters, and call results with

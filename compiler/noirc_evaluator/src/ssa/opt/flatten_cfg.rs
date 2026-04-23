@@ -1040,11 +1040,7 @@ impl<'f> Context<'f> {
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 // Replace value with `value * predicate` to zero out value when predicate is inactive.
-
-                // Condition needs to be cast to argument type in order to multiply them together.
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, value, call_stack);
-                let predicate_value = self.mul_by_condition(value, casted_condition, call_stack);
+                let predicate_value = self.mul_by_condition(value, condition, call_stack);
                 // Issue #8617: update the value to be the predicated value.
                 // This ensures that the value has the correct bit size in all cases.
                 self.predicate_value(value, predicate_value);
@@ -1104,9 +1100,7 @@ impl<'f> Context<'f> {
         match intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => {
                 let field = arguments[0];
-                let casted_condition =
-                    self.cast_condition_to_value_type(condition, field, call_stack);
-                let field = self.mul_by_condition(field, casted_condition, call_stack);
+                let field = self.mul_by_condition(field, condition, call_stack);
 
                 arguments[0] = field;
 
