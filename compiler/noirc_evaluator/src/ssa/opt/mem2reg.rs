@@ -453,17 +453,19 @@ fn collect_eligible_variables_and_def_sites(
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
                 _ => instruction.for_each_value(|value| {
                     variables.remove(&value);
-                    def_sites.remove(&value);
                 }),
             }
         }
 
         block.unwrap_terminator().for_each_value(|value| {
             variables.remove(&value);
-            def_sites.remove(&value);
         });
     }
 
+    // `def_sites` accumulates entries only when we see a store to an address still tracked in
+    // `variables`, so `variables` is the authoritative set of eligible addresses. Both retains
+    // below prune any stale entries left by first-class uses that removed an address from
+    // `variables` without clearing `def_sites`.
     variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
     def_sites.retain(|address, _| variables.contains_key(address));
     (variables, def_sites)
