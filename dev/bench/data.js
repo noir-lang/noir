@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776949542908,
+  "lastUpdate": 1776949734220,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bd1ecb5dbdef5d4da87ae7541eb25066deb5233f",
-          "message": "chore(ssa): LSF cleanups (#12345)",
-          "timestamp": "2026-04-17T19:08:00Z",
-          "tree_id": "f1776ac2639275f28d3ecf158db75bc86768dddb",
-          "url": "https://github.com/noir-lang/noir/commit/bd1ecb5dbdef5d4da87ae7541eb25066deb5233f"
-        },
-        "date": 1776454283670,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167189,
-            "range": "± 697",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136555,
-            "range": "± 324",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644052,
-            "range": "± 2486",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2577735,
             "range": "± 28477",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "41c9bbe5cc15916874ff6c63d841b58fa273dc0f",
+          "message": "fix(brillig): fix register spill bug and refactor SpillRecord state into an enum (#12391)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-23T12:40:30Z",
+          "tree_id": "06f7deca67c02c9b58dc93accf0a681b8b6de5c1",
+          "url": "https://github.com/noir-lang/noir/commit/41c9bbe5cc15916874ff6c63d841b58fa273dc0f"
+        },
+        "date": 1776949686451,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98485,
+            "range": "± 300",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87642,
+            "range": "± 658",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2362280,
+            "range": "± 31867",
             "unit": "ns/iter"
           }
         ]
