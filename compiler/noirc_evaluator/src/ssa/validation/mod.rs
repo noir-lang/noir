@@ -12,6 +12,8 @@
 //! - Check that the input values of certain instructions matches that instruction's constraint
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
+mod load_store;
+
 use core::panic;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -51,11 +53,18 @@ struct Validator<'f> {
     // If they occurred before the value being cast to a smaller type
     // Stores: A set of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
+
+    load_store: load_store::LoadStoreValidator,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default() }
+        Self {
+            function,
+            ssa,
+            range_checks: HashMap::default(),
+            load_store: load_store::LoadStoreValidator::new(),
+        }
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -1107,6 +1116,7 @@ impl<'f> Validator<'f> {
 
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
+                self.load_store.check_instruction(*instruction, self.function);
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
