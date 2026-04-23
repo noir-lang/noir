@@ -49,6 +49,7 @@
 
 use std::sync::Arc;
 
+use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -91,7 +92,7 @@ enum Scope<'a> {
 impl Scope<'_> {
     fn is_entry_point(&self, function_id: FunctionId) -> bool {
         match self {
-            Scope::Single(_) => true,
+            Scope::Single(function) => function.id() == function_id,
             Scope::Ssa(ssa) => ssa.is_entry_point(function_id),
         }
     }
@@ -117,6 +118,7 @@ impl GlobalValueId {
 
 /// AliasAnalysis stores the result of the alias analysis pass
 /// as well as transient data computed during the analysis
+#[derive(Default)]
 pub(crate) struct AliasAnalysis {
     /// union-find structure mapping GlobalValueId to their alias class.
     aliases: UnionFind<GlobalValueId>,
@@ -167,13 +169,7 @@ impl AliasAnalysis {
             }
         }
 
-        let mut analysis = Self {
-            points_to: HashMap::default(),
-            aliases: UnionFind::new(),
-            return_values: HashMap::default(),
-            reference_types: HashMap::default(),
-            class_sizes: None,
-        };
+        let mut analysis = Self::default();
 
         for function in functions {
             analysis.analyze_function(&scope, function);
@@ -192,8 +188,8 @@ impl AliasAnalysis {
         if scope.is_entry_point(function.id()) {
             // Unify the reference parameters of the entry point because the
             // external caller may pass the same reference to 2 reference parameters.
-            let params = function.dfg[function.entry_block()].parameters().to_vec();
-            self.unresolved_call(function, &params, &[]);
+            let params = function.dfg[function.entry_block()].parameters();
+            self.unresolved_call(function, params, &[]);
         }
 
         for block_id in function.reachable_blocks() {
@@ -736,8 +732,7 @@ impl AliasAnalysis {
         } else {
             // Record results as the initial class representative. They'll be unified
             // with real return values when the function will be analyzed.
-            let reps: Vec<GlobalValueId> =
-                results.iter().map(|v| GlobalValueId::new(caller, *v)).collect();
+            let reps = vecmap(results, |v| GlobalValueId::new(caller, *v));
             self.return_values.insert(callee_id, reps);
         }
     }
