@@ -116,10 +116,74 @@ impl GlobalValueId {
     }
 }
 
+pub(crate) struct AliasAnalysis {
+    /// union-find structure mapping GlobalValueId to their alias class.
+    aliases: UnionFind<GlobalValueId>,
+
+    /// Number of values in each alias class, keyed by the class representative.
+    /// Populated lazily on the first `is_aliased` call so that `analyze` stays
+    /// cheap for consumers that only query `may_alias`.
+    class_sizes: Option<HashMap<GlobalValueId, u32>>,
+}
+
+impl AliasAnalysis {
+    /// Run alias analysis on all `functions` and return the computed alias sets.
+    ///
+    /// The constraints are monotone and converge in a single pass.
+    pub(crate) fn analyze(ssa: &Ssa) -> Self {
+        AliasAnalysisContext::analyze_with_scope(Scope::Ssa(ssa))
+    }
+    /// Build an analysis for one function in isolation. All calls are treated as
+    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
+    /// when the whole SSA is unavailable.
+    pub(crate) fn analyze_single_function(function: &Function) -> Self {
+        AliasAnalysisContext::analyze_with_scope(Scope::Single(function))
+    }
+
+    /// Returns `true` if `a` and `b` may refer to the same memory location.
+    ///
+    /// Takes `&mut self` because of path compression.
+    /// This has no visible side-effect and is perfectly safe.
+    pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
+        if a == b {
+            return true;
+        }
+
+        // Field-insensitivity may alias values with distinct types, but such values cannot alias.
+        // Types are canonicalized first so `&T` and `&mut T` compare equal
+        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
+        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
+        if type_a != type_b {
+            return false;
+        }
+        let a = GlobalValueId::new(function, a);
+        let b = GlobalValueId::new(function, b);
+        let a_root = self.aliases.find(a);
+        let b_root = self.aliases.find(b);
+
+        a_root == b_root
+    }
+
+    /// Returns `true` if `value` may be aliased with some other value in the program.
+    ///
+    /// The per-class size table is populated on demand the first time this is
+    /// called — consumers that only use [`Self::may_alias`] do not pay for it.
+    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
+        let rep = GlobalValueId::new(function, value);
+        let root = self.aliases.find(rep);
+        if self.class_sizes.is_none() {
+            // Count members per alias class
+            self.class_sizes = Some(self.aliases.class_sizes());
+        }
+        let sizes = self.class_sizes.as_ref().expect("just populated");
+        !matches!(sizes.get(&root), None | Some(1))
+    }
+}
+
 /// AliasAnalysis stores the result of the alias analysis pass
 /// as well as transient data computed during the analysis
 #[derive(Default)]
-pub(crate) struct AliasAnalysis {
+struct AliasAnalysisContext {
     /// union-find structure mapping GlobalValueId to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
@@ -141,22 +205,8 @@ pub(crate) struct AliasAnalysis {
     class_sizes: Option<HashMap<GlobalValueId, u32>>,
 }
 
-impl AliasAnalysis {
-    /// Run alias analysis on all `functions` and return the computed alias sets.
-    ///
-    /// The constraints are monotone and converge in a single pass.
-    pub(crate) fn analyze(ssa: &Ssa) -> Self {
-        Self::analyze_with_scope(Scope::Ssa(ssa))
-    }
-
-    /// Build an analysis for one function in isolation. All calls are treated as
-    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
-    /// when the whole SSA is unavailable.
-    pub(crate) fn analyze_single_function(function: &Function) -> Self {
-        Self::analyze_with_scope(Scope::Single(function))
-    }
-
-    fn analyze_with_scope(scope: Scope) -> Self {
+impl AliasAnalysisContext {
+    fn analyze_with_scope(scope: Scope) -> AliasAnalysis {
         // Precondition: globals are expected to be pure constants (numeric or
         // composite-of-numeric) as documented.
         let functions = scope.functions();
@@ -174,11 +224,8 @@ impl AliasAnalysis {
         for function in functions {
             analysis.analyze_function(&scope, function);
         }
-        // free transient data structures used only during analysis
-        analysis.return_values = HashMap::default();
-        analysis.reference_types = HashMap::default();
 
-        analysis
+        AliasAnalysis { aliases: analysis.aliases, class_sizes: None }
     }
 
     /// Walk every block in one function, processing instructions and terminators.
@@ -657,45 +704,6 @@ impl AliasAnalysis {
         for element in elements {
             self.merge_reference(function, *element, input_vec);
         }
-    }
-
-    /// Returns `true` if `a` and `b` may refer to the same memory location.
-    ///
-    /// Takes `&mut self` because of path compression.
-    /// This has no visible side-effect and is perfectly safe.
-    pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
-        if a == b {
-            return true;
-        }
-
-        // Field-insensitivity may alias values with distinct types, but such values cannot alias.
-        // Types are canonicalized first so `&T` and `&mut T` compare equal
-        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
-        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
-        if type_a != type_b {
-            return false;
-        }
-        let a = GlobalValueId::new(function, a);
-        let b = GlobalValueId::new(function, b);
-        let a_root = self.aliases.find(a);
-        let b_root = self.aliases.find(b);
-
-        a_root == b_root
-    }
-
-    /// Returns `true` if `value` may be aliased with some other value in the program.
-    ///
-    /// The per-class size table is populated on demand the first time this is
-    /// called — consumers that only use [`Self::may_alias`] do not pay for it.
-    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
-        let rep = GlobalValueId::new(function, value);
-        let root = self.aliases.find(rep);
-        if self.class_sizes.is_none() {
-            // Count members per alias class
-            self.class_sizes = Some(self.aliases.class_sizes());
-        }
-        let sizes = self.class_sizes.as_ref().expect("just populated");
-        !matches!(sizes.get(&root), None | Some(1))
     }
 
     /// Unify call arguments with callee's formal parameters, and call results with
