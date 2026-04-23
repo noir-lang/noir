@@ -231,8 +231,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .as_mut()
             .expect("ICE: spill_value called without spill manager");
 
-        // Check fist permanent because ensure_permanent_spill() modifies the record.
-        if (permanent && sm.ensure_permanent_spill(&value_id)) || sm.is_spilled(&value_id) {
+        // For a permanent spill, try to promote an existing record first.
+        // ensure_permanent_spill() modifies the record, so capture the pre-call state first.
+        if permanent {
+            // A TransientReloaded value holds a register that must be freed when promoted to
+            // a permanent spill. Values already in PermanentReloaded state must not have their
+            // register freed here — they may still be live (e.g. the condition register of a
+            // jmpif instruction when spill_non_param_live_ins fires multiple times).
+            let was_transient_reloaded = sm.is_transient_reloaded(&value_id);
+            if sm.ensure_permanent_spill(&value_id) {
+                if was_transient_reloaded {
+                    sm.remove_from_lru(&value_id);
+                    self.variables.remove_variable(
+                        &value_id,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                }
+                return;
+            }
+        }
+
+        if sm.is_spilled(&value_id) {
             return;
         }
 
