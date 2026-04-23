@@ -24,12 +24,10 @@ fn smoke_test_embedded_curve_add() {
         p1: Point {
             scalar: Scalar { field_lo_idx: 1, field_hi_idx: 0 },
             derive_from_scalar_mul: true,
-            is_infinite: false,
         },
         p2: Point {
             scalar: Scalar { field_lo_idx: 2, field_hi_idx: 0 },
             derive_from_scalar_mul: true,
-            is_infinite: false,
         },
         predicate: true,
     };
@@ -74,7 +72,7 @@ fn smoke_test_embedded_multi_scalar_mul() {
     let base_scalar = Scalar { field_lo_idx: 1, field_hi_idx: 0 };
     let scalar_1 = Scalar { field_lo_idx: 2, field_hi_idx: 0 };
     let scalar_2 = Scalar { field_lo_idx: 4, field_hi_idx: 0 };
-    let gen_point = Point { scalar: base_scalar, derive_from_scalar_mul: true, is_infinite: false };
+    let gen_point = Point { scalar: base_scalar, derive_from_scalar_mul: true };
     let instruction = Instruction::MultiScalarMul {
         points_and_scalars: vec![(gen_point, scalar_1), (gen_point, scalar_2)],
         predicate: true,

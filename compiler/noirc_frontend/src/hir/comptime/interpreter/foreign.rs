@@ -1,8 +1,6 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{
-    AcirField, BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver,
-};
+use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
 use noirc_errors::Location;
@@ -163,14 +161,9 @@ fn embedded_curve_add(
     let (p1x, p1y) = get_embedded_curve_point(point1)?;
     let (p2x, p2y) = get_embedded_curve_point(point2)?;
 
-    let p1inf: FieldElement =
-        if p1x.is_zero() && p1y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-    let p2inf: FieldElement =
-        if p2x.is_zero() && p2y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-
-    let (x, y, _inf) = Bn254BlackBoxSolver
+    let (x, y) = Bn254BlackBoxSolver
         .ec_add(
-            &p1x, &p1y, &p1inf, &p2x, &p2y, &p2inf,
+            &p1x, &p1y, &p2x, &p2y,
             true, // Predicate is always true as interpreter has control flow to handle false case
         )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -196,14 +189,7 @@ fn multi_scalar_mul(
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;
 
-    let points: Vec<_> = points
-        .into_iter()
-        .flat_map(|(x, y)| {
-            let is_infinite: FieldElement =
-                if x.is_zero() && y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-            [x, y, is_infinite]
-        })
-        .collect();
+    let points: Vec<_> = points.into_iter().flat_map(|(x, y)| [x, y]).collect();
     let mut scalars_lo = Vec::new();
     let mut scalars_hi = Vec::new();
     for (lo, hi) in scalars {
@@ -211,7 +197,7 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, _inf) = Bn254BlackBoxSolver
+    let (x, y) = Bn254BlackBoxSolver
         .multi_scalar_mul(
             &points,
             &scalars_lo,
