@@ -2578,29 +2578,40 @@ impl Type {
     /// is used and generic substitutions are provided manually by users.
     ///
     /// Expects the given type vector to be the same length as the Forall type variables.
+    /// `direct_generic_ids` lists the type variable ids of the function's user-declared
+    /// generics, in the same order the turbofish provides them. Any typevar in the `Forall`
+    /// quantifier whose id is not in that list is treated as an implicit generic (e.g. from
+    /// `impl Trait` desugaring or an enclosing generic impl) and receives a fresh type
+    /// variable of the matching kind.
     pub fn instantiate_with_bindings_and_turbofish(
         &self,
         bindings: TypeBindings,
         turbofish_types: Vec<Type>,
         interner: &NodeInterner,
-        implicit_generic_count: usize,
+        direct_generic_ids: &[TypeVariableId],
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
+                let direct_count =
+                    typevars.iter().filter(|var| direct_generic_ids.contains(&var.id())).count();
                 assert_eq!(
-                    turbofish_types.len() + implicit_generic_count,
-                    typevars.len(),
+                    turbofish_types.len(),
+                    direct_count,
                     "Turbofish operator used with incorrect generic count which was not caught by name resolution"
                 );
 
-                let implicit_and_turbofish_bindings = (0..implicit_generic_count)
-                    .map(|_| interner.next_type_variable())
-                    .chain(turbofish_types);
-
+                let mut turbofish_iter = turbofish_types.into_iter();
                 let mut replacements: TypeBindings = typevars
                     .iter()
-                    .zip_eq(implicit_and_turbofish_bindings)
-                    .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
+                    .map(|var| {
+                        let kind = var.kind();
+                        let binding = if direct_generic_ids.contains(&var.id()) {
+                            turbofish_iter.next().expect("direct_count == turbofish_types.len()")
+                        } else {
+                            interner.next_type_variable_with_kind(kind.clone())
+                        };
+                        (var.id(), (var.clone(), kind, binding))
+                    })
                     .collect();
 
                 for (binding_key, binding_value) in bindings {

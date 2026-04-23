@@ -597,7 +597,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -1101,6 +1100,23 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
@@ -1279,7 +1295,6 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1606,7 +1621,8 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        for parent_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(

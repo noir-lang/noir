@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global function_in_fmtstr: fmtstr<16, (fn(),)> = {
+    let func = func;
+    f"function: {func}"
+};
+
+fn func() {}
+
+fn main() {
+    let _: fmtstr<16, (fn(),)> = function_in_fmtstr;
+}

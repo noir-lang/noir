@@ -584,6 +584,9 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Verifies that the impl satisfies every obligation the trait's where clause
+    /// places on it, including the super-trait bounds that are stored in the trait's
+    /// where clause as constraints on `Self`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_trait_impl_where_clause_matches_trait_where_clause(
         &mut self,
@@ -613,10 +616,24 @@ impl Elaborator<'_> {
             return;
         };
 
+        let Some(object_type) = &trait_impl.resolved_object_type else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing object type",
+                trait_impl.object_type.location,
+            ));
+            return;
+        };
+
         let impl_trait = the_trait.name.to_string();
         let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
+        // Bind Self to the object type of the impl so that parent-trait bounds
+        // (which are stored in the trait's where clause as constraints on Self)
+        // get checked against the concrete impl type.
+        let self_var = the_trait.self_type_typevar.clone();
+        let self_kind = self_var.kind();
         let mut bindings = TypeBindings::default();
+        bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         self.check_trait_bounds_are_satisfied(
@@ -721,67 +738,6 @@ impl Elaborator<'_> {
                 _ => (),
             }
         }
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
-        let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing trait ID",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(object_type) = &trait_impl.resolved_object_type else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing object type",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing trait",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::expecting_other_error(
-                "check_parent_traits_are_implemented: missing impl ID",
-                trait_impl.object_type.location,
-            ));
-            return;
-        };
-
-        let impl_trait = the_trait.name.to_string();
-        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
-
-        let mut bindings = TypeBindings::default();
-        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
-
-        // Note: we only check if the immediate parents are implemented, we don't check recursively.
-        // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
-        // do the same check for the parent, so this trait's parents parents will be checked, so the
-        // recursion is guaranteed.
-        //
-        // Convert parent trait bounds (ResolvedTraitBound) to TraitConstraints using
-        // {Self, ResolvedTraitBound} where Self is the object type being implemented for.
-        let constraints: Vec<TraitConstraint> = the_trait
-            .trait_bounds
-            .iter()
-            .map(|bound| TraitConstraint { typ: object_type.clone(), trait_bound: bound.clone() })
-            .collect();
-
-        self.check_trait_bounds_are_satisfied(
-            constraints,
-            &impl_trait,
-            &trait_impl.object_type.location,
-            &mut bindings,
-        );
     }
 
     /// Prepares a trait impl for function metadata definition.

@@ -34,7 +34,7 @@ In order to improve the performance in an unconstrained context you can use the 
 
 
 ```rust 
-use dep::std::runtime::is_unconstrained;
+use std::runtime::is_unconstrained;
 
 fn my_expensive_computation(){
   ...

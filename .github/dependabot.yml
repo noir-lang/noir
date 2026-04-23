@@ -19,6 +19,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      codespan:
+        patterns:
+          - "codespan"
+          - "codespan-*"
 
   # Enable version updates for npm
   - package-ecosystem: "npm"
