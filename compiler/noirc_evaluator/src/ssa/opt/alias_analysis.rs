@@ -478,11 +478,10 @@ impl AliasAnalysisContext {
     /// 1. Same type => `merge_alias`: they might be the same value.
     /// 2. `outer` can contain `inner`'s type => `merge_reference(inner, outer)`:
     ///    `inner` could be a pointee/element of `outer`.
-    /// 3. Any other case where a reference sub-type of one could reach a
-    ///    structural sub-type of the other => `merge_alias`: further
-    ///    extractions on either side may land in the same alias class. This
-    ///    subsumes the simpler "share an inner reference type" case, since
-    ///    `type_contains_structurally(T, T)` is trivially true.
+    /// 3. Any other case where a nested reference type of one could reach a
+    ///    structural nested type of the other => `merge_alias`: further
+    ///    extractions on either side may land in the same alias class.
+    ///    Ex:   `a: [{Field, &Field}; 2]` and `b: &{Field, int}` => &T in a, and T in b (T=Field)
     ///
     /// Note that this analysis is quadratic in the number of arguments/results
     /// because we analyze every pair. It can be improved in several ways, but
@@ -540,6 +539,7 @@ impl AliasAnalysisContext {
 
     /// True if `outer`'s shape permit `inner` as a possible pointee / element
     /// at any depth?
+    /// The function is recursive but is ensured to terminate because Noir Types are non-recursive.
     ///
     /// Examples (all return true):
     /// - `&T` contains `T` (one level of pointer indirection).
@@ -589,8 +589,8 @@ impl AliasAnalysisContext {
     /// its type, and the other has a `&C` somewhere where `T` appears as a
     /// structural (non-reference) element of `C`.
     ///
-    /// E.g: with `a: {Field, &Field}` and `b: &{Field, int}`,
-    /// when a function f(a,b) does `a.1 = &(*b.0)`, a and b alias in a subtle way.
+    /// E.g.: `a: [{Field, &Field}; N]` and `b: &[{Field, int}; M]`
+    /// when a function f(a,b) does `a[j].1 = b[i].0`, a and b alias in a subtle way.
     fn could_have_sub_ref_aliasing(refs_a: &HashSet<Type>, refs_b: &HashSet<Type>) -> bool {
         for ref_a in refs_a {
             let Type::Reference(inner_a, _) = ref_a else { continue };
@@ -613,7 +613,6 @@ impl AliasAnalysisContext {
     ///
     /// E.g: does the following types contains structurally Field?
     /// - &{Field, int}: No, it's a reference
-    /// - {Field, int}: Yes, it has a Field field
     /// - [Field; 3]: Yes, the array has a Field as element type.
     fn type_contains_structurally(outer: &Type, inner: &Type) -> bool {
         if outer == inner {
