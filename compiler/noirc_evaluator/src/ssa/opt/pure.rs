@@ -905,4 +905,45 @@ mod tests {
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
+
+    #[test]
+    fn considers_array_set_to_any_array_as_impure_if_entry_point_has_an_array() {
+        // `v6 = array_set v2, ...` ends up operating on `v0` because it's being passed
+        // in `b1(...)` as `v2`. So even if `array_set v2` doesn't directly operate on a function parameter,
+        // it can end up operating on one, indirectly. This test ensures we catch this case.
+        let src = "
+        brillig(inline_never) fn f f1 {
+          b0(v0: [u1; 1]):
+            jmp b1(u32 0, v0)
+          b1(v1: u32, v2: [u1; 1]):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v6 = array_set v2, index u32 0, value u1 0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v6)
+          b3():
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn f f0 {
+          b0(v0: [u1; 1]):
+            jmp b1(u32 0, v0)
+          b1(v1: u32, v2: [u1; 1]):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v6 = array_set v2, index u32 0, value u1 0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v6)
+          b3():
+            return v2
+        }
+        ");
+    }
 }
