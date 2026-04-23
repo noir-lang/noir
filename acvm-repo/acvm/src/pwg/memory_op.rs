@@ -104,7 +104,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     /// If a requirement is not met, it returns an error.
     pub(crate) fn solve_memory_op(
         &mut self,
-        op: &MemOp<F>,
+        op: &MemOp,
         initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
         // Find the memory index associated with this memory operation.

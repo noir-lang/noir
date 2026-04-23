@@ -1,8 +1,11 @@
 use crate::pwg::{
     ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ResolvedAssertionPayload,
     arithmetic::ExpressionSolver,
-    blackbox::embedded_curve_ops::{execute_embedded_curve_add, execute_multi_scalar_mul},
-    blackbox::{self, hash::get_hash_input},
+    blackbox::{
+        self,
+        embedded_curve_ops::{execute_embedded_curve_add, execute_multi_scalar_mul},
+        hash::get_hash_input,
+    },
     get_value, input_to_value,
     memory_op::MemoryOpSolver,
     witness_to_value,
@@ -407,7 +410,7 @@ pub fn validate_witness<F: AcirField>(
 impl<F: AcirField> MemoryOpSolver<F> {
     pub(crate) fn check_memory_op(
         &mut self,
-        op: &MemOp<F>,
+        op: &MemOp,
         witness_map: &WitnessMap<F>,
         opcode_index: usize,
     ) -> Result<(), OpcodeResolutionError<F>> {

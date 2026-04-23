@@ -2988,9 +2988,9 @@ namespace Acir {
     };
 
     struct MemOp {
-        Acir::Expression operation;
-        Acir::Expression index;
-        Acir::Expression value;
+        bool operation;
+        Acir::Witness index;
+        Acir::Witness value;
 
         friend bool operator==(const MemOp&, const MemOp&);
 
