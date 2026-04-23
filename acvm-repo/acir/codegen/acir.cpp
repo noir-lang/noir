@@ -2988,9 +2988,9 @@ namespace Acir {
     };
 
     struct MemOp {
-        Acir::Expression operation;
-        Acir::Expression index;
-        Acir::Expression value;
+        bool read;
+        Acir::Witness index;
+        Acir::Witness value;
 
         friend bool operator==(const MemOp&, const MemOp&);
 
@@ -2998,12 +2998,12 @@ namespace Acir {
             std::string name = "MemOp";
             if (o.type == msgpack::type::MAP) {
                 auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "read", read, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
-                Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
+                Helpers::conv_fld_from_array(array, name, "read", read, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 1);
                 Helpers::conv_fld_from_array(array, name, "value", value, 2);
             } else {
@@ -6337,7 +6337,7 @@ Acir::IntegerBitSize::U128 serde::Deserializable<Acir::IntegerBitSize::U128>::de
 namespace Acir {
 
     inline bool operator==(const MemOp &lhs, const MemOp &rhs) {
-        if (!(lhs.operation == rhs.operation)) { return false; }
+        if (!(lhs.read == rhs.read)) { return false; }
         if (!(lhs.index == rhs.index)) { return false; }
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
@@ -6349,7 +6349,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::MemOp>::serialize(const Acir::MemOp &obj, Serializer &serializer) {
     serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.operation)>::serialize(obj.operation, serializer);
+    serde::Serializable<decltype(obj.read)>::serialize(obj.read, serializer);
     serde::Serializable<decltype(obj.index)>::serialize(obj.index, serializer);
     serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
     serializer.decrease_container_depth();
@@ -6360,7 +6360,7 @@ template <typename Deserializer>
 Acir::MemOp serde::Deserializable<Acir::MemOp>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::MemOp obj;
-    obj.operation = serde::Deserializable<decltype(obj.operation)>::deserialize(deserializer);
+    obj.read = serde::Deserializable<decltype(obj.read)>::deserialize(deserializer);
     obj.index = serde::Deserializable<decltype(obj.index)>::deserialize(deserializer);
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
