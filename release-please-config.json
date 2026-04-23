@@ -15,6 +15,7 @@
       "include-component-in-tag": false,
       "extra-files": [
         "Cargo.toml",
+        "noir_stdlib/Nargo.toml",
         "acvm-repo/acir/Cargo.toml",
         "acvm-repo/acir_field/Cargo.toml",
         "acvm-repo/acvm/Cargo.toml",

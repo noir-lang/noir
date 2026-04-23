@@ -567,6 +567,9 @@ fn as_trait_path_with_file(as_trait_path: AsTraitPath, file: FileId) -> AsTraitP
         trait_path: path_with_file(as_trait_path.trait_path, file),
         trait_generics: generic_type_args_with_file(as_trait_path.trait_generics, file),
         impl_item: ident_with_file(as_trait_path.impl_item, file),
+        turbofish: as_trait_path
+            .turbofish
+            .map(|turbofish| generic_type_args_with_file(turbofish, file)),
     }
 }
 

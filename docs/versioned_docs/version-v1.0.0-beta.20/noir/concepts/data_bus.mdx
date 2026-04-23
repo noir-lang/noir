@@ -15,10 +15,12 @@ These modifiers are incompatible with `pub` and `mut` modifiers.
 ## Example
 
 ```rust
-fn main(mut x: u32, y: call_data u32, z: call_data [u32;4] ) -> return_data u32 {
+fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {
   let a = z[x];
-  a+y
+  a + y
 }
 ```
+
+Each `call_data` parameter takes an identifier (`call_data(<id>) T`) which groups parameters into the same call-data array — parameters sharing an identifier end up in the same read-only array, while different identifiers produce independent ones.
 
 As a result, both call_data and return_data will be treated as private inputs and encapsulated into a read-only array each, for the backend to process.

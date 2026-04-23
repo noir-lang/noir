@@ -3,9 +3,7 @@
 
 use crate::test_utils::GetProgramOptions;
 use crate::test_utils::get_program_with_options;
-use crate::tests::{
-    assert_no_errors, assert_no_errors_without_report, check_errors, check_monomorphization_error,
-};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn as_trait_path_in_expression() {
@@ -272,9 +270,8 @@ fn as_trait_path_self_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/9562): Reactivate once the issue is resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/9562
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn as_trait_path_with_method_turbofish() {
     let src = r#"
     trait Foo {
@@ -291,9 +288,87 @@ fn as_trait_path_with_method_turbofish() {
         let _x: i32 = <u32 as Foo>::bar::<i32>(42);
     }
     "#;
-    // TODO(https://github.com/noir-lang/noir/issues/9562): use `assert_no_errors` once the issue is resolved
-    // assert_no_errors(src);
-    assert_no_errors_without_report(src);
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12395
+#[test]
+fn as_trait_path_with_turbofish_no_args() {
+    let src = r#"
+    fn main() {
+        <MyStruct as MyTrait>::foo::<Field>();
+    }
+
+    pub struct MyStruct {}
+
+    pub trait MyTrait {
+        fn foo<T>();
+    }
+
+    impl MyTrait for MyStruct {
+        fn foo<T>() {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12395
+#[test]
+fn as_trait_path_with_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let M: u32>() -> u32;
+    }
+
+    impl Trait for Field {
+        fn foo<let M: u32>() -> u32 { M }
+    }
+
+    fn main() {
+        assert(<Field as Trait>::foo::<7>() == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12395
+#[test]
+fn as_trait_path_with_mixed_type_and_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<T, let M: u32>(x: T) -> (T, u32);
+    }
+
+    impl Trait for Field {
+        fn foo<T, let M: u32>(x: T) -> (T, u32) { (x, M) }
+    }
+
+    fn main() {
+        let (_, n) = <Field as Trait>::foo::<bool, 7>(true);
+        assert(n == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Turbofish on an associated constant is a user error, not a parse error.
+#[test]
+fn as_trait_path_turbofish_on_associated_constant_errors() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+
+    fn main() {
+        let _ = <Field as Trait>::N::<u32>;
+                                  ^ turbofish (`::<_>`) not allowed on associated item `N`
+    }
+    "#;
+    check_errors(src);
 }
 
 /// Regression test for https://github.com/noir-lang/noir/issues/10436
