@@ -161,12 +161,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 }
 
                 Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
-                    if let Some(witness) = index.to_witness() {
-                        let num_bits = *memory_block_lengths_bit_size
-                            .get(block_id)
-                            .expect("memory must be initialized before any reads/writes");
-                        update_witness_entry(&mut infos, witness, num_bits, true, idx);
-                    }
+                    let num_bits = *memory_block_lengths_bit_size
+                        .get(block_id)
+                        .expect("memory must be initialized before any reads/writes");
+                    update_witness_entry(&mut infos, *index, num_bits, true, idx);
                 }
 
                 // Barretenberg implementation of the AND and XOR blackbox constrain the inputs and output to be 'num_bit' bits
