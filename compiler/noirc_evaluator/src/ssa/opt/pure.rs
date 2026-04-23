@@ -245,7 +245,13 @@ impl Function {
                         | Instruction::Call { .. }
                         | Instruction::Allocate
                         | Instruction::EnableSideEffectsIf { .. }
-                        | Instruction::Noop => (),
+                        | Instruction::Noop => {
+                            // This can't possibly move a Brillig array input.
+                            // A `call` could mutate a Brillig array input, but if that is the case
+                            // the the call itself will be marked as impure, and so then this function will
+                            // be impure... but that is a check that is done later on.
+                        }
+
                         Instruction::Load { .. }
                         | Instruction::Store { .. }
                         | Instruction::ArraySet { .. }
