@@ -156,6 +156,20 @@ impl<'f> Context<'f> {
             }
         }
 
+        // Collect arrays that are direct elements of a MakeArray instruction.
+        // These are the only arrays that are truly "nested" — mutating them would
+        // corrupt the outer array if it is also returned.
+        let mut element_arrays: HashSet<ValueId> = HashSet::default();
+        for instruction_id in block.instructions() {
+            if let Instruction::MakeArray { elements, .. } = &self.dfg[*instruction_id] {
+                for element in elements {
+                    if self.dfg.type_of_value(*element).is_array() {
+                        element_arrays.insert(*element);
+                    }
+                }
+            }
+        }
+
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 // Reading an array constitutes as use, replacing any previous last use.
@@ -163,21 +177,28 @@ impl<'f> Context<'f> {
                     self.set_last_use(*array, *instruction_id);
                 }
                 // Writing to an array is a use; mark it for mutation unless it might be shared.
-                Instruction::ArraySet { array, .. } => {
+                Instruction::ArraySet { array, value, .. } => {
                     self.set_last_use(*array, *instruction_id);
+
+                    // If the value being stored is itself an array, treat this as a use of that
+                    // array. This prevents marking the preceding array_set (whose result is `value`)
+                    // as mutable when the array will be read again here.
+                    if self.dfg.type_of_value(*value).is_array() {
+                        self.set_last_use(*value, *instruction_id);
+                    }
 
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
-                    let mut is_nested = false;
-                    terminator.for_each_value(|value| {
-                        let is_value_array_in_terminator = value == *array;
-                        if !is_value_array_in_terminator && self.dfg.type_of_value(value).is_array()
-                        {
-                            is_nested = true;
-                            self.set_last_use(value, *instruction_id);
+                    terminator.for_each_value(|term_value| {
+                        if term_value == *array {
+                            is_array_in_terminator = true;
                         }
-                        is_array_in_terminator |= is_value_array_in_terminator;
                     });
+
+                    // Block mutation only when the input array is actually nested inside
+                    // another array that is also returned. Independent arrays in the same
+                    // return statement must not block each other.
+                    let is_nested = element_arrays.contains(array);
 
                     let can_mutate = !is_array_in_terminator && !is_nested;
 
@@ -281,7 +302,7 @@ mod tests {
             v1 = make_array [Field 0] : [Field; 1]
             v4 = array_set v1, index u32 0, value Field 2
             v5 = make_array [v1, v1] : [[Field; 1]; 2]
-            v6 = array_set v5, index u32 0, value v1
+            v6 = array_set mut v5, index u32 0, value v1
             return v6
         }
         ");
@@ -408,6 +429,8 @@ mod tests {
 
     // Previously, the first array_set instruction, which modifies v2 in the below
     // code snippet, was marked as mut despite v2 being used in the next array_set instruction.
+    // v5 must NOT be mutable because v2 is consumed again as the value argument of v6.
+    // v6 CAN be mutable because v1 is only used by v6 and is not in the terminator.
     #[test]
     fn regression_10245() {
         let src = "
@@ -418,6 +441,52 @@ mod tests {
                 return v6, v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
+            v5 = array_set v2, index u32 0, value Field 4
+            v6 = array_set mut v1, index u32 0, value v2
+            return v6, v5
+        }
+        ");
+    }
+
+    /// Two independent array chains both returned: every array_set should be mutable.
+    /// Before the fix, the over-broad is_nested guard blocked all mutations because each
+    /// chain's final value appeared as "another array in the terminator".
+    #[test]
+    fn marks_chain_mutable_with_two_independent_returned_arrays() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v_ptr0: u32, v_ptr1: u32, v_ptr2: u32):
+                v_a0 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v_b0 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v_a1 = array_set v_a0, index v_ptr0, value Field 1
+                v_b1 = array_set v_b0, index v_ptr0, value Field 1
+                v_a2 = array_set v_a1, index v_ptr1, value Field 2
+                v_b2 = array_set v_b1, index v_ptr1, value Field 2
+                v_a3 = array_set v_a2, index v_ptr2, value Field 3
+                v_b3 = array_set v_b2, index v_ptr2, value Field 3
+                return v_a3, v_b3
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v7 = array_set mut v4, index v0, value Field 1
+            v8 = array_set mut v5, index v0, value Field 1
+            v10 = array_set mut v7, index v1, value Field 2
+            v11 = array_set mut v8, index v1, value Field 2
+            v13 = array_set mut v10, index v2, value Field 3
+            v14 = array_set mut v11, index v2, value Field 3
+            return v13, v14
+        }
+        ");
     }
 }
