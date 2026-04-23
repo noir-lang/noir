@@ -285,20 +285,13 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        brillig::BrilligOptions,
-        ssa::{
-            SsaEvaluatorOptions,
-            function_builder::FunctionBuilder,
-            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{
-                DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
-                FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding,
-                flatten_cfg::branch_analysis::find_branch_ends, inlining,
-            },
-            primary_passes,
-            ssa_gen::Ssa,
-        },
+    use crate::ssa::{
+        SsaEvaluatorOptions,
+        function_builder::FunctionBuilder,
+        ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
+        opt::flatten_cfg::branch_analysis::find_branch_ends,
+        primary_passes,
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -641,24 +634,7 @@ mod tests {
     }
 
     fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
-        let options = SsaEvaluatorOptions {
-            ssa_logging: crate::ssa::SsaLogging::None,
-            brillig_options: BrilligOptions::default(),
-            print_codegen_timings: false,
-            emit_ssa: None,
-            skip_underconstrained_check: true,
-            skip_brillig_constraints_check: true,
-            inliner_aggressiveness: 0,
-            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
-            max_bytecode_increase_percent: None,
-            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
-            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-            skip_passes: Vec::new(),
-            ssa_logging_hide_unchanged: false,
-        };
+        let options = SsaEvaluatorOptions::default();
         let pipeline = primary_passes(&options);
         for pass in pipeline {
             if pass.msg() == stop_before_pass {

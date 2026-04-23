@@ -130,10 +130,11 @@ unconstrained fn factor(v0: Field) -> [Field; 2] {
     ...
 }
 
-fn main f0 (foo: Field) -> [Field; 2] {
+fn main(foo: Field) -> pub [Field; 2] {
+    // Safety: factored is constrained below by `assert(factored[0] * factored[1] == foo)`
     let factored = unsafe { factor(foo) };
     assert(factored[0] * factored[1] == foo);
-    return factored
+    factored
 }
 ```
 
@@ -152,11 +153,11 @@ unconstrained fn unconstrained_add(v0: Field, v1: Field) -> Field {
     v0 + v1
 }
 
-fn main f0 (v0: Field, v1: Field) {
+fn main(v0: Field, v1: Field) {
     let foo = v0 + v1;
+    // Safety: `bar` is constrained below by `assert(foo == bar)`
     let bar = unsafe { unconstrained_add(v0, v1) };
     assert(foo == bar);
-    return bar
 }
 ```
 

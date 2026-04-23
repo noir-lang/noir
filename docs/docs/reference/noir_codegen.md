@@ -91,8 +91,8 @@ Consider a Noir library with this function:
 
 ```rust
 #[export]
-fn not_equal(x: Field, y: Field) -> bool {
-    x != y
+fn is_equal(x: Field, y: Field) -> bool {
+    x == y
 }
 ```
 

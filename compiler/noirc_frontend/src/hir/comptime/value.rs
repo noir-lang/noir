@@ -341,7 +341,7 @@ impl Value {
                         );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
 
@@ -536,7 +536,7 @@ impl Value {
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
