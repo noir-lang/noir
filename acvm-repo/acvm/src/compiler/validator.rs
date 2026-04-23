@@ -242,7 +242,7 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
                         let predicate_value = input_to_value(&witness_map, *predicate)?.is_one();
                         if predicate_value {
-                            let (res_x, res_y, res_infinite) = execute_multi_scalar_mul(
+                            let (res_x, res_y) = execute_multi_scalar_mul(
                                 backend,
                                 &witness_map,
                                 points,
@@ -251,16 +251,11 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_x_value = witness_value(&outputs.0, &witness_map)?;
                             let output_y_value = witness_value(&outputs.1, &witness_map)?;
-                            let output_infinite_value = witness_value(&outputs.2, &witness_map)?;
-                            if res_x != output_x_value
-                                || res_y != output_y_value
-                                || res_infinite != output_infinite_value
-                            {
-                                //TODO: should we check x,y values if infinite is true?
+                            if res_x != output_x_value || res_y != output_y_value {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
-                                        "MultiScalarMul opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                        "MultiScalarMul opcode violation: expected ({res_x}, {res_y}) but found ({output_x_value}, {output_y_value})"
                                     ),
                                 ));
                             }
@@ -269,7 +264,7 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                         let predicate_value = input_to_value(&witness_map, *predicate)?.is_one();
                         if predicate_value {
-                            let (res_x, res_y, res_infinite) = execute_embedded_curve_add(
+                            let (res_x, res_y) = execute_embedded_curve_add(
                                 backend,
                                 &witness_map,
                                 **input1,
@@ -278,16 +273,11 @@ pub fn validate_witness<F: AcirField>(
                             )?;
                             let output_x_value = witness_value(&outputs.0, &witness_map)?;
                             let output_y_value = witness_value(&outputs.1, &witness_map)?;
-                            let output_infinite_value = witness_value(&outputs.2, &witness_map)?;
-                            if res_x != output_x_value
-                                || res_y != output_y_value
-                                || res_infinite != output_infinite_value
-                            {
-                                //TODO: should we check x,y values if infinite is true?
+                            if res_x != output_x_value || res_y != output_y_value {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
-                                        "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}, {res_infinite}) but found ({output_x_value}, {output_y_value}, {output_infinite_value})"
+                                        "EmbeddedCurveAdd opcode violation: expected ({res_x}, {res_y}) but found ({output_x_value}, {output_y_value})"
                                     ),
                                 ));
                             }
