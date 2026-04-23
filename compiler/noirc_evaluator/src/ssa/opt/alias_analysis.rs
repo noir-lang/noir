@@ -352,17 +352,17 @@ impl AliasAnalysisContext {
         self.analyze_terminator(function, block.terminator());
     }
 
-    // Base constraint a = &b: merge via recursive union the 'address' &b with the pointee of the 'reference' a
-    // Do nothing if a is not a reference so that the aliases are not polluted by non-reference values.
-    fn merge_reference(&mut self, function: &Function, reference: ValueId, address: ValueId) {
-        if function.dfg.type_of_value(reference).contains_reference() {
-            let reference = GlobalValueId::new(function, reference);
-            let address = GlobalValueId::new(function, address);
-            if let Some(values) = self.get_pointee(address) {
-                self.merge_alias(reference, values);
+    // Base constraint a = &b: merge via recursive union b with the pointee of a
+    // Do nothing if b is not a reference so that the aliases are not polluted by non-reference values.
+    fn merge_reference(&mut self, function: &Function, b: ValueId, a: ValueId) {
+        if function.dfg.type_of_value(b).contains_reference() {
+            let b = GlobalValueId::new(function, b);
+            let a = GlobalValueId::new(function, a);
+            if let Some(values) = self.get_pointee(a) {
+                self.merge_alias(b, values);
             } else {
                 // Lazy initialization of the pointer
-                self.set_pointee(address, reference);
+                self.set_pointee(a, b);
             }
         }
     }
