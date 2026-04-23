@@ -809,10 +809,8 @@ namespace Acir {
         struct EmbeddedCurveAdd {
             Acir::MemoryAddress input1_x;
             Acir::MemoryAddress input1_y;
-            Acir::MemoryAddress input1_infinite;
             Acir::MemoryAddress input2_x;
             Acir::MemoryAddress input2_y;
-            Acir::MemoryAddress input2_infinite;
             Acir::HeapArray result;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
@@ -823,20 +821,16 @@ namespace Acir {
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_y", input1_y, 1);
-                    Helpers::conv_fld_from_array(array, name, "input1_infinite", input1_infinite, 2);
-                    Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 3);
-                    Helpers::conv_fld_from_array(array, name, "input2_y", input2_y, 4);
-                    Helpers::conv_fld_from_array(array, name, "input2_infinite", input2_infinite, 5);
-                    Helpers::conv_fld_from_array(array, name, "result", result, 6);
+                    Helpers::conv_fld_from_array(array, name, "input2_x", input2_x, 2);
+                    Helpers::conv_fld_from_array(array, name, "input2_y", input2_y, 3);
+                    Helpers::conv_fld_from_array(array, name, "result", result, 4);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
                 }
@@ -2332,7 +2326,7 @@ namespace Acir {
             std::vector<Acir::FunctionInput> points;
             std::vector<Acir::FunctionInput> scalars;
             Acir::FunctionInput predicate;
-            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 2>> outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
 
@@ -2357,10 +2351,10 @@ namespace Acir {
         };
 
         struct EmbeddedCurveAdd {
-            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input1;
-            std::shared_ptr<std::array<Acir::FunctionInput, 3>> input2;
+            std::shared_ptr<std::array<Acir::FunctionInput, 2>> input1;
+            std::shared_ptr<std::array<Acir::FunctionInput, 2>> input2;
             Acir::FunctionInput predicate;
-            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
+            std::shared_ptr<std::array<Acir::Witness, 2>> outputs;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
 
@@ -4814,10 +4808,8 @@ namespace Acir {
     inline bool operator==(const BlackBoxOp::EmbeddedCurveAdd &lhs, const BlackBoxOp::EmbeddedCurveAdd &rhs) {
         if (!(lhs.input1_x == rhs.input1_x)) { return false; }
         if (!(lhs.input1_y == rhs.input1_y)) { return false; }
-        if (!(lhs.input1_infinite == rhs.input1_infinite)) { return false; }
         if (!(lhs.input2_x == rhs.input2_x)) { return false; }
         if (!(lhs.input2_y == rhs.input2_y)) { return false; }
-        if (!(lhs.input2_infinite == rhs.input2_infinite)) { return false; }
         if (!(lhs.result == rhs.result)) { return false; }
         return true;
     }
@@ -4829,10 +4821,8 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxOp::EmbeddedCurveAdd>::serialize(const Acir::BlackBoxOp::EmbeddedCurveAdd &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.input1_x)>::serialize(obj.input1_x, serializer);
     serde::Serializable<decltype(obj.input1_y)>::serialize(obj.input1_y, serializer);
-    serde::Serializable<decltype(obj.input1_infinite)>::serialize(obj.input1_infinite, serializer);
     serde::Serializable<decltype(obj.input2_x)>::serialize(obj.input2_x, serializer);
     serde::Serializable<decltype(obj.input2_y)>::serialize(obj.input2_y, serializer);
-    serde::Serializable<decltype(obj.input2_infinite)>::serialize(obj.input2_infinite, serializer);
     serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
 }
 
@@ -4842,10 +4832,8 @@ Acir::BlackBoxOp::EmbeddedCurveAdd serde::Deserializable<Acir::BlackBoxOp::Embed
     Acir::BlackBoxOp::EmbeddedCurveAdd obj;
     obj.input1_x = serde::Deserializable<decltype(obj.input1_x)>::deserialize(deserializer);
     obj.input1_y = serde::Deserializable<decltype(obj.input1_y)>::deserialize(deserializer);
-    obj.input1_infinite = serde::Deserializable<decltype(obj.input1_infinite)>::deserialize(deserializer);
     obj.input2_x = serde::Deserializable<decltype(obj.input2_x)>::deserialize(deserializer);
     obj.input2_y = serde::Deserializable<decltype(obj.input2_y)>::deserialize(deserializer);
-    obj.input2_infinite = serde::Deserializable<decltype(obj.input2_infinite)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
     return obj;
 }
