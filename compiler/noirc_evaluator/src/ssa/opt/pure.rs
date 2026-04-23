@@ -126,6 +126,12 @@ impl Function {
             return Purity::Impure;
         }
 
+        let is_brillig_and_contains_array_in_entry_point = self.runtime().is_brillig()
+            && self.parameters().iter().any(|param| {
+                let typ = self.dfg.type_of_value(*param);
+                typ.contains_an_array()
+            });
+
         let mut result = if self.runtime().is_acir() {
             Purity::Pure
         } else {
@@ -158,9 +164,9 @@ impl Function {
                             result = Purity::PureWithPredicate;
                         }
                     }
-                    ins @ Instruction::ArraySet { array, .. } => {
-                      if self.runtime().is_brillig() && (self.parameters().contains(array) || self.dfg.is_global(*array)) {
-                          return Purity::Impure;
+                    ins @ Instruction::ArraySet { .. } => {
+                      if is_brillig_and_contains_array_in_entry_point {
+                        return Purity::Impure;
                       } else if ins.requires_acir_gen_predicate(&self.dfg) {
                             result = Purity::PureWithPredicate;
                       }
