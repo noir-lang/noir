@@ -914,6 +914,7 @@ impl<'a> Context<'a> {
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -923,7 +924,7 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                 );
             }
             Opcode::MemoryOp { block_id, op } => {
-                if op.operation.is_one() {
+                if op.operation == MemOpKind::Write {
                     // Check that we have no writes to the type size arrays
                     let is_type_sizes_array =
                         context.element_type_sizes_blocks.values().any(|id| id == block_id);

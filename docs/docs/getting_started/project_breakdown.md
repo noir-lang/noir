@@ -37,7 +37,7 @@ Example Nargo.toml:
 name = "noir_starter"
 type = "bin"
 authors = ["Alice"]
-compiler_version = "0.9.0"
+compiler_version = ">=1.0.0"
 description = "Getting started with Noir"
 entry = "circuit/main.nr"
 license = "MIT"
@@ -61,7 +61,7 @@ The package section defines a number of fields including:
 - `name` (**required**) - the name of the package
 - `type` (**required**) - can be "bin", "lib", or "contract" to specify whether its a binary, library or Aztec contract
 - `authors` (optional) - authors of the project
-- `compiler_version` - specifies the version of the compiler to use. This is enforced by the compiler and follow's [Rust's versioning](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field), so a `compiler_version = 0.18.0` will enforce Nargo version 0.18.0, `compiler_version = ^0.18.0` will enforce anything above 0.18.0 but below 0.19.0, etc. For more information, see how [Rust handles these operators](https://docs.rs/semver/latest/semver/enum.Op.html)
+- `compiler_version` - specifies the version of the compiler to use. This is enforced by the compiler and follows [Rust's versioning](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field), so a `compiler_version = 0.18.0` will enforce Nargo version 0.18.0, `compiler_version = ^0.18.0` will enforce anything above 0.18.0 but below 0.19.0, etc. For more information, see how [Rust handles these operators](https://docs.rs/semver/latest/semver/enum.Op.html)
 - `compiler_unstable_features` (optional) - A list of unstable features required by this package to compile.
 - `description` (optional)
 - `entry` (optional) - a relative filepath to use as the entry point into your package (overrides the default of `src/lib.nr` or `src/main.nr`)
@@ -73,8 +73,9 @@ The package section defines a number of fields including:
 
 This is where you will specify any dependencies for your project. See the [Dependencies page](../noir/modules_packages_crates/dependencies.md) for more info.
 
-`./proofs/` and `./contract/` directories will not be immediately visible until you create a proof or
-verifier contract respectively.
+A `./proofs/` directory and a `./src/contract.sol` verifier contract will not be immediately visible until
+you create a proof or verifier contract respectively. These artifacts are produced by your proving
+backend (for example, Barretenberg's `bb`), not by `nargo` itself.
 
 ### main.nr
 
