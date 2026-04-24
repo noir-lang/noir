@@ -156,6 +156,23 @@ impl<'f> Context<'f> {
             }
         }
 
+        // Collect arrays that appear as direct elements of a `MakeArray` instruction.
+        // These are the only values where in-place mutation could corrupt a still-live
+        // outer array: ACIRgen copies element data out of `value` for both `make_array`
+        // and `array_set` with an array-typed value, so no other construct in this pass's
+        // input (post-flatten, post-`remove_if_else`, post-`mem2reg`) creates genuine
+        // containment aliasing.
+        let mut element_arrays = HashSet::default();
+        for instruction_id in block.instructions() {
+            if let Instruction::MakeArray { elements, .. } = &self.dfg[*instruction_id] {
+                for element in elements {
+                    if self.dfg.type_of_value(*element).is_array() {
+                        element_arrays.insert(*element);
+                    }
+                }
+            }
+        }
+
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 // Reading an array constitutes as use, replacing any previous last use.
@@ -170,18 +187,18 @@ impl<'f> Context<'f> {
                         self.set_last_use(*value, *instruction_id);
                     }
 
-                    // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
+                    // If the input array is itself returned, we cannot reuse its memory block.
                     let mut is_array_in_terminator = false;
-                    let mut is_nested = false;
-                    terminator.for_each_value(|value| {
-                        let is_value_array_in_terminator = value == *array;
-                        if !is_value_array_in_terminator && self.dfg.type_of_value(value).is_array()
-                        {
-                            is_nested = true;
-                            self.set_last_use(value, *instruction_id);
+                    terminator.for_each_value(|term_value| {
+                        if term_value == *array {
+                            is_array_in_terminator = true;
                         }
-                        is_array_in_terminator |= is_value_array_in_terminator;
                     });
+
+                    // Block mutation only when the input array is actually nested as a direct
+                    // element of a `MakeArray`. Independent arrays returned alongside each
+                    // other must not block each other's in-place mutation.
+                    let is_nested = element_arrays.contains(array);
 
                     let can_mutate = !is_array_in_terminator && !is_nested;
 
@@ -268,8 +285,11 @@ mod tests {
 
     #[test]
     fn does_not_mutate_array_used_in_make_array() {
-        // Regression test for https://github.com/noir-lang/noir/issues/8563
-        // Previously `v2` would be marked as mutable in the first array_set, which results in `v5` being invalid.
+        // Regression test for https://github.com/noir-lang/noir/issues/8563.
+        // The critical invariant: the first `array_set` on `v1` must NOT become mutable,
+        // because `v1` is later nested inside `v5` via `make_array` and used as the value
+        // of the second `array_set`. Mutating `v1` in place would corrupt both.
+        // The second `array_set` on `v5` CAN be mutable: `v5` is only used here.
         let src = "
             acir(inline) fn main f0 {
               b0():
@@ -280,7 +300,18 @@ mod tests {
                 return v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v4 = array_set v1, index u32 0, value Field 2
+            v5 = make_array [v1, v1] : [[Field; 1]; 2]
+            v6 = array_set mut v5, index u32 0, value v1
+            return v6
+        }
+        ");
     }
 
     #[test]
@@ -404,6 +435,8 @@ mod tests {
 
     // Previously, the first array_set instruction, which modifies v2 in the below
     // code snippet, was marked as mut despite v2 being used in the next array_set instruction.
+    // `v5` must NOT be mutable because `v2` is consumed again as the value argument of `v6`.
+    // `v6` CAN be mutable because its input `v1` is a parameter used only here.
     #[test]
     fn regression_10245() {
         let src = "
@@ -414,7 +447,54 @@ mod tests {
                 return v6, v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: [[Field; 1]; 2], v2: [Field; 1]):
+            v5 = array_set v2, index u32 0, value Field 4
+            v6 = array_set mut v1, index u32 0, value v2
+            return v6, v5
+        }
+        ");
+    }
+
+    /// Two independent array chains returned together: every `array_set` should be
+    /// marked mutable. Regression test for https://github.com/noir-lang/noir/issues/12411,
+    /// where the over-broad terminator-based `is_nested` guard blocked all mutations
+    /// because each chain's final value appeared as "another array in the terminator".
+    #[test]
+    fn marks_chain_mutable_with_two_independent_returned_arrays() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32, v2: u32):
+                v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+                v7 = array_set v4, index v0, value Field 1
+                v8 = array_set v5, index v0, value Field 1
+                v10 = array_set v7, index v1, value Field 2
+                v11 = array_set v8, index v1, value Field 2
+                v13 = array_set v10, index v2, value Field 3
+                v14 = array_set v11, index v2, value Field 3
+                return v13, v14
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mutable_array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v7 = array_set mut v4, index v0, value Field 1
+            v8 = array_set mut v5, index v0, value Field 1
+            v10 = array_set mut v7, index v1, value Field 2
+            v11 = array_set mut v8, index v1, value Field 2
+            v13 = array_set mut v10, index v2, value Field 3
+            v14 = array_set mut v11, index v2, value Field 3
+            return v13, v14
+        }
+        ");
     }
 
     #[test]
