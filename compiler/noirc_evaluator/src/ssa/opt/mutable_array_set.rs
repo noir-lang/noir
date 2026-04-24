@@ -156,22 +156,8 @@ impl<'f> Context<'f> {
             }
         }
 
-        // Collect arrays that appear as direct elements of a `MakeArray` instruction.
-        // These are the only values where in-place mutation could corrupt a still-live
-        // outer array: ACIRgen copies element data out of `value` for both `make_array`
-        // and `array_set` with an array-typed value, so no other construct in this pass's
-        // input (post-flatten, post-`remove_if_else`, post-`mem2reg`) creates genuine
-        // containment aliasing.
+        // We must prevent mutating arrays after they're stored in other arrays.
         let mut element_arrays = HashSet::default();
-        for instruction_id in block.instructions() {
-            if let Instruction::MakeArray { elements, .. } = &self.dfg[*instruction_id] {
-                for element in elements {
-                    if self.dfg.type_of_value(*element).is_array() {
-                        element_arrays.insert(*element);
-                    }
-                }
-            }
-        }
 
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
@@ -195,11 +181,8 @@ impl<'f> Context<'f> {
                         }
                     });
 
-                    // Block mutation only when the input array is actually nested as a direct
-                    // element of a `MakeArray`. Independent arrays returned alongside each
-                    // other must not block each other's in-place mutation.
+                    // Block mutation when the input array is actually nested as a MakeArray element
                     let is_nested = element_arrays.contains(array);
-
                     let can_mutate = !is_array_in_terminator && !is_nested;
 
                     if can_mutate {
@@ -215,10 +198,12 @@ impl<'f> Context<'f> {
                     }
                 }
 
-                // Arrays nested in other arrays are a use.
+                // Arrays nested in other arrays are a use, and any subsequent `ArraySet`
+                // on the element must not mutate in place.
                 Instruction::MakeArray { elements, .. } => {
                     for element in elements {
                         if self.dfg.type_of_value(*element).is_array() {
+                            element_arrays.insert(*element);
                             self.set_last_use(*element, *instruction_id);
                         }
                     }
