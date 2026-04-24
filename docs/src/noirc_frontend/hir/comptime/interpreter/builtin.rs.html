@@ -506,7 +506,7 @@
 <a href=#506 id=506 data-nosnippet>506</a>        })
 <a href=#507 id=507 data-nosnippet>507</a>        .collect();
 <a href=#508 id=508 data-nosnippet>508</a>
-<a href=#509 id=509 data-nosnippet>509</a>    <span class="prelude-val">Ok</span>(Value::Vector(generics, vector_item_type))
+<a href=#509 id=509 data-nosnippet>509</a>    <span class="prelude-val">Ok</span>(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
 <a href=#510 id=510 data-nosnippet>510</a>}
 <a href=#511 id=511 data-nosnippet>511</a>
 <a href=#512 id=512 data-nosnippet>512</a><span class="kw">fn </span>type_def_hash(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
