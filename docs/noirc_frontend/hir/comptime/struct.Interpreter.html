@@ -194,7 +194,7 @@ string, just with a different type. This is also why when format strings are low
 runtime code they become regular strings - because they’re already formatted.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.evaluate_field_as_integer" class="method"><a class="src rightside" href="../../../src/noirc_frontend/hir/comptime/interpreter.rs.html#841-848">Source</a><h4 class="code-header">fn <a href="#method.evaluate_field_as_integer" class="fn">evaluate_field_as_integer</a>(
     &amp;self,
-    value: FieldElement,
+    value: <a class="type" href="../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>,
     id: <a class="struct" href="../../node_interner/struct.ExprId.html" title="struct noirc_frontend::node_interner::ExprId">ExprId</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="enum.Value.html" title="enum noirc_frontend::hir::comptime::Value">Value</a>, <a class="enum" href="enum.InterpreterError.html" title="enum noirc_frontend::hir::comptime::InterpreterError">InterpreterError</a>&gt;</h4></section></summary><div class="docblock"><p>Since integers are polymorphic, evaluating one requires the result type.
 We pass down the result type the elaborator previously inferred.</p>
