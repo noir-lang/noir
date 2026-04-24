@@ -482,6 +482,37 @@ mod tests {
         ");
     }
 
+    // Mutating an element after it has been nested inside another array would also
+    // corrupt the outer array, because the outer `make_array` captured the element's
+    // memory. The later `array_set` on `v1` must therefore stay non-mutable even
+    // though `v1` is not itself part of the terminator.
+    #[test]
+    fn does_not_mutate_array_set_on_element_after_nesting() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 0, Field 0] : [Field; 2]
+                v3 = make_array [v1] : [[Field; 2]; 1]
+                v5 = array_set v1, index u32 0, value Field 7
+                return v3, v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, _value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0, Field 0] : [Field; 2]
+            v2 = make_array [v1] : [[Field; 2]; 1]
+            v5 = array_set v1, index u32 0, value Field 7
+            return v2, v5
+        }
+        ");
+    }
+
     #[test]
     fn array_set_array_value_should_mark_as_last_used() {
         // If we don't mark the value of `array_set` as last used then v7 ends up being
