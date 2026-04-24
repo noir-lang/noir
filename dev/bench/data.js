@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777046106497,
+  "lastUpdate": 1777046420927,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3b2c4fcbe1321e760d555cc148daf4c3fdac266d",
-          "message": "feat(ssa): Only load/store the extracted tuple field for mutable variables (#12241)",
-          "timestamp": "2026-04-17T20:28:47Z",
-          "tree_id": "18168de30ae17192b6628b71183d5892ba3a6794",
-          "url": "https://github.com/noir-lang/noir/commit/3b2c4fcbe1321e760d555cc148daf4c3fdac266d"
-        },
-        "date": 1776459084830,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128192,
-            "range": "± 235",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113336,
-            "range": "± 536",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043571,
-            "range": "± 6191",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642852,
             "range": "± 3141",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00113f0eefe86d5761cb13626d3ad0d9818fa7f9",
+          "message": "fix: incorrect type_def_generics implemented return type (#12415)",
+          "timestamp": "2026-04-24T15:35:10Z",
+          "tree_id": "8ff9b8b07af0950aa5e97ee7d6a859adbad21551",
+          "url": "https://github.com/noir-lang/noir/commit/00113f0eefe86d5761cb13626d3ad0d9818fa7f9"
+        },
+        "date": 1777046364625,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167040,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135233,
+            "range": "± 1177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640417,
+            "range": "± 2653",
             "unit": "ns/iter"
           }
         ]
