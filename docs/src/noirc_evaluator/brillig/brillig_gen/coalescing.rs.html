@@ -17,8 +17,8 @@
 <a href=#17 id=17 data-nosnippet>17</a>
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <a href=#19 id=19 data-nosnippet>19</a>
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span><span class="kw">super</span>::union_find::connected_components;
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span><span class="kw">super</span>::variable_liveness::VariableLiveness;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span><span class="kw">super</span>::variable_liveness::VariableLiveness;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::union_find::connected_components;
 <a href=#22 id=22 data-nosnippet>22</a>
 <a href=#23 id=23 data-nosnippet>23</a><span class="doccomment">/// Check if param-side coalescing is safe: the destination must have exactly
 <a href=#24 id=24 data-nosnippet>24</a>/// one predecessor, and arg must not be live-in to dest.

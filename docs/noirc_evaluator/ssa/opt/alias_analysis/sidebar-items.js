@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Scope"],"fn":["canonicalize_type"],"struct":["AliasAnalysis","AliasAnalysisContext","GlobalValueId"]};
