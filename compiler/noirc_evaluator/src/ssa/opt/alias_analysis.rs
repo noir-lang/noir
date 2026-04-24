@@ -1526,6 +1526,9 @@ mod tests {
         let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
         // call_results in main: [oracle_a's v1, oracle_b's v2, f1's v3].
+        // Block b3's parameter unifies f1.v1 (from b1) and f1.v2 (from b2)
+        // via unify_with_block_params. Transitively, main's v1 ~ v2 through
+        // the formals that were unified with b3's param.
         assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
