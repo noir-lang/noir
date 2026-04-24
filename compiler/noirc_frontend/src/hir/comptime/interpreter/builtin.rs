@@ -506,7 +506,7 @@ fn type_def_generics(
         })
         .collect();
 
-    Ok(Value::Vector(generics, vector_item_type))
+    Ok(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
 }
 
 fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
