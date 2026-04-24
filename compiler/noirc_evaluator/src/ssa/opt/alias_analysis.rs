@@ -7,7 +7,7 @@
 //! This is a flow-insensitive, unification-based alias analysis. It walks every
 //! instruction in no specific order and builds equivalence classes (alias sets) of
 //! references that may point to the same memory location.
-//! 
+//!
 //! On top of Steensgaard analysis, we also collect allocation sites and propagate their definition when possible.
 //! In order to benefit the most from the allocation tracking, we process the blocks in RPO,
 //! to ensure allocation site are collected in the predecessors of a block before being
