@@ -1547,14 +1547,14 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
         let mut trait_methods = None;
 
+        let check_self_param = false;
+        let direct_method = self.interner.lookup_direct_method(&typ, method_name, check_self_param);
+
         // When turbofish generics are provided, use type-directed method lookup to pick the
         // correct impl. Without turbofish, fall through to module-based lookup, which handles
         // Self::method resolution, visibility checking, and associated constants correctly.
         if turbofish.is_some() {
-            let check_self_param = false;
-            if let Some(func_id) =
-                self.interner.lookup_direct_method(&typ, method_name, check_self_param)
-            {
+            if let Some(func_id) = direct_method {
                 self.push_errors(errors);
                 let mut all_errors = path_resolution.errors;
 
@@ -1615,6 +1615,10 @@ impl Elaborator<'_> {
             }
 
             trait_methods = Some(type_trait_methods);
+        } else if direct_method.is_some() {
+            // If there's no turbofish, but there's a direct method, let the lookup continue regularly
+            // (outside of this method) as the resolution will not be a trait method.
+            return None;
         }
 
         let has_self_arg = false;

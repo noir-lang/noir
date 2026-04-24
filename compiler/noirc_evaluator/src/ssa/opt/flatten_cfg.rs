@@ -2534,6 +2534,173 @@ mod merge_provenance_tests {
         ");
     }
 
+    /// Group 2, inner merge as outer `then_arg`:
+    /// `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the second return of `try_collapse_merge` (the `prov_then == else_arg`
+    /// arm in the `then_arg` provenance block). Without that arm firing, the outer
+    /// merge would emit a second cast+mul+add; with it firing, only the inner
+    /// mul+add pair remains.
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_then() {
+        // Outer: if v0 { inner_result } else { 100 }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer else-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b4(Field 100)
+              b1():
+                jmpif v1 then: b2(), else: b3(Field 200)
+              b2():
+                jmp b3(Field 100)
+              b3(v2: Field):
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as Field
+            v6 = cast v4 as Field
+            v8 = mul v5, Field 100
+            v10 = mul v6, Field 200
+            v11 = add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = not v4
+            v15 = cast v4 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 1, inner merge as outer `else_arg`:
+    /// `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`.
+    ///
+    /// Pins the third return of `try_collapse_merge` (the `prov_else == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_else_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 200 } else { 100 }       // inner else-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 100)
+              b3():
+                jmp b4(Field 200)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 200
+            v11 = mul v7, Field 100
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v3
+            v15 = cast v3 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 2, inner merge as outer `else_arg`:
+    /// `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the fourth return of `try_collapse_merge` (the `prov_then == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 200)
+              b3():
+                jmp b4(Field 100)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 100
+            v11 = mul v7, Field 200
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v5
+            v15 = cast v5 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
     /// Test that merges with non-matching values are NOT collapsed.
     /// Uses Field values so there are 3 distinct constants (no boolean overlap).
     #[test]

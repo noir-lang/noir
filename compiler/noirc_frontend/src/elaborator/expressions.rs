@@ -25,7 +25,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -1897,7 +1897,23 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.intern_expr(HirExpression::Ident(ident.clone(), None), location);
+        let generics = if let Some(turbofish) = path.turbofish {
+            let definition_kind = self.interner.definition(definition).kind.clone();
+            if let DefinitionKind::Function(func_id) = definition_kind {
+                let ident_location = path.impl_item.location();
+                Some(self.use_type_args(turbofish, func_id, ident_location).0)
+            } else {
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("associated item `{}`", path.impl_item),
+                    location: path.impl_item.location(),
+                });
+                None
+            }
+        } else {
+            None
+        };
+
+        let id = self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), location);
 
         let mut bindings = TypeBindings::default();
 
@@ -1910,7 +1926,7 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(
             ident,
             &id,
-            None,
+            generics,
             bindings,
             push_required_type_variables,
         );

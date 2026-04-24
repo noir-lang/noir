@@ -49,6 +49,7 @@
 
 use std::sync::Arc;
 
+use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -91,7 +92,7 @@ enum Scope<'a> {
 impl Scope<'_> {
     fn is_entry_point(&self, function_id: FunctionId) -> bool {
         match self {
-            Scope::Single(_) => true,
+            Scope::Single(function) => function.id() == function_id,
             Scope::Ssa(ssa) => ssa.is_entry_point(function_id),
         }
     }
@@ -115,9 +116,74 @@ impl GlobalValueId {
     }
 }
 
+pub(crate) struct AliasAnalysis {
+    /// union-find structure mapping GlobalValueId to their alias class.
+    aliases: UnionFind<GlobalValueId>,
+
+    /// Number of values in each alias class, keyed by the class representative.
+    /// Populated lazily on the first `is_aliased` call so that `analyze` stays
+    /// cheap for consumers that only query `may_alias`.
+    class_sizes: Option<HashMap<GlobalValueId, u32>>,
+}
+
+impl AliasAnalysis {
+    /// Run alias analysis on all `functions` and return the computed alias sets.
+    ///
+    /// The constraints are monotone and converge in a single pass.
+    pub(crate) fn analyze(ssa: &Ssa) -> Self {
+        AliasAnalysisContext::analyze_with_scope(Scope::Ssa(ssa))
+    }
+    /// Build an analysis for one function in isolation. All calls are treated as
+    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
+    /// when the whole SSA is unavailable.
+    pub(crate) fn analyze_single_function(function: &Function) -> Self {
+        AliasAnalysisContext::analyze_with_scope(Scope::Single(function))
+    }
+
+    /// Returns `true` if `a` and `b` may refer to the same memory location.
+    ///
+    /// Takes `&mut self` because of path compression.
+    /// This has no visible side-effect and is perfectly safe.
+    pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
+        if a == b {
+            return true;
+        }
+
+        // Field-insensitivity may alias values with distinct types, but such values cannot alias.
+        // Types are canonicalized first so `&T` and `&mut T` compare equal
+        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
+        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
+        if type_a != type_b {
+            return false;
+        }
+        let a = GlobalValueId::new(function, a);
+        let b = GlobalValueId::new(function, b);
+        let a_root = self.aliases.find(a);
+        let b_root = self.aliases.find(b);
+
+        a_root == b_root
+    }
+
+    /// Returns `true` if `value` may be aliased with some other value in the program.
+    ///
+    /// The per-class size table is populated on demand the first time this is
+    /// called — consumers that only use [`Self::may_alias`] do not pay for it.
+    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
+        let rep = GlobalValueId::new(function, value);
+        let root = self.aliases.find(rep);
+        if self.class_sizes.is_none() {
+            // Count members per alias class
+            self.class_sizes = Some(self.aliases.class_sizes());
+        }
+        let sizes = self.class_sizes.as_ref().expect("just populated");
+        !matches!(sizes.get(&root), None | Some(1))
+    }
+}
+
 /// AliasAnalysis stores the result of the alias analysis pass
 /// as well as transient data computed during the analysis
-pub(crate) struct AliasAnalysis {
+#[derive(Default)]
+struct AliasAnalysisContext {
     /// union-find structure mapping GlobalValueId to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
@@ -139,22 +205,8 @@ pub(crate) struct AliasAnalysis {
     class_sizes: Option<HashMap<GlobalValueId, u32>>,
 }
 
-impl AliasAnalysis {
-    /// Run alias analysis on all `functions` and return the computed alias sets.
-    ///
-    /// The constraints are monotone and converge in a single pass.
-    pub(crate) fn analyze(ssa: &Ssa) -> Self {
-        Self::analyze_with_scope(Scope::Ssa(ssa))
-    }
-
-    /// Build an analysis for one function in isolation. All calls are treated as
-    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
-    /// when the whole SSA is unavailable.
-    pub(crate) fn analyze_single_function(function: &Function) -> Self {
-        Self::analyze_with_scope(Scope::Single(function))
-    }
-
-    fn analyze_with_scope(scope: Scope) -> Self {
+impl AliasAnalysisContext {
+    fn analyze_with_scope(scope: Scope) -> AliasAnalysis {
         // Precondition: globals are expected to be pure constants (numeric or
         // composite-of-numeric) as documented.
         let functions = scope.functions();
@@ -167,22 +219,13 @@ impl AliasAnalysis {
             }
         }
 
-        let mut analysis = Self {
-            points_to: HashMap::default(),
-            aliases: UnionFind::new(),
-            return_values: HashMap::default(),
-            reference_types: HashMap::default(),
-            class_sizes: None,
-        };
+        let mut analysis = Self::default();
 
         for function in functions {
             analysis.analyze_function(&scope, function);
         }
-        // free transient data structures used only during analysis
-        analysis.return_values = HashMap::default();
-        analysis.reference_types = HashMap::default();
 
-        analysis
+        AliasAnalysis { aliases: analysis.aliases, class_sizes: None }
     }
 
     /// Walk every block in one function, processing instructions and terminators.
@@ -192,8 +235,8 @@ impl AliasAnalysis {
         if scope.is_entry_point(function.id()) {
             // Unify the reference parameters of the entry point because the
             // external caller may pass the same reference to 2 reference parameters.
-            let params = function.dfg[function.entry_block()].parameters().to_vec();
-            self.unresolved_call(function, &params, &[]);
+            let params = function.dfg[function.entry_block()].parameters();
+            self.unresolved_call(function, params, &[]);
         }
 
         for block_id in function.reachable_blocks() {
@@ -309,17 +352,17 @@ impl AliasAnalysis {
         self.analyze_terminator(function, block.terminator());
     }
 
-    // Base constraint a = &b: merge via recursive union the 'address' &b with the pointee of the 'reference' a
-    // Do nothing if a is not a reference so that the aliases are not polluted by non-reference values.
-    fn merge_reference(&mut self, function: &Function, reference: ValueId, address: ValueId) {
-        if function.dfg.type_of_value(reference).contains_reference() {
-            let reference = GlobalValueId::new(function, reference);
-            let address = GlobalValueId::new(function, address);
-            if let Some(values) = self.get_pointee(address) {
-                self.merge_alias(reference, values);
+    // Base constraint a = &b: merge via recursive union b with the pointee of a
+    // Do nothing if b is not a reference so that the aliases are not polluted by non-reference values.
+    fn merge_reference(&mut self, function: &Function, b: ValueId, a: ValueId) {
+        if function.dfg.type_of_value(b).contains_reference() {
+            let b = GlobalValueId::new(function, b);
+            let a = GlobalValueId::new(function, a);
+            if let Some(values) = self.get_pointee(a) {
+                self.merge_alias(b, values);
             } else {
                 // Lazy initialization of the pointer
-                self.set_pointee(address, reference);
+                self.set_pointee(a, b);
             }
         }
     }
@@ -435,11 +478,10 @@ impl AliasAnalysis {
     /// 1. Same type => `merge_alias`: they might be the same value.
     /// 2. `outer` can contain `inner`'s type => `merge_reference(inner, outer)`:
     ///    `inner` could be a pointee/element of `outer`.
-    /// 3. Any other case where a reference sub-type of one could reach a
-    ///    structural sub-type of the other => `merge_alias`: further
-    ///    extractions on either side may land in the same alias class. This
-    ///    subsumes the simpler "share an inner reference type" case, since
-    ///    `type_contains_structurally(T, T)` is trivially true.
+    /// 3. Any other case where a nested reference type of one could reach a
+    ///    structural nested type of the other => `merge_alias`: further
+    ///    extractions on either side may land in the same alias class.
+    ///    Ex:   `a: [{Field, &Field}; 2]` and `b: &{Field, int}` => &T in a, and T in b (T=Field)
     ///
     /// Note that this analysis is quadratic in the number of arguments/results
     /// because we analyze every pair. It can be improved in several ways, but
@@ -497,6 +539,7 @@ impl AliasAnalysis {
 
     /// True if `outer`'s shape permit `inner` as a possible pointee / element
     /// at any depth?
+    /// The function is recursive but is ensured to terminate because Noir Types are non-recursive.
     ///
     /// Examples (all return true):
     /// - `&T` contains `T` (one level of pointer indirection).
@@ -546,8 +589,8 @@ impl AliasAnalysis {
     /// its type, and the other has a `&C` somewhere where `T` appears as a
     /// structural (non-reference) element of `C`.
     ///
-    /// E.g: with `a: {Field, &Field}` and `b: &{Field, int}`,
-    /// when a function f(a,b) does `a.1 = &(*b.0)`, a and b alias in a subtle way.
+    /// E.g.: `a: [{Field, &Field}; N]` and `b: &[{Field, int}; M]`
+    /// when a function f(a,b) does `a[j].1 = b[i].0`, a and b alias in a subtle way.
     fn could_have_sub_ref_aliasing(refs_a: &HashSet<Type>, refs_b: &HashSet<Type>) -> bool {
         for ref_a in refs_a {
             let Type::Reference(inner_a, _) = ref_a else { continue };
@@ -570,7 +613,6 @@ impl AliasAnalysis {
     ///
     /// E.g: does the following types contains structurally Field?
     /// - &{Field, int}: No, it's a reference
-    /// - {Field, int}: Yes, it has a Field field
     /// - [Field; 3]: Yes, the array has a Field as element type.
     fn type_contains_structurally(outer: &Type, inner: &Type) -> bool {
         if outer == inner {
@@ -663,45 +705,6 @@ impl AliasAnalysis {
         }
     }
 
-    /// Returns `true` if `a` and `b` may refer to the same memory location.
-    ///
-    /// Takes `&mut self` because of path compression.
-    /// This has no visible side-effect and is perfectly safe.
-    pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
-        if a == b {
-            return true;
-        }
-
-        // Field-insensitivity may alias values with distinct types, but such values cannot alias.
-        // Types are canonicalized first so `&T` and `&mut T` compare equal
-        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
-        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
-        if type_a != type_b {
-            return false;
-        }
-        let a = GlobalValueId::new(function, a);
-        let b = GlobalValueId::new(function, b);
-        let a_root = self.aliases.find(a);
-        let b_root = self.aliases.find(b);
-
-        a_root == b_root
-    }
-
-    /// Returns `true` if `value` may be aliased with some other value in the program.
-    ///
-    /// The per-class size table is populated on demand the first time this is
-    /// called — consumers that only use [`Self::may_alias`] do not pay for it.
-    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
-        let rep = GlobalValueId::new(function, value);
-        let root = self.aliases.find(rep);
-        if self.class_sizes.is_none() {
-            // Count members per alias class
-            self.class_sizes = Some(self.aliases.class_sizes());
-        }
-        let sizes = self.class_sizes.as_ref().expect("just populated");
-        !matches!(sizes.get(&root), None | Some(1))
-    }
-
     /// Unify call arguments with callee's formal parameters, and call results with
     /// callee's canonical return reps. This is the Simple constraint applied
     /// at the call boundary.
@@ -736,8 +739,7 @@ impl AliasAnalysis {
         } else {
             // Record results as the initial class representative. They'll be unified
             // with real return values when the function will be analyzed.
-            let reps: Vec<GlobalValueId> =
-                results.iter().map(|v| GlobalValueId::new(caller, *v)).collect();
+            let reps = vecmap(results, |v| GlobalValueId::new(caller, *v));
             self.return_values.insert(callee_id, reps);
         }
     }

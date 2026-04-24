@@ -10,6 +10,12 @@ pub(crate) struct UnionFind<K: Copy + Eq + Hash> {
     rank: HashMap<K, u32>,
 }
 
+impl<K: Copy + Eq + Hash> Default for UnionFind<K> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K: Copy + Eq + Hash> UnionFind<K> {
     pub(crate) fn new() -> Self {
         Self { parent: HashMap::default(), rank: HashMap::default() }
