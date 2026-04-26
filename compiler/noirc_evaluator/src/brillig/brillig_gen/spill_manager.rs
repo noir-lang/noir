@@ -54,6 +54,28 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
 use crate::ssa::ir::value::ValueId;
 
+/// Lifecycle state of a spill record.
+///
+/// Transitions:
+/// - First eviction → `Transient` or `Permanent`
+/// - Reloaded into a register → `TransientReloaded` or `PermanentReloaded`
+/// - Evicted again by LRU → back to `Transient` or `Permanent`
+/// - Block boundary → `PermanentReloaded` becomes `Permanent`; `Transient` must not survive
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum SpillStatus {
+    /// Within-block spill: value is in the spill slot, not in a register.
+    Transient,
+    /// Was transiently spilled then reloaded into a register.
+    /// The spill slot is still allocated and the register holds the live value.
+    TransientReloaded,
+    /// Permanent spill: the slot is the source of truth across block boundaries.
+    /// Value is not currently in a register.
+    Permanent,
+    /// Permanently spilled, but currently also loaded into a register.
+    /// The slot remains authoritative; the register is a transient copy.
+    PermanentReloaded,
+}
+
 /// Tracks register values that have been spilled to the spill region in heap memory.
 ///
 /// See the [module docs][self] for an overview of when and how the spill manager is used.
@@ -77,11 +99,8 @@ pub(crate) struct SpillRecord {
     pub(crate) offset: usize,
     /// Original variable (for type/register info on reload).
     pub(crate) variable: BrilligVariable,
-    /// Whether this spill slot is permanent (must survive across blocks).
-    /// Otherwise, the spill slot is transient and can be re-used.
-    pub(crate) is_permanent: bool,
-    /// Whether the value is currently spilled (has no valid register).
-    pub(crate) is_currently_spilled: bool,
+    /// Current lifecycle state of this spill record.
+    pub(crate) status: SpillStatus,
 }
 
 impl SpillManager {
@@ -98,7 +117,7 @@ impl SpillManager {
     /// Prepare spill state for a new block.
     ///
     /// 1. Asserts that no transient spills leaked from the previous block
-    ///    (all currently-spilled entries must also be permanent).
+    ///    (only `Permanent` and `PermanentReloaded` records may survive).
     /// 2. Restores permanently-spilled values by marking them as currently spilled.
     /// 3. Removes spilled values from the live-in set (they have no register).
     /// 4. Updates the LRU: retains existing entries still live-in and not spilled
@@ -107,7 +126,7 @@ impl SpillManager {
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
-            self.records.values().all(|r| !r.is_currently_spilled || r.is_permanent),
+            self.records.values().all(|r| r.status != SpillStatus::Transient),
             "Transient spill leaked across block boundary"
         );
         self.restore_permanent_spills();
@@ -115,15 +134,26 @@ impl SpillManager {
         self.reset_lru_for_block(live_in);
     }
 
-    /// Check if a value is currently spilled.
+    /// Check if a value is currently spilled (in memory, not in a register).
     pub(crate) fn is_spilled(&self, value_id: &ValueId) -> bool {
-        self.records.get(value_id).is_some_and(|r| r.is_currently_spilled)
+        matches!(
+            self.records.get(value_id),
+            Some(r) if matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent)
+        )
+    }
+
+    /// Check if a value was transiently spilled and has since been reloaded into a register.
+    pub(crate) fn is_transient_reloaded(&self, value_id: &ValueId) -> bool {
+        matches!(self.records.get(value_id), Some(r) if r.status == SpillStatus::TransientReloaded)
     }
 
     /// Check if a value has a permanent spill slot.
     #[cfg(test)]
     pub(crate) fn has_permanent_slot(&self, value_id: &ValueId) -> bool {
-        self.records.get(value_id).is_some_and(|r| r.is_permanent)
+        matches!(
+            self.records.get(value_id),
+            Some(r) if matches!(r.status, SpillStatus::Permanent | SpillStatus::PermanentReloaded)
+        )
     }
 
     /// Move a value to the back of the LRU (most recently used).
@@ -143,17 +173,21 @@ impl SpillManager {
     /// Remove a value from the spill tracking.
     ///
     /// Permanent spill slots are never freed — they must remain valid across all blocks.
-    /// For permanent records, this just clears `is_currently_spilled`.
-    /// For transient records, the record is removed entirely and the slot is freed.
+    /// For `Permanent` records, this transitions to `PermanentReloaded` (value is live in
+    /// a register again). For transient records, the record is removed and the slot is freed.
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
         if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
-            if entry.get().is_permanent {
-                entry.get_mut().is_currently_spilled = false;
-            } else {
-                let record = entry.remove();
-                self.free_spill_slots.push(record.offset);
+            match entry.get().status {
+                SpillStatus::Permanent => {
+                    entry.get_mut().status = SpillStatus::PermanentReloaded;
+                }
+                SpillStatus::PermanentReloaded => {}
+                SpillStatus::Transient | SpillStatus::TransientReloaded => {
+                    let record = entry.remove();
+                    self.free_spill_slots.push(record.offset);
+                }
             }
         }
     }
@@ -195,9 +229,8 @@ impl SpillManager {
     ///
     /// If the value already has a record (e.g., it was reloaded and then
     /// re-evicted by LRU), this updates the existing record:
-    /// - Permanent records: just re-marks as currently spilled, preserving the
-    ///   permanent offset. The slot already has valid data when operating over SSA where variables are immutable.
-    /// - Transient records: updates the offset and variable to the new values.
+    /// - `PermanentReloaded`: transitions back to `Permanent` (slot data is still valid).
+    /// - `TransientReloaded`: transitions back to `Transient`, updating the variable.
     pub(crate) fn record_spill(
         &mut self,
         value_id: ValueId,
@@ -208,21 +241,32 @@ impl SpillManager {
         let record = self.records.entry(value_id).or_insert(SpillRecord {
             offset,
             variable,
-            is_permanent: false,
-            is_currently_spilled: true,
+            status: SpillStatus::Transient,
         });
         // Always preserve the offset, so we don't leak free slots.
         assert_eq!(offset, record.offset, "Spill of {value_id} orphaned existing slot");
-        record.is_currently_spilled = true;
-        if !record.is_permanent {
-            // Transient record from a previous spill/reload cycle — update it.
-            record.variable = variable;
+        match record.status {
+            SpillStatus::PermanentReloaded => {
+                // Re-evicting a permanently-spilled value: keep permanent, slot data is valid.
+                record.status = SpillStatus::Permanent;
+            }
+            SpillStatus::TransientReloaded | SpillStatus::Transient => {
+                record.status = SpillStatus::Transient;
+                record.variable = variable;
+            }
+            SpillStatus::Permanent => {
+                unreachable!(
+                    "record_spill called on a Permanent record — is_spilled should have caught this as a double-spill"
+                );
+            }
         }
     }
 
     /// Get the spill record for a value if it is currently spilled.
     pub(crate) fn get_spill(&self, value_id: &ValueId) -> Option<&SpillRecord> {
-        self.records.get(value_id).filter(|r| r.is_currently_spilled)
+        self.records
+            .get(value_id)
+            .filter(|r| matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent))
     }
 
     /// Reset the LRU for a new block, retaining ordering from the previous block.
@@ -233,7 +277,12 @@ impl SpillManager {
     /// determinism.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
         let records = &self.records;
-        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.is_currently_spilled);
+        let is_spilled = |v: &ValueId| {
+            matches!(
+                records.get(v),
+                Some(r) if matches!(r.status, SpillStatus::Transient | SpillStatus::Permanent)
+            )
+        };
 
         // Retain existing entries that are still live-in and not spilled.
         self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));
@@ -248,7 +297,7 @@ impl SpillManager {
 
     /// Record a value as permanently spilled.
     ///
-    /// If the value already has a transient spill record, it is promoted to permanent.
+    /// If the value already has a transient spill record, it is promoted to `Permanent`.
     /// The permanent record ensures consistency regardless of what happens during
     /// block processing.
     pub(crate) fn record_permanent_spill(
@@ -261,21 +310,18 @@ impl SpillManager {
             .entry(value_id)
             .and_modify(|record| {
                 assert_eq!(record.offset, offset);
-                record.is_permanent = true;
-                record.is_currently_spilled = true;
+                record.status = SpillStatus::Permanent;
                 record.variable = variable;
             })
-            .or_insert(SpillRecord {
-                offset,
-                variable,
-                is_permanent: true,
-                is_currently_spilled: true,
-            });
+            .or_insert(SpillRecord { offset, variable, status: SpillStatus::Permanent });
     }
 
     /// Get the permanent spill slot offset for a value, if any.
     pub(crate) fn get_permanent_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
-        self.records.get(value_id).filter(|r| r.is_permanent).map(|r| r.offset)
+        self.records
+            .get(value_id)
+            .filter(|r| matches!(r.status, SpillStatus::Permanent | SpillStatus::PermanentReloaded))
+            .map(|r| r.offset)
     }
 
     /// Get the spill slot offset for a value, if any.
@@ -288,45 +334,47 @@ impl SpillManager {
 
     /// Re-mark permanently-spilled values as currently spilled at block entry.
     ///
-    /// A reload in a previous block clears `is_currently_spilled`, but the
+    /// A reload in a previous block sets the status to `PermanentReloaded`, but the
     /// value must be reloaded again in every block that uses it (since the
     /// permanent spill slot is always the source of truth).
     pub(crate) fn restore_permanent_spills(&mut self) {
         for record in self.records.values_mut() {
-            if record.is_permanent {
-                record.is_currently_spilled = true;
+            if record.status == SpillStatus::PermanentReloaded {
+                record.status = SpillStatus::Permanent;
             }
         }
     }
 
-    /// Clear the `is_currently_spilled` flag WITHOUT freeing the spill slot.
+    /// Mark a spilled value as reloaded into a register, without freeing the spill slot.
     ///
-    /// This is used when reloading a spilled value. The slot's data must remain valid
-    /// because the reload code may execute again in a loop iteration. Only `remove_spill`
-    /// (used when the value is truly dead) should free the slot.
+    /// - `Transient` → `TransientReloaded`
+    /// - `Permanent` → `PermanentReloaded`
+    ///
+    /// The slot's data must remain valid because the reload code may execute
+    /// again in a loop iteration. Only `remove_spill` (used when the value is
+    /// truly dead) should free the slot.
     pub(crate) fn unmark_spilled(&mut self, value_id: &ValueId) {
         let record = self.records.get_mut(value_id).expect("No record for value");
-        assert!(record.is_currently_spilled, "value is not currently spilled");
-        record.is_currently_spilled = false;
+        record.status = match record.status {
+            SpillStatus::Transient => SpillStatus::TransientReloaded,
+            SpillStatus::Permanent => SpillStatus::PermanentReloaded,
+            _ => panic!("Expected record not to be spilled, but was {:?}", record.status),
+        };
     }
 
     /// Ensure a value has a permanent spill slot.
     ///
-    /// Handles all cases where a record already exists with a single lookup:
-    /// - Permanent + currently spilled -> no-op (slot has correct data)
-    /// - Currently spilled but not permanent -> promote to permanent
-    /// - Permanent but not currently spilled (reloaded) -> re-mark as spilled
-    /// - Not currently spilled (reloaded) and not permanent -> re-mark as spilled and permanent
+    /// Any existing record — regardless of its current state — is promoted to
+    /// `Permanent` (the slot is the source of truth and the value is not in a register).
     ///
     /// # Returns
-    /// * `true` if a record already exists (caller should skip further processing),
-    /// * `false` if no record exists (first encounter - caller must allocate a slot).
+    /// * `true` if a record already existed (caller should skip further processing),
+    /// * `false` if no record exists (first encounter — caller must allocate a slot).
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
         let Some(record) = self.records.get_mut(value_id) else {
             return false;
         };
-        record.is_permanent = true;
-        record.is_currently_spilled = true;
+        record.status = SpillStatus::Permanent;
         true
     }
 }
@@ -340,7 +388,7 @@ mod tests {
         ssa::ir::map::Id,
     };
 
-    use super::SpillManager;
+    use super::{SpillManager, SpillStatus};
 
     fn test_var(n: u32) -> BrilligVariable {
         BrilligVariable::SingleAddr(SingleAddrVariable::new(MemoryAddress::relative(n), 32))
@@ -388,8 +436,7 @@ mod tests {
 
         let record = sm.get_spill(&v0).unwrap();
         assert_eq!(record.offset, 0);
-        assert!(!record.is_permanent);
-        assert!(record.is_currently_spilled);
+        assert_eq!(record.status, SpillStatus::Transient);
 
         // Victim should skip v0 (spilled) and return v1
         assert_eq!(sm.lru_victim(), Some(v1));
@@ -583,33 +630,26 @@ mod tests {
         // Case 1: No record -> returns false
         assert!(!sm.ensure_permanent_spill(&v3));
 
-        // Case 2: Permanent + currently spilled -> returns true, no state change
+        // Case 2: Permanent -> returns true, stays Permanent
         let off0 = sm.allocate_spill_offset();
         sm.record_permanent_spill(v0, off0, test_var(0));
-        assert!(sm.is_spilled(&v0));
-        assert!(sm.has_permanent_slot(&v0));
+        assert_eq!(sm.records[&v0].status, SpillStatus::Permanent);
         assert!(sm.ensure_permanent_spill(&v0));
-        // State unchanged
-        assert!(sm.is_spilled(&v0));
-        assert!(sm.has_permanent_slot(&v0));
+        assert_eq!(sm.records[&v0].status, SpillStatus::Permanent);
 
-        // Case 3: Transient spill (not permanent) -> returns true, promoted to permanent
+        // Case 3: Transient -> returns true, promoted to Permanent
         let off1 = sm.allocate_spill_offset();
         sm.record_spill(v1, off1, test_var(1));
-        assert!(sm.is_spilled(&v1));
-        assert!(!sm.has_permanent_slot(&v1));
+        assert_eq!(sm.records[&v1].status, SpillStatus::Transient);
         assert!(sm.ensure_permanent_spill(&v1));
-        assert!(sm.is_spilled(&v1));
-        assert!(sm.has_permanent_slot(&v1));
+        assert_eq!(sm.records[&v1].status, SpillStatus::Permanent);
 
-        // Case 4: Permanent but reloaded (not currently spilled) -> returns true, re-marked as spilled
+        // Case 4: PermanentReloaded -> returns true, re-marked as Permanent
         let off2 = sm.allocate_spill_offset();
         sm.record_permanent_spill(v2, off2, test_var(2));
         sm.unmark_spilled(&v2);
-        assert!(!sm.is_spilled(&v2));
-        assert!(sm.has_permanent_slot(&v2));
+        assert_eq!(sm.records[&v2].status, SpillStatus::PermanentReloaded);
         assert!(sm.ensure_permanent_spill(&v2));
-        assert!(sm.is_spilled(&v2));
-        assert!(sm.has_permanent_slot(&v2));
+        assert_eq!(sm.records[&v2].status, SpillStatus::Permanent);
     }
 }

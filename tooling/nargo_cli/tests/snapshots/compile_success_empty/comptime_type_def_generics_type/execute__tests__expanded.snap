@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Pair<T> {
+    x: T,
+    y: T,
+}
+
+comptime fn test_attr(pair_def: TypeDefinition) {
+    let generics: [(Type, Option<Type>)] = pair_def.generics();
+    let generics_type: Type = std::meta::type_of(generics);
+    let _: Type = generics_type.as_vector().unwrap();
+}
+
+fn main() {}
