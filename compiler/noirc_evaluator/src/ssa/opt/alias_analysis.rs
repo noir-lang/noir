@@ -129,6 +129,9 @@ pub(crate) struct AliasAnalysis {
     /// union-find structure mapping GlobalValueId to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
+    /// Maps an alias class representative to the alias class of what it points to.
+    points_to: HashMap<GlobalValueId, GlobalValueId>,
+
     /// Number of values in each alias class, keyed by the class representative.
     /// Populated lazily on the first `is_aliased` call so that `analyze` stays
     /// cheap for consumers that only query `may_alias`.
@@ -199,6 +202,41 @@ impl AliasAnalysis {
         let sizes = self.class_sizes.as_ref().expect("just populated");
         !matches!(sizes.get(&root), None | Some(1))
     }
+
+    /// Recursively check if `target` can be referenced by `from`
+    pub(crate) fn may_reference(
+        &mut self,
+        function: &Function,
+        from: ValueId,
+        target: ValueId,
+    ) -> bool {
+        let mut seen = HashSet::default();
+        let from = self.aliases.find(GlobalValueId::new(function, from));
+        let target = self.aliases.find(GlobalValueId::new(function, target));
+        if from == target {
+            if let Some(allocate_a) = self.allocation_sites.get(&from)
+                && let Some(allocate_b) = self.allocation_sites.get(&target)
+                && allocate_a != allocate_b
+            {
+                return false;
+            }
+            return true;
+        }
+        let mut current = from;
+        while seen.insert(current) {
+            match self.points_to.get(&current) {
+                Some(&next) => {
+                    let next = self.aliases.find(next);
+                    if next == target {
+                        return true;
+                    }
+                    current = next;
+                }
+                None => return false,
+            }
+        }
+        false
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -265,6 +303,7 @@ impl AliasAnalysisContext {
 
         AliasAnalysis {
             aliases: analysis.aliases,
+            points_to: analysis.points_to,
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
         }
