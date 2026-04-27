@@ -147,3 +147,10 @@ Noir can usually infer the type of the variable from the context, so specifying 
 ```rust
 let a: [_; 4] = foo(b);
 ```
+
+## Related
+
+- [Fields](./fields.md), [Integers](./integers.md), and [Booleans](./booleans.md) cover primitive types.
+- [Arrays](./arrays.md), [Vectors](./vectors.mdx), [Tuples](./tuples.md), and [Structs](./structs.md) cover compound types.
+- [Type Casting and Coercions](./coercions.md) explains explicit casts and implicit coercions.
+- [Generics](../generics.md) expands on type parameters and numeric generics.
