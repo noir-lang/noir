@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777323672934,
+  "lastUpdate": 1777323765132,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fa0d3d4f1194f068dfe7b85090dcf03f6f2393e2",
-          "message": "fix: fmtstr with functions in globals didn't compile (#12356)",
-          "timestamp": "2026-04-20T17:34:48Z",
-          "tree_id": "d090fe5300e1c7757beadb6dcdb8434ea3f1a105",
-          "url": "https://github.com/noir-lang/noir/commit/fa0d3d4f1194f068dfe7b85090dcf03f6f2393e2"
-        },
-        "date": 1776708986225,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 304.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 519.79,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 355.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 354.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 357.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 355.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 9070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 9070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 357.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2880,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.43,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 102.24,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.71,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4909,6 +4810,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-merge",
             "value": 355.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 9070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 9070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 357.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 354.29,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 97.84,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 146.19,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f685966dadbb42bffb46994fd49c502601525b4",
+          "message": "fix: don't drop inline trait constraints when generated via metaprogramming (#12423)",
+          "timestamp": "2026-04-27T20:16:56Z",
+          "tree_id": "6c74def73b9f6018981629f88436cb4b4335c372",
+          "url": "https://github.com/noir-lang/noir/commit/5f685966dadbb42bffb46994fd49c502601525b4"
+        },
+        "date": 1777323707040,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 302.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 507.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 275.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 355.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 354.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 357.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 355.2,
             "unit": "MB"
           },
           {
