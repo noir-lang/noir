@@ -685,14 +685,6 @@ impl Value {
         Ok(tokens)
     }
 
-    pub(crate) fn is_zero(&self) -> bool {
-        use Value::*;
-        match self {
-            Integer(value) => value.is_zero(),
-            _ => false,
-        }
-    }
-
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
             Value::Function(..) => true,
@@ -761,15 +753,6 @@ impl Value {
                 let value = self.display(elaborator.interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
-        }
-    }
-
-    /// True if this value is negative.
-    /// Defaults to false if this value is not negative or is not an integer.
-    pub fn is_negative(&self) -> bool {
-        match self {
-            Value::Integer(int) => int.is_negative(),
-            _ => false,
         }
     }
 

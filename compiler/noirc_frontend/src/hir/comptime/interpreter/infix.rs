@@ -23,7 +23,10 @@ pub(super) fn evaluate_infix(
     let shr_overflow = || InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
-    if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) && rhs_value.is_zero() {
+    if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo)
+        && let Value::Integer(rhs_value) = rhs_value
+        && rhs_value.is_zero()
+    {
         return Err(InterpreterError::InvalidValuesForBinary {
             lhs: lhs_type,
             rhs: rhs_type,
