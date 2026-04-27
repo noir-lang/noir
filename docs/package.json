@@ -8,6 +8,7 @@
     "dev:netlify": "yarn netlify dev",
     "build": "yarn preprocess && docusaurus build",
     "clean": "rm -rf ./processed-docs ./processed-docs-cache ./build",
+    "manifest": "node ./scripts/generate_docs_manifest.js",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
     "production:serve": "mkdir -p temp-serve/docs && cp -r build/* temp-serve/docs/ && serve temp-serve -l 3000 && rm -rf temp-serve",
