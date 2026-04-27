@@ -585,14 +585,14 @@
 <a href=#585 id=585 data-nosnippet>585</a>        <span class="kw">let </span>local_module = <span class="self">self</span>.local_module();
 <a href=#586 id=586 data-nosnippet>586</a>
 <a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">match </span>item.kind {
-<a href=#588 id=588 data-nosnippet>588</a>            ItemKind::Function(function) =&gt; {
+<a href=#588 id=588 data-nosnippet>588</a>            ItemKind::Function(<span class="kw-2">mut </span>function) =&gt; {
 <a href=#589 id=589 data-nosnippet>589</a>                <span class="kw">let </span>module_id = <span class="self">self</span>.module_id();
 <a href=#590 id=590 data-nosnippet>590</a>
 <a href=#591 id=591 data-nosnippet>591</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = dc_mod::collect_function(
 <a href=#592 id=592 data-nosnippet>592</a>                    <span class="self">self</span>.interner,
 <a href=#593 id=593 data-nosnippet>593</a>                    <span class="self">self</span>.def_maps.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.crate_id).unwrap(),
 <a href=#594 id=594 data-nosnippet>594</a>                    <span class="self">self</span>.usage_tracker,
-<a href=#595 id=595 data-nosnippet>595</a>                    <span class="kw-2">&amp;</span>function,
+<a href=#595 id=595 data-nosnippet>595</a>                    <span class="kw-2">&amp;mut </span>function,
 <a href=#596 id=596 data-nosnippet>596</a>                    module_id,
 <a href=#597 id=597 data-nosnippet>597</a>                    item.doc_comments,
 <a href=#598 id=598 data-nosnippet>598</a>                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.errors,
