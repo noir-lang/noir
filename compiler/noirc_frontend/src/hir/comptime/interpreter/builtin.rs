@@ -39,7 +39,7 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
@@ -128,6 +128,8 @@ impl Interpreter<'_, '_> {
             "expr_resolve" => expr_resolve(self, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "field_less_than" => field_less_than(arguments, location),
+            "issue_error" => issue_diagnostic(self, arguments, location, false),
+            "issue_warning" => issue_diagnostic(self, arguments, location, true),
             "location_eq" => location_eq(arguments, location),
             "location_hash" => location_hash(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
@@ -223,6 +225,7 @@ impl Interpreter<'_, '_> {
                 type_def_has_named_attribute(interner, arguments, location)
             }
             "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
             "type_eq" => type_eq(arguments, location),
@@ -381,6 +384,45 @@ fn static_assert(
     } else {
         failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
+}
+
+// fn error<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+// fn warn<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+fn issue_diagnostic(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    is_warning: bool,
+) -> IResult<Value> {
+    let (msg_argument, (secondary, secondary_location), location_argument) =
+        check_three_arguments(arguments, location)?;
+    let (fragments, _, _) = get_format_string(msg_argument)?;
+
+    // Unwrap the `Option<fmtstr<N, T>>`
+    let secondary = get_option((secondary, secondary_location))?
+        .map(|value| get_format_string((value, secondary_location)))
+        .transpose()?;
+
+    let target_location = get_location(location_argument)?;
+    let interner = &interpreter.elaborator.interner;
+    let message = fragments_to_string(&fragments, interner);
+    let secondary = secondary.map(|(fragments, _, _)| fragments_to_string(&fragments, interner));
+
+    let error = if is_warning {
+        InterpreterError::UserDefinedWarning { message, secondary, location: target_location }
+    } else {
+        InterpreterError::UserDefinedError { message, secondary, location: target_location }
+    };
+    interpreter.elaborator.push_err(error);
+    Ok(Value::Unit)
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -636,6 +678,17 @@ fn type_def_module(
     let struct_id = get_type_id(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
+}
+
+// fn location(self) -> Location
+fn type_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    Ok(Value::Location(interner.get_type(type_id).borrow().location))
 }
 
 // fn name(self) -> Quoted

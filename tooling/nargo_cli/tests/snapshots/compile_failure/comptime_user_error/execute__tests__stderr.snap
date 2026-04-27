@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: function `forbidden` is not allowed
+  ┌─ src/main.nr:4:4
+  │
+4 │ fn forbidden() {}
+  │    --------- remove this function or its `#[reject]` attribute
+  │
+
+Aborting due to 1 previous error

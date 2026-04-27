@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::meta::warn;
+
+fn target() {}
+
+fn other() {}
+
+comptime fn notice(f: FunctionDefinition) {
+    warn(
+        f"`{f}` was flagged by a custom lint",
+        Option::<fmtstr<_, _>>::none(),
+        f.location(),
+    );
+}
+
+comptime fn notice_with_hint(f: FunctionDefinition) {
+    warn(
+        f"`{f}` was flagged by a custom lint",
+        Option::<fmtstr<23, (FunctionDefinition,)>>::some(f"consider renaming `{f}`"),
+        f.location(),
+    );
+}
+
+fn main() {
+    target();
+    other();
+}

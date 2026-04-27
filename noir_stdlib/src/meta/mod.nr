@@ -15,6 +15,7 @@ pub mod quoted;
 pub mod unresolved_type;
 
 use crate::default::Default;
+use crate::option::Option;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -30,6 +31,30 @@ pub comptime fn unquote(code: Quoted) -> Quoted {
 // docs:start:type_of
 pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
+
+/// Issues an error diagnostic at the given location with the given primary
+/// message and an optional secondary message. Unlike a comptime panic, current
+/// execution will continue allowing possibly multiple errors to be issued.
+#[builtin(issue_error)]
+// docs:start:error
+pub comptime fn error<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:error
+
+/// Issues a warning diagnostic at the given location  with the given primary
+/// message and an optional secondary message. Execution continues after this
+/// function is called.
+#[builtin(issue_warning)]
+// docs:start:warn
+pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
+    _msg: fmtstr<N, T>,
+    _secondary: Option<fmtstr<N2, T2>>,
+    _location: Location,
+) {}
+// docs:end:warn
 
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions

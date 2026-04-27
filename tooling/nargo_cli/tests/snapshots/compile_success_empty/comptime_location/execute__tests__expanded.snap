@@ -14,8 +14,16 @@ impl TargetTrait for Field {
     fn touch() {}
 }
 
+struct TargetType {
+    x: Field,
+}
+
 mod inner {
     pub fn other_function() {}
+
+    pub struct OtherType {
+        y: Field,
+    }
 }
 
 comptime fn check_function_location(f: FunctionDefinition) {
@@ -25,6 +33,12 @@ comptime fn check_function_location(f: FunctionDefinition) {
 }
 
 comptime fn check_trait_location(t: TraitDefinition) {
+    let l1: Location = t.location();
+    let l2: Location = t.location();
+    assert(l1 == l2);
+}
+
+comptime fn check_type_location(t: TypeDefinition) {
     let l1: Location = t.location();
     let l2: Location = t.location();
     assert(l1 == l2);

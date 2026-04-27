@@ -320,6 +320,16 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    UserDefinedError {
+        message: String,
+        secondary: Option<String>,
+        location: Location,
+    },
+    UserDefinedWarning {
+        message: String,
+        secondary: Option<String>,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -423,7 +433,9 @@ impl InterpreterError {
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
-            | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
+            | InterpreterError::CannotModifyExternalItem { location, .. }
+            | InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -911,6 +923,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let primary = format!("Cannot cast `{typ}` as `bool`");
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::UserDefinedError { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_error(message.clone(), secondary, *location)
+            }
+            InterpreterError::UserDefinedWarning { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_warning(message.clone(), secondary, *location)
             },
         }
     }

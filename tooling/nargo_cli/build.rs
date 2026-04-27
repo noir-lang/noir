@@ -128,7 +128,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 6] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -138,6 +138,8 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     "comptime_enums",
     // Testing unreachable instructions
     "brillig_continue_break",
+    // Expected - tests the `std::meta::warn` builtin
+    "comptime_user_warning",
 ];
 
 /// `nargo interpret` ignored tests, either because they don't currently work or

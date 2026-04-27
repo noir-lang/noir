@@ -762,3 +762,26 @@ pub(crate) fn fragments_to_string(
     }
     result
 }
+
+/// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
+pub(crate) fn get_option(
+    (value, value_location): (Value, Location),
+) -> IResult<Option<Value>> {
+    let Value::Struct(fields, _) = value else {
+        return Err(InterpreterError::TypeMismatch {
+            expected: "Option<_>".to_string(),
+            actual: Type::Error,
+            location: value_location,
+        });
+    };
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
+        panic!("Expected `_is_some` field of Option to be a boolean");
+    };
+    if !is_some {
+        return Ok(None);
+    }
+    let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
+    let value = value.borrow().clone();
+    Ok(Some(value))
+}

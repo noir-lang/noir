@@ -12,20 +12,35 @@ impl TargetTrait for Field {
     fn touch() {}
 }
 
+#[check_type_location]
+struct TargetType {
+    x: Field,
+}
+
 mod inner {
     pub fn other_function() {}
+
+    pub struct OtherType {
+        y: Field,
+    }
 }
 
 comptime fn check_function_location(f: FunctionDefinition) {
     let l1 = f.location();
     let l2 = f.location();
-    assert(l1 == l2);
+    assert_eq(l1, l2);
 }
 
 comptime fn check_trait_location(t: TraitDefinition) {
     let l1 = t.location();
     let l2 = t.location();
-    assert(l1 == l2);
+    assert_eq(l1, l2);
+}
+
+comptime fn check_type_location(t: TypeDefinition) {
+    let l1 = t.location();
+    let l2 = t.location();
+    assert_eq(l1, l2);
 }
 
 fn main() {
@@ -46,10 +61,16 @@ fn main() {
         assert(loc_a != loc_b);
 
         // TypedExpr::location() works.
-        assert(func_a.location() == func_a.location());
+        assert_eq(func_a.location(), func_a.location());
 
         // Module::location() works.
         assert(func_b_def.module().location() != func_b_def.location());
+
+        // TypeDefinition::location() works.
+        let type_def_a = quote { TargetType }.as_type().as_data_type().unwrap().0;
+        let type_def_b = quote { inner::OtherType }.as_type().as_data_type().unwrap().0;
+        assert_eq(type_def_a.location(), type_def_a.location());
+        assert(type_def_a.location() != type_def_b.location());
 
         // Hash trait is implemented; equal locations hash to the same value.
         let mut h1 = TestHasher { result: 0 };
