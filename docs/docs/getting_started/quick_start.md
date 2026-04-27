@@ -84,3 +84,10 @@ Proving backends provide you multiple tools. The most common backend for Noir is
 Read [Barretenberg's Getting Started guide](https://barretenberg.aztec.network/docs/getting_started) to install and start using Noir with Barretenberg.
 
 Visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends) for a comprehensive list of proving backends that work with Noir.
+
+## Related
+
+- [Project Breakdown](./project_breakdown.md) explains the files created by `nargo new`.
+- [Standalone Noir Installation](./noir_installation.md) covers installation variants and version selection.
+- [Data Types](../noir/concepts/data_types/index.md) explains private and public values in more detail.
+- [Tests](../tooling/tests.md) covers the next everyday workflow after a first execution.
