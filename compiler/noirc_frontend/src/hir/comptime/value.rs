@@ -77,6 +77,7 @@ pub enum Value {
     Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+    Location(Location),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -199,6 +200,7 @@ impl Value {
             Value::TypedExpr(_) => Type::Quoted(QuotedType::TypedExpr),
             Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
             Value::CtString(_) => Type::Quoted(QuotedType::CtString),
+            Value::Location(_) => Type::Quoted(QuotedType::Location),
         })
     }
 
@@ -434,7 +436,8 @@ impl Value {
             | Value::Type(_)
             | Value::UnresolvedType(_)
             | Value::Closure(..)
-            | Value::ModuleDefinition(_) => {
+            | Value::ModuleDefinition(_)
+            | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(elaborator.interner).to_string();
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
@@ -592,7 +595,8 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
-            | Value::ModuleDefinition(_) => {
+            | Value::ModuleDefinition(_)
+            | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
@@ -722,7 +726,8 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Expr(_)
             | Value::TypedExpr(_)
-            | Value::UnresolvedType(_) => false,
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => false,
         }
     }
 

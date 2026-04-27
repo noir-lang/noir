@@ -290,6 +290,13 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
+pub(crate) fn get_location((value, location): (Value, Location)) -> IResult<Location> {
+    match value {
+        Value::Location(loc) => Ok(loc),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Location), location),
+    }
+}
+
 pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => Ok(id),

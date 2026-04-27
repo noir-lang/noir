@@ -506,6 +506,9 @@ impl DocItemBuilder<'_> {
                 noirc_frontend::QuotedType::CtString => {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
+                noirc_frontend::QuotedType::Location => {
+                    Type::Primitive(PrimitiveTypeKind::Location)
+                }
             },
             noirc_frontend::Type::Array(length, element) => Type::Array {
                 length: Box::new(self.convert_type(length)),
@@ -916,6 +919,7 @@ pub(crate) fn convert_primitive_type(
         noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
             PrimitiveTypeKind::UnresolvedType
         }
+        noirc_frontend::elaborator::PrimitiveType::Location => PrimitiveTypeKind::Location,
     }
 }
 

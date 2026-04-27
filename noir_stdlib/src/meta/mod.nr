@@ -2,6 +2,7 @@ pub mod ctstring;
 pub mod expr;
 pub mod format_string;
 pub mod function_def;
+pub mod location;
 pub mod module;
 pub mod op;
 pub mod trait_constraint;

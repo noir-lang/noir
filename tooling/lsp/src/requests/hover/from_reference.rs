@@ -1095,7 +1095,8 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         | Value::Zeroed(..)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => return None,
+        | Value::UnresolvedType(..)
+        | Value::Location(..) => return None,
     }
 
     Some(())

@@ -1047,7 +1047,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             | Value::Type(_)
             | Value::Expr(_)
             | Value::TypedExpr(_)
-            | Value::UnresolvedType(_) => {
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => {
                 if self.crate_id.is_stdlib() {
                     self.push_str(
                         "crate::panic(f\"comptime value that cannot be represented with code\")",

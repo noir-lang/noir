@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::hash::{Hash, Hasher};
+
+fn target_function() {}
+
+trait TargetTrait {
+    fn touch();
+}
+
+impl TargetTrait for Field {
+    fn touch() {}
+}
+
+mod inner {
+    pub fn other_function() {}
+}
+
+comptime fn check_function_location(f: FunctionDefinition) {
+    let l1: Location = f.location();
+    let l2: Location = f.location();
+    assert(l1 == l2);
+}
+
+comptime fn check_trait_location(t: TraitDefinition) {
+    let l1: Location = t.location();
+    let l2: Location = t.location();
+    assert(l1 == l2);
+}
+
+fn main() {
+    Field::touch();
+    ()
+}
+
+struct TestHasher {
+    result: Field,
+}
+
+impl Hasher for TestHasher {
+    fn finish(self) -> Field {
+        self.result
+    }
+
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
+    }
+
+    fn write(&mut self, input: Field) {
+        self.result = self.result + input;
+    }
+}
