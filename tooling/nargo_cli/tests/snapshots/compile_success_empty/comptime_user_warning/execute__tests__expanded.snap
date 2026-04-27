@@ -10,7 +10,7 @@ fn other() {}
 
 comptime fn notice(f: FunctionDefinition) {
     warn(
-        f"`{f}` was flagged by a custom lint",
+        f"This is a `warn` test with no secondary on `{f}`",
         Option::<fmtstr<_, _>>::none(),
         f.location(),
     );
@@ -18,13 +18,17 @@ comptime fn notice(f: FunctionDefinition) {
 
 comptime fn notice_with_hint(f: FunctionDefinition) {
     warn(
-        f"`{f}` was flagged by a custom lint",
-        Option::<fmtstr<23, (FunctionDefinition,)>>::some(f"consider renaming `{f}`"),
+        f"This is a `warn` test with a secondary on `{f}`",
+        Option::<fmtstr<27, (FunctionDefinition,)>>::some(f"I am the secondary on `{f}`"),
         f.location(),
     );
 }
 
+struct IGiveLocations {}
+
 fn main() {
     target();
     other();
+    ();
+    ()
 }

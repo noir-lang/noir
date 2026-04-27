@@ -764,9 +764,7 @@ pub(crate) fn fragments_to_string(
 }
 
 /// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
-pub(crate) fn get_option(
-    (value, value_location): (Value, Location),
-) -> IResult<Option<Value>> {
+pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<Option<Value>> {
     let Value::Struct(fields, _) = value else {
         return Err(InterpreterError::TypeMismatch {
             expected: "Option<_>".to_string(),
