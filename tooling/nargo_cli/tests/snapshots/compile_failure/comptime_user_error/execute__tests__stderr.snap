@@ -23,4 +23,25 @@ error: error 3
    │ ----------------------
    │
 
-Aborting due to 3 previous errors
+error: error 4
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: I am called twice
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: I am called twice
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+Aborting due to 6 previous errors

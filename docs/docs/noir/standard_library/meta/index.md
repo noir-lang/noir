@@ -41,6 +41,55 @@ comptime {
 }
 ```
 
+### error
+
+#include_code error noir_stdlib/src/meta/mod.nr rust
+
+Issues an error diagnostic at the given [`Location`](./location.md) with the given primary message
+and an optional secondary message. Unlike `panic`, the comptime interpreter continues executing
+after `error` is called, so multiple errors can be reported from a single attribute or comptime block.
+
+Compilation will still fail at the end of elaboration if any errors were issued.
+
+Example:
+```rust
+use std::meta::error;
+
+#[reject]
+fn forbidden() {}
+
+comptime fn reject(f: FunctionDefinition) {
+    error(
+        f"`{f}` may not be called",
+        Option::some(f"see the migration guide for an alternative"),
+        f.location(),
+    );
+}
+```
+
+### warn
+
+#include_code warn noir_stdlib/src/meta/mod.nr rust
+
+Issues a warning diagnostic at the given [`Location`](./location.md) with the given primary message
+and an optional secondary message. Compilation continues normally after the warning is reported.
+
+Example:
+```rust
+use std::meta::warn;
+
+#[deprecated_notice]
+fn old_api() {}
+
+comptime fn deprecated_notice(f: FunctionDefinition) {
+    warn(
+        f"`{f}` is deprecated",
+        Option::some(f"prefer the new replacement"),
+        f.location(),
+    );
+}
+```
+
 ### derive
 
 #include_code derive noir_stdlib/src/meta/mod.nr rust

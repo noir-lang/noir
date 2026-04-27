@@ -24,5 +24,17 @@ fn main() {
     comptime {
         let location = quote[IGiveLocations].as_type().as_data_type().unwrap().0.location();
         error(f"error 3", Option::none(), location);
+        error(f"error 4", Option::none(), location);
     }
+    // Ensure we do not stop early on error
+    comptime {
+        let code = quote[foo()];
+        std::meta::unquote!(code);
+        std::meta::unquote!(code);
+    }
+}
+
+comptime fn foo() {
+    let location = quote[IGiveLocations].as_type().as_data_type().unwrap().0.location();
+    error::<_, _, 0, ()>(f"I am called twice", Option::none(), location);
 }

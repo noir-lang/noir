@@ -35,6 +35,13 @@ Returns true if this module has a custom attribute with the given name.
 
 `true` if this module is a contract module (was declared via `contract foo { ... }`).
 
+### location
+
+#include_code location noir_stdlib/src/meta/module.nr rust
+
+Returns the source [`Location`](./location.md) where this module is declared.
+This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagnostic to the module.
+
 ### name
 
 #include_code name noir_stdlib/src/meta/module.nr rust
