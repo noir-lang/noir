@@ -17,6 +17,8 @@ impl Hasher for Poseidon2Hasher {
         let iv: Field = (input_length as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
         let mut state = [0, 0, 0, iv];
 
+        // These for-loops can run for a dynamic number of iterations, however
+        // this is not an issue in practice as this code is only reachable within a `comptime` context
         for i in 0..input_length / RATE {
             state[0] += self._state[i * RATE];
             state[1] += self._state[i * RATE + 1];
