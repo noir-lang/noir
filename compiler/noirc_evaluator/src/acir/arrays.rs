@@ -413,7 +413,8 @@ impl Context<'_> {
     ///   Thus internal array element type sizes need to be computed to accurately transform the index.
     ///
     /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
-    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
+    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index] which biases the disabled-branch
+    ///   read towards an offset that yields a type-compatible dummy (relied on by [Self::apply_index_side_effects]).
     ///
     /// - `new_value` is the optional value when the operation is an array_set.
     ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
@@ -453,6 +454,9 @@ impl Context<'_> {
     /// Computes the predicated index for an array access.
     /// If the index is always safe, it is returned directly.
     /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
+    /// The `offset` fallback is type-compatible with the reader's expected type, so
+    /// [Self::apply_index_side_effects] can safely skip masking the read value in
+    /// disabled branches.
     fn predicated_index(
         &mut self,
         index_var: AcirVar,
@@ -1148,6 +1152,17 @@ impl Context<'_> {
         is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
+        // Gate the input by the side-effects predicate when the index isn't statically
+        // known to be in range. Without this, callers that consume the returned index
+        // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
+        // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
+        // when the predicate is `0` or `1`, so this is free in those cases.
+        let var_index = if is_safe_index {
+            var_index
+        } else {
+            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+        };
+
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
             let step_size = self.acir_context.add_constant(step_size);
             self.acir_context.mul_var(var_index, step_size)
@@ -1155,14 +1170,8 @@ impl Context<'_> {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            let predicate_index = if is_safe_index {
-                var_index
-            } else {
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
-            };
-
             self.acir_context
-                .read_from_memory(element_type_sizes, &predicate_index)
+                .read_from_memory(element_type_sizes, &var_index)
                 .map_err(RuntimeError::from)
         }
     }
