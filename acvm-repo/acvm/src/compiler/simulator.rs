@@ -3,7 +3,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, FunctionInput},
+        opcodes::{BlockId, FunctionInput, MemOpKind},
     },
     native_types::{Expression, Witness},
 };
@@ -100,17 +100,15 @@ impl CircuitSimulator {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-                if !self.can_solve_expression(&op.index) {
+                if !self.solvable_witnesses.contains(&op.index) {
                     return false;
                 }
-                if op.operation.is_zero() {
-                    let Some(w) = op.value.to_witness() else {
-                        return false;
-                    };
-                    self.mark_solvable(w);
-                    true
-                } else {
-                    self.can_solve_expression(&op.value)
+                match op.operation {
+                    MemOpKind::Read => {
+                        self.mark_solvable(op.value);
+                        true
+                    }
+                    MemOpKind::Write => self.solvable_witnesses.contains(&op.value),
                 }
             }
             Opcode::MemoryInit { block_id, init, .. } => {
@@ -280,7 +278,7 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        READ w1 = b0[0]
+        READ w1 = b0[w0]
         ASSERT w2 = w1
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -373,7 +371,7 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0]
-        WRITE b0[w0] = w1 + w2
+        WRITE b0[w0] = w2
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), Some(1));
