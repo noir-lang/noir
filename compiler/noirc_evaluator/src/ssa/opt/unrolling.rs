@@ -219,92 +219,29 @@ impl Function {
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
         // The reasons why loops in the above set failed to unroll.
-        let mut unroll_errors = vec![];
+        let mut unroll_errors = Vec::new();
         let mut has_unrolled = false;
+
+        let order =
+            if self.runtime().is_brillig() { LoopOrder::InsideOut } else { LoopOrder::OutsideIn };
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            let order = if self.runtime().is_brillig() {
-                LoopOrder::InsideOut
-            } else {
-                LoopOrder::OutsideIn
-            };
             let mut loops = Loops::find_all(self, order);
             loops.callee_costs = callee_costs.clone();
 
-            // Blocks which were part of loops we unrolled. Nested loops are included in the
-            // outer loops, so if an outer loop is unrolled, we have to restart looking for
-            // the nested ones.
-            let mut modified_blocks = HashSet::new();
-            // Blocks from loops that were skipped or failed to unroll. In InsideOut
-            // ordering, if an inner loop can't be unrolled, any enclosing loop that
-            // contains those blocks must also be skipped: unrolling visits each
-            // block once and cannot traverse the inner loop's cycle.
-            let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
-            let mut needs_refresh = false;
-            // Accumulated header-param→final-value mappings from all unrolled loops
-            // in this iteration. Applied in bulk after the loop processing is done,
-            // avoiding O(loops * blocks) per-loop exit-block walks.
-            let mut accumulated_mapping = ValueMapping::default();
+            let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
+                loops,
+                order,
+                &mut failed_to_unroll,
+                max_unroll_iterations,
+                force_unroll_threshold,
+            );
 
-            while let Some(next_loop) = loops.yet_to_unroll.pop() {
-                // If we've previously modified a block in this loop we need to refresh.
-                // This happens any time we have nested loops.
-                if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
-                    needs_refresh = true;
-                    continue;
-                }
+            has_unrolled |= unrolled;
+            unroll_errors.extend(errors);
 
-                // InsideOut: skip if this loop contains blocks from an inner loop
-                // that couldn't be unrolled. Unrolling visits each block once and
-                // can't traverse an inner loop's cycle, so attempting to unroll an
-                // outer loop with a non-unrolled inner loop would corrupt the SSA.
-                // OutsideIn (ACIR) does not need this: outer loops are processed
-                // first, and if they fail, inner loops are tried independently.
-                if order == LoopOrder::InsideOut
-                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
-                {
-                    continue;
-                }
-
-                // Don't try to unroll the loop again if it is known to fail.
-                // Save loop blocks before `try_unroll_loop` takes ownership.
-                let loop_blocks = next_loop.blocks.clone();
-                let result = if failed_to_unroll.contains(&next_loop.header) {
-                    LoopUnrollResult::Skipped
-                } else {
-                    self.try_unroll_loop(
-                        next_loop,
-                        &loops,
-                        max_unroll_iterations,
-                        force_unroll_threshold,
-                    )
-                };
-                match result {
-                    LoopUnrollResult::Skipped => {}
-                    LoopUnrollResult::Failed(header, error) => {
-                        failed_to_unroll.insert(header);
-                        unroll_errors.push(error);
-                        failed_blocks.extend(loop_blocks);
-                    }
-                    LoopUnrollResult::Unrolled(blocks, mapping) => {
-                        has_unrolled = true;
-                        modified_blocks.extend(blocks);
-                        accumulated_mapping.extend(mapping);
-                    }
-                }
-            }
-
-            // Apply all header param->final value replacements in a single pass over
-            // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
-            if !accumulated_mapping.is_empty() {
-                for block_id in self.reachable_blocks() {
-                    self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
-                }
-            }
-
-            // If we didn't need to refresh, we're done
-            if !needs_refresh {
+            if !refresh {
                 break;
             }
 
@@ -316,7 +253,96 @@ impl Function {
                 simplify_between_unrolls(self);
             }
         }
+
         (has_unrolled, unroll_errors)
+    }
+
+    /// Run a single pass of loop unrolling with the given ordering.
+    ///
+    /// Returns `(has_unrolled, needs_refresh, unroll_errors)`.
+    fn try_unroll_loops_with_order(
+        &mut self,
+        mut loops: Loops,
+        order: LoopOrder,
+        failed_to_unroll: &mut HashSet<BasicBlockId>,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+    ) -> (bool, bool, Vec<RuntimeError>) {
+        let mut has_unrolled = false;
+        let mut unroll_errors = vec![];
+
+        // Blocks which were part of loops we unrolled. Nested loops are included in the
+        // outer loops, so if an outer loop is unrolled, we have to restart looking for
+        // the nested ones.
+        let mut modified_blocks = HashSet::new();
+        // Blocks from loops that were skipped or failed to unroll. In InsideOut
+        // ordering, if an inner loop can't be unrolled, any enclosing loop that
+        // contains those blocks must also be skipped: unrolling visits each
+        // block once and cannot traverse the inner loop's cycle.
+        let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
+        let mut needs_refresh = false;
+        // Accumulated header-param→final-value mappings from all unrolled loops
+        // in this iteration. Applied in bulk after the loop processing is done,
+        // avoiding O(loops * blocks) per-loop exit-block walks.
+        let mut accumulated_mapping = ValueMapping::default();
+
+        while let Some(next_loop) = loops.yet_to_unroll.pop() {
+            // If we've previously modified a block in this loop we need to refresh.
+            // This happens any time we have nested loops.
+            if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
+                needs_refresh = true;
+                continue;
+            }
+
+            // InsideOut: skip if this loop contains blocks from an inner loop
+            // that couldn't be unrolled. Unrolling visits each block once and
+            // can't traverse an inner loop's cycle, so attempting to unroll an
+            // outer loop with a non-unrolled inner loop would corrupt the SSA.
+            // OutsideIn (ACIR) does not need this: outer loops are processed
+            // first, and if they fail, inner loops are tried independently.
+            if order == LoopOrder::InsideOut
+                && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+            {
+                continue;
+            }
+
+            // Don't try to unroll the loop again if it is known to fail.
+            // Save loop blocks before `try_unroll_loop` takes ownership.
+            let loop_blocks = next_loop.blocks.clone();
+            let result = if failed_to_unroll.contains(&next_loop.header) {
+                LoopUnrollResult::Skipped
+            } else {
+                self.try_unroll_loop(
+                    next_loop,
+                    &loops,
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                )
+            };
+            match result {
+                LoopUnrollResult::Skipped => {}
+                LoopUnrollResult::Failed(header, error) => {
+                    failed_to_unroll.insert(header);
+                    unroll_errors.push(error);
+                    failed_blocks.extend(loop_blocks);
+                }
+                LoopUnrollResult::Unrolled(blocks, mapping) => {
+                    has_unrolled = true;
+                    modified_blocks.extend(blocks);
+                    accumulated_mapping.extend(mapping);
+                }
+            }
+        }
+
+        // Apply all header param->final value replacements in a single pass over
+        // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
+        if !accumulated_mapping.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
+            }
+        }
+
+        (has_unrolled, needs_refresh, unroll_errors)
     }
 
     /// Try to unroll a single loop.

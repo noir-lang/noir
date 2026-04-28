@@ -394,7 +394,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 let size = assert_usize(self.memory.read(*size_address).to_u32());
                 let offset = assert_usize(self.memory.read(*offset_address).to_u32());
-                let values: Vec<_> = self.calldata[offset..(offset + size)]
+                let end = if let Some(end) = offset.checked_add(size)
+                    && end <= self.calldata.len()
+                {
+                    end
+                } else {
+                    return self.fail(format!(
+                        "CalldataCopy out of bounds: offset {offset} + size {size} \
+                         exceeds calldata length {}",
+                        self.calldata.len()
+                    ));
+                };
+                let values: Vec<_> = self.calldata[offset..end]
                     .iter()
                     .map(|value| MemoryValue::new_field(*value))
                     .collect();

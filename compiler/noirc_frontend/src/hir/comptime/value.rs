@@ -341,7 +341,7 @@ impl Value {
                         );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
 
@@ -536,7 +536,7 @@ impl Value {
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
                 assert!(fields.is_empty(), "There should be no remaining fields to add");
@@ -685,14 +685,6 @@ impl Value {
         Ok(tokens)
     }
 
-    pub(crate) fn is_zero(&self) -> bool {
-        use Value::*;
-        match self {
-            Integer(value) => value.is_zero(),
-            _ => false,
-        }
-    }
-
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
             Value::Function(..) => true,
@@ -713,11 +705,11 @@ impl Value {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::FormatString(_, typ, _) => typ.contains_function(),
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
             | Value::String(_)
-            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)
@@ -761,15 +753,6 @@ impl Value {
                 let value = self.display(elaborator.interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
-        }
-    }
-
-    /// True if this value is negative.
-    /// Defaults to false if this value is not negative or is not an integer.
-    pub fn is_negative(&self) -> bool {
-        match self {
-            Value::Integer(int) => int.is_negative(),
-            _ => false,
         }
     }
 

@@ -23,7 +23,7 @@ use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
-use crate::{Kind, Type, TypeBindings, TypeVariable};
+use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
@@ -50,7 +50,8 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let from_macro_call = false;
+                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
@@ -170,6 +171,8 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.usage_tracker.mark_impl_function_as_used(func_id);
+
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -816,11 +819,13 @@ impl Elaborator<'_> {
         let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.definition(ident.id);
-        let function_generic_count = match definition.kind {
+        let direct_generic_ids = match definition.kind {
             DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(&function).generic_count
+                vecmap(&self.interner.function_meta(&function).direct_generics, |generic| {
+                    generic.type_var.id()
+                })
             }
-            _ => 0,
+            _ => Vec::new(),
         };
 
         let location = self.interner.expr_location(expr_id);
@@ -829,7 +834,7 @@ impl Elaborator<'_> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
+            self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
@@ -949,11 +954,12 @@ impl Elaborator<'_> {
         typ: Type,
         bindings: TypeBindings,
         turbofish_generics: Option<Vec<Type>>,
-        function_generic_count: usize,
+        direct_generic_ids: &[TypeVariableId],
         location: Location,
     ) -> (Type, TypeBindings) {
         match turbofish_generics {
             Some(turbofish_generics) => {
+                let function_generic_count = direct_generic_ids.len();
                 let forall_generic_count =
                     if let Type::Forall(generics, _) = &typ { generics.len() } else { 0 };
 
@@ -966,28 +972,22 @@ impl Elaborator<'_> {
                     self.push_err(CompilationError::TypeError(type_check_err));
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else if forall_generic_count < function_generic_count {
-                    // In the next branch, calling instantiate_with_bindings_and_turbofish asserts that
-                    // turbofish_generics.len() + implicit_generic_count == forall_generic_count,
-                    // but if we have less generics in forall than the the turbo fish than this will never hold.
-                    // This is the case when the function generics have duplicates, which are filtered out.
-                    // This means some duplicate error has already been reported, so there is no point trying.
+                    // The next branch asserts that the number of turbofish-bound typevars matches
+                    // `direct_generic_ids`, but if the forall has fewer generics than the function
+                    // (e.g. when the function's generics have duplicates that were filtered out)
+                    // this can never hold. A duplicate error has already been reported elsewhere,
+                    // so bail out silently.
                     self.push_err(TypeCheckError::expecting_other_error(
                         "forall has fewer generics than function",
                         location,
                     ));
                     (Type::Error, bindings)
                 } else {
-                    // Fetch the count of any implicit generics on the function, such as
-                    // for a method within a generic impl.
-                    let implicit_generic_count = forall_generic_count
-                        .checked_sub(function_generic_count)
-                        .expect("forall should have at least as many generics as the function");
-
                     typ.instantiate_with_bindings_and_turbofish(
                         bindings,
                         turbofish_generics,
                         self.interner,
-                        implicit_generic_count,
+                        direct_generic_ids,
                     )
                 }
             }

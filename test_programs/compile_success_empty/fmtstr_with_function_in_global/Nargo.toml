@@ -1,5 +1,5 @@
 [package]
-name = "comptime_unresolved_type"
+name = "fmtstr_with_function_in_global"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"

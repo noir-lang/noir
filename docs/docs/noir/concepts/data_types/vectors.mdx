@@ -5,10 +5,6 @@ keywords: [noir, vector type, methods, examples, subarrays]
 sidebar_position: 5
 ---
 
-import Experimental from '@site/src/components/Notes/_experimental.mdx';
-
-<Experimental />
-
 A vector is a dynamically-sized view into a sequence of elements. They can be resized at runtime, but because they don't own the data, they cannot be returned from a circuit. You can treat vectors as arrays without a constrained size.
 
 ```rust
@@ -28,7 +24,7 @@ It is important to note that vectors are not references to arrays. In Noir,
 
 View the corresponding test file [here][test-file].
 
-[test-file]: https://github.com/noir-lang/noir/blob/f387ec1475129732f72ba294877efdf6857135ac/crates/nargo_cli/tests/test_data_ssa_refactor/vectors/src/main.nr
+[test-file]: https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/array_to_vector/src/main.nr
 
 ## Methods
 
