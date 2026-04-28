@@ -177,7 +177,7 @@ one, so this can be done before the callback ends.</p>
 performed in all subsequent instructions.</p>
 </div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Function-32" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/simplify_cfg.rs.html#45-106">Source</a><a href="#impl-Function-32" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.simplify_function" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/simplify_cfg.rs.html#48-105">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.simplify_function" class="fn">simplify_function</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>Simplify a function’s cfg by going through each block to check for any simple blocks that can
 be inlined into their predecessor.</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Function-33" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#137-392">Source</a><a href="#impl-Function-33" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.unroll_loops_iteratively" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#148-202">Source</a><h4 class="code-header">pub(super) fn <a href="#method.unroll_loops_iteratively" class="fn">unroll_loops_iteratively</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Function-33" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#137-427">Source</a><a href="#impl-Function-33" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.unroll_loops_iteratively" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#148-202">Source</a><h4 class="code-header">pub(super) fn <a href="#method.unroll_loops_iteratively" class="fn">unroll_loops_iteratively</a>(
     &amp;mut self,
     max_unroll_iterations: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
     force_unroll_threshold: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
@@ -189,7 +189,7 @@ but it should still leave the function in a partially unrolled, but valid state.
 <p>If successful, returns a flag indicating whether any loops have been unrolled.</p>
 <p>The <code>force_unroll_threshold</code> overrides the default threshold for
 force-unrolling small Brillig loops.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loops" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#212-258">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loops" class="fn">try_unroll_loops</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loops" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#214-293">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loops" class="fn">try_unroll_loops</a>(
     &amp;mut self,
     max_unroll_iterations: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
     force_unroll_threshold: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
@@ -197,11 +197,13 @@ force-unrolling small Brillig loops.</p>
 ) -&gt; (<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;)</h4></section></summary><div class="docblock"><p>Unroll all loops within the function.
 Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
 Returns a flag indicating whether any blocks have been modified.</p>
-<p>Loop unrolling in brillig can lead to a code explosion currently.
-This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
-Brillig also generally prefers smaller code rather than faster code,
-so we only attempt to unroll small loops, which we decide on a case-by-case basis.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loops_with_order" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#263-346">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loops_with_order" class="fn">try_unroll_loops_with_order</a>(
+<p>For both ACIR and Brillig, we prefer InsideOut ordering: inner loops are unrolled
+first, producing simpler outer loop bodies and reducing the total amount of
+duplicated code. For ACIR, if InsideOut makes no progress (because inner loop
+bounds depend on outer induction variables), we fall back to OutsideIn ordering
+which unrolls the outer loop first, duplicating the inner loops with now-constant
+bounds that can be resolved in subsequent passes.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loops_with_order" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#298-381">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loops_with_order" class="fn">try_unroll_loops_with_order</a>(
     &amp;mut self,
     loops: <a class="struct" href="../../opt/unrolling/struct.Loops.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loops">Loops</a>,
     order: <a class="enum" href="../../opt/unrolling/enum.LoopOrder.html" title="enum noirc_evaluator::ssa::opt::unrolling::LoopOrder">LoopOrder</a>,
@@ -210,7 +212,7 @@ so we only attempt to unroll small loops, which we decide on a case-by-case basi
     force_unroll_threshold: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
 ) -&gt; (<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>, <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;)</h4></section></summary><div class="docblock"><p>Run a single pass of loop unrolling with the given ordering.</p>
 <p>Returns <code>(has_unrolled, needs_refresh, unroll_errors)</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#351-391">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loop" class="fn">try_unroll_loop</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.try_unroll_loop" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/unrolling.rs.html#386-426">Source</a><h4 class="code-header">fn <a href="#method.try_unroll_loop" class="fn">try_unroll_loop</a>(
     &amp;mut self,
     loop_: <a class="struct" href="../../opt/unrolling/struct.Loop.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loop">Loop</a>,
     loops: &amp;<a class="struct" href="../../opt/unrolling/struct.Loops.html" title="struct noirc_evaluator::ssa::opt::unrolling::Loops">Loops</a>,
