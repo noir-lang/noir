@@ -3,7 +3,7 @@ use crate::default::Default;
 use crate::hash::{BuildHasher, Hash};
 use crate::option::Option;
 
-// An unconstrained hash table with open addressing and quadratic probing.
+// An unconstrained hash table with open addressing and linear probing.
 // Note that "unconstrained" here means that almost all operations on this
 // map are unconstrained and importantly are not constrained afterward either.
 // This map is meant to be used in unconstrained or comptime code where this
@@ -84,6 +84,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     where
         B: BuildHasher,
     {
+        let capacity = if capacity == 0 { 1 } else { capacity };
         let mut _table = [].as_vector();
         for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
@@ -406,7 +407,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Probing scheme: linear probing.
     /// Each attempt increments the index by one, wrapping around the table.
     fn linear_probe(&self, hash: u32, attempt: u32) -> u32 {
-        (hash + attempt) % self._table.len()
+        ((hash as u64 + attempt as u64) % self._table.len() as u64) as u32
     }
 }
 
@@ -460,7 +461,9 @@ where
 }
 
 mod test {
+    use crate::default::Default;
     use crate::hash::BuildHasherDefault;
+    use crate::hash::Hasher;
     use crate::hash::poseidon2::Poseidon2Hasher;
     use super::UHashMap;
 
@@ -478,5 +481,34 @@ mod test {
 
         assert_eq(map.entries(), @[(8, 9)]);
         assert_eq(map.keys(), @[8]);
+    }
+
+    #[test]
+    unconstrained fn test_with_hasher_and_capacity_zero() {
+        let mut m: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
+            UHashMap::with_hasher_and_capacity(BuildHasherDefault::<Poseidon2Hasher> {}, 0);
+        m.insert(1, 1); // This used to produce an index out of bounds
+    }
+
+    struct MaxHasher {
+        _v: Field,
+    }
+    impl Default for MaxHasher {
+        fn default() -> Self {
+            MaxHasher { _v: 0 }
+        }
+    }
+    impl Hasher for MaxHasher {
+        fn finish(self) -> Field {
+            4294967295 // u32::MAX
+        }
+        fn write(&mut self, _input: Field) {}
+    }
+
+    #[test]
+    unconstrained fn test_max_hash() {
+        let mut m: UHashMap<Field, Field, BuildHasherDefault<MaxHasher>> = UHashMap::default();
+        m.insert(1, 1);
+        m.insert(2, 2); // This used to produce a math overflow
     }
 }
