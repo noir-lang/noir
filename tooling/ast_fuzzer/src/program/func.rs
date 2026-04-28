@@ -1232,8 +1232,7 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let mut typ =
-            self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, false, true)?;
+        let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a vector, we can consider popping from it.
         if let Type::Vector(ref item_type) = typ
