@@ -322,7 +322,7 @@ pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<Tr
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
-        Value::Type(typ) => Ok(typ),
+        Value::Type(typ) => Ok(typ.follow_bindings()),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }

@@ -1107,7 +1107,7 @@ where
     F: FnOnce(Type) -> IResult<Option<Value>>,
 {
     let value = check_one_argument(arguments, location)?;
-    let typ = get_type(value)?.follow_bindings();
+    let typ = get_type(value)?;
 
     let option_value = f(typ)?;
 
