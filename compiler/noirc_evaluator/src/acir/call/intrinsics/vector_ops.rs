@@ -520,6 +520,20 @@ impl Context<'_> {
             shift,
         )?;
 
+        // For homogeneous (constant-element-size) vectors `get_flattened_index` does not
+        // gate `flat_user_index` by the side-effects predicate. The loop below uses this
+        // index to decide which slots to shift; an OOB user-supplied index would force
+        // every iteration onto the unshifted path and read past the end of the source
+        // block. Predicating the index forces the disabled-branch case to read inside
+        // the original vector.
+        let flat_user_index = if is_safe_index {
+            flat_user_index
+        } else {
+            // `mul_var` constant-folds when the predicate is a known `0` or `1`, so this is
+            // free in those cases and only adds a gate when the predicate is dynamic.
+            self.acir_context.mul_var(flat_user_index, self.current_side_effects_enabled_var)?
+        };
+
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
         let mut inner_elem_size: FlattenedLength = FlattenedLength(0);
