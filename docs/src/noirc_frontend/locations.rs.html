@@ -223,7 +223,7 @@
 <a href=#223 id=223 data-nosnippet>223</a>        location: Location,
 <a href=#224 id=224 data-nosnippet>224</a>        is_self_type: bool,
 <a href=#225 id=225 data-nosnippet>225</a>    ) {
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">if </span>!<span class="self">self</span>.lsp_mode {
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">if </span><span class="self">self</span>.lsp_mode.is_none() {
 <a href=#227 id=227 data-nosnippet>227</a>            <span class="kw">return</span>;
 <a href=#228 id=228 data-nosnippet>228</a>        }
 <a href=#229 id=229 data-nosnippet>229</a>
@@ -242,7 +242,7 @@
 <a href=#242 id=242 data-nosnippet>242</a>        referenced: ReferenceId,
 <a href=#243 id=243 data-nosnippet>243</a>        referenced_location: Location,
 <a href=#244 id=244 data-nosnippet>244</a>    ) {
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">if </span>!<span class="self">self</span>.lsp_mode {
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">if </span><span class="self">self</span>.lsp_mode.is_none() {
 <a href=#246 id=246 data-nosnippet>246</a>            <span class="kw">return</span>;
 <a href=#247 id=247 data-nosnippet>247</a>        }
 <a href=#248 id=248 data-nosnippet>248</a>
@@ -423,7 +423,7 @@
 <a href=#423 id=423 data-nosnippet>423</a>        visibility: ItemVisibility,
 <a href=#424 id=424 data-nosnippet>424</a>        defining_module: <span class="prelude-ty">Option</span>&lt;ModuleId&gt;,
 <a href=#425 id=425 data-nosnippet>425</a>    ) {
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">if </span>!<span class="self">self</span>.lsp_mode {
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">if </span><span class="self">self</span>.lsp_mode.is_none() {
 <a href=#427 id=427 data-nosnippet>427</a>            <span class="kw">return</span>;
 <a href=#428 id=428 data-nosnippet>428</a>        }
 <a href=#429 id=429 data-nosnippet>429</a>

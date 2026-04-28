@@ -36,7 +36,7 @@
 <a href=#36 id=36 data-nosnippet>36</a>    ParsedModule,
 <a href=#37 id=37 data-nosnippet>37</a>    graph::{CrateGraph, CrateId, CrateName},
 <a href=#38 id=38 data-nosnippet>38</a>    hir::{
-<a href=#39 id=39 data-nosnippet>39</a>        Context, FunctionNameMatch, ParsedFiles,
+<a href=#39 id=39 data-nosnippet>39</a>        Context, FunctionNameMatch, LspMode, ParsedFiles,
 <a href=#40 id=40 data-nosnippet>40</a>        def_map::{CrateDefMap, parse_file},
 <a href=#41 id=41 data-nosnippet>41</a>    },
 <a href=#42 id=42 data-nosnippet>42</a>    node_interner::NodeInterner,
@@ -358,7 +358,7 @@
 <a href=#358 id=358 data-nosnippet>358</a>    package: <span class="kw-2">&amp;</span>Package,
 <a href=#359 id=359 data-nosnippet>359</a>) -&gt; (Context&lt;<span class="lifetime">'file_manager</span>, <span class="lifetime">'parsed_files</span>&gt;, CrateId) {
 <a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-<a href=#361 id=361 data-nosnippet>361</a>    context.activate_lsp_mode();
+<a href=#361 id=361 data-nosnippet>361</a>    context.activate_lsp_mode(LspMode::Full);
 <a href=#362 id=362 data-nosnippet>362</a>    (context, crate_id)
 <a href=#363 id=363 data-nosnippet>363</a>}
 <a href=#364 id=364 data-nosnippet>364</a>
