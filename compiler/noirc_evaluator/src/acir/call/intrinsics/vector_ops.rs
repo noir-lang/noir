@@ -778,6 +778,18 @@ impl Context<'_> {
             ElementTypeSizesArrayShift::None,
         )?;
 
+        // For homogeneous (constant-element-size) vectors `get_flattened_index` does not
+        // gate `flat_user_index` by the side-effects predicate, so the upcoming memory
+        // read at this index needs explicit predication: when side effects are disabled
+        // the read falls back to index 0, which is always in bounds for a non-empty vector.
+        let safe_user_index = if !is_safe_index
+            && !self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
+        {
+            self.acir_context.mul_var(flat_user_index, self.current_side_effects_enabled_var)?
+        } else {
+            flat_user_index
+        };
+
         // Fetch the values we are remove from the vector.
         // As we fetch the values we can determine the size of the removed values
         // which we will later use for writing the correct resulting vector.
@@ -785,7 +797,7 @@ impl Context<'_> {
         let mut popped_elements_size: FlattenedLength = FlattenedLength(0);
         // Set a temp index just for fetching from the original vector as `array_get_value` mutates
         // the index internally.
-        let mut temp_index = flat_user_index;
+        let mut temp_index = safe_user_index;
         let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
             let element =
