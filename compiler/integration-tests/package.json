@@ -26,7 +26,7 @@
     "@nomicfoundation/hardhat-mocha": "^3.0.15",
     "@nomicfoundation/hardhat-network-helpers": "^3.0.4",
     "@nomicfoundation/hardhat-node-test-runner": "^3.0.12",
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.3",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.4",
     "@nomicfoundation/hardhat-typechain": "^3.0.5",
     "@nomicfoundation/hardhat-verify": "^3.0.13",
     "@web/dev-server-esbuild": "^1.0.5",
