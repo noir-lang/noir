@@ -96,7 +96,14 @@ impl Function {
             &mut block_states,
             &cfg,
         );
-        add_terminator_arguments(&blocks, &param_locations, &mut inserter, &block_states, &cfg);
+        add_terminator_arguments(
+            &blocks,
+            &variables,
+            &param_locations,
+            &mut inserter,
+            &block_states,
+            &cfg,
+        );
         commit(&mut inserter, &variables, blocks);
     }
 }
@@ -285,10 +292,12 @@ fn get_value_from_visited_predecessor(
 /// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
 ///
 /// Only blocks in a variable's IDF have block parameters that need arguments wired.
-/// For each such (block, address) pair we push the predecessor's exit value onto each
-/// incoming edge's terminator argument list.
+/// The decl block is skipped even when it is in its own IDF (loop-header pattern):
+/// `compute_entry_state` does not add a block parameter there, and predecessors of the
+/// decl block don't have the variable in their state.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &BlockStates,
@@ -298,7 +307,7 @@ fn add_terminator_arguments(
         let block_state = &block_states[&block];
 
         for address in block_state.entry_state.keys() {
-            if !param_locations[address].contains(&block) {
+            if block == variables[address] || !param_locations[address].contains(&block) {
                 continue;
             }
             for predecessor in cfg.predecessors(block) {
