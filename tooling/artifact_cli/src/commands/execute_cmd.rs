@@ -122,7 +122,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     // default, rather than trying to match it to the transcript.
     let transcript_executor = match args.oracle_file {
         Some(ref path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
-        None => layers::Either::Right(layers::Empty),
+        None => layers::Either::Right(layers::Unhandled),
     };
 
     let mut foreign_call_executor = DefaultForeignCallBuilder {

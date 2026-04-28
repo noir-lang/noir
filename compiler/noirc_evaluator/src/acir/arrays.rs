@@ -406,17 +406,17 @@ impl Context<'_> {
         }
     }
 
-    /// We need to properly setup the inputs for array operations in ACIR.
-    /// From the original SSA values we compute the following AcirVars:
-    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
-    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
     ///
-    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
-    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
+    /// Returns the flat memory index to read/write at and, for `ArraySet`, the
+    /// (predicated) value to store.
     ///
-    /// - `new_value` is the optional value when the operation is an array_set.
-    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
+    /// [Self::get_flattened_index] already gates the returned index by the side-effects
+    /// predicate when `is_safe_index = false`, so on a disabled branch the index
+    /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
+    /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
+    /// because [Self::apply_index_side_effects] relies on the dummy value at `offset`
+    /// being type-compatible with the read's result type to skip masking.
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -431,7 +431,7 @@ impl Context<'_> {
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
         let is_safe_index = dfg.is_safe_index(index, array_id);
-        let index_var =
+        let mut index_var =
             self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
@@ -440,35 +440,23 @@ impl Context<'_> {
             return Ok((index_var, store_value));
         }
 
-        let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
+        // Bias the disabled-branch fallback toward `offset` instead of `0`.
+        // `index_var` is already `raw_index * predicate` from `get_flattened_index`, so
+        // adding `offset * (1 - predicate)` yields `raw_index` when `predicate == 1` and
+        // `offset` when `predicate == 0` — without a second predicate multiplication.
+        if !is_safe_index && offset != 0 {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+            let offset_var = self.acir_context.add_constant(offset);
+            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+            index_var = self.acir_context.add_var(index_var, offset_term)?;
+        }
 
-        // Handle the predicated store value
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index))
+            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
             .transpose()?;
 
-        Ok((predicate_index, new_value))
-    }
-
-    /// Computes the predicated index for an array access.
-    /// If the index is always safe, it is returned directly.
-    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
-    fn predicated_index(
-        &mut self,
-        index_var: AcirVar,
-        index: ValueId,
-        array_id: ValueId,
-        dfg: &DataFlowGraph,
-        offset: usize,
-    ) -> Result<AcirVar, RuntimeError> {
-        if dfg.is_safe_index(index, array_id) {
-            Ok(index_var)
-        } else {
-            let offset = self.acir_context.add_constant(offset);
-            let sub = self.acir_context.sub_var(index_var, offset)?;
-            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)
-        }
+        Ok((index_var, new_value))
     }
 
     /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
@@ -1148,6 +1136,17 @@ impl Context<'_> {
         is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
+        // Gate the input by the side-effects predicate when the index isn't statically
+        // known to be in range. Without this, callers that consume the returned index
+        // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
+        // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
+        // when the predicate is `0` or `1`, so this is free in those cases.
+        let var_index = if is_safe_index {
+            var_index
+        } else {
+            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+        };
+
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
             let step_size = self.acir_context.add_constant(step_size);
             self.acir_context.mul_var(var_index, step_size)
@@ -1155,14 +1154,8 @@ impl Context<'_> {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            let predicate_index = if is_safe_index {
-                var_index
-            } else {
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
-            };
-
             self.acir_context
-                .read_from_memory(element_type_sizes, &predicate_index)
+                .read_from_memory(element_type_sizes, &var_index)
                 .map_err(RuntimeError::from)
         }
     }

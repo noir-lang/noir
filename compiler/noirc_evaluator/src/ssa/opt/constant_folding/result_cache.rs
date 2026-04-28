@@ -1,3 +1,5 @@
+use std::borrow::{Borrow, Cow};
+
 use itertools::Itertools;
 
 use crate::ssa::{
@@ -13,18 +15,95 @@ use crate::ssa::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
+#[derive(Debug, Eq)]
+struct CacheKeyRef<'a>(Cow<'a, Instruction>);
+
+#[derive(Debug, Eq, PartialEq, Hash)]
+struct CacheKey(CacheKeyRef<'static>);
+
+impl From<Instruction> for CacheKey {
+    fn from(value: Instruction) -> Self {
+        Self(CacheKeyRef::from(value))
+    }
+}
+
+impl From<Instruction> for CacheKeyRef<'_> {
+    fn from(value: Instruction) -> Self {
+        Self(Cow::Owned(value))
+    }
+}
+
+impl<'a> From<&'a Instruction> for CacheKeyRef<'a> {
+    fn from(value: &'a Instruction) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl PartialEq for CacheKeyRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.0.as_ref(), other.0.as_ref()) {
+            (Instruction::Constrain(lhs1, lhs2, _), Instruction::Constrain(rhs1, rhs2, _))
+            | (
+                Instruction::ConstrainNotEqual(lhs1, rhs1, _),
+                Instruction::ConstrainNotEqual(lhs2, rhs2, _),
+            ) => lhs1 == rhs1 && lhs2 == rhs2,
+
+            (
+                Instruction::RangeCheck {
+                    value: lhs_value,
+                    max_bit_size: lhs_max_bit_size,
+                    assert_message: _,
+                },
+                Instruction::RangeCheck {
+                    value: rhs_value,
+                    max_bit_size: rhs_max_bit_size,
+                    assert_message: _,
+                },
+            ) => lhs_value == rhs_value && lhs_max_bit_size == rhs_max_bit_size,
+
+            (a, b) => a == b,
+        }
+    }
+}
+
+impl std::hash::Hash for CacheKeyRef<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self.0.as_ref() {
+            Instruction::Constrain(a, b, _) | Instruction::ConstrainNotEqual(a, b, _) => {
+                a.hash(state);
+                b.hash(state);
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message: _ } => {
+                value.hash(state);
+                max_bit_size.hash(state);
+            }
+            other => other.hash(state),
+        }
+    }
+}
+
+impl<'a> Borrow<CacheKeyRef<'a>> for CacheKey {
+    fn borrow(&self) -> &CacheKeyRef<'a> {
+        &self.0
+    }
+}
+
+impl AsRef<Instruction> for CacheKey {
+    fn as_ref(&self) -> &Instruction {
+        self.0.0.as_ref()
+    }
+}
+
 /// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
 /// is true _and_ the constraint information is also taken into account.
 ///
-/// In addition to each result, the original BasicBlockId is stored as well. This allows us
+/// In addition to each result, the original `BasicBlockId` is stored as well. This allows us
 /// to deduplicate instructions across blocks as long as the new block dominates the original.
 #[derive(Default)]
-pub(super) struct InstructionResultCache(
-    HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>,
-);
+pub(super) struct InstructionResultCache(HashMap<CacheKey, HashMap<Option<ValueId>, ResultCache>>);
 
 impl InstructionResultCache {
     /// Get a cached result if it can be used in this context.
@@ -37,7 +116,7 @@ impl InstructionResultCache {
         predicate: Option<ValueId>,
         block: BasicBlockId,
     ) -> Option<CacheResult> {
-        let results_for_instruction = self.0.get(instruction)?;
+        let results_for_instruction = self.0.get(&CacheKeyRef::from(instruction))?;
 
         let cached_results = results_for_instruction.get(&predicate)?.get(
             block,
@@ -72,7 +151,7 @@ impl InstructionResultCache {
         results: Vec<ValueId>,
     ) {
         self.0
-            .entry(instruction)
+            .entry(CacheKey::from(instruction))
             .or_default()
             .entry(predicate)
             .or_default()
@@ -83,7 +162,7 @@ impl InstructionResultCache {
         &mut self,
         instruction: &Instruction,
     ) -> Option<HashMap<Option<ValueId>, ResultCache>> {
-        self.0.remove(instruction)
+        self.0.remove(&CacheKeyRef::from(instruction))
     }
 
     /// Remove all cached MakeArray instructions that produce the given type.
@@ -92,7 +171,7 @@ impl InstructionResultCache {
     /// invalidate all cached MakeArrays that could be the source.
     fn remove_make_arrays_of_type(&mut self, typ: &Type) {
         self.0.retain(|instruction, _| {
-            !matches!(instruction, Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
+            !matches!(instruction.as_ref(), Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
         });
     }
 
@@ -209,7 +288,7 @@ impl ResultCache {
     ) -> Option<CacheResult> {
         let (origin, results) = self.result.as_ref()?;
         if dom.dominates(*origin, block) {
-            Some(CacheResult::Cached { results })
+            Some(CacheResult::Cached { dominator: *origin, results })
         } else if !has_side_effects {
             // Insert a copy of this instruction in the common dominator
             let dominator = dom.common_dominator(*origin, block);
@@ -226,6 +305,7 @@ pub(super) enum CacheResult<'a> {
     /// in a block that dominates the one where the current instruction is. We can drop
     /// the current instruction and redefine its results in terms of the existing values.
     Cached {
+        dominator: BasicBlockId,
         /// The value IDs we can reuse.
         results: &'a [ValueId],
     },

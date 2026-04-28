@@ -17,8 +17,8 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::union_find::connected_components;
 use super::variable_liveness::VariableLiveness;
+use crate::ssa::ir::union_find::connected_components;
 
 /// Check if param-side coalescing is safe: the destination must have exactly
 /// one predecessor, and arg must not be live-in to dest.

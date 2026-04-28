@@ -35,26 +35,16 @@ pub struct Program<F: AcirField> {
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
-    #[serde(default)] // For backwards compatibility
     pub function_name: String,
-    /// The current highest witness index in the circuit.
-    ///
-    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
-    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
-    ///
-    /// Note that if the current witness index is 0, it might mean that there were no witnesses created at all,
-    /// or that there was exactly one witness.
-    pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
-
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
     // ACIR distinguishes between the public inputs which are provided externally or calculated within the circuit and returned.
@@ -72,6 +62,51 @@ pub struct Circuit<F: AcirField> {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
+}
+
+/// Wire format for `Circuit` — preserves backwards-compatible serialization that includes
+/// `current_witness_index`. The `serde(rename)` ensures this type registers under the same
+/// name ("Circuit") as the public type so that `serde_reflection` traces it correctly.
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "Circuit")]
+struct CircuitWire<F: AcirField> {
+    #[serde(default)]
+    function_name: String,
+    current_witness_index: u32,
+    opcodes: Vec<Opcode<F>>,
+    private_parameters: BTreeSet<Witness>,
+    public_parameters: PublicInputs,
+    return_values: PublicInputs,
+    assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
+}
+
+impl<F: AcirField + Serialize> Serialize for Circuit<F> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        CircuitWire {
+            function_name: self.function_name.clone(),
+            current_witness_index: 0,
+            opcodes: self.opcodes.clone(),
+            private_parameters: self.private_parameters.clone(),
+            public_parameters: self.public_parameters.clone(),
+            return_values: self.return_values.clone(),
+            assert_messages: self.assert_messages.clone(),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for Circuit<F> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = CircuitWire::<F>::deserialize(deserializer)?;
+        Ok(Circuit {
+            function_name: wire.function_name,
+            opcodes: wire.opcodes,
+            private_parameters: wire.private_parameters,
+            public_parameters: wire.public_parameters,
+            return_values: wire.return_values,
+            assert_messages: wire.assert_messages,
+        })
+    }
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].

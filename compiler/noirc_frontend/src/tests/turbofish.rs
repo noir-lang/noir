@@ -729,13 +729,14 @@ fn concrete_impl_with_dual_turbofish_mismatch() {
     struct S<T> {}
 
     impl S<u32> {
-        fn foo<U>(_x: U) {}
+        pub fn foo<U>(_x: U) {}
     }
 
     fn main() {
         let x: Field = 10;
         S::<bool>::foo::<Field>(x);
-        ^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+                   ^^^ No function named 'foo' found for 'S<bool>' in the current scope
+                   ~~~ the function was found for: `S<u32>`
     }
     "#;
     check_errors(src);
@@ -826,7 +827,7 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     struct S<A, B> {}
 
     impl<B> S<u32, B> {
-        fn foo(x: B) -> B {
+        pub fn foo(x: B) -> B {
             x
         }
     }
@@ -834,7 +835,8 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     fn main() {
         let x: bool = true;
         let _result: bool = S::<bool, bool>::foo(x);
-                            ^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+                                             ^^^ No function named 'foo' found for 'S<bool, bool>' in the current scope
+                                             ~~~ the function was found for: `S<u32, B>`
     }
     "#;
     check_errors(src);
@@ -952,6 +954,70 @@ fn concrete_impl_dual_turbofish_type_mismatch() {
     fn main() {
         S::<u32>::foo::<Field>(true);
                                ^^^^ Expected type Field, found type bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_same_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, T> {
+        pub fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ No function named 'foo' found for 'S<u32, u64>' in the current scope
+                       ~~~ the function was found for: `S<T, T>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_mixed_generics() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, u64> {
+        pub fn foo() {}
+    }
+
+    impl S<u32, u32> {
+        pub fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_mixed_generics_visibility_error() {
+    let src = r#"
+    struct S<A, B> {}
+
+    mod moo {
+        impl<T> super::S<T, u64> {
+            fn foo() {}
+        }
+
+        impl super::S<u32, u32> {
+            fn foo() {}
+               ^^^ unused function foo
+               ~~~ unused function
+        }
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ foo is private and not visible from the current module
+                       ~~~ foo is private
     }
     "#;
     check_errors(src);
