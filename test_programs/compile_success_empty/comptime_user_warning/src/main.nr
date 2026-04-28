@@ -30,11 +30,11 @@ fn main() {
 
     // Ensure further blocks are still executed
     comptime {
-        let location = quote[IGiveLocations].as_type().as_data_type().unwrap().0.location();
+        let location = quote [IGiveLocations].as_type().as_data_type().unwrap().0.location();
         warn(f"warning 3", Option::none(), location);
     }
     comptime {
-        let location = quote[IGiveLocations].as_type().as_data_type().unwrap().0.location();
+        let location = quote [IGiveLocations].as_type().as_data_type().unwrap().0.location();
         warn(f"warning 4", Option::none(), location);
     }
 }
