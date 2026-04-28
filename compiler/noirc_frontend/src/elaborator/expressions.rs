@@ -908,6 +908,8 @@ impl Elaborator<'_> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
+        self.usage_tracker.mark_impl_function_as_used(&func_id);
+
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
