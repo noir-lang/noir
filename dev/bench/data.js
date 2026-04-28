@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777384785298,
+  "lastUpdate": 1777385047573,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -44956,95 +44956,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "20632e993f16a444e6b42df6c0f07a6437eb457c",
-          "message": "chore(deps): bump rustc-hash from 2.1.1 to 2.1.2 (#12373)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-21T12:16:58Z",
-          "tree_id": "ed66add38bad1306596530976740f72bc017e8d9",
-          "url": "https://github.com/noir-lang/noir/commit/20632e993f16a444e6b42df6c0f07a6437eb457c"
-        },
-        "date": 1776776153605,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.03,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.048,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.025,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.011,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "22e003d5ef0fd1c69b9ac2a10f94ef20604f93ab",
           "message": "chore(deps-dev): bump unzipit from 2.0.0 to 2.0.1 (#12375)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-04-21T12:21:18Z",
@@ -49359,6 +49270,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 0.033,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e8c53e7125ebec8d34979a81a0a16f9919414329",
+          "message": "chore(ssa): reorder mem2reg::add_terminator_arguments loops (#12192) (#12388)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-04-28T13:22:36Z",
+          "tree_id": "29426e53ed3bc21dd04a83044075260989afd01e",
+          "url": "https://github.com/noir-lang/noir/commit/e8c53e7125ebec8d34979a81a0a16f9919414329"
+        },
+        "date": 1777384999389,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.032,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.049,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.034,
             "unit": "s"
           },
           {
