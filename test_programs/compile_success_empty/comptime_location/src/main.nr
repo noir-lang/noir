@@ -83,6 +83,17 @@ fn main() {
         let mut h3 = TestHasher { result: 0 };
         loc_b.hash(&mut h3);
         assert(h1.finish() != h3.finish());
+
+        // Quoted::location() returns Some for a non-empty quote with real tokens.
+        let q_loc = quote { target_function }.location();
+        assert(q_loc.is_some());
+        // Distinct quotes yield distinct locations.
+        let q_loc_other = quote { inner::other_function }.location();
+        assert(q_loc_other.is_some());
+        assert(q_loc.unwrap() != q_loc_other.unwrap());
+
+        // An empty quote has no location.
+        assert(quote {}.location().is_none());
     }
 }
 

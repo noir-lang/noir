@@ -173,6 +173,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
+            "quoted_location" => quoted_location(arguments, return_type, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
@@ -900,6 +901,23 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+// fn location(self) -> Option<Location>
+fn quoted_location(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    let merged = match (tokens.first(), tokens.last()) {
+        (Some(first), Some(last)) => Some(first.location().merge(last.location())),
+        _ => None,
+    };
+
+    Ok(option(return_type, merged.map(Value::Location), location))
 }
 
 fn to_be_bits(
