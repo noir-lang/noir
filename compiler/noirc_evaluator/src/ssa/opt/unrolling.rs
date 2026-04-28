@@ -255,14 +255,13 @@ impl Function {
             // that were skipped due to failed_blocks poisoning in InsideOut.
             if !unrolled && had_errors && self.runtime().is_acir() {
                 let mut fallback_failed = HashSet::new();
-                let (fallback_unrolled, _, _fallback_errors) = self
-                    .try_unroll_loops_with_order(
-                        LoopOrder::OutsideIn,
-                        &mut fallback_failed,
-                        max_unroll_iterations,
-                        force_unroll_threshold,
-                        callee_costs,
-                    );
+                let (fallback_unrolled, _, _fallback_errors) = self.try_unroll_loops_with_order(
+                    LoopOrder::OutsideIn,
+                    &mut fallback_failed,
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                    callee_costs,
+                );
                 has_unrolled |= fallback_unrolled;
                 failed_to_unroll.extend(fallback_failed);
 
