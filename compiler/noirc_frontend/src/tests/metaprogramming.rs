@@ -1623,3 +1623,100 @@ fn runtime_variable_in_macro_gives_specific_error() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn function_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    pub struct Marker {}
+
+    #[generate_function]
+    comptime fn generate_function(_: FunctionDefinition) -> Quoted {
+        quote {
+            fn run<T: Constraint>(_: T) {}
+        }
+    }
+
+    fn main() {
+        run(true);
+        ^^^ No matching impl found for `bool: Constraint`
+        ~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Wrapper<T> {
+                fn run(_self: Self) { 
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_generated_with_constraint_does_not_drop_constraint() {
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target {
+        fn run(self);
+    }
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker {}
+
+    comptime fn generate_impl(_s: TypeDefinition) -> Quoted {
+        quote {
+            impl<T: Constraint> Target for Wrapper<T> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors(src);
+}

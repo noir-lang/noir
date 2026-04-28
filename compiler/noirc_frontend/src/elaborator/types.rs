@@ -1764,6 +1764,17 @@ impl Elaborator<'_> {
         });
     }
 
+    pub(super) fn unify_with_reference_coercion(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        location: Location,
+    ) {
+        if !actual.try_reference_coercion(expected) {
+            self.unify_or_type_mismatch(actual, expected, location);
+        }
+    }
+
     pub(super) fn unify_or_type_mismatch_with_source(
         &mut self,
         actual: &Type,
