@@ -226,6 +226,12 @@ impl Function {
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
         let mut has_unrolled = false;
+        // Errors are accumulated across passes because a loop that fails on one pass is
+        // recorded in `failed_to_unroll` and reported as `Skipped` (no error) on later
+        // passes. Without this accumulation the caller's retry-and-simplify loop in
+        // `unroll_loops_iteratively` would never see the error and would silently leave
+        // an un-unrolled loop in ACIR SSA, panicking in a later pass.
+        let mut accumulated_errors: Vec<RuntimeError> = vec![];
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         let unroll_errors = loop {
@@ -239,16 +245,18 @@ impl Function {
                 callee_costs,
             );
             has_unrolled |= unrolled;
+            let had_errors = !errors.is_empty();
+            accumulated_errors.extend(errors);
 
             // For ACIR: if InsideOut made no progress but there are failed loops
             // (inner loops whose bounds depend on outer induction variables),
             // fall back to OutsideIn to unroll the outer loops first.
             // We use a fresh failed set so the OutsideIn pass can try outer loops
             // that were skipped due to failed_blocks poisoning in InsideOut.
-            if !unrolled && !errors.is_empty() && self.runtime().is_acir() {
+            if !unrolled && had_errors && self.runtime().is_acir() {
                 let mut fallback_failed = HashSet::new();
-                let (fallback_unrolled, _, _fallback_errors) =
-                    self.try_unroll_loops_with_order(
+                let (fallback_unrolled, _, _fallback_errors) = self
+                    .try_unroll_loops_with_order(
                         LoopOrder::OutsideIn,
                         &mut fallback_failed,
                         max_unroll_iterations,
@@ -260,14 +268,19 @@ impl Function {
 
                 if fallback_unrolled {
                     // OutsideIn made progress (unrolled outer loops, duplicating inner loops).
-                    // Continue to handle the duplicated inner loops in the next InsideOut pass.
+                    // The InsideOut errors referenced loop headers that were either inlined
+                    // away by the outer-loop unroll or whose duplicates have constant bounds;
+                    // either way they are stale. Clear them so the next InsideOut pass starts
+                    // fresh and only reports loops that still genuinely fail.
+                    accumulated_errors.clear();
                     continue;
                 }
-                // OutsideIn also made no progress — return errors from the InsideOut pass.
+                // OutsideIn also made no progress — leave the InsideOut errors accumulated
+                // so the caller's retry-and-simplify loop can react to them.
             }
 
             if !refresh {
-                break errors;
+                break accumulated_errors;
             }
 
             // After unrolling inner loops, simplify before evaluating outer loops.
