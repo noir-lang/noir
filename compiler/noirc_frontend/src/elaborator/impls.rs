@@ -203,6 +203,17 @@ impl Elaborator<'_> {
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
             if trait_id.is_none() {
                 self.declare_methods(self_type, &function_ids);
+
+                for (_, method_id, method) in &functions.functions {
+                    if !method.def.attributes.has_allow("dead_code") {
+                        let name = method.name_ident().clone();
+                        self.usage_tracker.add_unused_impl_function(
+                            *method_id,
+                            name,
+                            method.def.visibility,
+                        );
+                    }
+                }
             }
         // We can define methods on primitive types only if we're in the stdlib
         } else if trait_id.is_none() && *self_type != Type::Error {

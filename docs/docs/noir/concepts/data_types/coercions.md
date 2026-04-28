@@ -83,7 +83,6 @@ Note that:
 - Conversions are only from the actual type to the expected type, never the other way around.
 - Conversions are only performed on the outermost type, they're never performed within a nested type.
 - `CtString` is a compile-time only type, so this conversion is only valid in [comptime code](../../concepts/comptime.md).
-- `&T` requires the experimental `-Zownership` flag to be enabled.
 
 Examples:
 ```rust

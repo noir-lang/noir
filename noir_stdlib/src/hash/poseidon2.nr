@@ -11,11 +11,6 @@ pub(crate) struct Poseidon2 {
 }
 
 impl Poseidon2 {
-    #[no_predicates]
-    pub(crate) fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
-        Poseidon2::hash_internal(input, message_size, message_size != N)
-    }
-
     pub(crate) fn new(iv: Field) -> Poseidon2 {
         let mut result =
             Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
@@ -57,29 +52,6 @@ impl Poseidon2 {
 
         // Pop one item off the top of the permutation and return it.
         self.state[0]
-    }
-
-    fn hash_internal<let N: u32>(
-        input: [Field; N],
-        in_len: u32,
-        is_variable_length: bool,
-    ) -> Field {
-        let two_pow_64 = 18446744073709551616;
-        let iv: Field = (in_len as Field) * two_pow_64;
-        let mut sponge = Poseidon2::new(iv);
-        for i in 0..input.len() {
-            if i < in_len {
-                sponge.absorb(input[i]);
-            }
-        }
-
-        // In the case where the hash preimage is variable-length, we append `1` to the end of the input, to distinguish
-        // from fixed-length hashes. (the combination of this additional field element + the hash IV ensures
-        // fixed-length and variable-length hashes do not collide)
-        if is_variable_length {
-            sponge.absorb(1);
-        }
-        sponge.squeeze()
     }
 }
 
