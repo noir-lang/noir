@@ -451,12 +451,21 @@ impl Context<'_> {
         Ok((predicate_index, new_value))
     }
 
-    /// Computes the predicated index for an array access.
-    /// If the index is always safe, it is returned directly.
-    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
-    /// The `offset` fallback is type-compatible with the reader's expected type, so
-    /// [Self::apply_index_side_effects] can safely skip masking the read value in
-    /// disabled branches.
+    /// Biases the disabled-branch fallback for `index_var` toward `offset`.
+    ///
+    /// `index_var` is assumed to already be predicated by the side-effects predicate
+    /// (via [Self::get_flattened_index] when `is_safe_index = false`), so it equals
+    /// `raw_index` when the predicate is `1` and `0` when the predicate is `0`. This
+    /// function returns `raw_index` when the predicate is `1` and `offset` when the
+    /// predicate is `0`, by adding `offset * (1 - predicate)`. The `offset` fallback is
+    /// type-compatible with the reader's expected type, so [Self::apply_index_side_effects]
+    /// can safely skip masking the read value in disabled branches.
+    ///
+    /// We avoid re-multiplying by the predicate (i.e. the previous formula
+    /// `(index_var - offset) * predicate + offset`) so that the offset-fallback step
+    /// adds no extra constraint over the existing gate inside [Self::get_flattened_index]
+    /// for the common `offset == 0` case, and matches the old constraint count for the
+    /// `offset != 0` case.
     fn predicated_index(
         &mut self,
         index_var: AcirVar,
@@ -465,14 +474,15 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         offset: usize,
     ) -> Result<AcirVar, RuntimeError> {
-        if dfg.is_safe_index(index, array_id) {
-            Ok(index_var)
-        } else {
-            let offset = self.acir_context.add_constant(offset);
-            let sub = self.acir_context.sub_var(index_var, offset)?;
-            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)
+        if offset == 0 || dfg.is_safe_index(index, array_id) {
+            return Ok(index_var);
         }
+
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+        let offset_var = self.acir_context.add_constant(offset);
+        let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+        self.acir_context.add_var(index_var, offset_term)
     }
 
     /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.

@@ -231,11 +231,9 @@ fn generates_predicated_index_for_dynamic_read() {
     // w0, w1, w2 represents the array
     // So w3 represents our index and w4 is our predicate
     // `ASSERT w5 = w3*w4` is the predicate gate inside `get_flattened_index`, which forces
-    // the read to fall back to a safe in-bounds slot when the predicate is `0`.
-    // `ASSERT w6 = w4*w5` is `predicated_index`'s offset-aware re-predication
-    // (`(index - offset) * predicate + offset` with `offset = 0` here).
-    // The two multiplications collapse for boolean `predicate` (since `predicate^2 == predicate`).
-    // w6 is then used as the index which we use to read from the memory block.
+    // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
+    // `compute_offset` returns `Some(0)` for `[Field; 3]`, `predicated_index` is a no-op
+    // and we read directly at `w5`.
     assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
@@ -245,9 +243,8 @@ fn generates_predicated_index_for_dynamic_read() {
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
     ASSERT w5 = w3*w4
-    ASSERT w6 = w4*w5
-    READ w7 = b0[w6]
-    ASSERT w7 = 10
+    READ w6 = b0[w5]
+    ASSERT w6 = 10
     ");
 }
 
@@ -263,18 +260,18 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Similar to the `generates_predicated_index_for_dynamic_read` test, the predicated
-    // index is computed in two steps: `w8 = w3*w4` (from `get_flattened_index`) and
-    // `w9 = w4*w8` (from `predicated_index`).
+    // Similar to the `generates_predicated_index_for_dynamic_read` test, `w8 = w3*w4` is the
+    // predicate gate inside `get_flattened_index`. `compute_offset` returns `Some(0)` here so
+    // `predicated_index` is a no-op and we use `w8` directly.
     // We then have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
-    // We read the value at the predicated index into `w10`. This is our dummy value.
+    // We read the value at the predicated index into `w9`. This is our dummy value.
     // We can then see how we form our new store value with:
-    // `ASSERT -w4*w10 + 10*w4 + w10 - w11 = 0` -> (predicate*value + (1-predicate)*dummy)
+    // `ASSERT -w4*w9 + 10*w4 + w9 - w10 = 0` -> (predicate*value + (1-predicate)*dummy)
     // `10*w4` -> predicate*value
-    // `-w4*w10` -> (-predicate * dummy)
-    // `w10` -> dummy
-    // As expected, we then store `w11` at the predicated index `w9`.
+    // `-w4*w9` -> (-predicate * dummy)
+    // `w9` -> dummy
+    // As expected, we then store `w10` at the predicated index `w8`.
     assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
@@ -284,20 +281,19 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
     ASSERT w8 = w3*w4
-    ASSERT w9 = w4*w8
-    READ w10 = b0[w9]
+    READ w9 = b0[w8]
     INIT b1 = [w0, w1, w2]
-    ASSERT w11 = -w4*w10 + 10*w4 + w10
-    WRITE b1[w9] = w11
-    ASSERT w12 = 0
-    READ w13 = b1[w12]
-    ASSERT w14 = 1
-    READ w15 = b1[w14]
-    ASSERT w16 = 2
-    READ w17 = b1[w16]
-    ASSERT w5 = w13
-    ASSERT w6 = w15
-    ASSERT w7 = w17
+    ASSERT w10 = -w4*w9 + 10*w4 + w9
+    WRITE b1[w8] = w10
+    ASSERT w11 = 0
+    READ w12 = b1[w11]
+    ASSERT w13 = 1
+    READ w14 = b1[w13]
+    ASSERT w15 = 2
+    READ w16 = b1[w15]
+    ASSERT w5 = w12
+    ASSERT w6 = w14
+    ASSERT w7 = w16
     ");
 }
 
