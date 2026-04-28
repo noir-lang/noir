@@ -232,8 +232,8 @@ fn generates_predicated_index_for_dynamic_read() {
     // So w3 represents our index and w4 is our predicate
     // `ASSERT w5 = w3*w4` is the predicate gate inside `get_flattened_index`, which forces
     // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
-    // `compute_offset` returns `Some(0)` for `[Field; 3]`, `predicated_index` is a no-op
-    // and we read directly at `w5`.
+    // `compute_offset` returns `Some(0)` for `[Field; 3]`, no offset-fallback bias is
+    // applied and we read directly at `w5`.
     assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
@@ -262,7 +262,7 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
 
     // Similar to the `generates_predicated_index_for_dynamic_read` test, `w8 = w3*w4` is the
     // predicate gate inside `get_flattened_index`. `compute_offset` returns `Some(0)` here so
-    // `predicated_index` is a no-op and we use `w8` directly.
+    // no offset-fallback bias is applied and we use `w8` directly.
     // We then have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.

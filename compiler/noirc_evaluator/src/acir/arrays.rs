@@ -406,18 +406,17 @@ impl Context<'_> {
         }
     }
 
-    /// We need to properly setup the inputs for array operations in ACIR.
-    /// From the original SSA values we compute the following AcirVars:
-    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
-    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
     ///
-    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
-    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index] which biases the disabled-branch
-    ///   read towards an offset that yields a type-compatible dummy (relied on by [Self::apply_index_side_effects]).
+    /// Returns the flat memory index to read/write at and, for `ArraySet`, the
+    /// (predicated) value to store.
     ///
-    /// - `new_value` is the optional value when the operation is an array_set.
-    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
+    /// [Self::get_flattened_index] already gates the returned index by the side-effects
+    /// predicate when `is_safe_index = false`, so on a disabled branch the index
+    /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
+    /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
+    /// because [Self::apply_index_side_effects] relies on the dummy value at `offset`
+    /// being type-compatible with the read's result type to skip masking.
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -432,7 +431,7 @@ impl Context<'_> {
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
         let is_safe_index = dfg.is_safe_index(index, array_id);
-        let index_var =
+        let mut index_var =
             self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
@@ -441,48 +440,23 @@ impl Context<'_> {
             return Ok((index_var, store_value));
         }
 
-        let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
-
-        // Handle the predicated store value
-        let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index))
-            .transpose()?;
-
-        Ok((predicate_index, new_value))
-    }
-
-    /// Biases the disabled-branch fallback for `index_var` toward `offset`.
-    ///
-    /// `index_var` is assumed to already be predicated by the side-effects predicate
-    /// (via [Self::get_flattened_index] when `is_safe_index = false`), so it equals
-    /// `raw_index` when the predicate is `1` and `0` when the predicate is `0`. This
-    /// function returns `raw_index` when the predicate is `1` and `offset` when the
-    /// predicate is `0`, by adding `offset * (1 - predicate)`. The `offset` fallback is
-    /// type-compatible with the reader's expected type, so [Self::apply_index_side_effects]
-    /// can safely skip masking the read value in disabled branches.
-    ///
-    /// We avoid re-multiplying by the predicate (i.e. the previous formula
-    /// `(index_var - offset) * predicate + offset`) so that the offset-fallback step
-    /// adds no extra constraint over the existing gate inside [Self::get_flattened_index]
-    /// for the common `offset == 0` case, and matches the old constraint count for the
-    /// `offset != 0` case.
-    fn predicated_index(
-        &mut self,
-        index_var: AcirVar,
-        index: ValueId,
-        array_id: ValueId,
-        dfg: &DataFlowGraph,
-        offset: usize,
-    ) -> Result<AcirVar, RuntimeError> {
-        if offset == 0 || dfg.is_safe_index(index, array_id) {
-            return Ok(index_var);
+        // Bias the disabled-branch fallback toward `offset` instead of `0`.
+        // `index_var` is already `raw_index * predicate` from `get_flattened_index`, so
+        // adding `offset * (1 - predicate)` yields `raw_index` when `predicate == 1` and
+        // `offset` when `predicate == 0` — without a second predicate multiplication.
+        if !is_safe_index && offset != 0 {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+            let offset_var = self.acir_context.add_constant(offset);
+            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+            index_var = self.acir_context.add_var(index_var, offset_term)?;
         }
 
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-        let offset_var = self.acir_context.add_constant(offset);
-        let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
-        self.acir_context.add_var(index_var, offset_term)
+        let new_value = store_value
+            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
+            .transpose()?;
+
+        Ok((index_var, new_value))
     }
 
     /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
