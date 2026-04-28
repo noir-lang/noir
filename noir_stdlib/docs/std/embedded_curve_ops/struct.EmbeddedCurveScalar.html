@@ -25,7 +25,6 @@
 </ul>
 <h3>Methods</h3>
 <ul class="sidebar-list">
-<li><a href="#from_bytes">from_bytes</a></li>
 <li><a href="#from_field">from_field</a></li>
 <li><a href="#new">new</a></li>
 </ul>
@@ -73,11 +72,6 @@ It may not fit into a Field element, so it is represented with two Field element
 
 <div class="padded-description"><div class="comments">
 <p>Create a scalar from the given bn254 field value</p>
-</div>
-</div><code id="from_bytes" class="code-header">pub fn <a href="#from_bytes"><span class="fn">from_bytes</span></a>(bytes: [<a href="../../std/primitive.u8.html" class="primitive">u8</a>; 64], offset: <a href="../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
-
-<div class="padded-description"><div class="comments">
-<p>Take the first (after the specified offset) 16 bytes of the input as the lo value, and the next 16 bytes as the hi value</p>
 </div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-EmbeddedCurveScalar"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
