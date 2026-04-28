@@ -237,11 +237,7 @@ export default {
         version: versions[0],
         addMdExtension: false,
         pathTransformation: {
-          ignorePaths: [
-            'versioned_docs',
-            `version-${versions[0]}`,
-            `versioned_docs/version-${versions[0]}`,
-          ],
+          ignorePaths: [`versioned_docs/version-${versions[0]}`],
           addPaths: ['docs'],
         },
       },
