@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777369243430,
+  "lastUpdate": 1777369276781,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5c153499d1f60d392eeeb1bb3c7cf752fe080a75",
-          "message": "chore(deps): bump actions/setup-node from 6.3.0 to 6.4.0 in the core-actions group across 1 directory (#12350)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-04-21T09:21:45Z",
-          "tree_id": "9685cdabe4a7ad53ce801e16cf74bb1b22eca5ae",
-          "url": "https://github.com/noir-lang/noir/commit/5c153499d1f60d392eeeb1bb3c7cf752fe080a75"
-        },
-        "date": 1776764740890,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 159279,
-            "range": "± 423",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137298,
-            "range": "± 1384",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2125292,
-            "range": "± 793",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640109,
             "range": "± 6286",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6a4e1c1141d81f999e10d2f697d8d7d5e3c8b3d4",
+          "message": "chore(deps): bump foundry-rs/foundry-toolchain from 1.7.0 to 1.8.0 (#12414)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-04-28T08:51:13Z",
+          "tree_id": "3bcc1ab762b8d6c2fc9ec7ce56bbbecaae6add72",
+          "url": "https://github.com/noir-lang/noir/commit/6a4e1c1141d81f999e10d2f697d8d7d5e3c8b3d4"
+        },
+        "date": 1777369217275,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127935,
+            "range": "± 731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113786,
+            "range": "± 2008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042106,
+            "range": "± 1768",
             "unit": "ns/iter"
           }
         ]
