@@ -782,7 +782,6 @@ impl Context<'_> {
         // gate `flat_user_index` by the side-effects predicate, so the upcoming memory
         // read at this index needs explicit predication: when side effects are disabled
         // the read falls back to index 0, which is always in bounds for a non-empty vector.
-       
         let safe_user_index = if is_safe_index {
             flat_user_index
         } else {
