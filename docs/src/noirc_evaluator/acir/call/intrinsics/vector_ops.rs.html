@@ -131,9 +131,9 @@
 <a href=#131 id=131 data-nosnippet>131</a>
 <a href=#132 id=132 data-nosnippet>132</a>            // 3.1 Computes the flatten_idx where to write into the dynamic array.
 <a href=#133 id=133 data-nosnippet>133</a>            // `get_flattened_index` handles both homogeneous (constant element size) and
-<a href=#134 id=134 data-nosnippet>134</a>            // heterogeneous (element_type_sizes memory lookup with predicate guard) cases.
-<a href=#135 id=135 data-nosnippet>135</a>            // The `is_safe_index: false` ensures the index is multiplied by the side-effects
-<a href=#136 id=136 data-nosnippet>136</a>            // predicate to prevent out-of-bounds memory reads when side effects are disabled.
+<a href=#134 id=134 data-nosnippet>134</a>            // heterogeneous (element_type_sizes memory lookup) cases. Passing
+<a href=#135 id=135 data-nosnippet>135</a>            // `is_safe_index: false` gates the index by the side-effects predicate so that
+<a href=#136 id=136 data-nosnippet>136</a>            // a disabled branch writes to index 0 (always in bounds) instead of an OOB slot.
 <a href=#137 id=137 data-nosnippet>137</a>            </span><span class="kw">let </span>acir_element_size = <span class="self">self</span>.acir_context.add_constant(elements_to_push.len());
 <a href=#138 id=138 data-nosnippet>138</a>            <span class="kw">let </span>acir_value_index = <span class="self">self</span>.acir_context.mul_var(vector_length, acir_element_size)<span class="question-mark">?</span>;
 <a href=#139 id=139 data-nosnippet>139</a>            <span class="kw">let </span><span class="kw-2">mut </span>flatten_idx = <span class="self">self</span>.get_flattened_index(
