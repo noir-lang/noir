@@ -8,6 +8,11 @@
 //! instruction in no specific order and builds equivalence classes (alias sets) of
 //! references that may point to the same memory location.
 //!
+//! On top of Steensgaard analysis, we also collect allocation sites and propagate their definition when possible.
+//! In order to benefit the most from the allocation tracking, we process the blocks in RPO,
+//! to ensure allocation site are collected in the predecessors of a block before being
+//! propagated in the block. Any other order will still be sound but much less precise.
+//!
 //! The analysis is a pure read-only pass: it does not modify the IR. Other
 //! passes can consume the result to make sound optimization decisions.
 //!
@@ -24,6 +29,8 @@
 //!
 //! Each reference-typed value is assigned into a single alias set via a union-find structure.
 //! Instructions update the alias sets using the 4 constraints: a = b, a = &b, a = *b, *a = b
+//! Allocate instructions are tracked in the `allocation_sites` map, and propagate among blocks
+//! following the terminator arguments (if all predecessor arguments have the same allocation site).
 //!
 //! The analysis is inter-procedural: arguments and parameters are unified for all call sites of a function
 //! as well as the results and the function's return values.
@@ -40,7 +47,7 @@
 //!
 //! After processing all instructions, the union-find partitions every reference
 //! into alias classes. Two references are *may-alias* if and only if they
-//! belong to the same class (and have the same type).
+//! belong to the same class, have the same type and have no distinct known allocation site.
 //!
 //! ## References
 //!
@@ -55,8 +62,10 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
         function::{Function, FunctionId},
         instruction::{Instruction, Intrinsic, TerminatorInstruction},
+        post_order::PostOrder,
         types::{CompositeType, Type},
         union_find::UnionFind,
         value::{Value, ValueId},
@@ -120,10 +129,18 @@ pub(crate) struct AliasAnalysis {
     /// union-find structure mapping GlobalValueId to their alias class.
     aliases: UnionFind<GlobalValueId>,
 
+    /// Maps an alias class representative to the alias class of what it points to.
+    points_to: HashMap<GlobalValueId, GlobalValueId>,
+
     /// Number of values in each alias class, keyed by the class representative.
     /// Populated lazily on the first `is_aliased` call so that `analyze` stays
     /// cheap for consumers that only query `may_alias`.
     class_sizes: Option<HashMap<GlobalValueId, u32>>,
+
+    /// Track known allocation sites: map a value to the `Allocate` that defined it.
+    /// This is used to recover precision by saying that two values having
+    /// two distinct allocation sites cannot alias.
+    allocation_sites: HashMap<GlobalValueId, GlobalValueId>,
 }
 
 impl AliasAnalysis {
@@ -158,6 +175,13 @@ impl AliasAnalysis {
         }
         let a = GlobalValueId::new(function, a);
         let b = GlobalValueId::new(function, b);
+        if let Some(allocate_a) = self.allocation_sites.get(&a)
+            && let Some(allocate_b) = self.allocation_sites.get(&b)
+            && allocate_a != allocate_b
+        {
+            return false;
+        }
+
         let a_root = self.aliases.find(a);
         let b_root = self.aliases.find(b);
 
@@ -177,6 +201,60 @@ impl AliasAnalysis {
         }
         let sizes = self.class_sizes.as_ref().expect("just populated");
         !matches!(sizes.get(&root), None | Some(1))
+    }
+
+    /// Recursively check if `target` can be referenced by `from`
+    pub(crate) fn may_reference(
+        &mut self,
+        function: &Function,
+        from: ValueId,
+        target: ValueId,
+    ) -> bool {
+        let mut seen = HashSet::default();
+        let from = self.aliases.find(GlobalValueId::new(function, from));
+        let target = self.aliases.find(GlobalValueId::new(function, target));
+        if from == target {
+            if let Some(allocate_a) = self.allocation_sites.get(&from)
+                && let Some(allocate_b) = self.allocation_sites.get(&target)
+                && allocate_a != allocate_b
+            {
+                return false;
+            }
+            return true;
+        }
+        let mut current = from;
+        while seen.insert(current) {
+            match self.points_to.get(&current) {
+                Some(&next) => {
+                    let next = self.aliases.find(next);
+                    if next == target {
+                        return true;
+                    }
+                    current = next;
+                }
+                None => return false,
+            }
+        }
+        false
+    }
+}
+
+#[derive(Clone, Copy)]
+enum AllocationLattice {
+    Undef,
+    Known(GlobalValueId),
+    NoAllocation,
+}
+
+impl AllocationLattice {
+    fn join(self, other: Self) -> Self {
+        use AllocationLattice::*;
+        match (self, other) {
+            (Undef, x) | (x, Undef) => x,
+            (NoAllocation, _) | (_, NoAllocation) => NoAllocation,
+            (Known(a), Known(b)) if a == b => Known(a),
+            _ => NoAllocation,
+        }
     }
 }
 
@@ -199,10 +277,8 @@ struct AliasAnalysisContext {
     /// `Arc<HashSet<_>>` is used to avoid borrow checker issues
     reference_types: HashMap<Type, Arc<HashSet<Type>>>,
 
-    /// Number of values in each alias class, keyed by the class representative.
-    /// Populated lazily on the first `is_aliased` call so that `analyze` stays
-    /// cheap for consumers that only query `may_alias`.
-    class_sizes: Option<HashMap<GlobalValueId, u32>>,
+    /// Known allocation sites
+    allocation_sites: HashMap<GlobalValueId, GlobalValueId>,
 }
 
 impl AliasAnalysisContext {
@@ -225,7 +301,12 @@ impl AliasAnalysisContext {
             analysis.analyze_function(&scope, function);
         }
 
-        AliasAnalysis { aliases: analysis.aliases, class_sizes: None }
+        AliasAnalysis {
+            aliases: analysis.aliases,
+            points_to: analysis.points_to,
+            class_sizes: None,
+            allocation_sites: analysis.allocation_sites,
+        }
     }
 
     /// Walk every block in one function, processing instructions and terminators.
@@ -239,7 +320,12 @@ impl AliasAnalysisContext {
             self.unresolved_call(function, params, &[]);
         }
 
-        for block_id in function.reachable_blocks() {
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let blocks = post_order.into_vec_reverse();
+
+        for block_id in blocks {
+            self.track_allocations_from_predecessors(block_id, function, &cfg);
             self.analyze_block(function, block_id, scope);
         }
     }
@@ -255,6 +341,61 @@ impl AliasAnalysisContext {
         self.points_to.insert(self.aliases.find(pointer), target);
     }
 
+    fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
+        match self.allocation_sites.get(&arg) {
+            Some(site) => AllocationLattice::Known(*site),
+            None => AllocationLattice::NoAllocation,
+        }
+    }
+
+    fn track_allocations_from_predecessors(
+        &mut self,
+        block_id: BasicBlockId,
+        function: &Function,
+        cfg: &ControlFlowGraph,
+    ) {
+        let params = function.dfg[block_id].parameters();
+        let mut allocations = vec![AllocationLattice::Undef; params.len()];
+        let mut meet_arguments = |args: &[ValueId]| {
+            for (i, &arg) in args.iter().enumerate() {
+                let l = self.get_allocation(GlobalValueId::new(function, arg));
+                allocations[i] = allocations[i].join(l);
+            }
+        };
+        for predecessor in cfg.predecessors(block_id) {
+            match function.dfg[predecessor].terminator().unwrap() {
+                TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                } => {
+                    if *then_destination == block_id {
+                        meet_arguments(then_arguments);
+                    }
+                    if *else_destination == block_id {
+                        meet_arguments(else_arguments);
+                    }
+                }
+                TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                    debug_assert_eq!(*destination, block_id);
+                    meet_arguments(arguments);
+                }
+                TerminatorInstruction::Return { .. }
+                | TerminatorInstruction::Unreachable { .. } => {
+                    unreachable!("ICE - unreachable predecessor block")
+                }
+            }
+        }
+
+        for (&param, allocation) in params.iter().zip(allocations) {
+            if let AllocationLattice::Known(site) = allocation {
+                self.allocation_sites.insert(GlobalValueId::new(function, param), site);
+            }
+        }
+    }
+
     /// Process all instructions in a single block, updating the alias sets.
     fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, scope: &Scope) {
         let block = &function.dfg[block_id];
@@ -266,6 +407,7 @@ impl AliasAnalysisContext {
                     let address = function.dfg.instruction_result::<1>(*instruction_id)[0];
                     let address = GlobalValueId::new(function, address);
                     self.aliases.make_set(address);
+                    self.allocation_sites.insert(address, address);
                 }
                 Instruction::Load { address } => {
                     // Complex constraint type 1: result = *address
@@ -342,6 +484,11 @@ impl AliasAnalysisContext {
                         let else_value = GlobalValueId::new(function, *else_value);
                         self.merge_alias(then_value, result);
                         self.merge_alias(else_value, result);
+                        let allocation =
+                            self.get_allocation(then_value).join(self.get_allocation(else_value));
+                        if let AllocationLattice::Known(site) = allocation {
+                            self.allocation_sites.insert(result, site);
+                        }
                     }
                 }
                 // All other instructions have no alias effects.
@@ -827,6 +974,21 @@ mod tests {
         out
     }
 
+    fn collect_call_results_in_main(ssa: &Ssa) -> Vec<ValueId> {
+        let main = ssa.main();
+        let mut out = Vec::new();
+        for block in main.reachable_blocks() {
+            for inst_id in main.dfg[block].instructions() {
+                if matches!(main.dfg[*inst_id], Instruction::Call { .. }) {
+                    for result in main.dfg.instruction_results(*inst_id) {
+                        out.push(*result);
+                    }
+                }
+            }
+        }
+        out
+    }
+
     fn analyze_main(ssa: &Ssa) -> AliasAnalysis {
         AliasAnalysis::analyze(ssa)
     }
@@ -859,22 +1021,23 @@ mod tests {
     /// treats them as equivalent.
     #[test]
     fn mutable_and_immutable_refs_are_treated_as_same_type() {
+        // Use oracles so v0 and v1 carry to avoid allocation-site.
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &Field
+            v0 = call oracle_mut() -> &mut Field
+            v1 = call oracle_ref() -> &Field
             call print(v0, v1)
             return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
-        // The opaque call canonicalizes both arg types to `&Field`, so Case 1
-        // of `unresolved_call` fires and merges v0 with v1. `may_alias` also
-        // canonicalizes before the type guard → returns true.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        // The opaque `print` call canonicalizes both arg types to `&Field`,
+        // so Case 1 of `unresolved_call` fires and merges v0 with v1.
+        // `may_alias` canonicalizes before the type guard → returns true.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     #[test]
@@ -915,41 +1078,43 @@ mod tests {
     #[test]
     fn ifelse_reference_branches_alias() {
         // IfElse on two references: both branches + result are in the same class.
+        // v1 and v2 come from distinct oracles so they start in separate classes
+        // (avoid the allocation-site refinement).
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut Field
-            v2 = allocate -> &mut Field
+            v1 = call oracle_a() -> &mut Field
+            v2 = call oracle_b() -> &mut Field
             v3 = not v0
             v4 = if v0 then v1 else (if v3) v2
             return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     #[test]
     fn make_array_unifies_element_classes() {
         // Field-insensitive: all refs placed into an array end up aliased.
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             v2 = make_array [v0, v1] : [&mut Field; 2]
             return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
         // MakeArray merged v0 and v1 into the array's pointee class → both aliased.
-        assert!(analysis.is_aliased(ssa.main(), allocs[0]));
-        assert!(analysis.is_aliased(ssa.main(), allocs[1]));
+        assert!(analysis.is_aliased(ssa.main(), call_results[0]));
+        assert!(analysis.is_aliased(ssa.main(), call_results[1]));
     }
 
     #[test]
@@ -1022,29 +1187,24 @@ mod tests {
 
     #[test]
     fn different_call_sites_cross_contaminate() {
-        // v0 and v2 aliases because they are arguments to the same function (although different call site)
+        // v0 and v1 aliases because they are results of the same function (although different call site)
         let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
-            v2 = allocate -> &mut Field
-            v3 = allocate -> &mut Field
-            call f1(v0, v1)
-            call f1(v2, v3)
-            return
-        }
-        acir(inline) fn f1 f1 {
-          b0(v0: &mut Field, v1: &mut Field):
-            return
-        }
+            acir(inline) fn main f0 {
+              b0():
+                v0 = call f1() -> &mut Field
+                v1 = call f1() -> &mut Field
+                return
+            }
+            acir(inline) fn f1 f1 {
+            b0():
+                v0 = allocate -> &mut Field
+                return v0
+            }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
-        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
-        assert!(!analysis.may_alias(ssa.main(), allocs[2], allocs[3]));
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[2]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     // ============================================================
@@ -1053,7 +1213,24 @@ mod tests {
 
     #[test]
     fn struct_fields_are_merged_field_insensitively() {
-        // Struct = Array with length=1 and multiple slots. Fields merge.
+        // Struct = Array with length=1 and multiple slots.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
+            v2 = make_array [v0, v1] : [(&mut Field, &mut Field); 1]
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_results = collect_call_results_in_main(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
+    }
+
+    #[test]
+    fn distinct_allocates_in_struct_do_not_alias() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -1066,7 +1243,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
     }
 
     // ============================================================
@@ -1249,27 +1426,29 @@ mod tests {
     /// transitively unifies main's actuals through the shared formals.
     #[test]
     fn direct_recursion_unifies_through_swapped_args() {
+        // v0 and v1 come from distinct oracles so they start in separate classes.
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             v2 = call f1(v0, v1) -> &mut Field
             return
         }
-        acir(inline) fn f1 f1 {
+        brillig(inline) fn f1 f1 {
           b0(v0: &mut Field, v1: &mut Field):
             v2 = call f1(v1, v0) -> &mut Field
             return v2
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
+        // call_results in main: [oracle_a's v0, oracle_b's v1, f1's v2].
         // f1's recursive call f1(v1, v0) swaps the formals via parameter
         // unification, so f1.formal_0 ~ f1.formal_1. Transitively, main's
         // v0 and v1 are unified through the shared formals.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     /// Mutual recursion with identity-style returns: f1 and f2 each call the
@@ -1360,15 +1539,18 @@ mod tests {
     /// actuals through the formal-to-return chain.
     #[test]
     fn multiple_return_paths_unify_through_shared_return_block() {
+        // v1 and v2 come from two distinct foreign calls (oracles), so they
+        // start in separate alias classes. Block b3's parameter in f1 joins the two
+        // formals, transitively unifying main's v1 and v2.
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut Field
-            v2 = allocate -> &mut Field
+            v1 = call oracle_a() -> &mut Field
+            v2 = call oracle_b() -> &mut Field
             v3 = call f1(v0, v1, v2) -> &mut Field
             return
         }
-        acir(inline) fn f1 f1 {
+        brillig(inline) fn f1 f1 {
           b0(v0: u1, v1: &mut Field, v2: &mut Field):
             jmpif v0 then: b1(), else: b2()
           b1():
@@ -1380,12 +1562,13 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
+        // call_results in main: [oracle_a's v1, oracle_b's v2, f1's v3].
         // Block b3's parameter unifies f1.v1 (from b1) and f1.v2 (from b2)
         // via unify_with_block_params. Transitively, main's v1 ~ v2 through
         // the formals that were unified with b3's param.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     // ============================================================
@@ -1399,11 +1582,12 @@ mod tests {
     /// semantics that matches what the intrinsic actually does.
     #[test]
     fn vector_push_back_links_pushed_element_into_pointee_class() {
+        // v0 and v1 come from two distinct oracles.
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             v2 = make_array [v0] : [&mut Field]
             v3, v4 = call vector_push_back(u32 1, v2, v1) -> (u32, [&mut Field])
             v5 = array_get v4, index u32 0 -> &mut Field
@@ -1411,16 +1595,20 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let gets = collect_array_gets(&ssa);
         let mut analysis = analyze_main(&ssa);
+        // call_results: [oracle_a's v0, oracle_b's v1, push_back's v3 (u32), push_back's v4]
+        let v0 = call_results[0];
+        let v1 = call_results[1];
+        let v5 = gets[0];
         // v5 (extracted from v4) aliases v0 (original element in v2).
-        assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
+        assert!(analysis.may_alias(ssa.main(), v0, v5));
         // Precise handling: v5 also aliases v1 (the pushed element),
         // because push_back links v1 into the new vector's pointee class.
-        assert!(analysis.may_alias(ssa.main(), allocs[1], gets[0]));
+        assert!(analysis.may_alias(ssa.main(), v1, v5));
         // Transitively, v0 and v1 alias through the shared pointee class.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), v0, v1));
     }
 
     /// `as_vector` converts an array to a vector: the two containers share
@@ -1545,11 +1733,14 @@ mod tests {
     /// like push_back/push_front but at an arbitrary index.
     #[test]
     fn vector_insert_links_inserted_element_into_pointee_class() {
+        // Two oracles so v0 and v1 start in separate classes with ⊥ origin,
+        // letting us observe the intrinsic-level aliasing without interference
+        // from the allocation-site refinement.
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             v2 = make_array [v0] : [&mut Field]
             v3, v4 = call vector_insert(u32 1, v2, u32 0, v1) -> (u32, [&mut Field])
             v5 = array_get v4, index u32 0 -> &mut Field
@@ -1557,13 +1748,17 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let gets = collect_array_gets(&ssa);
         let mut analysis = analyze_main(&ssa);
+        // call_results: [oracle_a's v0, oracle_b's v1, insert's v3 (u32), insert's v4]
+        let v0 = call_results[0];
+        let v1 = call_results[1];
+        let v5 = gets[0];
         // Inserted element (v1) aliases what was in the vector (v0).
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), v0, v1));
         // And a later extract from the new vector aliases both.
-        assert!(analysis.may_alias(ssa.main(), allocs[1], gets[0]));
+        assert!(analysis.may_alias(ssa.main(), v1, v5));
     }
 
     /// `vector_remove`: removed element was in the vector's pointee class.
@@ -1617,19 +1812,22 @@ mod tests {
     /// pointee.
     #[test]
     fn opaque_call_merges_same_typed_ref_args() {
+        // Oracles so v0 and v1 start in separate classes.
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             call print(v0, v1)
             return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        // call_results: [oracle_a's v0, oracle_b's v1]. `print` is itself an
+        // unresolved call that merges its two same-typed ref args.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
     }
 
     /// Case 2: a ref arg whose type is the element type of a composite arg is
@@ -1663,11 +1861,13 @@ mod tests {
     /// with refs extracted from the other.
     #[test]
     fn opaque_call_merges_composites_sharing_inner_ref_type() {
+        // Oracles so v0 and v1 start in separate classes —
+        // the allocation-site refinement stays out of the way.
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
             v2 = make_array [v0] : [&mut Field; 1]
             v3 = make_array [v1, v1] : [&mut Field; 2]
             call print(v2, v3)
@@ -1677,7 +1877,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
+        let call_results = collect_call_results_in_main(&ssa);
         let gets = collect_array_gets(&ssa);
         let mut analysis = analyze_main(&ssa);
         // [&mut Field; 1] and [&mut Field; 2] are distinct Type values
@@ -1685,7 +1885,7 @@ mod tests {
         // share &mut Field → Case 3 fires, merging their containers.
         // Their pointee classes share, so v4 (from v2) aliases v5 (from v3),
         // and transitively v0 aliases v1.
-        assert!(analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
         assert!(analysis.may_alias(ssa.main(), gets[0], gets[1]));
     }
 

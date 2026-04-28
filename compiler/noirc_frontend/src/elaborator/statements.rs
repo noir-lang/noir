@@ -248,7 +248,8 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-        let (lvalue, lvalue_type, mutable, new_statements) = self.elaborate_lvalue(assign.lvalue);
+        let (lvalue, lvalue_type, mutable, new_statements) =
+            self.elaborate_lvalue(assign.lvalue, true);
         self.finish_assign(
             lvalue,
             lvalue_type,
@@ -278,7 +279,7 @@ impl Elaborator<'_> {
         let expression_location = assign_op.expression.location;
 
         let (hir_lvalue, lvalue_type, mutable, new_statements) =
-            self.elaborate_lvalue(assign_op.lvalue);
+            self.elaborate_lvalue(assign_op.lvalue, true);
 
         // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
         // that were already bound by the index let-statements in new_statements.
@@ -612,7 +613,11 @@ impl Elaborator<'_> {
     /// - A vector of new statements which need to prefix the resulting assign statement.
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
+    fn elaborate_lvalue(
+        &mut self,
+        lvalue: LValue,
+        is_assignment_target: bool,
+    ) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
                 let location = path.location;
@@ -662,7 +667,8 @@ impl Elaborator<'_> {
                 }
             }
             LValue::MemberAccess { object, field_name, location } => {
-                let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
+                let (object, lhs_type, mut mutable, statements) =
+                    self.elaborate_lvalue(*object, false);
                 let mut object = Box::new(object);
 
                 let object_ref = &mut object;
@@ -712,7 +718,7 @@ impl Elaborator<'_> {
                 );
 
                 let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =
-                    self.elaborate_lvalue(*array);
+                    self.elaborate_lvalue(*array, false);
 
                 // Push the index expression to the end of the new statements list, referring to it
                 // afterward with a let binding. Note that since we recur first then push to the
@@ -775,15 +781,20 @@ impl Elaborator<'_> {
             }
             LValue::Dereference(lvalue, location) => {
                 let (lvalue, reference_type, mut mutable, statements) =
-                    self.elaborate_lvalue(*lvalue);
+                    self.elaborate_lvalue(*lvalue, false);
                 let lvalue = Box::new(lvalue);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
-                // Always expect a mutable reference here since we're storing to it
-                let expected_type = Type::Reference(Box::new(element_type.clone()), true);
-
-                self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+                if is_assignment_target {
+                    // The final dereference must be a mutable reference since we're storing to it
+                    let expected_type = Type::Reference(Box::new(element_type.clone()), true);
+                    self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+                } else {
+                    // Intermediate dereferences can be immutable
+                    let expected_type = Type::Reference(Box::new(element_type.clone()), false);
+                    self.unify_with_reference_coercion(&reference_type, &expected_type, location);
+                }
 
                 // Check mutability after unification so that type variables are resolved first
                 if let Type::Reference(_, is_mutable) =
@@ -803,7 +814,7 @@ impl Elaborator<'_> {
             }
             LValue::Interned(id, location) => {
                 let lvalue = self.interner.get_lvalue(id, location);
-                self.elaborate_lvalue(lvalue)
+                self.elaborate_lvalue(lvalue, is_assignment_target)
             }
         }
     }
