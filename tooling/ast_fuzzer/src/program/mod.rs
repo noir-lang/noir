@@ -192,6 +192,7 @@ impl Context {
             true,
             false,
             self.config.comptime_friendly,
+            false,
             true,
         )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
@@ -233,20 +234,16 @@ impl Context {
             || bool::arbitrary(u)?;
 
         // Non-ABI functions can return `Unit`, so they can be called in statement
-        // position for their side effects (e.g. assertions). `gen_type` never
-        // picks `Unit`, so we choose it explicitly here.
-        let return_type = if !(is_main || is_abi) && u.ratio(1, 5)? {
-            Type::Unit
-        } else {
-            self.gen_type(
-                u,
-                self.config.max_depth,
-                false,
-                is_main || is_abi,
-                self.config.comptime_friendly,
-                true,
-            )?
-        };
+        // position for their side effects (e.g. assertions).
+        let return_type = self.gen_type(
+            u,
+            self.config.max_depth,
+            false,
+            is_main || is_abi,
+            self.config.comptime_friendly,
+            !(is_main || is_abi),
+            true,
+        )?;
 
         // Which existing functions we could receive as parameters.
         let func_param_candidates: Vec<FuncId> = if is_main || self.config.avoid_lambdas {
@@ -283,6 +280,7 @@ impl Context {
                     false,
                     is_main || is_abi,
                     self.config.comptime_friendly,
+                    false,
                     true,
                 )?
             } else {
@@ -441,6 +439,7 @@ impl Context {
         is_global: bool,
         is_main: bool,
         is_comptime_friendly: bool,
+        is_unit_allowed: bool,
         is_vector_allowed: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
@@ -451,6 +450,7 @@ impl Context {
                 .filter(|typ| !is_global || types::can_be_global(typ))
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
+                .filter(|typ| is_unit_allowed || !types::is_unit(typ))
                 .filter(|typ| is_vector_allowed || !types::contains_vector(typ))
                 .collect::<Vec<_>>();
 
@@ -463,6 +463,7 @@ impl Context {
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
         // Generate the inner type for composite types with reduced maximum depth.
+        // Composites cannot contain `Unit`, so it is disallowed when recursing.
         let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_vector_allowed: bool| {
             this.gen_type(
                 u,
@@ -470,50 +471,55 @@ impl Context {
                 is_global,
                 is_main,
                 is_comptime_friendly,
+                false,
                 is_vector_allowed,
             )
         };
 
         let mut typ: Type;
         loop {
-            typ = match u.choose_index(max_index)? {
-                // 4 leaf types
-                0 => Type::Bool,
-                1 => Type::Field,
-                2 => {
-                    // i1 is deprecated, and i128 does not exist yet
-                    let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
-                    let sizes = IntegerBitSize::iter()
-                        .filter(|bs| {
-                            // i1 and i128 are rejected by the frontend
-                            (!sign.is_signed() || (bs.bit_size() != 1 && bs.bit_size() != 128)) &&
-                            // Comptime doesn't allow for u1 either
-                            (!is_comptime_friendly || bs.bit_size() != 1)
-                        })
-                        .collect::<Vec<_>>();
-                    Type::Integer(sign, u.choose_iter(sizes)?)
+            typ = if is_unit_allowed && u.ratio(1, 5)? {
+                Type::Unit
+            } else {
+                match u.choose_index(max_index)? {
+                    // 4 leaf types
+                    0 => Type::Bool,
+                    1 => Type::Field,
+                    2 => {
+                        // i1 is deprecated, and i128 does not exist yet
+                        let sign = *u.choose(&[Signedness::Signed, Signedness::Unsigned])?;
+                        let sizes = IntegerBitSize::iter()
+                            .filter(|bs| {
+                                // i1 and i128 are rejected by the frontend
+                                (!sign.is_signed() || (bs.bit_size() != 1 && bs.bit_size() != 128)) &&
+                                // Comptime doesn't allow for u1 either
+                                (!is_comptime_friendly || bs.bit_size() != 1)
+                            })
+                            .collect::<Vec<_>>();
+                        Type::Integer(sign, u.choose_iter(sizes)?)
+                    }
+                    3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
+                    // 3 composite types
+                    4 | 5 => {
+                        // 1-size tuples look strange, so let's make it minimum 2 fields.
+                        let size = u.int_in_range(2..=self.config.max_tuple_size)?;
+                        let types = (0..size)
+                            .map(|_| gen_inner_type(self, u, is_vector_allowed))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Type::Tuple(types)
+                    }
+                    6 if is_vector_allowed && !self.config.avoid_vectors => {
+                        let typ = gen_inner_type(self, u, false)?;
+                        Type::Vector(Rc::new(typ))
+                    }
+                    6 | 7 => {
+                        let min_size = 0;
+                        let size = u.int_in_range(min_size..=self.config.max_array_size)?;
+                        let typ = gen_inner_type(self, u, false)?;
+                        Type::Array(size as u32, Rc::new(typ))
+                    }
+                    _ => unreachable!("unexpected arbitrary type index"),
                 }
-                3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
-                // 3 composite types
-                4 | 5 => {
-                    // 1-size tuples look strange, so let's make it minimum 2 fields.
-                    let size = u.int_in_range(2..=self.config.max_tuple_size)?;
-                    let types = (0..size)
-                        .map(|_| gen_inner_type(self, u, is_vector_allowed))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    Type::Tuple(types)
-                }
-                6 if is_vector_allowed && !self.config.avoid_vectors => {
-                    let typ = gen_inner_type(self, u, false)?;
-                    Type::Vector(Rc::new(typ))
-                }
-                6 | 7 => {
-                    let min_size = 0;
-                    let size = u.int_in_range(min_size..=self.config.max_array_size)?;
-                    let typ = gen_inner_type(self, u, false)?;
-                    Type::Array(size as u32, Rc::new(typ))
-                }
-                _ => unreachable!("unexpected arbitrary type index"),
             };
             // Looping is kinda dangerous, we could get stuck if we run out of randomness,
             // so we have to make sure the first type on the list is acceptable.
@@ -524,7 +530,7 @@ impl Context {
             }
         }
 
-        if !is_main && !is_global && u.ratio(1, 5)? {
+        if !is_main && !is_global && !types::is_unit(&typ) && u.ratio(1, 5)? {
             // Read-only references require the experimental "ownership" feature.
             typ = types::ref_mut(typ);
         }
