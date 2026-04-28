@@ -136,12 +136,15 @@ impl Context<'_> {
             // predicate to prevent out-of-bounds memory reads when side effects are disabled.
             let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
             let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
+            let first_elem_type = dfg.type_of_value(elements_to_push[0]);
+            let fallback_offset = Self::vector_fallback_offset(&vector_typ, &first_elem_type);
             let mut flatten_idx = self.get_flattened_index(
                 &vector_typ,
                 result_ids[1],
                 acir_value_index,
                 dfg,
                 false,
+                fallback_offset,
                 ElementTypeSizesArrayShift::None,
             )?;
             // Write the elements to the dynamic array
@@ -511,12 +514,15 @@ impl Context<'_> {
         // Because the insert index might be at the end of the slice, the element type sizes we
         // index here need to have room for this extra element.
         let shift = ElementTypeSizesArrayShift::Increase;
+        let first_elem_type = dfg.type_of_value(elements_to_insert[0]);
+        let fallback_offset = Self::vector_fallback_offset(&vector_typ, &first_elem_type);
         let flat_user_index = self.get_flattened_index(
             &vector_typ,
             vector_contents,
             insert_index,
             dfg,
             is_safe_index,
+            fallback_offset,
             shift,
         )?;
 
@@ -769,12 +775,15 @@ impl Context<'_> {
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
 
         // Fetch the flattened index from the user provided index argument.
+        let first_elem_type = dfg.type_of_value(result_ids[2]);
+        let fallback_offset = Self::vector_fallback_offset(&vector_typ, &first_elem_type);
         let flat_user_index = self.get_flattened_index(
             &vector_typ,
             vector_contents,
             remove_index,
             dfg,
             is_safe_index,
+            fallback_offset,
             ElementTypeSizesArrayShift::None,
         )?;
 
@@ -860,6 +869,34 @@ impl Context<'_> {
         result.append(&mut popped_elements);
 
         Ok(result)
+    }
+
+    /// Returns the SSA-element-space fallback offset used to predicate vector index operations.
+    ///
+    /// When a vector operation executes under a false side-effect predicate, the logical index
+    /// may be out of bounds. [`super::arrays::get_flattened_index`] guards against this by
+    /// replacing the index with `predicate * (flat_index - flat_fallback) + flat_fallback`,
+    /// so a false predicate always produces a safe in-bounds address.
+    ///
+    /// The correct fallback for vector operations is always **element 0, component 0** — flat
+    /// position 0. Here is why:
+    ///
+    /// All vector operations pass `var_index = logical_index * item_size` where `item_size` is
+    /// the number of SSA-level components per outer element. Inside [`super::arrays::get_flattened_index`]
+    /// this is then multiplied by `step_size`, the flat width of **one component** (not one full
+    /// element). For example, `[([Field; 3], [u8; 3]); N]` has `item_size = 2` and `step_size = 3`
+    /// (each component occupies 3 flat fields; the full element is 6 flat fields). The pre-
+    /// multiplication and the in-function multiplication together land on element boundaries:
+    /// `flat_index = logical_index * item_size * step_size`.
+    ///
+    /// The fallback must also sit on an element boundary. Flat position 0 is always valid: it is
+    /// the start of element 0, regardless of how many components each element has.
+    ///
+    /// For simple arrays (step_size == 1), [`super::arrays::fallback_offset_for`] can find a
+    /// type-matching SSA component position. Since we always supply the *first* component's type,
+    /// it returns 0 — consistent with the element-boundary requirement above.
+    fn vector_fallback_offset(vector_typ: &Type, first_elem_type: &Type) -> usize {
+        super::arrays::fallback_offset_for(vector_typ, first_elem_type).unwrap_or(0)
     }
 
     /// Returns true if the user-facing index is less than the vector capacity

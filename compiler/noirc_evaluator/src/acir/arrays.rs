@@ -383,40 +383,31 @@ impl Context<'_> {
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
     ///
-    /// For simplicity we compute the offset only for simple arrays.
+    /// Returns `None` when no type-compatible position was found — the caller uses this to decide
+    /// whether `apply_index_side_effects` must zero out the value read under a false predicate.
     fn compute_offset(
         &self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
     ) -> Option<usize> {
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(array_typ) == Some(1));
-        if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Vector(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
-                _ => None,
-            }
-        } else {
-            None
+        let results = dfg.instruction_results(instruction);
+        if results.len() != 1 {
+            return None;
         }
+        let read_type = dfg.type_of_value(results[0]);
+        fallback_offset_for(array_typ, &read_type)
     }
 
-    /// We need to properly setup the inputs for array operations in ACIR.
-    /// From the original SSA values we compute the following AcirVars:
-    /// - `index_var` is the index of the array. ACIR memory operations work with a flat memory, so we fully flat the specified index
-    ///   in case we have a nested array. The index for SSA array operations only represents the flattened index of the current array.
-    ///   Thus internal array element type sizes need to be computed to accurately transform the index.
+    /// Prepares the ACIR inputs for an array get or set operation.
     ///
-    /// - If the predicate is known to be true or the array access is guaranteed to be safe, we can directly return `index_var`
-    ///   Otherwise, `predicate_index` is a fallback offset set by [Self::predicated_index].
+    /// - `index_var`: converted from the SSA index and then flattened via [Self::get_flattened_index].
+    ///   Flattening accounts for multi-dimensional or non-homogeneous element layouts.
+    ///   When the side-effect predicate may be false and the index is not statically safe,
+    ///   [Self::get_flattened_index] also applies `predicate * (flat_index - fallback) + fallback`
+    ///   so that disabled array operations always use a valid in-bounds index.
     ///
-    /// - `new_value` is the optional value when the operation is an array_set.
-    ///   The value used in an array_set is also dependent upon the predicate and is set in [Self::predicated_store_value]
+    /// - `new_value`: for array sets, the store value is predicated via [Self::predicated_store_value].
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -431,8 +422,15 @@ impl Context<'_> {
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
         let is_safe_index = dfg.is_safe_index(index, array_id);
-        let index_var =
-            self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
+        let index_var = self.get_flattened_index(
+            &array_typ,
+            array_id,
+            index_var,
+            dfg,
+            is_safe_index,
+            offset,
+            shift,
+        )?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -440,35 +438,12 @@ impl Context<'_> {
             return Ok((index_var, store_value));
         }
 
-        let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
-
-        // Handle the predicated store value
+        // index_var already has predication applied by get_flattened_index
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index))
+            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
             .transpose()?;
 
-        Ok((predicate_index, new_value))
-    }
-
-    /// Computes the predicated index for an array access.
-    /// If the index is always safe, it is returned directly.
-    /// Otherwise, we compute `predicate * index + (1 - predicate) * offset`.
-    fn predicated_index(
-        &mut self,
-        index_var: AcirVar,
-        index: ValueId,
-        array_id: ValueId,
-        dfg: &DataFlowGraph,
-        offset: usize,
-    ) -> Result<AcirVar, RuntimeError> {
-        if dfg.is_safe_index(index, array_id) {
-            Ok(index_var)
-        } else {
-            let offset = self.acir_context.add_constant(offset);
-            let sub = self.acir_context.sub_var(index_var, offset)?;
-            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-            self.acir_context.add_var(pred, offset)
-        }
+        Ok((index_var, new_value))
     }
 
     /// When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
@@ -1139,6 +1114,7 @@ impl Context<'_> {
     /// array to calculate offsets when elements have a non-homogenous layout.
     ///
     /// See [self] for a more concrete example of how flattened indices are computed.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn get_flattened_index(
         &mut self,
         array_typ: &Type,
@@ -1146,11 +1122,23 @@ impl Context<'_> {
         var_index: AcirVar,
         dfg: &DataFlowGraph,
         is_safe_index: bool,
+        fallback_offset: usize,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
-            let step_size = self.acir_context.add_constant(step_size);
-            self.acir_context.mul_var(var_index, step_size)
+            let step_size_var = self.acir_context.add_constant(step_size);
+            let flat_index = self.acir_context.mul_var(var_index, step_size_var)?;
+            if is_safe_index
+                || self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
+            {
+                Ok(flat_index)
+            } else {
+                let flat_fallback =
+                    self.acir_context.add_constant(fallback_offset as u128 * u128::from(step_size));
+                let sub = self.acir_context.sub_var(flat_index, flat_fallback)?;
+                let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
+                self.acir_context.add_var(pred, flat_fallback)
+            }
         } else {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
@@ -1383,4 +1371,24 @@ pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     let element_size = element_sizes.next().expect("must have at least one element");
 
     if element_sizes.all(|size| size == element_size) { Some(element_size.0) } else { None }
+}
+
+/// Returns the SSA-element-space fallback offset for index predication: the position within
+/// the element types whose type matches `read_type`.
+///
+/// This is used to choose a safe index to fall back to when a side-effect predicate is false.
+/// Reads under a false predicate use this offset so the returned value has the right type,
+/// avoiding any type mismatch that could later cause an overflow.
+///
+/// Only meaningful for simple arrays (constant element size == 1, so that the SSA-element
+/// offset equals the flat offset). Returns `None` when no type-compatible position exists or
+/// the array is not simple enough for this optimization.
+pub(super) fn fallback_offset_for(array_typ: &Type, read_type: &Type) -> Option<usize> {
+    if array_has_constant_element_size(array_typ) != Some(1) {
+        return None;
+    }
+    let (Type::Array(item_types, _) | Type::Vector(item_types)) = array_typ else {
+        return None;
+    };
+    item_types.iter().enumerate().find_map(|(i, t)| (*t == *read_type).then_some(i))
 }
