@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
 <script defer src="../nargo_doc.js"></script>
-<title>Function verify_proof_with_type documentation</title>
+<title>Primitive type Location documentation</title>
 </head>
 <body>
 <div id="sidebar-toggle">
 <button id="sidebar-toggle-button"></button>
-<div id="sidebar-toggle-title">verify_proof_with_type</div>
+<div id="sidebar-toggle-title">Location</div>
 </div>
 <span id="main-contents">
 <nav class="sidebar">
@@ -17,6 +17,12 @@
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
 <div id="crate-version">1.0.0-beta.20</div>
+<h2><a href="#primitive">Primitive type Location</a></h2>
+<h3>Trait implementations</h3>
+<ul class="sidebar-list">
+<li><a href="#impl-Eq-for-Location">Eq</a></li>
+<li><a href="#impl-Hash-for-Location">Hash</a></li>
+</ul>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html">aes128</a></div></li>
@@ -82,41 +88,19 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Function <span class="fn">verify_proof_with_type</span></h1>
-<pre><code>pub fn verify_proof_with_type&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>, let K: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(
-    verification_key: [<a href="../std/primitive.Field.html" class="primitive">Field</a>; N],
-    proof: [<a href="../std/primitive.Field.html" class="primitive">Field</a>; M],
-    public_inputs: [<a href="../std/primitive.Field.html" class="primitive">Field</a>; K],
-    key_hash: <a href="../std/primitive.Field.html" class="primitive">Field</a>,
-    proof_type: <a href="../std/primitive.u32.html" class="primitive">u32</a>,
-)</code></pre>
+<h1>Primitive type <span id="primitive" class="primitive">Location</span></h1>
+<h2>Trait implementations</h2>
+<h3 id="impl-Eq-for-Location"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.Location.html" class="primitive">Location</a></code></h3>
 
-<div class="comments">
-<p>Asserts the validity of the provided proof and public inputs against the provided verification key and hash.</p>
-<p>The ACVM cannot determine whether the provided proof is valid during execution as this requires knowledge of
-the backend against which the program is being proven. However if an invalid proof if submitted, the program may
-fail to prove or the backend may generate a proof which will subsequently fail to verify.</p>
-<h2>Important Note</h2>
-<p>If you are not developing your own backend such as <a href="https://github.com/AztecProtocol/barretenberg">Barretenberg</a>
-you probably shouldn't need to interact with this function directly. It's easier and safer to use a verification
-library which is published by the developers of the backend which will document or enforce any safety requirements.</p>
-<p>If you use this directly, you're liable to introduce underconstrainedness bugs and <em>your circuit will be insecure</em>.</p>
-<h2>Arguments</h2>
-<ul>
-<li>verification_key: The verification key of the circuit to be verified.</li>
-<li>proof: The proof to be verified.</li>
-<li>public_inputs: The public inputs associated with <code>proof</code></li>
-<li>key_hash: The hash of <code>verification_key</code> of the form expected by the backend.</li>
-<li>proof_type: An identifier for the proving scheme used to generate the proof to be verified. This allows
-for a single backend to support verifying multiple proving schemes.</li>
-</ul>
-<h2>Constraining <code>key_hash</code></h2>
-<p>The Noir compiler does not by itself constrain that <code>key_hash</code> is a valid hash of <code>verification_key</code>.
-This is because different backends may differ in how they hash their verification keys.
-It is then the responsibility of either the noir developer (by explicitly hashing the verification key
-in the correct manner) or by the proving system itself internally asserting the correctness of <code>key_hash</code>.</p>
-</div>
-</main>
+<div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+</div><h3 id="impl-Hash-for-Location"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.Location.html" class="primitive">Location</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
+<div class="where-clause">where
+    H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
+
+</div></main>
 </span>
 </body>
 </html>

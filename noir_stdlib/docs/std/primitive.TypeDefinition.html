@@ -27,6 +27,7 @@
 <li><a href="#fields_as_written">fields_as_written</a></li>
 <li><a href="#generics">generics</a></li>
 <li><a href="#has_named_attribute">has_named_attribute</a></li>
+<li><a href="#location">location</a></li>
 <li><a href="#module">module</a></li>
 <li><a href="#name">name</a></li>
 </ul>
@@ -71,6 +72,7 @@
 <li><a href="primitive.i32.html">i32</a></div></li>
 <li><a href="primitive.i64.html">i64</a></div></li>
 <li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Location.html">Location</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
@@ -130,6 +132,8 @@ to return <code>Foo&lt;i32, Field&gt;</code>.</p>
 Otherwise, this function returns Some with the resulting type inside.</p>
 </div>
 </div><code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute"><span class="fn">has_named_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<code id="location" class="code-header">pub comptime fn <a href="#location"><span class="fn">location</span></a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
 
 <code id="generics" class="code-header">pub comptime fn <a href="#generics"><span class="fn">generics</span></a>(self) -> [(<a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;)]</code>
 

@@ -60,6 +60,7 @@
 <li><a href="../primitive.i32.html">i32</a></div></li>
 <li><a href="../primitive.i64.html">i64</a></div></li>
 <li><a href="../primitive.i8.html">i8</a></div></li>
+<li><a href="../primitive.Location.html">Location</a></div></li>
 <li><a href="../primitive.Module.html">Module</a></div></li>
 <li><a href="../primitive.Quoted.html">Quoted</a></div></li>
 <li><a href="../primitive.str.html">str</a></div></li>
@@ -100,6 +101,9 @@
 <h2 id="functions">Functions</h2><ul class="item-list">
 <li><div class="item-name"><a href="fn.derive.html" class="fn">derive</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="fn.derive_via.html" class="fn">derive_via</a></div><div class="item-description"></div></li>
+<li><div class="item-name"><a href="fn.error.html" class="fn">error</a></div><div class="item-description">Issues an error diagnostic at the given location with the given primary
+message and an optional secondary message. Unlike a comptime panic, current
+execution will continue allowing possibly multiple errors to be issued.</div></li>
 <li><div class="item-name"><a href="fn.make_trait_impl.html" class="fn">make_trait_impl</a></div><div class="item-description"><code>make_impl</code> is a helper function to make a simple impl, usually while deriving a trait.
 This impl has a couple assumptions:</p>
 <ol>
@@ -110,6 +114,9 @@ This impl has a couple assumptions:</p>
 <li><div class="item-name"><a href="fn.unquote.html" class="fn">unquote</a></div><div class="item-description">Calling unquote as a macro (via <code>unquote!(arg)</code>) will unquote
 its argument. Since this is the effect <code>!</code> already does, <code>unquote</code>
 itself does not need to do anything besides return its argument.</div></li>
+<li><div class="item-name"><a href="fn.warn.html" class="fn">warn</a></div><div class="item-description">Issues a warning diagnostic at the given location  with the given primary
+message and an optional secondary message. Execution continues after this
+function is called.</div></li>
 </ul>
 </main>
 </span>
