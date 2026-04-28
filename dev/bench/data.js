@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777372004789,
+  "lastUpdate": 1777372535084,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "abc3c7624f328223a939e12a7652f3be6577cb29",
-          "message": "fix: Fix `Type::instantiate_with_bindings_and_turbofish` generic order (#12358)",
-          "timestamp": "2026-04-21T10:15:18Z",
-          "tree_id": "159155bfd41f8db1de3aee16a87853b6d1180805",
-          "url": "https://github.com/noir-lang/noir/commit/abc3c7624f328223a939e12a7652f3be6577cb29"
-        },
-        "date": 1776767924658,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166815,
-            "range": "± 854",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136557,
-            "range": "± 223",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2640649,
-            "range": "± 2115",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040824,
             "range": "± 3171",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8a70e866473f4b3a332841898ec79f18d52dec57",
+          "message": "feat: warn on unused impl functions (#12419)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-04-28T10:06:30Z",
+          "tree_id": "44db9d20f35acec76e544900c67bfa1a175b6b5c",
+          "url": "https://github.com/noir-lang/noir/commit/8a70e866473f4b3a332841898ec79f18d52dec57"
+        },
+        "date": 1777372478174,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167928,
+            "range": "± 556",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136202,
+            "range": "± 4641",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2641784,
+            "range": "± 2480",
             "unit": "ns/iter"
           }
         ]
