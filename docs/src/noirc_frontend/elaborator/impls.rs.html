@@ -203,48 +203,59 @@
 <a href=#203 id=203 data-nosnippet>203</a>            <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
 <a href=#204 id=204 data-nosnippet>204</a>            </span><span class="kw">if </span>trait_id.is_none() {
 <a href=#205 id=205 data-nosnippet>205</a>                <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
-<a href=#206 id=206 data-nosnippet>206</a>            }
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="comment">// We can define methods on primitive types only if we're in the stdlib
-<a href=#208 id=208 data-nosnippet>208</a>        </span>} <span class="kw">else if </span>trait_id.is_none() &amp;&amp; <span class="kw-2">*</span>self_type != Type::Error {
-<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">if </span><span class="self">self</span>.crate_id.is_stdlib() {
-<a href=#210 id=210 data-nosnippet>210</a>                <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
-<a href=#211 id=211 data-nosnippet>211</a>                </span><span class="kw">if </span>trait_id.is_none() {
-<a href=#212 id=212 data-nosnippet>212</a>                    <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
-<a href=#213 id=213 data-nosnippet>213</a>                }
-<a href=#214 id=214 data-nosnippet>214</a>            } <span class="kw">else </span>{
-<a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">let </span>is_primitive = self_type.is_primitive();
-<a href=#216 id=216 data-nosnippet>216</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
-<a href=#217 id=217 data-nosnippet>217</a>                    location,
-<a href=#218 id=218 data-nosnippet>218</a>                    is_primitive,
-<a href=#219 id=219 data-nosnippet>219</a>                });
-<a href=#220 id=220 data-nosnippet>220</a>            }
-<a href=#221 id=221 data-nosnippet>221</a>        }
-<a href=#222 id=222 data-nosnippet>222</a>    }
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="doccomment">/// Registers methods in the interner's method table for dynamic dispatch.
-<a href=#225 id=225 data-nosnippet>225</a>    ///
-<a href=#226 id=226 data-nosnippet>226</a>    /// This associates each method with its self type, enabling method call resolution.
-<a href=#227 id=227 data-nosnippet>227</a>    /// Unlike module declaration (which enables `TypeName::method` syntax), this registration
-<a href=#228 id=228 data-nosnippet>228</a>    /// is required for method calls via the dot syntax (e.g., `value.method()`).
-<a href=#229 id=229 data-nosnippet>229</a>    ///
-<a href=#230 id=230 data-nosnippet>230</a>    /// Trait impl methods are registered separately in `NodeInterner::add_trait_implementation`,
-<a href=#231 id=231 data-nosnippet>231</a>    /// so this is only called for inherent impls.
-<a href=#232 id=232 data-nosnippet>232</a>    ///
-<a href=#233 id=233 data-nosnippet>233</a>    /// # Returns
-<a href=#234 id=234 data-nosnippet>234</a>    /// Errors if a method with the same name is already registered for this type in the interner.
-<a href=#235 id=235 data-nosnippet>235</a>    /// This indicates a true duplicate (not specialization), such as:
-<a href=#236 id=236 data-nosnippet>236</a>    /// ```noir
-<a href=#237 id=237 data-nosnippet>237</a>    /// impl Foo { fn bar(self) {} }
-<a href=#238 id=238 data-nosnippet>238</a>    /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
-<a href=#239 id=239 data-nosnippet>239</a>    /// ```
-<a href=#240 id=240 data-nosnippet>240</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">fn </span>declare_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, function_ids: <span class="kw-2">&amp;</span>[FuncId]) {
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
-<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
-<a href=#244 id=244 data-nosnippet>244</a>
-<a href=#245 id=245 data-nosnippet>245</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
-<a href=#246 id=246 data-nosnippet>246</a>                <span class="self">self</span>.push_err(error);
-<a href=#247 id=247 data-nosnippet>247</a>            }
-<a href=#248 id=248 data-nosnippet>248</a>        }
-<a href=#249 id=249 data-nosnippet>249</a>    }
-<a href=#250 id=250 data-nosnippet>250</a>}</code></pre></div></section></main></body></html>
+<a href=#206 id=206 data-nosnippet>206</a>
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw">for </span>(<span class="kw">_</span>, method_id, method) <span class="kw">in </span><span class="kw-2">&amp;</span>functions.functions {
+<a href=#208 id=208 data-nosnippet>208</a>                    <span class="kw">if </span>!method.def.attributes.has_allow(<span class="string">"dead_code"</span>) {
+<a href=#209 id=209 data-nosnippet>209</a>                        <span class="kw">let </span>name = method.name_ident().clone();
+<a href=#210 id=210 data-nosnippet>210</a>                        <span class="self">self</span>.usage_tracker.add_unused_impl_function(
+<a href=#211 id=211 data-nosnippet>211</a>                            <span class="kw-2">*</span>method_id,
+<a href=#212 id=212 data-nosnippet>212</a>                            name,
+<a href=#213 id=213 data-nosnippet>213</a>                            method.def.visibility,
+<a href=#214 id=214 data-nosnippet>214</a>                        );
+<a href=#215 id=215 data-nosnippet>215</a>                    }
+<a href=#216 id=216 data-nosnippet>216</a>                }
+<a href=#217 id=217 data-nosnippet>217</a>            }
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="comment">// We can define methods on primitive types only if we're in the stdlib
+<a href=#219 id=219 data-nosnippet>219</a>        </span>} <span class="kw">else if </span>trait_id.is_none() &amp;&amp; <span class="kw-2">*</span>self_type != Type::Error {
+<a href=#220 id=220 data-nosnippet>220</a>            <span class="kw">if </span><span class="self">self</span>.crate_id.is_stdlib() {
+<a href=#221 id=221 data-nosnippet>221</a>                <span class="comment">// Trait impl methods are already declared in NodeInterner::add_trait_implementation
+<a href=#222 id=222 data-nosnippet>222</a>                </span><span class="kw">if </span>trait_id.is_none() {
+<a href=#223 id=223 data-nosnippet>223</a>                    <span class="self">self</span>.declare_methods(self_type, <span class="kw-2">&amp;</span>function_ids);
+<a href=#224 id=224 data-nosnippet>224</a>                }
+<a href=#225 id=225 data-nosnippet>225</a>            } <span class="kw">else </span>{
+<a href=#226 id=226 data-nosnippet>226</a>                <span class="kw">let </span>is_primitive = self_type.is_primitive();
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="self">self</span>.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {
+<a href=#228 id=228 data-nosnippet>228</a>                    location,
+<a href=#229 id=229 data-nosnippet>229</a>                    is_primitive,
+<a href=#230 id=230 data-nosnippet>230</a>                });
+<a href=#231 id=231 data-nosnippet>231</a>            }
+<a href=#232 id=232 data-nosnippet>232</a>        }
+<a href=#233 id=233 data-nosnippet>233</a>    }
+<a href=#234 id=234 data-nosnippet>234</a>
+<a href=#235 id=235 data-nosnippet>235</a>    <span class="doccomment">/// Registers methods in the interner's method table for dynamic dispatch.
+<a href=#236 id=236 data-nosnippet>236</a>    ///
+<a href=#237 id=237 data-nosnippet>237</a>    /// This associates each method with its self type, enabling method call resolution.
+<a href=#238 id=238 data-nosnippet>238</a>    /// Unlike module declaration (which enables `TypeName::method` syntax), this registration
+<a href=#239 id=239 data-nosnippet>239</a>    /// is required for method calls via the dot syntax (e.g., `value.method()`).
+<a href=#240 id=240 data-nosnippet>240</a>    ///
+<a href=#241 id=241 data-nosnippet>241</a>    /// Trait impl methods are registered separately in `NodeInterner::add_trait_implementation`,
+<a href=#242 id=242 data-nosnippet>242</a>    /// so this is only called for inherent impls.
+<a href=#243 id=243 data-nosnippet>243</a>    ///
+<a href=#244 id=244 data-nosnippet>244</a>    /// # Returns
+<a href=#245 id=245 data-nosnippet>245</a>    /// Errors if a method with the same name is already registered for this type in the interner.
+<a href=#246 id=246 data-nosnippet>246</a>    /// This indicates a true duplicate (not specialization), such as:
+<a href=#247 id=247 data-nosnippet>247</a>    /// ```noir
+<a href=#248 id=248 data-nosnippet>248</a>    /// impl Foo { fn bar(self) {} }
+<a href=#249 id=249 data-nosnippet>249</a>    /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
+<a href=#250 id=250 data-nosnippet>250</a>    /// ```
+<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">fn </span>declare_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, function_ids: <span class="kw-2">&amp;</span>[FuncId]) {
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
+<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
+<a href=#255 id=255 data-nosnippet>255</a>
+<a href=#256 id=256 data-nosnippet>256</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
+<a href=#257 id=257 data-nosnippet>257</a>                <span class="self">self</span>.push_err(error);
+<a href=#258 id=258 data-nosnippet>258</a>            }
+<a href=#259 id=259 data-nosnippet>259</a>        }
+<a href=#260 id=260 data-nosnippet>260</a>    }
+<a href=#261 id=261 data-nosnippet>261</a>}</code></pre></div></section></main></body></html>
