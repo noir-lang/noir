@@ -2017,6 +2017,44 @@ impl Elaborator<'_> {
             }
         };
 
+        // When the source is a polymorphic integer literal whose value fits in the
+        // destination integer type, bind the literal's type to the destination. Casting
+        // a literal through `Field` would otherwise go through bit-truncation that yields
+        // the wrong answer for primes (such as BN254) whose residue mod `2^bit_size` is
+        // non-zero — for example, `(-128 as i8)` would produce `-127` instead of `-128`.
+        if from_is_polymorphic
+            && let Some(from_value) = from_value_opt
+            && let Type::Integer(to_sign, to_bit_size) = &to
+        {
+            let bit_count = u32::from(to_bit_size.bit_size());
+            let max = if bit_count == 128 { u128::MAX } else { 2u128.pow(bit_count) - 1 };
+            let value_fits = match to_sign {
+                Signedness::Unsigned => {
+                    from_value.fits_in_u128() && from_value <= FieldElement::from(max)
+                }
+                Signedness::Signed => {
+                    let modulus = 2u128.pow(bit_count - 1);
+                    let signed_max = modulus - 1;
+                    if from_value.fits_in_u128() && from_value <= FieldElement::from(signed_max) {
+                        true
+                    } else {
+                        // Negative literals are encoded as `p - x` in `FieldElement`.
+                        // Adding the bit modulus brings them into the positive range
+                        // `[0, signed_max]` if and only if they fit in the signed type.
+                        let wrapped = from_value + FieldElement::from(modulus);
+                        wrapped.fits_in_u128() && wrapped <= FieldElement::from(signed_max)
+                    }
+                }
+            };
+            if value_fits {
+                self.unify(from, &to, |_| TypeCheckError::InvalidCast {
+                    from: from.clone(),
+                    location,
+                    reason: "literal does not fit in the destination integer type".into(),
+                });
+            }
+        }
+
         // TODO(https://github.com/noir-lang/noir/issues/6247):
         // handle negative literals
         // when casting a polymorphic value to a specifically sized type,

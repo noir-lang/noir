@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    assert((-128_i8 as i8) == -128_i8);
+    assert((-1_i8 as i8) == -1_i8);
+    assert((-127_i8 as i8) == -127_i8);
+    assert((-32768_i16 as i16) == -32768_i16);
+    assert((-1_i16 as i16) == -1_i16);
+    assert((-2147483648_i32 as i32) == -2147483648_i32);
+    assert((-1_i32 as i32) == -1_i32);
+    assert((-9223372036854775808_i64 as i64) == -9223372036854775808_i64);
+    assert((-1_i64 as i64) == -1_i64);
+}

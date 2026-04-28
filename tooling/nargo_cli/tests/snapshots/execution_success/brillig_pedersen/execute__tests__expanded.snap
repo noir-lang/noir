@@ -19,7 +19,7 @@ unconstrained fn main(
     assert(res_hash != res.x);
     let raw_data: [Field; 2] = [x, y];
     let mut state: Field = 0_Field;
-    for i in 0_u32..2_Field as u32 {
+    for i in 0_u32..2_u32 as u32 {
         state = (state * 8_Field) + raw_data[i];
     }
     state = state + salt;
