@@ -632,181 +632,205 @@ mod tests {
             assert_eq(1u64.rem(42u64), 1u64);
         }
 
-        #[test(should_fail)]
-        fn test_u8_sub_overflow_failure() {
-            let _ = 0u8.sub(1u8);
+        // Per-operator overflow corners. The signed `iN::MIN` corners pin down
+        // compiler-side overflow detection on the trait dispatch path: the
+        // trait impls are one-line delegations to the built-in operators and
+        // rely entirely on the compiler's lowering to emit the two's-complement
+        // overflow constraints. These tests trip CI on any future SSA pass
+        // that drops one of those constraints.
+
+        mod add {
+            use crate::ops::arith::Add;
+
+            #[test(should_fail)]
+            fn u8_overflow() {
+                let _ = 255u8.add(1u8);
+            }
+
+            #[test(should_fail)]
+            fn u16_overflow() {
+                let _ = 65535u16.add(1u16);
+            }
+
+            #[test(should_fail)]
+            fn i8_overflow() {
+                let _ = 127i8.add(1i8);
+            }
+
+            #[test(should_fail)]
+            fn i16_overflow() {
+                let _ = 32767i16.add(1i16);
+            }
+
+            #[test(should_fail)]
+            fn i32_overflow() {
+                let _ = 2147483647i32.add(1i32);
+            }
+
+            #[test(should_fail)]
+            fn i64_overflow() {
+                let _ = 9223372036854775807i64.add(1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u8_add_overflow_failure() {
-            let _ = 255u8.add(1u8);
+        mod sub {
+            use crate::ops::arith::Sub;
+
+            #[test(should_fail)]
+            fn u8_overflow() {
+                let _ = 0u8.sub(1u8);
+            }
+
+            #[test(should_fail)]
+            fn u16_overflow() {
+                let _ = 0u16.sub(1u16);
+            }
+
+            #[test(should_fail)]
+            fn i8_overflow() {
+                let val: i8 = -128;
+                let _ = val.sub(1i8);
+            }
+
+            #[test(should_fail)]
+            fn i16_overflow() {
+                let val: i16 = -32768;
+                let _ = val.sub(1i16);
+            }
+
+            #[test(should_fail)]
+            fn i32_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.sub(1i32);
+            }
+
+            #[test(should_fail)]
+            fn i64_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.sub(1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u8_mul_overflow_failure() {
-            let _ = 255u8.mul(2u8);
+        mod mul {
+            use crate::ops::arith::Mul;
+
+            #[test(should_fail)]
+            fn u8_overflow() {
+                let _ = 255u8.mul(2u8);
+            }
+
+            #[test(should_fail)]
+            fn u16_overflow() {
+                let _ = 65535u16.mul(2u16);
+            }
+
+            #[test(should_fail)]
+            fn i8_min_times_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.mul(-1i8);
+            }
+
+            #[test(should_fail)]
+            fn i16_min_times_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.mul(-1i16);
+            }
+
+            #[test(should_fail)]
+            fn i32_min_times_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.mul(-1i32);
+            }
+
+            #[test(should_fail)]
+            fn i64_min_times_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.mul(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_sub_overflow_failure() {
-            let _ = 0u16.sub(1u16);
+        mod div {
+            use crate::ops::arith::Div;
+
+            #[test(should_fail)]
+            fn i8_min_by_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.div(-1i8);
+            }
+
+            #[test(should_fail)]
+            fn i16_min_by_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.div(-1i16);
+            }
+
+            #[test(should_fail)]
+            fn i32_min_by_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.div(-1i32);
+            }
+
+            #[test(should_fail)]
+            fn i64_min_by_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.div(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_add_overflow_failure() {
-            let _ = 65535u16.add(1u16);
+        mod rem {
+            use crate::ops::arith::Rem;
+
+            #[test(should_fail)]
+            fn i8_min_by_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.rem(-1i8);
+            }
+
+            #[test(should_fail)]
+            fn i16_min_by_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.rem(-1i16);
+            }
+
+            #[test(should_fail)]
+            fn i32_min_by_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.rem(-1i32);
+            }
+
+            #[test(should_fail)]
+            fn i64_min_by_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.rem(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_mul_overflow_failure() {
-            let _ = 65535u16.mul(2u16);
-        }
+        mod neg {
+            use crate::ops::arith::Neg;
 
-        #[test(should_fail)]
-        fn test_signed_sub_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.sub(1i8);
-        }
+            #[test(should_fail)]
+            fn i8_min_overflow() {
+                let val: i8 = -128;
+                let _ = val.neg();
+            }
 
-        #[test(should_fail)]
-        fn test_signed_overflow_failure() {
-            let _ = 127i8.add(1i8);
-        }
+            #[test(should_fail)]
+            fn i16_min_overflow() {
+                let val: i16 = -32768;
+                let _ = val.neg();
+            }
 
-        // The signed overflow corners below pin down compiler-side overflow
-        // detection for every signed width and operator. The trait impls are
-        // one-line delegations to the built-in operators and rely entirely on
-        // the compiler's lowering to emit the two's-complement overflow
-        // constraints. These tests trip CI on any future SSA pass that drops
-        // one of those constraints.
+            #[test(should_fail)]
+            fn i32_min_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.neg();
+            }
 
-        #[test(should_fail)]
-        fn test_i16_add_overflow_failure() {
-            let _ = 32767i16.add(1i16);
-        }
-
-        #[test(should_fail)]
-        fn test_i16_sub_overflow_failure() {
-            let val: i16 = -32768;
-            let _ = val.sub(1i16);
-        }
-
-        #[test(should_fail)]
-        fn test_i32_add_overflow_failure() {
-            let _ = 2147483647i32.add(1i32);
-        }
-
-        #[test(should_fail)]
-        fn test_i32_sub_overflow_failure() {
-            let val: i32 = -2147483648;
-            let _ = val.sub(1i32);
-        }
-
-        #[test(should_fail)]
-        fn test_i64_add_overflow_failure() {
-            let _ = 9223372036854775807i64.add(1i64);
-        }
-
-        #[test(should_fail)]
-        fn test_i64_sub_overflow_failure() {
-            let val: i64 = -9223372036854775808;
-            let _ = val.sub(1i64);
-        }
-
-        #[test(should_fail)]
-        fn test_i8_mul_min_times_neg_one_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.mul(-1i8);
-        }
-
-        #[test(should_fail)]
-        fn test_i16_mul_min_times_neg_one_overflow_failure() {
-            let val: i16 = -32768;
-            let _ = val.mul(-1i16);
-        }
-
-        #[test(should_fail)]
-        fn test_i32_mul_min_times_neg_one_overflow_failure() {
-            let val: i32 = -2147483648;
-            let _ = val.mul(-1i32);
-        }
-
-        #[test(should_fail)]
-        fn test_i64_mul_min_times_neg_one_overflow_failure() {
-            let val: i64 = -9223372036854775808;
-            let _ = val.mul(-1i64);
-        }
-
-        #[test(should_fail)]
-        fn test_i8_div_min_by_neg_one_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.div(-1i8);
-        }
-
-        #[test(should_fail)]
-        fn test_i16_div_min_by_neg_one_overflow_failure() {
-            let val: i16 = -32768;
-            let _ = val.div(-1i16);
-        }
-
-        #[test(should_fail)]
-        fn test_i32_div_min_by_neg_one_overflow_failure() {
-            let val: i32 = -2147483648;
-            let _ = val.div(-1i32);
-        }
-
-        #[test(should_fail)]
-        fn test_i64_div_min_by_neg_one_overflow_failure() {
-            let val: i64 = -9223372036854775808;
-            let _ = val.div(-1i64);
-        }
-
-        #[test(should_fail)]
-        fn test_i8_rem_min_by_neg_one_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.rem(-1i8);
-        }
-
-        #[test(should_fail)]
-        fn test_i16_rem_min_by_neg_one_overflow_failure() {
-            let val: i16 = -32768;
-            let _ = val.rem(-1i16);
-        }
-
-        #[test(should_fail)]
-        fn test_i32_rem_min_by_neg_one_overflow_failure() {
-            let val: i32 = -2147483648;
-            let _ = val.rem(-1i32);
-        }
-
-        #[test(should_fail)]
-        fn test_i64_rem_min_by_neg_one_overflow_failure() {
-            let val: i64 = -9223372036854775808;
-            let _ = val.rem(-1i64);
-        }
-
-        #[test(should_fail)]
-        fn test_i8_neg_min_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.neg();
-        }
-
-        #[test(should_fail)]
-        fn test_i16_neg_min_overflow_failure() {
-            let val: i16 = -32768;
-            let _ = val.neg();
-        }
-
-        #[test(should_fail)]
-        fn test_i32_neg_min_overflow_failure() {
-            let val: i32 = -2147483648;
-            let _ = val.neg();
-        }
-
-        #[test(should_fail)]
-        fn test_i64_neg_min_overflow_failure() {
-            let val: i64 = -9223372036854775808;
-            let _ = val.neg();
+            #[test(should_fail)]
+            fn i64_min_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.neg();
+            }
         }
 
         #[test]
