@@ -519,7 +519,7 @@ mod tests {
     };
 
     #[test]
-    fn test_decl_block_in_own_idf() {
+    fn does_not_panic_when_decl_block_is_in_own_idf() {
         // When a variable's allocate is in a loop header, the decl block ends up in its own IDF
         // via a back-edge predecessor. `compute_entry_state` does not add a block parameter at
         // the decl block (the `block == decl_block` branch wins over the IDF branch), so
