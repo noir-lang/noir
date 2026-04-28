@@ -729,7 +729,7 @@ fn concrete_impl_with_dual_turbofish_mismatch() {
     struct S<T> {}
 
     impl S<u32> {
-        fn foo<U>(_x: U) {}
+        pub fn foo<U>(_x: U) {}
     }
 
     fn main() {
@@ -827,7 +827,7 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     struct S<A, B> {}
 
     impl<B> S<u32, B> {
-        fn foo(x: B) -> B {
+        pub fn foo(x: B) -> B {
             x
         }
     }
@@ -965,7 +965,7 @@ fn struct_turbofish_same_generic() {
     struct S<A, B> {}
 
     impl<T> S<T, T> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     fn main() {
@@ -983,11 +983,11 @@ fn struct_turbofish_mixed_generics() {
     struct S<A, B> {}
 
     impl<T> S<T, u64> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     impl S<u32, u32> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     fn main() {
@@ -1009,6 +1009,8 @@ fn struct_turbofish_mixed_generics_visibility_error() {
 
         impl super::S<u32, u32> {
             fn foo() {}
+               ^^^ unused function foo
+               ~~~ unused function
         }
     }
 

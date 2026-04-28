@@ -16,7 +16,7 @@ where
 pub struct Foo {}
 
 impl Foo {
-    fn foo<T>(x: T)
+    pub fn foo<T>(x: T)
     where
         T: Trait,
     {
@@ -46,7 +46,7 @@ trait Trait2 {
 pub struct Bar<T> {}
 
 impl<T> Bar<T> {
-    fn bar(x: T)
+    pub fn bar(x: T)
     where
         T: Trait,
     {

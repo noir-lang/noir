@@ -73,31 +73,31 @@ error: The placeholder `_` is not allowed in trait constraints
    │
 
 error: The placeholder `_` is not allowed in function parameter types
-   ┌─ src/main.nr:10:16
+   ┌─ src/main.nr:10:20
    │
-10 │     fn foo(_: [_; _]) -> [_; _] {
-   │                -
+10 │     pub fn foo(_: [_; _]) -> [_; _] {
+   │                    -
    │
 
 error: The placeholder `_` is not allowed in function parameter types
-   ┌─ src/main.nr:10:19
+   ┌─ src/main.nr:10:23
    │
-10 │     fn foo(_: [_; _]) -> [_; _] {
-   │                   -
-   │
-
-error: The placeholder `_` is not allowed in function return types
-   ┌─ src/main.nr:10:27
-   │
-10 │     fn foo(_: [_; _]) -> [_; _] {
-   │                           -
+10 │     pub fn foo(_: [_; _]) -> [_; _] {
+   │                       -
    │
 
 error: The placeholder `_` is not allowed in function return types
-   ┌─ src/main.nr:10:30
+   ┌─ src/main.nr:10:31
    │
-10 │     fn foo(_: [_; _]) -> [_; _] {
-   │                              -
+10 │     pub fn foo(_: [_; _]) -> [_; _] {
+   │                               -
+   │
+
+error: The placeholder `_` is not allowed in function return types
+   ┌─ src/main.nr:10:34
+   │
+10 │     pub fn foo(_: [_; _]) -> [_; _] {
+   │                                  -
    │
 
 error: The placeholder `_` is not allowed in function parameter types
