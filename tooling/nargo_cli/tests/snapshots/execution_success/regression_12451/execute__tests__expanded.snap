@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(i: u32, a: bool, b: bool) -> pub u32 {
+    let mut vec: [u32] = @[10_u32, 20_u32, 30_u32];
+    if a {
+        vec = vec.remove(i).0;
+    } else if b {
+        vec = vec.insert(i, 40_u32);
+    };
+    vec.len() as u32
+}
