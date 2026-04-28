@@ -519,12 +519,12 @@ mod tests {
     };
 
     #[test]
-    fn does_not_panic_when_decl_block_is_in_own_idf() {
-        // When a variable's allocate is in a loop header, the decl block ends up in its own IDF
-        // via a back-edge predecessor. `compute_entry_state` does not add a block parameter at
-        // the decl block (the `block == decl_block` branch wins over the IDF branch), so
-        // `add_terminator_arguments` must skip pushing args from predecessors of that block —
-        // those predecessors don't have the variable in their state.
+    fn decl_block_in_own_idf_regression() {
+        // The allocate is in a loop header (b1), so the decl block is in its own IDF via the
+        // back-edge predecessor. `compute_entry_state` does not add a block parameter at the
+        // decl block (the `block == decl_block` branch wins over the IDF branch), so
+        // `add_terminator_arguments` must skip pushing args from b1's predecessors — they
+        // don't have the variable in their state.
         let src = "
         brillig(inline) fn func f0 {
           b0(v0: u1):
@@ -539,7 +539,17 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.mem2reg();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b1()
+          b2():
+            return Field 0
+        }
+        ");
     }
 
     #[test]
