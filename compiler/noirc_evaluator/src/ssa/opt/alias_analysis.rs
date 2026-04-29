@@ -87,6 +87,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        call_graph::CallGraph,
         cfg::ControlFlowGraph,
         function::{Function, FunctionId},
         instruction::{Instruction, Intrinsic, TerminatorInstruction},
@@ -166,6 +167,12 @@ pub(crate) struct AliasAnalysis {
     /// This is used to recover precision by saying that two values having
     /// two distinct allocation sites cannot alias.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
+
+    /// Functions that participate in a call-graph cycle (self-recursion or
+    /// mutual recursion). `Allocate` sites in these functions can correspond to
+    /// many runtime cells (one per invocation), so `must_alias` cannot
+    /// claim equality based on site identity for them.
+    recursive_functions: HashSet<FunctionId>,
 }
 
 impl AliasAnalysis {
@@ -267,6 +274,7 @@ impl AliasAnalysis {
     }
 
     /// Returns `true` if `a` and `b` definitely refer to the same memory location
+    /// Allocation site identity does not imply runtime cell identity in case of recursion.
     pub(crate) fn must_alias(&self, function: &Function, a: ValueId, b: ValueId) -> bool {
         if a == b {
             return true;
@@ -275,7 +283,13 @@ impl AliasAnalysis {
         let b = GlobalValueId::new(function, b);
         match (self.allocation_sites.get(&a), self.allocation_sites.get(&b)) {
             (Some(AllocationLattice::Known(site_a)), Some(AllocationLattice::Known(site_b))) => {
-                site_a == site_b
+                if site_a != site_b {
+                    return false;
+                }
+                // Same site. Reject the equality claim if the defining
+                // function is recursive — different invocations may create
+                // different cells sharing this site.
+                !self.recursive_functions.contains(&site_a.0)
             }
             _ => false,
         }
@@ -326,6 +340,13 @@ struct AliasAnalysisContext {
 
     /// Joined allocation site of every value ever placed into the points_to alias class.
     points_to_sites: HashMap<GlobalValueId, AllocationLattice>,
+
+    /// Functions that participate in a call-graph cycle.
+    /// Seeded from `CallGraph::from_ssa` for `Scope::Ssa` (direct cycles)
+    /// and extended during pass 1 every time we hit an opaque call whose
+    /// callee we cannot statically determine (indirect calls in any scope,
+    /// any call in `Scope::Single`).
+    recursive_functions: HashSet<FunctionId>,
 }
 
 impl AliasAnalysisContext {
@@ -344,6 +365,13 @@ impl AliasAnalysisContext {
 
         let mut analysis = Self::default();
 
+        // Seed recursive_functions from the call graph for `Scope::Ssa`
+        // `Scope::Single` will assume the function is recursive if it calls any function
+        // (other than intrinsics, blackbox and oracles)
+        if let Scope::Ssa(ssa) = &scope {
+            analysis.recursive_functions = CallGraph::from_ssa(ssa).get_recursive_functions();
+        }
+
         for function in &functions {
             analysis.analyze_function(&scope, function);
         }
@@ -358,6 +386,7 @@ impl AliasAnalysisContext {
             points_to: analysis.points_to,
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
+            recursive_functions: analysis.recursive_functions,
         }
     }
 
@@ -632,9 +661,21 @@ impl AliasAnalysisContext {
                             // Only Hint or Vector operations may alias.
                             assert!(!Self::intrinsic_may_alias(intrinsic));
                         }
+                        // Foreign calls cannot call Noir functions, so we do not mark them as recursive
+                        (Value::ForeignFunction(_), _) => {
+                            self.unresolved_call(function, arguments, results);
+                        }
                         // Fallthrough for unresolved functions whose function body
                         // is not available, via a conservative type-based analysis.
-                        _ => self.unresolved_call(function, arguments, results),
+                        //
+                        // Conservatively assume that any function called in Single Scope 
+                        // may put us in indirect recursive calls
+                        _ => {
+                            self.unresolved_call(function, arguments, results);
+                            if matches!(scope, Scope::Single(_)) {
+                                self.recursive_functions.insert(function.id());
+                            }
+                        }
                     }
                 }
                 Instruction::ArrayGet { array, .. } => {
@@ -2471,17 +2512,13 @@ mod tests {
     }
 
     #[test]
-    fn opaque_call_preserves_local_sites_under_no_escape() {
-        // An opaque (non-entry-point) call cannot launder fresh local
-        // allocations into the caller's pointee chains — function-local
-        // allocations cannot escape. So sites stored before the call
-        // through the chain survive, and post-call loads through that
-        // chain still must-alias the originally stored values.
-        //
-        // `main` here is an entry point but has *no* parameters, so
-        // entry-point poisoning is a no-op and the only candidate to
-        // poison the chain would have been the `oracle_op` call. The
-        // chain stays clean.
+    fn foreign_call_preserves_local_sites_under_no_escape() {
+        // A foreign call cannot reenter program code, so it does not flag
+        // the calling function as recursive. Combined with the no-escape
+        // invariant — function-local allocations cannot leak into the
+        // caller's pointee chains — sites stored before the call survive,
+        // and post-call loads through the chain still must-alias the
+        // originally stored values.
         let src = "
         brillig(inline) fn main f0 {
           b0():
