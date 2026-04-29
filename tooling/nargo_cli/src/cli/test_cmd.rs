@@ -122,6 +122,12 @@ pub(crate) struct TestCommand {
     /// This only works with tests that don't have arguments and don't call Oracles.
     #[arg(long, hide = true)]
     force_comptime: bool,
+
+    /// Produce a coverage report.
+    ///
+    /// Writes coverage data to an `.lcov` file.
+    #[arg(long)]
+    coverage: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -657,7 +663,7 @@ impl<'a> TestRunner<'a> {
             return (status, String::new());
         }
 
-        if self.args.force_comptime {
+        if self.args.force_comptime || self.args.coverage && !has_arguments {
             let allowed_files = context.def_maps[&crate_id].file_ids();
             context.evaluation_tracker = Some(EvaluationTracker::new(allowed_files));
 
