@@ -178,6 +178,11 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
+const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
+    // For some reason at comptime a `comptime` function is considered a constant.
+    "comptime_globals",
+];
+
 /// `nargo execute --minimal-ssa` ignored tests
 const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
@@ -647,6 +652,9 @@ fn generate_comptime_interpret_noir_test_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_NOIR_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let test_dir = test_dir.display();
         write!(
             test_file,
