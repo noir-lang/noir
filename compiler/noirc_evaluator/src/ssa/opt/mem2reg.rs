@@ -617,6 +617,37 @@ mod tests {
     }
 
     #[test]
+    fn test_decl_to_load_path_without_store_does_not_promote() {
+        // The actual reason the #11482 workaround exists: a load is reachable
+        // from the declaration block via a path that skips every store.
+        //
+        // On the false branch, b0 → b2 reads v1 without any store on the way.
+        // This is undefined behavior — but if mem2reg promoted v1 anyway, it
+        // would have to wire `v1` (the &mut Field allocate result) as the
+        // argument for a `Field`-typed block parameter on that edge, producing
+        // a type-mismatched program. The workaround disqualifies v1 to avoid
+        // emitting the malformed SSA.
+        //
+        // `test_multi_block_without_decl_block_store_does_not_promote` shows
+        // that the workaround is *too coarse*: it also disqualifies the safe
+        // case where every load-reaching path passes through a store.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b2()
+          b2():
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
     fn test_multi_block_without_decl_block_store_does_not_promote() {
         // Counterpart to `test_multi_block`: identical CFG except the
         // declaration block (b0) has no store. mem2reg's workaround for
