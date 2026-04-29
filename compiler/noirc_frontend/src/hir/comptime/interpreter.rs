@@ -1304,7 +1304,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
             }
-            HirStatement::Error => {
+            HirStatement::Error | HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }

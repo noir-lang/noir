@@ -21,6 +21,12 @@ pub enum HirStatement {
     Expression(ExprId),
     Semi(ExprId),
     Comptime(StmtId),
+    /// Placeholder for a trait-level associated constant declaration like `let N: u32;`
+    /// inside a `trait` body. These declarations have no value (only impls do), so the
+    /// `GlobalInfo::let_statement` field for such globals points at this variant rather
+    /// than at a real `HirStatement::Let`. Distinct from `Error` so consumers walking
+    /// module globals can tell trait associated constants apart from broken globals.
+    TraitAssociatedConstant,
     Error,
 }
 
