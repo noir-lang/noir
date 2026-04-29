@@ -95,9 +95,18 @@ fn forward_loads_and_stores_in_block(
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
 
-                // Dead store elimination: exact address match only.
+                // Dead store elimination: exact match on address, done by must_alias queries.
+                // Kill any prior store at an address that must-alias the new one.
+                // Early exit because the may-alias retains would have drop any other must-alias.
                 if let Some(prev_store) = last_stores.get(&address) {
                     instructions_to_remove.insert(*prev_store);
+                } else {
+                    for (prev_address, prev_store) in &last_stores {
+                        if analysis.must_alias(inserter.function, address, *prev_address) {
+                            instructions_to_remove.insert(*prev_store);
+                            break;
+                        }
+                    }
                 }
 
                 // Clear entries that may-alias the address.
@@ -112,8 +121,14 @@ fn forward_loads_and_stores_in_block(
                 let address = inserter.resolve(*address);
 
                 let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                if let Some(value) = known_values.get(&address) {
-                    inserter.map_value(result, *value);
+                let forward = known_values.get(&address).copied().or_else(|| {
+                    known_values
+                        .iter()
+                        .find(|(k, _)| analysis.must_alias(inserter.function, address, **k))
+                        .map(|(_, v)| *v)
+                });
+                if let Some(value) = forward {
+                    inserter.map_value(result, value);
                     instructions_to_remove.insert(instruction_id);
                 } else {
                     known_values.insert(address, result);
@@ -413,18 +428,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
 
-        // The store to v2 (alias of v0) clears v0's known value during forwarding,
-        // so the load is NOT forwarded to stale Field 1. The array_get simplifies
-        // to v0 during re-insertion, but the load correctly remains.
+        // The store to v2 (alias of v0) does not let stale `Field 1` be
+        // forwarded. Pass-2 site propagation sets v2's allocation site to v0
+        // (the array's pointee class has the singleton site `v0`), so
+        // `must_alias(v0, v2)` fires: the first store is dead, the second
+        // store updates the must-aliased entry, and the load forwards the
+        // current value `Field 2`.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 1 at v0
-            v2 = make_array [v0] : [&mut Field; 1]
+            v1 = make_array [v0] : [&mut Field; 1]
             store Field 2 at v0
-            v4 = load v0 -> Field
-            return v4
+            return Field 2
         }
         ");
     }
@@ -1193,5 +1209,102 @@ mod tests {
             return
         }
     ");
+    }
+
+    #[test]
+    fn dead_store_via_must_alias_block_param() {
+        // The block parameter v1 inherits v0's allocation site (single-pred join
+        // in track_allocations_from_predecessors). v0 and v1 are distinct SSA
+        // values but must-alias. The store at v1 is then killed by the store at
+        // v0 even though they are not the same SSA value.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v0: &mut Field):
+            store Field 2 at v1
+            return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn load_forward_via_must_alias_block_param() {
+        // Symmetric to the dead-store case: a store at v0 is forwarded through
+        // a load at v1, which is must-aliased to v0 via the block-param join.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 42 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v0: &mut Field):
+            store Field 42 at v1
+            return Field 42
+        }
+        ");
+    }
+
+    #[test]
+    fn dead_store_and_forward_via_must_alias_ifelse() {
+        // v1 has site Some(v1); v2 (block-param) inherits Some(v1); IfElse
+        // joining v1 and v2 produces v4 with site Some(v1). v4 must-aliases
+        // v1 even though they are distinct SSA values, so the store at v1 is
+        // dead and the load at v1 forwards from the store at v4.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v2: &mut Field):
+            v3 = not v0
+            v4 = if v0 then v1 else (if v3) v2
+            store Field 1 at v1
+            store Field 2 at v4
+            v5 = load v1 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            jmp b1(v2)
+          b1(v1: &mut Field):
+            v3 = not v0
+            v4 = if v0 then v2 else (if v3) v1
+            store Field 2 at v4
+            return Field 2
+        }
+        ");
     }
 }
