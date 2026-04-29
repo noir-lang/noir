@@ -23,9 +23,9 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+use noirc_frontend::hir::{Context, LspMode};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -438,6 +438,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+    context.activate_lsp_mode(LspMode::SingleFile);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
     // assume all unstable features are enabled.

@@ -1625,6 +1625,30 @@ fn runtime_variable_in_macro_gives_specific_error() {
 }
 
 #[test]
+fn does_not_allow_constructing_struct_with_private_fields_with_macro_call() {
+    let src = r#"
+    mod victim_crate {
+        pub struct Account {
+            balance: Field,
+        }
+    }
+
+    use victim_crate::Account;
+
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    fn main() {
+        let _: Account = unquote!(quote { Account { balance: 0 }});
+                                                    ^^^^^^^ balance is private and not visible from the current module
+                                                    ~~~~~~~ balance is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn function_generated_with_constraint_does_not_drop_constraint() {
     let src = r#"
     pub trait Constraint {}

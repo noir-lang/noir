@@ -1725,7 +1725,8 @@ impl Elaborator<'_> {
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
 
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let from_macro_call = false;
+        let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
@@ -1740,6 +1741,7 @@ impl Elaborator<'_> {
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
+        from_macro_call: bool,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
@@ -1756,14 +1758,19 @@ impl Elaborator<'_> {
 
         match value.into_expression(self, location) {
             Ok(new_expr) => {
-                // At this point the Expression was already elaborated and we got a Value.
+                // Unless the value to inline comes from a macro call (quoted content that is being unquoted),
+                // at this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.silence_field_visibility_errors += 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors += 1;
+                }
                 let value = self.elaborate_expression(new_expr);
-                self.silence_field_visibility_errors -= 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors -= 1;
+                }
                 value
             }
             Err(error) => make_error(self, error),
@@ -1849,7 +1856,8 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let from_macro_call = true;
+        let (expr_id, typ) = self.inline_comptime_value(result, location, from_macro_call);
         Some((self.interner.expression(&expr_id), typ))
     }
 

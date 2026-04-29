@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(i: u32, cond: bool) -> pub u32 {
+    let arr: [u32; 3] = [10_u32, 20_u32, 30_u32];
+    let mut s: [u32] = arr.as_vector();
+    if cond { s = s.insert(i, 42_u32); };
+    s.len() as u32
+}

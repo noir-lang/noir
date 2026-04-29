@@ -959,7 +959,8 @@ impl Elaborator<'_> {
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
 
-        let (expr, typ) = self.inline_comptime_value(value, location);
+        let from_macro_call = false;
+        let (expr, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
