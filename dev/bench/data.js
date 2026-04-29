@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777478184738,
+  "lastUpdate": 1777481488128,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3ec3d37af78c87fb073773f0e281626b3946f418",
-          "message": "chore(ssa): clean up small audit findings in flatten_cfg (#12380)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-04-21T16:24:35Z",
-          "tree_id": "733dfd7981f23a44c9674ea85d322ce9f3ed1270",
-          "url": "https://github.com/noir-lang/noir/commit/3ec3d37af78c87fb073773f0e281626b3946f418"
-        },
-        "date": 1776790139608,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175057,
-            "range": "± 482",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144839,
-            "range": "± 3884",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647689,
-            "range": "± 4215",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3038392,
             "range": "± 2006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bcc99c35bdc7a2cedb9f0ffe483ba581bf7ced97",
+          "message": "fix: incorrect length in as_vector intrinsic in nargo interpret (#12480)",
+          "timestamp": "2026-04-29T16:25:14Z",
+          "tree_id": "e34985e196990ebde82dc276c525e78ed2dd2a1e",
+          "url": "https://github.com/noir-lang/noir/commit/bcc99c35bdc7a2cedb9f0ffe483ba581bf7ced97"
+        },
+        "date": 1777481426701,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126370,
+            "range": "± 950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112990,
+            "range": "± 1240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042385,
+            "range": "± 3756",
             "unit": "ns/iter"
           }
         ]
