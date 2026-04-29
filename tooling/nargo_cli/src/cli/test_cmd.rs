@@ -30,7 +30,9 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
+use noirc_frontend::hir::{
+    FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
+};
 
 use crate::errors::CliError;
 
@@ -656,6 +658,9 @@ impl<'a> TestRunner<'a> {
         }
 
         if self.args.force_comptime {
+            let allowed_files = context.def_maps[&crate_id].file_ids();
+            context.evaluation_tracker = Some(EvaluationTracker::new(allowed_files));
+
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
             let result = context.interpret_function(test_function.id, Vec::new());

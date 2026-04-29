@@ -169,7 +169,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.elaborator.push_interpreter_call_stack(location)?;
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
-            tracker.track_function_call(function);
+            tracker.track_function_call(function, location);
         }
 
         let result = self.call_function_inner(function, arguments, location);
