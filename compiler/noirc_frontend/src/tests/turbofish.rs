@@ -997,6 +997,28 @@ fn struct_turbofish_mixed_generics() {
     assert_no_errors(src);
 }
 
+// Known bug: a turbofish call to a static method on a generic struct fails to
+// resolve when the struct's type parameter is unconstrained and is not given
+// via turbofish on the struct itself, even though the parameter is unused by
+// the called method.
+/// TODO(https://github.com/noir-lang/noir/issues/7766): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn regression_7766_static_method_turbofish_omits_struct_generic() {
+    let src = r#"
+    struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        pub fn static_method<let N: u32>() {}
+    }
+
+    fn main() {
+        let _ = Foo::static_method::<3>();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn struct_turbofish_mixed_generics_visibility_error() {
     let src = r#"
