@@ -1107,7 +1107,7 @@
 <a href=#1107 id=1107 data-nosnippet>1107</a>    </span>F: FnOnce(Type) -&gt; IResult&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt;,
 <a href=#1108 id=1108 data-nosnippet>1108</a>{
 <a href=#1109 id=1109 data-nosnippet>1109</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#1110 id=1110 data-nosnippet>1110</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>.follow_bindings();
+<a href=#1110 id=1110 data-nosnippet>1110</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>;
 <a href=#1111 id=1111 data-nosnippet>1111</a>
 <a href=#1112 id=1112 data-nosnippet>1112</a>    <span class="kw">let </span>option_value = f(typ)<span class="question-mark">?</span>;
 <a href=#1113 id=1113 data-nosnippet>1113</a>
