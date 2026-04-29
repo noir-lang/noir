@@ -666,7 +666,14 @@ impl<'a> TestRunner<'a> {
                     // Most likely called an unknown oracle function.
                     TestStatus::Skipped
                 }
-                Err(error) => TestStatus::CompileError(CustomDiagnostic::from(&error)),
+                Err(error) if !test_function.should_fail() => {
+                    TestStatus::CompileError(CustomDiagnostic::from(&error))
+                }
+                Err(error) => nargo::ops::check_expected_failure_message(
+                    test_function,
+                    None,
+                    Some(CustomDiagnostic::from(&error)),
+                ),
                 Ok(_) => TestStatus::Pass,
             };
             context.interpreter_output = None;

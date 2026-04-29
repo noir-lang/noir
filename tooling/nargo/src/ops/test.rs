@@ -385,7 +385,11 @@ pub fn check_expected_failure_message(
     let expected_failure_message_matches = failed_assertion
         .as_ref()
         .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
-        .is_some_and(|message| message.contains(expected_failure_message));
+        .is_some_and(|message| {
+            let expected = expected_failure_message.to_lowercase();
+            message.to_lowercase().contains(&expected)
+        });
+
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }
