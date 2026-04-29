@@ -1535,7 +1535,11 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
+            // For `Div`/`Mod`, `checked_div`/`checked_rem` return `None` either because
+            // the divisor is zero or because the operation overflows
+            // (e.g. signed `MIN / -1`). Distinguish the two by inspecting the divisor.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs.convert_to_field().is_zero()
+            {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
