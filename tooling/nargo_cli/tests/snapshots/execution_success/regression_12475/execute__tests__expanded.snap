@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Phantom {}
+
+fn main() {
+    let s: [Phantom] = @[Phantom {}];
+    let (s2, _removed): ([Phantom], Phantom) = s.remove(0_u32);
+    assert(s2.len() == 0_u32);
+}
