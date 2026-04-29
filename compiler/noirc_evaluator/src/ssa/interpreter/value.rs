@@ -147,6 +147,24 @@ pub struct ArrayValue {
     pub is_vector: bool,
 }
 
+impl ArrayValue {
+    pub(crate) fn get_type(&self) -> Type {
+        if self.is_vector {
+            Type::Vector(self.element_types.clone())
+        } else {
+            let element_types_length = ElementTypesLength(assert_u32(self.element_types.len()));
+            let len = if element_types_length.0 == 0 {
+                SemanticLength(0)
+            } else {
+                let semi_flattened_length =
+                    SemiFlattenedLength(assert_u32(self.elements.borrow().len()));
+                semi_flattened_length / element_types_length
+            };
+            Type::Array(self.element_types.clone(), len)
+        }
+    }
+}
+
 impl Value {
     #[allow(unused)]
     pub(crate) fn get_type(&self) -> Type {
@@ -155,21 +173,7 @@ impl Value {
             Value::Reference(reference) => {
                 Type::Reference(reference.element_type.clone(), reference.mutable)
             }
-            Value::ArrayOrVector(array) if array.is_vector => {
-                Type::Vector(array.element_types.clone())
-            }
-            Value::ArrayOrVector(array) => {
-                let element_types_length =
-                    ElementTypesLength(assert_u32(array.element_types.len()));
-                let len = if element_types_length.0 == 0 {
-                    SemanticLength(0)
-                } else {
-                    let semi_flattened_length =
-                        SemiFlattenedLength(assert_u32(array.elements.borrow().len()));
-                    semi_flattened_length / element_types_length
-                };
-                Type::Array(array.element_types.clone(), len)
-            }
+            Value::ArrayOrVector(array) => array.get_type(),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
