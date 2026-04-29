@@ -1,9 +1,11 @@
 use std::{
+    cell::RefCell,
     cmp::max,
     collections::{BTreeMap, HashMap},
     fmt::Display,
     panic::{UnwindSafe, catch_unwind},
     path::PathBuf,
+    rc::Rc,
     sync::{
         Mutex,
         mpsc::{self, Sender},
@@ -28,7 +30,10 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
+use noirc_errors::CustomDiagnostic;
+use noirc_frontend::hir::{
+    FunctionNameMatch, ParsedFiles, comptime::InterpreterError, def_map::TestFunction,
+};
 
 use crate::errors::CliError;
 
@@ -112,6 +117,12 @@ pub(crate) struct TestCommand {
     /// Show progress of fuzzing (default: false)
     #[arg(long)]
     fuzz_show_progress: bool,
+
+    /// Force comptime execution
+    ///
+    /// This only works with tests that don't have arguments and don't call Oracles.
+    #[arg(long, hide = true)]
+    force_comptime: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -615,7 +626,9 @@ impl<'a> TestRunner<'a> {
         root_path: Option<PathBuf>,
         package_name: String,
     ) -> (TestStatus, String) {
-        if (self.args.no_fuzz && has_arguments) || (self.args.only_fuzz && !has_arguments) {
+        if ((self.args.no_fuzz || self.args.force_comptime) && has_arguments)
+            || (self.args.only_fuzz && !has_arguments)
+        {
             return (TestStatus::Skipped, String::new());
         }
 
@@ -643,6 +656,23 @@ impl<'a> TestRunner<'a> {
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
             return (status, String::new());
+        }
+
+        if self.args.force_comptime {
+            let output = Rc::new(RefCell::new(Vec::new()));
+            context.set_comptime_printing(output.clone());
+            let status = match context.interpret_function(test_function.id, Vec::new()) {
+                Err(InterpreterError::Unimplemented { .. }) => {
+                    // Most likely called an unknown oracle function.
+                    TestStatus::Skipped
+                }
+                Err(error) => TestStatus::CompileError(CustomDiagnostic::from(&error)),
+                Ok(_) => TestStatus::Pass,
+            };
+            context.interpreter_output = None;
+            let output = Rc::try_unwrap(output).expect("context no longer has it");
+            let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
+            return (status, output);
         }
 
         let blackbox_solver = S::default();
