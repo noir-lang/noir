@@ -15,6 +15,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
         Context,
+        comptime::{InterpreterError, Value},
         def_map::{FuzzingHarness, TestFunction},
     },
     token::{FuzzingScope, TestScope},
@@ -306,6 +307,7 @@ where
         }
     }
 }
+
 /// Test function failed to compile
 ///
 /// Note: This could be because the compiler was able to deduce
@@ -363,6 +365,31 @@ pub fn test_status_program_compile_pass(
         circuit_execution_err.user_defined_failure_message(&abi.error_types),
         diagnostic,
     )
+}
+
+pub fn test_status_comptime_interpret_result(
+    result: Result<Value, InterpreterError>,
+    test_function: &TestFunction,
+) -> TestStatus {
+    match result {
+        Err(InterpreterError::Unimplemented { .. }) => {
+            // Most likely called an unknown oracle function.
+            TestStatus::Skipped
+        }
+        Err(error) if !test_function.should_fail() => {
+            TestStatus::CompileError(CustomDiagnostic::from(&error))
+        }
+        Err(error) => check_expected_failure_message(
+            test_function,
+            None,
+            Some(CustomDiagnostic::from(&error)),
+        ),
+        Ok(_) if test_function.should_fail() => TestStatus::Fail {
+            message: "error: Test passed when it should have failed".to_string(),
+            error_diagnostic: None,
+        },
+        Ok(_) => TestStatus::Pass,
+    }
 }
 
 pub fn check_expected_failure_message(

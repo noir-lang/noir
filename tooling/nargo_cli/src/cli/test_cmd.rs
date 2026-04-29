@@ -30,10 +30,7 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{
-    FunctionNameMatch, ParsedFiles, comptime::InterpreterError, def_map::TestFunction,
-};
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
 
 use crate::errors::CliError;
 
@@ -661,21 +658,8 @@ impl<'a> TestRunner<'a> {
         if self.args.force_comptime {
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
-            let status = match context.interpret_function(test_function.id, Vec::new()) {
-                Err(InterpreterError::Unimplemented { .. }) => {
-                    // Most likely called an unknown oracle function.
-                    TestStatus::Skipped
-                }
-                Err(error) if !test_function.should_fail() => {
-                    TestStatus::CompileError(CustomDiagnostic::from(&error))
-                }
-                Err(error) => nargo::ops::check_expected_failure_message(
-                    test_function,
-                    None,
-                    Some(CustomDiagnostic::from(&error)),
-                ),
-                Ok(_) => TestStatus::Pass,
-            };
+            let result = context.interpret_function(test_function.id, Vec::new());
+            let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
             context.interpreter_output = None;
             let output = Rc::try_unwrap(output).expect("context no longer has it");
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
