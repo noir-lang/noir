@@ -191,7 +191,6 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,

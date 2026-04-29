@@ -18,6 +18,7 @@ use crate::ast::{
     UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
+use crate::hir::LspMode;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
@@ -249,7 +250,7 @@ pub struct NodeInterner {
     interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
-    pub(crate) lsp_mode: bool,
+    pub(crate) lsp_mode: Option<LspMode>,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -518,7 +519,7 @@ impl Default for NodeInterner {
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
-            lsp_mode: false,
+            lsp_mode: None,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1424,7 +1425,7 @@ impl NodeInterner {
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
-        self.lsp_mode
+        self.lsp_mode.is_some()
     }
 
     /// Sets the ordered generics and associated types for the given trait impl.

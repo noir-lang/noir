@@ -18,15 +18,6 @@
 <h2 id="crate-name"><a href="index.html">std</a></h2>
 <div id="crate-version">1.0.0-beta.20</div>
 <h2><a href="#primitive">Primitive type UnresolvedType</a></h2>
-<h3>Methods</h3>
-<ul class="sidebar-list">
-<li><a href="#as_mutable_reference">as_mutable_reference</a></li>
-<li><a href="#as_slice">as_slice</a></li>
-<li><a href="#as_vector">as_vector</a></li>
-<li><a href="#is_bool">is_bool</a></li>
-<li><a href="#is_field">is_field</a></li>
-<li><a href="#is_unit">is_unit</a></li>
-</ul>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html">aes128</a></div></li>
@@ -96,44 +87,7 @@
 <p>A compile-time type which represents the syntax of a type.</p>
 <p>That is, it could be for example <code>[Foo; 3]</code> without necessarilly <code>Foo</code> existing in the source program.</p>
 </div>
-<h2>Implementations</h2>
-<h3><code class="code-header">impl <a href="../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a></code></h3>
-
-<div class="padded-methods"><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference"><span class="fn">as_mutable_reference</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
-
-<div class="padded-description"><div class="comments">
-<p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
-</div>
-</div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector"><span class="fn">as_vector</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
-
-<div class="padded-description"><div class="comments">
-<p>If this is a vector <code>[T].as_vector()</code>, returns the element type <code>T</code>.</p>
-</div>
-</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice"><span class="fn">as_slice</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: This method has been renamed to `as_vector`
-</div>
-<div class="comments">
-<p>If this is a vector <code>[T].as_vector()</code>, returns the element type <code>T</code>.</p>
-</div>
-</div><code id="is_bool" class="code-header">pub comptime fn <a href="#is_bool"><span class="fn">is_bool</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if this type is <code>bool</code>.</p>
-</div>
-</div><code id="is_field" class="code-header">pub comptime fn <a href="#is_field"><span class="fn">is_field</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns true if this type refers to the <code>Field</code> type.</p>
-</div>
-</div><code id="is_unit" class="code-header">pub comptime fn <a href="#is_unit"><span class="fn">is_unit</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
-
-<div class="padded-description"><div class="comments">
-<p>Returns true if this type is the unit <code>()</code> type.</p>
-</div>
-</div></div></main>
+</main>
 </span>
 </body>
 </html>

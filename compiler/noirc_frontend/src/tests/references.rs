@@ -463,3 +463,17 @@ fn generic_inference_through_mutable_reference_method_auto_ref() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn can_mutate_mutable_reference_inside_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let mut a = 1;
+
+        let p = &&mut a;
+
+        **p += 1;
+    }
+    "#;
+    assert_no_errors(src);
+}

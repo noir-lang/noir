@@ -1,6 +1,10 @@
 use noirc_errors::Location;
 
-use crate::{DataType, Type, elaborator::Elaborator, hir::def_map::fully_qualified_module_path};
+use crate::{
+    DataType, Type,
+    elaborator::Elaborator,
+    hir::{LspMode, def_map::fully_qualified_module_path},
+};
 
 /// A type that is similarly named to another type, but is actually a different type.
 /// The other type is given in the other element of the tuple returned by [`Elaborator::compute_similarly_named_types`].
@@ -25,6 +29,12 @@ impl Elaborator<'_> {
         actual: &Type,
         expected: &Type,
     ) -> Vec<(SimilarlyNamedType, SimilarlyNamedType)> {
+        // Because in single-file mode errors are not shown to the user, computing this extra information is not needed,
+        // and it avoids running into this error in LSP: https://github.com/noir-lang/noir/issues/12463
+        if matches!(self.interner.lsp_mode, Some(LspMode::SingleFile)) {
+            return vec![];
+        }
+
         let mut similar_types = Vec::new();
         self.compute_similarly_named_types_helper(actual, expected, &mut similar_types);
         similar_types

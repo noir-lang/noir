@@ -103,10 +103,6 @@ pub(super) fn transform_internal<F: AcirField>(
         prev_opcodes_hash = new_opcodes_hash;
     }
 
-    // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
-    // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
-    acir.current_witness_index = max_witness(&acir).witness_index();
-
     (acir, acir_opcode_positions, opcodes_hash_stabilized)
 }
 
@@ -143,7 +139,7 @@ fn transform_internal_once<F: AcirField>(
     // creating intermediate variables when necessary
     let mut transformed_opcodes = Vec::new();
 
-    let mut next_witness_index = acir.current_witness_index + 1;
+    let mut next_witness_index = max_witness(&acir).witness_index() + 1;
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
     // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
@@ -219,10 +215,7 @@ fn transform_internal_once<F: AcirField>(
         }
     }
 
-    let current_witness_index = next_witness_index - 1;
-
     acir = Circuit {
-        current_witness_index,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir
@@ -234,7 +227,6 @@ fn transform_internal_once<F: AcirField>(
     let (opcodes, new_acir_opcode_positions) =
         merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 
-    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
     acir = Circuit {
         opcodes,
         // The optimizer does not add new public inputs

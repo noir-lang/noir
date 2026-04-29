@@ -36,7 +36,7 @@ use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
     hir::{
-        Context, FunctionNameMatch, ParsedFiles,
+        Context, FunctionNameMatch, LspMode, ParsedFiles,
         def_map::{CrateDefMap, parse_file},
     },
     node_interner::NodeInterner,
@@ -358,7 +358,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.activate_lsp_mode();
+    context.activate_lsp_mode(LspMode::Full);
     (context, crate_id)
 }
 

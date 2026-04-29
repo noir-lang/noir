@@ -396,7 +396,6 @@ mod test {
     fn returns_error_from_failing_foreign_call() {
         let function = [Circuit {
             function_name: "main".to_string(),
-            current_witness_index: 0,
             opcodes: vec![Opcode::BrilligCall {
                 id: BrilligFunctionId(0),
                 inputs: Vec::new(),

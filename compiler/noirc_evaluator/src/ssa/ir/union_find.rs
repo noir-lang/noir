@@ -3,26 +3,33 @@
 
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ssa::ir::value::ValueId;
+use std::hash::Hash;
 
-pub(super) struct UnionFind {
-    parent: HashMap<ValueId, ValueId>,
-    rank: HashMap<ValueId, u32>,
+pub(crate) struct UnionFind<K: Copy + Eq + Hash> {
+    parent: HashMap<K, K>,
+    rank: HashMap<K, u32>,
 }
 
-impl UnionFind {
-    pub(super) fn new() -> Self {
+impl<K: Copy + Eq + Hash> Default for UnionFind<K> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<K: Copy + Eq + Hash> UnionFind<K> {
+    pub(crate) fn new() -> Self {
         Self { parent: HashMap::default(), rank: HashMap::default() }
     }
 
     /// Ensure a value exists in the union-find.
-    pub(super) fn make_set(&mut self, v: ValueId) {
+    pub(crate) fn make_set(&mut self, v: K) {
         self.parent.entry(v).or_insert(v);
     }
 
     /// Find the root representative of the set containing `v`, with path compression.
-    pub(super) fn find(&mut self, v: ValueId) -> ValueId {
-        let p = self.parent[&v];
+    pub(crate) fn find(&mut self, v: K) -> K {
+        // Lazily initialize the set for `v` as himself if it doesn't exist.
+        let p = *self.parent.entry(v).or_insert(v);
         if p == v {
             return v;
         }
@@ -31,8 +38,33 @@ impl UnionFind {
         root
     }
 
+    /// Find the root representative of the set containing `v`, without path
+    /// compression.
+    fn find_immutable(&self, v: K) -> Option<K> {
+        let mut current = v;
+        loop {
+            let parent = *self.parent.get(&current)?;
+            if parent == current {
+                return Some(current);
+            }
+            current = parent;
+        }
+    }
+
+    /// Return a map from each class representative to the number of values
+    /// in that class.
+    pub(crate) fn class_sizes(&self) -> HashMap<K, u32> {
+        let mut sizes = HashMap::default();
+        for &v in self.parent.keys() {
+            if let Some(root) = self.find_immutable(v) {
+                *sizes.entry(root).or_insert(0) += 1;
+            }
+        }
+        sizes
+    }
+
     /// Union the sets containing `a` and `b`. Uses union by rank.
-    pub(super) fn union(&mut self, a: ValueId, b: ValueId) {
+    pub(crate) fn union(&mut self, a: K, b: K) {
         let ra = self.find(a);
         let rb = self.find(b);
         if ra == rb {
@@ -56,9 +88,9 @@ impl UnionFind {
 /// Returns:
 /// - A map from each value to its group ID.
 /// - A vec of all members in each group.
-pub(super) fn connected_components(
-    edges: &HashMap<ValueId, ValueId>,
-) -> (HashMap<ValueId, usize>, Vec<Vec<ValueId>>) {
+pub(crate) fn connected_components<K: Copy + Eq + Hash>(
+    edges: &HashMap<K, K>,
+) -> (HashMap<K, usize>, Vec<Vec<K>>) {
     let mut uf = UnionFind::new();
     for (&k, &v) in edges {
         uf.make_set(k);
@@ -66,10 +98,10 @@ pub(super) fn connected_components(
         uf.union(k, v);
     }
 
-    let all_values: Vec<ValueId> = uf.parent.keys().copied().collect();
-    let mut root_to_group: HashMap<ValueId, usize> = HashMap::default();
-    let mut groups: HashMap<ValueId, usize> = HashMap::default();
-    let mut group_members: Vec<Vec<ValueId>> = Vec::new();
+    let all_values: Vec<K> = uf.parent.keys().copied().collect();
+    let mut root_to_group: HashMap<K, usize> = HashMap::default();
+    let mut groups: HashMap<K, usize> = HashMap::default();
+    let mut group_members: Vec<Vec<K>> = Vec::new();
 
     for value in all_values {
         let root = uf.find(value);
