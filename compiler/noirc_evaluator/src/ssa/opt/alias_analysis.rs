@@ -96,6 +96,7 @@ use crate::ssa::{
         union_find::UnionFind,
         value::{Value, ValueId},
     },
+    opt::unrolling::{LoopOrder, Loops},
     ssa_gen::Ssa,
 };
 
@@ -168,11 +169,13 @@ pub(crate) struct AliasAnalysis {
     /// two distinct allocation sites cannot alias.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
 
-    /// Functions that participate in a call-graph cycle (self-recursion or
-    /// mutual recursion). `Allocate` sites in these functions can correspond to
-    /// many runtime cells (one per invocation), so `must_alias` cannot
-    /// claim equality based on site identity for them.
+    /// Functions that are potentially recursive (self-recursion or mutual recursion)
     recursive_functions: HashSet<FunctionId>,
+
+    /// Individual `Allocate` instructions inside CFG loops. Each iteration
+    /// of a loop produces a fresh cell, so the static site does not pin
+    /// runtime cells together.
+    loop_allocates: HashSet<GlobalValueId>,
 }
 
 impl AliasAnalysis {
@@ -274,7 +277,9 @@ impl AliasAnalysis {
     }
 
     /// Returns `true` if `a` and `b` definitely refer to the same memory location
-    /// Allocation site identity does not imply runtime cell identity in case of recursion.
+    /// Allocation site identity does not imply runtime cell identity when
+    /// the site fires multiple times in one execution (loops, recursion,
+    /// opaque calls in `Scope::Single`).
     pub(crate) fn must_alias(&self, function: &Function, a: ValueId, b: ValueId) -> bool {
         if a == b {
             return true;
@@ -286,10 +291,14 @@ impl AliasAnalysis {
                 if site_a != site_b {
                     return false;
                 }
-                // Same site. Reject the equality claim if the defining
-                // function is recursive — different invocations may create
-                // different cells sharing this site.
+                // Same site. Reject the equality claim if the site is
+                // fragile — multiple runtime cells may share it. Two
+                // sources of fragility:
+                //   - the defining function is wholesale-fragile
+                //     (recursion or opaque call in `Scope::Single`),
+                //   - the specific Allocate sits inside a CFG loop.
                 !self.recursive_functions.contains(&site_a.0)
+                    && !self.loop_allocates.contains(site_a)
             }
             _ => false,
         }
@@ -341,12 +350,19 @@ struct AliasAnalysisContext {
     /// Joined allocation site of every value ever placed into the points_to alias class.
     points_to_sites: HashMap<GlobalValueId, AllocationLattice>,
 
-    /// Functions that participate in a call-graph cycle.
-    /// Seeded from `CallGraph::from_ssa` for `Scope::Ssa` (direct cycles)
-    /// and extended during pass 1 every time we hit an opaque call whose
-    /// callee we cannot statically determine (indirect calls in any scope,
-    /// any call in `Scope::Single`).
+    /// Potentially Recursive functions
     recursive_functions: HashSet<FunctionId>,
+
+    /// Individual loop-resident Allocates
+    loop_allocate: HashSet<GlobalValueId>,
+}
+
+/// Collect the set of basic blocks that lie inside a loop body. Allocates
+/// in these blocks fire once per iteration and produce a fresh cell each
+/// time, so their static site cannot pin runtime cells together.
+fn loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
+    let loops = Loops::find_all(function, LoopOrder::InsideOut);
+    loops.yet_to_unroll.into_iter().flat_map(|l| l.blocks.into_iter()).collect()
 }
 
 impl AliasAnalysisContext {
@@ -365,9 +381,8 @@ impl AliasAnalysisContext {
 
         let mut analysis = Self::default();
 
-        // Seed recursive_functions from the call graph for `Scope::Ssa`
-        // `Scope::Single` will assume the function is recursive if it calls any function
-        // (other than intrinsics, blackbox and oracles)
+        // Seed `fragile_functions` from the call graph for `Scope::Ssa`
+        // (recursive / mutually-recursive functions).
         if let Scope::Ssa(ssa) = &scope {
             analysis.recursive_functions = CallGraph::from_ssa(ssa).get_recursive_functions();
         }
@@ -387,6 +402,7 @@ impl AliasAnalysisContext {
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
             recursive_functions: analysis.recursive_functions,
+            loop_allocates: analysis.loop_allocate,
         }
     }
 
@@ -493,9 +509,16 @@ impl AliasAnalysisContext {
         let post_order = PostOrder::with_cfg(&cfg);
         let blocks = post_order.into_vec_reverse();
 
+        // Compute loop blocks once per function. Allocates inside them are
+        // untrusted.
+        let function_is_recursive = self.recursive_functions.contains(&function.id());
+        let loop_block_set =
+            if function_is_recursive { HashSet::default() } else { loop_blocks(function) };
+
         for block_id in blocks {
             self.track_allocations_from_predecessors(block_id, function, &cfg, is_entry_point);
-            self.analyze_block(function, block_id, scope);
+            let ignore_allocations_in_block = loop_block_set.contains(&block_id);
+            self.analyze_block(function, block_id, scope, ignore_allocations_in_block);
         }
 
         if is_entry_point {
@@ -614,7 +637,18 @@ impl AliasAnalysisContext {
     }
 
     /// Process all instructions in a single block, updating the alias sets.
-    fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, scope: &Scope) {
+    /// `bad_block` is `true` when the block lies in a CFG loop *and* the
+    /// containing function is not already wholesale-fragile (recursive or
+    /// flagged via opaque calls). When `true`, every `Allocate` defined in
+    /// this block is recorded in `fragile_allocates` because the loop may
+    /// fire it many times per invocation.
+    fn analyze_block(
+        &mut self,
+        function: &Function,
+        block_id: BasicBlockId,
+        scope: &Scope,
+        ignore_allocations_in_block: bool,
+    ) {
         let block = &function.dfg[block_id];
 
         for instruction_id in block.instructions() {
@@ -625,6 +659,10 @@ impl AliasAnalysisContext {
                     let address = GlobalValueId::new(function, results[0]);
                     self.aliases.make_set(address);
                     self.allocation_sites.insert(address, AllocationLattice::Known(address));
+                    if ignore_allocations_in_block {
+                        // the allocation site is tagged as a 'loop allocate', so it will be ignored in must_alias.
+                        self.loop_allocate.insert(address);
+                    }
                 }
                 Instruction::Load { address } => {
                     // Complex constraint type 1: result = *address
@@ -668,7 +706,7 @@ impl AliasAnalysisContext {
                         // Fallthrough for unresolved functions whose function body
                         // is not available, via a conservative type-based analysis.
                         //
-                        // Conservatively assume that any function called in Single Scope 
+                        // Conservatively assume that any function called in Single Scope
                         // may put us in indirect recursive calls
                         _ => {
                             self.unresolved_call(function, arguments, results);
@@ -2509,6 +2547,49 @@ mod tests {
         let ifelse_results = collect_ifelse_results(&ssa);
         let analysis = analyze_main(&ssa);
         assert!(analysis.must_alias(ssa.main(), allocs[0], ifelse_results[0]));
+    }
+
+    /// loop-Allocate
+    ///
+    /// `v_local = allocate` lives inside a CFG loop, so it fires once per
+    /// iteration and produces a fresh cell each time. `v_load = load v_p`
+    /// reads `*v_p` *before* this iteration's store, so on iteration N>1
+    /// it sees iteration N-1's cell while `v_local` refers to iteration
+    /// N's cell. Different runtime cells, both with static site
+    /// `Known(v_local)` (same `Allocate` instruction).
+    ///
+    /// `must_alias(v_local, v_load)` must return false.
+    #[test]
+    fn must_alias_sound_on_loop_local_allocate() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut &mut Field
+            jmp b1(v0)
+          b1(v2: u1):
+            v3 = load v1 -> &mut Field
+            v4 = allocate -> &mut Field
+            store v4 at v1
+            jmpif v2 then: b1(v2), else: b2()
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let analysis = analyze_main(&ssa);
+        // allocs[0] = v1 (the heap-style pointer, allocated outside the loop)
+        // allocs[1] = v4 (the in-loop allocate — fresh cell every iteration)
+        // loads[0]  = v3 (loads `*v1` before this iteration's store)
+        //
+        // Sound answer: false. v3 reads a previous iteration's cell of v4;
+        // the in-loop v4 refers to this iteration's fresh cell.
+        assert!(
+            !analysis.must_alias(ssa.main(), allocs[1], loads[0]),
+            "must_alias unsoundly returns true for two values that may be \
+             from different loop iterations of the same Allocate instruction"
+        );
     }
 
     #[test]
