@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777471126520,
+  "lastUpdate": 1777477086331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23175,48 +23175,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ae3be2d8f000721e669aeb70d3bed38b31402bf7",
-          "message": "chore(ssa): clean up small audit findings in mem2reg (#12378)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-04-21T16:10:46Z",
-          "tree_id": "d6c07f09994fde6f76b2f03c40ae19147755ea40",
-          "url": "https://github.com/noir-lang/noir/commit/ae3be2d8f000721e669aeb70d3bed38b31402bf7"
-        },
-        "date": 1776789254765,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175452,
-            "range": "± 251",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144903,
-            "range": "± 1044",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655235,
-            "range": "± 2651",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "3ec3d37af78c87fb073773f0e281626b3946f418",
           "message": "chore(ssa): clean up small audit findings in flatten_cfg (#12380)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2356219,
             "range": "± 5662",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d2c1ebd0a8d881bcaffa6351afb42d32088e3a4c",
+          "message": "fix: don't crash on duplicate trait impl (#12477)",
+          "timestamp": "2026-04-29T15:11:20Z",
+          "tree_id": "2062c0671c63f17fc1ef56d1dc2ffe7fde209b3d",
+          "url": "https://github.com/noir-lang/noir/commit/d2c1ebd0a8d881bcaffa6351afb42d32088e3a4c"
+        },
+        "date": 1777477025910,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127132,
+            "range": "± 501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113683,
+            "range": "± 2884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3038392,
+            "range": "± 2006",
             "unit": "ns/iter"
           }
         ]
