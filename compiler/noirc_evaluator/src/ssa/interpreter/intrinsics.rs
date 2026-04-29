@@ -841,7 +841,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                 }
                 Value::ArrayOrVector(array_value) => {
                     let length = match vector_length {
-                        Some(length) if array_value.is_vector => {
+                        Some(length) if array_value.is_vector() => {
                             length * array_value.element_types.len()
                         }
                         _ => array_value.elements.borrow().len(),

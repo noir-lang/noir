@@ -1199,7 +1199,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         elements: Shared::new(array.elements.borrow().to_vec()),
                         rc: array.rc,
                         element_types: array.element_types,
-                        is_vector: array.is_vector,
+                        length: array.length,
                     })
                 } else {
                     element.clone()
@@ -1250,8 +1250,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 let elements = Shared::new(elements);
                 let rc = Shared::new(1);
                 let element_types = array.element_types.clone();
-                let is_vector = array.is_vector;
-                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
+                let length = array.length;
+                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
             }
         } else {
             // Side effects are disabled, return the original array
@@ -1340,7 +1340,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result_type: &Type,
     ) -> IResult<()> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
-        let is_vector = matches!(&result_type, Type::Vector(..));
+        let length = if let Type::Array(_, length) = result_type { Some(*length) } else { None };
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
@@ -1379,7 +1379,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_vector,
+            length,
         });
         self.define(result, array)
     }
