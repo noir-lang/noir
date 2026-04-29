@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777489322802,
+  "lastUpdate": 1777493248044,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9090dc156daf0b1b72de49c0c679e48eda2e1868",
-          "message": "chore: small clippy fixes (#12383)",
-          "timestamp": "2026-04-21T18:31:27+01:00",
-          "tree_id": "d0a414443dde89e63285eed89370c769167ed8c7",
-          "url": "https://github.com/noir-lang/noir/commit/9090dc156daf0b1b72de49c0c679e48eda2e1868"
-        },
-        "date": 1776792837640,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128098,
-            "range": "± 3484",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113545,
-            "range": "± 1034",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041229,
-            "range": "± 11612",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644042,
             "range": "± 1654",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd2b758da04b0a87235d54343710c22f028a8bb0",
+          "message": "fix: inconsistent Brillig failure message on modulo overflow (#12482)",
+          "timestamp": "2026-04-29T19:42:02Z",
+          "tree_id": "b53613b5beb638c016762f9da63f8e3db0bf1419",
+          "url": "https://github.com/noir-lang/noir/commit/dd2b758da04b0a87235d54343710c22f028a8bb0"
+        },
+        "date": 1777493188497,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126459,
+            "range": "± 555",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112882,
+            "range": "± 2290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3039431,
+            "range": "± 10423",
             "unit": "ns/iter"
           }
         ]
