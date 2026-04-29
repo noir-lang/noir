@@ -124,6 +124,7 @@ impl<'context> Elaborator<'context> {
             self.usage_tracker,
             self.crate_graph,
             self.interpreter_output,
+            self.evaluation_tracker,
             self.required_unstable_features,
             self.unresolved_globals,
             self.crate_id,

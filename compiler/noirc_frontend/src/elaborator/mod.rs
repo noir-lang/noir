@@ -63,7 +63,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::{ComptimeError, InterpreterError},
+        comptime::{ComptimeError, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
@@ -237,6 +237,7 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+    pub(crate) evaluation_tracker: &'context mut Option<EvaluationTracker>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -405,6 +406,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        evaluation_tracker: &'context mut Option<EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
@@ -420,6 +422,7 @@ impl<'context> Elaborator<'context> {
             usage_tracker,
             crate_graph,
             interpreter_output,
+            evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
@@ -474,6 +477,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            &mut context.evaluation_tracker,
             &context.required_unstable_features,
             &mut context.unresolved_globals,
             crate_id,
