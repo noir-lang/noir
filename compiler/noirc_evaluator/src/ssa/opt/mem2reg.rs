@@ -617,6 +617,37 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_block_without_decl_block_store_does_not_promote() {
+        // Counterpart to `test_multi_block`: identical CFG except the
+        // declaration block (b0) has no store. mem2reg's workaround for
+        // noir-lang/noir#11482 disqualifies any allocate whose decl block
+        // contains no store, even when every load is dominated by a store
+        // in some other block. The allocate, both stores, and the load
+        // therefore all survive instead of being promoted away.
+        //
+        // Load-Store Forwarding can produce this shape by dead-eliminating
+        // the only decl-block store — see PR #12346 for the +42 brillig
+        // opcode regression that surfaced this interaction.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
     fn test_single_predecessor_elimination() {
         let src = "
             brillig(inline) fn func f0 {
