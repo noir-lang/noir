@@ -1373,7 +1373,11 @@ pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
     };
 
     let mut element_sizes = types.iter().map(|typ| typ.flattened_size());
-    let element_size = element_sizes.next().expect("must have at least one element");
-
-    if element_sizes.all(|size| size == element_size) { Some(element_size.0) } else { None }
+    if let Some(element_size) = element_sizes.next() {
+        if element_sizes.all(|size| size == element_size) { Some(element_size.0) } else { None }
+    } else {
+        // If the array has no types in it it can be because it's something like `[(); 3]` where `()` is represented
+        // as "no types". And in this case the array has constant element size because it's zero.
+        Some(0)
+    }
 }

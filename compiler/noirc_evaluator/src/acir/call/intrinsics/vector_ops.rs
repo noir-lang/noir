@@ -651,7 +651,12 @@ impl Context<'_> {
             };
 
         let value_types = flat_element_types(&vector_typ);
-        assert_eq!(vector_size.to_usize() % value_types.len(), 0);
+
+        // For types like `[(); 3]` we always end up with no elements and a zero-sized type
+        assert!(
+            vector_size.to_usize() == 0 && value_types.is_empty()
+                || vector_size.to_usize() % value_types.len() == 0
+        );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
