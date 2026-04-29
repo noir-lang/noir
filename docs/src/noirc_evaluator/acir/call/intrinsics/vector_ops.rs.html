@@ -851,50 +851,55 @@
 <a href=#851 id=851 data-nosnippet>851</a>            </span>};
 <a href=#852 id=852 data-nosnippet>852</a>
 <a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">let </span>value_types = flat_element_types(<span class="kw-2">&amp;</span>vector_typ);
-<a href=#854 id=854 data-nosnippet>854</a>        <span class="macro">assert_eq!</span>(result_size.to_usize() % value_types.len(), <span class="number">0</span>);
-<a href=#855 id=855 data-nosnippet>855</a>
-<a href=#856 id=856 data-nosnippet>856</a>        <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
-<a href=#857 id=857 data-nosnippet>857</a>            block_id: result_block_id,
-<a href=#858 id=858 data-nosnippet>858</a>            len: result_size,
-<a href=#859 id=859 data-nosnippet>859</a>            value_types,
-<a href=#860 id=860 data-nosnippet>860</a>            element_type_sizes,
-<a href=#861 id=861 data-nosnippet>861</a>        });
-<a href=#862 id=862 data-nosnippet>862</a>
-<a href=#863 id=863 data-nosnippet>863</a>        <span class="kw">let </span><span class="kw-2">mut </span>result =
-<a href=#864 id=864 data-nosnippet>864</a>            <span class="macro">vec!</span>[AcirValue::Var(new_vector_length, NumericType::length_type()), result];
-<a href=#865 id=865 data-nosnippet>865</a>        result.append(<span class="kw-2">&amp;mut </span>popped_elements);
-<a href=#866 id=866 data-nosnippet>866</a>
-<a href=#867 id=867 data-nosnippet>867</a>        <span class="prelude-val">Ok</span>(result)
-<a href=#868 id=868 data-nosnippet>868</a>    }
-<a href=#869 id=869 data-nosnippet>869</a>
-<a href=#870 id=870 data-nosnippet>870</a>    <span class="doccomment">/// Returns true if the user-facing index is less than the vector capacity
-<a href=#871 id=871 data-nosnippet>871</a>    </span><span class="kw">fn </span>is_index_safe(
-<a href=#872 id=872 data-nosnippet>872</a>        index: ValueId,
-<a href=#873 id=873 data-nosnippet>873</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#874 id=874 data-nosnippet>874</a>        vector_typ: <span class="kw-2">&amp;</span>Type,
-<a href=#875 id=875 data-nosnippet>875</a>        vector_size: FlattenedLength,
-<a href=#876 id=876 data-nosnippet>876</a>    ) -&gt; bool {
-<a href=#877 id=877 data-nosnippet>877</a>        <span class="comment">// Compute the number of logical elements in the vector by dividing the fully flattened size (in ACIR)
-<a href=#878 id=878 data-nosnippet>878</a>        // by the vector's elements size (in ACIR), and checking that value against the SSA index.
-<a href=#879 id=879 data-nosnippet>879</a>        </span><span class="kw">let </span>acir_fields_per_element: usize = <span class="kw">match </span>vector_typ {
-<a href=#880 id=880 data-nosnippet>880</a>            Type::Array(elements, <span class="kw">_</span>) | Type::Vector(elements) =&gt; {
-<a href=#881 id=881 data-nosnippet>881</a>                elements.iter().map(|typ| typ.flattened_size().to_usize()).sum()
-<a href=#882 id=882 data-nosnippet>882</a>            }
-<a href=#883 id=883 data-nosnippet>883</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"element_flattened_size: Expected array or vector"</span>),
-<a href=#884 id=884 data-nosnippet>884</a>        };
-<a href=#885 id=885 data-nosnippet>885</a>
-<a href=#886 id=886 data-nosnippet>886</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(index_const) = dfg.get_numeric_constant(index) {
-<a href=#887 id=887 data-nosnippet>887</a>            <span class="kw">let </span>index_const = index_const.to_u128() <span class="kw">as </span>usize;
-<a href=#888 id=888 data-nosnippet>888</a>            <span class="comment">// A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
-<a href=#889 id=889 data-nosnippet>889</a>            // As a result, every index will be out-of-bound.
-<a href=#890 id=890 data-nosnippet>890</a>            </span><span class="kw">if </span>acir_fields_per_element == <span class="number">0 </span>{
-<a href=#891 id=891 data-nosnippet>891</a>                <span class="bool-val">false
-<a href=#892 id=892 data-nosnippet>892</a>            </span>} <span class="kw">else </span>{
-<a href=#893 id=893 data-nosnippet>893</a>                <span class="kw">let </span>num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
-<a href=#894 id=894 data-nosnippet>894</a>                index_const &lt; num_logical_elements
-<a href=#895 id=895 data-nosnippet>895</a>            }
-<a href=#896 id=896 data-nosnippet>896</a>        } <span class="kw">else </span>{
-<a href=#897 id=897 data-nosnippet>897</a>            <span class="bool-val">false
-<a href=#898 id=898 data-nosnippet>898</a>        </span>}
-<a href=#899 id=899 data-nosnippet>899</a>    }
-<a href=#900 id=900 data-nosnippet>900</a>}</code></pre></div></section></main></body></html>
+<a href=#854 id=854 data-nosnippet>854</a>
+<a href=#855 id=855 data-nosnippet>855</a>        <span class="comment">// For types like `[(); 3]` we always end up with no elements and a zero-sized type
+<a href=#856 id=856 data-nosnippet>856</a>        </span><span class="macro">assert!</span>(
+<a href=#857 id=857 data-nosnippet>857</a>            result_size.to_usize() == <span class="number">0 </span>&amp;&amp; value_types.is_empty()
+<a href=#858 id=858 data-nosnippet>858</a>                || result_size.to_usize() % value_types.len() == <span class="number">0
+<a href=#859 id=859 data-nosnippet>859</a>        </span>);
+<a href=#860 id=860 data-nosnippet>860</a>
+<a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
+<a href=#862 id=862 data-nosnippet>862</a>            block_id: result_block_id,
+<a href=#863 id=863 data-nosnippet>863</a>            len: result_size,
+<a href=#864 id=864 data-nosnippet>864</a>            value_types,
+<a href=#865 id=865 data-nosnippet>865</a>            element_type_sizes,
+<a href=#866 id=866 data-nosnippet>866</a>        });
+<a href=#867 id=867 data-nosnippet>867</a>
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw">let </span><span class="kw-2">mut </span>result =
+<a href=#869 id=869 data-nosnippet>869</a>            <span class="macro">vec!</span>[AcirValue::Var(new_vector_length, NumericType::length_type()), result];
+<a href=#870 id=870 data-nosnippet>870</a>        result.append(<span class="kw-2">&amp;mut </span>popped_elements);
+<a href=#871 id=871 data-nosnippet>871</a>
+<a href=#872 id=872 data-nosnippet>872</a>        <span class="prelude-val">Ok</span>(result)
+<a href=#873 id=873 data-nosnippet>873</a>    }
+<a href=#874 id=874 data-nosnippet>874</a>
+<a href=#875 id=875 data-nosnippet>875</a>    <span class="doccomment">/// Returns true if the user-facing index is less than the vector capacity
+<a href=#876 id=876 data-nosnippet>876</a>    </span><span class="kw">fn </span>is_index_safe(
+<a href=#877 id=877 data-nosnippet>877</a>        index: ValueId,
+<a href=#878 id=878 data-nosnippet>878</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#879 id=879 data-nosnippet>879</a>        vector_typ: <span class="kw-2">&amp;</span>Type,
+<a href=#880 id=880 data-nosnippet>880</a>        vector_size: FlattenedLength,
+<a href=#881 id=881 data-nosnippet>881</a>    ) -&gt; bool {
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="comment">// Compute the number of logical elements in the vector by dividing the fully flattened size (in ACIR)
+<a href=#883 id=883 data-nosnippet>883</a>        // by the vector's elements size (in ACIR), and checking that value against the SSA index.
+<a href=#884 id=884 data-nosnippet>884</a>        </span><span class="kw">let </span>acir_fields_per_element: usize = <span class="kw">match </span>vector_typ {
+<a href=#885 id=885 data-nosnippet>885</a>            Type::Array(elements, <span class="kw">_</span>) | Type::Vector(elements) =&gt; {
+<a href=#886 id=886 data-nosnippet>886</a>                elements.iter().map(|typ| typ.flattened_size().to_usize()).sum()
+<a href=#887 id=887 data-nosnippet>887</a>            }
+<a href=#888 id=888 data-nosnippet>888</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"element_flattened_size: Expected array or vector"</span>),
+<a href=#889 id=889 data-nosnippet>889</a>        };
+<a href=#890 id=890 data-nosnippet>890</a>
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(index_const) = dfg.get_numeric_constant(index) {
+<a href=#892 id=892 data-nosnippet>892</a>            <span class="kw">let </span>index_const = index_const.to_u128() <span class="kw">as </span>usize;
+<a href=#893 id=893 data-nosnippet>893</a>            <span class="comment">// A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
+<a href=#894 id=894 data-nosnippet>894</a>            // As a result, every index will be out-of-bound.
+<a href=#895 id=895 data-nosnippet>895</a>            </span><span class="kw">if </span>acir_fields_per_element == <span class="number">0 </span>{
+<a href=#896 id=896 data-nosnippet>896</a>                <span class="bool-val">false
+<a href=#897 id=897 data-nosnippet>897</a>            </span>} <span class="kw">else </span>{
+<a href=#898 id=898 data-nosnippet>898</a>                <span class="kw">let </span>num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
+<a href=#899 id=899 data-nosnippet>899</a>                index_const &lt; num_logical_elements
+<a href=#900 id=900 data-nosnippet>900</a>            }
+<a href=#901 id=901 data-nosnippet>901</a>        } <span class="kw">else </span>{
+<a href=#902 id=902 data-nosnippet>902</a>            <span class="bool-val">false
+<a href=#903 id=903 data-nosnippet>903</a>        </span>}
+<a href=#904 id=904 data-nosnippet>904</a>    }
+<a href=#905 id=905 data-nosnippet>905</a>}</code></pre></div></section></main></body></html>

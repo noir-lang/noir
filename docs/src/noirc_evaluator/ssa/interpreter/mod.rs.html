@@ -1199,7 +1199,7 @@
 <a href=#1199 id=1199 data-nosnippet>1199</a>                        elements: Shared::new(array.elements.borrow().to_vec()),
 <a href=#1200 id=1200 data-nosnippet>1200</a>                        rc: array.rc,
 <a href=#1201 id=1201 data-nosnippet>1201</a>                        element_types: array.element_types,
-<a href=#1202 id=1202 data-nosnippet>1202</a>                        is_vector: array.is_vector,
+<a href=#1202 id=1202 data-nosnippet>1202</a>                        length: array.length,
 <a href=#1203 id=1203 data-nosnippet>1203</a>                    })
 <a href=#1204 id=1204 data-nosnippet>1204</a>                } <span class="kw">else </span>{
 <a href=#1205 id=1205 data-nosnippet>1205</a>                    element.clone()
@@ -1250,8 +1250,8 @@
 <a href=#1250 id=1250 data-nosnippet>1250</a>                <span class="kw">let </span>elements = Shared::new(elements);
 <a href=#1251 id=1251 data-nosnippet>1251</a>                <span class="kw">let </span>rc = Shared::new(<span class="number">1</span>);
 <a href=#1252 id=1252 data-nosnippet>1252</a>                <span class="kw">let </span>element_types = array.element_types.clone();
-<a href=#1253 id=1253 data-nosnippet>1253</a>                <span class="kw">let </span>is_vector = array.is_vector;
-<a href=#1254 id=1254 data-nosnippet>1254</a>                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, is_vector })
+<a href=#1253 id=1253 data-nosnippet>1253</a>                <span class="kw">let </span>length = array.length;
+<a href=#1254 id=1254 data-nosnippet>1254</a>                Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
 <a href=#1255 id=1255 data-nosnippet>1255</a>            }
 <a href=#1256 id=1256 data-nosnippet>1256</a>        } <span class="kw">else </span>{
 <a href=#1257 id=1257 data-nosnippet>1257</a>            <span class="comment">// Side effects are disabled, return the original array
@@ -1340,7 +1340,7 @@
 <a href=#1340 id=1340 data-nosnippet>1340</a>        result_type: <span class="kw-2">&amp;</span>Type,
 <a href=#1341 id=1341 data-nosnippet>1341</a>    ) -&gt; IResult&lt;()&gt; {
 <a href=#1342 id=1342 data-nosnippet>1342</a>        <span class="kw">let </span>elements = try_vecmap(elements, |element| <span class="self">self</span>.lookup(<span class="kw-2">*</span>element))<span class="question-mark">?</span>;
-<a href=#1343 id=1343 data-nosnippet>1343</a>        <span class="kw">let </span>is_vector = <span class="macro">matches!</span>(<span class="kw-2">&amp;</span>result_type, Type::Vector(..));
+<a href=#1343 id=1343 data-nosnippet>1343</a>        <span class="kw">let </span>length = <span class="kw">if let </span>Type::Array(<span class="kw">_</span>, length) = result_type { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>length) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 <a href=#1344 id=1344 data-nosnippet>1344</a>
 <a href=#1345 id=1345 data-nosnippet>1345</a>        <span class="comment">// The number of elements in the array must be a multiple of the number of element types
 <a href=#1346 id=1346 data-nosnippet>1346</a>        </span><span class="kw">let </span>element_types = result_type.element_types();
@@ -1379,7 +1379,7 @@
 <a href=#1379 id=1379 data-nosnippet>1379</a>            elements: Shared::new(elements),
 <a href=#1380 id=1380 data-nosnippet>1380</a>            rc: Shared::new(<span class="number">1</span>),
 <a href=#1381 id=1381 data-nosnippet>1381</a>            element_types,
-<a href=#1382 id=1382 data-nosnippet>1382</a>            is_vector,
+<a href=#1382 id=1382 data-nosnippet>1382</a>            length,
 <a href=#1383 id=1383 data-nosnippet>1383</a>        });
 <a href=#1384 id=1384 data-nosnippet>1384</a>        <span class="self">self</span>.define(result, array)
 <a href=#1385 id=1385 data-nosnippet>1385</a>    }

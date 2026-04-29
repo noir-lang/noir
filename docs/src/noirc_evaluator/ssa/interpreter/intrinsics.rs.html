@@ -841,7 +841,7 @@
 <a href=#841 id=841 data-nosnippet>841</a>                }
 <a href=#842 id=842 data-nosnippet>842</a>                Value::ArrayOrVector(array_value) =&gt; {
 <a href=#843 id=843 data-nosnippet>843</a>                    <span class="kw">let </span>length = <span class="kw">match </span>vector_length {
-<a href=#844 id=844 data-nosnippet>844</a>                        <span class="prelude-val">Some</span>(length) <span class="kw">if </span>array_value.is_vector =&gt; {
+<a href=#844 id=844 data-nosnippet>844</a>                        <span class="prelude-val">Some</span>(length) <span class="kw">if </span>array_value.is_vector() =&gt; {
 <a href=#845 id=845 data-nosnippet>845</a>                            length * array_value.element_types.len()
 <a href=#846 id=846 data-nosnippet>846</a>                        }
 <a href=#847 id=847 data-nosnippet>847</a>                        <span class="kw">_ </span>=&gt; array_value.elements.borrow().len(),
