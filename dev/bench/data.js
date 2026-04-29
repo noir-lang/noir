@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777469844925,
+  "lastUpdate": 1777470047532,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "60a3391059496c986c386c421a141d760a0dd98a",
-          "message": "chore(brillig): clean up small audit findings in variable_liveness (#12379)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-04-21T16:09:21Z",
-          "tree_id": "bb64c26e5ba8a6e9395e0b8d244fe3e358788e94",
-          "url": "https://github.com/noir-lang/noir/commit/60a3391059496c986c386c421a141d760a0dd98a"
-        },
-        "date": 1776789228562,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175684,
-            "range": "± 521",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144474,
-            "range": "± 4792",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653537,
-            "range": "± 2651",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "ae3be2d8f000721e669aeb70d3bed38b31402bf7",
           "message": "chore(ssa): clean up small audit findings in mem2reg (#12378)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
           "timestamp": "2026-04-21T16:10:46Z",
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3036976,
             "range": "± 2167",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2f6bbf1c37a63f6c7f0ef21d605f68550dcb94c8",
+          "message": "fix: follow bindings when working with comptime types (#12466)",
+          "timestamp": "2026-04-29T13:15:06Z",
+          "tree_id": "070390f8a8faeadfa025d3464923d4113e29f540",
+          "url": "https://github.com/noir-lang/noir/commit/2f6bbf1c37a63f6c7f0ef21d605f68550dcb94c8"
+        },
+        "date": 1777470000551,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98861,
+            "range": "± 1194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 88396,
+            "range": "± 775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2356219,
+            "range": "± 5662",
             "unit": "ns/iter"
           }
         ]
