@@ -143,11 +143,11 @@ impl Scope<'_> {
 
 /// GlobalValueId are ValueId along with their FunctionId,
 /// allowing to globally use ValueIds coming from several functions.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-struct GlobalValueId(FunctionId, ValueId);
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub(crate) struct GlobalValueId(FunctionId, ValueId);
 
 impl GlobalValueId {
-    fn new(function: &Function, value: ValueId) -> Self {
+    pub(crate) fn new(function: &Function, value: ValueId) -> Self {
         GlobalValueId(function.id(), value)
     }
 }
@@ -196,20 +196,28 @@ impl AliasAnalysis {
     ///
     /// Takes `&mut self` because of path compression.
     /// This has no visible side-effect and is perfectly safe.
-    pub(crate) fn may_alias(&mut self, function: &Function, a: ValueId, b: ValueId) -> bool {
+    pub(crate) fn may_alias(
+        &mut self,
+        function: &Function,
+        a: GlobalValueId,
+        b: GlobalValueId,
+    ) -> bool {
         if a == b {
             return true;
         }
 
         // Field-insensitivity may alias values with distinct types, but such values cannot alias.
         // Types are canonicalized first so `&T` and `&mut T` compare equal
-        let type_a = canonicalize_type(&function.dfg.type_of_value(a));
-        let type_b = canonicalize_type(&function.dfg.type_of_value(b));
-        if type_a != type_b {
-            return false;
+        // Note that this check is done only when both `a` and `b` match the given `function`.
+        // This is purely for convenience, because the type filter would need access to the SSA
+        // to look up types in other functions, which it doesn't currently.
+        if function.id() == a.0 && a.0 == b.0 {
+            let type_a = canonicalize_type(&function.dfg.type_of_value(a.1));
+            let type_b = canonicalize_type(&function.dfg.type_of_value(b.1));
+            if type_a != type_b {
+                return false;
+            }
         }
-        let a = GlobalValueId::new(function, a);
-        let b = GlobalValueId::new(function, b);
 
         if self.get_allocation(a).cannot_equal(&self.get_allocation(b)) {
             return false;
@@ -225,9 +233,8 @@ impl AliasAnalysis {
     ///
     /// The per-class size table is populated on demand the first time this is
     /// called — consumers that only use [`Self::may_alias`] do not pay for it.
-    pub(crate) fn is_aliased(&mut self, function: &Function, value: ValueId) -> bool {
-        let rep = GlobalValueId::new(function, value);
-        let root = self.aliases.find(rep);
+    pub(crate) fn is_aliased(&mut self, value: GlobalValueId) -> bool {
+        let root = self.aliases.find(value);
         if self.class_sizes.is_none() {
             // Count members per alias class
             self.class_sizes = Some(self.aliases.class_sizes());
@@ -237,18 +244,11 @@ impl AliasAnalysis {
     }
 
     /// Recursively check if `target` can be referenced by `from`
-    pub(crate) fn may_reference(
-        &mut self,
-        function: &Function,
-        from: ValueId,
-        target: ValueId,
-    ) -> bool {
-        let from_g = GlobalValueId::new(function, from);
-        let target_g = GlobalValueId::new(function, target);
-        let from_rep = self.aliases.find(from_g);
-        let target_rep = self.aliases.find(target_g);
+    pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
+        let from_rep = self.aliases.find(from);
+        let target_rep = self.aliases.find(target);
         if from_rep == target_rep {
-            return !self.get_allocation(from_g).cannot_equal(&self.get_allocation(target_g));
+            return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
         }
         let mut seen = HashSet::default();
         let mut current = from_rep;
@@ -271,30 +271,52 @@ impl AliasAnalysis {
     /// Allocation site identity does not imply runtime cell identity when
     /// the site fires multiple times in one execution (loops, recursion,
     /// opaque calls in `Scope::Single`).
-    pub(crate) fn must_alias(&self, function: &Function, a: ValueId, b: ValueId) -> bool {
+    pub(crate) fn must_alias(&self, a: GlobalValueId, b: GlobalValueId) -> bool {
         if a == b {
             return true;
         }
-        let a = GlobalValueId::new(function, a);
-        let b = GlobalValueId::new(function, b);
-        match (self.allocation_sites.get(&a), self.allocation_sites.get(&b)) {
-            (Some(AllocationLattice::Known(site_a)), Some(AllocationLattice::Known(site_b))) => {
-                if site_a != site_b {
-                    return false;
-                }
-                // Same site but return false if the site is untrusted
-                // because multiple runtime cells may share it:
-                // - the defining function may be recursive, or
-                // - the allocation is done inside a loop.
-                !self.recursive_functions.contains(&site_a.0)
-                    && !self.loop_allocates.contains(site_a)
-            }
+        match (self.get_trusted_allocation_site(a), self.get_trusted_allocation_site(b)) {
+            (Some(sa), Some(sb)) => sa == sb,
             _ => false,
         }
     }
 
     fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
         self.allocation_sites.get(&arg).copied().unwrap_or(AllocationLattice::NoAllocation)
+    }
+
+    /// Returns the trusted allocation site (if it exists and is trusted)
+    pub(crate) fn get_trusted_allocation_site(
+        &self,
+        value: GlobalValueId,
+    ) -> Option<GlobalValueId> {
+        let allocation_site = self.get_allocation(value);
+        if let Some(site) = self.is_trusted(allocation_site) {
+            // Sanity check: ensure Steensgaard analysis agrees with allocation sites tracking
+            debug_assert_eq!(
+                self.aliases.find_immutable(value).unwrap(),
+                self.aliases.find_immutable(site).unwrap()
+            );
+            return Some(site);
+        }
+        None
+    }
+
+    /// Extract the allocation site if it is trusted:
+    /// A site is untrusted if multiple runtime cells may share it.
+    /// This happens when:
+    /// - the defining function may be recursive, or
+    /// - the allocation is done inside a loop.
+    fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
+        match allocation_site {
+            AllocationLattice::Known(site)
+                if !(self.recursive_functions.contains(&site.0)
+                    || self.loop_allocates.contains(&site)) =>
+            {
+                Some(site)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -1234,13 +1256,15 @@ mod tests {
 
     /// Collect the result ValueIds of every `Allocate` instruction in the main
     /// function, in declaration order (across reachable blocks).
-    fn collect_allocates(ssa: &Ssa) -> Vec<ValueId> {
+    fn collect_allocates(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
         for block_id in func.reachable_blocks() {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::Allocate) {
-                    out.push(func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    let id =
+                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
                 }
             }
         }
@@ -1248,13 +1272,15 @@ mod tests {
     }
 
     /// Collect the result ValueIds of every `Load` instruction.
-    fn collect_loads(ssa: &Ssa) -> Vec<ValueId> {
+    fn collect_loads(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
         for block_id in func.reachable_blocks() {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::Load { .. }) {
-                    out.push(func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    let id =
+                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
                 }
             }
         }
@@ -1262,27 +1288,30 @@ mod tests {
     }
 
     /// Collect the result ValueIds of every `ArrayGet` instruction.
-    fn collect_array_gets(ssa: &Ssa) -> Vec<ValueId> {
+    fn collect_array_gets(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
         for block_id in func.reachable_blocks() {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::ArrayGet { .. }) {
-                    out.push(func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    let id =
+                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
                 }
             }
         }
         out
     }
 
-    fn collect_call_results_in_main(ssa: &Ssa) -> Vec<ValueId> {
+    fn collect_call_results_in_main(ssa: &Ssa) -> Vec<GlobalValueId> {
         let main = ssa.main();
         let mut out = Vec::new();
         for block in main.reachable_blocks() {
             for inst_id in main.dfg[block].instructions() {
                 if matches!(main.dfg[*inst_id], Instruction::Call { .. }) {
                     for result in main.dfg.instruction_results(*inst_id) {
-                        out.push(*result);
+                        let id = GlobalValueId::new(&main, *result);
+                        out.push(id);
                     }
                 }
             }
@@ -1313,8 +1342,8 @@ mod tests {
         let mut analysis = analyze_main(&ssa);
         assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
         // Neither ref was involved in a merge → both singletons → not aliased.
-        assert!(!analysis.is_aliased(ssa.main(), allocs[0]));
-        assert!(!analysis.is_aliased(ssa.main(), allocs[1]));
+        assert!(!analysis.is_aliased(allocs[0]));
+        assert!(!analysis.is_aliased(allocs[1]));
     }
 
     /// `&T` and `&mut T` can legitimately point to the same memory at runtime.
@@ -1414,8 +1443,8 @@ mod tests {
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
         // MakeArray merged v0 and v1 into the array's pointee class → both aliased.
-        assert!(analysis.is_aliased(ssa.main(), call_results[0]));
-        assert!(analysis.is_aliased(ssa.main(), call_results[1]));
+        assert!(analysis.is_aliased(call_results[0]));
+        assert!(analysis.is_aliased(call_results[1]));
     }
 
     #[test]
@@ -1568,9 +1597,9 @@ mod tests {
         let v0 = collect_allocates(&ssa)[0];
         // Pick b1 — the second reachable block.
         let b1 = func.reachable_blocks().into_iter().nth(1).unwrap();
-        let v1 = func.dfg[b1].parameters()[0];
+        let v1 = GlobalValueId::new(func, func.dfg[b1].parameters()[0]);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(ssa.main(), v0, v1));
+        assert!(analysis.may_alias(&func, v0, v1));
     }
 
     // ============================================================
@@ -1788,7 +1817,7 @@ mod tests {
                     }
                 }
             }
-            result.unwrap()
+            GlobalValueId::new(&main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         // main.v0 flows into f1.formal_0 (~ main.v0), f1 returns its formal,
@@ -1828,7 +1857,7 @@ mod tests {
                     }
                 }
             }
-            result.unwrap()
+            GlobalValueId::new(&main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], call_result));
@@ -1986,7 +2015,7 @@ mod tests {
                     }
                 }
             }
-            result.unwrap()
+            GlobalValueId::new(&main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         // popped aliases v0 (originally in the vector's pointee class).
@@ -2023,7 +2052,7 @@ mod tests {
                     }
                 }
             }
-            result.unwrap()
+            GlobalValueId::new(&main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], popped));
@@ -2088,7 +2117,7 @@ mod tests {
                     }
                 }
             }
-            result.unwrap()
+            GlobalValueId::new(&main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], removed));
@@ -2242,10 +2271,10 @@ mod tests {
         assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[3]));
         // Escape marks v0 and v1 as aliased — even though their classes are
         // singletons.
-        assert!(analysis.is_aliased(ssa.main(), allocs[0]));
-        assert!(analysis.is_aliased(ssa.main(), allocs[1]));
+        assert!(analysis.is_aliased(allocs[0]));
+        assert!(analysis.is_aliased(allocs[1]));
         // v2 wasn't in any call → not aliased.
-        assert!(!analysis.is_aliased(ssa.main(), allocs[2]));
+        assert!(!analysis.is_aliased(allocs[2]));
     }
 
     /// Globals are compile-time constants in Noir and cannot carry references
@@ -2339,13 +2368,15 @@ mod tests {
     // ============================================================
 
     /// Result ValueIds of every `IfElse` in main, in declaration order.
-    fn collect_ifelse_results(ssa: &Ssa) -> Vec<ValueId> {
+    fn collect_ifelse_results(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
         for block_id in func.reachable_blocks() {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::IfElse { .. }) {
-                    out.push(func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    let id =
+                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
                 }
             }
         }
@@ -2366,7 +2397,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let calls = collect_call_results_in_main(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), calls[0], calls[0]));
+        assert!(analysis.must_alias(calls[0], calls[0]));
     }
 
     #[test]
@@ -2384,7 +2415,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(!analysis.must_alias(ssa.main(), allocs[0], allocs[1]));
+        assert!(!analysis.must_alias(allocs[0], allocs[1]));
     }
 
     #[test]
@@ -2404,9 +2435,9 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let blocks: Vec<_> = ssa.main().reachable_blocks().into_iter().collect();
-        let b1_param = ssa.main().dfg[blocks[1]].parameters()[0];
+        let b1_param = GlobalValueId::new(ssa.main(), ssa.main().dfg[blocks[1]].parameters()[0]);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), allocs[0], b1_param));
+        assert!(analysis.must_alias(allocs[0], b1_param));
     }
 
     #[test]
@@ -2430,7 +2461,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let ifelse_results = collect_ifelse_results(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), allocs[0], ifelse_results[0]));
+        assert!(analysis.must_alias(allocs[0], ifelse_results[0]));
     }
 
     #[test]
@@ -2451,8 +2482,8 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let ifelse_results = collect_ifelse_results(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(!analysis.must_alias(ssa.main(), allocs[0], ifelse_results[0]));
-        assert!(!analysis.must_alias(ssa.main(), allocs[1], ifelse_results[0]));
+        assert!(!analysis.must_alias(allocs[0], ifelse_results[0]));
+        assert!(!analysis.must_alias(allocs[1], ifelse_results[0]));
     }
 
     #[test]
@@ -2475,7 +2506,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), allocs[1], loads[0]));
+        assert!(analysis.must_alias(allocs[1], loads[0]));
     }
 
     #[test]
@@ -2499,8 +2530,8 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(!analysis.must_alias(ssa.main(), allocs[1], loads[0]));
-        assert!(!analysis.must_alias(ssa.main(), allocs[2], loads[0]));
+        assert!(!analysis.must_alias(allocs[1], loads[0]));
+        assert!(!analysis.must_alias(allocs[2], loads[0]));
     }
 
     #[test]
@@ -2521,7 +2552,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let gets = collect_array_gets(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), allocs[0], gets[0]));
+        assert!(analysis.must_alias(allocs[0], gets[0]));
     }
 
     #[test]
@@ -2545,7 +2576,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let ifelse_results = collect_ifelse_results(&ssa);
         let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(ssa.main(), allocs[0], ifelse_results[0]));
+        assert!(analysis.must_alias(allocs[0], ifelse_results[0]));
     }
 
     /// loop-Allocate
@@ -2585,7 +2616,7 @@ mod tests {
         // Sound answer: false. v3 reads a previous iteration's cell of v4;
         // the in-loop v4 refers to this iteration's fresh cell.
         assert!(
-            !analysis.must_alias(ssa.main(), allocs[1], loads[0]),
+            !analysis.must_alias(allocs[1], loads[0]),
             "must_alias unsoundly returns true for two values that may be \
              from different loop iterations of the same Allocate instruction"
         );
@@ -2618,8 +2649,8 @@ mod tests {
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
         // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
-        assert!(analysis.must_alias(ssa.main(), allocs[1], loads[0]));
-        assert!(analysis.must_alias(ssa.main(), allocs[0], loads[1]));
+        assert!(analysis.must_alias(allocs[1], loads[0]));
+        assert!(analysis.must_alias(allocs[0], loads[1]));
     }
 
     #[test]
@@ -2650,7 +2681,7 @@ mod tests {
         let analysis = analyze_main(&ssa);
         // The store happened *after* the entry-point poison, so the
         // class is NoAllocation; the load's result has no site.
-        assert!(!analysis.must_alias(ssa.main(), allocs[0], loads[0]));
+        assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 
     #[test]
@@ -2669,6 +2700,6 @@ mod tests {
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
         // assert !may_alias(v1, v2)
-        assert!(!analysis.must_alias(ssa.main(), allocs[0], loads[0]));
+        assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 }

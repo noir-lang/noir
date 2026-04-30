@@ -29,7 +29,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    opt::alias_analysis::AliasAnalysis,
+    opt::alias_analysis::{AliasAnalysis, GlobalValueId},
     ssa_gen::Ssa,
 };
 
@@ -82,8 +82,9 @@ fn forward_loads_and_stores_in_block(
     block: BasicBlockId,
     analysis: &mut AliasAnalysis,
 ) -> HashSet<InstructionId> {
-    let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
-    let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
+    let mut known_values: HashMap<GlobalValueId, (GlobalValueId, ValueId)> = HashMap::default();
+    let mut last_stores: HashMap<GlobalValueId, (GlobalValueId, InstructionId)> =
+        HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
@@ -93,50 +94,43 @@ fn forward_loads_and_stores_in_block(
         match instruction {
             Instruction::Store { address, value } => {
                 let address = inserter.resolve(*address);
+                let address = GlobalValueId::new(inserter.function, address);
                 let value = inserter.resolve(*value);
+                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
 
-                // Dead store elimination: exact match on address, done by must_alias queries.
+                // Dead store elimination: a prior store under the same canonical key must-aliases this address
                 // Kill any prior store at an address that must-alias the new one.
-                // Early exit because the may-alias retains would have drop any other must-alias.
-                if let Some(prev_store) = last_stores.get(&address) {
+                if let Some((_, prev_store)) = last_stores.get(&key) {
                     instructions_to_remove.insert(*prev_store);
-                } else {
-                    for (prev_address, prev_store) in &last_stores {
-                        if analysis.must_alias(inserter.function, address, *prev_address) {
-                            instructions_to_remove.insert(*prev_store);
-                            break;
-                        }
-                    }
                 }
 
                 // Clear entries that may-alias the address.
+                // We use the original address `a` (the first field of the map values) because of a potential
+                // precision loss if the key `_k` happens to be on another function (see the comment inside `may_alias`)
                 let function: &Function = inserter.function;
-                known_values.retain(|k, _| !analysis.may_alias(function, address, *k));
-                last_stores.retain(|k, _| !analysis.may_alias(function, address, *k));
+                known_values.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
+                last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
 
-                known_values.insert(address, value);
-                last_stores.insert(address, instruction_id);
+                known_values.insert(key, (address, value));
+                last_stores.insert(key, (address, instruction_id));
             }
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
-
+                let address = GlobalValueId::new(inserter.function, address);
+                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
                 let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                let forward = known_values.get(&address).copied().or_else(|| {
-                    known_values
-                        .iter()
-                        .find(|(k, _)| analysis.must_alias(inserter.function, address, **k))
-                        .map(|(_, v)| *v)
-                });
-                if let Some(value) = forward {
+                let forward = known_values.get(&key).copied();
+
+                if let Some((_, value)) = forward {
                     inserter.map_value(result, value);
                     instructions_to_remove.insert(instruction_id);
                 } else {
-                    known_values.insert(address, result);
+                    known_values.insert(key, (address, result));
                 }
 
                 // Mark aliased stores as used (not dead).
                 let function: &Function = inserter.function;
-                last_stores.retain(|k, _| !analysis.may_alias(function, address, *k));
+                last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
             }
             Instruction::Call { .. } => {
                 // If the call arguments can reference a known value, we invalidate it.
@@ -147,9 +141,10 @@ fn forward_loads_and_stores_in_block(
                     if !inserter.function.dfg.type_of_value(value).contains_reference() {
                         continue;
                     }
-                    let function: &Function = inserter.function;
-                    known_values.retain(|k, _| !analysis.may_reference(function, value, *k));
-                    last_stores.retain(|k, _| !analysis.may_reference(function, value, *k));
+                    let value = GlobalValueId::new(inserter.function, value);
+                    // check against `a` for consistency with other checks, but here it does not matter.
+                    known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                    last_stores.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
                 }
             }
             _ => {}
