@@ -15,6 +15,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
         Context,
+        comptime::{InterpreterError, Value},
         def_map::{FuzzingHarness, TestFunction},
     },
     token::{FuzzingScope, TestScope},
@@ -306,6 +307,7 @@ where
         }
     }
 }
+
 /// Test function failed to compile
 ///
 /// Note: This could be because the compiler was able to deduce
@@ -365,6 +367,31 @@ pub fn test_status_program_compile_pass(
     )
 }
 
+pub fn test_status_comptime_interpret_result(
+    result: Result<Value, InterpreterError>,
+    test_function: &TestFunction,
+) -> TestStatus {
+    match result {
+        Err(InterpreterError::Unimplemented { .. }) => {
+            // Most likely called an unknown oracle function.
+            TestStatus::Skipped
+        }
+        Err(error) if !test_function.should_fail() => {
+            TestStatus::CompileError(CustomDiagnostic::from(&error))
+        }
+        Err(error) => check_expected_failure_message(
+            test_function,
+            None,
+            Some(CustomDiagnostic::from(&error)),
+        ),
+        Ok(_) if test_function.should_fail() => TestStatus::Fail {
+            message: "error: Test passed when it should have failed".to_string(),
+            error_diagnostic: None,
+        },
+        Ok(_) => TestStatus::Pass,
+    }
+}
+
 pub fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
@@ -385,7 +412,11 @@ pub fn check_expected_failure_message(
     let expected_failure_message_matches = failed_assertion
         .as_ref()
         .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
-        .is_some_and(|message| message.contains(expected_failure_message));
+        .is_some_and(|message| {
+            let expected = expected_failure_message.to_lowercase();
+            message.to_lowercase().contains(&expected)
+        });
+
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

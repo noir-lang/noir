@@ -1881,7 +1881,8 @@ impl Context<'_, '_> {
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
         let location = func_meta.location;
-        let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let enabled_unstable_features =
+            &self.required_unstable_features.get(&crate_id).cloned().unwrap_or_default();
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
 
