@@ -663,7 +663,7 @@ impl<'context> Elaborator<'context> {
             return;
         }
         match typ {
-            Type::Array(_n, typ) => {
+            Type::Array(typ, _n) => {
                 self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
             Type::Vector(typ) => {

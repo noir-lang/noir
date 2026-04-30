@@ -44,7 +44,7 @@ pub enum Type {
     /// A primitive Field type
     FieldElement,
 
-    /// Array(N, E) is an array of N elements of type E. It is expected that N
+    /// `Array(E, N)` is an array of N elements of type E. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
 
@@ -1185,7 +1185,7 @@ impl std::fmt::Display for Type {
             Type::FieldElement => {
                 write!(f, "Field")
             }
-            Type::Array(len, typ) => {
+            Type::Array(typ, len) => {
                 write!(f, "[{typ}; {len}]")
             }
             Type::Vector(typ) => {
@@ -1507,7 +1507,7 @@ impl Type {
         match self {
             Type::FieldElement | Type::Integer(_, _) | Type::Bool | Type::String(_) => true,
 
-            Type::Array(_, item) => item.is_message_compatible(is_monomorphized),
+            Type::Array(item, _) => item.is_message_compatible(is_monomorphized),
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.is_message_compatible(is_monomorphized),
                 TypeBinding::Unbound(_, kind) => {
@@ -1639,7 +1639,7 @@ impl Type {
                 })
             }
             Type::String(len) => len.has_cyclic_alias_helper(type_recursion_context.recur()),
-            Type::Array(len, typ) => {
+            Type::Array(typ, len) => {
                 len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
                     || typ.has_cyclic_alias_helper(type_recursion_context.recur())
             }
@@ -1763,7 +1763,7 @@ impl Type {
     fn is_nested_vector_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::Vector(elem) => elem.as_ref().contains_vector(),
-            Type::Array(_, elem) => elem.as_ref().contains_vector(),
+            Type::Array(elem, _) => elem.as_ref().contains_vector(),
 
             Type::Alias(alias, generics) => {
                 if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
@@ -1845,7 +1845,7 @@ impl Type {
     fn contains_vector_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::Vector(_) => true,
-            Type::Array(_, elem) => {
+            Type::Array(elem, _) => {
                 elem.as_ref().contains_vector_helper(type_recursion_context.recur())
             }
             Type::Alias(alias, generics) => {
@@ -1939,7 +1939,7 @@ impl Type {
                 in_vector
                     || elem.contains_vector_with_nested_array_helper(true, type_recursion_context)
             }
-            Type::Array(_, elem) => {
+            Type::Array(elem, _) => {
                 in_vector
                     || elem.as_ref().contains_vector_with_nested_array_helper(
                         in_vector,
@@ -2062,7 +2062,7 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::Forall(..)
             | Type::Error => false,
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 length
                     .contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
                     || typ.contains_reference_helper(type_recursion_context.recur(), mutable_only)
@@ -2165,7 +2165,7 @@ impl Type {
             Type::Function(..) => true,
 
             Type::Reference(typ, _) => typ.contains_function_helper(type_recursion_context.recur()),
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 length.contains_function_helper(type_recursion_context.clone().recur())
                     || typ.contains_function_helper(type_recursion_context.recur())
             }
@@ -2235,7 +2235,7 @@ impl Type {
             | Type::Quoted(..)
             | Type::Error => false,
             Type::Forall(..) => true,
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 length.contains_type_variable() || typ.contains_type_variable()
             }
             Type::Vector(typ) => typ.contains_type_variable(),
@@ -2711,10 +2711,10 @@ impl Type {
         };
 
         match self {
-            Type::Array(size, element) => {
+            Type::Array(element, size) => {
                 let size = size.substitute_helper(type_bindings, substitute_bound_typevars);
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
-                Type::Array(Box::new(size), Box::new(element))
+                Type::Array(Box::new(element), Box::new(size))
             }
             Type::Vector(element) => {
                 let element = element.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2808,7 +2808,7 @@ impl Type {
     /// True if the given TypeVariableId is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
-            Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::Array(elem, len) => len.occurs(target_id) || elem.occurs(target_id),
             Type::Vector(elem) => elem.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::FmtString(len, fields) => {
@@ -2870,7 +2870,7 @@ impl Type {
 
             use Type::*;
             match this {
-                Array(size, elem) => Array(Box::new(recur(size)), Box::new(recur(elem))),
+                Array(elem, size) => Array(Box::new(recur(elem)), Box::new(recur(size))),
                 Vector(elem) => Vector(Box::new(recur(elem))),
                 String(size) => String(Box::new(recur(size))),
                 FmtString(size, args) => {
@@ -2983,7 +2983,7 @@ impl Type {
             | Type::Error
             | Type::Quoted(_) => (),
 
-            Type::Array(len, elem) => {
+            Type::Array(elem, len) => {
                 len.replace_named_generics_with_type_variables();
                 elem.replace_named_generics_with_type_variables();
             }
@@ -3077,7 +3077,7 @@ impl Type {
                 | Type::Error
                 | Type::Quoted(_) => (),
 
-                Type::Array(len, elem) => {
+                Type::Array(elem, len) => {
                     go(len, f, limit);
                     go(elem, f, limit);
                 }
@@ -3311,7 +3311,7 @@ impl From<&Type> for PrintableType {
         // in this method, you most likely want to distinguish between public and private
         match value {
             Type::FieldElement => PrintableType::Field,
-            Type::Array(size, typ) => {
+            Type::Array(typ, size) => {
                 let dummy_location = Location::dummy();
                 let length = size
                     .evaluate_to_u32(dummy_location)
@@ -3402,7 +3402,7 @@ impl std::fmt::Debug for Type {
             Type::FieldElement => {
                 write!(f, "Field")
             }
-            Type::Array(len, typ) => {
+            Type::Array(typ, len) => {
                 write!(f, "[{typ:?}; {len:?}]")
             }
             Type::Vector(typ) => {
@@ -3543,7 +3543,7 @@ impl std::hash::Hash for Type {
 
         match self {
             Type::FieldElement | Type::Bool | Type::Unit | Type::Error => (),
-            Type::Array(len, elem) => {
+            Type::Array(elem, len) => {
                 len.hash(state);
                 elem.hash(state);
             }
@@ -3629,7 +3629,7 @@ impl PartialEq for Type {
         use Type::*;
         match (self, other) {
             (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) => true,
-            (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) => {
+            (Array(lhs_elem, lhs_len), Array(rhs_elem, rhs_len)) => {
                 lhs_len == rhs_len && lhs_elem == rhs_elem
             }
             (Vector(lhs_elem), Vector(rhs_elem)) => lhs_elem == rhs_elem,
@@ -3738,7 +3738,7 @@ mod tests {
     fn create_nested_array(depth: usize) -> Type {
         let mut typ = Type::FieldElement;
         for _ in 0..depth {
-            typ = Type::Array(Box::new(Type::constant_u32(1)), Box::new(typ));
+            typ = Type::Array(Box::new(typ), Box::new(Type::constant_u32(1)));
         }
         typ
     }
