@@ -23,7 +23,7 @@
 use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
-    hir_def::{expr::HirExpression, stmt::HirStatement},
+    hir_def::{expr::HirExpression, stmt::HirLetStatement, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
 };
@@ -135,9 +135,14 @@ impl Elaborator<'_> {
 
         let definition_id = global.definition_id;
         let location = global.location;
+        let global_let_stmt_id = global.let_statement;
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
+            // Hold a copy for replacing the global's let statement with the resolved value's HIR
+            // after `evaluate_let` consumes the original.
+            let original_let_statement = let_statement.clone();
+
             let mut interpreter = self.setup_interpreter();
 
             // Evaluate the global's initializer expression at compile time using the interpreter.
@@ -151,6 +156,24 @@ impl Elaborator<'_> {
                     .expect("The global should be defined since evaluate_let did not error");
 
                 self.debug_comptime(location, |interner| value.display(interner).to_string());
+
+                // For non-comptime globals, replace the let statement's RHS with the resolved
+                // value's HIR so monomorphization can reuse it directly without re-evaluating the
+                // original initializer. Comptime globals require `comptime { ... }` blocks at use
+                // sites, so they don't need this substitution. If the conversion fails (e.g.
+                // for comptime-only types like references in globals), skip the substitution
+                // silently — those cases produce their own validation errors elsewhere.
+                if !original_let_statement.comptime
+                    && let Ok(new_expr_id) =
+                        value.clone().into_runtime_hir_expression(self.interner, location)
+                {
+                    let new_let_statement =
+                        HirLetStatement { expression: new_expr_id, ..original_let_statement };
+                    self.interner.replace_statement(
+                        global_let_stmt_id,
+                        HirStatement::Let(new_let_statement),
+                    );
+                }
 
                 // Store the resolved value so it can be used later
                 self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);

@@ -6,7 +6,7 @@ use crate::{
     graph::CrateId,
     hir::{comptime, def_map::LocalModuleId},
     hir_def::stmt::{HirLetStatement, HirStatement},
-    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, Node, StmtId},
+    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, Node, StmtId},
     token::SecondaryAttribute,
 };
 
@@ -126,6 +126,24 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
+                HirStatement::Error => None,
+                _other => None,
+            },
+            _ => panic!("ice: all globals should correspond to a statement in the interner"),
+        }
+    }
+
+    /// Get the `ExprId` of the body of a global, regardless of whether it is stored as a
+    /// `HirStatement::Let` (source-level globals) or `HirStatement::Expression` (synthesized
+    /// enum variant constants).
+    pub fn get_global_body_expression_id(&self, global: GlobalId) -> Option<ExprId> {
+        let global = self.get_global(global);
+        let def = self.nodes.get(global.let_statement.0)?;
+
+        match def {
+            Node::Statement(hir_stmt) => match hir_stmt {
+                HirStatement::Let(let_stmt) => Some(let_stmt.expression),
+                HirStatement::Expression(expr) | HirStatement::Semi(expr) => Some(*expr),
                 HirStatement::Error => None,
                 _other => None,
             },

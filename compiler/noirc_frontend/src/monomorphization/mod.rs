@@ -1517,26 +1517,24 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
-            // Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
-            let (expr, contains_function) = if let GlobalValue::Resolved(value) =
-                global.value.clone()
-            {
-                let contains_function = value.contains_function_or_closure();
-                let expr = value
-                    .into_runtime_hir_expression(self.interner, global.location)
-                    .map_err(MonomorphizationError::InterpreterError)?;
-                (expr, contains_function)
-            } else {
+            // The elaborator replaced this global's let-statement RHS with the resolved value's
+            // HIR. Read that ExprId directly and monomorphize it like any other expression.
+            let GlobalValue::Resolved(value) = &global.value else {
                 unreachable!(
                     "All global values should be resolved at compile time and before monomorphization"
                 );
             };
+            let contains_function = value.contains_function_or_closure();
+            let body_expr_id = self
+                .interner
+                .get_global_body_expression_id(global_id)
+                .expect("Globals should have a body expression after elaboration");
 
             // The type of the expression on the RHS itself might be a `Forall` and/or contain unbound `NamedGeneric`s,
             // while the type of the type on the LHS has bound `TypeVariable` variables. We cannot bind them,
             // because unbound `NamedGeneric`s don't unify with bound `TypeVariable`s, still we want to monomorphize
             // into expression specific to the LHS, so we are using it as the target type.
-            let expr = self.expr_with_target_type(expr, Some(&typ))?;
+            let expr = self.expr_with_target_type(body_expr_id, Some(&typ))?;
 
             // Globals are meant to be computed at compile time and are stored in their own context to be shared across functions.
             // Closures are defined as normal functions among all SSA functions and later need to be defunctionalized.
