@@ -221,7 +221,7 @@
 <a href=#221 id=221 data-nosnippet>221</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;
 <a href=#222 id=222 data-nosnippet>222</a>
 <a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">let </span>embedded_curve_point_typ = <span class="kw">match </span><span class="kw-2">&amp;</span>return_type {
-<a href=#224 id=224 data-nosnippet>224</a>        Type::Array(<span class="kw">_</span>, item_type) =&gt; item_type.as_ref().clone(),
+<a href=#224 id=224 data-nosnippet>224</a>        Type::Array(item_type, <span class="kw">_</span>) =&gt; item_type.as_ref().clone(),
 <a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">_ </span>=&gt; {
 <a href=#226 id=226 data-nosnippet>226</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
 <a href=#227 id=227 data-nosnippet>227</a>                expected: <span class="string">"[EmbeddedCurvePoint; 1]"</span>.to_string(),

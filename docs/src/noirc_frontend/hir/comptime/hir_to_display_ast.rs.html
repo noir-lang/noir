@@ -387,7 +387,7 @@
 <a href=#387 id=387 data-nosnippet>387</a>    </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; UnresolvedType {
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>typ = <span class="kw">match </span><span class="self">self </span>{
 <a href=#389 id=389 data-nosnippet>389</a>            Type::FieldElement =&gt; UnresolvedTypeData::field(Location::dummy()),
-<a href=#390 id=390 data-nosnippet>390</a>            Type::Array(length, element) =&gt; {
+<a href=#390 id=390 data-nosnippet>390</a>            Type::Array(element, length) =&gt; {
 <a href=#391 id=391 data-nosnippet>391</a>                <span class="kw">let </span>length = length.to_type_expression();
 <a href=#392 id=392 data-nosnippet>392</a>                <span class="kw">let </span>element = Box::new(element.to_display_ast());
 <a href=#393 id=393 data-nosnippet>393</a>                UnresolvedTypeData::Array(length, element)

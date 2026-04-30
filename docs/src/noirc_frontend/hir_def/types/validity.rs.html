@@ -145,7 +145,7 @@
 <a href=#145 id=145 data-nosnippet>145</a>                    </span>}
 <a href=#146 id=146 data-nosnippet>146</a>                }
 <a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a>                Type::Array(length, element) =&gt; {
+<a href=#148 id=148 data-nosnippet>148</a>                Type::Array(element, length) =&gt; {
 <a href=#149 id=149 data-nosnippet>149</a>                    <span class="kw">if </span>!length_is_valid_for_entry_point(length, allow_empty_arrays) {
 <a href=#150 id=150 data-nosnippet>150</a>                        <span class="prelude-val">Some</span>(InvalidType::Primitive(this.clone()))
 <a href=#151 id=151 data-nosnippet>151</a>                    } <span class="kw">else </span>{
@@ -287,7 +287,7 @@
 <a href=#287 id=287 data-nosnippet>287</a>            </span>}
 <a href=#288 id=288 data-nosnippet>288</a>            }
 <a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>            Type::Array(length, element) =&gt; {
+<a href=#290 id=290 data-nosnippet>290</a>            Type::Array(element, length) =&gt; {
 <a href=#291 id=291 data-nosnippet>291</a>                length.non_inlined_function_input_validity_helper(type_recursion_context.clone().recur()).or_else(|| element.non_inlined_function_input_validity_helper(type_recursion_context.recur()))
 <a href=#292 id=292 data-nosnippet>292</a>            }
 <a href=#293 id=293 data-nosnippet>293</a>            Type::String(length) =&gt; length.non_inlined_function_input_validity_helper(type_recursion_context.recur()),
@@ -397,7 +397,7 @@
 <a href=#397 id=397 data-nosnippet>397</a>                </span>}
 <a href=#398 id=398 data-nosnippet>398</a>            }
 <a href=#399 id=399 data-nosnippet>399</a>
-<a href=#400 id=400 data-nosnippet>400</a>            Type::Array(length, element) =&gt; {
+<a href=#400 id=400 data-nosnippet>400</a>            Type::Array(element, length) =&gt; {
 <a href=#401 id=401 data-nosnippet>401</a>                length.is_valid_for_unconstrained_boundary_helper(
 <a href=#402 id=402 data-nosnippet>402</a>                    type_recursion_context.clone().recur(),
 <a href=#403 id=403 data-nosnippet>403</a>                ) &amp;&amp; element

@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>                }
 <a href=#163 id=163 data-nosnippet>163</a>            },
 <a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a>            (Array(len_a, elem_a), Array(len_b, elem_b)) =&gt; {
+<a href=#165 id=165 data-nosnippet>165</a>            (Array(elem_a, len_a), Array(elem_b, len_b)) =&gt; {
 <a href=#166 id=166 data-nosnippet>166</a>                len_a.try_unify(len_b, bindings)<span class="question-mark">?</span>;
 <a href=#167 id=167 data-nosnippet>167</a>                elem_a.try_unify(elem_b, bindings)
 <a href=#168 id=168 data-nosnippet>168</a>            }
@@ -591,7 +591,7 @@
 <a href=#591 id=591 data-nosnippet>591</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
 <a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>target = target.follow_bindings();
 <a href=#593 id=593 data-nosnippet>593</a>
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">if let </span>(Type::Array(_size, element1), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">if let </span>(Type::Array(element1, _size), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
 <a href=#595 id=595 data-nosnippet>595</a>            <span class="comment">// We can only do the coercion if the `as_vector` method exists.
 <a href=#596 id=596 data-nosnippet>596</a>            // This is usually true, but some tests don't have access to the standard library.
 <a href=#597 id=597 data-nosnippet>597</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_slice) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_slice"</span>, <span class="bool-val">true</span>) {

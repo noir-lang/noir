@@ -179,12 +179,12 @@
 <a href=#179 id=179 data-nosnippet>179</a>
 <a href=#180 id=180 data-nosnippet>180</a>    values.try_into().map(|v| (v, typ.clone())).map_err(|<span class="kw">_</span>| {
 <a href=#181 id=181 data-nosnippet>181</a>        <span class="comment">// Assuming that `values.len()` corresponds to `typ`.
-<a href=#182 id=182 data-nosnippet>182</a>        </span><span class="kw">let </span>Type::Array(<span class="kw">_</span>, <span class="kw-2">ref </span>elem) = typ <span class="kw">else </span>{
+<a href=#182 id=182 data-nosnippet>182</a>        </span><span class="kw">let </span>Type::Array(<span class="kw-2">ref </span>elem, <span class="kw">_</span>) = typ <span class="kw">else </span>{
 <a href=#183 id=183 data-nosnippet>183</a>            <span class="macro">unreachable!</span>(<span class="string">"get_array_map checked it was an array"</span>)
 <a href=#184 id=184 data-nosnippet>184</a>        };
 <a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>len: u32 =
 <a href=#186 id=186 data-nosnippet>186</a>            N.try_into().expect(<span class="string">"ICE: get_fixed_array_map: N is expected to fit into a u32"</span>);
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>expected = Type::Array(Box::new(Type::constant_u32(len)), elem.clone()).to_string();
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
 <a href=#188 id=188 data-nosnippet>188</a>        InterpreterError::TypeMismatch { expected, actual: typ, location }
 <a href=#189 id=189 data-nosnippet>189</a>    })
 <a href=#190 id=190 data-nosnippet>190</a>}
@@ -654,8 +654,8 @@
 <a href=#654 id=654 data-nosnippet>654</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>byte_array_type(len: usize) -&gt; Type {
 <a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">let </span>len: u32 = len.try_into().expect(<span class="string">"ICE: byte_array_type: N is expected to fit into a u32"</span>);
 <a href=#656 id=656 data-nosnippet>656</a>    Type::Array(
-<a href=#657 id=657 data-nosnippet>657</a>        Box::new(Type::constant_u32(len)),
-<a href=#658 id=658 data-nosnippet>658</a>        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+<a href=#657 id=657 data-nosnippet>657</a>        Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+<a href=#658 id=658 data-nosnippet>658</a>        Box::new(Type::constant_u32(len)),
 <a href=#659 id=659 data-nosnippet>659</a>    )
 <a href=#660 id=660 data-nosnippet>660</a>}
 <a href=#661 id=661 data-nosnippet>661</a>

@@ -209,7 +209,7 @@
 <a href=#209 id=209 data-nosnippet>209</a>                ));
 <a href=#210 id=210 data-nosnippet>210</a>                <span class="kw">let </span>size =
 <a href=#211 id=211 data-nosnippet>211</a>                    <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location, wildcard_allowed);
-<a href=#212 id=212 data-nosnippet>212</a>                Type::Array(Box::new(size), elem)
+<a href=#212 id=212 data-nosnippet>212</a>                Type::Array(elem, Box::new(size))
 <a href=#213 id=213 data-nosnippet>213</a>            }
 <a href=#214 id=214 data-nosnippet>214</a>            Vector(elem) =&gt; {
 <a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(

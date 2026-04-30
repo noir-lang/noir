@@ -356,7 +356,7 @@
 <a href=#356 id=356 data-nosnippet>356</a>
 <a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">fn </span>type_only_mention_types_outside_current_crate(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
 <a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">match </span>typ {
-<a href=#359 id=359 data-nosnippet>359</a>            Type::Array(length, typ) =&gt; {
+<a href=#359 id=359 data-nosnippet>359</a>            Type::Array(typ, length) =&gt; {
 <a href=#360 id=360 data-nosnippet>360</a>                <span class="self">self</span>.type_only_mention_types_outside_current_crate(length)
 <a href=#361 id=361 data-nosnippet>361</a>                    &amp;&amp; <span class="self">self</span>.type_only_mention_types_outside_current_crate(typ)
 <a href=#362 id=362 data-nosnippet>362</a>            }
@@ -497,7 +497,7 @@
 <a href=#497 id=497 data-nosnippet>497</a>
 <a href=#498 id=498 data-nosnippet>498</a><span class="kw">fn </span>gather_named_type_vars(typ: <span class="kw-2">&amp;</span>Type, type_vars: <span class="kw-2">&amp;mut </span>BTreeSet&lt;(String, Kind)&gt;) {
 <a href=#499 id=499 data-nosnippet>499</a>    <span class="kw">match </span>typ {
-<a href=#500 id=500 data-nosnippet>500</a>        Type::Array(length, typ) =&gt; {
+<a href=#500 id=500 data-nosnippet>500</a>        Type::Array(typ, length) =&gt; {
 <a href=#501 id=501 data-nosnippet>501</a>            gather_named_type_vars(length, type_vars);
 <a href=#502 id=502 data-nosnippet>502</a>            gather_named_type_vars(typ, type_vars);
 <a href=#503 id=503 data-nosnippet>503</a>        }
@@ -565,7 +565,7 @@
 <a href=#565 id=565 data-nosnippet>565</a>
 <a href=#566 id=566 data-nosnippet>566</a><span class="kw">fn </span>type_mentions_data_type(typ: <span class="kw-2">&amp;</span>Type, data_type: <span class="kw-2">&amp;</span><span class="kw">crate</span>::DataType) -&gt; bool {
 <a href=#567 id=567 data-nosnippet>567</a>    <span class="kw">match </span>typ {
-<a href=#568 id=568 data-nosnippet>568</a>        Type::Array(length, typ) =&gt; {
+<a href=#568 id=568 data-nosnippet>568</a>        Type::Array(typ, length) =&gt; {
 <a href=#569 id=569 data-nosnippet>569</a>            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
 <a href=#570 id=570 data-nosnippet>570</a>        }
 <a href=#571 id=571 data-nosnippet>571</a>        Type::Vector(typ) =&gt; type_mentions_data_type(typ, data_type),
@@ -618,7 +618,7 @@
 <a href=#618 id=618 data-nosnippet>618</a>    }
 <a href=#619 id=619 data-nosnippet>619</a>
 <a href=#620 id=620 data-nosnippet>620</a>    <span class="kw">match </span>typ {
-<a href=#621 id=621 data-nosnippet>621</a>        Type::Array(length, typ) =&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>        Type::Array(typ, length) =&gt; {
 <a href=#622 id=622 data-nosnippet>622</a>            type_mentions_primitive_type(length, target_type)
 <a href=#623 id=623 data-nosnippet>623</a>                || type_mentions_primitive_type(typ, target_type)
 <a href=#624 id=624 data-nosnippet>624</a>        }

@@ -315,7 +315,7 @@
 <a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">let </span>(array, array_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 <a href=#316 id=316 data-nosnippet>316</a>
 <a href=#317 id=317 data-nosnippet>317</a>    <span class="kw">match </span>array {
-<a href=#318 id=318 data-nosnippet>318</a>        Value::Array(values, Type::Array(<span class="kw">_</span>, typ)) =&gt; <span class="prelude-val">Ok</span>(Value::Vector(values, Type::Vector(typ))),
+<a href=#318 id=318 data-nosnippet>318</a>        Value::Array(values, Type::Array(typ, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::Vector(values, Type::Vector(typ))),
 <a href=#319 id=319 data-nosnippet>319</a>        value =&gt; {
 <a href=#320 id=320 data-nosnippet>320</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
 <a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
@@ -890,7 +890,7 @@
 <a href=#890 id=890 data-nosnippet>890</a>
 <a href=#891 id=891 data-nosnippet>891</a>    <span class="kw">let </span>value = get_field(value)<span class="question-mark">?</span>;
 <a href=#892 id=892 data-nosnippet>892</a>    <span class="kw">let </span>radix = get_u32(radix)<span class="question-mark">?</span>;
-<a href=#893 id=893 data-nosnippet>893</a>    <span class="kw">let </span>(limb_count, element_type) = <span class="kw">if let </span>Type::Array(length, element_type) = return_type {
+<a href=#893 id=893 data-nosnippet>893</a>    <span class="kw">let </span>(limb_count, element_type) = <span class="kw">if let </span>Type::Array(element_type, length) = return_type {
 <a href=#894 id=894 data-nosnippet>894</a>        <span class="kw">if let </span>Type::Constant(limb_count) = <span class="kw-2">*</span>length {
 <a href=#895 id=895 data-nosnippet>895</a>            <span class="kw">if </span>limb_count.get_type().unify(<span class="kw-2">&amp;</span>Type::u32()).is_ok() {
 <a href=#896 id=896 data-nosnippet>896</a>                (limb_count.as_field(), element_type)
@@ -934,7 +934,7 @@
 <a href=#934 id=934 data-nosnippet>934</a>        .len()
 <a href=#935 id=935 data-nosnippet>935</a>        .try_into()
 <a href=#936 id=936 data-nosnippet>936</a>        .expect(<span class="string">"ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32"</span>);
-<a href=#937 id=937 data-nosnippet>937</a>    <span class="kw">let </span>result_type = Type::Array(Box::new(Type::constant_u32(len)), element_type);
+<a href=#937 id=937 data-nosnippet>937</a>    <span class="kw">let </span>result_type = Type::Array(element_type, Box::new(Type::constant_u32(len)));
 <a href=#938 id=938 data-nosnippet>938</a>
 <a href=#939 id=939 data-nosnippet>939</a>    <span class="prelude-val">Ok</span>(Value::Array(decomposed_integer.into(), result_type))
 <a href=#940 id=940 data-nosnippet>940</a>}
@@ -957,7 +957,7 @@
 <a href=#957 id=957 data-nosnippet>957</a>    location: Location,
 <a href=#958 id=958 data-nosnippet>958</a>) -&gt; IResult&lt;Value&gt; {
 <a href=#959 id=959 data-nosnippet>959</a>    type_as(arguments, return_type, location, |typ| {
-<a href=#960 id=960 data-nosnippet>960</a>        <span class="kw">if let </span>Type::Array(length, array_type) = typ {
+<a href=#960 id=960 data-nosnippet>960</a>        <span class="kw">if let </span>Type::Array(array_type, length) = typ {
 <a href=#961 id=961 data-nosnippet>961</a>            <span class="kw">let </span>array_type = Shared::new(Value::Type(<span class="kw-2">*</span>array_type));
 <a href=#962 id=962 data-nosnippet>962</a>            <span class="kw">let </span>length_type = Shared::new(Value::Type(<span class="kw-2">*</span>length));
 <a href=#963 id=963 data-nosnippet>963</a>            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[array_type, length_type]))
@@ -1404,14 +1404,14 @@
 <a href=#1404 id=1404 data-nosnippet>1404</a></span><span class="kw">fn </span>zeroed(return_type: Type, location: Location) -&gt; Value {
 <a href=#1405 id=1405 data-nosnippet>1405</a>    <span class="kw">match </span>return_type {
 <a href=#1406 id=1406 data-nosnippet>1406</a>        Type::FieldElement =&gt; Value::field(FieldElement::zero()),
-<a href=#1407 id=1407 data-nosnippet>1407</a>        Type::Array(length_type, elem) =&gt; {
+<a href=#1407 id=1407 data-nosnippet>1407</a>        Type::Array(elem, length_type) =&gt; {
 <a href=#1408 id=1408 data-nosnippet>1408</a>            <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = length_type.evaluate_to_u32(location) {
 <a href=#1409 id=1409 data-nosnippet>1409</a>                <span class="kw">let </span>element = zeroed(elem.as_ref().clone(), location);
 <a href=#1410 id=1410 data-nosnippet>1410</a>                <span class="kw">let </span>array = std::iter::repeat_n(element, length <span class="kw">as </span>usize).collect();
-<a href=#1411 id=1411 data-nosnippet>1411</a>                Value::Array(array, Type::Array(length_type, elem))
+<a href=#1411 id=1411 data-nosnippet>1411</a>                Value::Array(array, Type::Array(elem, length_type))
 <a href=#1412 id=1412 data-nosnippet>1412</a>            } <span class="kw">else </span>{
 <a href=#1413 id=1413 data-nosnippet>1413</a>                <span class="comment">// Assume we can resolve the length later
-<a href=#1414 id=1414 data-nosnippet>1414</a>                </span>Value::Zeroed(Type::Array(length_type, elem))
+<a href=#1414 id=1414 data-nosnippet>1414</a>                </span>Value::Zeroed(Type::Array(elem, length_type))
 <a href=#1415 id=1415 data-nosnippet>1415</a>            }
 <a href=#1416 id=1416 data-nosnippet>1416</a>        }
 <a href=#1417 id=1417 data-nosnippet>1417</a>        Type::Vector(<span class="kw">_</span>) =&gt; Value::Vector(Vector::new(), return_type),
@@ -2897,7 +2897,7 @@
 <a href=#2897 id=2897 data-nosnippet>2897</a>    <span class="kw">let </span>domain_separator_string =
 <a href=#2898 id=2898 data-nosnippet>2898</a>        try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))<span class="question-mark">?</span>;
 <a href=#2899 id=2899 data-nosnippet>2899</a>
-<a href=#2900 id=2900 data-nosnippet>2900</a>    <span class="kw">let </span>Type::Array(size, elements) = return_type.clone() <span class="kw">else </span>{
+<a href=#2900 id=2900 data-nosnippet>2900</a>    <span class="kw">let </span>Type::Array(elements, size) = return_type.clone() <span class="kw">else </span>{
 <a href=#2901 id=2901 data-nosnippet>2901</a>        <span class="macro">panic!</span>(<span class="string">"ICE: Should only have an array return type"</span>);
 <a href=#2902 id=2902 data-nosnippet>2902</a>    };
 <a href=#2903 id=2903 data-nosnippet>2903</a>

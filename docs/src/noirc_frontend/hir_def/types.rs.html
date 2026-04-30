@@ -44,7 +44,7 @@
 <a href=#44 id=44 data-nosnippet>44</a>    <span class="doccomment">/// A primitive Field type
 <a href=#45 id=45 data-nosnippet>45</a>    </span>FieldElement,
 <a href=#46 id=46 data-nosnippet>46</a>
-<a href=#47 id=47 data-nosnippet>47</a>    <span class="doccomment">/// Array(N, E) is an array of N elements of type E. It is expected that N
+<a href=#47 id=47 data-nosnippet>47</a>    <span class="doccomment">/// `Array(E, N)` is an array of N elements of type E. It is expected that N
 <a href=#48 id=48 data-nosnippet>48</a>    /// is either a type variable of some kind or a Type::Constant.
 <a href=#49 id=49 data-nosnippet>49</a>    </span>Array(Box&lt;Type&gt;, Box&lt;Type&gt;),
 <a href=#50 id=50 data-nosnippet>50</a>
@@ -1185,7 +1185,7 @@
 <a href=#1185 id=1185 data-nosnippet>1185</a>            Type::FieldElement =&gt; {
 <a href=#1186 id=1186 data-nosnippet>1186</a>                <span class="macro">write!</span>(f, <span class="string">"Field"</span>)
 <a href=#1187 id=1187 data-nosnippet>1187</a>            }
-<a href=#1188 id=1188 data-nosnippet>1188</a>            Type::Array(len, typ) =&gt; {
+<a href=#1188 id=1188 data-nosnippet>1188</a>            Type::Array(typ, len) =&gt; {
 <a href=#1189 id=1189 data-nosnippet>1189</a>                <span class="macro">write!</span>(f, <span class="string">"[{typ}; {len}]"</span>)
 <a href=#1190 id=1190 data-nosnippet>1190</a>            }
 <a href=#1191 id=1191 data-nosnippet>1191</a>            Type::Vector(typ) =&gt; {
@@ -1507,7 +1507,7 @@
 <a href=#1507 id=1507 data-nosnippet>1507</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#1508 id=1508 data-nosnippet>1508</a>            Type::FieldElement | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Bool | Type::String(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 <a href=#1509 id=1509 data-nosnippet>1509</a>
-<a href=#1510 id=1510 data-nosnippet>1510</a>            Type::Array(<span class="kw">_</span>, item) =&gt; item.is_message_compatible(is_monomorphized),
+<a href=#1510 id=1510 data-nosnippet>1510</a>            Type::Array(item, <span class="kw">_</span>) =&gt; item.is_message_compatible(is_monomorphized),
 <a href=#1511 id=1511 data-nosnippet>1511</a>            Type::TypeVariable(binding) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
 <a href=#1512 id=1512 data-nosnippet>1512</a>                TypeBinding::Bound(typ) =&gt; typ.is_message_compatible(is_monomorphized),
 <a href=#1513 id=1513 data-nosnippet>1513</a>                TypeBinding::Unbound(<span class="kw">_</span>, kind) =&gt; {
@@ -1639,7 +1639,7 @@
 <a href=#1639 id=1639 data-nosnippet>1639</a>                })
 <a href=#1640 id=1640 data-nosnippet>1640</a>            }
 <a href=#1641 id=1641 data-nosnippet>1641</a>            Type::String(len) =&gt; len.has_cyclic_alias_helper(type_recursion_context.recur()),
-<a href=#1642 id=1642 data-nosnippet>1642</a>            Type::Array(len, typ) =&gt; {
+<a href=#1642 id=1642 data-nosnippet>1642</a>            Type::Array(typ, len) =&gt; {
 <a href=#1643 id=1643 data-nosnippet>1643</a>                len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
 <a href=#1644 id=1644 data-nosnippet>1644</a>                    || typ.has_cyclic_alias_helper(type_recursion_context.recur())
 <a href=#1645 id=1645 data-nosnippet>1645</a>            }
@@ -1763,7 +1763,7 @@
 <a href=#1763 id=1763 data-nosnippet>1763</a>    <span class="kw">fn </span>is_nested_vector_helper(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>type_recursion_context: TypeRecursionContext) -&gt; bool {
 <a href=#1764 id=1764 data-nosnippet>1764</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#1765 id=1765 data-nosnippet>1765</a>            Type::Vector(elem) =&gt; elem.as_ref().contains_vector(),
-<a href=#1766 id=1766 data-nosnippet>1766</a>            Type::Array(<span class="kw">_</span>, elem) =&gt; elem.as_ref().contains_vector(),
+<a href=#1766 id=1766 data-nosnippet>1766</a>            Type::Array(elem, <span class="kw">_</span>) =&gt; elem.as_ref().contains_vector(),
 <a href=#1767 id=1767 data-nosnippet>1767</a>
 <a href=#1768 id=1768 data-nosnippet>1768</a>            Type::Alias(alias, generics) =&gt; {
 <a href=#1769 id=1769 data-nosnippet>1769</a>                <span class="kw">if </span>type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
@@ -1845,7 +1845,7 @@
 <a href=#1845 id=1845 data-nosnippet>1845</a>    <span class="kw">fn </span>contains_vector_helper(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>type_recursion_context: TypeRecursionContext) -&gt; bool {
 <a href=#1846 id=1846 data-nosnippet>1846</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#1847 id=1847 data-nosnippet>1847</a>            Type::Vector(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#1848 id=1848 data-nosnippet>1848</a>            Type::Array(<span class="kw">_</span>, elem) =&gt; {
+<a href=#1848 id=1848 data-nosnippet>1848</a>            Type::Array(elem, <span class="kw">_</span>) =&gt; {
 <a href=#1849 id=1849 data-nosnippet>1849</a>                elem.as_ref().contains_vector_helper(type_recursion_context.recur())
 <a href=#1850 id=1850 data-nosnippet>1850</a>            }
 <a href=#1851 id=1851 data-nosnippet>1851</a>            Type::Alias(alias, generics) =&gt; {
@@ -1939,7 +1939,7 @@
 <a href=#1939 id=1939 data-nosnippet>1939</a>                in_vector
 <a href=#1940 id=1940 data-nosnippet>1940</a>                    || elem.contains_vector_with_nested_array_helper(<span class="bool-val">true</span>, type_recursion_context)
 <a href=#1941 id=1941 data-nosnippet>1941</a>            }
-<a href=#1942 id=1942 data-nosnippet>1942</a>            Type::Array(<span class="kw">_</span>, elem) =&gt; {
+<a href=#1942 id=1942 data-nosnippet>1942</a>            Type::Array(elem, <span class="kw">_</span>) =&gt; {
 <a href=#1943 id=1943 data-nosnippet>1943</a>                in_vector
 <a href=#1944 id=1944 data-nosnippet>1944</a>                    || elem.as_ref().contains_vector_with_nested_array_helper(
 <a href=#1945 id=1945 data-nosnippet>1945</a>                        in_vector,
@@ -2062,7 +2062,7 @@
 <a href=#2062 id=2062 data-nosnippet>2062</a>            | Type::TraitAsType(..)
 <a href=#2063 id=2063 data-nosnippet>2063</a>            | Type::Forall(..)
 <a href=#2064 id=2064 data-nosnippet>2064</a>            | Type::Error =&gt; <span class="bool-val">false</span>,
-<a href=#2065 id=2065 data-nosnippet>2065</a>            Type::Array(length, typ) =&gt; {
+<a href=#2065 id=2065 data-nosnippet>2065</a>            Type::Array(typ, length) =&gt; {
 <a href=#2066 id=2066 data-nosnippet>2066</a>                length
 <a href=#2067 id=2067 data-nosnippet>2067</a>                    .contains_reference_helper(type_recursion_context.clone().recur(), mutable_only)
 <a href=#2068 id=2068 data-nosnippet>2068</a>                    || typ.contains_reference_helper(type_recursion_context.recur(), mutable_only)
@@ -2165,7 +2165,7 @@
 <a href=#2165 id=2165 data-nosnippet>2165</a>            Type::Function(..) =&gt; <span class="bool-val">true</span>,
 <a href=#2166 id=2166 data-nosnippet>2166</a>
 <a href=#2167 id=2167 data-nosnippet>2167</a>            Type::Reference(typ, <span class="kw">_</span>) =&gt; typ.contains_function_helper(type_recursion_context.recur()),
-<a href=#2168 id=2168 data-nosnippet>2168</a>            Type::Array(length, typ) =&gt; {
+<a href=#2168 id=2168 data-nosnippet>2168</a>            Type::Array(typ, length) =&gt; {
 <a href=#2169 id=2169 data-nosnippet>2169</a>                length.contains_function_helper(type_recursion_context.clone().recur())
 <a href=#2170 id=2170 data-nosnippet>2170</a>                    || typ.contains_function_helper(type_recursion_context.recur())
 <a href=#2171 id=2171 data-nosnippet>2171</a>            }
@@ -2235,7 +2235,7 @@
 <a href=#2235 id=2235 data-nosnippet>2235</a>            | Type::Quoted(..)
 <a href=#2236 id=2236 data-nosnippet>2236</a>            | Type::Error =&gt; <span class="bool-val">false</span>,
 <a href=#2237 id=2237 data-nosnippet>2237</a>            Type::Forall(..) =&gt; <span class="bool-val">true</span>,
-<a href=#2238 id=2238 data-nosnippet>2238</a>            Type::Array(length, typ) =&gt; {
+<a href=#2238 id=2238 data-nosnippet>2238</a>            Type::Array(typ, length) =&gt; {
 <a href=#2239 id=2239 data-nosnippet>2239</a>                length.contains_type_variable() || typ.contains_type_variable()
 <a href=#2240 id=2240 data-nosnippet>2240</a>            }
 <a href=#2241 id=2241 data-nosnippet>2241</a>            Type::Vector(typ) =&gt; typ.contains_type_variable(),
@@ -2711,10 +2711,10 @@
 <a href=#2711 id=2711 data-nosnippet>2711</a>        };
 <a href=#2712 id=2712 data-nosnippet>2712</a>
 <a href=#2713 id=2713 data-nosnippet>2713</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#2714 id=2714 data-nosnippet>2714</a>            Type::Array(size, element) =&gt; {
+<a href=#2714 id=2714 data-nosnippet>2714</a>            Type::Array(element, size) =&gt; {
 <a href=#2715 id=2715 data-nosnippet>2715</a>                <span class="kw">let </span>size = size.substitute_helper(type_bindings, substitute_bound_typevars);
 <a href=#2716 id=2716 data-nosnippet>2716</a>                <span class="kw">let </span>element = element.substitute_helper(type_bindings, substitute_bound_typevars);
-<a href=#2717 id=2717 data-nosnippet>2717</a>                Type::Array(Box::new(size), Box::new(element))
+<a href=#2717 id=2717 data-nosnippet>2717</a>                Type::Array(Box::new(element), Box::new(size))
 <a href=#2718 id=2718 data-nosnippet>2718</a>            }
 <a href=#2719 id=2719 data-nosnippet>2719</a>            Type::Vector(element) =&gt; {
 <a href=#2720 id=2720 data-nosnippet>2720</a>                <span class="kw">let </span>element = element.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2808,7 +2808,7 @@
 <a href=#2808 id=2808 data-nosnippet>2808</a>    <span class="doccomment">/// True if the given TypeVariableId is free anywhere within self
 <a href=#2809 id=2809 data-nosnippet>2809</a>    </span><span class="kw">pub fn </span>occurs(<span class="kw-2">&amp;</span><span class="self">self</span>, target_id: TypeVariableId) -&gt; bool {
 <a href=#2810 id=2810 data-nosnippet>2810</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#2811 id=2811 data-nosnippet>2811</a>            Type::Array(len, elem) =&gt; len.occurs(target_id) || elem.occurs(target_id),
+<a href=#2811 id=2811 data-nosnippet>2811</a>            Type::Array(elem, len) =&gt; len.occurs(target_id) || elem.occurs(target_id),
 <a href=#2812 id=2812 data-nosnippet>2812</a>            Type::Vector(elem) =&gt; elem.occurs(target_id),
 <a href=#2813 id=2813 data-nosnippet>2813</a>            Type::String(len) =&gt; len.occurs(target_id),
 <a href=#2814 id=2814 data-nosnippet>2814</a>            Type::FmtString(len, fields) =&gt; {
@@ -2870,7 +2870,7 @@
 <a href=#2870 id=2870 data-nosnippet>2870</a>
 <a href=#2871 id=2871 data-nosnippet>2871</a>            <span class="kw">use </span>Type::<span class="kw-2">*</span>;
 <a href=#2872 id=2872 data-nosnippet>2872</a>            <span class="kw">match </span>this {
-<a href=#2873 id=2873 data-nosnippet>2873</a>                Array(size, elem) =&gt; Array(Box::new(recur(size)), Box::new(recur(elem))),
+<a href=#2873 id=2873 data-nosnippet>2873</a>                Array(elem, size) =&gt; Array(Box::new(recur(elem)), Box::new(recur(size))),
 <a href=#2874 id=2874 data-nosnippet>2874</a>                Vector(elem) =&gt; Vector(Box::new(recur(elem))),
 <a href=#2875 id=2875 data-nosnippet>2875</a>                String(size) =&gt; String(Box::new(recur(size))),
 <a href=#2876 id=2876 data-nosnippet>2876</a>                FmtString(size, args) =&gt; {
@@ -2983,7 +2983,7 @@
 <a href=#2983 id=2983 data-nosnippet>2983</a>            | Type::Error
 <a href=#2984 id=2984 data-nosnippet>2984</a>            | Type::Quoted(<span class="kw">_</span>) =&gt; (),
 <a href=#2985 id=2985 data-nosnippet>2985</a>
-<a href=#2986 id=2986 data-nosnippet>2986</a>            Type::Array(len, elem) =&gt; {
+<a href=#2986 id=2986 data-nosnippet>2986</a>            Type::Array(elem, len) =&gt; {
 <a href=#2987 id=2987 data-nosnippet>2987</a>                len.replace_named_generics_with_type_variables();
 <a href=#2988 id=2988 data-nosnippet>2988</a>                elem.replace_named_generics_with_type_variables();
 <a href=#2989 id=2989 data-nosnippet>2989</a>            }
@@ -3077,7 +3077,7 @@
 <a href=#3077 id=3077 data-nosnippet>3077</a>                | Type::Error
 <a href=#3078 id=3078 data-nosnippet>3078</a>                | Type::Quoted(<span class="kw">_</span>) =&gt; (),
 <a href=#3079 id=3079 data-nosnippet>3079</a>
-<a href=#3080 id=3080 data-nosnippet>3080</a>                Type::Array(len, elem) =&gt; {
+<a href=#3080 id=3080 data-nosnippet>3080</a>                Type::Array(elem, len) =&gt; {
 <a href=#3081 id=3081 data-nosnippet>3081</a>                    go(len, f, limit);
 <a href=#3082 id=3082 data-nosnippet>3082</a>                    go(elem, f, limit);
 <a href=#3083 id=3083 data-nosnippet>3083</a>                }
@@ -3311,7 +3311,7 @@
 <a href=#3311 id=3311 data-nosnippet>3311</a>        // in this method, you most likely want to distinguish between public and private
 <a href=#3312 id=3312 data-nosnippet>3312</a>        </span><span class="kw">match </span>value {
 <a href=#3313 id=3313 data-nosnippet>3313</a>            Type::FieldElement =&gt; PrintableType::Field,
-<a href=#3314 id=3314 data-nosnippet>3314</a>            Type::Array(size, typ) =&gt; {
+<a href=#3314 id=3314 data-nosnippet>3314</a>            Type::Array(typ, size) =&gt; {
 <a href=#3315 id=3315 data-nosnippet>3315</a>                <span class="kw">let </span>dummy_location = Location::dummy();
 <a href=#3316 id=3316 data-nosnippet>3316</a>                <span class="kw">let </span>length = size
 <a href=#3317 id=3317 data-nosnippet>3317</a>                    .evaluate_to_u32(dummy_location)
@@ -3402,7 +3402,7 @@
 <a href=#3402 id=3402 data-nosnippet>3402</a>            Type::FieldElement =&gt; {
 <a href=#3403 id=3403 data-nosnippet>3403</a>                <span class="macro">write!</span>(f, <span class="string">"Field"</span>)
 <a href=#3404 id=3404 data-nosnippet>3404</a>            }
-<a href=#3405 id=3405 data-nosnippet>3405</a>            Type::Array(len, typ) =&gt; {
+<a href=#3405 id=3405 data-nosnippet>3405</a>            Type::Array(typ, len) =&gt; {
 <a href=#3406 id=3406 data-nosnippet>3406</a>                <span class="macro">write!</span>(f, <span class="string">"[{typ:?}; {len:?}]"</span>)
 <a href=#3407 id=3407 data-nosnippet>3407</a>            }
 <a href=#3408 id=3408 data-nosnippet>3408</a>            Type::Vector(typ) =&gt; {
@@ -3543,7 +3543,7 @@
 <a href=#3543 id=3543 data-nosnippet>3543</a>
 <a href=#3544 id=3544 data-nosnippet>3544</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#3545 id=3545 data-nosnippet>3545</a>            Type::FieldElement | Type::Bool | Type::Unit | Type::Error =&gt; (),
-<a href=#3546 id=3546 data-nosnippet>3546</a>            Type::Array(len, elem) =&gt; {
+<a href=#3546 id=3546 data-nosnippet>3546</a>            Type::Array(elem, len) =&gt; {
 <a href=#3547 id=3547 data-nosnippet>3547</a>                len.hash(state);
 <a href=#3548 id=3548 data-nosnippet>3548</a>                elem.hash(state);
 <a href=#3549 id=3549 data-nosnippet>3549</a>            }
@@ -3629,7 +3629,7 @@
 <a href=#3629 id=3629 data-nosnippet>3629</a>        <span class="kw">use </span>Type::<span class="kw-2">*</span>;
 <a href=#3630 id=3630 data-nosnippet>3630</a>        <span class="kw">match </span>(<span class="self">self</span>, other) {
 <a href=#3631 id=3631 data-nosnippet>3631</a>            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) =&gt; <span class="bool-val">true</span>,
-<a href=#3632 id=3632 data-nosnippet>3632</a>            (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) =&gt; {
+<a href=#3632 id=3632 data-nosnippet>3632</a>            (Array(lhs_elem, lhs_len), Array(rhs_elem, rhs_len)) =&gt; {
 <a href=#3633 id=3633 data-nosnippet>3633</a>                lhs_len == rhs_len &amp;&amp; lhs_elem == rhs_elem
 <a href=#3634 id=3634 data-nosnippet>3634</a>            }
 <a href=#3635 id=3635 data-nosnippet>3635</a>            (Vector(lhs_elem), Vector(rhs_elem)) =&gt; lhs_elem == rhs_elem,
@@ -3738,7 +3738,7 @@
 <a href=#3738 id=3738 data-nosnippet>3738</a>    </span><span class="kw">fn </span>create_nested_array(depth: usize) -&gt; Type {
 <a href=#3739 id=3739 data-nosnippet>3739</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::FieldElement;
 <a href=#3740 id=3740 data-nosnippet>3740</a>        <span class="kw">for _ in </span><span class="number">0</span>..depth {
-<a href=#3741 id=3741 data-nosnippet>3741</a>            typ = Type::Array(Box::new(Type::constant_u32(<span class="number">1</span>)), Box::new(typ));
+<a href=#3741 id=3741 data-nosnippet>3741</a>            typ = Type::Array(Box::new(typ), Box::new(Type::constant_u32(<span class="number">1</span>)));
 <a href=#3742 id=3742 data-nosnippet>3742</a>        }
 <a href=#3743 id=3743 data-nosnippet>3743</a>        typ
 <a href=#3744 id=3744 data-nosnippet>3744</a>    }
