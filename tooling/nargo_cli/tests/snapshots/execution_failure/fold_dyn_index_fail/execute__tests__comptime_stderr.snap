@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: 14 is out of bounds for the array of length 5
+error: Index out of bounds: 14 is out of bounds for the array of length 5
   ┌─ src/main.nr:9:12
   │
 9 │     assert(x[idx] != 0);
