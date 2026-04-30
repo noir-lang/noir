@@ -3823,4 +3823,43 @@
 <a href=#3823 id=3823 data-nosnippet>3823</a>        }
 <a href=#3824 id=3824 data-nosnippet>3824</a>        "#</span>);
 <a href=#3825 id=3825 data-nosnippet>3825</a>    }
-<a href=#3826 id=3826 data-nosnippet>3826</a>}</code></pre></div></section></main></body></html>
+<a href=#3826 id=3826 data-nosnippet>3826</a>
+<a href=#3827 id=3827 data-nosnippet>3827</a>    <span class="attr">#[test]
+<a href=#3828 id=3828 data-nosnippet>3828</a>    </span><span class="kw">fn </span>does_not_consider_descending_loop_bounds_as_valid() {
+<a href=#3829 id=3829 data-nosnippet>3829</a>        <span class="comment">// The loop header is `b1(v0: u8, v1: u32)` where `v0` is the first block parameter
+<a href=#3830 id=3830 data-nosnippet>3830</a>        // and is therefore mistakenly identified as the induction variable. The header exits
+<a href=#3831 id=3831 data-nosnippet>3831</a>        // via `eq v0, u8 0`, which causes `get_const_upper_bound` to return 0 as the upper
+<a href=#3832 id=3832 data-nosnippet>3832</a>        // bound while the pre-header supplies 5 as the lower bound — an inverted range (5, 0).
+<a href=#3833 id=3833 data-nosnippet>3833</a>        // The bounds simplification must not use an inverted range: doing so would wrongly
+<a href=#3834 id=3834 data-nosnippet>3834</a>        // fold `v12 = lt v0, u8 3` to `u1 1` because `upper_bound (0) &lt;= constant (3)`.
+<a href=#3835 id=3835 data-nosnippet>3835</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#3836 id=3836 data-nosnippet>3836</a>        brillig(inline) impure fn main f0 {
+<a href=#3837 id=3837 data-nosnippet>3837</a>          b0():
+<a href=#3838 id=3838 data-nosnippet>3838</a>            jmp b1(u8 5, u32 0)
+<a href=#3839 id=3839 data-nosnippet>3839</a>          b1(v0: u8, v1: u32):
+<a href=#3840 id=3840 data-nosnippet>3840</a>            v6 = eq v0, u8 0
+<a href=#3841 id=3841 data-nosnippet>3841</a>            jmpif v6 then: b2(), else: b3()
+<a href=#3842 id=3842 data-nosnippet>3842</a>          b2():
+<a href=#3843 id=3843 data-nosnippet>3843</a>            return
+<a href=#3844 id=3844 data-nosnippet>3844</a>          b3():
+<a href=#3845 id=3845 data-nosnippet>3845</a>            v8 = eq v1, u32 2
+<a href=#3846 id=3846 data-nosnippet>3846</a>            jmpif v8 then: b4(), else: b5()
+<a href=#3847 id=3847 data-nosnippet>3847</a>          b4():
+<a href=#3848 id=3848 data-nosnippet>3848</a>            jmp b2()
+<a href=#3849 id=3849 data-nosnippet>3849</a>          b5():
+<a href=#3850 id=3850 data-nosnippet>3850</a>            v10 = add v1, u32 1
+<a href=#3851 id=3851 data-nosnippet>3851</a>            v12 = lt v0, u8 3
+<a href=#3852 id=3852 data-nosnippet>3852</a>            jmpif v12 then: b6(), else: b7()
+<a href=#3853 id=3853 data-nosnippet>3853</a>          b6():
+<a href=#3854 id=3854 data-nosnippet>3854</a>            jmp b8(u8 3)
+<a href=#3855 id=3855 data-nosnippet>3855</a>          b7():
+<a href=#3856 id=3856 data-nosnippet>3856</a>            jmp b8(u8 1)
+<a href=#3857 id=3857 data-nosnippet>3857</a>          b8(v2: u8):
+<a href=#3858 id=3858 data-nosnippet>3858</a>            v32 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+<a href=#3859 id=3859 data-nosnippet>3859</a>            call print(u1 1, v2, v32, u1 0)
+<a href=#3860 id=3860 data-nosnippet>3860</a>            jmp b1(v2, v10)
+<a href=#3861 id=3861 data-nosnippet>3861</a>        }
+<a href=#3862 id=3862 data-nosnippet>3862</a>        "#</span>;
+<a href=#3863 id=3863 data-nosnippet>3863</a>        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+<a href=#3864 id=3864 data-nosnippet>3864</a>    }
+<a href=#3865 id=3865 data-nosnippet>3865</a>}</code></pre></div></section></main></body></html>
