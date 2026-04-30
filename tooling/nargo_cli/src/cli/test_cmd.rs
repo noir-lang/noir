@@ -39,7 +39,7 @@ use noirc_frontend::hir::{
 
 use crate::errors::CliError;
 
-use super::{LockType, PackageOptions, WorkspaceCommand};
+use super::{LockType, PackageOptions, WorkspaceCommand, parse_and_normalize_path};
 
 mod coverage;
 pub(crate) mod formatters;
@@ -141,6 +141,12 @@ pub(crate) struct TestCommand {
     /// depending on whether we are dealing with a workspace.
     #[arg(long)]
     coverage: bool,
+
+    /// Override the directory where coverage files are written.
+    ///
+    /// If not set, defaults to the workspace target directory.
+    #[arg(long, value_parser = parse_and_normalize_path)]
+    coverage_dir: Option<PathBuf>,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -543,7 +549,11 @@ impl<'a> TestRunner<'a> {
                     .expect("Could not display test report");
 
                 if let Some(package_report) = coverage_per_package.remove(package_name) {
-                    let lcov_path = coverage::package_lcov_path(&self.workspace, package_name);
+                    let lcov_path = coverage::package_lcov_path(
+                        &self.workspace,
+                        package_name,
+                        self.args.coverage_dir.as_deref(),
+                    );
                     coverage::write_package_coverage(package_report, &lcov_path);
                 }
             }
