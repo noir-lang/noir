@@ -753,10 +753,9 @@ impl<'a> TestRunner<'a> {
             let output = Rc::try_unwrap(output).expect("context no longer has it");
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
 
-            let report = context
-                .evaluation_tracker
-                .take()
-                .map(|tracker| coverage::tracker_to_report(&tracker, fn_name, &context));
+            let report = context.evaluation_tracker.take().map(|tracker| {
+                coverage::tracker_to_report(&tracker, test_function.id, fn_name, &context)
+            });
 
             return (status, output, report);
         }

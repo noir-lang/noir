@@ -108,11 +108,22 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
 ///
 /// Each `(test_name, source_file)` section is independent and will not be merged
 /// with the baseline or other tests when the reports are combined.
+///
+/// Expressions inside the test function's own body are excluded: they are the
+/// test harness, not the code under test.
 pub(super) fn tracker_to_report(
     tracker: &EvaluationTracker,
+    test_func_id: FuncId,
     test_name: &str,
     context: &Context,
 ) -> Report {
+    // Body span of the test function itself — expressions within it are excluded.
+    let test_body_loc = context
+        .def_interner
+        .function(&test_func_id)
+        .try_as_expr()
+        .map(|body_id| context.def_interner.expr_location(&body_id));
+
     // Accumulate (functions, lines) per FileId before building sections.
     let mut data: HashMap<FileId, (function::Functions, line::Lines)> = HashMap::new();
 
@@ -122,6 +133,14 @@ pub(super) fn tracker_to_report(
         let (_, lines) = data.entry(file_id).or_default();
 
         for (&offset, &count) in offsets_to_counts {
+            if let Some(ref body_loc) = test_body_loc {
+                if body_loc.file == file_id
+                    && offset >= body_loc.span.start()
+                    && offset <= body_loc.span.end()
+                {
+                    continue;
+                }
+            }
             let line_num = offset_to_line(offset, &line_starts);
             lines
                 .entry(line::Key { line: line_num })
@@ -131,6 +150,9 @@ pub(super) fn tracker_to_report(
     }
 
     for (&func_id, &count) in tracker.function_hits() {
+        if func_id == test_func_id {
+            continue;
+        }
         let meta = context.def_interner.function_meta(&func_id);
         let file_id = meta.location.file;
         let Some((functions, _)) = data.get_mut(&file_id) else { continue };
