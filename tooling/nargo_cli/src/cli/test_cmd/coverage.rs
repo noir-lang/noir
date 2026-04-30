@@ -214,9 +214,12 @@ pub(super) fn package_lcov_path(
     package_name: &str,
     coverage_dir_override: Option<&std::path::Path>,
 ) -> PathBuf {
+    // Most plugins that display coverage in the editor look for `lcov.info` files.
+    // We could use `*.lcov`, but it might need extra configuration; an extra hurdle.
+    const LCOV_FILE_NAME: &str = "lcov.info";
+
     let base_dir = coverage_dir_override
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| workspace.target_directory_path().join("coverage"));
+        .map_or_else(|| workspace.target_directory_path().join("coverage"), |p| p.to_path_buf());
 
     let is_root_package = workspace
         .members
@@ -225,9 +228,9 @@ pub(super) fn package_lcov_path(
         .is_none_or(|p| p.root_dir == workspace.root_dir);
 
     if is_root_package {
-        base_dir.join("lcov.info")
+        base_dir.join(LCOV_FILE_NAME)
     } else {
-        base_dir.join(package_name).join("lcov.info")
+        base_dir.join(package_name).join(LCOV_FILE_NAME)
     }
 }
 
