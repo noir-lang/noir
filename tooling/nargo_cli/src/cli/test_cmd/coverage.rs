@@ -187,22 +187,22 @@ pub(super) fn tracker_to_report(
 /// Returns the path where coverage data for `package_name` should be written.
 ///
 /// When the package sits at the workspace root (single-package layout) the file
-/// is `<target>/lcov.info`, which Coverage Gutters picks up without any extra
+/// is `<target>/coverage/lcov.info`, which Coverage Gutters picks up without any extra
 /// configuration. In a multi-package workspace each package gets its own
-/// subdirectory: `<target>/<package-name>/lcov.info`.
+/// subdirectory: `<target>/coverage/<package-name>/lcov.info`.
 pub(super) fn package_lcov_path(workspace: &Workspace, package_name: &str) -> PathBuf {
-    let target_dir = workspace.target_directory_path();
+    let mut target_dir = workspace.target_directory_path().join("coverage");
     let is_root_package = workspace
         .members
         .iter()
         .find(|p| p.name.to_string() == package_name)
         .is_none_or(|p| p.root_dir == workspace.root_dir);
 
-    if is_root_package {
-        target_dir.join("lcov.info")
-    } else {
-        target_dir.join(package_name).join("lcov.info")
+    if !is_root_package {
+        target_dir = target_dir.join(package_name)
     }
+
+    target_dir.join("lcov.info")
 }
 
 /// Writes an lcov report to `path`, creating parent directories if necessary.
