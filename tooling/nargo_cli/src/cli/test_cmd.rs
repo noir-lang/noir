@@ -183,10 +183,9 @@ struct Test<'a> {
     package_name: PackageName,
     has_arguments: bool,
     /// Execute the test, returning the test status, the printed output,
-    /// and any potential evaluation tracker data.
-    runner: Box<
-        dyn FnOnce() -> (TestStatus, TestName, Option<EvaluationTracker>) + Send + UnwindSafe + 'a,
-    >,
+    /// and an optional coverage report.
+    runner:
+        Box<dyn FnOnce() -> (TestStatus, TestName, Option<lcov::Report>) + Send + UnwindSafe + 'a>,
 }
 
 pub(crate) struct TestResult {
@@ -665,7 +664,8 @@ impl<'a> TestRunner<'a> {
 
     /// Runs a single test.
     ///
-    /// Returns its status together with whatever was printed to stdout during the test.
+    /// Returns its status together with whatever was printed to stdout during the test,
+    /// along with an optional coverage report.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &Package,
@@ -674,7 +674,7 @@ impl<'a> TestRunner<'a> {
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: PackageName,
-    ) -> (TestStatus, String, Option<EvaluationTracker>) {
+    ) -> (TestStatus, String, Option<lcov::Report>) {
         if ((self.args.no_fuzz || self.args.force_comptime) && has_arguments)
             || (self.args.only_fuzz && !has_arguments)
         {
@@ -721,7 +721,12 @@ impl<'a> TestRunner<'a> {
             let output = Rc::try_unwrap(output).expect("context no longer has it");
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
 
-            return (status, output, context.evaluation_tracker.take());
+            let report = context
+                .evaluation_tracker
+                .take()
+                .map(|tracker| coverage::tracker_to_report(&tracker, fn_name, &context));
+
+            return (status, output, report);
         }
 
         let blackbox_solver = S::default();
