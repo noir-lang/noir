@@ -8,6 +8,7 @@ use crate::ssa::ir::{
         binary::{BinaryEvaluationResult, eval_constant_binary_op},
     },
     types::NumericType,
+    value::ValueId,
 };
 use noirc_errors::call_stack::CallStackId;
 
@@ -123,6 +124,15 @@ pub(super) fn simplify_binary(
                 {
                     return SimplifyResult::SimplifiedTo(rhs);
                 }
+                // b * !(b * x) = b * !x  if b is boolean
+                if let Some(not_x) = simplify_bool_and_not_shared(dfg, lhs, rhs, block, call_stack)
+                {
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        BinaryOp::Mul { unchecked: true },
+                        lhs,
+                        not_x,
+                    ));
+                }
             }
             // (b*x)*b = b*x if b is boolean
             if dfg.get_value_max_num_bits(rhs) == 1
@@ -133,6 +143,16 @@ pub(super) fn simplify_binary(
                 && (rhs == b_lhs || rhs == b_rhs)
             {
                 return SimplifyResult::SimplifiedTo(lhs);
+            }
+            // !(b * x) * b = b * !x  if b is boolean (symmetric to above)
+            if dfg.get_value_max_num_bits(rhs) == 1
+                && let Some(not_x) = simplify_bool_and_not_shared(dfg, rhs, lhs, block, call_stack)
+            {
+                return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                    BinaryOp::Mul { unchecked: true },
+                    rhs,
+                    not_x,
+                ));
             }
         }
         BinaryOp::Div => {
@@ -314,12 +334,99 @@ pub(super) fn simplify_binary(
     SimplifyResult::SimplifiedToInstruction(simplified)
 }
 
+/// If `value` matches the pattern `Not(Mul(b, x))` or `Not(Mul(x, b))` for a
+/// boolean `b`, return (and insert if needed) `Not(x)` so the caller can
+/// rewrite `b * value` as `b * Not(x)`. This collapses `b * !(b * x)` to
+/// `b * !x`, the boolean form of `b ∧ ¬(b ∧ x) = b ∧ ¬x`.
+fn simplify_bool_and_not_shared(
+    dfg: &mut DataFlowGraph,
+    b: ValueId,
+    value: ValueId,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<ValueId> {
+    let super::Value::Instruction { instruction: outer_inst, .. } = dfg[value] else {
+        return None;
+    };
+    let Instruction::Not(inner) = dfg[outer_inst] else {
+        return None;
+    };
+    let super::Value::Instruction { instruction: inner_inst, .. } = dfg[inner] else {
+        return None;
+    };
+    let Instruction::Binary(Binary { lhs, rhs, operator }) = dfg[inner_inst] else {
+        return None;
+    };
+    if !matches!(operator, BinaryOp::Mul { .. }) {
+        return None;
+    }
+    let other = if b == lhs {
+        rhs
+    } else if b == rhs {
+        lhs
+    } else {
+        return None;
+    };
+    let not_other = dfg
+        .insert_instruction_and_results(Instruction::Not(other), block, None, call_stack)
+        .first();
+    Some(not_other)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
     };
+
+    #[test]
+    fn simplifies_bool_and_not_shared_factor() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = not v2
+            v4 = unchecked_mul v0, v3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = not v2
+            v4 = not v1
+            v5 = unchecked_mul v0, v4
+            return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_bool_not_shared_factor_and_b() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v1, v0
+            v3 = not v2
+            v4 = unchecked_mul v3, v0
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v1, v0
+            v3 = not v2
+            v4 = not v1
+            v5 = unchecked_mul v0, v4
+            return v5
+        }
+        ");
+    }
 
     #[test]
     fn replaces_shl_identity_with_lhs() {
