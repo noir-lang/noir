@@ -263,19 +263,7 @@ pub(crate) fn simplify(
                 if constant.is_one() {
                     return SimplifiedTo(*then_value);
                 } else if constant.is_zero() {
-                    let else_is_zero =
-                        dfg.get_numeric_constant(else_condition).is_some_and(|c| c.is_zero());
-                    if !else_is_zero {
-                        return SimplifiedTo(*else_value);
-                    }
-                    // Both branches are disabled. The runtime lowering of an `IfElse`
-                    // computes `cast(then_cond)*then + cast(else_cond)*else`, which is
-                    // 0 when both conditions are 0, so return 0 here too. For non-numeric
-                    // results fall through and let `remove_if_else` zero each element.
-                    if let Type::Numeric(num_type) = &*typ {
-                        let zero = dfg.make_constant(FieldElement::zero(), *num_type);
-                        return SimplifiedTo(zero);
-                    }
+                    return SimplifiedTo(*else_value);
                 }
             }
 
@@ -523,48 +511,8 @@ fn try_optimize_array_set_from_previous_get(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{interpreter::value::Value, opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
     };
-
-    // Regression test for https://github.com/noir-lang/noir/issues/8301.
-    //
-    // The two programs below are structurally identical except that the first hard-
-    // codes the predicates as `u1 0` and the second takes them as block arguments.
-    // Interpreting each with `u1 0` for the runtime args must give the same result:
-    // an `IfElse` whose `then_condition` and `else_condition` are both 0 lies in a
-    // fully disabled region, and the runtime lowering computes
-    // `cast(0)*then + cast(0)*else = 0`. The constant simplifier must also return 0,
-    // not `else_value`.
-    #[test]
-    fn ifelse_zero_predicate_constant_vs_runtime_agree() {
-        let constant_src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v0 = if u1 0 then Field 100 else (if u1 0) Field 200
-            return v0
-        }
-        ";
-
-        let runtime_src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1, v1: u1):
-            v2 = if v0 then Field 100 else (if v1) Field 200
-            return v2
-        }
-        ";
-
-        let constant_ssa = Ssa::from_str_simplifying(constant_src).unwrap();
-        let runtime_ssa = Ssa::from_str_simplifying(runtime_src).unwrap();
-
-        let constant_result = constant_ssa.interpret(vec![]).unwrap();
-        let runtime_result =
-            runtime_ssa.interpret(vec![Value::bool(false), Value::bool(false)]).unwrap();
-
-        assert_eq!(
-            constant_result, runtime_result,
-            "Constant-predicate IfElse and runtime-predicate IfElse should agree when the runtime values match the constants"
-        );
-    }
 
     #[test]
     fn removes_range_constraints_on_constants() {
