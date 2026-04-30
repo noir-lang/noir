@@ -155,7 +155,7 @@ impl LoopInvariantContext<'_> {
             _ => None,
         }?;
 
-        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
+        let (upper_field, upper_type) = upper.dec()?.into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
 
         let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
