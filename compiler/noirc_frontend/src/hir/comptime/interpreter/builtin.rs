@@ -662,7 +662,7 @@ fn vector_remove(
 
     if index >= values.len() {
         let message = format!(
-            "vector_remove: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_remove: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
@@ -725,7 +725,7 @@ fn vector_insert(
     // If index is equal to the length, the insert is equivalent to a push
     if index > values.len() {
         let message = format!(
-            "vector_insert: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_insert: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
