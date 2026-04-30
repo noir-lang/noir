@@ -43,7 +43,7 @@ fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location
 /// merged with them by `Report::merge`. `into_records` then emits them as a
 /// separate `TN:` block, giving tools a complete picture of every instrumented
 /// line even if no test ever reached it.
-pub(super) fn get_coverage_baseline_in_package(context: &Context, crate_id: CrateId) -> Report {
+pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Report {
     let def_map = &context.def_maps[&crate_id];
 
     let mut offsets_by_file: HashMap<FileId, Vec<u32>> = HashMap::new();
