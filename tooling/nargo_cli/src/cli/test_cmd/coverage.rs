@@ -17,11 +17,7 @@ use noirc_frontend::hir::comptime::EvaluationTracker;
 use noirc_frontend::node_interner::FuncId;
 
 /// Returns the location of every expression in the crate that should appear in the coverage
-/// baseline: neither inside a `#[test]` function body nor inside a global initializer.
-///
-/// Global initializer expressions are excluded because the interpreter tracks a global's
-/// *access* (via its ident location) rather than its initializer contents. Including the
-/// initializer sub-expressions would cause them to appear as perpetually-uncovered red lines.
+/// baseline, excluding expressions inside `#[test]` function bodies.
 fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location> {
     let def_map = &context.def_maps[&crate_id];
     let allowed_files = def_map.file_ids();
@@ -32,15 +28,6 @@ fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location
         .map(|body_id| context.def_interner.expr_location(&body_id))
         .collect();
 
-    let global_init_spans: Vec<Location> = context
-        .def_interner
-        .get_all_globals()
-        .iter()
-        .filter(|g| g.crate_id == crate_id)
-        .filter_map(|g| context.def_interner.get_global_let_statement(g.id))
-        .map(|let_stmt| context.def_interner.expr_location(&let_stmt.expression))
-        .collect();
-
     context
         .def_interner
         .expr_locations_for_files(&allowed_files)
@@ -48,9 +35,6 @@ fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location
             !test_body_spans
                 .iter()
                 .any(|test_loc| test_loc.file == loc.file && test_loc.span.contains(&loc.span))
-                && !global_init_spans
-                    .iter()
-                    .any(|g_loc| g_loc.file == loc.file && g_loc.span.contains(&loc.span))
         })
         .collect()
 }

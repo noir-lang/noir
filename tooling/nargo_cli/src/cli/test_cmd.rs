@@ -677,7 +677,20 @@ impl<'a> TestRunner<'a> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
 
+        if self.args.coverage {
+            // Set the tracker before elaboration so comptime blocks executed during
+            // check_crate are captured. We use all file IDs known at this point since
+            // def_maps isn't populated yet; after check_crate we narrow to crate files.
+            let all_files = context.file_manager.as_file_map().all_file_ids().copied().collect();
+            context.evaluation_tracker = Some(EvaluationTracker::new(all_files));
+        }
+
         let result = check_crate(&mut context, crate_id, &self.args.compile_options);
+
+        if context.evaluation_tracker.is_some() {
+            let crate_files = context.def_maps[&crate_id].file_ids();
+            context.evaluation_tracker.as_mut().unwrap().restrict_to_files(&crate_files);
+        }
 
         if report {
             report_errors(
@@ -752,11 +765,6 @@ impl<'a> TestRunner<'a> {
         if self.args.force_comptime || self.args.coverage && !has_arguments {
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
-
-            if self.args.coverage {
-                let allowed_files = context.def_maps[&crate_id].file_ids();
-                context.evaluation_tracker = Some(EvaluationTracker::new(allowed_files));
-            }
 
             let result = context.interpret_function(test_function.id, Vec::new());
             let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);

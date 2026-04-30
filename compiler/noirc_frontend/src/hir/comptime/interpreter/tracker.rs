@@ -58,4 +58,10 @@ impl EvaluationTracker {
     pub fn function_hits(&self) -> &HashMap<FuncId, u64> {
         &self.function_hits
     }
+
+    /// Restricts tracking to only the given files, dropping hits from any other files.
+    pub fn restrict_to_files(&mut self, files: &HashSet<FileId>) {
+        self.allowed_files.retain(|f| files.contains(f));
+        self.hits.retain(|file_id, _| self.allowed_files.contains(file_id));
+    }
 }
