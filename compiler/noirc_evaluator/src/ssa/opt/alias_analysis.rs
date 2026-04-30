@@ -535,8 +535,7 @@ impl AliasAnalysisContext {
 
         // Compute loop blocks once per function. Allocates inside them are untrusted.
         let function_is_recursive = self.recursive_functions.contains(&function.id());
-        // We ignore loop blocks if the function is recursive, because all allocates of the function
-        // are untrusted in that case so there is no point to check the loop allocates.
+        // Skip loop detection when the whole function is already untrusted via the recursion filter
         let loop_block_set =
             if function_is_recursive { HashSet::default() } else { loop_blocks(function) };
 
@@ -668,7 +667,7 @@ impl AliasAnalysisContext {
         function: &Function,
         block_id: BasicBlockId,
         scope: &Scope,
-        ignore_allocations_in_block: bool,
+        mut ignore_allocations_in_block: bool,
     ) {
         let block = &function.dfg[block_id];
 
@@ -733,6 +732,8 @@ impl AliasAnalysisContext {
                             self.unresolved_call(function, arguments, results);
                             if matches!(scope, Scope::Single(_)) {
                                 self.recursive_functions.insert(function.id());
+                                // no need to continue collecting the in-loop allocations
+                                ignore_allocations_in_block = true;
                             }
                         }
                     }
