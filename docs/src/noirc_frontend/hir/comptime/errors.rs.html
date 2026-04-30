@@ -595,7 +595,7 @@
 <a href=#595 id=595 data-nosnippet>595</a>                CustomDiagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
 <a href=#596 id=596 data-nosnippet>596</a>            }
 <a href=#597 id=597 data-nosnippet>597</a>            InterpreterError::IndexOutOfBounds { index, length, location } =&gt; {
-<a href=#598 id=598 data-nosnippet>598</a>                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{index} is out of bounds for the array of length {length}"</span>);
+<a href=#598 id=598 data-nosnippet>598</a>                <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Index out of bounds: {index} is out of bounds for the array of length {length}"</span>);
 <a href=#599 id=599 data-nosnippet>599</a>                CustomDiagnostic::simple_error(msg, String::new(), <span class="kw-2">*</span>location)
 <a href=#600 id=600 data-nosnippet>600</a>            }
 <a href=#601 id=601 data-nosnippet>601</a>            InterpreterError::ExpectedStructToHaveField { typ, field_name, location } =&gt; {

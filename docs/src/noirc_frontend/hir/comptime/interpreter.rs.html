@@ -1881,20 +1881,21 @@
 <a href=#1881 id=1881 data-nosnippet>1881</a>        <span class="kw">let </span>crate_id = func_meta.source_crate;
 <a href=#1882 id=1882 data-nosnippet>1882</a>        <span class="kw">let </span>local_id = func_meta.source_module;
 <a href=#1883 id=1883 data-nosnippet>1883</a>        <span class="kw">let </span>location = func_meta.location;
-<a href=#1884 id=1884 data-nosnippet>1884</a>        <span class="kw">let </span>enabled_unstable_features = <span class="kw-2">&amp;</span><span class="self">self</span>.required_unstable_features[<span class="kw-2">&amp;</span>crate_id].clone();
-<a href=#1885 id=1885 data-nosnippet>1885</a>        <span class="kw">let </span>cli_options = ElaboratorOptions {
-<a href=#1886 id=1886 data-nosnippet>1886</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
-<a href=#1887 id=1887 data-nosnippet>1887</a>
-<a href=#1888 id=1888 data-nosnippet>1888</a>            enabled_unstable_features,
-<a href=#1889 id=1889 data-nosnippet>1889</a>            disable_required_unstable_features: <span class="bool-val">false</span>,
-<a href=#1890 id=1890 data-nosnippet>1890</a>        };
-<a href=#1891 id=1891 data-nosnippet>1891</a>        <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id };
-<a href=#1892 id=1892 data-nosnippet>1892</a>
-<a href=#1893 id=1893 data-nosnippet>1893</a>        <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(<span class="self">self</span>, crate_id, cli_options);
-<a href=#1894 id=1894 data-nosnippet>1894</a>        elaborator.replace_module(module_id);
-<a href=#1895 id=1895 data-nosnippet>1895</a>
-<a href=#1896 id=1896 data-nosnippet>1896</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
-<a href=#1897 id=1897 data-nosnippet>1897</a>        <span class="kw">let </span>instantiation_bindings = TypeBindings::default();
-<a href=#1898 id=1898 data-nosnippet>1898</a>        interpreter.call_function(main_id, args, instantiation_bindings, location)
-<a href=#1899 id=1899 data-nosnippet>1899</a>    }
-<a href=#1900 id=1900 data-nosnippet>1900</a>}</code></pre></div></section></main></body></html>
+<a href=#1884 id=1884 data-nosnippet>1884</a>        <span class="kw">let </span>enabled_unstable_features =
+<a href=#1885 id=1885 data-nosnippet>1885</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.required_unstable_features.get(<span class="kw-2">&amp;</span>crate_id).cloned().unwrap_or_default();
+<a href=#1886 id=1886 data-nosnippet>1886</a>        <span class="kw">let </span>cli_options = ElaboratorOptions {
+<a href=#1887 id=1887 data-nosnippet>1887</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
+<a href=#1888 id=1888 data-nosnippet>1888</a>
+<a href=#1889 id=1889 data-nosnippet>1889</a>            enabled_unstable_features,
+<a href=#1890 id=1890 data-nosnippet>1890</a>            disable_required_unstable_features: <span class="bool-val">false</span>,
+<a href=#1891 id=1891 data-nosnippet>1891</a>        };
+<a href=#1892 id=1892 data-nosnippet>1892</a>        <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id };
+<a href=#1893 id=1893 data-nosnippet>1893</a>
+<a href=#1894 id=1894 data-nosnippet>1894</a>        <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(<span class="self">self</span>, crate_id, cli_options);
+<a href=#1895 id=1895 data-nosnippet>1895</a>        elaborator.replace_module(module_id);
+<a href=#1896 id=1896 data-nosnippet>1896</a>
+<a href=#1897 id=1897 data-nosnippet>1897</a>        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
+<a href=#1898 id=1898 data-nosnippet>1898</a>        <span class="kw">let </span>instantiation_bindings = TypeBindings::default();
+<a href=#1899 id=1899 data-nosnippet>1899</a>        interpreter.call_function(main_id, args, instantiation_bindings, location)
+<a href=#1900 id=1900 data-nosnippet>1900</a>    }
+<a href=#1901 id=1901 data-nosnippet>1901</a>}</code></pre></div></section></main></body></html>
