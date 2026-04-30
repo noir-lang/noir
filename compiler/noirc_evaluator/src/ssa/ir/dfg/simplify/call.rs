@@ -483,26 +483,29 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     }
 
     // If this is a zero-sized vector then it can never have values in it.
-    // We do need to check that the length is not zero, though.
+    // We do need to check that the length is not zero, though, but only in ACIR
+    // because in Brillig we already insert such check in FunctionContext::codegen_intrinsic_call_checks.
     let length = arguments[0];
 
-    let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
-    let length_eq_zero = dfg
-        .insert_instruction_and_results(
-            Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: zero_u32 }),
+    if dfg.runtime().is_acir() {
+        let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
+        let length_eq_zero = dfg
+            .insert_instruction_and_results(
+                Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: zero_u32 }),
+                block,
+                None,
+                call_stack,
+            )
+            .first();
+        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+        let message = Some(ConstrainError::StaticString("Cannot pop from an empty vector".into()));
+        dfg.insert_instruction_and_results(
+            Instruction::Constrain(length_eq_zero, zero, message),
             block,
             None,
             call_stack,
-        )
-        .first();
-    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-    let message = Some(ConstrainError::StaticString("Cannot pop from an empty vector".into()));
-    dfg.insert_instruction_and_results(
-        Instruction::Constrain(length_eq_zero, zero, message),
-        block,
-        None,
-        call_stack,
-    );
+        );
+    }
 
     let new_vector_length = decrement_vector_length(length, dfg, block, call_stack);
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
@@ -521,33 +524,11 @@ fn simplify_vector_insert_for_zero_sized_vector(
     if !element_types.is_empty() {
         return None;
     }
-    // If this is a zero-sized vector we need to check that the index is less than or equal
-    // than the length. Then the new length is `length + 1` and the new vector is `@[]` since
-    // it can't have any elements anyway
-    let length = arguments[0];
-    let index = arguments[2];
-    let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
 
-    let index_less_than_new_length = dfg
-        .insert_instruction_and_results(
-            Instruction::Binary(Binary {
-                lhs: index,
-                operator: BinaryOp::Lt,
-                rhs: new_vector_length,
-            }),
-            block,
-            None,
-            call_stack,
-        )
-        .first();
-    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
-    let message = Some(ConstrainError::StaticString("Index out of bounds".into()));
-    dfg.insert_instruction_and_results(
-        Instruction::Constrain(index_less_than_new_length, one, message),
-        block,
-        None,
-        call_stack,
-    );
+    // If this is a zero-sized vector we would need to check if the index is in bounds.
+    // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
+    // no need to repeat that here.
+    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
 
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
 }
@@ -566,29 +547,9 @@ fn simplify_vector_remove_for_zero_sized_vector(
         return None;
     }
 
-    // If this is a zero-sized vector we need to check that the index is less than
-    // the length. Then the new length is `length - 1` and the new vector is `@[]` since
-    // it can't have any elements anyway
-    let length = arguments[0];
-    let index = arguments[2];
-
-    let index_less_than_length = dfg
-        .insert_instruction_and_results(
-            Instruction::Binary(Binary { lhs: index, operator: BinaryOp::Lt, rhs: length }),
-            block,
-            None,
-            call_stack,
-        )
-        .first();
-    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
-    let message = Some(ConstrainError::StaticString("Index out of bounds".into()));
-    dfg.insert_instruction_and_results(
-        Instruction::Constrain(index_less_than_length, one, message),
-        block,
-        None,
-        call_stack,
-    );
-
+    // If this is a zero-sized vector we would need to check if the index is in bounds.
+    // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
+    // no need to repeat that here.
     let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
 
     Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
@@ -1375,15 +1336,13 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: [()], v2: u32):
             v4 = add v0, u32 1
-            v5 = lt v2, v4
-            constrain v5 == u1 1, "Index out of bounds"
             return v4, v1
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -1396,15 +1355,13 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: [()], v2: u32):
-            v3 = lt v2, v0
-            constrain v3 == u1 1, "Index out of bounds"
-            v6 = unchecked_sub v0, u32 1
-            return v6, v1
+            v4 = unchecked_sub v0, u32 1
+            return v4, v1
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -1446,7 +1403,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_vector_pop_front_for_zero_sized_array() {
+    fn simplifies_vector_pop_front_for_zero_sized_array_in_acir() {
         let src = r"
         acir(inline) fn main func {
           b0(v0: u32, v1: [()]):
@@ -1467,7 +1424,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_vector_pop_back_for_zero_sized_array() {
+    fn simplifies_vector_pop_back_for_zero_sized_array_in_acir() {
         let src = r"
         acir(inline) fn main func {
           b0(v0: u32, v1: [()]):
@@ -1485,5 +1442,43 @@ mod tests {
             return v6, v1
         }
         "#);
+    }
+
+    #[test]
+    fn simplifies_vector_pop_front_for_zero_sized_array_in_brillig() {
+        let src = r"
+        brillig(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_front(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = unchecked_sub v0, u32 1
+            return v3, v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_pop_back_for_zero_sized_array_in_brillig() {
+        let src = r"
+        brillig(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_back(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = unchecked_sub v0, u32 1
+            return v3, v1
+        }
+        ");
     }
 }
