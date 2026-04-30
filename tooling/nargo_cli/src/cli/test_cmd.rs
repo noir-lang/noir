@@ -48,6 +48,9 @@ pub(crate) mod formatters;
 type TestName = String;
 type PackageName = String;
 
+/// All the tests collected in a package, along with an optional baseline coverage report.
+type PackageTestsAndCoverageBaseline<'a> = (Vec<Test<'a>>, Option<lcov::Report>);
+
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "t")]
@@ -492,12 +495,12 @@ impl<'a> TestRunner<'a> {
                             all_passed = false;
                         }
 
-                        if let Some(test_coverage) = test_coverage {
-                            if let Some(package_coverage) =
-                                coverage_per_package.get_mut(package_name)
-                            {
-                                package_coverage.merge_lossy(test_coverage);
-                            }
+                        // Merge test coverage into the package level coverage.
+                        if let Some(test_coverage) = test_coverage
+                            && let Some(package_coverage) =
+                                coverage_per_package.get_mut(&test_result.package_name)
+                        {
+                            package_coverage.merge_lossy(test_coverage);
                         }
 
                         // This is a test result from a different package: buffer it.
@@ -536,6 +539,11 @@ impl<'a> TestRunner<'a> {
                         self.args.compile_options.silence_warnings,
                     )
                     .expect("Could not display test report");
+
+                if let Some(package_report) = coverage_per_package.remove(package_name) {
+                    let target_dir = self.workspace.target_directory_path();
+                    coverage::write_package_coverage(package_report, &target_dir, package_name);
+                }
             }
         });
 
@@ -545,7 +553,7 @@ impl<'a> TestRunner<'a> {
     /// Compiles all packages in parallel and returns their tests and optional coverage baseline.
     fn collect_packages_tests(
         &'a self,
-    ) -> Result<BTreeMap<PackageName, (Vec<Test<'a>>, Option<lcov::Report>)>, CliError> {
+    ) -> Result<BTreeMap<PackageName, PackageTestsAndCoverageBaseline<'a>>, CliError> {
         let mut package_tests = BTreeMap::new();
         let mut error = None;
 

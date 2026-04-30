@@ -57,12 +57,12 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
     let mut functions_by_file: HashMap<FileId, Vec<FuncId>> = HashMap::new();
     for (_, module) in def_map.modules().iter() {
         for def_id in module.value_definitions() {
-            if let Some(func_id) = def_id.as_function() {
-                if !test_func_ids.contains(&func_id) {
-                    let file = context.def_interner.function_meta(&func_id).location.file;
-                    if offsets_by_file.contains_key(&file) {
-                        functions_by_file.entry(file).or_default().push(func_id);
-                    }
+            if let Some(func_id) = def_id.as_function()
+                && !test_func_ids.contains(&func_id)
+            {
+                let file = context.def_interner.function_meta(&func_id).location.file;
+                if offsets_by_file.contains_key(&file) {
+                    functions_by_file.entry(file).or_default().push(func_id);
                 }
             }
         }
@@ -77,7 +77,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         let line_starts = build_line_starts(source);
 
         let mut functions = function::Functions::new();
-        for &func_id in functions_by_file.get(file_id).map(Vec::as_slice).unwrap_or(&[]) {
+        for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
             let meta = context.def_interner.function_meta(&func_id);
             let name = context.def_interner.function_name(&func_id).to_string();
             let start_line = offset_to_line(meta.location.span.start(), &line_starts);
@@ -159,6 +159,31 @@ pub(super) fn tracker_to_report(
     }
 
     report
+}
+
+/// Writes an lcov report to `<target_dir>/<package_name>.lcov`, creating the
+/// directory if necessary. Prints a warning to stderr on failure.
+pub(super) fn write_package_coverage(
+    report: Report,
+    target_dir: &std::path::Path,
+    package_name: &str,
+) {
+    use std::io::Write;
+
+    let lcov_path = target_dir.join(package_name).with_extension("lcov");
+
+    let write = || -> std::io::Result<()> {
+        std::fs::create_dir_all(target_dir)?;
+        let mut file = std::fs::File::create(&lcov_path)?;
+        for record in report.into_records() {
+            writeln!(file, "{record}")?;
+        }
+        Ok(())
+    };
+
+    if let Err(err) = write() {
+        eprintln!("Warning: could not write coverage report to {}: {err}", lcov_path.display());
+    }
 }
 
 /// Returns a vec of byte offsets where each line starts (0-indexed by line, 1-indexed by value).
