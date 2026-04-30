@@ -2178,135 +2178,139 @@ mod tests {
         let _ = Ssa::from_str(src).unwrap();
     }
 
-    #[test]
-    fn if_else_allows_direct_negation() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = not v0
-            v2 = if v0 then Field 1 else (if v1) Field 2
-            return v2
-        }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
+    mod if_else {
+        use super::Ssa;
 
-    #[test]
-    fn if_else_allows_constant_one_zero_pair() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v0 = if u1 1 then Field 1 else (if u1 0) Field 2
-            return v0
+        #[test]
+        fn allows_direct_negation() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = not v0
+                v2 = if v0 then Field 1 else (if v1) Field 2
+                return v2
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    fn if_else_allows_constant_zero_one_pair() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v0 = if u1 0 then Field 1 else (if u1 1) Field 2
-            return v0
+        #[test]
+        fn allows_constant_one_zero_pair() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 1 then Field 1 else (if u1 0) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "constant conditions (0, 0) are not complementary")]
-    fn if_else_disallows_both_constant_zero() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v0 = if u1 0 then Field 1 else (if u1 0) Field 2
-            return v0
+        #[test]
+        fn allows_constant_zero_one_pair() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 0 then Field 1 else (if u1 1) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "constant conditions (1, 1) are not complementary")]
-    fn if_else_disallows_both_constant_one() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0():
-            v0 = if u1 1 then Field 1 else (if u1 1) Field 2
-            return v0
+        #[test]
+        #[should_panic(expected = "constant conditions (0, 0) are not complementary")]
+        fn disallows_both_constant_zero() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 0 then Field 1 else (if u1 0) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "is not the direct negation of")]
-    fn if_else_disallows_constant_one_paired_with_runtime() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = if u1 1 then Field 1 else (if v0) Field 2
-            return v1
+        #[test]
+        #[should_panic(expected = "constant conditions (1, 1) are not complementary")]
+        fn disallows_both_constant_one() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 1 then Field 1 else (if u1 1) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "is not the direct negation of")]
-    fn if_else_disallows_runtime_paired_with_constant_zero() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = if v0 then Field 1 else (if u1 0) Field 2
-            return v1
+        #[test]
+        #[should_panic(expected = "is not the direct negation of")]
+        fn disallows_constant_one_paired_with_runtime() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if u1 1 then Field 1 else (if v0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "is not the direct negation of")]
-    fn if_else_disallows_unrelated_runtime_conditions() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1, v1: u1):
-            v2 = if v0 then Field 1 else (if v1) Field 2
-            return v2
+        #[test]
+        #[should_panic(expected = "is not the direct negation of")]
+        fn disallows_runtime_paired_with_constant_zero() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if v0 then Field 1 else (if u1 0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "is not the direct negation of")]
-    fn if_else_disallows_same_runtime_condition_on_both_sides() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = if v0 then Field 1 else (if v0) Field 2
-            return v1
+        #[test]
+        #[should_panic(expected = "is not the direct negation of")]
+        fn disallows_unrelated_runtime_conditions() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = if v0 then Field 1 else (if v1) Field 2
+                return v2
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
 
-    #[test]
-    #[should_panic(expected = "is not the direct negation of")]
-    fn if_else_disallows_shared_and_factor_pattern() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1, v1: u1):
-            v2 = and v0, v1
-            v3 = not v1
-            v4 = and v0, v3
-            v5 = if v2 then Field 1 else (if v4) Field 2
-            return v5
+        #[test]
+        #[should_panic(expected = "is not the direct negation of")]
+        fn disallows_same_runtime_condition_on_both_sides() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if v0 then Field 1 else (if v0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
         }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
+
+        #[test]
+        #[should_panic(expected = "is not the direct negation of")]
+        fn disallows_shared_and_factor_pattern() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = and v0, v1
+                v3 = not v1
+                v4 = and v0, v3
+                v5 = if v2 then Field 1 else (if v4) Field 2
+                return v5
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
     }
 
     #[test]
