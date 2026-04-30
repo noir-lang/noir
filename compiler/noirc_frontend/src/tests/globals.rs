@@ -327,3 +327,56 @@ fn regression_11489_comptime_value() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn regression_5626_global_annotation_flows_into_block() {
+    // https://github.com/noir-lang/noir/issues/5626
+    // The type annotation on a global must propagate into the assigned block
+    // expression so that method calls on a generic type with trait bounds
+    // can be resolved using the annotated type as inference context.
+    let src = r#"
+    trait Bound {
+        fn make() -> Self;
+    }
+
+    pub struct Wrapper<T> {
+        value: T,
+    }
+
+    impl<T> Wrapper<T>
+    where
+        T: Bound,
+    {
+        pub fn new() -> Self {
+            Wrapper { value: T::make() }
+        }
+
+        pub fn push(self, _x: u32) -> Self {
+            self
+        }
+    }
+
+    pub struct Inner {}
+    impl Bound for Inner {
+        fn make() -> Self {
+            Inner {}
+        }
+    }
+
+    global G: Wrapper<Inner> = {
+        let mut x = Wrapper::new();
+        x = x.push(1);
+        x
+    };
+
+    fn main() {
+        let _ = G;
+        let _local: Wrapper<Inner> = {
+            let mut x = Wrapper::new();
+            x = x.push(1);
+            x
+        };
+    }
+    "#;
+    assert_no_errors(src);
+}
