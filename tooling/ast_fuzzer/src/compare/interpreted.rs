@@ -241,7 +241,7 @@ impl Comparable for Value {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_vector == b.is_vector
+                    && a.length == b.length
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -277,12 +277,12 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>, length: SemanticLength| {
         Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_vector: false,
+            length: Some(length),
         })
     };
     match input {
@@ -301,8 +301,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values
-            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
+        InputValue::String(s) => {
+            let bytes = s.bytes();
+            let length = SemanticLength(bytes.len() as u32);
+            values.push(array_value(vecmap(bytes, Value::u8), vec![Type::unsigned(8)], length));
+        }
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
@@ -310,7 +313,7 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 for input in input_values {
                     append_input_value_to_ssa(typ, input, &mut elements);
                 }
-                values.push(array_value(elements, input_type_to_ssa(typ)));
+                values.push(array_value(elements, input_type_to_ssa(typ), SemanticLength(*length)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");

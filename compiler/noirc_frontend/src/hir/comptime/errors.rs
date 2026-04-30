@@ -626,6 +626,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "+" => "add",
                     "-" => "subtract",
                     "*" => "multiply",
+                    "/" => "divide",
+                    "%" => "calculate the remainder",
                     ">>" | "<<" => "bit-shift",
                     _ => operator,
                 };

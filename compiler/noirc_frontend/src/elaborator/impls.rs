@@ -180,11 +180,9 @@ impl Elaborator<'_> {
                 };
 
                 // Handle method shadowing when a duplicate method name is found
-                if result.is_err() {
-                    let existing = module.find_func_with_name(method.name_ident()).expect(
-                        "declare_function should only error if there is an existing function",
-                    );
-
+                if result.is_err()
+                    && let Some(existing) = module.find_func_with_name(method.name_ident())
+                {
                     // Inherent impls take precedence over trait impls for qualified calls.
                     // If the existing method is from a trait impl, remove it from module scope
                     // so that `TypeName::method` resolves to the inherent impl version.
