@@ -828,9 +828,9 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        if cond_context.else_branch.is_none() {
+        let Some(else_branch) = cond_context.else_branch else {
             unreachable!("malformed branch");
-        }
+        };
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -841,19 +841,35 @@ impl<'f> Context<'f> {
             // else_value (or then_value) matches the outer merge's corresponding
             // argument, the two merges can be combined into one.
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_condition, then_value, else_value) =
+            let (then_condition, then_value, candidate_else_cond, else_value) =
                 if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    (inner_then_cond, inner_then_val, shared_val)
+                    // The collapsed merge's `then_condition` already incorporates all outer
+                    // conditions, so there's no AND-with-outer candidate to consider.
+                    (inner_then_cond, inner_then_val, None, shared_val)
                 } else {
-                    (cond_context.then_branch.condition, then_arg, else_arg)
+                    (
+                        cond_context.then_branch.condition,
+                        then_arg,
+                        Some(else_branch.condition),
+                        else_arg,
+                    )
                 };
-            // `else_condition` is always the direct negation of `then_condition`
-            // so `simplify::IfElse` (and downstream passes) can rely on the two
-            // conditions being complementary.
-            let else_condition = self.not_instruction(
-                then_condition,
-                self.inserter.function.dfg.get_value_call_stack_id(then_condition),
-            );
+            // Prefer the AND-with-outer `else_condition` from the conditional context
+            // when it folded to a constant: this happens when the local condition is a
+            // compile-time true (so `AND(outer, !true)` folds to 0). Keeping that 0
+            // lets the per-element value-merger fold `cast(0) * else_value` away,
+            // halving the cost of array merges. Otherwise synthesise the direct
+            // negation of `then_condition` so `simplify::IfElse` (and downstream
+            // passes) can rely on the two conditions being complementary.
+            let else_condition = match candidate_else_cond
+                .filter(|c| self.inserter.function.dfg.get_numeric_constant(*c).is_some())
+            {
+                Some(constant) => constant,
+                None => self.not_instruction(
+                    then_condition,
+                    self.inserter.function.dfg.get_value_call_stack_id(then_condition),
+                ),
+            };
 
             let instruction =
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value };
