@@ -322,7 +322,7 @@ impl LoopInvariantContext<'_> {
                 true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
                 // `const < i`
                 false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= constant.inc() => {
+                false if constant.inc().is_some_and(|constant| upper_bound <= constant) => {
                     // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }

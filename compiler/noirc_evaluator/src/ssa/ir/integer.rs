@@ -64,21 +64,15 @@ impl IntegerConstant {
         }
     }
 
-    /// Increment the value by 1
-    ///
-    /// # Panics
-    ///
-    /// Panics if the increment causes an overflow.
-    pub(crate) fn inc(self) -> Self {
+    /// Increment the value by 1. Returns None if the increment would cause an overlfow.
+    pub(crate) fn inc(self) -> Option<Self> {
         match self {
-            Self::Signed { value, bit_size } => Self::Signed {
-                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
-                bit_size,
-            },
-            Self::Unsigned { value, bit_size } => Self::Unsigned {
-                value: value.checked_add(1).expect("ICE: overflow while incrementing constant"),
-                bit_size,
-            },
+            Self::Signed { value, bit_size } => {
+                value.checked_add(1).map(|value| Self::Signed { value, bit_size })
+            }
+            Self::Unsigned { value, bit_size } => {
+                value.checked_add(1).map(|value| Self::Unsigned { value, bit_size })
+            }
         }
     }
 
