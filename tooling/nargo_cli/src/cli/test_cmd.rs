@@ -21,17 +21,20 @@ use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig,
+    errors::CompileError,
     foreign_calls::DefaultForeignCallBuilder,
     insert_all_files_for_workspace_into_file_manager,
-    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
+    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors, report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
+use noirc_errors::{Location, reporter::ReportedErrors};
+use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::{
-    FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
+    Context, FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
 };
 
 use crate::errors::CliError;
@@ -39,6 +42,10 @@ use crate::errors::CliError;
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
 pub(crate) mod formatters;
+
+/// Fully qualified test name.
+type TestName = String;
+type PackageName = String;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -171,15 +178,19 @@ impl Display for Format {
 }
 
 struct Test<'a> {
-    name: String,
-    package_name: String,
+    name: TestName,
+    package_name: PackageName,
     has_arguments: bool,
-    runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
+    /// Execute the test, returning the test status, the printed output,
+    /// and any potential evaluation tracker data.
+    runner: Box<
+        dyn FnOnce() -> (TestStatus, TestName, Option<EvaluationTracker>) + Send + UnwindSafe + 'a,
+    >,
 }
 
 pub(crate) struct TestResult {
-    name: String,
-    package_name: String,
+    name: TestName,
+    package_name: PackageName,
     status: TestStatus,
     output: String,
     time_to_run: Duration,
@@ -187,8 +198,8 @@ pub(crate) struct TestResult {
 
 impl TestResult {
     pub(crate) fn new(
-        name: String,
-        package_name: String,
+        name: TestName,
+        package_name: PackageName,
         status: TestStatus,
         output: String,
         time_to_run: Duration,
@@ -322,8 +333,8 @@ impl<'a> TestRunner<'a> {
                 .expect("Could not display test start");
 
             let time_before_test = std::time::Instant::now();
-            let (status, output) = match catch_unwind(test.runner) {
-                Ok((status, output)) => (status, output),
+            let (status, output, tracker) = match catch_unwind(test.runner) {
+                Ok(values) => values,
                 Err(err) => (
                     TestStatus::Fail {
                                     message:
@@ -336,6 +347,7 @@ impl<'a> TestRunner<'a> {
                                     error_diagnostic: None,
                                 },
                     String::new(),
+                    None,
                 ),
             };
             let time_to_run = time_before_test.elapsed();
@@ -369,7 +381,7 @@ impl<'a> TestRunner<'a> {
     fn run_all_tests(
         &self,
         tests: Vec<Test<'a>>,
-        test_count_per_package: &BTreeMap<String, usize>,
+        test_count_per_package: &BTreeMap<PackageName, usize>,
     ) -> bool {
         let mut all_passed = true;
 
@@ -513,7 +525,7 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles all packages in parallel and returns their tests
-    fn collect_packages_tests(&'a self) -> Result<BTreeMap<String, Vec<Test<'a>>>, CliError> {
+    fn collect_packages_tests(&'a self) -> Result<BTreeMap<PackageName, Vec<Test<'a>>>, CliError> {
         let mut package_tests = BTreeMap::new();
         let mut error = None;
 
@@ -569,16 +581,20 @@ impl<'a> TestRunner<'a> {
         if let Some(error) = error { Err(error) } else { Ok(package_tests) }
     }
 
-    /// Compiles a single package and returns all of its tests
+    /// Compiles a single package and returns all of its tests.
+    ///
+    /// TODO: Optionally returns a tally of functions and lines that can be covered by tests.
     fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &'a Package,
         foreign_call_resolver_url: Option<&'a str>,
         root_path: Option<PathBuf>,
-        package_name: String,
+        package_name: PackageName,
     ) -> Result<Vec<Test<'a>>, CliError> {
-        let test_functions = self.get_tests_in_package(package)?;
+        let (context, crate_id) = self.prepare_package_and_check_crate(package, true)?;
+        let test_functions = self.get_tests_in_crate(&context, crate_id);
 
+        // Convert the test functions into runnable tests.
         let tests: Vec<Test> = test_functions
             .into_iter()
             .map(|(test_name, test_function)| {
@@ -608,20 +624,47 @@ impl<'a> TestRunner<'a> {
         Ok(tests)
     }
 
-    /// Compiles a single package and returns all of its test names
-    fn get_tests_in_package(
+    /// Compiles a single package and returns the checked [Context] and the root [CrateId].
+    fn prepare_package_and_check_crate(
         &'a self,
         package: &'a Package,
-    ) -> Result<Vec<(String, TestFunction)>, CliError> {
+        report: bool,
+    ) -> Result<(Context<'a, 'a>, CrateId), CompileError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
-        Ok(context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern))
+        let result = check_crate(&mut context, crate_id, &self.args.compile_options);
+
+        if report {
+            report_errors(
+                result,
+                &context.file_manager,
+                &context.parsed_files,
+                self.args.compile_options.deny_warnings,
+                self.args.compile_options.silence_warnings,
+            )?;
+            Ok((context, crate_id))
+        } else if let Err(diagnostics) = result {
+            Err(CompileError::ReportedErrors(ReportedErrors {
+                error_count: diagnostics.len() as u32,
+            }))
+        } else {
+            Ok((context, crate_id))
+        }
     }
 
-    /// Runs a single test and returns its status together with whatever was printed to stdout
-    /// during the test.
+    /// Return all tests in the crate.
+    fn get_tests_in_crate(
+        &'a self,
+        context: &'a Context,
+        crate_id: CrateId,
+    ) -> Vec<(TestName, TestFunction)> {
+        context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
+    }
+
+    /// Runs a single test.
+    ///
+    /// Returns its status together with whatever was printed to stdout during the test.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &Package,
@@ -629,20 +672,18 @@ impl<'a> TestRunner<'a> {
         has_arguments: bool,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
-        package_name: String,
-    ) -> (TestStatus, String) {
+        package_name: PackageName,
+    ) -> (TestStatus, String, Option<EvaluationTracker>) {
         if ((self.args.no_fuzz || self.args.force_comptime) && has_arguments)
             || (self.args.only_fuzz && !has_arguments)
         {
-            return (TestStatus::Skipped, String::new());
+            return (TestStatus::Skipped, String::new(), None);
         }
 
         // This is really hacky but we can't share `Context` or `S` across threads.
         // We then need to construct a separate copy for each test.
-
-        let (mut context, crate_id) =
-            prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate(&mut context, crate_id, &self.args.compile_options)
+        let (mut context, crate_id) = self
+            .prepare_package_and_check_crate(package, false)
             .expect("Any errors should have occurred when collecting test functions");
 
         let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
@@ -660,21 +701,26 @@ impl<'a> TestRunner<'a> {
                 Ok(_) => TestStatus::Skipped,
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new());
+            return (status, String::new(), None);
         }
 
         if self.args.force_comptime || self.args.coverage && !has_arguments {
-            let allowed_files = context.def_maps[&crate_id].file_ids();
-            context.evaluation_tracker = Some(EvaluationTracker::new(allowed_files));
-
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
+
+            if self.args.coverage {
+                let allowed_files = context.def_maps[&crate_id].file_ids();
+                context.evaluation_tracker = Some(EvaluationTracker::new(allowed_files));
+            }
+
             let result = context.interpret_function(test_function.id, Vec::new());
             let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
+
             context.interpreter_output = None;
             let output = Rc::try_unwrap(output).expect("context no longer has it");
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
-            return (status, output);
+
+            return (status, output, context.evaluation_tracker.take());
         }
 
         let blackbox_solver = S::default();
@@ -717,7 +763,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string)
+        (test_status, output_string, None)
     }
 
     /// Display the status of a single test
@@ -738,4 +784,27 @@ impl<'a> TestRunner<'a> {
             self.args.compile_options.silence_warnings,
         )
     }
+}
+
+/// Returns the location of every expression in the crate that is not inside a `#[test]` function.
+/// Used to build the zero-count baseline for lcov coverage reports.
+fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location> {
+    let def_map = &context.def_maps[&crate_id];
+    let allowed_files = def_map.file_ids();
+
+    let test_body_spans: Vec<Location> = def_map
+        .get_all_test_functions(&context.def_interner)
+        .filter_map(|test_fn| context.def_interner.function(&test_fn.id).try_as_expr())
+        .map(|body_id| context.def_interner.expr_location(&body_id))
+        .collect();
+
+    context
+        .def_interner
+        .expr_locations_for_files(&allowed_files)
+        .filter(|loc| {
+            !test_body_spans
+                .iter()
+                .any(|test_loc| test_loc.file == loc.file && test_loc.span.contains(&loc.span))
+        })
+        .collect()
 }

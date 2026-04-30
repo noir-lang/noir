@@ -1676,6 +1676,20 @@ impl NodeInterner {
         }
     }
 
+    /// Returns the location of every expression node whose source file is in `files`.
+    /// Used to build the zero-count baseline for lcov coverage reports: all expression
+    /// locations are emitted with a hit count of 0 before per-test data is written.
+    pub fn expr_locations_for_files<'a>(
+        &'a self,
+        files: &'a std::collections::HashSet<FileId>,
+    ) -> impl Iterator<Item = Location> + 'a {
+        self.id_to_location
+            .iter()
+            .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
+            .filter(|(idx, _)| matches!(self.nodes.get(**idx), Some(Node::Expression(_))))
+            .map(|(_, loc)| *loc)
+    }
+
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {
         match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
