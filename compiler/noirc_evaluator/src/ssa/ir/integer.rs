@@ -64,7 +64,7 @@ impl IntegerConstant {
         }
     }
 
-    /// Increment the value by 1. Returns None if the increment would cause an overlfow.
+    /// Increment the value by 1. Returns None if the increment would cause an overflow.
     pub(crate) fn inc(self) -> Option<Self> {
         match self {
             Self::Signed { value, bit_size } => {
