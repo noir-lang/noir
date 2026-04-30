@@ -1267,6 +1267,70 @@ mod tests {
         ");
     }
 
+    /// load_store_forwarding incorrectly forwards a store across two call
+    /// sites of a non-recursive callee. Each call to `f1` allocates a
+    /// fresh `inner` cell; the store at `v1` writes to the first call's
+    /// `inner`, and the load at `v4` reads through the second call's
+    /// `inner`. Because pass 2 of alias_analysis assigns
+    /// `Known(f1::inner)` to both `v1` and `v3` — and `is_trusted` does
+    /// not account for multi-call-site amplification of a non-recursive
+    /// callee — the forwarding pass keys both under the same trusted
+    /// site and replaces `v4` with `Field 1`.
+    ///
+    /// Sound output: `v4 = load v3 -> Field` must remain (or fold to
+    /// `Field 0`, the value `f1` stores into `inner` on every entry).
+    /// It must NOT fold to `Field 1`.
+    #[test]
+    fn load_forward_unsound_across_multi_call_site_non_recursive_callee() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &mut Field
+            v1 = load v0 -> &mut Field
+            store Field 1 at v1
+            v2 = call f1() -> &mut &mut Field
+            v3 = load v2 -> &mut Field
+            v4 = load v3 -> Field
+            return v4
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The load at `v4` reads from the *second* call's `inner` cell —
+        // not the first's. The pass must not replace `v4` with a numeric
+        // constant. (We accept either a remaining Load, or a fold to
+        // `Field 0` — the value `f1` stores into `inner` on every entry —
+        // but never `Field 1`.)
+        let main = ssa.main();
+        let returned = match main.dfg[main.entry_block()].terminator() {
+            Some(crate::ssa::ir::instruction::TerminatorInstruction::Return {
+                return_values, ..
+            }) => return_values[0],
+            _ => panic!("expected a Return terminator with one value"),
+        };
+        if let crate::ssa::ir::value::Value::NumericConstant { constant, .. } =
+            &main.dfg[returned]
+        {
+            assert_ne!(
+                format!("{constant:?}"),
+                "1",
+                "load through the second call's result was wrongly \
+                 forwarded to `Field 1` (the value stored into the \
+                 *first* call's `inner` cell). The two `inner` cells \
+                 are distinct: must_alias is unsound across multiple \
+                 call sites of a non-recursive callee."
+            );
+        }
+    }
+
     #[test]
     fn dead_store_and_forward_via_must_alias_ifelse() {
         // v1 has site Some(v1); v2 (block-param) inherits Some(v1); IfElse

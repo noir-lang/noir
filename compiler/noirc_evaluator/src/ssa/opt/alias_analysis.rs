@@ -2703,4 +2703,104 @@ mod tests {
         // assert !may_alias(v1, v2)
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
+
+    /// Multi-call-site site propagation
+    ///
+    /// `is_trusted` filters allocation sites whose defining function is
+    /// recursive and `Allocate`s that live inside a CFG loop, but does
+    /// not account for a non-recursive callee invoked from multiple
+    /// call sites — every invocation produces a fresh runtime cell.
+    ///
+    /// Steensgaard merges all call sites of `f1` into a single alias
+    /// class, so `points_to_sites` for `f1::outer`'s pointee class —
+    /// set to `Known(f1::inner)` by the store inside `f1` — becomes
+    /// the site of every load through any call result. Pass 2 writes
+    /// `Known(f1::inner)` into both `main.v1` (load through the first
+    /// call's result) and `main.v3` (load through the second call's
+    /// result). `f1` is not in `recursive_functions` and `f1::inner`
+    /// is not in `loop_allocate`, so `is_trusted` returns
+    /// `Some(f1::inner)` for both — and `must_alias(main.v1, main.v3)`
+    /// returns true. The two `inner` cells are distinct: each call to
+    /// `f1` allocates a fresh `inner`.
+    #[test]
+    fn must_alias_sound_on_multi_call_site_non_recursive_callee() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &mut Field
+            v1 = load v0 -> &mut Field
+            v2 = call f1() -> &mut &mut Field
+            v3 = load v2 -> &mut Field
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let loads = collect_loads(&ssa);
+        let analysis = analyze_main(&ssa);
+        // loads[0] = main.v1 (first call's `inner` cell)
+        // loads[1] = main.v3 (second call's `inner` cell — distinct)
+        assert!(
+            !analysis.must_alias(loads[0], loads[1]),
+            "must_alias unsoundly returns true for values from two \
+             distinct call sites of a non-recursive callee — each call \
+             to f1 allocates a fresh `inner` cell"
+        );
+    }
+
+    /// Multi-call-site site propagation under a caller-side loop
+    ///
+    /// A variant of the multi-call-site case in which the callee is
+    /// invoked from inside a loop in the caller. The callee's
+    /// allocation lives outside any loop in *its own* function, so
+    /// `loop_blocks` does not flag it as `loop_allocate`; the callee
+    /// is also non-recursive. Yet each loop iteration in the caller
+    /// allocates a fresh `f1::inner`, so `must_alias` between two
+    /// load results from different iterations should be `false`.
+    #[test]
+    fn must_alias_sound_on_callee_alloc_with_loop_callsite() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(v0)
+          b1(v1: u1):
+            v2 = call f1() -> &mut &mut Field
+            v3 = load v2 -> &mut Field
+            jmpif v1 then: b1(v1), else: b2()
+          b2():
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let loads = collect_loads(&ssa);
+        let analysis = analyze_main(&ssa);
+        // Only one Load instruction (in b1), but it executes once per
+        // iteration. Two iterations see two distinct `f1::inner` cells.
+        // Because the analysis associates a *single* GlobalValueId with
+        // the load, we cannot assert across iterations directly here —
+        // but the trusted site `Known(f1::inner)` is enough to fool any
+        // consumer that compares loads across iterations via must_alias.
+        // The companion load_store_forwarding test exercises that path.
+        // We assert here that the load's site is *not* a trusted one —
+        // i.e. that nothing trusts `Known(f1::inner)` for this load.
+        assert!(
+            analysis.get_trusted_allocation_site(loads[0]).is_none(),
+            "the load's allocation site is trusted, but each loop \
+             iteration produces a fresh `f1::inner` cell — any consumer \
+             treating this site as a must-alias key is unsound"
+        );
+    }
 }
