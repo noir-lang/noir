@@ -402,8 +402,8 @@ fn disallows_export_attribute_on_impl_method() {
 
         impl Foo {
             #[export]
-            fn foo() { }
-               ^^^ The `#[export]` attribute is disallowed on `impl` methods
+            pub fn foo() { }
+                   ^^^ The `#[export]` attribute is disallowed on `impl` methods
         }
     ";
     check_errors(src);

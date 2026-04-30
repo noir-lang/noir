@@ -585,14 +585,14 @@ impl<'context> Elaborator<'context> {
         let local_module = self.local_module();
 
         match item.kind {
-            ItemKind::Function(function) => {
+            ItemKind::Function(mut function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
-                    &function,
+                    &mut function,
                     module_id,
                     item.doc_comments,
                     &mut self.errors,

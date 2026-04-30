@@ -221,7 +221,7 @@ fn multi_scalar_mul(
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {
-        Type::Array(_, item_type) => item_type.as_ref().clone(),
+        Type::Array(item_type, _) => item_type.as_ref().clone(),
         _ => {
             return Err(InterpreterError::TypeMismatch {
                 expected: "[EmbeddedCurvePoint; 1]".to_string(),

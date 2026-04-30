@@ -124,25 +124,17 @@ fn forward_loads_and_stores_in_block(
                 last_stores.retain(|k, _| !analysis.may_alias(function, address, *k));
             }
             Instruction::Call { .. } => {
-                // Simple reference (`&mut T` where T has no refs): invalidate that
-                // address and all its potential aliases.
-                // Container or nested reference: clear all state.
+                // If the call arguments can reference a known value, we invalidate it.
                 let mut call_values: Vec<ValueId> = Vec::new();
                 instruction.for_each_value(|v| call_values.push(v));
                 for value in call_values {
                     let value = inserter.resolve(value);
-                    let typ = inserter.function.dfg.type_of_value(value).into_owned();
-                    let is_simple_ref = typ
-                        .reference_element_type()
-                        .is_some_and(|inner| !inner.contains_reference());
-                    if is_simple_ref {
-                        let function: &Function = inserter.function;
-                        known_values.retain(|k, _| !analysis.may_alias(function, value, *k));
-                        last_stores.retain(|k, _| !analysis.may_alias(function, value, *k));
-                    } else if typ.contains_reference() {
-                        known_values.clear();
-                        last_stores.clear();
+                    if !inserter.function.dfg.type_of_value(value).contains_reference() {
+                        continue;
                     }
+                    let function: &Function = inserter.function;
+                    known_values.retain(|k, _| !analysis.may_reference(function, value, *k));
+                    last_stores.retain(|k, _| !analysis.may_reference(function, value, *k));
                 }
             }
             _ => {}
@@ -1158,5 +1150,48 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn call_with_inner_arg_does_not_invalidate_outer_known_value() {
+        // The outer ref's cache (cached the inner ref it stores) must SURVIVE
+        // a call that takes only the inner ref. The callee writes through the
+        // inner — which changes Field memory, not the outer's stored ref.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1                      // known_values[v1] = v0
+            call f1(v0)
+            v2 = load v1 -> &mut Field          // should forward to v0
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v10: &mut Field):
+            store Field 99 at v10
+            return
+        }
+    ";
+        // Known: known_values[v1] survives; load v1 forwards to v0.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            call f1(v0)
+            return v0
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            store Field 99 at v0
+            return
+        }
+    ");
     }
 }

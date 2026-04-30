@@ -503,3 +503,31 @@ fn overlapping_generic_impls() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
+    let src = r#"
+    pub struct Wrap { }
+
+    trait Marker1 { 
+        fn mark(); 
+    } 
+    trait Marker2 { 
+        fn mark(); 
+    }
+
+    impl Marker1 for Wrap { 
+        fn mark() { } 
+    } 
+    impl Marker2 for Wrap { 
+         ~~~~~~~ Previous impl defined here
+        fn mark() {} 
+    } 
+    impl Marker2 for Wrap { 
+                     ^^^^ Impl for type `Wrap` overlaps with existing impl
+                     ~~~~ Overlapping impl
+        fn mark() {} 
+    }
+    "#;
+    check_errors(src);
+}

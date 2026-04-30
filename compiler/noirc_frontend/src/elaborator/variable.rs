@@ -50,7 +50,8 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let from_macro_call = false;
+                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
@@ -170,6 +171,8 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.usage_tracker.mark_impl_function_as_used(func_id);
+
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;

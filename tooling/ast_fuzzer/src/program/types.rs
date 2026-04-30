@@ -377,7 +377,7 @@ pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
             HirType::Integer(*signedness, *integer_bit_size)
         }
         Type::String(size) => HirType::String(size_const(*size)),
-        Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
+        Type::Array(size, typ) => HirType::Array(Box::new(to_hir_type(typ)), size_const(*size)),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
         Type::Vector(typ) => HirType::Vector(Box::new(to_hir_type(typ))),
         Type::FmtString(size, typ) => {

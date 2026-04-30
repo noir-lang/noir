@@ -79,6 +79,14 @@ pub enum FunctionNameMatch {
     Contains(Vec<String>),
 }
 
+#[derive(Debug)]
+pub enum LspMode {
+    // In full mode all files are type-checked, and errors are published and shown to the user.
+    Full,
+    // In single file mode only a single file is type-checked and errors are not shown to the user.
+    SingleFile,
+}
+
 impl Context<'_, '_> {
     pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
@@ -317,8 +325,8 @@ impl Context<'_, '_> {
     }
 
     /// Activates LSP mode, which will track references for all definitions.
-    pub fn activate_lsp_mode(&mut self) {
-        self.def_interner.lsp_mode = true;
+    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
+        self.def_interner.lsp_mode = Some(mode);
     }
 
     pub fn disable_comptime_printing(&mut self) {

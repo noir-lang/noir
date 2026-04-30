@@ -1591,7 +1591,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
                 complexity
             }
-            HirType::Array(_len, elem_typ) => {
+            HirType::Array(elem_typ, _len) => {
                 Self::type_complexity_inner(elem_typ, accumulated + 1)
             }
             HirType::DataType(_def, generics) => {
@@ -1679,7 +1679,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
-            HirType::Array(length, element) => {
+            HirType::Array(element, length) => {
                 if element.contains_vector() {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
@@ -1875,7 +1875,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(_length, element) => {
+            HirType::Array(element, _length) => {
                 if element.contains_vector() {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }

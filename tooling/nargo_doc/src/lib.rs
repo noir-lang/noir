@@ -507,7 +507,7 @@ impl DocItemBuilder<'_> {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
             },
-            noirc_frontend::Type::Array(length, element) => Type::Array {
+            noirc_frontend::Type::Array(element, length) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
