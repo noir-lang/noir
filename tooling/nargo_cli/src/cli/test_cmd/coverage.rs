@@ -135,13 +135,12 @@ pub(super) fn tracker_to_report(
         let (_, lines) = data.entry(file_id).or_default();
 
         for (&offset, &count) in offsets_to_counts {
-            if let Some(ref body_loc) = test_body_loc {
-                if body_loc.file == file_id
-                    && offset >= body_loc.span.start()
-                    && offset <= body_loc.span.end()
-                {
-                    continue;
-                }
+            if let Some(ref body_loc) = test_body_loc
+                && body_loc.file == file_id
+                && offset >= body_loc.span.start()
+                && offset <= body_loc.span.end()
+            {
+                continue;
             }
             let line_num = offset_to_line(offset, &line_starts);
             lines
