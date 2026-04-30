@@ -1141,49 +1141,34 @@ fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
     )
 }
 
-/// Validate that an `Instruction::IfElse` has disjoint conditions.
+/// Validate that an `Instruction::IfElse` has complementary conditions.
 ///
-/// Flattening constructs `else_condition` as `Not(then_condition)` for the
-/// runtime case, so `simplify::IfElse` (which mostly only inspects
-/// `then_condition`) can rely on the two conditions being complementary
-/// without tracking AND-trees of outer predicates. The exception is when the
-/// local condition was a compile-time constant: there `AND(outer, !true)`
-/// folds to `0` and we keep that `0` literally so the per-element value-merger
-/// can drop the `cast(0) * else_value` term — see #8301 for the bug this
-/// invariant prevents and `flatten_cfg::merge_block_arguments` for the
-/// construction.
+/// Flattening constructs `else_condition` as `Not(then_condition)` so that the
+/// simplification logic — most of which only considers `then_condition` — can
+/// rely on the two conditions being complementary. Without this invariant the
+/// compiler can pick a value the runtime lowering would not (see #8301).
+/// `IfElse` is only emitted when the local condition is a runtime value;
+/// merges under a compile-time constant local condition are short-circuited
+/// before reaching the construction site.
 ///
 /// The check accepts:
-///   - either side being a constant zero (one branch is statically disabled);
-///   - non-constant pairs where one side is the operand of a `Not`
-///     instruction whose result is the other side.
+///   - constant pairs `(0, 1)` and `(1, 0)`;
+///   - non-constant pairs where one side is the operand of a `Not` instruction
+///     whose result is the other side.
 fn validate_if_else_conditions(
     then_condition: ValueId,
     else_condition: ValueId,
     dfg: &DataFlowGraph,
 ) {
-    let then_const = dfg.get_numeric_constant(then_condition);
-    let else_const = dfg.get_numeric_constant(else_condition);
-
-    // A constant zero on either side trivially makes the pair disjoint:
-    // `cast(0) * value = 0`, so the corresponding branch contributes nothing.
-    if then_const.is_some_and(|c| c.is_zero()) || else_const.is_some_and(|c| c.is_zero()) {
+    if let (Some(t), Some(e)) =
+        (dfg.get_numeric_constant(then_condition), dfg.get_numeric_constant(else_condition))
+    {
+        assert!(
+            (t.is_zero() && e.is_one()) || (t.is_one() && e.is_zero()),
+            "IfElse: constant conditions ({t}, {e}) are not complementary; \
+             flattening must construct conditions related by `Not`"
+        );
         return;
-    }
-
-    if let (Some(t), Some(e)) = (then_const, else_const) {
-        panic!(
-            "IfElse: constant conditions ({t}, {e}) are both non-zero; \
-             flattening must construct disjoint conditions"
-        );
-    }
-
-    if then_const.is_some_and(|c| c.is_one()) || else_const.is_some_and(|c| c.is_one()) {
-        panic!(
-            "IfElse: one of (then_condition {then_condition}, else_condition {else_condition}) \
-             is constant 1 while the other is non-constant; flattening must construct \
-             disjoint conditions"
-        );
     }
 
     if is_direct_negation(then_condition, else_condition, dfg) {
@@ -1192,7 +1177,7 @@ fn validate_if_else_conditions(
 
     panic!(
         "IfElse: else_condition {else_condition} is not the direct negation of \
-         then_condition {then_condition}; flattening must construct complementary conditions"
+         then_condition {then_condition}; flattening must construct conditions related by `Not`"
     );
 }
 
@@ -2231,7 +2216,8 @@ mod tests {
     }
 
     #[test]
-    fn if_else_allows_both_constant_zero() {
+    #[should_panic(expected = "constant conditions (0, 0) are not complementary")]
+    fn if_else_disallows_both_constant_zero() {
         let src = "
         acir(inline) impure fn main f0 {
           b0():
@@ -2243,31 +2229,7 @@ mod tests {
     }
 
     #[test]
-    fn if_else_allows_runtime_paired_with_constant_zero() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = if v0 then Field 1 else (if u1 0) Field 2
-            return v1
-        }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
-
-    #[test]
-    fn if_else_allows_constant_zero_paired_with_runtime() {
-        let src = "
-        acir(inline) impure fn main f0 {
-          b0(v0: u1):
-            v1 = if u1 0 then Field 1 else (if v0) Field 2
-            return v1
-        }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
-
-    #[test]
-    #[should_panic(expected = "constant conditions (1, 1) are both non-zero")]
+    #[should_panic(expected = "constant conditions (1, 1) are not complementary")]
     fn if_else_disallows_both_constant_one() {
         let src = "
         acir(inline) impure fn main f0 {
@@ -2280,12 +2242,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "is constant 1 while the other is non-constant")]
+    #[should_panic(expected = "is not the direct negation of")]
     fn if_else_disallows_constant_one_paired_with_runtime() {
         let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1):
             v1 = if u1 1 then Field 1 else (if v0) Field 2
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "is not the direct negation of")]
+    fn if_else_disallows_runtime_paired_with_constant_zero() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = if v0 then Field 1 else (if u1 0) Field 2
             return v1
         }
         ";

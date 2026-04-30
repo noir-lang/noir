@@ -828,48 +828,46 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let Some(else_branch) = cond_context.else_branch else {
+        if cond_context.else_branch.is_none() {
             unreachable!("malformed branch");
-        };
+        }
         let block = self.target_block;
+
+        // When the local condition is a compile-time constant, only one branch
+        // can execute and there is nothing to merge: forward the corresponding
+        // value directly instead of emitting an `IfElse`. The outer predicate
+        // continues to gate the surrounding block via `enable_side_effects`.
+        let local_condition_constant = self
+            .inserter
+            .function
+            .dfg
+            .get_numeric_constant(cond_context.condition)
+            .map(|c| c.is_one());
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
+            if let Some(then_taken) = local_condition_constant {
+                return if then_taken { then_arg } else { else_arg };
+            }
             let call_stack = cond_context.call_stack;
 
             // Try to collapse a redundant nested merge. When the inner merge's
             // else_value (or then_value) matches the outer merge's corresponding
             // argument, the two merges can be combined into one.
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_condition, then_value, candidate_else_cond, else_value) =
+            let (then_condition, then_value, else_value) =
                 if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // The collapsed merge's `then_condition` already incorporates all outer
-                    // conditions, so there's no AND-with-outer candidate to consider.
-                    (inner_then_cond, inner_then_val, None, shared_val)
+                    (inner_then_cond, inner_then_val, shared_val)
                 } else {
-                    (
-                        cond_context.then_branch.condition,
-                        then_arg,
-                        Some(else_branch.condition),
-                        else_arg,
-                    )
+                    (cond_context.then_branch.condition, then_arg, else_arg)
                 };
-            // Prefer the AND-with-outer `else_condition` from the conditional context
-            // when it folded to a constant: this happens when the local condition is a
-            // compile-time true (so `AND(outer, !true)` folds to 0). Keeping that 0
-            // lets the per-element value-merger fold `cast(0) * else_value` away,
-            // halving the cost of array merges. Otherwise synthesise the direct
-            // negation of `then_condition` so `simplify::IfElse` (and downstream
-            // passes) can rely on the two conditions being complementary.
-            let else_condition = match candidate_else_cond
-                .filter(|c| self.inserter.function.dfg.get_numeric_constant(*c).is_some())
-            {
-                Some(constant) => constant,
-                None => self.not_instruction(
-                    then_condition,
-                    self.inserter.function.dfg.get_value_call_stack_id(then_condition),
-                ),
-            };
+            // `else_condition` is always the direct negation of `then_condition`
+            // so `simplify::IfElse` (and downstream passes) can rely on the two
+            // conditions being complementary.
+            let else_condition = self.not_instruction(
+                then_condition,
+                self.inserter.function.dfg.get_value_call_stack_id(then_condition),
+            );
 
             let instruction =
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value };
