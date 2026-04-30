@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::hir_def::expr::HirExpression;
 use crate::node_interner::FuncId;
 
 /// Track comptime evaluations, to facilitate code coverage in tests.
@@ -25,10 +24,6 @@ pub struct EvaluationTracker {
 impl EvaluationTracker {
     pub fn new(allowed_files: HashSet<FileId>) -> Self {
         Self { allowed_files, hits: HashMap::new(), function_hits: HashMap::new() }
-    }
-
-    pub fn track(&mut self, _expr: &HirExpression, location: Location) {
-        self.track_location(location);
     }
 
     pub fn track_location(&mut self, location: Location) {

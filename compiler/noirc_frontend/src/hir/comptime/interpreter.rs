@@ -641,8 +641,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let expr = self.elaborator.interner.expression(&id);
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
-            let location = self.elaborator.interner.expr_location(&id);
-            tracker.track(&expr, location);
+            tracker.track_location(self.elaborator.interner.expr_location(&id));
         }
         let result = match expr {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
