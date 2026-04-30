@@ -828,9 +828,9 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let Some(else_branch) = cond_context.else_branch else {
+        if cond_context.else_branch.is_none() {
             unreachable!("malformed branch");
-        };
+        }
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
@@ -841,19 +841,19 @@ impl<'f> Context<'f> {
             // else_value (or then_value) matches the outer merge's corresponding
             // argument, the two merges can be combined into one.
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_condition, then_value, else_condition, else_value) =
+            let (then_condition, then_value, else_value) =
                 if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // For the collapsed merge, the then_condition is the inner's
-                    // condition which already incorporates all outer conditions.
-                    // The correct else_condition is NOT(then_condition).
-                    let inner_else_cond = self.not_instruction(
-                        inner_then_cond,
-                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
-                    );
-                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
+                    (inner_then_cond, inner_then_val, shared_val)
                 } else {
-                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
+                    (cond_context.then_branch.condition, then_arg, else_arg)
                 };
+            // `else_condition` is always the direct negation of `then_condition`
+            // so `simplify::IfElse` (and downstream passes) can rely on the two
+            // conditions being complementary.
+            let else_condition = self.not_instruction(
+                then_condition,
+                self.inserter.function.dfg.get_value_call_stack_id(then_condition),
+            );
 
             let instruction =
                 Instruction::IfElse { then_condition, then_value, else_condition, else_value };
@@ -1623,7 +1623,7 @@ mod tests {
 
         let ssa = ssa.flatten_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -1632,19 +1632,20 @@ mod tests {
             v3 = not v1
             v4 = unchecked_mul v0, v3
             enable_side_effects v0
-            v5 = cast v2 as u32
-            v6 = cast v4 as u32
-            v8 = unchecked_mul v5, u32 5
-            v10 = unchecked_mul v6, u32 6
-            v11 = unchecked_add v8, v10
-            v12 = not v0
+            v5 = not v2
+            v6 = cast v2 as u32
+            v7 = cast v5 as u32
+            v9 = unchecked_mul v6, u32 5
+            v11 = unchecked_mul v7, u32 6
+            v12 = unchecked_add v9, v11
+            v13 = not v0
             enable_side_effects u1 1
-            v14 = cast v0 as u32
-            v15 = cast v12 as u32
-            v16 = unchecked_mul v14, v11
-            v18 = unchecked_mul v15, u32 3
-            v19 = unchecked_add v16, v18
-            return v19
+            v15 = cast v0 as u32
+            v16 = cast v13 as u32
+            v17 = unchecked_mul v15, v12
+            v19 = unchecked_mul v16, u32 3
+            v20 = unchecked_add v17, v19
+            return v20
         }
         ");
         // v19 = v16 + v18
@@ -2089,7 +2090,7 @@ mod tests {
         // statement's then value. This is why the then value is `v5` in both if-else instructions below.
         // We want to make sure that the else condition in the final instruction `v12 = if v0 then v5 else (if v6) v10`
         // remains v6 and is not altered when performing this optimization.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) pure fn main f0 {
           b0(v0: u1, v1: [[u1; 2]; 3]):
             v2 = not v0
@@ -2102,7 +2103,7 @@ mod tests {
             enable_side_effects v7
             v8 = array_get v1, index u32 0 -> [u1; 2]
             enable_side_effects v0
-            v9 = if v0 then v5 else (if v7) v8
+            v9 = if v0 then v5 else (if v6) v8
             enable_side_effects v6
             v10 = array_get v1, index u32 0 -> [u1; 2]
             enable_side_effects u1 1
@@ -2389,7 +2390,7 @@ mod merge_provenance_tests {
              Promoted:\n{promoted_flat}\nStore/load:\n{store_load_flat}"
         );
 
-        assert_ssa_snapshot!(promoted_flat, @r"
+        assert_ssa_snapshot!(promoted_flat, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2399,8 +2400,8 @@ mod merge_provenance_tests {
             v5 = unchecked_mul v4, v1
             enable_side_effects v5
             enable_side_effects v4
-            enable_side_effects u1 1
             v6 = not v5
+            enable_side_effects u1 1
             v7 = unchecked_mul v6, v0
             v8 = unchecked_add v5, v7
             v9 = not v8
@@ -2408,8 +2409,8 @@ mod merge_provenance_tests {
             v10 = unchecked_mul v9, v2
             enable_side_effects v10
             enable_side_effects v9
-            enable_side_effects u1 1
             v11 = not v10
+            enable_side_effects u1 1
             v12 = unchecked_mul v11, v8
             v13 = unchecked_add v10, v12
             constrain v13 == u1 1
@@ -2448,7 +2449,7 @@ mod merge_provenance_tests {
         let ssa = ssa.flatten_cfg();
         // The innermost merge (v0*v1*v2) collapses with the middle merge,
         // producing a single condition v0*v1*v2 = v4 for the "set to 1" path.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2459,12 +2460,14 @@ mod merge_provenance_tests {
             v5 = not v2
             v6 = unchecked_mul v3, v5
             enable_side_effects v3
-            v7 = not v1
-            v8 = unchecked_mul v0, v7
+            v7 = not v4
+            v8 = not v1
+            v9 = unchecked_mul v0, v8
             enable_side_effects v0
-            v9 = not v0
+            v10 = not v3
+            v11 = not v0
             enable_side_effects u1 1
-            v11 = unchecked_mul v0, v4
+            v13 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
             constrain v0 == u1 1
@@ -2513,7 +2516,7 @@ mod merge_provenance_tests {
         // `unchecked_mul v9, v3` and `unchecked_add v2, v10` instructions.
         // If collapsed provenance leaked, v2 would be absent and the constrain
         // would only check `v0 AND v1`.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2522,13 +2525,14 @@ mod merge_provenance_tests {
             v4 = not v1
             v5 = unchecked_mul v0, v4
             enable_side_effects v0
-            v6 = not v0
+            v6 = not v3
+            v7 = not v0
             enable_side_effects v2
-            v7 = not v2
+            v8 = not v2
             enable_side_effects u1 1
-            v9 = unchecked_mul v7, v3
-            v10 = unchecked_add v2, v9
-            constrain v10 == u1 1
+            v10 = unchecked_mul v8, v3
+            v11 = unchecked_add v2, v10
+            constrain v11 == u1 1
             return
         }
         ");
@@ -2562,7 +2566,7 @@ mod merge_provenance_tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2571,16 +2575,16 @@ mod merge_provenance_tests {
             v3 = not v1
             v4 = unchecked_mul v0, v3
             enable_side_effects v0
-            v5 = cast v2 as Field
-            v6 = cast v4 as Field
-            v8 = mul v5, Field 100
-            v10 = mul v6, Field 200
-            v11 = add v8, v10
-            v12 = not v0
+            v5 = not v2
+            v6 = cast v2 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 100
+            v11 = mul v7, Field 200
+            v12 = add v9, v11
+            v13 = not v0
             enable_side_effects u1 1
-            v14 = not v4
-            v15 = cast v4 as Field
-            v16 = cast v14 as Field
+            v15 = cast v5 as Field
+            v16 = cast v2 as Field
             v17 = mul v15, Field 200
             v18 = mul v16, Field 100
             v19 = add v17, v18
@@ -2617,7 +2621,7 @@ mod merge_provenance_tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2628,15 +2632,15 @@ mod merge_provenance_tests {
             v4 = not v1
             v5 = unchecked_mul v2, v4
             enable_side_effects v2
-            v6 = cast v3 as Field
-            v7 = cast v5 as Field
-            v9 = mul v6, Field 200
-            v11 = mul v7, Field 100
-            v12 = add v9, v11
+            v6 = not v3
+            v7 = cast v3 as Field
+            v8 = cast v6 as Field
+            v10 = mul v7, Field 200
+            v12 = mul v8, Field 100
+            v13 = add v10, v12
             enable_side_effects u1 1
-            v14 = not v3
             v15 = cast v3 as Field
-            v16 = cast v14 as Field
+            v16 = cast v6 as Field
             v17 = mul v15, Field 200
             v18 = mul v16, Field 100
             v19 = add v17, v18
@@ -2673,7 +2677,7 @@ mod merge_provenance_tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2684,15 +2688,15 @@ mod merge_provenance_tests {
             v4 = not v1
             v5 = unchecked_mul v2, v4
             enable_side_effects v2
-            v6 = cast v3 as Field
-            v7 = cast v5 as Field
-            v9 = mul v6, Field 100
-            v11 = mul v7, Field 200
-            v12 = add v9, v11
+            v6 = not v3
+            v7 = cast v3 as Field
+            v8 = cast v6 as Field
+            v10 = mul v7, Field 100
+            v12 = mul v8, Field 200
+            v13 = add v10, v12
             enable_side_effects u1 1
-            v14 = not v5
-            v15 = cast v5 as Field
-            v16 = cast v14 as Field
+            v15 = cast v6 as Field
+            v16 = cast v3 as Field
             v17 = mul v15, Field 200
             v18 = mul v16, Field 100
             v19 = add v17, v18
@@ -2725,7 +2729,7 @@ mod merge_provenance_tests {
         let ssa = ssa.flatten_cfg();
         // All three values differ, so both inner and outer merges are preserved
         // (two mul+add pairs: one for the inner merge, one for the outer merge).
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2734,19 +2738,20 @@ mod merge_provenance_tests {
             v3 = not v1
             v4 = unchecked_mul v0, v3
             enable_side_effects v0
-            v5 = cast v2 as Field
-            v6 = cast v4 as Field
-            v8 = mul v5, Field 30
-            v10 = mul v6, Field 20
-            v11 = add v8, v10
-            v12 = not v0
+            v5 = not v2
+            v6 = cast v2 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 30
+            v11 = mul v7, Field 20
+            v12 = add v9, v11
+            v13 = not v0
             enable_side_effects u1 1
-            v14 = cast v0 as Field
-            v15 = cast v12 as Field
-            v16 = mul v14, v11
-            v18 = mul v15, Field 10
-            v19 = add v16, v18
-            return v19
+            v15 = cast v0 as Field
+            v16 = cast v13 as Field
+            v17 = mul v15, v12
+            v19 = mul v16, Field 10
+            v20 = add v17, v19
+            return v20
         }
         ");
     }
