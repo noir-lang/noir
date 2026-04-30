@@ -263,7 +263,19 @@ pub(crate) fn simplify(
                 if constant.is_one() {
                     return SimplifiedTo(*then_value);
                 } else if constant.is_zero() {
-                    return SimplifiedTo(*else_value);
+                    let else_is_zero =
+                        dfg.get_numeric_constant(else_condition).is_some_and(|c| c.is_zero());
+                    if !else_is_zero {
+                        return SimplifiedTo(*else_value);
+                    }
+                    // Both branches are disabled. The runtime lowering of an `IfElse`
+                    // computes `cast(then_cond)*then + cast(else_cond)*else`, which is
+                    // 0 when both conditions are 0, so return 0 here too. For non-numeric
+                    // results fall through and let `remove_if_else` zero each element.
+                    if let Type::Numeric(num_type) = &*typ {
+                        let zero = dfg.make_constant(FieldElement::zero(), *num_type);
+                        return SimplifiedTo(zero);
+                    }
                 }
             }
 

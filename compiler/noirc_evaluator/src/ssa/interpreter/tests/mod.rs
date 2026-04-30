@@ -268,7 +268,7 @@ fn run_flattened_function() {
             v5 = array_get v1, index u32 0 -> [u1; 2]
             v6 = not v0
             v7 = and u1 0, v0
-            v8 = not v7
+            v8 = and u1 0, v6
             enable_side_effects v7
             v9 = array_get v1, index u32 1 -> [u1; 2]
             enable_side_effects v0
