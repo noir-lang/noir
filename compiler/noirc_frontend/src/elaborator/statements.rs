@@ -951,7 +951,7 @@ impl Elaborator<'_> {
         let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);
-        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+        self.debug_comptime(location, |interner, _| expr.to_display_ast(interner).kind);
 
         (HirStatement::Expression(expr), typ)
     }

@@ -1324,8 +1324,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                let message =
-                    message.map(|value| value.display(self.elaborator.interner).to_string());
+                let message = message.map(|value| {
+                    value
+                        .display(self.elaborator.interner, self.elaborator.files)
+                        .to_string()
+                });
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
@@ -1707,7 +1710,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        let contents = arguments[1].0.display(self.elaborator.interner);
+        let contents =
+            arguments[1].0.display(self.elaborator.interner, self.elaborator.files);
         if self.elaborator.interner.is_in_lsp_mode() {
             // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output

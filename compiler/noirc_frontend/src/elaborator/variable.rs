@@ -51,7 +51,7 @@ impl Elaborator<'_> {
             // but that's not true)
             if value.is_ok() {
                 let (id, typ) = self.inline_comptime_value(value, location);
-                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
                 (id, typ)

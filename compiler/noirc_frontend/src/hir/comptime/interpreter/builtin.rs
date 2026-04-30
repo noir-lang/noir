@@ -16,6 +16,7 @@ use builtin_helpers::{
     has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident,
     visibility_to_quoted,
 };
+use fm::FileMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -132,8 +133,12 @@ impl Interpreter<'_, '_> {
             "issue_warning" => issue_diagnostic(self, arguments, location, true),
             "location_eq" => location_eq(arguments, location),
             "location_hash" => location_hash(arguments, location),
-            "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
-            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "fmtstr_as_ctstring" => {
+                fmtstr_as_ctstring(interner, self.elaborator.files, arguments, location)
+            }
+            "fmtstr_quoted_contents" => {
+                fmtstr_quoted_contents(interner, self.elaborator.files, arguments, location)
+            }
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
@@ -171,8 +176,12 @@ impl Interpreter<'_, '_> {
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
+            "quoted_eq" => {
+                quoted_eq(self.elaborator.interner, self.elaborator.files, arguments, location)
+            }
+            "quoted_hash" => {
+                quoted_hash(self.elaborator.interner, self.elaborator.files, arguments, location)
+            }
             "quoted_location" => quoted_location(arguments, return_type, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
@@ -182,7 +191,9 @@ impl Interpreter<'_, '_> {
             "vector_push_front" => vector_push_front(arguments, location),
             "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
-            "static_assert" => static_assert(interner, arguments, location, call_stack),
+            "static_assert" => {
+                static_assert(interner, self.elaborator.files, arguments, location, call_stack)
+            }
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
@@ -372,13 +383,14 @@ fn vector_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IR
 // static_assert<let N: u32>(predicate: bool, message: T)
 fn static_assert(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
-    let message = message.0.display(interner).to_string();
+    let message = message.0.display(interner, files).to_string();
 
     if predicate {
         Ok(Value::Unit)
@@ -414,8 +426,10 @@ fn issue_diagnostic(
 
     let target_location = get_location(location_argument)?;
     let interner = &interpreter.elaborator.interner;
-    let message = fragments_to_string(&fragments, interner);
-    let secondary = secondary.map(|(fragments, _, _)| fragments_to_string(&fragments, interner));
+    let message = fragments_to_string(&fragments, interner, interpreter.elaborator.files);
+    let secondary = secondary.map(|(fragments, _, _)| {
+        fragments_to_string(&fragments, interner, interpreter.elaborator.files)
+    });
 
     let error = if is_warning {
         InterpreterError::UserDefinedWarning { message, secondary, location: target_location }
@@ -2379,7 +2393,9 @@ fn expr_resolve(
                 let (expr_id, _) = elaborator.elaborate_expression(expression);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
             } else {
-                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
+                let expression = Value::pattern(pattern)
+                    .display(elaborator.interner, elaborator.files)
+                    .to_string();
                 let location = self_argument_location;
                 Err(InterpreterError::CannotResolveExpression { location, expression })
             }
@@ -2439,12 +2455,13 @@ fn unwrap_expr_value_helper(
 // fn fmtstr_as_ctstring(self) -> CtString
 fn fmtstr_as_ctstring(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner);
+    let string = fragments_to_string(&fragments, interner, files);
     let bytes = string.bytes().collect();
     Ok(Value::CtString(Rc::new(bytes)))
 }
@@ -2452,12 +2469,13 @@ fn fmtstr_as_ctstring(
 // fn quoted_contents(self) -> Quoted
 fn fmtstr_quoted_contents(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner);
+    let string = fragments_to_string(&fragments, interner, files);
     let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
@@ -2890,6 +2908,7 @@ fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IR
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
 fn quoted_eq(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -2901,14 +2920,15 @@ fn quoted_eq(
     // might be refer to interned expressions/statements/etc. We'd need to convert those nodes
     // to tokens and compare the final result, but comparing their string representation works
     // equally well and, for simplicity, that's what we do here.
-    let self_string = tokens_to_string(&self_arg, interner);
-    let other_string = tokens_to_string(&other_arg, interner);
+    let self_string = tokens_to_string(&self_arg, interner, files);
+    let other_string = tokens_to_string(&other_arg, interner, files);
 
     Ok(Value::Bool(self_string == other_string))
 }
 
 fn quoted_hash(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -2916,7 +2936,7 @@ fn quoted_hash(
     let tokens = get_quoted(argument)?;
 
     // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
-    let tokens_string = tokens_to_string(&tokens, interner);
+    let tokens_string = tokens_to_string(&tokens, interner, files);
 
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     tokens_string.hash(&mut hasher);
