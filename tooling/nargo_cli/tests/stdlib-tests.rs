@@ -10,7 +10,7 @@ use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
-    ops::{TestStatus, report_errors, run_test},
+    ops::{TestStatus, report_errors, run_test, test_status_comptime_interpret_result},
     package::{Package, PackageType},
     parse_all, prepare_package,
 };
@@ -39,16 +39,28 @@ impl Options {
     }
 }
 
+/// Controls which execution mode is forced during stdlib testing.
+#[derive(Clone, Copy)]
+enum Force {
+    /// Standard ACIR compilation with no overrides.
+    Nothing,
+    /// Force all functions to compile as Brillig (unconstrained).
+    Brillig,
+    /// Execute tests directly in the comptime interpreter, bypassing SSA compilation.
+    Comptime,
+}
+
 /// Inliner aggressiveness results in different SSA.
 /// Inlining happens if `inline_cost - retain_cost < aggressiveness` (see `inlining.rs`).
 /// NB the CLI uses maximum aggressiveness.
 ///
-/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behavior.
+/// Even with the same inlining aggressiveness, forcing Brillig or using the comptime
+/// interpreter can trigger different behavior.
 #[test_matrix(
-    [false, true],
+    [Force::Nothing, Force::Brillig, Force::Comptime],
     [i64::MIN, 0, i64::MAX]
 )]
-fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
+fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
     let opts = Options::parse();
 
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
@@ -90,26 +102,48 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
             };
-            let status = std::panic::catch_unwind(move || {
-                run_test(
-                    &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                    &mut context,
-                    &test_function,
-                    std::io::stdout(),
-                    &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
-                    |output, base| {
-                        DefaultForeignCallBuilder::default()
-                            .with_output(output)
-                            .build_with_base(base)
-                    },
-                )
-            });
-            let status = match status {
-                Ok(status) => status,
-                Err(_panic_cause) => TestStatus::Fail {
-                    message: "panicked; see details in the end summary".to_string(),
-                    error_diagnostic: None,
-                },
+            let status = match force {
+                Force::Nothing | Force::Brillig => {
+                    let force_brillig = matches!(force, Force::Brillig);
+                    let result = std::panic::catch_unwind(move || {
+                        run_test(
+                            &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                            &mut context,
+                            &test_function,
+                            std::io::stdout(),
+                            &CompileOptions {
+                                force_brillig,
+                                inliner_aggressiveness,
+                                ..Default::default()
+                            },
+                            |output, base| {
+                                DefaultForeignCallBuilder::default()
+                                    .with_output(output)
+                                    .build_with_base(base)
+                            },
+                        )
+                    });
+                    match result {
+                        Ok(status) => status,
+                        Err(_panic_cause) => TestStatus::Fail {
+                            message: "panicked; see details in the end summary".to_string(),
+                            error_diagnostic: None,
+                        },
+                    }
+                }
+                Force::Comptime => {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let result = context.interpret_function(test_function.id, Vec::new());
+                        test_status_comptime_interpret_result(result, &test_function)
+                    }));
+                    match result {
+                        Ok(status) => status,
+                        Err(_panic_cause) => TestStatus::Fail {
+                            message: "panicked; see details in the end summary".to_string(),
+                            error_diagnostic: None,
+                        },
+                    }
+                }
             };
             (test_name, status)
         })

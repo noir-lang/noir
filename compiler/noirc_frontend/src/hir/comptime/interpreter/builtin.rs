@@ -657,12 +657,16 @@ fn vector_remove(
     let index = get_u32(index)? as usize;
 
     if values.is_empty() {
-        return failing_constraint("vector_remove called on empty vector", location, call_stack);
+        return failing_constraint(
+            "Index out of bounds: vector_remove called on empty vector",
+            location,
+            call_stack,
+        );
     }
 
     if index >= values.len() {
         let message = format!(
-            "vector_remove: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_remove: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
@@ -692,7 +696,11 @@ fn vector_pop_front(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
-        None => failing_constraint("vector_pop_front called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_front called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 
@@ -708,7 +716,11 @@ fn vector_pop_back(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
-        None => failing_constraint("vector_pop_back called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_back called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 
@@ -725,7 +737,7 @@ fn vector_insert(
     // If index is equal to the length, the insert is equivalent to a push
     if index > values.len() {
         let message = format!(
-            "vector_insert: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_insert: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
@@ -941,9 +953,6 @@ fn to_le_radix(
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
-    let bit_size = u32::BITS - (radix - 1).leading_zeros();
-    let radix_big = BigUint::from(radix);
-    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
