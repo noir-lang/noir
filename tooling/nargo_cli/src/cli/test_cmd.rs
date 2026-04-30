@@ -136,7 +136,8 @@ pub(crate) struct TestCommand {
 
     /// Produce a coverage report.
     ///
-    /// Writes coverage data to an `.lcov` file.
+    /// Writes coverage data to the workspace target directory into
+    /// `<package-name>.lcov` files.
     #[arg(long)]
     coverage: bool,
 }
