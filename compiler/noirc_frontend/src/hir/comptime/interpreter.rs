@@ -707,8 +707,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 // Avoid resetting the value if it is already known
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
+                // Copy the ident location before borrowing value in the match below.
+                let global_location = global_info.location;
                 match &global_info.value {
                     GlobalValue::Resolved(value) => {
+                        // Track the global's ident location so the declaration line turns green
+                        // for any test that accesses it, without exposing the initializer contents.
+                        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+                            tracker.track_location(global_location);
+                        }
+
                         // Enum variant globals with generics are instantiated with a Type::Forall
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {

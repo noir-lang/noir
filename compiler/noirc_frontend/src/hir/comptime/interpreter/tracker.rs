@@ -28,6 +28,10 @@ impl EvaluationTracker {
     }
 
     pub fn track(&mut self, _expr: &HirExpression, location: Location) {
+        self.track_location(location);
+    }
+
+    pub fn track_location(&mut self, location: Location) {
         if location.is_dummy() || !self.allowed_files.contains(&location.file) {
             return;
         }

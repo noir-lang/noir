@@ -16,12 +16,12 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::hir::comptime::EvaluationTracker;
 use noirc_frontend::node_interner::FuncId;
 
-/// Returns the location of every expression in the crate that is not inside a `#[test]` function
-/// and not inside a global initializer.
+/// Returns the location of every expression in the crate that should appear in the coverage
+/// baseline: neither inside a `#[test]` function body nor inside a global initializer.
 ///
-/// Global initializer expressions are excluded because the interpreter returns cached values for
-/// resolved globals without re-evaluating their initializers, so they are never tracked and would
-/// always appear as uncovered lines.
+/// Global initializer expressions are excluded because the interpreter tracks a global's
+/// *access* (via its ident location) rather than its initializer contents. Including the
+/// initializer sub-expressions would cause them to appear as perpetually-uncovered red lines.
 fn baseline_expr_locations(context: &Context, crate_id: CrateId) -> Vec<Location> {
     let def_map = &context.def_maps[&crate_id];
     let allowed_files = def_map.file_ids();
