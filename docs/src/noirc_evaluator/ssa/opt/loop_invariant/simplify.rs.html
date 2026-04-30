@@ -155,7 +155,7 @@
 <a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#156 id=156 data-nosnippet>156</a>        }<span class="question-mark">?</span>;
 <a href=#157 id=157 data-nosnippet>157</a>
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>(upper_field, upper_type) = upper.dec().into_numeric_constant();
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>(upper_field, upper_type) = upper.dec()<span class="question-mark">?</span>.into_numeric_constant();
 <a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span>(lower_field, lower_type) = lower.into_numeric_constant();
 <a href=#160 id=160 data-nosnippet>160</a>
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span>min_iter = <span class="self">self</span>.inserter.function.dfg.make_constant(lower_field, lower_type);
@@ -322,7 +322,7 @@
 <a href=#322 id=322 data-nosnippet>322</a>                <span class="bool-val">true </span><span class="kw">if </span>lower_bound &gt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
 <a href=#323 id=323 data-nosnippet>323</a>                <span class="comment">// `const &lt; i`
 <a href=#324 id=324 data-nosnippet>324</a>                </span><span class="bool-val">false </span><span class="kw">if </span>lower_bound &gt; constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="bool-val">false </span><span class="kw">if </span>upper_bound &lt;= constant.inc() =&gt; {
+<a href=#325 id=325 data-nosnippet>325</a>                <span class="bool-val">false </span><span class="kw">if </span>constant.inc().is_some_and(|constant| upper_bound &lt;= constant) =&gt; {
 <a href=#326 id=326 data-nosnippet>326</a>                    <span class="comment">// If `const &gt;= upper_bound - 1` then it will never be less than `i`.
 <a href=#327 id=327 data-nosnippet>327</a>                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
 <a href=#328 id=328 data-nosnippet>328</a>                }

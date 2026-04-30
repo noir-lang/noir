@@ -769,7 +769,7 @@
 <a href=#769 id=769 data-nosnippet>769</a>                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
 <a href=#770 id=770 data-nosnippet>770</a>                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
 <a href=#771 id=771 data-nosnippet>771</a>                </span><span class="kw">let </span>const_rhs = dfg.get_integer_constant(<span class="kw-2">*</span>rhs)<span class="question-mark">?</span>;
-<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">if </span>then_branch_is_body { <span class="prelude-val">Some</span>(const_rhs.inc()) } <span class="kw">else </span>{ <span class="prelude-val">Some</span>(const_rhs) }
+<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">if </span>then_branch_is_body { const_rhs.inc() } <span class="kw">else </span>{ <span class="prelude-val">Some</span>(const_rhs) }
 <a href=#773 id=773 data-nosnippet>773</a>            }
 <a href=#774 id=774 data-nosnippet>774</a>            Instruction::Not(operand) =&gt; {
 <a href=#775 id=775 data-nosnippet>775</a>                <span class="kw">if </span><span class="kw-2">*</span>operand != induction_var {
