@@ -40,7 +40,7 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
 
     /// Find the root representative of the set containing `v`, without path
     /// compression.
-    fn find_immutable(&self, v: K) -> Option<K> {
+    pub(crate) fn find_immutable(&self, v: K) -> Option<K> {
         let mut current = v;
         loop {
             let parent = *self.parent.get(&current)?;
