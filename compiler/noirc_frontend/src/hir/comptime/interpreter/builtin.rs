@@ -657,7 +657,11 @@ fn vector_remove(
     let index = get_u32(index)? as usize;
 
     if values.is_empty() {
-        return failing_constraint("vector_remove called on empty vector", location, call_stack);
+        return failing_constraint(
+            "Index out of bounds: vector_remove called on empty vector",
+            location,
+            call_stack,
+        );
     }
 
     if index >= values.len() {
@@ -692,7 +696,11 @@ fn vector_pop_front(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
-        None => failing_constraint("vector_pop_front called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_front called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 
@@ -708,7 +716,11 @@ fn vector_pop_back(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
-        None => failing_constraint("vector_pop_back called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_back called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 

@@ -595,7 +595,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
-                let msg = format!("{index} is out of bounds for the array of length {length}");
+                let msg = format!("Index out of bounds: {index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
