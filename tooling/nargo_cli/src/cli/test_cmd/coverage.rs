@@ -1,6 +1,7 @@
 //! Utilities to support test coverage.
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 
 use fm::FileId;
 use lcov::Report;
@@ -8,6 +9,7 @@ use lcov::report::section;
 use lcov::report::section::branch::Branches;
 use lcov::report::section::function;
 use lcov::report::section::line;
+use nargo::workspace::Workspace;
 use noirc_errors::Location;
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::Context;
@@ -183,20 +185,37 @@ pub(super) fn tracker_to_report(
     report
 }
 
-/// Writes an lcov report to `<target_dir>/<package_name>.lcov`, creating the
-/// directory if necessary. Prints a warning to stderr on failure.
-pub(super) fn write_package_coverage(
-    report: Report,
-    target_dir: &std::path::Path,
-    package_name: &str,
-) {
+/// Returns the path where coverage data for `package_name` should be written.
+///
+/// When the package sits at the workspace root (single-package layout) the file
+/// is `<target>/lcov.info`, which Coverage Gutters picks up without any extra
+/// configuration. In a multi-package workspace each package gets its own
+/// subdirectory: `<target>/<package-name>/lcov.info`.
+pub(super) fn package_lcov_path(workspace: &Workspace, package_name: &str) -> PathBuf {
+    let target_dir = workspace.target_directory_path();
+    let is_root_package = workspace
+        .members
+        .iter()
+        .find(|p| p.name.to_string() == package_name)
+        .is_none_or(|p| p.root_dir == workspace.root_dir);
+
+    if is_root_package {
+        target_dir.join("lcov.info")
+    } else {
+        target_dir.join(package_name).join("lcov.info")
+    }
+}
+
+/// Writes an lcov report to `path`, creating parent directories if necessary.
+/// Prints a warning to stderr on failure.
+pub(super) fn write_package_coverage(report: Report, path: &std::path::Path) {
     use std::io::Write;
 
-    let lcov_path = target_dir.join(package_name).with_extension("lcov");
-
     let write = || -> std::io::Result<()> {
-        std::fs::create_dir_all(target_dir)?;
-        let mut file = std::fs::File::create(&lcov_path)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let mut file = std::fs::File::create(path)?;
         for record in report.into_records() {
             writeln!(file, "{record}")?;
         }
@@ -204,7 +223,7 @@ pub(super) fn write_package_coverage(
     };
 
     if let Err(err) = write() {
-        eprintln!("Warning: could not write coverage report to {}: {err}", lcov_path.display());
+        eprintln!("Warning: could not write coverage report to {}: {err}", path.display());
     }
 }
 

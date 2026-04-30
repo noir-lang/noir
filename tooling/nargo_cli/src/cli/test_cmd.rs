@@ -542,8 +542,8 @@ impl<'a> TestRunner<'a> {
                     .expect("Could not display test report");
 
                 if let Some(package_report) = coverage_per_package.remove(package_name) {
-                    let target_dir = self.workspace.target_directory_path();
-                    coverage::write_package_coverage(package_report, &target_dir, package_name);
+                    let lcov_path = coverage::package_lcov_path(&self.workspace, package_name);
+                    coverage::write_package_coverage(package_report, &lcov_path);
                 }
             }
         });
