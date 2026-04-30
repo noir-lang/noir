@@ -1264,7 +1264,7 @@ mod tests {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::Allocate) {
                     let id =
-                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
                     out.push(id);
                 }
             }
@@ -1280,7 +1280,7 @@ mod tests {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::Load { .. }) {
                     let id =
-                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
                     out.push(id);
                 }
             }
@@ -1296,7 +1296,7 @@ mod tests {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::ArrayGet { .. }) {
                     let id =
-                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
                     out.push(id);
                 }
             }
@@ -1311,7 +1311,7 @@ mod tests {
             for inst_id in main.dfg[block].instructions() {
                 if matches!(main.dfg[*inst_id], Instruction::Call { .. }) {
                     for result in main.dfg.instruction_results(*inst_id) {
-                        let id = GlobalValueId::new(&main, *result);
+                        let id = GlobalValueId::new(main, *result);
                         out.push(id);
                     }
                 }
@@ -1600,7 +1600,7 @@ mod tests {
         let b1 = func.reachable_blocks().into_iter().nth(1).unwrap();
         let v1 = GlobalValueId::new(func, func.dfg[b1].parameters()[0]);
         let mut analysis = analyze_main(&ssa);
-        assert!(analysis.may_alias(&func, v0, v1));
+        assert!(analysis.may_alias(func, v0, v1));
     }
 
     // ============================================================
@@ -1818,7 +1818,7 @@ mod tests {
                     }
                 }
             }
-            GlobalValueId::new(&main, result.unwrap())
+            GlobalValueId::new(main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         // main.v0 flows into f1.formal_0 (~ main.v0), f1 returns its formal,
@@ -1858,7 +1858,7 @@ mod tests {
                     }
                 }
             }
-            GlobalValueId::new(&main, result.unwrap())
+            GlobalValueId::new(main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], call_result));
@@ -2016,7 +2016,7 @@ mod tests {
                     }
                 }
             }
-            GlobalValueId::new(&main, result.unwrap())
+            GlobalValueId::new(main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         // popped aliases v0 (originally in the vector's pointee class).
@@ -2053,7 +2053,7 @@ mod tests {
                     }
                 }
             }
-            GlobalValueId::new(&main, result.unwrap())
+            GlobalValueId::new(main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], popped));
@@ -2118,7 +2118,7 @@ mod tests {
                     }
                 }
             }
-            GlobalValueId::new(&main, result.unwrap())
+            GlobalValueId::new(main, result.unwrap())
         };
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(main, allocs[0], removed));
@@ -2376,7 +2376,7 @@ mod tests {
             for inst_id in func.dfg[block_id].instructions() {
                 if matches!(&func.dfg[*inst_id], Instruction::IfElse { .. }) {
                     let id =
-                        GlobalValueId::new(&func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
                     out.push(id);
                 }
             }
