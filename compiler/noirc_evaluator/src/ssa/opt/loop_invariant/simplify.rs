@@ -257,6 +257,12 @@ impl LoopInvariantContext<'_> {
             return SimplifyResult::None;
         };
 
+        // All simplifications below assume the induction variable counts upward: lower_bound ≤ i < upper_bound.
+        // If the bounds are inverted the variable is not a proper ascending induction variable, so bail out.
+        if lower_bound > upper_bound {
+            return SimplifyResult::None;
+        }
+
         // Handle arithmetic operations:
         // Check if we can simplify into an unchecked version of the operation.
         // For signed types, overflow can happen in both directions (underflow and overflow),
