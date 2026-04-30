@@ -172,8 +172,8 @@ pub(crate) struct AliasAnalysis {
     /// Functions that are potentially recursive (self-recursion or mutual recursion)
     recursive_functions: HashSet<FunctionId>,
 
-    /// Individual `Allocate` instructions inside CFG loops. Each iteration
-    /// of a loop produces a fresh cell, so the static site does not pin
+    /// Individual `Allocate` instructions inside loops. Each iteration
+    /// of a loop produces a fresh cell, so the static site must not pin
     /// runtime cells together.
     loop_allocates: HashSet<GlobalValueId>,
 }
@@ -211,11 +211,8 @@ impl AliasAnalysis {
         let a = GlobalValueId::new(function, a);
         let b = GlobalValueId::new(function, b);
 
-        use AllocationLattice::*;
-        match (self.allocation_sites.get(&a).copied(), self.allocation_sites.get(&b).copied()) {
-            (Some(Known(a_id)), Some(Known(b_id))) if a_id != b_id => return false,
-            (Some(Known(_)), Some(External)) | (Some(External), Some(Known(_))) => return false,
-            _ => {}
+        if self.get_allocation(a).cannot_equal(&self.get_allocation(b)) {
+            return false;
         }
 
         let a_root = self.aliases.find(a);
@@ -246,26 +243,20 @@ impl AliasAnalysis {
         from: ValueId,
         target: ValueId,
     ) -> bool {
-        let mut seen = HashSet::default();
-        let from = self.aliases.find(GlobalValueId::new(function, from));
-        let target = self.aliases.find(GlobalValueId::new(function, target));
-        if from == target {
-            use AllocationLattice::*;
-            return match (
-                self.allocation_sites.get(&from).copied(),
-                self.allocation_sites.get(&target).copied(),
-            ) {
-                (Some(Known(from_id)), Some(Known(target_id))) if from_id != target_id => false,
-                (Some(Known(_)), Some(External)) | (Some(External), Some(Known(_))) => false,
-                _ => true,
-            };
+        let from_g = GlobalValueId::new(function, from);
+        let target_g = GlobalValueId::new(function, target);
+        let from_rep = self.aliases.find(from_g);
+        let target_rep = self.aliases.find(target_g);
+        if from_rep == target_rep {
+            return !self.get_allocation(from_g).cannot_equal(&self.get_allocation(target_g));
         }
-        let mut current = from;
+        let mut seen = HashSet::default();
+        let mut current = from_rep;
         while seen.insert(current) {
             match self.points_to.get(&current) {
                 Some(&next) => {
                     let next = self.aliases.find(next);
-                    if next == target {
+                    if next == target_rep {
                         return true;
                     }
                     current = next;
@@ -291,17 +282,19 @@ impl AliasAnalysis {
                 if site_a != site_b {
                     return false;
                 }
-                // Same site. Reject the equality claim if the site is
-                // fragile — multiple runtime cells may share it. Two
-                // sources of fragility:
-                //   - the defining function is wholesale-fragile
-                //     (recursion or opaque call in `Scope::Single`),
-                //   - the specific Allocate sits inside a CFG loop.
+                // Same site but return false if the site is untrusted
+                // because multiple runtime cells may share it:
+                // - the defining function may be recursive, or
+                // - the allocation is done inside a loop.
                 !self.recursive_functions.contains(&site_a.0)
                     && !self.loop_allocates.contains(site_a)
             }
             _ => false,
         }
+    }
+
+    fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
+        self.allocation_sites.get(&arg).copied().unwrap_or(AllocationLattice::NoAllocation)
     }
 }
 
@@ -321,6 +314,15 @@ impl AllocationLattice {
             (NoAllocation, _) | (_, NoAllocation) => NoAllocation,
             (x, y) if x == y => x,
             _ => NoAllocation,
+        }
+    }
+
+    fn cannot_equal(&self, other: &Self) -> bool {
+        use AllocationLattice::*;
+        match (self, other) {
+            (Known(a), Known(b)) if a != b => true,
+            (Known(_), External) | (External, Known(_)) => true,
+            _ => false,
         }
     }
 }
@@ -359,7 +361,7 @@ struct AliasAnalysisContext {
 
 /// Collect the set of basic blocks that lie inside a loop body. Allocates
 /// in these blocks fire once per iteration and produce a fresh cell each
-/// time, so their static site cannot pin runtime cells together.
+/// time, so their static site may pin runtime cells together.
 fn loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
     let loops = Loops::find_all(function, LoopOrder::InsideOut);
     loops.yet_to_unroll.into_iter().flat_map(|l| l.blocks.into_iter()).collect()
@@ -381,8 +383,8 @@ impl AliasAnalysisContext {
 
         let mut analysis = Self::default();
 
-        // Seed `fragile_functions` from the call graph for `Scope::Ssa`
-        // (recursive / mutually-recursive functions).
+        // Get recursive functions from the call graph for `Scope::Ssa`
+        // (recursive or mutually-recursive functions).
         if let Scope::Ssa(ssa) = &scope {
             analysis.recursive_functions = CallGraph::from_ssa(ssa).get_recursive_functions();
         }
@@ -509,9 +511,10 @@ impl AliasAnalysisContext {
         let post_order = PostOrder::with_cfg(&cfg);
         let blocks = post_order.into_vec_reverse();
 
-        // Compute loop blocks once per function. Allocates inside them are
-        // untrusted.
+        // Compute loop blocks once per function. Allocates inside them are untrusted.
         let function_is_recursive = self.recursive_functions.contains(&function.id());
+        // We ignore loop blocks if the function is recursive, because all allocates of the function
+        // are untrusted in that case so there is no point to check the loop allocates.
         let loop_block_set =
             if function_is_recursive { HashSet::default() } else { loop_blocks(function) };
 
@@ -522,8 +525,7 @@ impl AliasAnalysisContext {
         }
 
         if is_entry_point {
-            // The external caller's pre-call state is opaque: we mark them
-            // as External
+            // The external caller's pre-call state is opaque: we mark them as External
             // Done at the end so that the pointee classes have been
             // lazily created by the body's stores/loads
             let params = function.dfg[function.entry_block()].parameters();
@@ -637,11 +639,8 @@ impl AliasAnalysisContext {
     }
 
     /// Process all instructions in a single block, updating the alias sets.
-    /// `bad_block` is `true` when the block lies in a CFG loop *and* the
-    /// containing function is not already wholesale-fragile (recursive or
-    /// flagged via opaque calls). When `true`, every `Allocate` defined in
-    /// this block is recorded in `fragile_allocates` because the loop may
-    /// fire it many times per invocation.
+    /// `ignore_allocations_in_block` is  used to mark every `Allocate` defined in
+    /// this block as `loop_allocate`, since the loop may fire it many times per invocation.
     fn analyze_block(
         &mut self,
         function: &Function,
