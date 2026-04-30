@@ -132,8 +132,17 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                     }
                 }
                 Force::Comptime => {
-                    let result = context.interpret_function(test_function.id, Vec::new());
-                    test_status_comptime_interpret_result(result, &test_function)
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let result = context.interpret_function(test_function.id, Vec::new());
+                        test_status_comptime_interpret_result(result, &test_function)
+                    }));
+                    match result {
+                        Ok(status) => status,
+                        Err(_panic_cause) => TestStatus::Fail {
+                            message: "panicked; see details in the end summary".to_string(),
+                            error_diagnostic: None,
+                        },
+                    }
                 }
             };
             (test_name, status)
