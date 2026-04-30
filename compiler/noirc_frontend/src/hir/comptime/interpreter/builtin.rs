@@ -315,7 +315,7 @@ fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (array, array_location) = check_one_argument(arguments, location)?;
 
     match array {
-        Value::Array(values, Type::Array(_, typ)) => Ok(Value::Vector(values, Type::Vector(typ))),
+        Value::Array(values, Type::Array(typ, _)) => Ok(Value::Vector(values, Type::Vector(typ))),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -890,7 +890,7 @@ fn to_le_radix(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
+    let (limb_count, element_type) = if let Type::Array(element_type, length) = return_type {
         if let Type::Constant(limb_count) = *length {
             if limb_count.get_type().unify(&Type::u32()).is_ok() {
                 (limb_count.as_field(), element_type)
@@ -934,7 +934,7 @@ fn to_le_radix(
         .len()
         .try_into()
         .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
-    let result_type = Type::Array(Box::new(Type::constant_u32(len)), element_type);
+    let result_type = Type::Array(element_type, Box::new(Type::constant_u32(len)));
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
@@ -957,7 +957,7 @@ fn type_as_array(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Array(length, array_type) = typ {
+        if let Type::Array(array_type, length) = typ {
             let array_type = Shared::new(Value::Type(*array_type));
             let length_type = Shared::new(Value::Type(*length));
             Some(Value::Tuple(vec![array_type, length_type]))
@@ -1404,14 +1404,14 @@ where
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
         Type::FieldElement => Value::field(FieldElement::zero()),
-        Type::Array(length_type, elem) => {
+        Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
                 let array = std::iter::repeat_n(element, length as usize).collect();
-                Value::Array(array, Type::Array(length_type, elem))
+                Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later
-                Value::Zeroed(Type::Array(length_type, elem))
+                Value::Zeroed(Type::Array(elem, length_type))
             }
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
@@ -2897,7 +2897,7 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let Type::Array(size, elements) = return_type.clone() else {
+    let Type::Array(elements, size) = return_type.clone() else {
         panic!("ICE: Should only have an array return type");
     };
 

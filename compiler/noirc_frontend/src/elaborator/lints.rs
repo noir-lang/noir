@@ -158,7 +158,7 @@ pub(super) fn oracle_returns_multiple_vectors(
 
     fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Array(item, _) => vector_count(item, type_recursion_context.recur()),
             Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
             Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
             Type::Tuple(items) => items

@@ -75,7 +75,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)

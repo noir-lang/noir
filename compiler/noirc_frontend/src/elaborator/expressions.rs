@@ -464,7 +464,7 @@ impl Elaborator<'_> {
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
             Type::Vector(elem_type)
         };
@@ -703,7 +703,7 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            Type::Array(ref size, ref base_type) => {
+            Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
             }
