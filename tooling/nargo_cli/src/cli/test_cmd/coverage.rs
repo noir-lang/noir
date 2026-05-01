@@ -72,12 +72,11 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
     }
 
     let mut report = Report::new();
+    let line_starts = LineStartsCache::new(context);
 
     for (file_id, byte_offsets) in &offsets_by_file {
         let Some(path) = context.file_manager.path(*file_id) else { continue };
-        let Some(source) = context.file_manager.fetch_file(*file_id) else { continue };
-
-        let line_starts = build_line_starts(source);
+        let Some(line_starts) = line_starts.build(file_id) else { continue };
 
         let mut functions = function::Functions::new();
         for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
@@ -127,22 +126,12 @@ pub(super) fn tracker_to_report(
         .try_as_expr()
         .map(|body_id| context.def_interner.expr_location(&body_id));
 
-    // Cache line start offsets.
-    let mut line_starts_per_file: HashMap<FileId, Vec<u32>> = HashMap::new();
-    let mut get_line_starts = |file_id| {
-        if !line_starts_per_file.contains_key(&file_id) {
-            let source = context.file_manager.fetch_file(file_id)?;
-            let line_starts = build_line_starts(source);
-            line_starts_per_file.insert(file_id, line_starts);
-        }
-        line_starts_per_file.get(&file_id).cloned()
-    };
-
     // Accumulate (functions, lines) per FileId before building sections.
     let mut data: HashMap<FileId, (function::Functions, line::Lines)> = HashMap::new();
+    let mut line_starts = LineStartsCache::new(context);
 
     for (&file_id, offsets_to_counts) in tracker.hits() {
-        let Some(line_starts) = get_line_starts(file_id) else {
+        let Some(line_starts) = line_starts.get(&file_id) else {
             continue;
         };
         let (_, lines) = data.entry(file_id).or_default();
@@ -170,7 +159,7 @@ pub(super) fn tracker_to_report(
         let meta = context.def_interner.function_meta(&func_id);
         let file_id = meta.location.file;
         let Some((functions, _)) = data.get_mut(&file_id) else { continue };
-        let Some(line_starts) = get_line_starts(file_id) else {
+        let Some(line_starts) = line_starts.get(&file_id) else {
             continue;
         };
         let start_line = offset_to_line(meta.location.span.start(), &line_starts);
@@ -272,4 +261,31 @@ fn build_line_starts(source: &str) -> Vec<u32> {
 /// Converts a byte offset within a file to a 1-indexed line number.
 fn offset_to_line(offset: u32, line_starts: &[u32]) -> u32 {
     line_starts.partition_point(|&start| start <= offset) as u32
+}
+
+struct LineStartsCache<'a> {
+    context: &'a Context<'a, 'a>,
+    line_starts: HashMap<FileId, Vec<u32>>,
+}
+
+impl<'a> LineStartsCache<'a> {
+    fn new(context: &'a Context<'a, 'a>) -> Self {
+        Self { context, line_starts: HashMap::new() }
+    }
+
+    /// Get from the cache or build.
+    fn get(&mut self, file_id: &FileId) -> Option<&[u32]> {
+        if !self.line_starts.contains_key(file_id) {
+            let line_starts = self.build(file_id)?;
+            self.line_starts.insert(*file_id, line_starts);
+        }
+        self.line_starts.get(file_id).map(|v| v.as_slice())
+    }
+
+    /// Build without caching.
+    fn build(&self, file_id: &FileId) -> Option<Vec<u32>> {
+        let source = self.context.file_manager.fetch_file(*file_id)?;
+        let line_starts = build_line_starts(source);
+        Some(line_starts)
+    }
 }
