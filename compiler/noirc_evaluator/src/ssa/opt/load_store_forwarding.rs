@@ -1312,12 +1312,12 @@ mod tests {
         let main = ssa.main();
         let returned = match main.dfg[main.entry_block()].terminator() {
             Some(crate::ssa::ir::instruction::TerminatorInstruction::Return {
-                return_values, ..
+                return_values,
+                ..
             }) => return_values[0],
             _ => panic!("expected a Return terminator with one value"),
         };
-        if let crate::ssa::ir::value::Value::NumericConstant { constant, .. } =
-            &main.dfg[returned]
+        if let crate::ssa::ir::value::Value::NumericConstant { constant, .. } = &main.dfg[returned]
         {
             assert_ne!(
                 format!("{constant:?}"),
