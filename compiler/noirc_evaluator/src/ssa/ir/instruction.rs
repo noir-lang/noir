@@ -377,8 +377,10 @@ pub enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// to those in the given array.
+    /// In ACIR this will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    /// In Brillig, this might modify the original array if the array's reference count is 1.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.

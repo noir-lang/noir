@@ -769,7 +769,7 @@ impl Loop {
                 // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
                 // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
+                if then_branch_is_body { const_rhs.inc() } else { Some(const_rhs) }
             }
             Instruction::Not(operand) => {
                 if *operand != induction_var {
