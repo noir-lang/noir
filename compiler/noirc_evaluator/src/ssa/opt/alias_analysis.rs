@@ -74,6 +74,28 @@
 //! The points-to-set sites are computed using stored values only — load results stay NoAllocation in pass 1 (less precise but sound).
 //! Pass 2 then propagates those points-to sites into to the load results.
 //!
+//! #### Must Alias
+//! Two values sharing the same `Known(site)` only must-alias if that static
+//! `Allocate` instruction fires at most once per program execution. Otherwise
+//! the same site corresponds to distinct runtime cells across calls, and
+//! trusting the site as an equality check would be unsound.
+//!
+//! A site is *untrusted* when it can fire multiple times. We track this in:
+//! - `loop_allocates` — `Allocate`s sitting inside a CFG loop in their
+//!   defining function: each iteration produces a fresh cell.
+//! - `untrusted_site_functions` — functions whose body itself runs more than
+//!   once per execution. This is seeded with the recursive (self- and
+//!   mutually-recursive) functions from the call graph and extended during
+//!   pass 1 with callee-side replication: a callee whose `return_values`
+//!   slot is reused and a callee invoked from a loop block
+//!   in the caller. Pass 1 walks functions caller-before-callee in
+//!   call-graph topological order so this propagates transitively — when
+//!   analyzing an already-untrusted function, every block is treated as a
+//!   loop block, marking every nested callee untrusted in turn.
+//!
+//! `must_alias` rejects sites caught by either filter; only trusted sites
+//! survive as equivalence keys.
+//!
 //! ## References
 //!
 //! Bjarne Steensgaard, "Points-to Analysis in Almost Linear Time", POPL 1996.
@@ -169,8 +191,8 @@ pub(crate) struct AliasAnalysis {
     /// two distinct allocation sites cannot alias.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
 
-    /// Functions that are potentially recursive (self-recursion or mutual recursion)
-    recursive_functions: HashSet<FunctionId>,
+    /// Functions whose body may run more than once per program execution.
+    untrusted_site_functions: HashSet<FunctionId>,
 
     /// Individual `Allocate` instructions inside loops. Each iteration
     /// of a loop produces a fresh cell, so the static site must not pin
@@ -269,8 +291,7 @@ impl AliasAnalysis {
 
     /// Returns `true` if `a` and `b` definitely refer to the same memory location
     /// Allocation site identity does not imply runtime cell identity when
-    /// the site fires multiple times in one execution (loops, recursion,
-    /// opaque calls in `Scope::Single`).
+    /// the site fires multiple times in one execution (e.g. loops, recursion)
     pub(crate) fn must_alias(&self, a: GlobalValueId, b: GlobalValueId) -> bool {
         if a == b {
             return true;
@@ -305,12 +326,12 @@ impl AliasAnalysis {
     /// Extract the allocation site if it is trusted:
     /// A site is untrusted if multiple runtime cells may share it.
     /// This happens when:
-    /// - the defining function may be recursive, or
+    /// - the defining function may be called multiple times (e.g. recursion), or
     /// - the allocation is done inside a loop.
     fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
         match allocation_site {
             AllocationLattice::Known(site)
-                if !(self.recursive_functions.contains(&site.0)
+                if !(self.untrusted_site_functions.contains(&site.0)
                     || self.loop_allocates.contains(&site)) =>
             {
                 Some(site)
@@ -374,11 +395,11 @@ struct AliasAnalysisContext {
     /// Joined allocation site of every value ever placed into the points_to alias class.
     points_to_sites: HashMap<GlobalValueId, AllocationLattice>,
 
-    /// Potentially Recursive functions
-    recursive_functions: HashSet<FunctionId>,
+    /// Functions whose body may run more than once per program execution.
+    untrusted_site_functions: HashSet<FunctionId>,
 
     /// Individual loop-resident Allocates
-    loop_allocate: HashSet<GlobalValueId>,
+    loop_allocates: HashSet<GlobalValueId>,
 }
 
 /// Collect the set of basic blocks that lie inside a loop body. Allocates
@@ -405,13 +426,21 @@ impl AliasAnalysisContext {
 
         let mut analysis = Self::default();
 
-        // Get recursive functions from the call graph for `Scope::Ssa`
-        // (recursive or mutually-recursive functions).
-        if let Scope::Ssa(ssa) = &scope {
-            analysis.recursive_functions = CallGraph::from_ssa(ssa).get_recursive_functions();
-        }
+        // Process functions in calling order so the inline multi-invocation
+        // detection in `analyze_block` propagates transitively: when we reach a
+        // callee, every site that has already flagged it as untrusted has
+        // already run, and that knowledge feeds back into how we analyze it.
+        let pass1_functions: Vec<&Function> = match &scope {
+            Scope::Single(f) => vec![*f],
+            Scope::Ssa(ssa) => {
+                let call_graph = CallGraph::from_ssa(ssa);
+                let (sccs, recursive) = call_graph.sccs();
+                analysis.untrusted_site_functions = recursive;
+                sccs.into_iter().rev().flatten().filter_map(|fid| ssa.functions.get(&fid)).collect()
+            }
+        };
 
-        for function in &functions {
+        for function in &pass1_functions {
             analysis.analyze_function(&scope, function);
         }
 
@@ -425,8 +454,8 @@ impl AliasAnalysisContext {
             points_to: analysis.points_to,
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
-            recursive_functions: analysis.recursive_functions,
-            loop_allocates: analysis.loop_allocate,
+            untrusted_site_functions: analysis.untrusted_site_functions,
+            loop_allocates: analysis.loop_allocates,
         }
     }
 
@@ -534,14 +563,20 @@ impl AliasAnalysisContext {
         let blocks = post_order.into_vec_reverse();
 
         // Compute loop blocks once per function. Allocates inside them are untrusted.
-        let function_is_recursive = self.recursive_functions.contains(&function.id());
-        // Skip loop detection when the whole function is already untrusted via the recursion filter
+        let function_is_untrusted = self.untrusted_site_functions.contains(&function.id());
+        // Skip loop detection when the whole function is already untrusted —
+        // every Allocate in it is rejected by `is_trusted` regardless.
         let loop_block_set =
-            if function_is_recursive { HashSet::default() } else { loop_blocks(function) };
+            if function_is_untrusted { HashSet::default() } else { loop_blocks(function) };
 
         for block_id in blocks {
             self.track_allocations_from_predecessors(block_id, function, &cfg, is_entry_point);
-            let ignore_allocations_in_block = loop_block_set.contains(&block_id);
+            // When the whole function is untrusted, treat every block as a loop
+            // block. This propagates multi-invocation transitively: any callee
+            // invoked from this body is itself flagged via the inline detection
+            // in `analyze_block`.
+            let ignore_allocations_in_block =
+                function_is_untrusted || loop_block_set.contains(&block_id);
             self.analyze_block(function, block_id, scope, ignore_allocations_in_block);
         }
 
@@ -681,7 +716,7 @@ impl AliasAnalysisContext {
                     self.allocation_sites.insert(address, AllocationLattice::Known(address));
                     if ignore_allocations_in_block {
                         // the allocation site is tagged as a 'loop allocate', so it will be ignored in must_alias.
-                        self.loop_allocate.insert(address);
+                        self.loop_allocates.insert(address);
                     }
                 }
                 Instruction::Load { address } => {
@@ -701,6 +736,13 @@ impl AliasAnalysisContext {
                         //   This is done through analyze_function() which process all the functions.
                         // - merge return values with the instruction results
                         (Value::Function(callee_id), Scope::Ssa(ssa)) => {
+                            // Multi-invocation detection: a populated `return_values`
+                            // entry means this is at least the second call site.
+                            if self.return_values.contains_key(callee_id)
+                                || ignore_allocations_in_block
+                            {
+                                self.untrusted_site_functions.insert(*callee_id);
+                            }
                             self.unify_call_arguments_and_return(
                                 ssa, *callee_id, function, arguments, results,
                             );
@@ -731,7 +773,7 @@ impl AliasAnalysisContext {
                         _ => {
                             self.unresolved_call(function, arguments, results);
                             if matches!(scope, Scope::Single(_)) {
-                                self.recursive_functions.insert(function.id());
+                                self.untrusted_site_functions.insert(function.id());
                                 // no need to continue collecting the in-loop allocations
                                 ignore_allocations_in_block = true;
                             }
@@ -2706,22 +2748,18 @@ mod tests {
 
     /// Multi-call-site site propagation
     ///
-    /// `is_trusted` filters allocation sites whose defining function is
-    /// recursive and `Allocate`s that live inside a CFG loop, but does
-    /// not account for a non-recursive callee invoked from multiple
-    /// call sites — every invocation produces a fresh runtime cell.
-    ///
     /// Steensgaard merges all call sites of `f1` into a single alias
     /// class, so `points_to_sites` for `f1::outer`'s pointee class —
     /// set to `Known(f1::inner)` by the store inside `f1` — becomes
     /// the site of every load through any call result. Pass 2 writes
     /// `Known(f1::inner)` into both `main.v1` (load through the first
     /// call's result) and `main.v3` (load through the second call's
-    /// result). `f1` is not in `recursive_functions` and `f1::inner`
-    /// is not in `loop_allocate`, so `is_trusted` returns
-    /// `Some(f1::inner)` for both — and `must_alias(main.v1, main.v3)`
-    /// returns true. The two `inner` cells are distinct: each call to
-    /// `f1` allocates a fresh `inner`.
+    /// result). The two `inner` cells are distinct at runtime — each
+    /// call to `f1` allocates a fresh one — so `must_alias` between
+    /// them must be `false`. `is_trusted` enforces this by also
+    /// rejecting sites in `untrusted_site_functions`, which is
+    /// populated as soon as a callee's `return_values` slot is reused
+    /// by a second call site.
     #[test]
     fn must_alias_sound_on_multi_call_site_non_recursive_callee() {
         let src = "
@@ -2759,7 +2797,7 @@ mod tests {
     /// A variant of the multi-call-site case in which the callee is
     /// invoked from inside a loop in the caller. The callee's
     /// allocation lives outside any loop in *its own* function, so
-    /// `loop_blocks` does not flag it as `loop_allocate`; the callee
+    /// `loop_blocks` does not flag it as `loop_allocates`; the callee
     /// is also non-recursive. Yet each loop iteration in the caller
     /// allocates a fresh `f1::inner`, so `must_alias` between two
     /// load results from different iterations should be `false`.
