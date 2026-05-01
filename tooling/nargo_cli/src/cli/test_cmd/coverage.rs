@@ -127,12 +127,24 @@ pub(super) fn tracker_to_report(
         .try_as_expr()
         .map(|body_id| context.def_interner.expr_location(&body_id));
 
+    // Cache line start offsets.
+    let mut line_starts_per_file: HashMap<FileId, Vec<u32>> = HashMap::new();
+    let mut get_line_starts = |file_id| {
+        if !line_starts_per_file.contains_key(&file_id) {
+            let source = context.file_manager.fetch_file(file_id)?;
+            let line_starts = build_line_starts(source);
+            line_starts_per_file.insert(file_id, line_starts);
+        }
+        line_starts_per_file.get(&file_id).cloned()
+    };
+
     // Accumulate (functions, lines) per FileId before building sections.
     let mut data: HashMap<FileId, (function::Functions, line::Lines)> = HashMap::new();
 
     for (&file_id, offsets_to_counts) in tracker.hits() {
-        let Some(source) = context.file_manager.fetch_file(file_id) else { continue };
-        let line_starts = build_line_starts(source);
+        let Some(line_starts) = get_line_starts(file_id) else {
+            continue;
+        };
         let (_, lines) = data.entry(file_id).or_default();
 
         for (&offset, &count) in offsets_to_counts {
@@ -158,8 +170,9 @@ pub(super) fn tracker_to_report(
         let meta = context.def_interner.function_meta(&func_id);
         let file_id = meta.location.file;
         let Some((functions, _)) = data.get_mut(&file_id) else { continue };
-        let Some(source) = context.file_manager.fetch_file(file_id) else { continue };
-        let line_starts = build_line_starts(source);
+        let Some(line_starts) = get_line_starts(file_id) else {
+            continue;
+        };
         let start_line = offset_to_line(meta.location.span.start(), &line_starts);
         let name = context.def_interner.function_name(&func_id).to_string();
 
