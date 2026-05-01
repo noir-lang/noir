@@ -1686,7 +1686,13 @@ impl NodeInterner {
         self.id_to_location
             .iter()
             .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
-            .filter(|(idx, _)| matches!(self.nodes.get(**idx), Some(Node::Expression(_))))
+            .filter(|(idx, _)| {
+                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                    return false;
+                };
+                // Ignore blocks otherwise we highlight the opening brace.
+                !matches!(expr, HirExpression::Block(_))
+            })
             .map(|(_, loc)| *loc)
     }
 

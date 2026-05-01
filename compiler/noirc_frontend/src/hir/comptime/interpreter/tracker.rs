@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use fm::FileId;
 use noirc_errors::Location;
 
-use crate::node_interner::FuncId;
+use crate::{hir_def::expr::HirExpression, node_interner::FuncId};
 
 /// Track comptime evaluations, to facilitate code coverage in tests.
 pub struct EvaluationTracker {
@@ -26,6 +26,23 @@ impl EvaluationTracker {
         Self { allowed_files, hits: HashMap::new(), function_hits: HashMap::new() }
     }
 
+    pub fn track_expression(&mut self, expr: &HirExpression, location: Location) {
+        if location.is_dummy() || !self.allowed_files.contains(&location.file) {
+            return;
+        }
+        if matches!(expr, HirExpression::Block(_)) {
+            // Do not tracks blocks, as they would highlight the opening brace.
+            return;
+        }
+
+        self.hits
+            .entry(location.file)
+            .or_default()
+            .entry(location.span.start())
+            .and_modify(|n| *n += 1)
+            .or_insert(1);
+    }
+
     pub fn track_location(&mut self, location: Location) {
         if location.is_dummy() || !self.allowed_files.contains(&location.file) {
             return;
@@ -40,6 +57,12 @@ impl EvaluationTracker {
     }
 
     pub fn track_function_call(&mut self, func_id: FuncId, location: Location) {
+        // This ignores calls from foreign crates back to the one we are interested in,
+        // but if that happened it would be a cyclic dependency.
+        // For example say we are testing crate `foo`, so we are interested in coverage
+        // for `foo::spam`; if it's called from `bar::spam`, then that means `foo`
+        // depended on `bar`, and `bar` depended on `foo`. In practice it's probably
+        // okay to filter calls based on where they are made from, and simpler.
         if location.is_dummy() || !self.allowed_files.contains(&location.file) {
             return;
         }
