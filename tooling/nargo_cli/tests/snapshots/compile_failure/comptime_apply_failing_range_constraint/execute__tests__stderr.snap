@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: 0x0100 has 9 bits which do not fit in 8 bits
+error: call to assert_max_bit_size: 0x0100 has 9 bits which do not fit in 8 bits
    ┌─ std/field/mod.nr:17:9
    │
 17 │         __assert_max_bit_size(self, BIT_SIZE);
