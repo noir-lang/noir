@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777585617035,
+  "lastUpdate": 1777632481267,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "176b35324bd575a203abec01369ad3118a55b7c1",
-          "message": "chore: Add CLI options for the limits in Brillig constraints check (#12352)",
-          "timestamp": "2026-04-22T14:38:35Z",
-          "tree_id": "a6db7c0ab32563d884fdffb767a69f1ce6bb1188",
-          "url": "https://github.com/noir-lang/noir/commit/176b35324bd575a203abec01369ad3118a55b7c1"
-        },
-        "date": 1776870185467,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173320,
-            "range": "± 525",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 144044,
-            "range": "± 1166",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655072,
-            "range": "± 8204",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643606,
             "range": "± 2442",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45cdb9aca6d98fe178de2b23890ebf630345c16e",
+          "message": "feat: strip down stdlib implementation of poseidon2 (#12402)",
+          "timestamp": "2026-05-01T10:25:28Z",
+          "tree_id": "ccae97c0716499748d5b6d9e325961536b54896d",
+          "url": "https://github.com/noir-lang/noir/commit/45cdb9aca6d98fe178de2b23890ebf630345c16e"
+        },
+        "date": 1777632420385,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167669,
+            "range": "± 1056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136407,
+            "range": "± 4466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643557,
+            "range": "± 5591",
             "unit": "ns/iter"
           }
         ]
