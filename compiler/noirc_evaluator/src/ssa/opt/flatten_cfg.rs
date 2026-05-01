@@ -63,6 +63,15 @@
 //! (Note: we restore to "true" to indicate that this program point is not nested within any
 //! other branches. Each `enable_side_effects` overrides the previous, they do not implicitly stack.)
 //!
+//! Each branch has a **path predicate** — the conjunction of every enclosing jmpif condition
+//! on the way to that branch. The emitted `Instruction::IfElse` stores both branches' path
+//! predicates as `then_condition` and `else_condition`. They are disjoint by construction
+//! (one true, one false in the live region; both 0 in any dead region inherited from an
+//! outer scope), and the IfElse's runtime — `cast(then_cond)*then + cast(else_cond)*else` —
+//! naturally returns 0 in the dead region. They are *not* in general logical complements:
+//! `else_condition` is `c_outer ∧ ¬c_local`, which differs from `¬then_condition =
+//! ¬(c_outer ∧ c_local)` whenever `c_outer` itself is non-trivial (see [`MergeProvenance`]).
+//!
 //! When we are flattening a block that was reached via a jmpif with a non-constant condition `c`,
 //! the following transformations of certain instructions within the block are expected:
 //!
@@ -833,8 +842,22 @@ impl<'f> Context<'f> {
         };
         let block = self.target_block;
 
+        // When the local condition is a compile-time constant, only one branch
+        // can execute and there is nothing to merge: forward the corresponding
+        // value directly instead of emitting an `IfElse`. The outer predicate
+        // continues to gate the surrounding block via `enable_side_effects`.
+        let local_condition_constant = self
+            .inserter
+            .function
+            .dfg
+            .get_numeric_constant(cond_context.condition)
+            .map(|c| c.is_one());
+
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
+            if let Some(then_taken) = local_condition_constant {
+                return if then_taken { then_arg } else { else_arg };
+            }
             let call_stack = cond_context.call_stack;
 
             // Try to collapse a redundant nested merge. When the inner merge's
@@ -843,9 +866,8 @@ impl<'f> Context<'f> {
             let collapsed = self.try_collapse_merge(then_arg, else_arg);
             let (then_condition, then_value, else_condition, else_value) =
                 if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // For the collapsed merge, the then_condition is the inner's
-                    // condition which already incorporates all outer conditions.
-                    // The correct else_condition is NOT(then_condition).
+                    // The collapsed merge's `then_condition` already incorporates all outer
+                    // conditions, so its disjoint complement is its direct negation.
                     let inner_else_cond = self.not_instruction(
                         inner_then_cond,
                         self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
@@ -1623,7 +1645,7 @@ mod tests {
 
         let ssa = ssa.flatten_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2089,7 +2111,7 @@ mod tests {
         // statement's then value. This is why the then value is `v5` in both if-else instructions below.
         // We want to make sure that the else condition in the final instruction `v12 = if v0 then v5 else (if v6) v10`
         // remains v6 and is not altered when performing this optimization.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) pure fn main f0 {
           b0(v0: u1, v1: [[u1; 2]; 3]):
             v2 = not v0
@@ -2287,7 +2309,14 @@ mod tests {
 /// provenance does not leak across unrelated conditionals.
 #[cfg(test)]
 mod merge_provenance_tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa, interpreter::value::Value as InterpreterValue, ir::types::NumericType,
+            opt::assert_pass_does_not_affect_execution,
+        },
+    };
 
     /// Regression test for #12106: promoted block params with jmpif else_arguments
     /// should produce the same (or fewer) instructions as the equivalent store/load
@@ -2389,7 +2418,7 @@ mod merge_provenance_tests {
              Promoted:\n{promoted_flat}\nStore/load:\n{store_load_flat}"
         );
 
-        assert_ssa_snapshot!(promoted_flat, @r"
+        assert_ssa_snapshot!(promoted_flat, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2448,7 +2477,7 @@ mod merge_provenance_tests {
         let ssa = ssa.flatten_cfg();
         // The innermost merge (v0*v1*v2) collapses with the middle merge,
         // producing a single condition v0*v1*v2 = v4 for the "set to 1" path.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2513,7 +2542,7 @@ mod merge_provenance_tests {
         // `unchecked_mul v9, v3` and `unchecked_add v2, v10` instructions.
         // If collapsed provenance leaked, v2 would be absent and the constrain
         // would only check `v0 AND v1`.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1, v2: u1):
             enable_side_effects v0
@@ -2561,8 +2590,18 @@ mod merge_provenance_tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        // (v0=0) takes the outer-else, returning Field 100. Before the path-predicate
+        // fix, the collapsed merge instead selected the inner-else value (200).
+        let inputs = vec![
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+        ];
+        let expected =
+            InterpreterValue::from_constant(100_u128.into(), NumericType::NativeField).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![expected]);
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2617,7 +2656,7 @@ mod merge_provenance_tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2672,8 +2711,18 @@ mod merge_provenance_tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
+        // (v0=1) takes the outer-then, returning Field 100. Before the path-predicate
+        // fix, the collapsed merge instead selected the inner-else value (200).
+        let inputs = vec![
+            InterpreterValue::from_constant(1_u128.into(), NumericType::bool()).unwrap(),
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+        ];
+        let expected =
+            InterpreterValue::from_constant(100_u128.into(), NumericType::NativeField).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![expected]);
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2725,7 +2774,7 @@ mod merge_provenance_tests {
         let ssa = ssa.flatten_cfg();
         // All three values differ, so both inner and outer merges are preserved
         // (two mul+add pairs: one for the inner merge, one for the outer merge).
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -2812,5 +2861,47 @@ mod merge_provenance_tests {
             return v16
         }
         ");
+    }
+
+    /// Outer: `if v1 { inner } else { v0 }`
+    /// Inner: `if v2 { v0 } else { Field 100 }`
+    ///
+    /// The outer-else value (`v0`) matches the inner-then value (`v0`), which makes
+    /// the merger think it can collapse the two merges into one keyed on the inner
+    /// condition. With `(v0=5, v1=0, v2=0)` the outer else fires, so the correct
+    /// result is `5`. The collapsed merge instead returns the inner-else value
+    /// (`100`) because it has dropped the outer condition entirely.
+    #[test]
+    fn collapse_does_not_drop_outer_condition() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: u1, v2: u1):
+                jmpif v1 then: b1(), else: b2()
+              b1():
+                jmpif v2 then: b3(), else: b4()
+              b2():
+                jmp b5(v0)
+              b3():
+                jmp b6(v0)
+              b4():
+                jmp b6(Field 100)
+              b5(v3: Field):
+                return v3
+              b6(v4: Field):
+                jmp b5(v4)
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![
+            InterpreterValue::from_constant(5_u128.into(), NumericType::NativeField).unwrap(),
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            InterpreterValue::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+        ];
+        let expected =
+            InterpreterValue::from_constant(5_u128.into(), NumericType::NativeField).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result.unwrap(), vec![expected]);
     }
 }

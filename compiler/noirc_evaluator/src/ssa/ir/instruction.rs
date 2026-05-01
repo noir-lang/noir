@@ -399,13 +399,19 @@ pub enum Instruction {
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
-    /// ```text
-    /// if then_condition {
-    ///     then_value
-    /// } else {   // else_condition = !then_condition
-    ///     else_value
-    /// }
-    /// ```
+    /// Runtime semantics: `cast(then_condition) * then_value + cast(else_condition) * else_value`.
+    /// The two conditions must be **disjoint** booleans (never both 1) so this acts as a
+    /// select. They are not required to be exact complements: when both are 0 — the *dead
+    /// region* that nested merges create — the result is 0.
+    ///
+    /// When emitted by `flatten_cfg`, both `then_condition` and `else_condition` are
+    /// **path conditions** of their respective branches (the conjunction of every enclosing
+    /// jmpif condition with the local one), which are disjoint by construction. See the
+    /// [`flatten_cfg`] module docs for how nesting and dead regions affect the values flowing
+    /// through this instruction.
+    ///
+    /// [`flatten_cfg`]: crate::ssa::opt::flatten_cfg
+    #[allow(rustdoc::private_intra_doc_links)]
     IfElse {
         then_condition: ValueId,
         then_value: ValueId,

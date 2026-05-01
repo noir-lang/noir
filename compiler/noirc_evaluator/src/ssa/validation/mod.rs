@@ -301,6 +301,13 @@ impl<'f> Validator<'f> {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
+            Instruction::IfElse { then_condition, else_condition, .. } => {
+                let then_condition_type = dfg.type_of_value(*then_condition);
+                assert_u1(&then_condition_type, "IfElse then_condition");
+                let else_condition_type = dfg.type_of_value(*else_condition);
+                assert_u1(&else_condition_type, "IfElse else_condition");
+                validate_if_else_conditions(*then_condition, *else_condition, dfg);
+            }
             Instruction::DecrementRc { .. } => {
                 panic!(
                     "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
@@ -1132,6 +1139,113 @@ fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
         (arg, param),
         (Type::Reference(a, true), Type::Reference(b, false)) if a == b
     )
+}
+
+/// Validate that an `Instruction::IfElse` has disjoint conditions.
+///
+/// Flattening constructs `else_condition` as the negation of `then_condition`
+/// (in the common, single-level case) or as `outer && !inner` paired with
+/// `outer && inner` (in the nested case). The simplification logic relies on
+/// this disjointness — most of `simplify::IfElse` only considers
+/// `then_condition`, implicitly assuming `else_condition` is its complement.
+/// Without this invariant the compiler can pick a value the runtime lowering
+/// would not (see #8301).
+///
+/// The check accepts:
+///   - either side being a constant zero (one branch is statically disabled);
+///   - constant pairs `(0, 1)` and `(1, 0)`;
+///   - non-constant pairs whose AND-tree leaf decompositions differ by exactly
+///     one leaf each, where those two leaves are negations of each other.
+fn validate_if_else_conditions(
+    then_condition: ValueId,
+    else_condition: ValueId,
+    dfg: &DataFlowGraph,
+) {
+    let then_const = dfg.get_numeric_constant(then_condition);
+    let else_const = dfg.get_numeric_constant(else_condition);
+
+    // A constant zero on either side trivially makes the pair disjoint.
+    if then_const.is_some_and(|c| c.is_zero()) || else_const.is_some_and(|c| c.is_zero()) {
+        return;
+    }
+
+    if let (Some(t), Some(e)) = (then_const, else_const) {
+        panic!(
+            "IfElse: constant conditions ({t}, {e}) are both non-zero; \
+             flattening must construct disjoint conditions"
+        );
+    }
+
+    if then_const.is_some_and(|c| c.is_one()) || else_const.is_some_and(|c| c.is_one()) {
+        panic!(
+            "IfElse: one of (then_condition {then_condition}, else_condition {else_condition}) \
+             is constant 1 while the other is non-constant; flattening must construct \
+             disjoint conditions"
+        );
+    }
+
+    let then_factors = collect_and_factors(then_condition, dfg);
+    let else_factors = collect_and_factors(else_condition, dfg);
+
+    let then_only: Vec<ValueId> =
+        then_factors.iter().filter(|v| !else_factors.contains(v)).copied().collect();
+    let else_only: Vec<ValueId> =
+        else_factors.iter().filter(|v| !then_factors.contains(v)).copied().collect();
+
+    if then_only.len() == 1
+        && else_only.len() == 1
+        && is_direct_negation(then_only[0], else_only[0], dfg)
+    {
+        return;
+    }
+
+    panic!(
+        "IfElse: else_condition {else_condition} is not the structural negation of \
+         then_condition {then_condition}; flattening must construct complementary conditions"
+    );
+}
+
+/// Collect the leaves of the AND-tree rooted at `value`. Any value that is not
+/// itself an `And` instruction is treated as a leaf.
+fn collect_and_factors(value: ValueId, dfg: &DataFlowGraph) -> HashSet<ValueId> {
+    let mut leaves = HashSet::default();
+    collect_and_factors_into(value, dfg, &mut leaves);
+    leaves
+}
+
+fn collect_and_factors_into(value: ValueId, dfg: &DataFlowGraph, leaves: &mut HashSet<ValueId>) {
+    if let Value::Instruction { instruction, .. } = dfg[value]
+        && let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::And, .. }) =
+            &dfg[instruction]
+    {
+        collect_and_factors_into(*lhs, dfg, leaves);
+        collect_and_factors_into(*rhs, dfg, leaves);
+    } else {
+        leaves.insert(value);
+    }
+}
+
+/// Returns true if `a` and `b` are negations of each other, either via a `Not`
+/// instruction or via constant `0`/`1` pairing.
+fn is_direct_negation(a: ValueId, b: ValueId, dfg: &DataFlowGraph) -> bool {
+    if let Value::Instruction { instruction, .. } = dfg[a]
+        && let Instruction::Not(inner) = &dfg[instruction]
+        && *inner == b
+    {
+        return true;
+    }
+    if let Value::Instruction { instruction, .. } = dfg[b]
+        && let Instruction::Not(inner) = &dfg[instruction]
+        && *inner == a
+    {
+        return true;
+    }
+    if let (Some(a_const), Some(b_const)) =
+        (dfg.get_numeric_constant(a), dfg.get_numeric_constant(b))
+    {
+        return (a_const.is_one() && b_const.is_zero()) || (a_const.is_zero() && b_const.is_one());
+    }
+    false
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -2111,6 +2225,153 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
+
+    mod if_else {
+        use super::Ssa;
+
+        #[test]
+        fn allows_direct_negation() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = not v0
+                v2 = if v0 then Field 1 else (if v1) Field 2
+                return v2
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        fn allows_constant_one_zero_pair() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 1 then Field 1 else (if u1 0) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        fn allows_constant_zero_one_pair() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 0 then Field 1 else (if u1 1) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        fn allows_both_constant_zero() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 0 then Field 1 else (if u1 0) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        fn allows_runtime_paired_with_constant_zero() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if v0 then Field 1 else (if u1 0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        fn allows_shared_and_factor_with_negated_inner() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = and v0, v1
+                v3 = not v1
+                v4 = and v0, v3
+                v5 = if v2 then Field 1 else (if v4) Field 2
+                return v5
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "constant conditions (1, 1) are both non-zero")]
+        fn disallows_both_constant_one() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0():
+                v0 = if u1 1 then Field 1 else (if u1 1) Field 2
+                return v0
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "is constant 1 while the other is non-constant")]
+        fn disallows_constant_one_paired_with_runtime() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if u1 1 then Field 1 else (if v0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "is not the structural negation of")]
+        fn disallows_unrelated_runtime_conditions() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = if v0 then Field 1 else (if v1) Field 2
+                return v2
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "is not the structural negation of")]
+        fn disallows_same_runtime_condition_on_both_sides() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1):
+                v1 = if v0 then Field 1 else (if v0) Field 2
+                return v1
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
+
+        #[test]
+        #[should_panic(expected = "is not the structural negation of")]
+        fn disallows_shared_factor_without_negated_inner() {
+            let src = "
+            acir(inline) impure fn main f0 {
+              b0(v0: u1, v1: u1, v2: u1):
+                v3 = and v0, v1
+                v4 = and v0, v2
+                v5 = if v3 then Field 1 else (if v4) Field 2
+                return v5
+            }
+            ";
+            let _ = Ssa::from_str(src).unwrap();
+        }
     }
 
     #[test]

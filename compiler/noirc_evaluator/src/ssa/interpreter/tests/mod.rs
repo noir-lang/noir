@@ -267,16 +267,17 @@ fn run_flattened_function() {
             enable_side_effects v0
             v5 = array_get v1, index u32 0 -> [u1; 2]
             v6 = not v0
-            v7 = unchecked_mul v0, v6
+            v7 = and u1 0, v0
+            v8 = and u1 0, v6
             enable_side_effects v7
-            v8 = array_get v1, index u32 1 -> [u1; 2]
+            v9 = array_get v1, index u32 1 -> [u1; 2]
             enable_side_effects v0
-            v9 = if v0 then v5 else (if v7) v8
+            v11 = if v7 then v9 else (if v8) v5
             enable_side_effects v6
-            v10 = array_get v1, index u32 2 -> [u1; 2]
+            v12 = array_get v1, index u32 2 -> [u1; 2]
             enable_side_effects u1 1
-            v12 = if v0 then v5 else (if v6) v10
-            return v12
+            v13 = if v0 then v5 else (if v6) v12
+            return v13
         }";
 
     let v1_elements = vec![

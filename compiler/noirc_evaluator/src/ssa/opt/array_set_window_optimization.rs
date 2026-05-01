@@ -531,7 +531,9 @@ mod tests {
     fn replaces_array_set_that_feeds_poseidon2_inside_conditional_window() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+          b0(v0: [Field; 4], v1: u32, v3: u1, v4: u1):
+            v2 = not v3
+            v5 = not v4
             v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
             v9 = call poseidon2_permutation(v0) -> [Field; 4]
             v10 = if v3 then v9 else (if v2) v7
@@ -547,18 +549,20 @@ mod tests {
         let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1):
+            v4 = not v2
+            v5 = not v3
             v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
             v9 = call poseidon2_permutation(v0) -> [Field; 4]
-            v10 = if v3 then v9 else (if v2) v7
-            enable_side_effects v4
+            v10 = if v2 then v9 else (if v4) v7
+            enable_side_effects v3
             v12 = array_get v10, index u32 1 -> Field
             v14 = array_get v10, index u32 2 -> Field
             v16 = array_get v10, index u32 3 -> Field
             v18 = make_array [Field 6, v12, v14, v16] : [Field; 4]
             v19 = call poseidon2_permutation(v18) -> [Field; 4]
             enable_side_effects u1 1
-            v21 = if v4 then v19 else (if v5) v10
+            v21 = if v3 then v19 else (if v5) v10
             return v21
         }
         ");
@@ -570,7 +574,9 @@ mod tests {
     fn does_not_replace_chain_of_array_set_call_array_set_where_last_one_is_used_outside_window() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+          b0(v0: [Field; 4], v1: u32, v3: u1, v4: u1):
+            v2 = not v3
+            v5 = not v4
             v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
             v9 = call poseidon2_permutation(v0) -> [Field; 4]
             v10 = if v3 then v9 else (if v2) v7
