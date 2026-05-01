@@ -708,8 +708,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
                     GlobalValue::Resolved(value) => {
-                        // Track the global's ident location so the declaration line turns green
-                        // for any test that accesses it, without exposing the initializer contents.
+                        // Track the number of times a global was accessed during execution.
+                        // Globals are initialized during compilation; to track their initialization we have to add a tracker
+                        // before we try to interpret a specific call already. During interpretation the body is not revisited.
                         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
                             tracker.track_location(global_info.location);
                         }
