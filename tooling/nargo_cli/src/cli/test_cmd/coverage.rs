@@ -144,7 +144,7 @@ pub(super) fn tracker_to_report(
             {
                 continue;
             }
-            let line_num = offset_to_line(offset, &line_starts);
+            let line_num = offset_to_line(offset, line_starts);
             lines
                 .entry(line::Key { line: line_num })
                 .and_modify(|v| v.count += count)
@@ -162,7 +162,7 @@ pub(super) fn tracker_to_report(
         let Some(line_starts) = line_starts.get(&file_id) else {
             continue;
         };
-        let start_line = offset_to_line(meta.location.span.start(), &line_starts);
+        let start_line = offset_to_line(meta.location.span.start(), line_starts);
         let name = context.def_interner.function_name(&func_id).to_string();
 
         functions
@@ -242,7 +242,7 @@ pub(super) fn write_package_coverage(report: Report, path: &std::path::Path) {
             path.display()
         );
     } else {
-        noirc_errors::print_to_stdout!("coverage report written to {}", path.display())
+        noirc_errors::print_to_stdout!("coverage report written to {}", path.display());
     }
 }
 
