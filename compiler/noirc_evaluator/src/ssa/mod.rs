@@ -407,6 +407,16 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // `static_assert` / `assert_constant` intrinsics aren't lowered by
+        // any of the passes above. Brillig codegen treats them as
+        // `unreachable!()` (code_gen_call.rs:417), so without this pass a
+        // `static_assert(false)` ICE'd `--minimal-ssa` (#12503). The
+        // `try_…` variant mirrors `primary_passes` and turns failing
+        // asserts into a normal user-facing diagnostic.
+        SsaPass::new(
+            Ssa::try_evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
     ]
 }
 
