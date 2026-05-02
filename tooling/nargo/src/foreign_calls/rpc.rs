@@ -201,7 +201,17 @@ fn build_http_client(target: &str) -> HttpClient {
         client_builder = client_builder.request_timeout(timeout_duration);
     }
 
-    client_builder.build(target).expect("Invalid oracle resolver URL")
+    // The bad-URL case is reachable from a public CLI flag (`--oracle-resolver`).
+    // Surface it as a clear error and exit non-zero rather than panicking with
+    // the "This is a bug" handler — the URL came from the user, not from us
+    // (#12504).
+    match client_builder.build(target) {
+        Ok(client) => client,
+        Err(err) => {
+            eprintln!("Error: --oracle-resolver value '{target}' is not a valid URL: {err}");
+            std::process::exit(1);
+        }
+    }
 }
 
 impl<F> ForeignCallExecutor<F> for RPCForeignCallExecutor
