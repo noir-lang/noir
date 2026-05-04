@@ -4,10 +4,12 @@
 use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use acvm::AcirField;
+use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -589,8 +591,12 @@ pub fn compile_main(
     );
 
     if options.print_acir {
+        let display = ProgramDisplay {
+            program: &compiled_program.program,
+            error_types: &compiled_program.abi.error_types,
+        };
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("{}", display);
     }
 
     Ok((compiled_program, warnings))
@@ -1058,5 +1064,27 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
             let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
+    }
+}
+
+struct ProgramDisplay<'a, F: AcirField> {
+    program: &'a Program<F>,
+    error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_types = self
+            .error_types
+            .iter()
+            .filter_map(|(selector, abi_error_type)| {
+                if let AbiErrorType::String { string } = abi_error_type {
+                    Some((*selector, string.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+        display_program(self.program, Some(&error_types), f)
     }
 }

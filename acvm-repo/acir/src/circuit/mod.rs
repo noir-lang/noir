@@ -14,7 +14,7 @@ use acir_field::AcirField;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
-use std::{io::prelude::*, num::ParseIntError, str::FromStr};
+use std::{collections::HashMap, io::prelude::*, num::ParseIntError, str::FromStr};
 
 use base64::Engine;
 use flate2::Compression;
@@ -352,40 +352,60 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let write_witness_indices =
-            |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
-                write!(f, "[")?;
-                for (index, witness_index) in indices.iter().enumerate() {
-                    write!(f, "w{witness_index}")?;
-                    if index != indices.len() - 1 {
-                        write!(f, ", ")?;
-                    }
-                }
-                writeln!(f, "]")
-            };
-
-        write!(f, "private parameters: ")?;
-        write_witness_indices(
-            f,
-            &self
-                .private_parameters
-                .iter()
-                .map(|witness| witness.witness_index())
-                .collect::<Vec<_>>(),
-        )?;
-
-        write!(f, "public parameters: ")?;
-        write_witness_indices(f, &self.public_parameters.indices())?;
-
-        write!(f, "return values: ")?;
-        write_witness_indices(f, &self.return_values.indices())?;
-
-        for opcode in &self.opcodes {
-            display_opcode(opcode, Some(&self.return_values), f)?;
-            writeln!(f)?;
-        }
-        Ok(())
+        display_circuit(self, None, f)
     }
+}
+
+pub fn display_circuit<F: AcirField>(
+    circuit: &Circuit<F>,
+    error_types: Option<&HashMap<ErrorSelector, String>>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let write_witness_indices =
+        |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
+            write!(f, "[")?;
+            for (index, witness_index) in indices.iter().enumerate() {
+                write!(f, "w{witness_index}")?;
+                if index != indices.len() - 1 {
+                    write!(f, ", ")?;
+                }
+            }
+            writeln!(f, "]")
+        };
+
+    write!(f, "private parameters: ")?;
+    write_witness_indices(
+        f,
+        &circuit
+            .private_parameters
+            .iter()
+            .map(|witness| witness.witness_index())
+            .collect::<Vec<_>>(),
+    )?;
+
+    write!(f, "public parameters: ")?;
+    write_witness_indices(f, &circuit.public_parameters.indices())?;
+
+    write!(f, "return values: ")?;
+    write_witness_indices(f, &circuit.return_values.indices())?;
+
+    let assert_messages_by_opcode_location =
+        circuit.assert_messages.iter().cloned().collect::<HashMap<_, _>>();
+
+    for (index, opcode) in circuit.opcodes.iter().enumerate() {
+        display_opcode(opcode, Some(&circuit.return_values), f)?;
+
+        if let Some(error_types) = error_types {
+            let location = OpcodeLocation::Acir(index);
+            if let Some(payload) = assert_messages_by_opcode_location.get(&location)
+                && let Some(messgae) = error_types.get(&ErrorSelector::new(payload.error_selector))
+            {
+                write!(f, " // {messgae}")?;
+            }
+        }
+        writeln!(f)?;
+    }
+    Ok(())
 }
 
 impl<F: AcirField> std::fmt::Debug for Circuit<F> {
@@ -396,19 +416,38 @@ impl<F: AcirField> std::fmt::Debug for Circuit<F> {
 
 impl<F: AcirField> std::fmt::Display for Program<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (func_index, function) in self.functions.iter().enumerate() {
-            writeln!(f, "func {func_index}")?;
-            writeln!(f, "{function}")?;
-        }
-        for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
-            writeln!(f, "unconstrained func {func_index}: {}", function.function_name)?;
-            let width = function.bytecode.len().to_string().len();
-            for (index, opcode) in function.bytecode.iter().enumerate() {
-                writeln!(f, "{index:>width$}: {opcode}")?;
-            }
-        }
-        Ok(())
+        display_program(self, None, f)
     }
+}
+
+pub fn display_program<F: AcirField>(
+    program: &Program<F>,
+    error_types: Option<&HashMap<ErrorSelector, String>>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    for (func_index, function) in program.functions.iter().enumerate() {
+        writeln!(f, "func {func_index}")?;
+        display_circuit(function, error_types, f)?;
+        writeln!(f)?;
+    }
+    for (func_index, function) in program.unconstrained_functions.iter().enumerate() {
+        writeln!(f, "unconstrained func {func_index}: {}", function.function_name)?;
+        let width = function.bytecode.len().to_string().len();
+        for (index, opcode) in function.bytecode.iter().enumerate() {
+            write!(f, "{index:>width$}: {opcode}")?;
+
+            if let ::brillig::Opcode::IndirectConst { value, .. } = opcode
+                && let Some(value) = value.try_to_u64()
+                && let Some(message) =
+                    error_types.and_then(|error_types| error_types.get(&ErrorSelector::new(value)))
+            {
+                write!(f, " // {message}")?;
+            }
+
+            writeln!(f)?;
+        }
+    }
+    Ok(())
 }
 
 impl<F: AcirField> std::fmt::Debug for Program<F> {
