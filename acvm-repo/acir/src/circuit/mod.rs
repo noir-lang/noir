@@ -441,7 +441,7 @@ pub fn display_program<F: AcirField>(
                 && let Some(message) =
                     error_types.and_then(|error_types| error_types.get(&ErrorSelector::new(value)))
             {
-                write!(f, " // {message}")?;
+                write!(f, " // {message:?}")?;
             }
 
             writeln!(f)?;
