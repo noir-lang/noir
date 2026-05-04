@@ -702,7 +702,9 @@ impl FunctionContext<'_> {
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
             if end_constant.into_numeric_constant().0.to_u128() < max_value {
-                let end_constant_plus_one = end_constant.inc();
+                let end_constant_plus_one = end_constant.inc().expect(
+                    "Expected to be able to increment end_constant as it's less than max_value",
+                );
                 end_index = self
                     .builder
                     .numeric_constant(end_constant_plus_one.into_numeric_constant().0, index_type);

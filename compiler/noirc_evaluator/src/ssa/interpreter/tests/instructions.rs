@@ -316,6 +316,40 @@ fn div_zero() {
 }
 
 #[test]
+fn div_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN / -1, got {error:?}"
+    );
+}
+
+#[test]
+fn mod_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN % -1, got {error:?}"
+    );
+}
+
+#[test]
 fn r#mod() {
     let value = expect_value(
         "

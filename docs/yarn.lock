@@ -11433,7 +11433,7 @@ __metadata:
     "@types/prettier": "npm:^3.0.0"
     axios: "npm:^1.15.0"
     clsx: "npm:^2.1.1"
-    docusaurus-plugin-llms: "npm:^0.3.0"
+    docusaurus-plugin-llms: "npm:^0.4.0"
     docusaurus-plugin-typedoc: "npm:1.4.2"
     eslint-plugin-prettier: "npm:^5.5.5"
     hast-util-is-element: "npm:^3.0.0"
@@ -11455,16 +11455,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"docusaurus-plugin-llms@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "docusaurus-plugin-llms@npm:0.3.0"
+"docusaurus-plugin-llms@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "docusaurus-plugin-llms@npm:0.4.0"
   dependencies:
     gray-matter: "npm:^4.0.3"
     minimatch: "npm:^9.0.3"
     yaml: "npm:^2.8.1"
   peerDependencies:
     "@docusaurus/core": ^3.0.0
-  checksum: 10/f89aa2cbde080cee3c5c3873a896d92c09630a9eb06051424fd85acd18893e06ab9b4c7a67e43ea1007e33cac66adb05c81e5ed2bc328798400f5ff537d13331
+  checksum: 10/12f3b05f7d4f5cb54ab9b9713ba4b4a2618f46c4513b71a6cd0cd2e35d56c6190258f273acc6dfd4947d7fa1cde15386b2f08fb74f0cd2a4b4e1ad7080f17f6c
   languageName: node
   linkType: hard
 

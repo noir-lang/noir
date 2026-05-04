@@ -209,7 +209,7 @@ impl Elaborator<'_> {
                 ));
                 let size =
                     self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
-                Type::Array(Box::new(size), elem)
+                Type::Array(elem, Box::new(size))
             }
             Vector(elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(
