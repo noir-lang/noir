@@ -407,6 +407,10 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
     ]
 }
 
