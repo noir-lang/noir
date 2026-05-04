@@ -710,3 +710,45 @@ fn split_public_and_private_inputs(
             (acc.0, acc.1)
         })
 }
+
+#[cfg(test)]
+mod minimal_passes_tests {
+    use super::{Ssa, minimal_passes};
+    use crate::errors::RuntimeError;
+
+    fn run_minimal(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        let mut ssa = ssa;
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa)?;
+        }
+        Ok(ssa)
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_assert_constant() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::AssertConstantFailed { .. })));
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_static_assert() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array b"Assertion failed"
+            v2 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v1, v2, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
+}
