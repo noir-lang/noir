@@ -27,20 +27,11 @@ impl EvaluationTracker {
     }
 
     pub fn track_expression(&mut self, expr: &HirExpression, location: Location) {
-        if location.is_dummy() || !self.allowed_files.contains(&location.file) {
-            return;
-        }
         if matches!(expr, HirExpression::Block(_)) {
             // Do not tracks blocks, as they would highlight the opening brace.
             return;
         }
-
-        self.hits
-            .entry(location.file)
-            .or_default()
-            .entry(location.span.start())
-            .and_modify(|n| *n += 1)
-            .or_insert(1);
+        self.track_location(location);
     }
 
     pub fn track_location(&mut self, location: Location) {
