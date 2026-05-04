@@ -242,7 +242,7 @@ pub(super) fn write_package_coverage(report: Report, path: &std::path::Path) {
             path.display()
         );
     } else {
-        noirc_errors::print_to_stdout!("coverage report written to {}", path.display());
+        noirc_errors::print_to_stdout!("Coverage report written to {}", path.display());
     }
 }
 
