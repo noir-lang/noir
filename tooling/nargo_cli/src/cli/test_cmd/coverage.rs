@@ -237,12 +237,12 @@ pub(super) fn write_package_coverage(report: Report, path: &std::path::Path) {
     };
 
     if let Err(err) = write() {
-        noirc_errors::print_to_stderr!(
+        noirc_errors::println_to_stderr!(
             "Warning: could not write coverage report to {}: {err}",
             path.display()
         );
     } else {
-        noirc_errors::print_to_stdout!("Coverage report written to {}", path.display());
+        noirc_errors::println_to_stdout!("Coverage report written to {}", path.display());
     }
 }
 

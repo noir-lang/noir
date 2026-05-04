@@ -272,7 +272,7 @@ impl<'a> TestRunner<'a> {
         if self.args.list_tests {
             for (package_name, (package_tests, _)) in packages_tests {
                 for test in package_tests {
-                    noirc_errors::print_to_stdout!("{} {}", package_name, test.name);
+                    noirc_errors::println_to_stdout!("{} {}", package_name, test.name);
                 }
             }
             return Ok(());
