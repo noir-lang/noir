@@ -991,9 +991,9 @@ impl<'f> Validator<'f> {
         };
         let callee_id = match &self.function.dfg[*func] {
             Value::Function(func_id) => func_id,
-            Value::ForeignFunction(oracle) => {
+            Value::ForeignFunction { name, .. } => {
                 panic!(
-                    "Trying to call foreign function '{oracle}' from ACIR function '{} {}'",
+                    "Trying to call foreign function '{name}' from ACIR function '{} {}'",
                     self.function.name(),
                     self.function.id()
                 );

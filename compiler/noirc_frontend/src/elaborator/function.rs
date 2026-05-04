@@ -478,6 +478,7 @@ impl Elaborator<'_> {
         self.run_lint(|_| {
             lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
         });
+        self.run_lint(|_| lints::pure_attribute_only_on_oracle(func, modifiers).map(Into::into));
         self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });

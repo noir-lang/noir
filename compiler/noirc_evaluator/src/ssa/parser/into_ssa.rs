@@ -632,8 +632,14 @@ impl Translator {
 
         // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
         // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        // A `__pure` suffix on the name indicates the oracle was declared with `#[pure]`; the suffix is
+        // stripped here so the resulting `Value::ForeignFunction` carries the original opcode name.
         if &function.name == "print" || function.name.contains("oracle") {
-            return Ok(self.builder.import_foreign_function(&function.name));
+            let (name, pure) = match function.name.strip_suffix("__pure") {
+                Some(stripped) => (stripped, true),
+                None => (function.name.as_str(), false),
+            };
+            return Ok(self.builder.import_foreign_function(name, pure));
         }
 
         Err(SsaError::UnknownFunction(function))

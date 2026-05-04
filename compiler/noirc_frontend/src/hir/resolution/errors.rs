@@ -88,6 +88,10 @@ pub enum ResolverError {
     OracleReturnsReference { location: Location },
     #[error("Oracle functions cannot return vectors containing nested arrays")]
     OracleReturnsVectorWithNestedArray { location: Location },
+    #[error(
+        "The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`"
+    )]
+    PureAttributeOnNonOracle { ident: Ident, location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -306,6 +310,7 @@ impl ResolverError {
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
             | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
+            | ResolverError::PureAttributeOnNonOracle { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
@@ -573,6 +578,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
+            },
+            ResolverError::PureAttributeOnNonOracle { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("`#[pure]` requires `unconstrained` and `#[oracle(...)]`".into(), ident.location());
+                diagnostic
             },
             ResolverError::DependencyCycle { location, item, cycle } => {
                 Diagnostic::simple_error(

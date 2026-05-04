@@ -469,7 +469,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.clone())
+                        Definition::Oracle { name: opcode.clone(), pure: attributes.is_pure() }
                     }
                 }
             }
@@ -2174,7 +2174,7 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
-            if let Definition::Oracle(name) = &ident.definition
+            if let Definition::Oracle { name, .. } = &ident.definition
                 && let Some(ForeignCall::Print) = ForeignCall::lookup(name)
             {
                 // Oracle calls are required to be wrapped in an unconstrained function

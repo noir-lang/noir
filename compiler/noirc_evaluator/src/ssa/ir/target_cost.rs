@@ -134,7 +134,7 @@ impl Instruction {
                         let results = dfg.instruction_results(id);
                         5 + arguments.len() + results.len()
                     }
-                    Value::ForeignFunction(_) => {
+                    Value::ForeignFunction { .. } => {
                         // TODO: we should differentiate inputs/outputs with array and vector allocations
                         1
                     }

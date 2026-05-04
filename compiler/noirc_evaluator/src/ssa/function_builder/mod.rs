@@ -483,8 +483,8 @@ impl FunctionBuilder {
 
     /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
-    pub fn import_foreign_function(&mut self, function: &str) -> ValueId {
-        self.current_function.dfg.import_foreign_function(function)
+    pub fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
+        self.current_function.dfg.import_foreign_function(function, pure)
     }
 
     /// Retrieve a value reference to the given intrinsic operation.

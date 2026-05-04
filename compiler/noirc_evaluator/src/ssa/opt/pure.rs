@@ -202,7 +202,12 @@ impl Function {
                                 Purity::PureWithPredicate => result = Purity::PureWithPredicate,
                                 Purity::Impure => return Purity::Impure,
                             },
-                            Value::ForeignFunction(_) => return Purity::Impure,
+                            Value::ForeignFunction { pure: true, .. } => {
+                                // A `#[pure]` oracle is treated as `PureWithPredicate`, because
+                                // they are unconstrained functions.
+                                result = Purity::PureWithPredicate;
+                            }
+                            Value::ForeignFunction { pure: false, .. } => return Purity::Impure,
                             // The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
                             Value::Global(_)
@@ -1153,5 +1158,88 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// A `#[pure]` oracle is recognized as pure by the analysis:
+    /// a caller that does nothing else lifts to `PureWithPredicate`, never Impure.
+    /// Brillig is the only runtime that can call oracles, and brillig functions are
+    /// always at most `PureWithPredicate`.
+    #[test]
+    fn pure_oracle_call_marks_caller_pure_with_predicate() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call my_oracle__pure(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
+
+    /// An oracle without the `#[pure]` marker still poisons the caller as `Impure`.
+    /// Regression guard for the previous unconditional behavior.
+    #[test]
+    fn impure_oracle_call_marks_caller_impure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call my_oracle(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+    }
+
+    /// A `#[pure]` oracle composes correctly with predicate-pure SSA operations: a caller
+    /// that mixes a pure oracle with a `constrain` is `PureWithPredicate`. The `constrain`
+    /// alone would already force that, so this test confirms the pure-oracle classification
+    /// doesn't accidentally upgrade the result to `Pure`.
+    #[test]
+    fn pure_oracle_unifies_with_predicate_pure_operations() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call my_oracle__pure(v0) -> Field
+            constrain v1 == Field 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
+
+    /// If the caller itself receives a reference parameter, the existing rule at
+    /// [`Function::is_pure`] forces it to `Impure` regardless of whether the oracle it
+    /// calls is `#[pure]`. The pure-oracle marker is an upper bound on what the call
+    /// site contributes, not a way to override the caller's own ref-param check.
+    #[test]
+    fn pure_oracle_does_not_override_callers_reference_param_impurity() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = call my_oracle__pure(v0) -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
     }
 }

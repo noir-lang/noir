@@ -216,8 +216,14 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or

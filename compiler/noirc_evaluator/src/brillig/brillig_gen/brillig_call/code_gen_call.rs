@@ -307,8 +307,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         match &dfg[func] {
-            Value::ForeignFunction(func_name) => {
-                self.convert_ssa_foreign_call(func_name, arguments, instruction_id, dfg);
+            Value::ForeignFunction { name, .. } => {
+                self.convert_ssa_foreign_call(name, arguments, instruction_id, dfg);
             }
             Value::Function(func_id) => {
                 let result_ids = dfg.instruction_results(instruction_id);

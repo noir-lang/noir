@@ -855,6 +855,9 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
                 }
                 Some(Purity::Impure) | None => CanBeDeduplicated::Never,
             },
+            // A `#[pure]` oracle is `CanBeDeduplicated::UnderSamePredicate` because
+            // it is a Brillig function.
+            Value::ForeignFunction { pure: true, .. } => CanBeDeduplicated::UnderSamePredicate,
             _ => CanBeDeduplicated::Never,
         },
 
@@ -1269,6 +1272,94 @@ mod test {
           b0(v0: Field):
             v2 = add v0, Field 1
             return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn deduplicates_pure_foreign_function_calls() {
+        // Two identical calls to a `#[pure]` oracle (rendered with the `__pure` suffix)
+        // get collapsed by CSE: both calls happen under the implicit `enable_side_effects u1 1`
+        // predicate, so dedup-under-same-predicate is sound.
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = call my_oracle__pure(v0) -> Field
+                v2 = call my_oracle__pure(v0) -> Field
+                return v1, v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call my_oracle__pure(v0) -> Field
+            return v2, v2
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_pure_foreign_calls_across_predicates() {
+        // The `#[pure]` ceiling is `UnderSamePredicate`: two calls with the same arguments
+        // but split by `enable_side_effects` flips must not be CSE'd, because the brillig-
+        // from-acir runtime returns bogus values when the predicate is disabled.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: Field):
+                enable_side_effects v0
+                v2 = call f1(v1) -> Field
+                enable_side_effects u1 1
+                v3 = call f1(v1) -> Field
+                return v2, v3
+            }
+            brillig(inline) fn wrapper f1 {
+              b0(v0: Field):
+                v1 = call my_oracle__pure(v0) -> Field
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        // The two `call f1` instructions remain because they sit under different predicates.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v3 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            v5 = call f1(v1) -> Field
+            return v3, v5
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: Field):
+            v2 = call my_oracle__pure(v0) -> Field
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_impure_foreign_function_calls() {
+        // Regression guard: an oracle without `#[pure]` (printed as plain `my_oracle`
+        // in textual SSA) must NOT be deduplicated, even with identical arguments.
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = call my_oracle(v0) -> Field
+                v2 = call my_oracle(v0) -> Field
+                return v1, v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call my_oracle(v0) -> Field
+            v3 = call my_oracle(v0) -> Field
+            return v2, v3
         }
         ");
     }

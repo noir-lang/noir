@@ -342,8 +342,8 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::ForeignFunction(function) => {
-                self.context.builder.import_foreign_function(function)
+            Value::ForeignFunction { name, pure } => {
+                self.context.builder.import_foreign_function(name, *pure)
             }
             Value::Global(_) => {
                 panic!("Expected a global to be resolved to its inner value");

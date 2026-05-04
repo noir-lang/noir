@@ -252,7 +252,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 super::ir::value::Value::Function(id) => Value::Function(*id),
                 super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-                super::ir::value::Value::ForeignFunction(name) => {
+                super::ir::value::Value::ForeignFunction { name, .. } => {
                     Value::ForeignFunction(name.clone())
                 }
                 super::ir::value::Value::Global(_) | super::ir::value::Value::Param { .. } => {
@@ -415,7 +415,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
-            super::ir::value::Value::ForeignFunction(name) => Value::ForeignFunction(name.clone()),
+            super::ir::value::Value::ForeignFunction { name, .. } => {
+                Value::ForeignFunction(name.clone())
+            }
             super::ir::value::Value::Instruction { .. }
             | super::ir::value::Value::Param { .. }
             | super::ir::value::Value::Global(_) => {

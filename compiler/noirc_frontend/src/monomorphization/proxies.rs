@@ -90,7 +90,7 @@ impl ProxyContext {
                 && let Expression::Call(Call { func, arguments, return_type: _, location: _ }) =
                     expr
                 && let Expression::Ident(ident) = func.as_mut()
-                && matches!(ident.definition, Definition::Oracle(_))
+                && matches!(ident.definition, Definition::Oracle { .. })
             {
                 self.redirect_to_proxy(ident, true);
                 for arg in arguments {
@@ -118,7 +118,7 @@ impl ProxyContext {
     fn redirect_to_proxy(&mut self, ident: &mut Ident, mut unconstrained: bool) {
         // If we are calling an oracle, there is no reason to create a constrained proxy,
         // since such a call would be rejected by the SSA validation.
-        unconstrained |= matches!(ident.definition, Definition::Oracle(_));
+        unconstrained |= matches!(ident.definition, Definition::Oracle { .. });
 
         let key = (ident.definition.clone(), unconstrained);
 
@@ -188,7 +188,10 @@ impl<'a> ForeignFunctionValue<'a> {
 
 /// Check if the definition is that of a function defined by a "name" rather than an ID.
 fn is_foreign_func(definition: &Definition) -> bool {
-    matches!(definition, Definition::Builtin(_) | Definition::LowLevel(_) | Definition::Oracle(_))
+    matches!(
+        definition,
+        Definition::Builtin(_) | Definition::LowLevel(_) | Definition::Oracle { .. }
+    )
 }
 
 /// Check that the identifier is of a pair of constrained and unconstrained function types.

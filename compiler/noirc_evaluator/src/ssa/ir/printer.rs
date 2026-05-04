@@ -151,7 +151,13 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::ForeignFunction(function) => function.clone(),
+        Value::ForeignFunction { name, pure } => {
+            if *pure {
+                format!("{name}__pure")
+            } else {
+                name.clone()
+            }
+        }
         Value::Param { .. } | Value::Instruction { .. } => {
             if dfg.is_global(id) {
                 format!("g{}", id.to_u32())

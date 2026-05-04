@@ -253,6 +253,24 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
+pub(super) fn pure_attribute_only_on_oracle(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let pure_attr = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Pure))?;
+
+    let is_oracle = modifiers.attributes.function().is_some_and(|attr| attr.kind.is_oracle());
+    (!is_oracle).then(|| ResolverError::PureAttributeOnNonOracle {
+        ident: func_meta_name_ident(func, modifiers),
+        location: pure_attr.location,
+    })
+}
+
 /// Oracles cannot return vectors containing nested arrays because
 /// deflattening is not yet implemented in the VM.
 pub(super) fn oracle_returns_vector_with_nested_array(

@@ -428,7 +428,7 @@ impl Context {
             return match instruction {
                 MakeArray { .. } => true,
                 Call { func, .. } => {
-                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction(_))
+                    matches!(&dfg[*func], Value::Intrinsic(_) | Value::ForeignFunction { .. })
                 }
                 _ => false,
             };
@@ -512,9 +512,8 @@ fn can_be_eliminated_if_unused(
             Value::Intrinsic(intrinsic) => !intrinsic.has_side_effects(),
 
             // All foreign functions are treated as having side effects.
-            // This is because they can be used to pass information
-            // from the ACVM to the external world during execution.
-            Value::ForeignFunction(_) => false,
+            // Even oracles marked as `pure` can potentially fail and have side-effects.
+            Value::ForeignFunction { .. } => false,
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.

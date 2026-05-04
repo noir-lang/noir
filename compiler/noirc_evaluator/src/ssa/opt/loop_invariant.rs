@@ -877,6 +877,10 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
                 Value::Function(id) => dfg.purity_of(id),
+                // A `#[pure]` oracle behaves like `PureWithPredicate`: its return is a
+                // function of its arguments, so hoisting it from a non-empty loop is sound.
+                Value::ForeignFunction { pure: true, .. } => Some(Purity::PureWithPredicate),
+                Value::ForeignFunction { pure: false, .. } => Some(Purity::Impure),
                 _ => None,
             };
             match purity {
@@ -2235,6 +2239,7 @@ mod tests {
     enum TestCall {
         Function(Option<Purity>),
         ForeignFunction,
+        PureForeignFunction,
         Intrinsic(Intrinsic),
     }
 
@@ -2245,7 +2250,9 @@ mod tests {
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
-    #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
+    #[test_case(1, TestCall::ForeignFunction, false; "non-pure foreign functions stay impure")]
+    #[test_case(1, TestCall::PureForeignFunction, true; "non-empty loop, pure foreign function hoists")]
+    #[test_case(0, TestCall::PureForeignFunction, false; "empty loop, pure foreign function does not hoist")]
     #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -2253,9 +2260,12 @@ mod tests {
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
 
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
+        // The `__pure` suffix on the foreign-function name is how the SSA textual parser
+        // recognizes a `#[pure]` oracle declaration.
         let call_target = match test_call {
             TestCall::Function(_) => "f1".to_string(),
             TestCall::ForeignFunction => "print".to_string(),
+            TestCall::PureForeignFunction => "my_oracle__pure".to_string(),
             TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
         };
 
