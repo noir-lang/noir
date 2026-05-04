@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777929074094,
+  "lastUpdate": 1777929076088,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -30205,105 +30205,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "442adebb88588261ce2f0480f1cccf660ae817fe",
-          "message": "fix: don't resolve to trait method if a direct method exists (#12394)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-04-22T19:22:25Z",
-          "tree_id": "f2a7b358b8ec9c5497a9f401e2ba91ad103236e4",
-          "url": "https://github.com/noir-lang/noir/commit/442adebb88588261ce2f0480f1cccf660ae817fe"
-        },
-        "date": 1776887828125,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 18255,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 85344,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 8739,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1044,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 941,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2124,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1271,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1387990,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1389168,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1525,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 299089,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 254632,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1302,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f39ac4f5748a1ea5dc7bcb8eb5b2c2a8032a2199",
           "message": "chore: remove Circuit::current_witness_index in a backwards-compatible way (#12400)",
           "timestamp": "2026-04-22T22:27:23Z",
@@ -35038,6 +34939,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/53c6a3bac9452380224c99345e2137af69fb134c"
         },
         "date": 1777921507316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 18176,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 84655,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 8740,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1038,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 929,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2112,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1271,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1387614,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1388793,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1526,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 269911,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 280182,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1303,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d52888d57c7ce960d81b4ba1f996234211f1ba24",
+          "message": "fix: assert location is the entire assert (#12520)",
+          "timestamp": "2026-05-04T20:33:44Z",
+          "tree_id": "67a78a5f85657b624afd0be444f5b4ab6d9c2c95",
+          "url": "https://github.com/noir-lang/noir/commit/d52888d57c7ce960d81b4ba1f996234211f1ba24"
+        },
+        "date": 1777929015722,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
