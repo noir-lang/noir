@@ -828,7 +828,7 @@
 <a href=#828 id=828 data-nosnippet>828</a>
 <a href=#829 id=829 data-nosnippet>829</a>            HirExpression::Constrain(constrain) =&gt; {
 <a href=#830 id=830 data-nosnippet>830</a>                <span class="kw">let </span>expr = <span class="self">self</span>.expr(constrain.<span class="number">0</span>)<span class="question-mark">?</span>;
-<a href=#831 id=831 data-nosnippet>831</a>                <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>constrain.<span class="number">0</span>);
+<a href=#831 id=831 data-nosnippet>831</a>                <span class="kw">let </span>location = constrain.<span class="number">1</span>;
 <a href=#832 id=832 data-nosnippet>832</a>                <span class="kw">let </span>assert_message = constrain
 <a href=#833 id=833 data-nosnippet>833</a>                    .<span class="number">2
 <a href=#834 id=834 data-nosnippet>834</a>                    </span>.map(|assert_msg_expr| {
