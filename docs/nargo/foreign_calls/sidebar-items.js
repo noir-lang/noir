@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ForeignCall","ForeignCallError"],"mod":["default","layers","mocker","print","rpc","transcript"],"trait":["ForeignCallExecutor"]};
+window.SIDEBAR_ITEMS = {"enum":["ForeignCall","ForeignCallError"],"mod":["default","layers","mocker","oracle_resolver_url","print","rpc","transcript"],"trait":["ForeignCallExecutor"]};

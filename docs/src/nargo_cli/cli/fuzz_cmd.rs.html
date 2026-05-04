@@ -6,7 +6,7 @@
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>fm::FileManager;
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>nargo::{
 <a href=#8 id=8 data-nosnippet>8</a>    FuzzExecutionConfig, FuzzFolderConfig,
-<a href=#9 id=9 data-nosnippet>9</a>    foreign_calls::DefaultForeignCallBuilder,
+<a href=#9 id=9 data-nosnippet>9</a>    foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
 <a href=#10 id=10 data-nosnippet>10</a>    insert_all_files_for_workspace_into_file_manager,
 <a href=#11 id=11 data-nosnippet>11</a>    ops::{FuzzingRunStatus, check_crate_and_report_errors},
 <a href=#12 id=12 data-nosnippet>12</a>    package::{CrateName, Package},
@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>
 <a href=#71 id=71 data-nosnippet>71</a>    <span class="doccomment">/// JSON RPC url to solve oracle calls
 <a href=#72 id=72 data-nosnippet>72</a>    </span><span class="attr">#[clap(long)]
-<a href=#73 id=73 data-nosnippet>73</a>    </span>oracle_resolver: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#73 id=73 data-nosnippet>73</a>    </span>oracle_resolver: <span class="prelude-ty">Option</span>&lt;OracleResolverUrl&gt;,
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>    <span class="doccomment">/// Maximum time in seconds to spend fuzzing (default: no timeout)
 <a href=#76 id=76 data-nosnippet>76</a>    </span><span class="attr">#[arg(long, default_value = <span class="string">"0"</span>)]
@@ -182,7 +182,7 @@
 <a href=#182 id=182 data-nosnippet>182</a>                package,
 <a href=#183 id=183 data-nosnippet>183</a>                <span class="kw-2">&amp;</span>pattern,
 <a href=#184 id=184 data-nosnippet>184</a>                args.show_output,
-<a href=#185 id=185 data-nosnippet>185</a>                args.oracle_resolver.as_deref(),
+<a href=#185 id=185 data-nosnippet>185</a>                args.oracle_resolver.as_ref().map(|url| url.as_str()),
 <a href=#186 id=186 data-nosnippet>186</a>                <span class="prelude-val">Some</span>(workspace.root_dir.clone()),
 <a href=#187 id=187 data-nosnippet>187</a>                package.name.to_string(),
 <a href=#188 id=188 data-nosnippet>188</a>                <span class="kw-2">&amp;</span>args.compile_options,

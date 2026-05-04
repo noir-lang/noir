@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>nargo::{
 <a href=#23 id=23 data-nosnippet>23</a>    FuzzExecutionConfig, FuzzFolderConfig,
-<a href=#24 id=24 data-nosnippet>24</a>    foreign_calls::DefaultForeignCallBuilder,
+<a href=#24 id=24 data-nosnippet>24</a>    foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
 <a href=#25 id=25 data-nosnippet>25</a>    insert_all_files_for_workspace_into_file_manager,
 <a href=#26 id=26 data-nosnippet>26</a>    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
 <a href=#27 id=27 data-nosnippet>27</a>    package::Package,
@@ -69,7 +69,7 @@
 <a href=#69 id=69 data-nosnippet>69</a>
 <a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// JSON RPC url to solve oracle calls
 <a href=#71 id=71 data-nosnippet>71</a>    </span><span class="attr">#[clap(long)]
-<a href=#72 id=72 data-nosnippet>72</a>    </span>oracle_resolver: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#72 id=72 data-nosnippet>72</a>    </span>oracle_resolver: <span class="prelude-ty">Option</span>&lt;OracleResolverUrl&gt;,
 <a href=#73 id=73 data-nosnippet>73</a>
 <a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// Number of threads used for running tests in parallel
 <a href=#75 id=75 data-nosnippet>75</a>    </span><span class="attr">#[clap(long, default_value_t = rayon::current_num_threads())]
@@ -531,7 +531,7 @@
 <a href=#531 id=531 data-nosnippet>531</a>                            };
 <a href=#532 id=532 data-nosnippet>532</a>                            <span class="kw">let </span>tests = <span class="self">self</span>.collect_package_tests::&lt;Bn254BlackBoxSolver&gt;(
 <a href=#533 id=533 data-nosnippet>533</a>                                package,
-<a href=#534 id=534 data-nosnippet>534</a>                                <span class="self">self</span>.args.oracle_resolver.as_deref(),
+<a href=#534 id=534 data-nosnippet>534</a>                                <span class="self">self</span>.args.oracle_resolver.as_ref().map(|url| url.as_str()),
 <a href=#535 id=535 data-nosnippet>535</a>                                <span class="prelude-val">Some</span>(<span class="self">self</span>.workspace.root_dir.clone()),
 <a href=#536 id=536 data-nosnippet>536</a>                                package.name.to_string(),
 <a href=#537 id=537 data-nosnippet>537</a>                            );
