@@ -31,6 +31,7 @@ fn main(inputs: str<12>, iv: str<16>, key: str<16>, output: str<32>) {
 
     // Safety: testing context
     let output_bytes: [u8; 16] = unsafe { decode_hex(output) };
+    println(output_bytes);
     assert(result == output_bytes);
 
     // Safety: testing context
