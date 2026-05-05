@@ -215,8 +215,36 @@ fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
     context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
 }
 
+/// Returns a fully-qualified name for `func_id` to use in the coverage report.
+///
+/// Methods inside a trait impl get a `<Type as Trait>::method` qualification so distinct
+/// impls of the same trait method don't collapse onto a single display name (which would
+/// cause duplicate `FN`/`FNDA` entries to merge into one in `lcov.info`).
+///
+/// Trait functions defined inside `trait { ... }` need no extra label work: the trait
+/// itself is a module, so the module path already qualifies them as `<module>::<Trait>::<fn>`.
 fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &FuncId) -> String {
-    context.fully_qualified_function_name(&meta.source_crate, &func_id)
+    let interner = &context.def_interner;
+    let def_maps = &context.def_maps;
+    let def_map = &def_maps[&meta.source_crate];
+
+    let module_id = interner.function_module(*func_id);
+    let module = module_id.module(def_maps);
+    let module_path =
+        def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
+
+    let name = interner.function_name(func_id);
+
+    let label = if let Some(trait_impl_id) = meta.trait_impl {
+        let trait_impl = interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_def = interner.get_trait(trait_impl.trait_id);
+        format!("<{} as {}>::{}", trait_impl.typ, trait_def.name, name)
+    } else {
+        name.to_string()
+    };
+
+    if module_path.is_empty() { label } else { format!("{module_path}::{label}") }
 }
 
 /// Returns the path where coverage data for `package_name` should be written.

@@ -44,6 +44,28 @@ where
     ]
 }
 
+// Two impls of the same trait method live in this file. They should appear in the
+// coverage report under distinct, fully-qualified names so the entries don't collide.
+// `quadrupled` is a trait function with a default body and is reported under the trait.
+pub trait Quadruple {
+    fn doubled(self) -> Self;
+    fn quadrupled(self) -> Self {
+        self.doubled().doubled()
+    }
+}
+
+impl Quadruple for u32 {
+    fn doubled(self) -> u32 {
+        self * 2
+    }
+}
+
+impl Quadruple for u64 {
+    fn doubled(self) -> u64 {
+        self * 2
+    }
+}
+
 #[test]
 fn test_double() {
     assert_eq(double(3), 6);
@@ -52,4 +74,10 @@ fn test_double() {
 #[test]
 fn test_add() {
     assert_eq(add(2, 3), 5);
+}
+
+#[test]
+fn test_quadrupled() {
+    assert_eq(3u32.quadrupled(), 12);
+    assert_eq(3u64.quadrupled(), 12);
 }
