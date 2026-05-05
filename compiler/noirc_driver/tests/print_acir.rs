@@ -78,14 +78,33 @@ fn print_acir_renders_brillig_assertion_payload() {
     let program = compile(source, true);
     let displayed = display_compiled_program(&program);
 
-    // Locate the IndirectConst that loads the error selector and check it has
-    // a `// "x is not zero"` annotation. We don't snapshot the entire Brillig
-    // bytecode because the surrounding opcodes are sensitive to unrelated
-    // codegen changes; the annotation is the bit this PR is locking in.
-    let annotated_line = displayed
-        .lines()
-        .find(|line| line.contains("indirect const") && line.contains("// \"x is not zero\""))
-        .unwrap_or_else(|| panic!("expected an annotated indirect const line, got:\n{displayed}"));
+    insta::assert_snapshot!(displayed, @r#"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: []
 
-    insta::assert_snapshot!(annotated_line, @r#"17: @1 = indirect const u64 1591142006424964070 // "x is not zero""#);
+    unconstrained func 0: main
+     0: @2 = const u32 1
+     1: @1 = const u32 32836
+     2: @0 = const u32 68
+     3: sp[3] = const u32 1
+     4: sp[4] = const u32 0
+     5: @67 = calldata copy [sp[4]; sp[3]]
+     6: @67 = cast @67 to u32
+     7: sp[2] = @67
+     8: call 12
+     9: sp[2] = const u32 68
+    10: sp[3] = const u32 0
+    11: stop @[sp[2]; sp[3]]
+    12: sp[3] = const u32 0
+    13: sp[4] = u32 eq sp[2], sp[3]
+    14: jump if sp[4] to 16
+    15: call 17
+    16: return
+    17: @1 = indirect const u64 1591142006424964070 // "x is not zero"
+    18: trap @[@1; @2]
+    19: return
+    "#);
 }
