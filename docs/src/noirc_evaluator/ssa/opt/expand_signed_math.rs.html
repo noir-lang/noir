@@ -148,8 +148,8 @@
 <a href=#148 id=148 data-nosnippet>148</a>        // negative value by -1. For example dividing -128 i8 by -1 would give 128, but that
 <a href=#149 id=149 data-nosnippet>149</a>        // does not fit i8. So the first thing we do is check for this case.
 <a href=#150 id=150 data-nosnippet>150</a>        </span><span class="kw">let </span>min_negative_value = <span class="self">self</span>.numeric_constant(<span class="number">1_u128 </span>&lt;&lt; (bit_size - <span class="number">1</span>), unsigned_typ);
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw">let </span>max_for_bit_size =
-<a href=#152 id=152 data-nosnippet>152</a>            <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX - <span class="number">1 </span>} <span class="kw">else </span>{ (<span class="number">1_u128 </span>&lt;&lt; bit_size) - <span class="number">1 </span>};
+<a href=#151 id=151 data-nosnippet>151</a>        <span class="macro">assert!</span>(bit_size &lt;= <span class="number">64</span>, <span class="string">"There's no i128 so bit_size should be at most 64"</span>);
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">let </span>max_for_bit_size = (<span class="number">1_u128 </span>&lt;&lt; bit_size) - <span class="number">1</span>;
 <a href=#153 id=153 data-nosnippet>153</a>        <span class="kw">let </span>minus_one = <span class="self">self</span>.numeric_constant(max_for_bit_size, unsigned_typ);
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span>lhs_is_min_negative_value =
 <a href=#155 id=155 data-nosnippet>155</a>            <span class="self">self</span>.insert_binary(lhs_unsigned, BinaryOp::Eq, min_negative_value);
