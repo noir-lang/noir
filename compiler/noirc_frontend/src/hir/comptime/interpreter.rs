@@ -84,6 +84,8 @@ mod builtin;
 mod cast;
 mod foreign;
 mod infix;
+mod tracker;
+pub use tracker::EvaluationTracker;
 mod unquote;
 
 pub(crate) use builtin::builtin_helpers;
@@ -165,6 +167,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
+
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_function_call(function, location);
+        }
 
         let result = self.call_function_inner(function, arguments, location);
 
@@ -632,7 +638,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
         self.evaluation_depth += 1;
-        let result = match self.elaborator.interner.expression(&id) {
+
+        let expr = self.elaborator.interner.expression(&id);
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_expression(&expr, self.elaborator.interner.expr_location(&id));
+        }
+        let result = match expr {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -697,6 +708,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
                     GlobalValue::Resolved(value) => {
+                        // Track the number of times a global was accessed during execution.
+                        // Globals are initialized during compilation; to track their initialization we have to add a tracker
+                        // before we try to interpret a specific call already. During interpretation the body is not revisited.
+                        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+                            tracker.track_location(global_info.location);
+                        }
+
                         // Enum variant globals with generics are instantiated with a Type::Forall
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {

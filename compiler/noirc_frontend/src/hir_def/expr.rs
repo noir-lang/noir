@@ -236,7 +236,7 @@ pub struct HirMethodCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstrainExpression(
     /*condition*/ pub ExprId,
-    pub FileId,
+    pub Location,
     /*message*/ pub Option<ExprId>,
 );
 

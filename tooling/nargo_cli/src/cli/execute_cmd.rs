@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::foreign_calls::OracleResolverUrl;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
@@ -39,7 +40,7 @@ pub(crate) struct ExecuteCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long, conflicts_with = "oracle_file")]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 
     /// Path to the oracle transcript.
     #[clap(long, conflicts_with = "oracle_resolver")]

@@ -45,7 +45,7 @@ jobs:
       - name: Send an alert in slack
         # Send notifications on weekdays if there's a failure.
         if: ${{ failure() && steps.date.outputs.DAY <= 5 }}
-        uses: slackapi/slack-github-action@03ea5433c137af7c0495bc0cad1af10403fc800c # v3.0.2
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
           webhook: ${{ secrets.FUZZING_ALERT_URL }}
           webhook-type: webhook-trigger

@@ -6,7 +6,7 @@ use clap::Args;
 use fm::FileManager;
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig,
-    foreign_calls::DefaultForeignCallBuilder,
+    foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
     insert_all_files_for_workspace_into_file_manager,
     ops::{FuzzingRunStatus, check_crate_and_report_errors},
     package::{CrateName, Package},
@@ -70,7 +70,7 @@ pub(crate) struct FuzzCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     #[arg(long, default_value = "0")]
@@ -182,7 +182,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
                 package,
                 &pattern,
                 args.show_output,
-                args.oracle_resolver.as_deref(),
+                args.oracle_resolver.as_ref().map(|url| url.as_str()),
                 Some(workspace.root_dir.clone()),
                 package.name.to_string(),
                 &args.compile_options,
