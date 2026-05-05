@@ -6,9 +6,11 @@ pub fn add(x: u32, y: u32) -> u32 {
     x + y
 }
 
-// Not covered by any test; should appear as uncovered in the report.
-pub fn triple(x: u32) -> u32 {
-    x * 3
+mod moo {
+    // Not covered by any test; should appear as uncovered in the report.
+    pub fn triple(x: u32) -> u32 {
+        x * 3
+    }
 }
 
 // Function declaration spanning multiple lines. We should see:

@@ -2,11 +2,11 @@ TN:
 SF:examples/coverage/src/lib.nr
 FN:1,double
 FN:5,add
-FN:10,triple
-FN:18,multi_line_function_decl
+FN:11,moo::triple
+FN:20,multi_line_function_decl
 FNDA:0,double
 FNDA:0,add
-FNDA:0,triple
+FNDA:0,moo::triple
 FNDA:0,multi_line_function_decl
 FNF:4
 FNH:0
@@ -14,11 +14,9 @@ DA:1,0
 DA:2,0
 DA:5,0
 DA:6,0
-DA:10,0
 DA:11,0
-DA:18,0
-DA:31,0
-DA:32,0
+DA:12,0
+DA:20,0
 DA:33,0
 DA:34,0
 DA:35,0
@@ -28,6 +26,8 @@ DA:38,0
 DA:39,0
 DA:40,0
 DA:41,0
+DA:42,0
+DA:43,0
 LF:18
 LH:0
 end_of_record
