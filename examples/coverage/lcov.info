@@ -1,5 +1,5 @@
 TN:
-SF:examples/coverage/src/lib.nr
+SF:src/lib.nr
 FN:1,double
 FN:5,add
 FN:11,moo::triple
@@ -32,7 +32,7 @@ LF:18
 LH:0
 end_of_record
 TN:test_add
-SF:examples/coverage/src/lib.nr
+SF:src/lib.nr
 FN:5,add
 FNDA:1,add
 FNF:1
@@ -43,7 +43,7 @@ LF:2
 LH:2
 end_of_record
 TN:test_double
-SF:examples/coverage/src/lib.nr
+SF:src/lib.nr
 FN:1,double
 FNDA:1,double
 FNF:1
