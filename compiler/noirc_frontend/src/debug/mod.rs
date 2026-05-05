@@ -727,13 +727,13 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
                 stack.push_back((pattern, true));
             }
             ast::Pattern::Tuple(patterns, _) => {
-                stack.extend(patterns.iter().map(|pattern| (pattern, false)));
+                stack.extend(patterns.iter().map(|pattern| (pattern, is_mut)));
             }
             ast::Pattern::Struct(_, fields, _) => {
                 stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
-                stack.push_back((pattern, false));
+                stack.push_back((pattern, is_mut));
             }
             ast::Pattern::Interned(_, _) => (),
         }
