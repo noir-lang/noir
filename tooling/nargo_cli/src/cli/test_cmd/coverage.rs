@@ -64,9 +64,13 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
                 && !test_func_ids.contains(&func_id)
             {
                 let file = context.def_interner.function_meta(&func_id).location.file;
-                if offsets_by_file.contains_key(&file) {
-                    functions_by_file.entry(file).or_default().push(func_id);
-                }
+
+                // Remember this function, so we can emit their name and where they are later.
+                functions_by_file.entry(file).or_default().push(func_id);
+
+                // Make sure we have an entry in offsets as well, so we can iterate over the files
+                // even if all functions had empty bodies.
+                offsets_by_file.entry(file).or_default();
             }
         }
     }
@@ -79,6 +83,8 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         let Some(line_starts) = line_starts.build(file_id) else { continue };
 
         let mut functions = function::Functions::new();
+        let mut lines = line::Lines::new();
+
         for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
             let meta = context.def_interner.function_meta(&func_id);
             let name = context.def_interner.function_name(&func_id).to_string();
@@ -87,9 +93,10 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
                 function::Key { name },
                 function::Value { start_line: Some(start_line), count: 0 },
             );
+            // Insert a line for the start to highlight the function as callable.
+            lines.insert(line::Key { line: start_line }, line::Value { count: 0, checksum: None });
         }
 
-        let mut lines = line::Lines::new();
         for &offset in byte_offsets {
             let line_num = offset_to_line(offset, &line_starts);
             lines
@@ -158,7 +165,7 @@ pub(super) fn tracker_to_report(
         }
         let meta = context.def_interner.function_meta(&func_id);
         let file_id = meta.location.file;
-        let Some((functions, _)) = data.get_mut(&file_id) else { continue };
+        let Some((functions, lines)) = data.get_mut(&file_id) else { continue };
         let Some(line_starts) = line_starts.get(&file_id) else {
             continue;
         };
@@ -169,6 +176,12 @@ pub(super) fn tracker_to_report(
             .entry(function::Key { name })
             .and_modify(|v| v.count += count)
             .or_insert(function::Value { start_line: Some(start_line), count });
+
+        // Emit a line as well to visually highlight the function as called.
+        lines
+            .entry(line::Key { line: start_line })
+            .and_modify(|v| v.count += count)
+            .or_insert(line::Value { count, checksum: None });
     }
 
     let mut report = Report::new();
