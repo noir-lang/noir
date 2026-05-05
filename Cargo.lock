@@ -615,9 +615,9 @@ dependencies = [
 
 [[package]]
 name = "async-lsp"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aa3be9cb3e4959184a598f9874641d297fb45f09940ac0e8326574a7cb81940"
+checksum = "c8b8fd1e175c5ee3108095da452e816519de618beccea23aa053c00cf5e344b9"
 dependencies = [
  "futures",
  "lsp-types 0.95.1",
