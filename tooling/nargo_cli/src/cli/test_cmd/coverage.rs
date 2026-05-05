@@ -59,27 +59,42 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         def_map.get_all_test_functions(&context.def_interner).map(|f| f.id).collect();
 
     let mut functions_by_file: HashMap<FileId, Vec<FuncId>> = HashMap::new();
+    let record_func = |func_id: FuncId,
+                       offsets_by_file: &mut HashMap<FileId, Vec<u32>>,
+                       functions_by_file: &mut HashMap<FileId, Vec<FuncId>>| {
+        if test_func_ids.contains(&func_id) {
+            return;
+        }
+        let func_meta = context.def_interner.function_meta(&func_id);
+
+        // Don't track trait functions or other functions without bodies.
+        if func_meta.is_stub() {
+            return;
+        }
+
+        let file = func_meta.location.file;
+        functions_by_file.entry(file).or_default().push(func_id);
+
+        // Ensure the file shows up in `offsets_by_file` so it gets a section even
+        // if every function in it has an empty body.
+        offsets_by_file.entry(file).or_default();
+    };
+
     for (_, module) in def_map.modules().iter() {
         for def_id in module.value_definitions() {
-            if let Some(func_id) = def_id.as_function()
-                && !test_func_ids.contains(&func_id)
-            {
-                let func_meta = context.def_interner.function_meta(&func_id);
-
-                // Don't track trait functions or other functions without bodies.
-                if func_meta.is_stub() {
-                    continue;
-                }
-
-                let file = func_meta.location.file;
-
-                // Remember this function, so we can emit their name and where they are later.
-                functions_by_file.entry(file).or_default().push(func_id);
-
-                // Make sure we have an entry in offsets as well, so we can iterate over the files
-                // even if all functions had empty bodies.
-                offsets_by_file.entry(file).or_default();
+            if let Some(func_id) = def_id.as_function() {
+                record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
             }
+        }
+    }
+
+    // Trait impl methods aren't reachable through `module.value_definitions()` — they
+    // live in the trait impl, not in any module's name scope. Enumerate them directly
+    // so the baseline includes impl methods that no test ever calls.
+    for impl_id in context.def_interner.get_trait_implementations_in_crate(crate_id) {
+        let trait_impl = context.def_interner.get_trait_implementation(impl_id);
+        for func_id in trait_impl.borrow().methods.clone() {
+            record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
         }
     }
 
