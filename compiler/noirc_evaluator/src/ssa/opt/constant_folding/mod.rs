@@ -1278,14 +1278,14 @@ mod test {
 
     #[test]
     fn deduplicates_pure_foreign_function_calls() {
-        // Two identical calls to a `#[pure]` oracle (rendered with the `__pure` suffix)
+        // Two identical calls to a `#[pure]` oracle (rendered with the `pure` modifier)
         // get collapsed by CSE: both calls happen under the implicit `enable_side_effects u1 1`
         // predicate, so dedup-under-same-predicate is sound.
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: Field):
-                v1 = call my_oracle__pure(v0) -> Field
-                v2 = call my_oracle__pure(v0) -> Field
+                v1 = call pure my_oracle(v0) -> Field
+                v2 = call pure my_oracle(v0) -> Field
                 return v1, v2
             }
             ";
@@ -1294,7 +1294,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field):
-            v2 = call my_oracle__pure(v0) -> Field
+            v2 = call pure my_oracle(v0) -> Field
             return v2, v2
         }
         ");
@@ -1316,7 +1316,7 @@ mod test {
             }
             brillig(inline) fn wrapper f1 {
               b0(v0: Field):
-                v1 = call my_oracle__pure(v0) -> Field
+                v1 = call pure my_oracle(v0) -> Field
                 return v1
             }
             ";
@@ -1334,7 +1334,7 @@ mod test {
         }
         brillig(inline) fn wrapper f1 {
           b0(v0: Field):
-            v2 = call my_oracle__pure(v0) -> Field
+            v2 = call pure my_oracle(v0) -> Field
             return v2
         }
         ");

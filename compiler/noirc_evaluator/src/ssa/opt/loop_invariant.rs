@@ -2260,13 +2260,13 @@ mod tests {
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
 
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
-        // The `__pure` suffix on the foreign-function name is how the SSA textual parser
-        // recognizes a `#[pure]` oracle declaration.
-        let call_target = match test_call {
-            TestCall::Function(_) => "f1".to_string(),
-            TestCall::ForeignFunction => "print".to_string(),
-            TestCall::PureForeignFunction => "my_oracle__pure".to_string(),
-            TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
+        // The `pure` modifier on the call (e.g. `call pure my_oracle(...)`) is how the SSA textual
+        // parser recognizes a `#[pure]` oracle declaration.
+        let (call_target, pure_modifier) = match test_call {
+            TestCall::Function(_) => ("f1".to_string(), ""),
+            TestCall::ForeignFunction => ("print".to_string(), ""),
+            TestCall::PureForeignFunction => ("my_oracle".to_string(), "pure "),
+            TestCall::Intrinsic(intrinsic) => (format!("{intrinsic}"), ""),
         };
 
         let src = format!(
@@ -2278,7 +2278,7 @@ mod tests {
             v2 = lt v1, u32 {upper}
             jmpif v2 then: b2(), else: b3()
           b2():
-            v3 = call {call_target}(v0) -> [u64; 25]
+            v3 = call {pure_modifier}{call_target}(v0) -> [u64; 25]
             v4 = unchecked_add v1, u32 1
             jmp b1(v4)
           b3():

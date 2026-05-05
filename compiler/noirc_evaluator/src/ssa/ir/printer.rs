@@ -151,13 +151,7 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        Value::ForeignFunction { name, pure } => {
-            if *pure {
-                format!("{name}__pure")
-            } else {
-                name.clone()
-            }
-        }
+        Value::ForeignFunction { name, .. } => name.clone(),
         Value::Param { .. } | Value::Instruction { .. } => {
             if dfg.is_global(id) {
                 format!("g{}", id.to_u32())
@@ -359,7 +353,17 @@ fn display_instruction_inner(
         }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(dfg, arguments);
-            write!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
+            let pure_modifier = match &dfg[*func] {
+                Value::ForeignFunction { pure: true, .. } => "pure ",
+                _ => "",
+            };
+            write!(
+                f,
+                "call {pure_modifier}{}({}){}",
+                show(*func),
+                arguments,
+                result_types(dfg, results)
+            )
         }
         Instruction::Allocate => {
             write!(f, "allocate{}", result_types(dfg, results))

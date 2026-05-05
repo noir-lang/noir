@@ -1169,7 +1169,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field):
-            v1 = call my_oracle__pure(v0) -> Field
+            v1 = call pure my_oracle(v0) -> Field
             return v1
         }
         ";
@@ -1209,7 +1209,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field):
-            v1 = call my_oracle__pure(v0) -> Field
+            v1 = call pure my_oracle(v0) -> Field
             constrain v1 == Field 0
             return
         }
@@ -1231,7 +1231,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: &mut Field):
-            v1 = call my_oracle__pure(v0) -> Field
+            v1 = call pure my_oracle(v0) -> Field
             return v1
         }
         ";

@@ -364,8 +364,8 @@ impl Translator {
                 let value_id = self.builder.insert_binary(lhs, op, rhs);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = self.lookup_call_function(function)?;
+            ParsedInstruction::Call { targets, function, arguments, types, pure } => {
+                let function_id = self.lookup_call_function(function, pure)?;
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
@@ -527,7 +527,7 @@ impl Translator {
                             match self.lookup_global(identifier.clone()) {
                                 Ok(global) => global,
                                 Err(lookup_global_err) => self
-                                    .lookup_call_function(identifier)
+                                    .lookup_call_function(identifier, false)
                                     .map_err(|_| lookup_global_err)?,
                             }
                         }
@@ -616,30 +616,39 @@ impl Translator {
         }
     }
 
-    fn lookup_call_function(&mut self, function: Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_call_function(
+        &mut self,
+        function: Identifier,
+        pure: bool,
+    ) -> Result<ValueId, SsaError> {
         if let Some(id) = self.builder.import_intrinsic(&function.name) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(id);
         }
 
         if let Ok(func_id) = self.lookup_function(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(self.builder.import_function(func_id));
         }
 
         // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
         if let Ok(var_id) = self.lookup_variable(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(var_id);
         }
 
         // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
         // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
-        // A `__pure` suffix on the name indicates the oracle was declared with `#[pure]`; the suffix is
-        // stripped here so the resulting `Value::ForeignFunction` carries the original opcode name.
+        // The optional `pure` modifier on the call (e.g. `call pure my_oracle(...)`) indicates the oracle
+        // was declared with `#[pure]`, and is recorded on the resulting `Value::ForeignFunction`.
         if &function.name == "print" || function.name.contains("oracle") {
-            let (name, pure) = match function.name.strip_suffix("__pure") {
-                Some(stripped) => (stripped, true),
-                None => (function.name.as_str(), false),
-            };
-            return Ok(self.builder.import_foreign_function(name, pure));
+            return Ok(self.builder.import_foreign_function(&function.name, pure));
         }
 
         Err(SsaError::UnknownFunction(function))
