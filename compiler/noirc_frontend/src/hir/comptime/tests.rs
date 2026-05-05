@@ -19,7 +19,8 @@ use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
-/// The stdlib is not made available as a dependency.
+/// The given source is considered the root crate and also the stdlib, in case
+/// builtins need to be tested.
 pub(crate) fn with_interpreter<T>(
     src: &str,
     f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
@@ -42,7 +43,7 @@ pub(crate) fn with_interpreter<T>(
     let mut context = Context::new(file_manager, parsed_files);
     context.def_interner.populate_dummy_operator_traits();
 
-    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+    let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
     let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
@@ -534,4 +535,91 @@ fn main() {
         assert!(has_type_mismatch, "Expected a TypeMismatch error (expected u32, found Field)");
         assert_eq!(errors.len(), 1, "Expected exactly one error");
     });
+}
+
+#[test]
+fn is_unconstrained_returns_false() {
+    let program = "
+    #[builtin(is_unconstrained)]
+    pub fn is_unconstrained() -> bool {}
+
+    fn main() -> pub bool {
+        is_unconstrained()
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Bool(false));
+}
+
+#[test]
+fn is_unconstrained_returns_false_in_nested_call_1() {
+    let program = "
+    #[builtin(is_unconstrained)]
+    pub fn is_unconstrained() -> bool {}
+
+    fn main() -> pub bool {
+        foo()
+    }
+
+    fn foo() -> bool {
+        is_unconstrained()
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Bool(false));
+}
+
+#[test]
+fn is_unconstrained_returns_false_in_nested_call_2() {
+    let program = "
+    #[builtin(is_unconstrained)]
+    pub fn is_unconstrained() -> bool {}
+
+    fn main() -> pub bool {
+        // Safety: test
+        unsafe { foo(); }
+        bar()
+    }
+
+    unconstrained fn foo() {
+    }
+
+    fn bar() -> bool {
+        is_unconstrained()
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Bool(false));
+}
+
+#[test]
+fn is_unconstrained_returns_true() {
+    let program = "
+    #[builtin(is_unconstrained)]
+    pub fn is_unconstrained() -> bool {}
+
+    unconstrained fn main() -> pub bool {
+        is_unconstrained()
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Bool(true));
+}
+
+#[test]
+fn is_unconstrained_returns_in_nested_call() {
+    let program = "
+    #[builtin(is_unconstrained)]
+    pub fn is_unconstrained() -> bool {}
+
+    unconstrained fn main() -> pub bool {
+        foo()
+    }
+
+    fn foo() -> bool {
+        is_unconstrained()
+    }
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Bool(true));
 }

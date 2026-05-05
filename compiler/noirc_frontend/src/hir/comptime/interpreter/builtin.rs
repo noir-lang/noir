@@ -125,7 +125,7 @@ impl Interpreter<'_, '_> {
             "expr_is_break" => expr_is_break(interner, arguments, location),
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
-            "is_unconstrained" => Ok(Value::Bool(true)),
+            "is_unconstrained" => Ok(Value::Bool(self.in_unconstrained)),
             "field_less_than" => field_less_than(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
