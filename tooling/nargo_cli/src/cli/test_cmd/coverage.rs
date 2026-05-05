@@ -86,7 +86,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
     let line_starts = LineStartsCache::new(context);
 
     for (file_id, byte_offsets) in &offsets_by_file {
-        let Some(path) = context.file_manager.as_file_map().get_name(*file_id).ok() else {
+        let Some(source_file) = file_path(context, *file_id) else {
             continue;
         };
         let Some(line_starts) = line_starts.build(file_id) else { continue };
@@ -113,7 +113,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
                 .or_insert(line::Value { count: 0, checksum: None });
         }
 
-        let key = section::Key { test_name: String::new(), source_file: path.into_path_buf() };
+        let key = section::Key { test_name: String::new(), source_file };
         let value = section::Value { functions, branches: Branches::default(), lines };
         report.sections.insert(key, value);
     }
@@ -196,12 +196,11 @@ pub(super) fn tracker_to_report(
     let mut report = Report::new();
 
     for (file_id, (functions, lines)) in data {
-        let Some(path) = context.file_manager.as_file_map().get_name(file_id).ok() else {
+        let Some(source_file) = file_path(context, file_id) else {
             continue;
         };
 
-        let key =
-            section::Key { test_name: test_name.to_string(), source_file: path.into_path_buf() };
+        let key = section::Key { test_name: test_name.to_string(), source_file };
         let value = section::Value { functions, branches: Branches::default(), lines };
         if !value.is_empty() {
             report.sections.insert(key, value);
@@ -209,6 +208,10 @@ pub(super) fn tracker_to_report(
     }
 
     report
+}
+
+fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
+    context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
 }
 
 /// Returns the path where coverage data for `package_name` should be written.
