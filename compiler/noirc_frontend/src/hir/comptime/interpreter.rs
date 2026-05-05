@@ -139,13 +139,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
+        let in_unconstrained = current_function.is_some_and(|function| {
+            elaborator.interner.function_meta(&function).is_unconstrained()
+        });
+
         Self {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
             evaluation_depth: 0,
-            in_unconstrained: false,
+            in_unconstrained,
         }
     }
 
