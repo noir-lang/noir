@@ -451,11 +451,15 @@ fn type_def_as_type_with_generics(
     let (generics, _) = get_vector(generics)?;
     let generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))?;
 
-    let correct_generic_count = type_def.generics.len() == generics.len();
+    let valid = type_def.generics.len() == generics.len()
+        && type_def
+            .generics
+            .iter()
+            .zip(&generics)
+            .all(|(decl, arg)| decl.kind().unifies(&arg.kind()));
     drop(type_def);
 
-    let type_result =
-        correct_generic_count.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
+    let type_result = valid.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
 
     Ok(option(return_type, type_result, location))
 }
@@ -562,6 +566,20 @@ fn type_def_fields(
         let location = args_location;
         let call_stack = call_stack.clone();
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+    }
+
+    for (index, (decl, arg)) in struct_def.generics.iter().zip(&generic_args).enumerate() {
+        let decl_kind = decl.kind();
+        let arg_kind = arg.kind();
+        if !decl_kind.unifies(&arg_kind) {
+            let message = Some(format!(
+                "`TypeDefinition::fields` expected generic argument {index} of `{}` to have kind `{decl_kind}` but found kind `{arg_kind}`",
+                struct_def.name
+            ));
+            let location = args_location;
+            let call_stack = call_stack.clone();
+            return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+        }
     }
 
     let mut fields = Vector::new();
