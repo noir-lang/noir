@@ -40,7 +40,7 @@ p256 = { workspace = true, features = [
 ] }
 
 aes = "0.9"
-cbc = "0.1"
+cbc = "0.2"
 
 [dev-dependencies]
 proptest.workspace = true
