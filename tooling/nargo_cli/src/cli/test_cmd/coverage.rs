@@ -216,7 +216,7 @@ pub(super) fn tracker_to_report(
             continue;
         };
 
-        let key = section::Key { test_name: test_name.to_string(), source_file };
+        let key = section::Key { test_name: sanitize_test_name(test_name), source_file };
         let value = section::Value { functions, branches: Branches::default(), lines };
         if !value.is_empty() {
             report.sections.insert(key, value);
@@ -228,6 +228,14 @@ pub(super) fn tracker_to_report(
 
 fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
     context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
+}
+
+/// `lcov` rejects `:` in the `TN:` (test name) field — without sanitization it logs
+/// "invalid characters removed from testname" and silently rewrites them. We do the
+/// same rewrite up front so the file is accepted cleanly: `module::test_name` becomes
+/// `module__test_name`.
+fn sanitize_test_name(test_name: &str) -> String {
+    test_name.replace(':', "_")
 }
 
 /// Returns a fully-qualified name for `func_id` to use in the coverage report.
