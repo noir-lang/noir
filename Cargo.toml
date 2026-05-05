@@ -145,21 +145,21 @@ noir_ssa_executor = { path = "tooling/ssa_executor" }
 noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
-ark-bn254 = { version = "^0.5.0", default-features = false, features = [
+ark-bn254 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
-ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
+ark-bls12-381 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
-ark-grumpkin = { version = "^0.5.0", default-features = false }
-ark-ec = { version = "^0.5.0", default-features = false }
-ark-ff = { version = "^0.5.0", default-features = false, features = ["asm"] }
+ark-grumpkin = { version = "^0.6.0", default-features = false }
+ark-ec = { version = "^0.6.0", default-features = false }
+ark-ff = { version = "^0.6.0", default-features = false, features = ["asm"] }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
 
 # LSP
-async-lsp = { version = "0.2.2", default-features = false }
+async-lsp = { version = "0.2.4", default-features = false }
 tower = "0.5"
 
 # Wasm
@@ -205,7 +205,7 @@ rustc-hash = "2.1.2"
 build-data = "^0.3.3"
 hex = "0.4.2"
 const_format = "0.2.36"
-indexmap = "^2.13.1"
+indexmap = "^2.14.0"
 itertools = "0.14"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
@@ -232,7 +232,7 @@ rayon = "1.8.0"
 sha2 = "0.11.0"
 k256 = "0.14.0-rc.9"
 p256 = "0.14.0-rc.9"
-strum = "0.26"
+strum = "0.28"
 strum_macros = "0.28"
 tokio = "1.52"
 im = { version = "15.1", features = ["serde"] }

@@ -19,4 +19,10 @@ fn main(x: Field, y: Field) {
     assert(mutable.1 == 1);
     assert(mutable.2 == 7);
     assert(mutable.3 == 3);
+
+    // Mutable tuple pattern
+    let mut (a, b): (Field, Field) = (1, 2);
+    b = b * 2;
+    a = a + b;
+    assert_eq(a, 5);
 }

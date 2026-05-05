@@ -828,7 +828,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Constrain(constrain) => {
                 let expr = self.expr(constrain.0)?;
-                let location = self.interner.expr_location(&constrain.0);
+                let location = constrain.1;
                 let assert_message = constrain
                     .2
                     .map(|assert_msg_expr| {
