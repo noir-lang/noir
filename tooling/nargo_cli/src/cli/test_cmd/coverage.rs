@@ -63,7 +63,14 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
             if let Some(func_id) = def_id.as_function()
                 && !test_func_ids.contains(&func_id)
             {
-                let file = context.def_interner.function_meta(&func_id).location.file;
+                let func_meta = context.def_interner.function_meta(&func_id);
+
+                // Don't track trait functions or other functions without bodies.
+                if func_meta.is_stub() {
+                    continue;
+                }
+
+                let file = func_meta.location.file;
 
                 // Remember this function, so we can emit their name and where they are later.
                 functions_by_file.entry(file).or_default().push(func_id);
