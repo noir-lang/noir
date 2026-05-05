@@ -3898,6 +3898,7 @@ dependencies = [
  "build-data",
  "clap",
  "fm",
+ "insta",
  "iter-extended",
  "noirc_abi",
  "noirc_artifacts",

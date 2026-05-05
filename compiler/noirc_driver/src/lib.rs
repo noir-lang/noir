@@ -1,6 +1,9 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+#[cfg(test)]
+use insta as _;
+
 use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
@@ -591,12 +594,8 @@ pub fn compile_main(
     );
 
     if options.print_acir {
-        let display = ProgramDisplay {
-            program: &compiled_program.program,
-            error_types: &compiled_program.abi.error_types,
-        };
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", display);
+        noirc_errors::println_to_stdout!("{}", display_compiled_program(&compiled_program));
     }
 
     Ok((compiled_program, warnings))
@@ -1067,6 +1066,14 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
     }
 }
 
+pub fn display_compiled_program(program: &CompiledProgram) -> String {
+    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types }.to_string()
+}
+
+/// Formats an ACIR [Program] together with its ABI error types so that any static
+/// assertion payloads embedded in the program are rendered as a `// message` comment
+/// next to the relevant ACIR/Brillig opcode. This is the same display used by
+/// `nargo compile --print-acir`.
 struct ProgramDisplay<'a, F: AcirField> {
     program: &'a Program<F>,
     error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
