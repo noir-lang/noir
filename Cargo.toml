@@ -232,7 +232,7 @@ rayon = "1.8.0"
 sha2 = "0.11.0"
 k256 = "0.14.0-rc.9"
 p256 = "0.14.0-rc.9"
-strum = "0.26"
+strum = "0.28"
 strum_macros = "0.28"
 tokio = "1.52"
 im = { version = "15.1", features = ["serde"] }
