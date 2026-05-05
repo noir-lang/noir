@@ -398,9 +398,9 @@ pub fn display_circuit<F: AcirField>(
         if let Some(error_types) = error_types {
             let location = OpcodeLocation::Acir(index);
             if let Some(payload) = assert_messages_by_opcode_location.get(&location)
-                && let Some(messgae) = error_types.get(&ErrorSelector::new(payload.error_selector))
+                && let Some(message) = error_types.get(&ErrorSelector::new(payload.error_selector))
             {
-                write!(f, " // {messgae}")?;
+                write!(f, " // {message}")?;
             }
         }
         writeln!(f)?;
