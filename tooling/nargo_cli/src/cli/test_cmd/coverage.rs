@@ -94,7 +94,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
 
         for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
             let meta = context.def_interner.function_meta(&func_id);
-            let name = context.def_interner.function_name(&func_id).to_string();
+            let name = context.fully_qualified_function_name(&meta.source_crate, &func_id);
             let start_line = offset_to_line(meta.location.span.start(), &line_starts);
             functions.insert(
                 function::Key { name },
@@ -177,7 +177,7 @@ pub(super) fn tracker_to_report(
             continue;
         };
         let start_line = offset_to_line(meta.location.span.start(), line_starts);
-        let name = context.def_interner.function_name(&func_id).to_string();
+        let name = context.fully_qualified_function_name(&meta.source_crate, &func_id);
 
         functions
             .entry(function::Key { name })
