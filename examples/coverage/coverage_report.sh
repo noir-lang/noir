@@ -10,12 +10,6 @@ NARGO=${NARGO:-nargo}
 GENERATED=target/coverage/lcov.info
 REFERENCE=lcov.info
 
-# Strip the machine-specific prefix from SF: records so the file is
-# portable and can be checked into Git.  Everything before the last
-# occurrence of "examples/" is removed (greedy .* backtracks to the
-# rightmost match), leaving paths of the form "SF:examples/coverage/src/...".
-sed -i.bak 's|SF:.*/examples/|SF:examples/|' "$GENERATED" && rm -f "${GENERATED}.bak"
-
 if [ -f "$REFERENCE" ]; then
     echo "Verifying coverage report..."
     diff "$REFERENCE" "$GENERATED"

@@ -14,6 +14,7 @@ use noirc_errors::Location;
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::comptime::EvaluationTracker;
+use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::node_interner::FuncId;
 
 /// Returns the location of every expression in the crate that should appear in the coverage
@@ -58,20 +59,42 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         def_map.get_all_test_functions(&context.def_interner).map(|f| f.id).collect();
 
     let mut functions_by_file: HashMap<FileId, Vec<FuncId>> = HashMap::new();
+    let record_func = |func_id: FuncId,
+                       offsets_by_file: &mut HashMap<FileId, Vec<u32>>,
+                       functions_by_file: &mut HashMap<FileId, Vec<FuncId>>| {
+        if test_func_ids.contains(&func_id) {
+            return;
+        }
+        let func_meta = context.def_interner.function_meta(&func_id);
+
+        // Don't track trait functions or other functions without bodies.
+        if func_meta.is_stub() {
+            return;
+        }
+
+        let file = func_meta.location.file;
+        functions_by_file.entry(file).or_default().push(func_id);
+
+        // Ensure the file shows up in `offsets_by_file` so it gets a section even
+        // if every function in it has an empty body.
+        offsets_by_file.entry(file).or_default();
+    };
+
     for (_, module) in def_map.modules().iter() {
         for def_id in module.value_definitions() {
-            if let Some(func_id) = def_id.as_function()
-                && !test_func_ids.contains(&func_id)
-            {
-                let file = context.def_interner.function_meta(&func_id).location.file;
-
-                // Remember this function, so we can emit their name and where they are later.
-                functions_by_file.entry(file).or_default().push(func_id);
-
-                // Make sure we have an entry in offsets as well, so we can iterate over the files
-                // even if all functions had empty bodies.
-                offsets_by_file.entry(file).or_default();
+            if let Some(func_id) = def_id.as_function() {
+                record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
             }
+        }
+    }
+
+    // Trait impl methods aren't reachable through `module.value_definitions()` — they
+    // live in the trait impl, not in any module's name scope. Enumerate them directly
+    // so the baseline includes impl methods that no test ever calls.
+    for impl_id in context.def_interner.get_trait_implementations_in_crate(crate_id) {
+        let trait_impl = context.def_interner.get_trait_implementation(impl_id);
+        for func_id in trait_impl.borrow().methods.clone() {
+            record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
         }
     }
 
@@ -79,7 +102,9 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
     let line_starts = LineStartsCache::new(context);
 
     for (file_id, byte_offsets) in &offsets_by_file {
-        let Some(path) = context.file_manager.path(*file_id) else { continue };
+        let Some(source_file) = file_path(context, *file_id) else {
+            continue;
+        };
         let Some(line_starts) = line_starts.build(file_id) else { continue };
 
         let mut functions = function::Functions::new();
@@ -87,7 +112,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
 
         for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
             let meta = context.def_interner.function_meta(&func_id);
-            let name = context.def_interner.function_name(&func_id).to_string();
+            let name = fully_qualified_function_name(context, meta, &func_id);
             let start_line = offset_to_line(meta.location.span.start(), &line_starts);
             functions.insert(
                 function::Key { name },
@@ -104,7 +129,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
                 .or_insert(line::Value { count: 0, checksum: None });
         }
 
-        let key = section::Key { test_name: String::new(), source_file: path.to_path_buf() };
+        let key = section::Key { test_name: String::new(), source_file };
         let value = section::Value { functions, branches: Branches::default(), lines };
         report.sections.insert(key, value);
     }
@@ -170,7 +195,7 @@ pub(super) fn tracker_to_report(
             continue;
         };
         let start_line = offset_to_line(meta.location.span.start(), line_starts);
-        let name = context.def_interner.function_name(&func_id).to_string();
+        let name = fully_qualified_function_name(context, meta, &func_id);
 
         functions
             .entry(function::Key { name })
@@ -187,10 +212,11 @@ pub(super) fn tracker_to_report(
     let mut report = Report::new();
 
     for (file_id, (functions, lines)) in data {
-        let Some(path) = context.file_manager.path(file_id) else { continue };
+        let Some(source_file) = file_path(context, file_id) else {
+            continue;
+        };
 
-        let key =
-            section::Key { test_name: test_name.to_string(), source_file: path.to_path_buf() };
+        let key = section::Key { test_name: sanitize_test_name(test_name), source_file };
         let value = section::Value { functions, branches: Branches::default(), lines };
         if !value.is_empty() {
             report.sections.insert(key, value);
@@ -198,6 +224,50 @@ pub(super) fn tracker_to_report(
     }
 
     report
+}
+
+fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
+    context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
+}
+
+/// `lcov` rejects `:` in the `TN:` (test name) field — without sanitization it logs
+/// "invalid characters removed from testname" and silently rewrites them. We do the
+/// same rewrite up front so the file is accepted cleanly: `module::test_name` becomes
+/// `module__test_name`.
+fn sanitize_test_name(test_name: &str) -> String {
+    test_name.replace(':', "_")
+}
+
+/// Returns a fully-qualified name for `func_id` to use in the coverage report.
+///
+/// Methods inside a trait impl get a `<Type as Trait>::method` qualification so distinct
+/// impls of the same trait method don't collapse onto a single display name (which would
+/// cause duplicate `FN`/`FNDA` entries to merge into one in `lcov.info`).
+///
+/// Trait functions defined inside `trait { ... }` need no extra label work: the trait
+/// itself is a module, so the module path already qualifies them as `<module>::<Trait>::<fn>`.
+fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &FuncId) -> String {
+    let interner = &context.def_interner;
+    let def_maps = &context.def_maps;
+    let def_map = &def_maps[&meta.source_crate];
+
+    let module_id = interner.function_module(*func_id);
+    let module = module_id.module(def_maps);
+    let module_path =
+        def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
+
+    let name = interner.function_name(func_id);
+
+    let label = if let Some(trait_impl_id) = meta.trait_impl {
+        let trait_impl = interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_def = interner.get_trait(trait_impl.trait_id);
+        format!("<{} as {}>::{}", trait_impl.typ, trait_def.name, name)
+    } else {
+        name.to_string()
+    };
+
+    if module_path.is_empty() { label } else { format!("{module_path}::{label}") }
 }
 
 /// Returns the path where coverage data for `package_name` should be written.
