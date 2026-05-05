@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["STACK_SIZE"],"enum":["Format"],"fn":["run"],"mod":["formatters"],"struct":["Test","TestCommand","TestResult","TestRunner"]};
+window.SIDEBAR_ITEMS = {"constant":["STACK_SIZE"],"enum":["Format"],"fn":["run"],"mod":["coverage","formatters"],"struct":["Test","TestCommand","TestResult","TestRunner"],"type":["PackageName","PackageTestsAndCoverageBaseline","TestName"]};
