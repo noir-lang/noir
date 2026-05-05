@@ -655,8 +655,8 @@
 <a href=#655 id=655 data-nosnippet>655</a>        <span class="comment">// For types like `[(); 3]` we always end up with no elements and a zero-sized type
 <a href=#656 id=656 data-nosnippet>656</a>        </span><span class="macro">assert!</span>(
 <a href=#657 id=657 data-nosnippet>657</a>            vector_size.to_usize() == <span class="number">0 </span>&amp;&amp; value_types.is_empty()
-<a href=#658 id=658 data-nosnippet>658</a>                || vector_size.to_usize() % value_types.len() == <span class="number">0
-<a href=#659 id=659 data-nosnippet>659</a>        </span>);
+<a href=#658 id=658 data-nosnippet>658</a>                || vector_size.to_usize().is_multiple_of(value_types.len())
+<a href=#659 id=659 data-nosnippet>659</a>        );
 <a href=#660 id=660 data-nosnippet>660</a>
 <a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
 <a href=#662 id=662 data-nosnippet>662</a>            block_id: result_block_id,
@@ -855,8 +855,8 @@
 <a href=#855 id=855 data-nosnippet>855</a>        <span class="comment">// For types like `[(); 3]` we always end up with no elements and a zero-sized type
 <a href=#856 id=856 data-nosnippet>856</a>        </span><span class="macro">assert!</span>(
 <a href=#857 id=857 data-nosnippet>857</a>            result_size.to_usize() == <span class="number">0 </span>&amp;&amp; value_types.is_empty()
-<a href=#858 id=858 data-nosnippet>858</a>                || result_size.to_usize() % value_types.len() == <span class="number">0
-<a href=#859 id=859 data-nosnippet>859</a>        </span>);
+<a href=#858 id=858 data-nosnippet>858</a>                || result_size.to_usize().is_multiple_of(value_types.len())
+<a href=#859 id=859 data-nosnippet>859</a>        );
 <a href=#860 id=860 data-nosnippet>860</a>
 <a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">let </span>result = AcirValue::DynamicArray(AcirDynamicArray {
 <a href=#862 id=862 data-nosnippet>862</a>            block_id: result_block_id,
