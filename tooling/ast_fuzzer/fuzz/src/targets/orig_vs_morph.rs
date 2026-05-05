@@ -286,7 +286,9 @@ fn is_special_call(call: &Call) -> bool {
     matches!(
         call.func.as_ref(),
         Expression::Ident(Ident {
-            definition: Definition::Oracle(_) | Definition::Builtin(_) | Definition::LowLevel(_),
+            definition: Definition::Oracle { .. }
+                | Definition::Builtin(_)
+                | Definition::LowLevel(_),
             ..
         })
     )
