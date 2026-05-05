@@ -687,9 +687,9 @@ impl<'a> TestRunner<'a> {
 
         let result = check_crate(&mut context, crate_id, &self.args.compile_options);
 
-        if context.evaluation_tracker.is_some() {
+        if let Some(evaluation_tracker) = context.evaluation_tracker.as_mut() {
             let crate_files = context.def_maps[&crate_id].file_ids();
-            context.evaluation_tracker.as_mut().unwrap().restrict_to_files(&crate_files);
+            evaluation_tracker.restrict_to_files(&crate_files);
         }
 
         if report {
