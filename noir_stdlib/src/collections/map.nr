@@ -497,6 +497,9 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// Inserts a new key-value pair into the map. If the key was already in the map, its
     /// previous value will be overridden with the newly provided one.
     ///
+    /// Returns true if the element was newly-inserted. In other words, this returns false
+    /// if the key already has a value in this map.
+    ///
     /// Example:
     ///
     /// ```noir
@@ -505,7 +508,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(map.len() == 1);
     /// ```
     // docs:start:insert
-    pub fn insert(&mut self, key: K, value: V)
+    pub fn insert(&mut self, key: K, value: V) -> bool
     where
         K: Eq + Hash,
         B: BuildHasher,
@@ -515,6 +518,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         let hash = self.hash(key);
         let mut should_break = false;
+        let mut newly_inserted = false;
 
         for attempt in 0..N {
             if !should_break {
@@ -525,6 +529,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                 // Either marked as deleted or has unset key-value.
                 if slot.is_available() {
                     insert = true;
+                    newly_inserted = true;
                     self._len += 1;
                 } else {
                     if slot._key == key {
@@ -539,6 +544,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                 }
             }
         }
+
+        newly_inserted
     }
 
     /// Removes the given key-value pair from the map. If the key was not already present
