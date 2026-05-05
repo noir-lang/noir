@@ -1068,7 +1068,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
     /// Elaborate a struct constructor.
