@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["baseline_expr_locations","baseline_in_package","build_line_starts","offset_to_line","package_lcov_path","tracker_to_report","write_package_coverage"],"struct":["LineStartsCache"]};
+window.SIDEBAR_ITEMS = {"fn":["baseline_expr_locations","baseline_in_package","build_line_starts","file_path","fully_qualified_function_name","offset_to_line","package_lcov_path","sanitize_test_name","tracker_to_report","write_package_coverage"],"struct":["LineStartsCache"]};
