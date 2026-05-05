@@ -254,6 +254,30 @@ mod tests {
     }
 
     #[test]
+    fn does_not_simplify_squared_zero_for_unchecked_mul_on_integer_type() {
+        // For `BinaryOp::Mul { unchecked: true }` on a non-`Field` integer type, Brillig wraps
+        // modulo `2^N`, so `v * v == 0` does NOT imply `v == 0` (e.g. `u8 16 * u8 16 == u8 0`).
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = unchecked_mul v0, v0
+            constrain v1 == u8 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = unchecked_mul v0, v0
+            constrain v0 == u8 0
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn simplifies_out_noop_bitwise_ands() {
         // Regression test for https://github.com/noir-lang/noir/issues/7451
         let src = "
