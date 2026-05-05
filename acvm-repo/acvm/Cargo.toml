@@ -33,9 +33,7 @@ bls12_381 = [
 ]
 
 [dev-dependencies]
-ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
-    "curve",
-] }
+ark-bls12-381 = { workspace = true }
 ark-ff.workspace = true
 ark-bn254.workspace = true
 bn254_blackbox_solver.workspace = true
