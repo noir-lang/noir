@@ -156,6 +156,27 @@ There are some fuzzing-specific options that can be used with `nargo test`:
 
 By default, the fuzzing corpus is saved in a temporary directory, but this can be changed. This allows you to resume fuzzing from the same corpus if the process is interrupted, if you want to run continuous fuzzing on your corpus, or if you want to use previous failures for regression testing.
 
+## Coverage
+
+Pass `--coverage` to `nargo test` to measure which lines of your library are exercised by its tests.
+
+```bash
+nargo test --coverage
+```
+
+Coverage is collected by running each argument-free test through the comptime interpreter and recording which expressions are evaluated. Fuzz tests (tests with arguments) are not included.
+
+After the run, one `lcov.info` file is written per package:
+
+| Layout | Output path |
+|--------|-------------|
+| Single-package | `target/coverage/lcov.info` |
+| Multi-package workspace | `target/coverage/<package-name>/lcov.info` |
+
+The output directory can be overridden with `--coverage-dir <DIR>`. The same single-vs-multi-package nesting applies relative to the chosen directory.
+
+The files use [lcov trace file format](https://ltp.sourceforge.net/coverage/lcov/geninfo.1.php) and are compatible with standard coverage tools. For in-editor highlighting, install the [Coverage Gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) VS Code extension, which automatically picks up `lcov.info` files and highlights covered (green) and uncovered (red) lines in the editor.
+
 ## Mocking Oracles
 
 When testing code that calls [oracles](../noir/concepts/oracles.mdx), you can use `OracleMock` from `std::test` to provide return values without needing an actual oracle server.

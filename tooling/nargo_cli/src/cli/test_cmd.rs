@@ -21,22 +21,35 @@ use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig,
+    errors::CompileError,
     foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
     insert_all_files_for_workspace_into_file_manager,
-    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
+    ops::{FuzzConfig, TestStatus, report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::{CompileOptions, check_crate};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles, def_map::TestFunction};
+use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::graph::CrateId;
+use noirc_frontend::hir::{
+    Context, FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
+};
 
 use crate::errors::CliError;
 
-use super::{LockType, PackageOptions, WorkspaceCommand};
+use super::{LockType, PackageOptions, WorkspaceCommand, parse_and_normalize_path};
 
+mod coverage;
 pub(crate) mod formatters;
+
+/// Fully qualified test name.
+type TestName = String;
+type PackageName = String;
+
+/// All the tests collected in a package, along with an optional baseline coverage report.
+type PackageTestsAndCoverageBaseline<'a> = (Vec<Test<'a>>, Option<lcov::Report>);
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -120,6 +133,20 @@ pub(crate) struct TestCommand {
     /// This only works with tests that don't have arguments and don't call Oracles.
     #[arg(long, hide = true)]
     force_comptime: bool,
+
+    /// Produce a coverage report.
+    ///
+    /// Writes coverage data to the workspace target directory into
+    /// `target/coverage/<package-name>/lcov.info` or `target/coverage/lcov.info` files,
+    /// depending on whether we are dealing with a workspace.
+    #[arg(long)]
+    coverage: bool,
+
+    /// Override the directory where coverage files are written.
+    ///
+    /// If not set, defaults to the workspace target directory.
+    #[arg(long, value_parser = parse_and_normalize_path)]
+    coverage_dir: Option<PathBuf>,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -163,15 +190,18 @@ impl Display for Format {
 }
 
 struct Test<'a> {
-    name: String,
-    package_name: String,
+    name: TestName,
+    package_name: PackageName,
     has_arguments: bool,
-    runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
+    /// Execute the test, returning the test status, the printed output,
+    /// and an optional coverage report.
+    runner:
+        Box<dyn FnOnce() -> (TestStatus, TestName, Option<lcov::Report>) + Send + UnwindSafe + 'a>,
 }
 
 pub(crate) struct TestResult {
-    name: String,
-    package_name: String,
+    name: TestName,
+    package_name: PackageName,
     status: TestStatus,
     output: String,
     time_to_run: Duration,
@@ -179,8 +209,8 @@ pub(crate) struct TestResult {
 
 impl TestResult {
     pub(crate) fn new(
-        name: String,
-        package_name: String,
+        name: TestName,
+        package_name: PackageName,
         status: TestStatus,
         output: String,
         time_to_run: Duration,
@@ -240,9 +270,9 @@ impl<'a> TestRunner<'a> {
         let packages_tests = self.collect_packages_tests()?;
 
         if self.args.list_tests {
-            for (package_name, package_tests) in packages_tests {
+            for (package_name, (package_tests, _)) in packages_tests {
                 for test in package_tests {
-                    println!("{} {}", package_name, test.name);
+                    noirc_errors::println_to_stdout!("{} {}", package_name, test.name);
                 }
             }
             return Ok(());
@@ -251,15 +281,19 @@ impl<'a> TestRunner<'a> {
         // Now gather all tests and how many are per packages
         let mut tests = Vec::new();
         let mut test_count_per_package = BTreeMap::new();
+        let mut coverage_per_package = BTreeMap::new();
 
-        for (package_name, package_tests) in packages_tests {
+        for (package_name, (package_tests, coverage_baseline)) in packages_tests {
+            if let Some(baseline) = coverage_baseline {
+                coverage_per_package.insert(package_name.clone(), baseline);
+            }
             test_count_per_package.insert(package_name, package_tests.len());
             tests.extend(package_tests);
         }
 
         // Now run all tests in parallel, but show output for each package sequentially
         let tests_count = tests.len();
-        let all_passed = self.run_all_tests(tests, &test_count_per_package);
+        let all_passed = self.run_all_tests(tests, &test_count_per_package, coverage_per_package);
 
         if tests_count == 0 {
             match &self.pattern {
@@ -299,8 +333,11 @@ impl<'a> TestRunner<'a> {
 
     /// Process a chunk of tests sequentially and send the results to the main thread
     /// We need this functions, because first we process the standard tests, and then the fuzz tests.
-    fn process_chunk_of_tests<I>(&self, iter_tests: &Mutex<I>, thread_sender: &Sender<TestResult>)
-    where
+    fn process_chunk_of_tests<I>(
+        &self,
+        iter_tests: &Mutex<I>,
+        thread_sender: &Sender<(TestResult, Option<lcov::Report>)>,
+    ) where
         I: Iterator<Item = Test<'a>>,
     {
         loop {
@@ -314,8 +351,8 @@ impl<'a> TestRunner<'a> {
                 .expect("Could not display test start");
 
             let time_before_test = std::time::Instant::now();
-            let (status, output) = match catch_unwind(test.runner) {
-                Ok((status, output)) => (status, output),
+            let (status, output, test_coverage) = match catch_unwind(test.runner) {
+                Ok(values) => values,
                 Err(err) => (
                     TestStatus::Fail {
                                     message:
@@ -328,6 +365,7 @@ impl<'a> TestRunner<'a> {
                                     error_diagnostic: None,
                                 },
                     String::new(),
+                    None,
                 ),
             };
             let time_to_run = time_before_test.elapsed();
@@ -351,7 +389,7 @@ impl<'a> TestRunner<'a> {
                 )
                 .expect("Could not display test start");
 
-            if thread_sender.send(test_result).is_err() {
+            if thread_sender.send((test_result, test_coverage)).is_err() {
                 break;
             }
         }
@@ -361,7 +399,8 @@ impl<'a> TestRunner<'a> {
     fn run_all_tests(
         &self,
         tests: Vec<Test<'a>>,
-        test_count_per_package: &BTreeMap<String, usize>,
+        test_count_per_package: &BTreeMap<PackageName, usize>,
+        mut coverage_per_package: BTreeMap<PackageName, lcov::Report>,
     ) -> bool {
         let mut all_passed = true;
 
@@ -459,9 +498,17 @@ impl<'a> TestRunner<'a> {
                 }
 
                 if current_test_count < total_test_count {
-                    while let Ok(test_result) = receiver.recv() {
+                    while let Ok((test_result, test_coverage)) = receiver.recv() {
                         if test_result.status.failed() {
                             all_passed = false;
+                        }
+
+                        // Merge test coverage into the package level coverage.
+                        if let Some(test_coverage) = test_coverage
+                            && let Some(package_coverage) =
+                                coverage_per_package.get_mut(&test_result.package_name)
+                        {
+                            package_coverage.merge_lossy(test_coverage);
                         }
 
                         // This is a test result from a different package: buffer it.
@@ -479,7 +526,9 @@ impl<'a> TestRunner<'a> {
                             total_test_count,
                         )
                         .expect("Could not display test status");
+
                         test_report.push(test_result);
+
                         current_test_count += 1;
                         if current_test_count == total_test_count {
                             break;
@@ -498,14 +547,25 @@ impl<'a> TestRunner<'a> {
                         self.args.compile_options.silence_warnings,
                     )
                     .expect("Could not display test report");
+
+                if let Some(package_report) = coverage_per_package.remove(package_name) {
+                    let lcov_path = coverage::package_lcov_path(
+                        &self.workspace,
+                        package_name,
+                        self.args.coverage_dir.as_deref(),
+                    );
+                    coverage::write_package_coverage(package_report, &lcov_path);
+                }
             }
         });
 
         all_passed
     }
 
-    /// Compiles all packages in parallel and returns their tests
-    fn collect_packages_tests(&'a self) -> Result<BTreeMap<String, Vec<Test<'a>>>, CliError> {
+    /// Compiles all packages in parallel and returns their tests and optional coverage baseline.
+    fn collect_packages_tests(
+        &'a self,
+    ) -> Result<BTreeMap<PackageName, PackageTestsAndCoverageBaseline<'a>>, CliError> {
         let mut package_tests = BTreeMap::new();
         let mut error = None;
 
@@ -515,7 +575,7 @@ impl<'a> TestRunner<'a> {
         let iter = &Mutex::new(self.workspace.into_iter());
 
         thread::scope(|scope| {
-            // Start worker threads
+            // Start worker threads to collect tests across packages.
             for _ in 0..num_threads {
                 // Clone sender so it's dropped once the thread finishes
                 let thread_sender = sender.clone();
@@ -529,13 +589,13 @@ impl<'a> TestRunner<'a> {
                             let Some(package) = iter.lock().unwrap().next() else {
                                 break;
                             };
-                            let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                            let collected = self.collect_package_tests::<Bn254BlackBoxSolver>(
                                 package,
                                 self.args.oracle_resolver.as_ref().map(|url| url.as_str()),
                                 Some(self.workspace.root_dir.clone()),
                                 package.name.to_string(),
                             );
-                            if thread_sender.send((package, tests)).is_err() {
+                            if thread_sender.send((package, collected)).is_err() {
                                 break;
                             }
                         }
@@ -546,10 +606,10 @@ impl<'a> TestRunner<'a> {
             // Also drop main sender so the channel closes
             drop(sender);
 
-            for (package, tests) in &receiver {
-                match tests {
-                    Ok(tests) => {
-                        package_tests.insert(package.name.to_string(), tests);
+            for (package, collection_result) in &receiver {
+                match collection_result {
+                    Ok(collected) => {
+                        package_tests.insert(package.name.to_string(), collected);
                     }
                     Err(err) => {
                         error = Some(err);
@@ -561,16 +621,20 @@ impl<'a> TestRunner<'a> {
         if let Some(error) = error { Err(error) } else { Ok(package_tests) }
     }
 
-    /// Compiles a single package and returns all of its tests
+    /// Compiles a single package and returns all of its tests.
+    ///
+    /// Optionally returns a tally of functions and lines that can be covered by tests.
     fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &'a Package,
         foreign_call_resolver_url: Option<&'a str>,
         root_path: Option<PathBuf>,
-        package_name: String,
-    ) -> Result<Vec<Test<'a>>, CliError> {
-        let test_functions = self.get_tests_in_package(package)?;
+        package_name: PackageName,
+    ) -> Result<(Vec<Test<'a>>, Option<lcov::Report>), CliError> {
+        let (context, crate_id) = self.prepare_package_and_check_crate(package, true)?;
+        let test_functions = self.get_tests_in_crate(&context, crate_id);
 
+        // Convert the test functions into runnable tests.
         let tests: Vec<Test> = test_functions
             .into_iter()
             .map(|(test_name, test_function)| {
@@ -597,23 +661,68 @@ impl<'a> TestRunner<'a> {
             })
             .collect();
 
-        Ok(tests)
+        // Collect the baseline here, while we have access to the Context.
+        let coverage_baseline =
+            self.args.coverage.then(|| coverage::baseline_in_package(&context, crate_id));
+
+        Ok((tests, coverage_baseline))
     }
 
-    /// Compiles a single package and returns all of its test names
-    fn get_tests_in_package(
+    /// Compiles a single package and returns the checked [Context] and the root [CrateId].
+    fn prepare_package_and_check_crate(
         &'a self,
         package: &'a Package,
-    ) -> Result<Vec<(String, TestFunction)>, CliError> {
+        report: bool,
+    ) -> Result<(Context<'a, 'a>, CrateId), CompileError> {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
-        Ok(context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern))
+        if self.args.coverage {
+            // Set the tracker before elaboration so comptime blocks executed during
+            // check_crate are captured. We use all file IDs known at this point since
+            // def_maps isn't populated yet; after check_crate we narrow to crate files.
+            let all_files = context.file_manager.as_file_map().all_file_ids().copied().collect();
+            context.evaluation_tracker = Some(EvaluationTracker::new(all_files));
+        }
+
+        let result = check_crate(&mut context, crate_id, &self.args.compile_options);
+
+        if context.evaluation_tracker.is_some() {
+            let crate_files = context.def_maps[&crate_id].file_ids();
+            context.evaluation_tracker.as_mut().unwrap().restrict_to_files(&crate_files);
+        }
+
+        if report {
+            report_errors(
+                result,
+                &context.file_manager,
+                &context.parsed_files,
+                self.args.compile_options.deny_warnings,
+                self.args.compile_options.silence_warnings,
+            )?;
+            Ok((context, crate_id))
+        } else if let Err(diagnostics) = result {
+            Err(CompileError::ReportedErrors(ReportedErrors {
+                error_count: diagnostics.len() as u32,
+            }))
+        } else {
+            Ok((context, crate_id))
+        }
     }
 
-    /// Runs a single test and returns its status together with whatever was printed to stdout
-    /// during the test.
+    /// Return all tests in the crate.
+    fn get_tests_in_crate(
+        &'a self,
+        context: &'a Context,
+        crate_id: CrateId,
+    ) -> Vec<(TestName, TestFunction)> {
+        context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
+    }
+
+    /// Runs a single test.
+    ///
+    /// Returns its status together with whatever was printed to stdout during the test,
+    /// along with an optional coverage report.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         package: &Package,
@@ -621,20 +730,18 @@ impl<'a> TestRunner<'a> {
         has_arguments: bool,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
-        package_name: String,
-    ) -> (TestStatus, String) {
+        package_name: PackageName,
+    ) -> (TestStatus, String, Option<lcov::Report>) {
         if ((self.args.no_fuzz || self.args.force_comptime) && has_arguments)
             || (self.args.only_fuzz && !has_arguments)
         {
-            return (TestStatus::Skipped, String::new());
+            return (TestStatus::Skipped, String::new(), None);
         }
 
         // This is really hacky but we can't share `Context` or `S` across threads.
         // We then need to construct a separate copy for each test.
-
-        let (mut context, crate_id) =
-            prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate(&mut context, crate_id, &self.args.compile_options)
+        let (mut context, crate_id) = self
+            .prepare_package_and_check_crate(package, false)
             .expect("Any errors should have occurred when collecting test functions");
 
         let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
@@ -652,18 +759,25 @@ impl<'a> TestRunner<'a> {
                 Ok(_) => TestStatus::Skipped,
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new());
+            return (status, String::new(), None);
         }
 
-        if self.args.force_comptime {
+        if self.args.force_comptime || self.args.coverage && !has_arguments {
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
+
             let result = context.interpret_function(test_function.id, Vec::new());
             let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
+
             context.interpreter_output = None;
             let output = Rc::try_unwrap(output).expect("context no longer has it");
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
-            return (status, output);
+
+            let report = context.evaluation_tracker.take().map(|tracker| {
+                coverage::tracker_to_report(&tracker, test_function.id, fn_name, &context)
+            });
+
+            return (status, output, report);
         }
 
         let blackbox_solver = S::default();
@@ -706,7 +820,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string)
+        (test_status, output_string, None)
     }
 
     /// Display the status of a single test
