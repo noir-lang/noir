@@ -294,7 +294,7 @@ fn apply_range_constraint(
     } else {
         failing_constraint(
             format!(
-                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                "call to assert_max_bit_size: {} has {field_num_bits} bits which do not fit in {num_bits} bits",
                 field.to_short_hex()
             ),
             location,

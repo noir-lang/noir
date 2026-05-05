@@ -3138,6 +3138,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lcov"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dab4f1d99e0dd8008da0d3452bb71ce08e1645465c2accc124bcb599c6b3143"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3379,6 +3388,7 @@ dependencies = [
  "insta",
  "iter-extended",
  "itertools 0.14.0",
+ "lcov",
  "nargo",
  "nargo_doc",
  "nargo_expand",
