@@ -14,6 +14,7 @@ use noirc_errors::Location;
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::Context;
 use noirc_frontend::hir::comptime::EvaluationTracker;
+use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::node_interner::FuncId;
 
 /// Returns the location of every expression in the crate that should appear in the coverage
@@ -96,7 +97,7 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
 
         for &func_id in functions_by_file.get(file_id).map_or([].as_slice(), Vec::as_slice) {
             let meta = context.def_interner.function_meta(&func_id);
-            let name = context.fully_qualified_function_name(&meta.source_crate, &func_id);
+            let name = fully_qualified_function_name(context, meta, &func_id);
             let start_line = offset_to_line(meta.location.span.start(), &line_starts);
             functions.insert(
                 function::Key { name },
@@ -179,7 +180,7 @@ pub(super) fn tracker_to_report(
             continue;
         };
         let start_line = offset_to_line(meta.location.span.start(), line_starts);
-        let name = context.fully_qualified_function_name(&meta.source_crate, &func_id);
+        let name = fully_qualified_function_name(context, meta, &func_id);
 
         functions
             .entry(function::Key { name })
@@ -212,6 +213,10 @@ pub(super) fn tracker_to_report(
 
 fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
     context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
+}
+
+fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &FuncId) -> String {
+    context.fully_qualified_function_name(&meta.source_crate, &func_id)
 }
 
 /// Returns the path where coverage data for `package_name` should be written.
