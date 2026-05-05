@@ -698,6 +698,17 @@ impl Context {
             _ => false,
         };
 
+        // A Call in Brillig that returns an array whose type is mutated through block parameters
+        // must not be cached. RPO visits loop exit blocks before loop bodies, so it can happen
+        // that an array that was returned from a call is later mutated in the exit block,
+        // so we must take this case into account.
+        let call_returns_mutated_brillig_array = dfg.runtime().is_brillig()
+            && matches!(instruction, Instruction::Call { .. })
+            && instruction_results.iter().any(|result| {
+                let typ = dfg.type_of_value(*result);
+                typ.is_array() && self.mutated_block_param_array_types.contains(&*typ)
+            });
+
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
 
@@ -733,6 +744,7 @@ impl Context {
         };
 
         match can_be_deduplicated {
+            _ if call_returns_mutated_brillig_array => {}
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
             // We also allow deduplicating MakeArray instructions whose type isn't mutated
@@ -3371,5 +3383,32 @@ mod test {
             return
         }
         "#);
+    }
+
+    #[test]
+    fn constant_folding_does_not_deduplicate_call_that_returns_array_that_is_later_mutated() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v3 = call f1() -> [u1; 1]
+            jmp b1(v3, u32 0)
+          b1(v0: [u1; 1], v1: u32):
+            v6 = eq v1, u32 1
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            v10 = call f1() -> [u1; 1]
+            return v10
+          b3():
+            v7 = add v1, u32 1
+            v9 = array_set v0, index u32 0, value u1 0
+            jmp b1(v9, v7)
+        }
+        brillig(inline_never) predicate_pure fn g f1 {
+          b0():
+            v1 = make_array [u1 1] : [u1; 1]
+            return v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(3));
     }
 }

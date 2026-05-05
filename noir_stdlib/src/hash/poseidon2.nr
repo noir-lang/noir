@@ -3,58 +3,6 @@ use crate::hash::Hasher;
 
 global RATE: u32 = 3;
 
-pub(crate) struct Poseidon2 {
-    cache: [Field; 3],
-    state: [Field; 4],
-    cache_size: u32,
-    squeeze_mode: bool, // 0 => absorb, 1 => squeeze
-}
-
-impl Poseidon2 {
-    pub(crate) fn new(iv: Field) -> Poseidon2 {
-        let mut result =
-            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
-        result.state[RATE] = iv;
-        result
-    }
-
-    fn perform_duplex(&mut self) {
-        // add the cache into sponge state
-        for i in 0..RATE {
-            // We effectively zero-pad the cache by only adding to the state
-            // cache that is less than the specified `cache_size`
-            if i < self.cache_size {
-                self.state[i] += self.cache[i];
-            }
-        }
-        self.state = crate::hash::poseidon2_permutation(self.state);
-    }
-
-    fn absorb(&mut self, input: Field) {
-        assert(!self.squeeze_mode);
-        if self.cache_size == RATE {
-            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            self.perform_duplex();
-            self.cache[0] = input;
-            self.cache_size = 1;
-        } else {
-            // If we're absorbing, and the cache is not full, add the input into the cache
-            self.cache[self.cache_size] = input;
-            self.cache_size += 1;
-        }
-    }
-
-    fn squeeze(&mut self) -> Field {
-        assert(!self.squeeze_mode);
-        // If we're in absorb mode, apply sponge permutation to compress the cache.
-        self.perform_duplex();
-        self.squeeze_mode = true;
-
-        // Pop one item off the top of the permutation and return it.
-        self.state[0]
-    }
-}
-
 pub(crate) struct Poseidon2Hasher {
     _state: [Field],
 }
@@ -65,12 +13,24 @@ impl Hasher for Poseidon2Hasher {
     }
 
     fn finish_ref(&self) -> Field {
-        let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
-        let mut sponge = Poseidon2::new(iv);
-        for i in 0..self._state.len() {
-            sponge.absorb(self._state[i]);
+        let input_length = self._state.len();
+        let iv: Field = (input_length as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
+        let mut state = [0, 0, 0, iv];
+
+        // These for-loops can run for a dynamic number of iterations, however
+        // this is not an issue in practice as this code is only reachable within a `comptime` context
+        for i in 0..input_length / RATE {
+            state[0] += self._state[i * RATE];
+            state[1] += self._state[i * RATE + 1];
+            state[2] += self._state[i * RATE + 2];
+            state = super::poseidon2_permutation(state);
         }
-        sponge.squeeze()
+
+        for i in 0..input_length % RATE {
+            state[i] += self._state[i];
+        }
+
+        crate::hash::poseidon2_permutation(state)[0]
     }
 
     fn write(&mut self, input: Field) {

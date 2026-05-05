@@ -22,7 +22,7 @@ use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig,
     errors::CompileError,
-    foreign_calls::DefaultForeignCallBuilder,
+    foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
     insert_all_files_for_workspace_into_file_manager,
     ops::{FuzzConfig, TestStatus, report_errors},
     package::Package,
@@ -82,7 +82,7 @@ pub(crate) struct TestCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 
     /// Number of threads used for running tests in parallel
     #[clap(long, default_value_t = rayon::current_num_threads())]
@@ -591,7 +591,7 @@ impl<'a> TestRunner<'a> {
                             };
                             let collected = self.collect_package_tests::<Bn254BlackBoxSolver>(
                                 package,
-                                self.args.oracle_resolver.as_deref(),
+                                self.args.oracle_resolver.as_ref().map(|url| url.as_str()),
                                 Some(self.workspace.root_dir.clone()),
                                 package.name.to_string(),
                             );

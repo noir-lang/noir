@@ -40,7 +40,8 @@
 //!
 //! Unresolved function calls are not handled in Steensgaard analysis.
 //! We do a conservative analysis based on the types of the function's signature.
-//! This part is quadratic in the number of arguments/results. The classic Steensgaard analysis is quasi-linear.
+//! This part is quadratic in the number of arguments/results, but run once per canonicalized signature.
+//! The classic Steensgaard analysis is quasi-linear.
 //!
 //! Supporting unresolved function calls allows us to do the analysis for a single function.
 //! Thus the analysis can be run on the whole program (recommended) or for one function in isolation.
@@ -58,6 +59,7 @@ use std::sync::Arc;
 
 use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::hash_map::Entry;
 
 use crate::ssa::{
     ir::{
@@ -258,6 +260,15 @@ impl AllocationLattice {
     }
 }
 
+/// Merge rule to apply to the bucket representatives at an
+/// `unresolved_call`. Indices reference positions in the call's
+/// canonically-ordered `Vec<Type>` / `Vec<GlobalValueId>`.
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum SignatureTemplate {
+    MergeAlias(usize, usize),
+    MergeReference(usize, usize),
+}
+
 /// AliasAnalysis stores the result of the alias analysis pass
 /// as well as transient data computed during the analysis
 #[derive(Default)]
@@ -279,6 +290,10 @@ struct AliasAnalysisContext {
 
     /// Known allocation sites
     allocation_sites: HashMap<GlobalValueId, GlobalValueId>,
+
+    /// Signature Templates: cache template rules for a canonicalized signature
+    /// represented by a vector of (distinct and ordered) Types
+    signatures: HashMap<Vec<Type>, Vec<SignatureTemplate>>,
 }
 
 impl AliasAnalysisContext {
@@ -630,13 +645,11 @@ impl AliasAnalysisContext {
     ///    extractions on either side may land in the same alias class.
     ///    Ex:   `a: [{Field, &Field}; 2]` and `b: &{Field, int}` => &T in a, and T in b (T=Field)
     ///
-    /// Note that this analysis is quadratic in the number of arguments/results
-    /// because we analyze every pair. It can be improved in several ways, but
-    /// we do not expect that many pairs. Example of possible improvements:
-    /// - Caching more of the properties computed on the types
-    ///   (`type_can_contain`, `type_contains_structurally`).
-    /// - Grouping equivalent types.
-    /// - Type interning for comparing types.
+    /// Note that this is quadratic in the number of arguments/results
+    /// because we need to analyze every pair. Instead we aggregate identical types
+    /// and sort them to get a canonical signature, and pre-compute a 'template'
+    /// only once for each signature. Only this computation per signature is quadratic in
+    /// the number of distinct reference types.
     fn unresolved_call(&mut self, function: &Function, arguments: &[ValueId], results: &[ValueId]) {
         // Collect each ref-carrying value along with its type and a cached
         // `Arc<HashSet<Type>>` of all reference types it contains. The cache
@@ -656,32 +669,86 @@ impl AliasAnalysisContext {
                 Some((v, typ, refs))
             })
             .collect();
-
-        for i in 0..entries.len() {
-            let (a, type_a, refs_a) = &entries[i];
-            for (b, type_b, refs_b) in &entries[i + 1..] {
-                if type_a == type_b {
-                    // Case 1: same type.
-                    let a_rep = GlobalValueId::new(function, *a);
-                    let b_rep = GlobalValueId::new(function, *b);
-                    self.merge_alias(a_rep, b_rep);
-                } else if Self::type_can_contain(type_a, type_b) {
-                    // Case 2: b could be an element/pointee of a.
-                    self.merge_reference(function, *b, *a);
-                } else if Self::type_can_contain(type_b, type_a) {
-                    // Case 2 (other direction): a could be an element/pointee of b.
-                    self.merge_reference(function, *a, *b);
-                } else if Self::could_have_sub_ref_aliasing(refs_a, refs_b) {
-                    // Case 3: a reference sub-type of one may reach a
-                    // structural sub-type of the other (including the case
-                    // where they simply share an inner ref type, since
-                    // `T` structurally contains `T`).
-                    let a_rep = GlobalValueId::new(function, *a);
-                    let b_rep = GlobalValueId::new(function, *b);
-                    self.merge_alias(a_rep, b_rep);
+        // Merge identical types into buckets
+        let (types, representatives) = self.type_representatives(function, entries);
+        // Retrieve, or build the template corresponding to the signature
+        let templates = self.build_signature(types);
+        // Apply the template
+        for template in templates {
+            match template {
+                SignatureTemplate::MergeAlias(a, b) => {
+                    self.merge_alias(representatives[a], representatives[b]);
+                }
+                SignatureTemplate::MergeReference(pointed, pointer) => {
+                    self.merge_reference(
+                        function,
+                        representatives[pointed].1,
+                        representatives[pointer].1,
+                    );
                 }
             }
         }
+    }
+
+    fn build_signature(&mut self, bucket: Vec<Type>) -> Vec<SignatureTemplate> {
+        let signature = self.signatures.get(&bucket);
+        if let Some(signature) = signature {
+            return signature.clone();
+        }
+        let mut templates = Vec::new();
+        for i in 0..bucket.len() {
+            let type_a = &bucket[i];
+            for (j, type_b) in bucket.iter().enumerate().skip(i + 1) {
+                if Self::type_can_contain(type_a, type_b) {
+                    // Case 2: b could be an element/pointee of a.
+                    templates.push(SignatureTemplate::MergeReference(j, i));
+                } else if Self::type_can_contain(type_b, type_a) {
+                    // Case 2 (other direction): a could be an element/pointee of b.
+                    templates.push(SignatureTemplate::MergeReference(i, j));
+                } else {
+                    let refs_a = self.get_ref_types(type_a);
+                    let refs_b = self.get_ref_types(type_b);
+                    if Self::could_have_sub_ref_aliasing(&refs_a, &refs_b) {
+                        // Case 3: a reference sub-type of one may reach a
+                        // structural sub-type of the other (including the case
+                        // where they simply share an inner ref type, since
+                        // `T` structurally contains `T`).
+                        templates.push(SignatureTemplate::MergeAlias(i, j));
+                    }
+                }
+            }
+        }
+        self.signatures.insert(bucket, templates.clone());
+        templates
+    }
+
+    /// Helper function for unresolved call which put identical types into buckets and merge their corresponding ValueId.
+    /// Returns the canonicalized signature (one 'reference' type per bucket, sorted) and its corresponding vector of bucket representatives.
+    fn type_representatives(
+        &mut self,
+        function: &Function,
+        entries: Vec<(ValueId, Type, Arc<HashSet<Type>>)>,
+    ) -> (Vec<Type>, Vec<GlobalValueId>) {
+        let mut buckets: HashMap<Type, GlobalValueId> = HashMap::default();
+
+        // An entry is either added to a new bucket or merged into the existing one.
+        for (v, typ, _) in entries {
+            let v_g = GlobalValueId::new(function, v);
+            match buckets.entry(typ) {
+                Entry::Occupied(e) => {
+                    // Case 1: same type
+                    let rep_g = *e.get();
+                    self.merge_alias(rep_g, v_g);
+                }
+                Entry::Vacant(e) => {
+                    e.insert(v_g);
+                }
+            }
+        }
+        // The buckets are sorted by type, so that we have only one signature even if the order change.
+        let mut buckets: Vec<(Type, GlobalValueId)> = buckets.into_iter().collect();
+        buckets.sort_by(|(a, _), (b, _)| a.cmp(b));
+        buckets.into_iter().unzip()
     }
 
     /// True if `outer`'s shape permit `inner` as a possible pointee / element
@@ -1945,6 +2012,93 @@ mod tests {
         assert!(analysis.is_aliased(ssa.main(), allocs[1]));
         // v2 wasn't in any call → not aliased.
         assert!(!analysis.is_aliased(ssa.main(), allocs[2]));
+    }
+
+    /// `type_representatives` collapses N entries of the same type into a single
+    /// alias class via one `merge_alias` per additional entry — no pairwise loop.
+    /// This test exercises N=4 to confirm the bucket merge reaches every entry,
+    /// not just the first pair.
+    #[test]
+    fn unresolved_call_buckets_n_same_typed_refs_into_one_class() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call oracle_a() -> &mut Field
+            v1 = call oracle_b() -> &mut Field
+            v2 = call oracle_c() -> &mut Field
+            v3 = call oracle_d() -> &mut Field
+            call print(v0, v1, v2, v3)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_results = collect_call_results_in_main(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // All four refs share one bucket → one alias class.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[2]));
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[3]));
+        assert!(analysis.may_alias(ssa.main(), call_results[1], call_results[2]));
+        assert!(analysis.may_alias(ssa.main(), call_results[2], call_results[3]));
+    }
+
+    /// One unresolved call with two same-typed inner refs and one outer composite
+    /// that can contain them. The bucket merge collapses the two inner refs;
+    /// the cross-bucket containment links the (single) bucket rep into the
+    /// outer's pointee. After extracting from the composite, the result aliases
+    /// both inner refs through the merged pointee class.
+    #[test]
+    fn unresolved_call_combines_bucket_merge_and_cross_bucket_containment() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call oracle_inner_a() -> &mut Field
+            v1 = call oracle_inner_b() -> &mut Field
+            v2 = make_array [v0] : [&mut Field; 1]
+            call print(v0, v1, v2)
+            v3 = array_get v2, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_results = collect_call_results_in_main(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // Bucket: {v0, v1} both `&mut Field`, merged via `type_representatives`.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
+        // Cross-bucket Case 2: bucket rep linked into v2's pointee. `array_get v2`
+        // extracts a value that's also v2's pointee, so v3 aliases v0 and v1.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], gets[0]));
+        assert!(analysis.may_alias(ssa.main(), call_results[1], gets[0]));
+    }
+
+    /// The signature cache is keyed on the *sorted* `Vec<Type>`, so two opaque
+    /// calls with the same set of arg types in different orderings hit the same
+    /// cache slot. Behaviorally the resulting alias merges must be identical.
+    #[test]
+    fn unresolved_call_signature_is_argument_order_invariant() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call oracle_inner_a() -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call print(v0, v1)
+            v2 = call oracle_inner_b() -> &mut Field
+            v3 = make_array [v2] : [&mut Field; 1]
+            call print(v3, v2)
+            v4 = array_get v1, index u32 0 -> &mut Field
+            v5 = array_get v3, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_results = collect_call_results_in_main(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // First call had args in order (ref, array); second in (array, ref).
+        // Both must produce the same Case-2 merge: ref becomes pointee of array.
+        assert!(analysis.may_alias(ssa.main(), call_results[0], gets[0]));
+        assert!(analysis.may_alias(ssa.main(), call_results[1], gets[1]));
     }
 
     /// Globals are compile-time constants in Noir and cannot carry references
