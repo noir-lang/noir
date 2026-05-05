@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777929335449,
+  "lastUpdate": 1777973289454,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f39ac4f5748a1ea5dc7bcb8eb5b2c2a8032a2199",
-          "message": "chore: remove Circuit::current_witness_index in a backwards-compatible way (#12400)",
-          "timestamp": "2026-04-22T22:27:23Z",
-          "tree_id": "f3cfb4b69500ade8e83d7b692b1dbd414c074fc7",
-          "url": "https://github.com/noir-lang/noir/commit/f39ac4f5748a1ea5dc7bcb8eb5b2c2a8032a2199"
-        },
-        "date": 1776898550278,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127667,
-            "range": "± 1989",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113921,
-            "range": "± 293",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3050769,
-            "range": "± 6483",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642192,
             "range": "± 4228",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a375528e813dbe0e0bc57b49ab65dfb8b58dd378",
+          "message": "fix(comptime): Handle non-constant generics `to_le_radix` (#12508)",
+          "timestamp": "2026-05-05T08:58:16Z",
+          "tree_id": "61579b3a7b6aa4f837a9d4c7a0c54eef90d289a7",
+          "url": "https://github.com/noir-lang/noir/commit/a375528e813dbe0e0bc57b49ab65dfb8b58dd378"
+        },
+        "date": 1777973231050,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168229,
+            "range": "± 353",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137087,
+            "range": "± 214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640651,
+            "range": "± 2848",
             "unit": "ns/iter"
           }
         ]
