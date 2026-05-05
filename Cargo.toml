@@ -145,7 +145,7 @@ noir_ssa_executor = { path = "tooling/ssa_executor" }
 noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
-ark-bn254 = { version = "^0.5.0", default-features = false, features = [
+ark-bn254 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
 ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
