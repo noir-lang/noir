@@ -157,11 +157,8 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     // These check reference counts, which aren't tracked in comptime code
-    "reference_counts_inliner_0",
-    "reference_counts_inliner_max",
-    "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
     // Enums are currently unsupported in comptime code
     "regression_7323",
