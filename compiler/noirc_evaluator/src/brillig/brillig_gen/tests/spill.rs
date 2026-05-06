@@ -393,3 +393,41 @@ fn brillig_spill_jmpif_condition_register_reuse() {
     );
     assert_eq!(result, vec![FieldElement::from(42u32)]);
 }
+
+/// Regression: a `JmpIf` whose then-arguments must be written into eagerly
+/// spilled successor-block param slots used to emit those spill-slot writes
+/// unconditionally. When the else branch was taken at runtime, the spill slot
+/// for the then-destination param was already overwritten with the then-arg,
+/// and any later reload from that slot returned the wrong value.
+///
+/// Here `b1` loops back to itself via a JmpIf whose then-arg is `v4 = v2 + 1`
+/// and whose else-edge falls through to `b2`. After the loop exits with v2 = 5,
+/// `b2` reloads `v2` from its spill slot. The buggy code wrote v4 = 6 into
+/// v2's spill slot before testing the condition, so the final reload produced
+/// 6 instead of 5 and the program returned 16 instead of 15.
+#[test]
+fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0)
+      b1(v2: u32):
+        v3 = lt v2, u32 5
+        v4 = unchecked_add v2, u32 1
+        jmpif v3 then: b1(v4), else: b2()
+      b2():
+        v5 = unchecked_add v2, v1
+        return v5
+    }
+    ";
+
+    let layout = LayoutConfig::new(7, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(0u32), FieldElement::from(10u32)],
+        &options,
+    );
+
+    assert_eq!(result, vec![FieldElement::from(15u32)]);
+}
