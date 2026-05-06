@@ -211,6 +211,14 @@ impl<'f> Validator<'f> {
                         "Left-hand side and right-hand side of constrain must have the same type"
                     );
                 }
+                // Constrain instructions are only defined for numeric values: aggregate
+                // equality is decomposed elementwise during SSA generation, and references
+                // / functions are never legal operands. Enforcing this here lets later
+                // passes assume that any `Value::Instruction` operand of a constrain is a
+                // numeric instruction (e.g. `MakeArray` cannot reach here).
+                if !matches!(*lhs_type, Type::Numeric(_)) {
+                    panic!("Constrain operands must be numeric, got {lhs_type}");
+                }
             }
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
@@ -1461,6 +1469,45 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u8, v1: i8):
             constrain v0 != v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_with_array_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 2], v1: [u8; 2]):
+            constrain v0 == v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_neq_with_array_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 2], v1: [u8; 2]):
+            constrain v0 != v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_with_reference_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            constrain v0 == v1
             return
         }
         ";
