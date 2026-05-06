@@ -96,6 +96,14 @@ impl ReservedRegisters {
         let start = ScratchSpace::start();
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
+
+    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// to hold a value across the load → cmov → store sequence. Disjoint from
+    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// can be reused by the inner load/store without clobbering the value.
+    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
+    }
 }
 
 /// Brillig context object that is used while constructing the
