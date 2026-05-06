@@ -200,822 +200,814 @@
 <a href=#200 id=200 data-nosnippet>200</a>                </span><span class="kw">let </span>func_meta = <span class="self">self</span>.interner.function_meta(func_id);
 <a href=#201 id=201 data-nosnippet>201</a>                <span class="kw">let </span>impl_generic_count =
 <a href=#202 id=202 data-nosnippet>202</a>                    func_meta.all_generics.len() - func_meta.direct_generics.len();
-<a href=#203 id=203 data-nosnippet>203</a>                <span class="kw">let </span>impl_generics = <span class="kw-2">&amp;</span>func_meta.all_generics[..impl_generic_count];
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a>                <span class="comment">// For partially concrete impls (e.g. `impl&lt;B&gt; S&lt;u32, B&gt;`), the number of
-<a href=#206 id=206 data-nosnippet>206</a>                // impl generics differs from the number of struct generics. The turbofish
-<a href=#207 id=207 data-nosnippet>207</a>                // `S::&lt;u32, bool&gt;` provides type_generics aligned with the struct's params
-<a href=#208 id=208 data-nosnippet>208</a>                // [A, B], not the impl's generics [B]. Use the impl's self_type to find
-<a href=#209 id=209 data-nosnippet>209</a>                // the correct positional mapping from struct params to impl generics.
-<a href=#210 id=210 data-nosnippet>210</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(<span class="kw">_</span>, self_type_args)) = <span class="kw-2">&amp;</span>func_meta.self_type {
-<a href=#211 id=211 data-nosnippet>211</a>                    <span class="macro">assert_eq!</span>(
-<a href=#212 id=212 data-nosnippet>212</a>                        type_generics.len(),
-<a href=#213 id=213 data-nosnippet>213</a>                        self_type_args.len(),
-<a href=#214 id=214 data-nosnippet>214</a>                        <span class="string">"ICE: turbofish type_generics count ({}) should match self_type_args count ({})"</span>,
-<a href=#215 id=215 data-nosnippet>215</a>                        type_generics.len(),
-<a href=#216 id=216 data-nosnippet>216</a>                        self_type_args.len(),
-<a href=#217 id=217 data-nosnippet>217</a>                    );
-<a href=#218 id=218 data-nosnippet>218</a>                    <span class="kw">let </span><span class="kw-2">mut </span>concrete_mismatches = Vec::new();
-<a href=#219 id=219 data-nosnippet>219</a>                    <span class="kw">for </span>(type_generic, self_type_arg) <span class="kw">in
-<a href=#220 id=220 data-nosnippet>220</a>                        </span>type_generics.into_iter().zip_eq(self_type_args)
-<a href=#221 id=221 data-nosnippet>221</a>                    {
-<a href=#222 id=222 data-nosnippet>222</a>                        <span class="kw">let </span>type_var = <span class="kw">match </span>self_type_arg {
-<a href=#223 id=223 data-nosnippet>223</a>                            Type::NamedGeneric(named) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>named.type_var),
-<a href=#224 id=224 data-nosnippet>224</a>                            Type::TypeVariable(tv) =&gt; <span class="prelude-val">Some</span>(tv),
-<a href=#225 id=225 data-nosnippet>225</a>                            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#226 id=226 data-nosnippet>226</a>                        };
-<a href=#227 id=227 data-nosnippet>227</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(type_var) = type_var {
-<a href=#228 id=228 data-nosnippet>228</a>                            <span class="kw">if </span>impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
-<a href=#229 id=229 data-nosnippet>229</a>                                bindings.insert(
-<a href=#230 id=230 data-nosnippet>230</a>                                    type_var.id(),
-<a href=#231 id=231 data-nosnippet>231</a>                                    (type_var.clone(), type_var.kind(), type_generic),
-<a href=#232 id=232 data-nosnippet>232</a>                                );
-<a href=#233 id=233 data-nosnippet>233</a>                            }
-<a href=#234 id=234 data-nosnippet>234</a>                        } <span class="kw">else </span>{
-<a href=#235 id=235 data-nosnippet>235</a>                            <span class="comment">// Concrete position: collect for verification after releasing borrow
-<a href=#236 id=236 data-nosnippet>236</a>                            </span>concrete_mismatches.push((type_generic, self_type_arg.clone()));
-<a href=#237 id=237 data-nosnippet>237</a>                        }
-<a href=#238 id=238 data-nosnippet>238</a>                    }
-<a href=#239 id=239 data-nosnippet>239</a>                    <span class="comment">// Verify turbofish types match the impl's concrete types
-<a href=#240 id=240 data-nosnippet>240</a>                    </span><span class="kw">for </span>(turbofish_type, concrete_type) <span class="kw">in </span>concrete_mismatches {
-<a href=#241 id=241 data-nosnippet>241</a>                        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>turbofish_type, <span class="kw-2">&amp;</span>concrete_type, location);
-<a href=#242 id=242 data-nosnippet>242</a>                    }
-<a href=#243 id=243 data-nosnippet>243</a>                } <span class="kw">else if </span>type_generics.len() &lt;= impl_generics.len() {
-<a href=#244 id=244 data-nosnippet>244</a>                    <span class="comment">// For trait function paths, impl_generics may include Self and associated
-<a href=#245 id=245 data-nosnippet>245</a>                    // type generics after the trait's declared generics. The turbofish only
-<a href=#246 id=246 data-nosnippet>246</a>                    // provides types for the declared generics, which are always the first
-<a href=#247 id=247 data-nosnippet>247</a>                    // elements. Slice to match.
-<a href=#248 id=248 data-nosnippet>248</a>                    </span><span class="kw">let </span>impl_generics = <span class="kw-2">&amp;</span>impl_generics[..type_generics.len()];
-<a href=#249 id=249 data-nosnippet>249</a>                    <span class="kw">for </span>(type_generic, func_generic) <span class="kw">in
-<a href=#250 id=250 data-nosnippet>250</a>                        </span>type_generics.into_iter().zip_eq(impl_generics)
-<a href=#251 id=251 data-nosnippet>251</a>                    {
-<a href=#252 id=252 data-nosnippet>252</a>                        <span class="kw">let </span>type_var = <span class="kw-2">&amp;</span>func_generic.type_var;
-<a href=#253 id=253 data-nosnippet>253</a>                        bindings.insert(
-<a href=#254 id=254 data-nosnippet>254</a>                            type_var.id(),
-<a href=#255 id=255 data-nosnippet>255</a>                            (type_var.clone(), type_var.kind(), type_generic),
-<a href=#256 id=256 data-nosnippet>256</a>                        );
-<a href=#257 id=257 data-nosnippet>257</a>                    }
-<a href=#258 id=258 data-nosnippet>258</a>                } <span class="kw">else </span>{
-<a href=#259 id=259 data-nosnippet>259</a>                    <span class="macro">unreachable!</span>(
-<a href=#260 id=260 data-nosnippet>260</a>                        <span class="string">"type_generics.len() ({}) &gt; impl_generics.len() ({}): \
-<a href=#261 id=261 data-nosnippet>261</a>                        turbofish resolution should normalize the count"</span>,
-<a href=#262 id=262 data-nosnippet>262</a>                        type_generics.len(),
-<a href=#263 id=263 data-nosnippet>263</a>                        impl_generics.len()
-<a href=#264 id=264 data-nosnippet>264</a>                    );
-<a href=#265 id=265 data-nosnippet>265</a>                }
-<a href=#266 id=266 data-nosnippet>266</a>            }
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>            <span class="comment">// Resolve any generics if the variable we have resolved is a function
-<a href=#269 id=269 data-nosnippet>269</a>            // and if the turbofish operator was used.
-<a href=#270 id=270 data-nosnippet>270</a>            </span><span class="self">self</span>.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
-<a href=#271 id=271 data-nosnippet>271</a>        } <span class="kw">else </span>{
-<a href=#272 id=272 data-nosnippet>272</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(unused_resolved_turbofish) = resolved_turbofish {
-<a href=#273 id=273 data-nosnippet>273</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(
-<a href=#274 id=274 data-nosnippet>274</a>                    <span class="string">"elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
-<a href=#275 id=275 data-nosnippet>275</a>                </span>);
-<a href=#276 id=276 data-nosnippet>276</a>                <span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(message, location));
-<a href=#277 id=277 data-nosnippet>277</a>            }
-<a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a>            <span class="prelude-val">None
-<a href=#280 id=280 data-nosnippet>280</a>        </span>};
-<a href=#281 id=281 data-nosnippet>281</a>
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">let </span>(id, typ) = <span class="kw">if let </span><span class="prelude-val">Some</span>(hir_ident) = hir_ident {
-<a href=#283 id=283 data-nosnippet>283</a>            <span class="kw">let </span>id = <span class="self">self
-<a href=#284 id=284 data-nosnippet>284</a>                </span>.intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a>            <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#287 id=287 data-nosnippet>287</a>            </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#289 id=289 data-nosnippet>289</a>                hir_ident,
-<a href=#290 id=290 data-nosnippet>290</a>                <span class="kw-2">&amp;</span>id,
-<a href=#291 id=291 data-nosnippet>291</a>                generics,
-<a href=#292 id=292 data-nosnippet>292</a>                bindings,
-<a href=#293 id=293 data-nosnippet>293</a>                push_required_type_variables,
-<a href=#294 id=294 data-nosnippet>294</a>            );
-<a href=#295 id=295 data-nosnippet>295</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#296 id=296 data-nosnippet>296</a>            (id, typ)
-<a href=#297 id=297 data-nosnippet>297</a>        } <span class="kw">else </span>{
-<a href=#298 id=298 data-nosnippet>298</a>            <span class="kw">let </span>expr = HirExpression::Error;
-<a href=#299 id=299 data-nosnippet>299</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(expr, location);
-<a href=#300 id=300 data-nosnippet>300</a>            <span class="kw">let </span>typ = Type::Error;
-<a href=#301 id=301 data-nosnippet>301</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#302 id=302 data-nosnippet>302</a>            (id, typ)
-<a href=#303 id=303 data-nosnippet>303</a>        };
-<a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>        (id, typ, is_comptime_local, location)
-<a href=#306 id=306 data-nosnippet>306</a>    }
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>    <span class="doccomment">/// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
-<a href=#309 id=309 data-nosnippet>309</a>    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
-<a href=#310 id=310 data-nosnippet>310</a>    /// resolves to a primitive type.
-<a href=#311 id=311 data-nosnippet>311</a>    ///
-<a href=#312 id=312 data-nosnippet>312</a>    /// In the first case we elaborate this as if it were a [TypePath]
-<a href=#313 id=313 data-nosnippet>313</a>    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-<a href=#314 id=314 data-nosnippet>314</a>    /// A regular path lookup won't work here for the same reason [TypePath] exists.
-<a href=#315 id=315 data-nosnippet>315</a>    ///
-<a href=#316 id=316 data-nosnippet>316</a>    /// In the second case we solve the associated constant by looking up its value, later
-<a href=#317 id=317 data-nosnippet>317</a>    /// turning it into a literal.
-<a href=#318 id=318 data-nosnippet>318</a>    ///
-<a href=#319 id=319 data-nosnippet>319</a>    /// In the third case, we resolve the associated type first, then elaborate the method
-<a href=#320 id=320 data-nosnippet>320</a>    /// call on that resolved type.
-<a href=#321 id=321 data-nosnippet>321</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#322 id=322 data-nosnippet>322</a>    </span><span class="kw">fn </span>elaborate_variable_as_self_method_or_associated_constant(
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#324 id=324 data-nosnippet>324</a>        variable: <span class="kw-2">&amp;</span>TypedPath,
-<a href=#325 id=325 data-nosnippet>325</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(ExprId, Type)&gt; {
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="comment">// We need at least 2 segments and the first must be `Self`
-<a href=#327 id=327 data-nosnippet>327</a>        </span><span class="kw">if </span>variable.segments.len() &lt; <span class="number">2 </span>|| !variable.segments[<span class="number">0</span>].ident.is_self_type_name() {
-<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#329 id=329 data-nosnippet>329</a>        }
-<a href=#330 id=330 data-nosnippet>330</a>
-<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">let </span>location = variable.location;
-<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">let </span>name = variable.segments[<span class="number">1</span>].ident.as_str();
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">let </span>self_type = <span class="self">self</span>.self_type.as_ref()<span class="question-mark">?</span>;
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>trait_impl_id = <span class="kw-2">&amp;</span><span class="self">self</span>.current_trait_impl<span class="question-mark">?</span>;
-<a href=#335 id=335 data-nosnippet>335</a>
-<a href=#336 id=336 data-nosnippet>336</a>        <span class="comment">// Check for `Self::AssociatedType::method_name` (exactly 3 segments).
-<a href=#337 id=337 data-nosnippet>337</a>        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
-<a href=#338 id=338 data-nosnippet>338</a>        // resolve to concrete types and you cannot chain further path segments after a method name.
-<a href=#339 id=339 data-nosnippet>339</a>        </span><span class="kw">if </span>variable.segments.len() == <span class="number">3 </span>{
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="comment">// Try to resolve the second segment as an associated type
-<a href=#341 id=341 data-nosnippet>341</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(assoc_type) =
-<a href=#342 id=342 data-nosnippet>342</a>                <span class="self">self</span>.interner.find_associated_type_for_impl(<span class="kw-2">*</span>trait_impl_id, name).cloned()
-<a href=#343 id=343 data-nosnippet>343</a>            {
-<a href=#344 id=344 data-nosnippet>344</a>                <span class="kw">let </span>method_ident = variable.segments[<span class="number">2</span>].ident.clone();
-<a href=#345 id=345 data-nosnippet>345</a>                <span class="kw">let </span>typ_location = variable.segments[<span class="number">1</span>].location;
-<a href=#346 id=346 data-nosnippet>346</a>                <span class="comment">// Extract already-resolved turbofish generics from the path segment
-<a href=#347 id=347 data-nosnippet>347</a>                </span><span class="kw">let </span>resolved_generics = variable.segments[<span class="number">2</span>].generics.as_ref().map(|generics| {
-<a href=#348 id=348 data-nosnippet>348</a>                    generics.iter().map(|located| located.contents.clone()).collect()
-<a href=#349 id=349 data-nosnippet>349</a>                });
-<a href=#350 id=350 data-nosnippet>350</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl_with_resolved_generics(
-<a href=#351 id=351 data-nosnippet>351</a>                    assoc_type,
-<a href=#352 id=352 data-nosnippet>352</a>                    method_ident,
-<a href=#353 id=353 data-nosnippet>353</a>                    resolved_generics,
-<a href=#354 id=354 data-nosnippet>354</a>                    typ_location,
-<a href=#355 id=355 data-nosnippet>355</a>                ));
-<a href=#356 id=356 data-nosnippet>356</a>            }
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="comment">// If it's not an associated type, fall through to let regular path resolution handle it
-<a href=#358 id=358 data-nosnippet>358</a>            </span><span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#359 id=359 data-nosnippet>359</a>        }
-<a href=#360 id=360 data-nosnippet>360</a>
-<a href=#361 id=361 data-nosnippet>361</a>        <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
-<a href=#362 id=362 data-nosnippet>362</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((definition_id, numeric_type)) =
-<a href=#363 id=363 data-nosnippet>363</a>            <span class="self">self</span>.interner.get_trait_impl_associated_constant(<span class="kw-2">*</span>trait_impl_id, name).cloned()
-<a href=#364 id=364 data-nosnippet>364</a>        {
-<a href=#365 id=365 data-nosnippet>365</a>            <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(definition_id, location);
-<a href=#366 id=366 data-nosnippet>366</a>            <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident, <span class="prelude-val">None</span>);
-<a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">return </span><span class="prelude-val">Some</span>((id, numeric_type));
-<a href=#369 id=369 data-nosnippet>369</a>        }
-<a href=#370 id=370 data-nosnippet>370</a>
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="comment">// Check if the constant exists in the trait definition (even if impl is missing it).
-<a href=#372 id=372 data-nosnippet>372</a>        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
-<a href=#373 id=373 data-nosnippet>373</a>        // since the "missing associated constant" error is reported elsewhere.
-<a href=#374 id=374 data-nosnippet>374</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_impl) = <span class="self">self</span>.interner.try_get_trait_implementation(<span class="kw-2">*</span>trait_impl_id) {
-<a href=#375 id=375 data-nosnippet>375</a>            <span class="kw">let </span>trait_id = trait_impl.borrow().trait_id;
-<a href=#376 id=376 data-nosnippet>376</a>            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#377 id=377 data-nosnippet>377</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(definition_id) = trait_.associated_constant_ids.get(name).copied() {
-<a href=#378 id=378 data-nosnippet>378</a>                <span class="kw">let </span>numeric_type = <span class="self">self</span>.interner.definition_type(definition_id);
-<a href=#379 id=379 data-nosnippet>379</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(definition_id, location);
-<a href=#380 id=380 data-nosnippet>380</a>                <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident, <span class="prelude-val">None</span>);
-<a href=#381 id=381 data-nosnippet>381</a>                <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">return </span><span class="prelude-val">Some</span>((id, numeric_type));
-<a href=#383 id=383 data-nosnippet>383</a>            }
-<a href=#384 id=384 data-nosnippet>384</a>        }
-<a href=#385 id=385 data-nosnippet>385</a>
-<a href=#386 id=386 data-nosnippet>386</a>        <span class="comment">// Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
-<a href=#387 id=387 data-nosnippet>387</a>        </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(Type::DataType(..))) {
-<a href=#388 id=388 data-nosnippet>388</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#389 id=389 data-nosnippet>389</a>        }
-<a href=#390 id=390 data-nosnippet>390</a>
-<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">let </span>ident = variable.segments[<span class="number">1</span>].ident.clone();
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span>typ_location = variable.segments[<span class="number">0</span>].location;
-<a href=#393 id=393 data-nosnippet>393</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location))
-<a href=#394 id=394 data-nosnippet>394</a>    }
-<a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
-<a href=#397 id=397 data-nosnippet>397</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;VariableResolution&gt; {
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_path_resolution) = <span class="self">self</span>.resolve_trait_generic_path(<span class="kw-2">&amp;</span>path) {
-<a href=#400 id=400 data-nosnippet>400</a>            <span class="self">self</span>.push_errors(trait_path_resolution.errors);
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">return match </span>trait_path_resolution.method {
-<a href=#403 id=403 data-nosnippet>403</a>                TraitPathResolutionMethod::NotATraitMethod(func_id) =&gt; {
-<a href=#404 id=404 data-nosnippet>404</a>                    <span class="kw">let </span>ident = HirIdent {
-<a href=#405 id=405 data-nosnippet>405</a>                        location: path.location,
-<a href=#406 id=406 data-nosnippet>406</a>                        id: <span class="self">self</span>.interner.function_definition_id(func_id),
-<a href=#407 id=407 data-nosnippet>407</a>                        impl_kind: ImplKind::NotATraitMethod,
-<a href=#408 id=408 data-nosnippet>408</a>                    };
-<a href=#409 id=409 data-nosnippet>409</a>                    <span class="prelude-val">Some</span>(VariableResolution::Ident(ident, trait_path_resolution.item))
-<a href=#410 id=410 data-nosnippet>410</a>                }
-<a href=#411 id=411 data-nosnippet>411</a>
-<a href=#412 id=412 data-nosnippet>412</a>                TraitPathResolutionMethod::TraitItem(item) =&gt; {
-<a href=#413 id=413 data-nosnippet>413</a>                    <span class="kw">let </span>ident = HirIdent {
-<a href=#414 id=414 data-nosnippet>414</a>                        location: path.location,
-<a href=#415 id=415 data-nosnippet>415</a>                        id: item.definition,
-<a href=#416 id=416 data-nosnippet>416</a>                        impl_kind: ImplKind::TraitItem(item),
-<a href=#417 id=417 data-nosnippet>417</a>                    };
-<a href=#418 id=418 data-nosnippet>418</a>                    <span class="prelude-val">Some</span>(VariableResolution::Ident(ident, trait_path_resolution.item))
-<a href=#419 id=419 data-nosnippet>419</a>                }
-<a href=#420 id=420 data-nosnippet>420</a>
-<a href=#421 id=421 data-nosnippet>421</a>                TraitPathResolutionMethod::MultipleTraitsInScope =&gt; {
-<a href=#422 id=422 data-nosnippet>422</a>                    <span class="comment">// An error has already been pushed, don't return an identifier
-<a href=#423 id=423 data-nosnippet>423</a>                    </span><span class="prelude-val">None
-<a href=#424 id=424 data-nosnippet>424</a>                </span>}
-<a href=#425 id=425 data-nosnippet>425</a>            };
-<a href=#426 id=426 data-nosnippet>426</a>        }
-<a href=#427 id=427 data-nosnippet>427</a>
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="comment">// The location of variables or definitions we register (for LSP) must be that of the
-<a href=#429 id=429 data-nosnippet>429</a>        // path's last segment, as intermediate segments solve to other definitions.
-<a href=#430 id=430 data-nosnippet>430</a>        </span><span class="kw">let </span>location = path.last_ident().location();
-<a href=#431 id=431 data-nosnippet>431</a>
-<a href=#432 id=432 data-nosnippet>432</a>        <span class="comment">// If the Path is being used as an Expression, then it is referring to a global from a separate module
-<a href=#433 id=433 data-nosnippet>433</a>        // Otherwise, then it is referring to an Identifier
-<a href=#434 id=434 data-nosnippet>434</a>        // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
-<a href=#435 id=435 data-nosnippet>435</a>        // If the expression is a singular indent, we search the resolver's current scope as normal.
-<a href=#436 id=436 data-nosnippet>436</a>        </span><span class="kw">let </span>ident_from_path = <span class="self">self</span>.get_ident_from_path(path);
-<a href=#437 id=437 data-nosnippet>437</a>        ident_from_path.map(|ident_from_path| <span class="kw">match </span>ident_from_path {
-<a href=#438 id=438 data-nosnippet>438</a>            IdentFromPath::Variable(variable) =&gt; {
-<a href=#439 id=439 data-nosnippet>439</a>                <span class="self">self</span>.handle_local_variable(<span class="kw-2">&amp;</span>variable);
-<a href=#440 id=440 data-nosnippet>440</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
-<a href=#441 id=441 data-nosnippet>441</a>                VariableResolution::Ident(hir_ident, <span class="prelude-val">None</span>)
-<a href=#442 id=442 data-nosnippet>442</a>            }
-<a href=#443 id=443 data-nosnippet>443</a>            IdentFromPath::Definition { id, item } =&gt; {
-<a href=#444 id=444 data-nosnippet>444</a>                <span class="self">self</span>.handle_definition_id(id, location);
-<a href=#445 id=445 data-nosnippet>445</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(id, location);
-<a href=#446 id=446 data-nosnippet>446</a>                VariableResolution::Ident(hir_ident, <span class="prelude-val">Some</span>(item))
-<a href=#447 id=447 data-nosnippet>447</a>            }
-<a href=#448 id=448 data-nosnippet>448</a>            IdentFromPath::TypeAlias(type_alias_id) =&gt; VariableResolution::TypeAlias(type_alias_id),
-<a href=#449 id=449 data-nosnippet>449</a>        })
-<a href=#450 id=450 data-nosnippet>450</a>    }
-<a href=#451 id=451 data-nosnippet>451</a>
-<a href=#452 id=452 data-nosnippet>452</a>    <span class="doccomment">/// Solve any generics that are part of the path before the function, for example:
-<a href=#453 id=453 data-nosnippet>453</a>    ///
-<a href=#454 id=454 data-nosnippet>454</a>    /// ```noir
-<a href=#455 id=455 data-nosnippet>455</a>    /// foo::Bar::&lt;i32&gt;::baz
-<a href=#456 id=456 data-nosnippet>456</a>    /// ```
-<a href=#457 id=457 data-nosnippet>457</a>    /// Solve `&lt;i32&gt;` above
-<a href=#458 id=458 data-nosnippet>458</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#459 id=459 data-nosnippet>459</a>    </span><span class="kw">fn </span>resolve_item_turbofish_and_self_type(
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#461 id=461 data-nosnippet>461</a>        item: PathResolutionItem,
-<a href=#462 id=462 data-nosnippet>462</a>    ) -&gt; (Vec&lt;Type&gt;, <span class="prelude-ty">Option</span>&lt;Type&gt;) {
-<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="kw">let </span>result = <span class="kw">match </span>item {
-<a href=#465 id=465 data-nosnippet>465</a>            PathResolutionItem::Method(struct_id, <span class="prelude-val">Some</span>(generics), _func_id) =&gt; {
-<a href=#466 id=466 data-nosnippet>466</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_struct_id_turbofish_generics(
-<a href=#467 id=467 data-nosnippet>467</a>                    struct_id,
-<a href=#468 id=468 data-nosnippet>468</a>                    <span class="prelude-val">Some</span>(generics),
-<a href=#469 id=469 data-nosnippet>469</a>                    <span class="kw-2">&amp;mut </span>errors,
-<a href=#470 id=470 data-nosnippet>470</a>                );
+<a href=#203 id=203 data-nosnippet>203</a>                <span class="kw">let </span>impl_generics =
+<a href=#204 id=204 data-nosnippet>204</a>                    vecmap(<span class="kw-2">&amp;</span>func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+<a href=#205 id=205 data-nosnippet>205</a>                <span class="kw">let </span>self_type = func_meta.self_type.clone();
+<a href=#206 id=206 data-nosnippet>206</a>
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="comment">// For partially concrete impls (e.g. `impl&lt;B&gt; S&lt;u32, B&gt;`), the number of
+<a href=#208 id=208 data-nosnippet>208</a>                // impl generics differs from the number of struct generics. The turbofish
+<a href=#209 id=209 data-nosnippet>209</a>                // `S::&lt;u32, bool&gt;` provides type_generics aligned with the struct's params
+<a href=#210 id=210 data-nosnippet>210</a>                // [A, B], not the impl's generics [B]. Replace each impl generic in
+<a href=#211 id=211 data-nosnippet>211</a>                // `self_type`'s args with a fresh type variable and unify those with the
+<a href=#212 id=212 data-nosnippet>212</a>                // turbofish-provided type generics. The fresh type variables get bound by
+<a href=#213 id=213 data-nosnippet>213</a>                // unification, and we record those bindings for the impl generics.
+<a href=#214 id=214 data-nosnippet>214</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(<span class="kw">_</span>, self_type_args)) = self_type {
+<a href=#215 id=215 data-nosnippet>215</a>                    <span class="macro">assert_eq!</span>(
+<a href=#216 id=216 data-nosnippet>216</a>                        type_generics.len(),
+<a href=#217 id=217 data-nosnippet>217</a>                        self_type_args.len(),
+<a href=#218 id=218 data-nosnippet>218</a>                        <span class="string">"ICE: turbofish type_generics count ({}) should match self_type_args count ({})"</span>,
+<a href=#219 id=219 data-nosnippet>219</a>                        type_generics.len(),
+<a href=#220 id=220 data-nosnippet>220</a>                        self_type_args.len(),
+<a href=#221 id=221 data-nosnippet>221</a>                    );
+<a href=#222 id=222 data-nosnippet>222</a>                    <span class="kw">let </span>impl_replacements: TypeBindings = impl_generics
+<a href=#223 id=223 data-nosnippet>223</a>                        .iter()
+<a href=#224 id=224 data-nosnippet>224</a>                        .map(|type_var| {
+<a href=#225 id=225 data-nosnippet>225</a>                            <span class="kw">let </span>kind = type_var.kind();
+<a href=#226 id=226 data-nosnippet>226</a>                            <span class="kw">let </span>fresh = <span class="self">self</span>.interner.next_type_variable_with_kind(kind.clone());
+<a href=#227 id=227 data-nosnippet>227</a>                            (type_var.id(), (type_var.clone(), kind, fresh))
+<a href=#228 id=228 data-nosnippet>228</a>                        })
+<a href=#229 id=229 data-nosnippet>229</a>                        .collect();
+<a href=#230 id=230 data-nosnippet>230</a>                    <span class="kw">for </span>(type_generic, self_type_arg) <span class="kw">in
+<a href=#231 id=231 data-nosnippet>231</a>                        </span>type_generics.into_iter().zip_eq(self_type_args)
+<a href=#232 id=232 data-nosnippet>232</a>                    {
+<a href=#233 id=233 data-nosnippet>233</a>                        <span class="kw">let </span>substituted = self_type_arg.substitute(<span class="kw-2">&amp;</span>impl_replacements);
+<a href=#234 id=234 data-nosnippet>234</a>                        <span class="self">self</span>.unify_or_type_mismatch(<span class="kw-2">&amp;</span>type_generic, <span class="kw-2">&amp;</span>substituted, location);
+<a href=#235 id=235 data-nosnippet>235</a>                    }
+<a href=#236 id=236 data-nosnippet>236</a>                    bindings.extend(impl_replacements);
+<a href=#237 id=237 data-nosnippet>237</a>                } <span class="kw">else if </span>type_generics.len() &lt;= impl_generics.len() {
+<a href=#238 id=238 data-nosnippet>238</a>                    <span class="comment">// For trait function paths, impl_generics may include Self and associated
+<a href=#239 id=239 data-nosnippet>239</a>                    // type generics after the trait's declared generics. The turbofish only
+<a href=#240 id=240 data-nosnippet>240</a>                    // provides types for the declared generics, which are always the first
+<a href=#241 id=241 data-nosnippet>241</a>                    // elements. Slice to match.
+<a href=#242 id=242 data-nosnippet>242</a>                    </span><span class="kw">let </span>impl_generics = <span class="kw-2">&amp;</span>impl_generics[..type_generics.len()];
+<a href=#243 id=243 data-nosnippet>243</a>                    <span class="kw">for </span>(type_generic, type_var) <span class="kw">in </span>type_generics.into_iter().zip_eq(impl_generics)
+<a href=#244 id=244 data-nosnippet>244</a>                    {
+<a href=#245 id=245 data-nosnippet>245</a>                        bindings.insert(
+<a href=#246 id=246 data-nosnippet>246</a>                            type_var.id(),
+<a href=#247 id=247 data-nosnippet>247</a>                            (type_var.clone(), type_var.kind(), type_generic),
+<a href=#248 id=248 data-nosnippet>248</a>                        );
+<a href=#249 id=249 data-nosnippet>249</a>                    }
+<a href=#250 id=250 data-nosnippet>250</a>                } <span class="kw">else </span>{
+<a href=#251 id=251 data-nosnippet>251</a>                    <span class="macro">unreachable!</span>(
+<a href=#252 id=252 data-nosnippet>252</a>                        <span class="string">"type_generics.len() ({}) &gt; impl_generics.len() ({}): \
+<a href=#253 id=253 data-nosnippet>253</a>                        turbofish resolution should normalize the count"</span>,
+<a href=#254 id=254 data-nosnippet>254</a>                        type_generics.len(),
+<a href=#255 id=255 data-nosnippet>255</a>                        impl_generics.len()
+<a href=#256 id=256 data-nosnippet>256</a>                    );
+<a href=#257 id=257 data-nosnippet>257</a>                }
+<a href=#258 id=258 data-nosnippet>258</a>            }
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="comment">// Resolve any generics if the variable we have resolved is a function
+<a href=#261 id=261 data-nosnippet>261</a>            // and if the turbofish operator was used.
+<a href=#262 id=262 data-nosnippet>262</a>            </span><span class="self">self</span>.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+<a href=#263 id=263 data-nosnippet>263</a>        } <span class="kw">else </span>{
+<a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(unused_resolved_turbofish) = resolved_turbofish {
+<a href=#265 id=265 data-nosnippet>265</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(
+<a href=#266 id=266 data-nosnippet>266</a>                    <span class="string">"elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
+<a href=#267 id=267 data-nosnippet>267</a>                </span>);
+<a href=#268 id=268 data-nosnippet>268</a>                <span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(message, location));
+<a href=#269 id=269 data-nosnippet>269</a>            }
+<a href=#270 id=270 data-nosnippet>270</a>
+<a href=#271 id=271 data-nosnippet>271</a>            <span class="prelude-val">None
+<a href=#272 id=272 data-nosnippet>272</a>        </span>};
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span>(id, typ) = <span class="kw">if let </span><span class="prelude-val">Some</span>(hir_ident) = hir_ident {
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">let </span>id = <span class="self">self
+<a href=#276 id=276 data-nosnippet>276</a>                </span>.intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
+<a href=#277 id=277 data-nosnippet>277</a>
+<a href=#278 id=278 data-nosnippet>278</a>            <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+<a href=#279 id=279 data-nosnippet>279</a>            </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
+<a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
+<a href=#281 id=281 data-nosnippet>281</a>                hir_ident,
+<a href=#282 id=282 data-nosnippet>282</a>                <span class="kw-2">&amp;</span>id,
+<a href=#283 id=283 data-nosnippet>283</a>                generics,
+<a href=#284 id=284 data-nosnippet>284</a>                bindings,
+<a href=#285 id=285 data-nosnippet>285</a>                push_required_type_variables,
+<a href=#286 id=286 data-nosnippet>286</a>            );
+<a href=#287 id=287 data-nosnippet>287</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#288 id=288 data-nosnippet>288</a>            (id, typ)
+<a href=#289 id=289 data-nosnippet>289</a>        } <span class="kw">else </span>{
+<a href=#290 id=290 data-nosnippet>290</a>            <span class="kw">let </span>expr = HirExpression::Error;
+<a href=#291 id=291 data-nosnippet>291</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr(expr, location);
+<a href=#292 id=292 data-nosnippet>292</a>            <span class="kw">let </span>typ = Type::Error;
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#294 id=294 data-nosnippet>294</a>            (id, typ)
+<a href=#295 id=295 data-nosnippet>295</a>        };
+<a href=#296 id=296 data-nosnippet>296</a>
+<a href=#297 id=297 data-nosnippet>297</a>        (id, typ, is_comptime_local, location)
+<a href=#298 id=298 data-nosnippet>298</a>    }
+<a href=#299 id=299 data-nosnippet>299</a>
+<a href=#300 id=300 data-nosnippet>300</a>    <span class="doccomment">/// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
+<a href=#301 id=301 data-nosnippet>301</a>    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
+<a href=#302 id=302 data-nosnippet>302</a>    /// resolves to a primitive type.
+<a href=#303 id=303 data-nosnippet>303</a>    ///
+<a href=#304 id=304 data-nosnippet>304</a>    /// In the first case we elaborate this as if it were a [TypePath]
+<a href=#305 id=305 data-nosnippet>305</a>    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
+<a href=#306 id=306 data-nosnippet>306</a>    /// A regular path lookup won't work here for the same reason [TypePath] exists.
+<a href=#307 id=307 data-nosnippet>307</a>    ///
+<a href=#308 id=308 data-nosnippet>308</a>    /// In the second case we solve the associated constant by looking up its value, later
+<a href=#309 id=309 data-nosnippet>309</a>    /// turning it into a literal.
+<a href=#310 id=310 data-nosnippet>310</a>    ///
+<a href=#311 id=311 data-nosnippet>311</a>    /// In the third case, we resolve the associated type first, then elaborate the method
+<a href=#312 id=312 data-nosnippet>312</a>    /// call on that resolved type.
+<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#314 id=314 data-nosnippet>314</a>    </span><span class="kw">fn </span>elaborate_variable_as_self_method_or_associated_constant(
+<a href=#315 id=315 data-nosnippet>315</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#316 id=316 data-nosnippet>316</a>        variable: <span class="kw-2">&amp;</span>TypedPath,
+<a href=#317 id=317 data-nosnippet>317</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(ExprId, Type)&gt; {
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="comment">// We need at least 2 segments and the first must be `Self`
+<a href=#319 id=319 data-nosnippet>319</a>        </span><span class="kw">if </span>variable.segments.len() &lt; <span class="number">2 </span>|| !variable.segments[<span class="number">0</span>].ident.is_self_type_name() {
+<a href=#320 id=320 data-nosnippet>320</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#321 id=321 data-nosnippet>321</a>        }
+<a href=#322 id=322 data-nosnippet>322</a>
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">let </span>location = variable.location;
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">let </span>name = variable.segments[<span class="number">1</span>].ident.as_str();
+<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span>self_type = <span class="self">self</span>.self_type.as_ref()<span class="question-mark">?</span>;
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>trait_impl_id = <span class="kw-2">&amp;</span><span class="self">self</span>.current_trait_impl<span class="question-mark">?</span>;
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="comment">// Check for `Self::AssociatedType::method_name` (exactly 3 segments).
+<a href=#329 id=329 data-nosnippet>329</a>        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
+<a href=#330 id=330 data-nosnippet>330</a>        // resolve to concrete types and you cannot chain further path segments after a method name.
+<a href=#331 id=331 data-nosnippet>331</a>        </span><span class="kw">if </span>variable.segments.len() == <span class="number">3 </span>{
+<a href=#332 id=332 data-nosnippet>332</a>            <span class="comment">// Try to resolve the second segment as an associated type
+<a href=#333 id=333 data-nosnippet>333</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(assoc_type) =
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="self">self</span>.interner.find_associated_type_for_impl(<span class="kw-2">*</span>trait_impl_id, name).cloned()
+<a href=#335 id=335 data-nosnippet>335</a>            {
+<a href=#336 id=336 data-nosnippet>336</a>                <span class="kw">let </span>method_ident = variable.segments[<span class="number">2</span>].ident.clone();
+<a href=#337 id=337 data-nosnippet>337</a>                <span class="kw">let </span>typ_location = variable.segments[<span class="number">1</span>].location;
+<a href=#338 id=338 data-nosnippet>338</a>                <span class="comment">// Extract already-resolved turbofish generics from the path segment
+<a href=#339 id=339 data-nosnippet>339</a>                </span><span class="kw">let </span>resolved_generics = variable.segments[<span class="number">2</span>].generics.as_ref().map(|generics| {
+<a href=#340 id=340 data-nosnippet>340</a>                    generics.iter().map(|located| located.contents.clone()).collect()
+<a href=#341 id=341 data-nosnippet>341</a>                });
+<a href=#342 id=342 data-nosnippet>342</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl_with_resolved_generics(
+<a href=#343 id=343 data-nosnippet>343</a>                    assoc_type,
+<a href=#344 id=344 data-nosnippet>344</a>                    method_ident,
+<a href=#345 id=345 data-nosnippet>345</a>                    resolved_generics,
+<a href=#346 id=346 data-nosnippet>346</a>                    typ_location,
+<a href=#347 id=347 data-nosnippet>347</a>                ));
+<a href=#348 id=348 data-nosnippet>348</a>            }
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="comment">// If it's not an associated type, fall through to let regular path resolution handle it
+<a href=#350 id=350 data-nosnippet>350</a>            </span><span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#351 id=351 data-nosnippet>351</a>        }
+<a href=#352 id=352 data-nosnippet>352</a>
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="comment">// Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
+<a href=#354 id=354 data-nosnippet>354</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((definition_id, numeric_type)) =
+<a href=#355 id=355 data-nosnippet>355</a>            <span class="self">self</span>.interner.get_trait_impl_associated_constant(<span class="kw-2">*</span>trait_impl_id, name).cloned()
+<a href=#356 id=356 data-nosnippet>356</a>        {
+<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(definition_id, location);
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident, <span class="prelude-val">None</span>);
+<a href=#359 id=359 data-nosnippet>359</a>            <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+<a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">return </span><span class="prelude-val">Some</span>((id, numeric_type));
+<a href=#361 id=361 data-nosnippet>361</a>        }
+<a href=#362 id=362 data-nosnippet>362</a>
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="comment">// Check if the constant exists in the trait definition (even if impl is missing it).
+<a href=#364 id=364 data-nosnippet>364</a>        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
+<a href=#365 id=365 data-nosnippet>365</a>        // since the "missing associated constant" error is reported elsewhere.
+<a href=#366 id=366 data-nosnippet>366</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_impl) = <span class="self">self</span>.interner.try_get_trait_implementation(<span class="kw-2">*</span>trait_impl_id) {
+<a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">let </span>trait_id = trait_impl.borrow().trait_id;
+<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(definition_id) = trait_.associated_constant_ids.get(name).copied() {
+<a href=#370 id=370 data-nosnippet>370</a>                <span class="kw">let </span>numeric_type = <span class="self">self</span>.interner.definition_type(definition_id);
+<a href=#371 id=371 data-nosnippet>371</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(definition_id, location);
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="kw">let </span>hir_expr = HirExpression::Ident(hir_ident, <span class="prelude-val">None</span>);
+<a href=#373 id=373 data-nosnippet>373</a>                <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+<a href=#374 id=374 data-nosnippet>374</a>                <span class="kw">return </span><span class="prelude-val">Some</span>((id, numeric_type));
+<a href=#375 id=375 data-nosnippet>375</a>            }
+<a href=#376 id=376 data-nosnippet>376</a>        }
+<a href=#377 id=377 data-nosnippet>377</a>
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="comment">// Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
+<a href=#379 id=379 data-nosnippet>379</a>        </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.self_type, <span class="prelude-val">Some</span>(Type::DataType(..))) {
+<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#381 id=381 data-nosnippet>381</a>        }
+<a href=#382 id=382 data-nosnippet>382</a>
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="kw">let </span>ident = variable.segments[<span class="number">1</span>].ident.clone();
+<a href=#384 id=384 data-nosnippet>384</a>        <span class="kw">let </span>typ_location = variable.segments[<span class="number">0</span>].location;
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.elaborate_type_path_impl(self_type.clone(), ident, <span class="prelude-val">None</span>, typ_location))
+<a href=#386 id=386 data-nosnippet>386</a>    }
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>    <span class="doccomment">/// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+<a href=#389 id=389 data-nosnippet>389</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#390 id=390 data-nosnippet>390</a>    </span><span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;VariableResolution&gt; {
+<a href=#391 id=391 data-nosnippet>391</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_path_resolution) = <span class="self">self</span>.resolve_trait_generic_path(<span class="kw-2">&amp;</span>path) {
+<a href=#392 id=392 data-nosnippet>392</a>            <span class="self">self</span>.push_errors(trait_path_resolution.errors);
+<a href=#393 id=393 data-nosnippet>393</a>
+<a href=#394 id=394 data-nosnippet>394</a>            <span class="kw">return match </span>trait_path_resolution.method {
+<a href=#395 id=395 data-nosnippet>395</a>                TraitPathResolutionMethod::NotATraitMethod(func_id) =&gt; {
+<a href=#396 id=396 data-nosnippet>396</a>                    <span class="kw">let </span>ident = HirIdent {
+<a href=#397 id=397 data-nosnippet>397</a>                        location: path.location,
+<a href=#398 id=398 data-nosnippet>398</a>                        id: <span class="self">self</span>.interner.function_definition_id(func_id),
+<a href=#399 id=399 data-nosnippet>399</a>                        impl_kind: ImplKind::NotATraitMethod,
+<a href=#400 id=400 data-nosnippet>400</a>                    };
+<a href=#401 id=401 data-nosnippet>401</a>                    <span class="prelude-val">Some</span>(VariableResolution::Ident(ident, trait_path_resolution.item))
+<a href=#402 id=402 data-nosnippet>402</a>                }
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>                TraitPathResolutionMethod::TraitItem(item) =&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>                    <span class="kw">let </span>ident = HirIdent {
+<a href=#406 id=406 data-nosnippet>406</a>                        location: path.location,
+<a href=#407 id=407 data-nosnippet>407</a>                        id: item.definition,
+<a href=#408 id=408 data-nosnippet>408</a>                        impl_kind: ImplKind::TraitItem(item),
+<a href=#409 id=409 data-nosnippet>409</a>                    };
+<a href=#410 id=410 data-nosnippet>410</a>                    <span class="prelude-val">Some</span>(VariableResolution::Ident(ident, trait_path_resolution.item))
+<a href=#411 id=411 data-nosnippet>411</a>                }
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a>                TraitPathResolutionMethod::MultipleTraitsInScope =&gt; {
+<a href=#414 id=414 data-nosnippet>414</a>                    <span class="comment">// An error has already been pushed, don't return an identifier
+<a href=#415 id=415 data-nosnippet>415</a>                    </span><span class="prelude-val">None
+<a href=#416 id=416 data-nosnippet>416</a>                </span>}
+<a href=#417 id=417 data-nosnippet>417</a>            };
+<a href=#418 id=418 data-nosnippet>418</a>        }
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a>        <span class="comment">// The location of variables or definitions we register (for LSP) must be that of the
+<a href=#421 id=421 data-nosnippet>421</a>        // path's last segment, as intermediate segments solve to other definitions.
+<a href=#422 id=422 data-nosnippet>422</a>        </span><span class="kw">let </span>location = path.last_ident().location();
+<a href=#423 id=423 data-nosnippet>423</a>
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="comment">// If the Path is being used as an Expression, then it is referring to a global from a separate module
+<a href=#425 id=425 data-nosnippet>425</a>        // Otherwise, then it is referring to an Identifier
+<a href=#426 id=426 data-nosnippet>426</a>        // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
+<a href=#427 id=427 data-nosnippet>427</a>        // If the expression is a singular indent, we search the resolver's current scope as normal.
+<a href=#428 id=428 data-nosnippet>428</a>        </span><span class="kw">let </span>ident_from_path = <span class="self">self</span>.get_ident_from_path(path);
+<a href=#429 id=429 data-nosnippet>429</a>        ident_from_path.map(|ident_from_path| <span class="kw">match </span>ident_from_path {
+<a href=#430 id=430 data-nosnippet>430</a>            IdentFromPath::Variable(variable) =&gt; {
+<a href=#431 id=431 data-nosnippet>431</a>                <span class="self">self</span>.handle_local_variable(<span class="kw-2">&amp;</span>variable);
+<a href=#432 id=432 data-nosnippet>432</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
+<a href=#433 id=433 data-nosnippet>433</a>                VariableResolution::Ident(hir_ident, <span class="prelude-val">None</span>)
+<a href=#434 id=434 data-nosnippet>434</a>            }
+<a href=#435 id=435 data-nosnippet>435</a>            IdentFromPath::Definition { id, item } =&gt; {
+<a href=#436 id=436 data-nosnippet>436</a>                <span class="self">self</span>.handle_definition_id(id, location);
+<a href=#437 id=437 data-nosnippet>437</a>                <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(id, location);
+<a href=#438 id=438 data-nosnippet>438</a>                VariableResolution::Ident(hir_ident, <span class="prelude-val">Some</span>(item))
+<a href=#439 id=439 data-nosnippet>439</a>            }
+<a href=#440 id=440 data-nosnippet>440</a>            IdentFromPath::TypeAlias(type_alias_id) =&gt; VariableResolution::TypeAlias(type_alias_id),
+<a href=#441 id=441 data-nosnippet>441</a>        })
+<a href=#442 id=442 data-nosnippet>442</a>    }
+<a href=#443 id=443 data-nosnippet>443</a>
+<a href=#444 id=444 data-nosnippet>444</a>    <span class="doccomment">/// Solve any generics that are part of the path before the function, for example:
+<a href=#445 id=445 data-nosnippet>445</a>    ///
+<a href=#446 id=446 data-nosnippet>446</a>    /// ```noir
+<a href=#447 id=447 data-nosnippet>447</a>    /// foo::Bar::&lt;i32&gt;::baz
+<a href=#448 id=448 data-nosnippet>448</a>    /// ```
+<a href=#449 id=449 data-nosnippet>449</a>    /// Solve `&lt;i32&gt;` above
+<a href=#450 id=450 data-nosnippet>450</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#451 id=451 data-nosnippet>451</a>    </span><span class="kw">fn </span>resolve_item_turbofish_and_self_type(
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#453 id=453 data-nosnippet>453</a>        item: PathResolutionItem,
+<a href=#454 id=454 data-nosnippet>454</a>    ) -&gt; (Vec&lt;Type&gt;, <span class="prelude-ty">Option</span>&lt;Type&gt;) {
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+<a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">let </span>result = <span class="kw">match </span>item {
+<a href=#457 id=457 data-nosnippet>457</a>            PathResolutionItem::Method(struct_id, <span class="prelude-val">Some</span>(generics), _func_id) =&gt; {
+<a href=#458 id=458 data-nosnippet>458</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_struct_id_turbofish_generics(
+<a href=#459 id=459 data-nosnippet>459</a>                    struct_id,
+<a href=#460 id=460 data-nosnippet>460</a>                    <span class="prelude-val">Some</span>(generics),
+<a href=#461 id=461 data-nosnippet>461</a>                    <span class="kw-2">&amp;mut </span>errors,
+<a href=#462 id=462 data-nosnippet>462</a>                );
+<a href=#463 id=463 data-nosnippet>463</a>                (generics, <span class="prelude-val">None</span>)
+<a href=#464 id=464 data-nosnippet>464</a>            }
+<a href=#465 id=465 data-nosnippet>465</a>            PathResolutionItem::SelfMethod(<span class="kw">_</span>) =&gt; {
+<a href=#466 id=466 data-nosnippet>466</a>                <span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(<span class="kw">_</span>, generics)) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
+<a href=#467 id=467 data-nosnippet>467</a>                    generics.clone()
+<a href=#468 id=468 data-nosnippet>468</a>                } <span class="kw">else </span>{
+<a href=#469 id=469 data-nosnippet>469</a>                    Vec::new()
+<a href=#470 id=470 data-nosnippet>470</a>                };
 <a href=#471 id=471 data-nosnippet>471</a>                (generics, <span class="prelude-val">None</span>)
 <a href=#472 id=472 data-nosnippet>472</a>            }
-<a href=#473 id=473 data-nosnippet>473</a>            PathResolutionItem::SelfMethod(<span class="kw">_</span>) =&gt; {
-<a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(Type::DataType(<span class="kw">_</span>, generics)) = <span class="kw-2">&amp;</span><span class="self">self</span>.self_type {
-<a href=#475 id=475 data-nosnippet>475</a>                    generics.clone()
-<a href=#476 id=476 data-nosnippet>476</a>                } <span class="kw">else </span>{
-<a href=#477 id=477 data-nosnippet>477</a>                    Vec::new()
-<a href=#478 id=478 data-nosnippet>478</a>                };
-<a href=#479 id=479 data-nosnippet>479</a>                (generics, <span class="prelude-val">None</span>)
-<a href=#480 id=480 data-nosnippet>480</a>            }
-<a href=#481 id=481 data-nosnippet>481</a>            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) =&gt; {
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
-<a href=#483 id=483 data-nosnippet>483</a>                <span class="kw">let </span>type_alias = type_alias.borrow();
-<a href=#484 id=484 data-nosnippet>484</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_type_alias_id_turbofish_generics(
-<a href=#485 id=485 data-nosnippet>485</a>                    type_alias_id,
-<a href=#486 id=486 data-nosnippet>486</a>                    generics,
-<a href=#487 id=487 data-nosnippet>487</a>                    <span class="kw-2">&amp;mut </span>errors,
-<a href=#488 id=488 data-nosnippet>488</a>                );
-<a href=#489 id=489 data-nosnippet>489</a>
-<a href=#490 id=490 data-nosnippet>490</a>                <span class="comment">// Now instantiate the underlying struct or alias with those generics, the struct might
-<a href=#491 id=491 data-nosnippet>491</a>                // have more generics than those in the alias, like in this example:
-<a href=#492 id=492 data-nosnippet>492</a>                //
-<a href=#493 id=493 data-nosnippet>493</a>                // type Alias&lt;T&gt; = Struct&lt;T, i32&gt;;
-<a href=#494 id=494 data-nosnippet>494</a>                </span><span class="kw">let </span>generics = get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias, <span class="kw-2">&amp;</span>generics);
-<a href=#495 id=495 data-nosnippet>495</a>                (generics, <span class="prelude-val">None</span>)
-<a href=#496 id=496 data-nosnippet>496</a>            }
-<a href=#497 id=497 data-nosnippet>497</a>            PathResolutionItem::TraitFunction(trait_id, <span class="prelude-val">Some</span>(generics), _func_id) =&gt; {
-<a href=#498 id=498 data-nosnippet>498</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#499 id=499 data-nosnippet>499</a>                <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>trait_.generics, |generic| generic.kind());
-<a href=#500 id=500 data-nosnippet>500</a>                <span class="kw">let </span>trait_generics =
-<a href=#501 id=501 data-nosnippet>501</a>                    vecmap(<span class="kw-2">&amp;</span>kinds, |kind| <span class="self">self</span>.interner.next_type_variable_with_kind(kind.clone()));
-<a href=#502 id=502 data-nosnippet>502</a>
-<a href=#503 id=503 data-nosnippet>503</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_trait_turbofish_generics(
-<a href=#504 id=504 data-nosnippet>504</a>                    <span class="kw-2">&amp;</span>trait_.name.to_string(),
-<a href=#505 id=505 data-nosnippet>505</a>                    kinds,
-<a href=#506 id=506 data-nosnippet>506</a>                    trait_generics,
-<a href=#507 id=507 data-nosnippet>507</a>                    <span class="prelude-val">Some</span>(generics.generics),
-<a href=#508 id=508 data-nosnippet>508</a>                    generics.location,
-<a href=#509 id=509 data-nosnippet>509</a>                    <span class="kw-2">&amp;mut </span>errors,
-<a href=#510 id=510 data-nosnippet>510</a>                );
-<a href=#511 id=511 data-nosnippet>511</a>                (generics, <span class="prelude-val">None</span>)
-<a href=#512 id=512 data-nosnippet>512</a>            }
-<a href=#513 id=513 data-nosnippet>513</a>            PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) =&gt; {
-<a href=#514 id=514 data-nosnippet>514</a>                (Vec::new(), <span class="prelude-val">Some</span>(self_type))
-<a href=#515 id=515 data-nosnippet>515</a>            }
-<a href=#516 id=516 data-nosnippet>516</a>            PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) =&gt; {
-<a href=#517 id=517 data-nosnippet>517</a>                <span class="kw">let </span>(typ, has_generics) = <span class="self">self</span>.instantiate_primitive_type_with_turbofish(
-<a href=#518 id=518 data-nosnippet>518</a>                    primitive_type,
-<a href=#519 id=519 data-nosnippet>519</a>                    turbofish,
-<a href=#520 id=520 data-nosnippet>520</a>                    <span class="kw-2">&amp;mut </span>errors,
-<a href=#521 id=521 data-nosnippet>521</a>                );
-<a href=#522 id=522 data-nosnippet>522</a>                <span class="kw">let </span>generics = <span class="kw">if </span>has_generics {
-<a href=#523 id=523 data-nosnippet>523</a>                    <span class="kw">match </span>typ {
-<a href=#524 id=524 data-nosnippet>524</a>                        Type::String(length) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length],
-<a href=#525 id=525 data-nosnippet>525</a>                        Type::FmtString(length, element) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length, <span class="kw-2">*</span>element],
-<a href=#526 id=526 data-nosnippet>526</a>                        <span class="kw">_ </span>=&gt; {
-<a href=#527 id=527 data-nosnippet>527</a>                            <span class="macro">unreachable!</span>(<span class="string">"ICE: Primitive type has been specified to have generics"</span>)
-<a href=#528 id=528 data-nosnippet>528</a>                        }
-<a href=#529 id=529 data-nosnippet>529</a>                    }
-<a href=#530 id=530 data-nosnippet>530</a>                } <span class="kw">else </span>{
-<a href=#531 id=531 data-nosnippet>531</a>                    Vec::new()
-<a href=#532 id=532 data-nosnippet>532</a>                };
-<a href=#533 id=533 data-nosnippet>533</a>                (generics, <span class="prelude-val">None</span>)
-<a href=#534 id=534 data-nosnippet>534</a>            }
-<a href=#535 id=535 data-nosnippet>535</a>            PathResolutionItem::Method(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
-<a href=#536 id=536 data-nosnippet>536</a>            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
-<a href=#537 id=537 data-nosnippet>537</a>            | PathResolutionItem::Module(..)
-<a href=#538 id=538 data-nosnippet>538</a>            | PathResolutionItem::Type(..)
-<a href=#539 id=539 data-nosnippet>539</a>            | PathResolutionItem::TypeAlias(..)
-<a href=#540 id=540 data-nosnippet>540</a>            | PathResolutionItem::PrimitiveType(..)
-<a href=#541 id=541 data-nosnippet>541</a>            | PathResolutionItem::Trait(..)
-<a href=#542 id=542 data-nosnippet>542</a>            | PathResolutionItem::TraitAssociatedType(..)
-<a href=#543 id=543 data-nosnippet>543</a>            | PathResolutionItem::Global(..)
-<a href=#544 id=544 data-nosnippet>544</a>            | PathResolutionItem::ModuleFunction(..)
-<a href=#545 id=545 data-nosnippet>545</a>            | PathResolutionItem::TraitConstant(..) =&gt; (Vec::new(), <span class="prelude-val">None</span>),
-<a href=#546 id=546 data-nosnippet>546</a>        };
-<a href=#547 id=547 data-nosnippet>547</a>        <span class="self">self</span>.push_errors(errors);
-<a href=#548 id=548 data-nosnippet>548</a>        result
-<a href=#549 id=549 data-nosnippet>549</a>    }
-<a href=#550 id=550 data-nosnippet>550</a>
-<a href=#551 id=551 data-nosnippet>551</a>    <span class="doccomment">/// Elaborates a type path used in an expression, e.g. `Type::method::&lt;Args&gt;`
-<a href=#552 id=552 data-nosnippet>552</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#553 id=553 data-nosnippet>553</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypePath) -&gt; (ExprId, Type) {
-<a href=#554 id=554 data-nosnippet>554</a>        <span class="kw">let </span>typ_location = path.typ.location;
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>turbofish = path.turbofish;
-<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#557 id=557 data-nosnippet>557</a>        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(path.typ, wildcard_allowed);
-<a href=#558 id=558 data-nosnippet>558</a>        <span class="self">self</span>.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
-<a href=#559 id=559 data-nosnippet>559</a>    }
-<a href=#560 id=560 data-nosnippet>560</a>
-<a href=#561 id=561 data-nosnippet>561</a>    <span class="doccomment">/// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
-<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#563 id=563 data-nosnippet>563</a>    </span><span class="kw">fn </span>elaborate_type_path_impl(
-<a href=#564 id=564 data-nosnippet>564</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#565 id=565 data-nosnippet>565</a>        typ: Type,
-<a href=#566 id=566 data-nosnippet>566</a>        ident: Ident,
-<a href=#567 id=567 data-nosnippet>567</a>        turbofish: <span class="prelude-ty">Option</span>&lt;GenericTypeArgs&gt;,
-<a href=#568 id=568 data-nosnippet>568</a>        typ_location: Location,
-<a href=#569 id=569 data-nosnippet>569</a>    ) -&gt; (ExprId, Type) {
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span>ident_location = ident.location();
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a>        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, typ_location);
-<a href=#574 id=574 data-nosnippet>574</a>
-<a href=#575 id=575 data-nosnippet>575</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
-<a href=#576 id=576 data-nosnippet>576</a>            <span class="kw-2">&amp;</span>typ,
-<a href=#577 id=577 data-nosnippet>577</a>            ident.as_str(),
-<a href=#578 id=578 data-nosnippet>578</a>            ident_location,
-<a href=#579 id=579 data-nosnippet>579</a>            typ_location,
-<a href=#580 id=580 data-nosnippet>580</a>            check_self_param,
-<a href=#581 id=581 data-nosnippet>581</a>        ) <span class="kw">else </span>{
-<a href=#582 id=582 data-nosnippet>582</a>            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, ident_location);
-<a href=#583 id=583 data-nosnippet>583</a>            <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);
-<a href=#584 id=584 data-nosnippet>584</a>        };
-<a href=#585 id=585 data-nosnippet>585</a>
-<a href=#586 id=586 data-nosnippet>586</a>        <span class="kw">let </span>func_id = method
-<a href=#587 id=587 data-nosnippet>587</a>            .func_id(<span class="self">self</span>.interner)
-<a href=#588 id=588 data-nosnippet>588</a>            .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
-<a href=#589 id=589 data-nosnippet>589</a>
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="kw">let </span>generics =
-<a href=#591 id=591 data-nosnippet>591</a>            turbofish.map(|turbofish| <span class="self">self</span>.use_type_args(turbofish, func_id, ident_location).<span class="number">0</span>);
-<a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>        <span class="self">self</span>.elaborate_type_path_impl_inner(<span class="kw-2">&amp;</span>typ, typ_location, ident_location, method, generics)
-<a href=#594 id=594 data-nosnippet>594</a>    }
-<a href=#595 id=595 data-nosnippet>595</a>
-<a href=#596 id=596 data-nosnippet>596</a>    <span class="doccomment">/// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
-<a href=#597 id=597 data-nosnippet>597</a>    /// Used when the turbofish generics have already been resolved.
-<a href=#598 id=598 data-nosnippet>598</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#599 id=599 data-nosnippet>599</a>    </span><span class="kw">fn </span>elaborate_type_path_impl_with_resolved_generics(
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#601 id=601 data-nosnippet>601</a>        typ: Type,
-<a href=#602 id=602 data-nosnippet>602</a>        ident: Ident,
-<a href=#603 id=603 data-nosnippet>603</a>        resolved_generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#604 id=604 data-nosnippet>604</a>        typ_location: Location,
-<a href=#605 id=605 data-nosnippet>605</a>    ) -&gt; (ExprId, Type) {
-<a href=#606 id=606 data-nosnippet>606</a>        <span class="kw">let </span>ident_location = ident.location();
-<a href=#607 id=607 data-nosnippet>607</a>        <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a>        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, typ_location);
-<a href=#610 id=610 data-nosnippet>610</a>
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
-<a href=#612 id=612 data-nosnippet>612</a>            <span class="kw-2">&amp;</span>typ,
-<a href=#613 id=613 data-nosnippet>613</a>            ident.as_str(),
-<a href=#614 id=614 data-nosnippet>614</a>            ident_location,
-<a href=#615 id=615 data-nosnippet>615</a>            typ_location,
-<a href=#616 id=616 data-nosnippet>616</a>            check_self_param,
-<a href=#617 id=617 data-nosnippet>617</a>        ) <span class="kw">else </span>{
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, ident_location);
-<a href=#619 id=619 data-nosnippet>619</a>            <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);
-<a href=#620 id=620 data-nosnippet>620</a>        };
-<a href=#621 id=621 data-nosnippet>621</a>
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="self">self</span>.elaborate_type_path_impl_inner(
-<a href=#623 id=623 data-nosnippet>623</a>            <span class="kw-2">&amp;</span>typ,
-<a href=#624 id=624 data-nosnippet>624</a>            typ_location,
-<a href=#625 id=625 data-nosnippet>625</a>            ident_location,
-<a href=#626 id=626 data-nosnippet>626</a>            method,
-<a href=#627 id=627 data-nosnippet>627</a>            resolved_generics,
-<a href=#628 id=628 data-nosnippet>628</a>        )
-<a href=#629 id=629 data-nosnippet>629</a>    }
-<a href=#630 id=630 data-nosnippet>630</a>
-<a href=#631 id=631 data-nosnippet>631</a>    <span class="doccomment">/// Common implementation for type path impl variants.
-<a href=#632 id=632 data-nosnippet>632</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#633 id=633 data-nosnippet>633</a>    </span><span class="kw">fn </span>elaborate_type_path_impl_inner(
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#635 id=635 data-nosnippet>635</a>        typ: <span class="kw-2">&amp;</span>Type,
-<a href=#636 id=636 data-nosnippet>636</a>        _typ_location: Location,
-<a href=#637 id=637 data-nosnippet>637</a>        ident_location: Location,
-<a href=#638 id=638 data-nosnippet>638</a>        method: HirMethodReference,
-<a href=#639 id=639 data-nosnippet>639</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#640 id=640 data-nosnippet>640</a>    ) -&gt; (ExprId, Type) {
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>func_id = method
-<a href=#642 id=642 data-nosnippet>642</a>            .func_id(<span class="self">self</span>.interner)
-<a href=#643 id=643 data-nosnippet>643</a>            .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.function_definition_id(func_id);
-<a href=#646 id=646 data-nosnippet>646</a>
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>impl_kind = <span class="kw">match </span>method {
-<a href=#648 id=648 data-nosnippet>648</a>            HirMethodReference::FuncId(<span class="kw">_</span>) =&gt; ImplKind::NotATraitMethod,
-<a href=#649 id=649 data-nosnippet>649</a>            HirMethodReference::TraitItemId(HirTraitMethodReference {
-<a href=#650 id=650 data-nosnippet>650</a>                definition,
-<a href=#651 id=651 data-nosnippet>651</a>                trait_id,
-<a href=#652 id=652 data-nosnippet>652</a>                trait_generics,
-<a href=#653 id=653 data-nosnippet>653</a>                assumed: <span class="kw">_</span>,
-<a href=#654 id=654 data-nosnippet>654</a>            }) =&gt; {
-<a href=#655 id=655 data-nosnippet>655</a>                <span class="kw">let </span><span class="kw-2">mut </span>constraint =
-<a href=#656 id=656 data-nosnippet>656</a>                    <span class="self">self</span>.interner.get_trait(trait_id).as_constraint(ident_location);
-<a href=#657 id=657 data-nosnippet>657</a>                constraint.trait_bound.trait_generics = trait_generics;
-<a href=#658 id=658 data-nosnippet>658</a>                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>})
-<a href=#659 id=659 data-nosnippet>659</a>            }
-<a href=#660 id=660 data-nosnippet>660</a>        };
-<a href=#661 id=661 data-nosnippet>661</a>
-<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>ident = HirIdent { location: ident_location, id, impl_kind };
-<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw">let </span>id =
-<a href=#664 id=664 data-nosnippet>664</a>            <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
-<a href=#665 id=665 data-nosnippet>665</a>
-<a href=#666 id=666 data-nosnippet>666</a>        <span class="comment">// If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-<a href=#667 id=667 data-nosnippet>667</a>        </span><span class="kw">let </span>function_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
-<a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">let </span>self_type_generics_count =
-<a href=#669 id=669 data-nosnippet>669</a>            function_meta.all_generics.len() - function_meta.direct_generics.len();
-<a href=#670 id=670 data-nosnippet>670</a>        <span class="kw">let </span>bindings = <span class="kw">if </span>self_type_generics_count &gt; <span class="number">0 </span>{
-<a href=#671 id=671 data-nosnippet>671</a>            <span class="kw">if let </span>Type::Forall(type_vars, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>function_meta.typ
-<a href=#672 id=672 data-nosnippet>672</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span>function_meta.self_type
-<a href=#673 id=673 data-nosnippet>673</a>            {
-<a href=#674 id=674 data-nosnippet>674</a>                <span class="comment">// Only instantiate type vars corresponding to the `self` type, not to function direct generics
-<a href=#675 id=675 data-nosnippet>675</a>                </span><span class="kw">let </span>type_vars =
-<a href=#676 id=676 data-nosnippet>676</a>                    type_vars.iter().take(self_type_generics_count).cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#677 id=677 data-nosnippet>677</a>                <span class="kw">let </span>(self_type, instantiation_bindings) =
-<a href=#678 id=678 data-nosnippet>678</a>                    self_type.substitute_type_vars_with_fresh_type_vars(<span class="kw-2">&amp;</span>type_vars, <span class="self">self</span>.interner);
-<a href=#679 id=679 data-nosnippet>679</a>                <span class="kw">let _ </span>= typ.unify(<span class="kw-2">&amp;</span>self_type);
-<a href=#680 id=680 data-nosnippet>680</a>                instantiation_bindings
-<a href=#681 id=681 data-nosnippet>681</a>            } <span class="kw">else </span>{
-<a href=#682 id=682 data-nosnippet>682</a>                TypeBindings::default()
-<a href=#683 id=683 data-nosnippet>683</a>            }
-<a href=#684 id=684 data-nosnippet>684</a>        } <span class="kw">else </span>{
-<a href=#685 id=685 data-nosnippet>685</a>            TypeBindings::default()
-<a href=#686 id=686 data-nosnippet>686</a>        };
-<a href=#687 id=687 data-nosnippet>687</a>
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#689 id=689 data-nosnippet>689</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#690 id=690 data-nosnippet>690</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#691 id=691 data-nosnippet>691</a>            ident,
-<a href=#692 id=692 data-nosnippet>692</a>            <span class="kw-2">&amp;</span>id,
-<a href=#693 id=693 data-nosnippet>693</a>            generics,
-<a href=#694 id=694 data-nosnippet>694</a>            bindings,
-<a href=#695 id=695 data-nosnippet>695</a>            push_required_type_variables,
-<a href=#696 id=696 data-nosnippet>696</a>        );
-<a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
-<a href=#698 id=698 data-nosnippet>698</a>
-<a href=#699 id=699 data-nosnippet>699</a>        (id, typ)
-<a href=#700 id=700 data-nosnippet>700</a>    }
-<a href=#701 id=701 data-nosnippet>701</a>
-<a href=#702 id=702 data-nosnippet>702</a>    <span class="doccomment">/// Given an [HirIdent], look up its definition, and:
-<a href=#703 id=703 data-nosnippet>703</a>    /// * mark it as referenced at the ident [Location] (LSP mode only)
-<a href=#704 id=704 data-nosnippet>704</a>    /// * mark the item currently being elaborated as a dependency of it
-<a href=#705 id=705 data-nosnippet>705</a>    /// * elaborate a global definition, if needed
-<a href=#706 id=706 data-nosnippet>706</a>    /// * add local identifiers to lambda captures
-<a href=#707 id=707 data-nosnippet>707</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#708 id=708 data-nosnippet>708</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_definition_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, definition_id: DefinitionId, location: Location) {
-<a href=#709 id=709 data-nosnippet>709</a>        <span class="kw">match </span><span class="self">self</span>.interner.definition(definition_id).kind {
-<a href=#710 id=710 data-nosnippet>710</a>            DefinitionKind::Function(func_id) =&gt; {
+<a href=#473 id=473 data-nosnippet>473</a>            PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) =&gt; {
+<a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
+<a href=#475 id=475 data-nosnippet>475</a>                <span class="kw">let </span>type_alias = type_alias.borrow();
+<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_type_alias_id_turbofish_generics(
+<a href=#477 id=477 data-nosnippet>477</a>                    type_alias_id,
+<a href=#478 id=478 data-nosnippet>478</a>                    generics,
+<a href=#479 id=479 data-nosnippet>479</a>                    <span class="kw-2">&amp;mut </span>errors,
+<a href=#480 id=480 data-nosnippet>480</a>                );
+<a href=#481 id=481 data-nosnippet>481</a>
+<a href=#482 id=482 data-nosnippet>482</a>                <span class="comment">// Now instantiate the underlying struct or alias with those generics, the struct might
+<a href=#483 id=483 data-nosnippet>483</a>                // have more generics than those in the alias, like in this example:
+<a href=#484 id=484 data-nosnippet>484</a>                //
+<a href=#485 id=485 data-nosnippet>485</a>                // type Alias&lt;T&gt; = Struct&lt;T, i32&gt;;
+<a href=#486 id=486 data-nosnippet>486</a>                </span><span class="kw">let </span>generics = get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias, <span class="kw-2">&amp;</span>generics);
+<a href=#487 id=487 data-nosnippet>487</a>                (generics, <span class="prelude-val">None</span>)
+<a href=#488 id=488 data-nosnippet>488</a>            }
+<a href=#489 id=489 data-nosnippet>489</a>            PathResolutionItem::TraitFunction(trait_id, <span class="prelude-val">Some</span>(generics), _func_id) =&gt; {
+<a href=#490 id=490 data-nosnippet>490</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#491 id=491 data-nosnippet>491</a>                <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>trait_.generics, |generic| generic.kind());
+<a href=#492 id=492 data-nosnippet>492</a>                <span class="kw">let </span>trait_generics =
+<a href=#493 id=493 data-nosnippet>493</a>                    vecmap(<span class="kw-2">&amp;</span>kinds, |kind| <span class="self">self</span>.interner.next_type_variable_with_kind(kind.clone()));
+<a href=#494 id=494 data-nosnippet>494</a>
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">let </span>generics = <span class="self">self</span>.resolve_trait_turbofish_generics(
+<a href=#496 id=496 data-nosnippet>496</a>                    <span class="kw-2">&amp;</span>trait_.name.to_string(),
+<a href=#497 id=497 data-nosnippet>497</a>                    kinds,
+<a href=#498 id=498 data-nosnippet>498</a>                    trait_generics,
+<a href=#499 id=499 data-nosnippet>499</a>                    <span class="prelude-val">Some</span>(generics.generics),
+<a href=#500 id=500 data-nosnippet>500</a>                    generics.location,
+<a href=#501 id=501 data-nosnippet>501</a>                    <span class="kw-2">&amp;mut </span>errors,
+<a href=#502 id=502 data-nosnippet>502</a>                );
+<a href=#503 id=503 data-nosnippet>503</a>                (generics, <span class="prelude-val">None</span>)
+<a href=#504 id=504 data-nosnippet>504</a>            }
+<a href=#505 id=505 data-nosnippet>505</a>            PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) =&gt; {
+<a href=#506 id=506 data-nosnippet>506</a>                (Vec::new(), <span class="prelude-val">Some</span>(self_type))
+<a href=#507 id=507 data-nosnippet>507</a>            }
+<a href=#508 id=508 data-nosnippet>508</a>            PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) =&gt; {
+<a href=#509 id=509 data-nosnippet>509</a>                <span class="kw">let </span>(typ, has_generics) = <span class="self">self</span>.instantiate_primitive_type_with_turbofish(
+<a href=#510 id=510 data-nosnippet>510</a>                    primitive_type,
+<a href=#511 id=511 data-nosnippet>511</a>                    turbofish,
+<a href=#512 id=512 data-nosnippet>512</a>                    <span class="kw-2">&amp;mut </span>errors,
+<a href=#513 id=513 data-nosnippet>513</a>                );
+<a href=#514 id=514 data-nosnippet>514</a>                <span class="kw">let </span>generics = <span class="kw">if </span>has_generics {
+<a href=#515 id=515 data-nosnippet>515</a>                    <span class="kw">match </span>typ {
+<a href=#516 id=516 data-nosnippet>516</a>                        Type::String(length) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length],
+<a href=#517 id=517 data-nosnippet>517</a>                        Type::FmtString(length, element) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>length, <span class="kw-2">*</span>element],
+<a href=#518 id=518 data-nosnippet>518</a>                        <span class="kw">_ </span>=&gt; {
+<a href=#519 id=519 data-nosnippet>519</a>                            <span class="macro">unreachable!</span>(<span class="string">"ICE: Primitive type has been specified to have generics"</span>)
+<a href=#520 id=520 data-nosnippet>520</a>                        }
+<a href=#521 id=521 data-nosnippet>521</a>                    }
+<a href=#522 id=522 data-nosnippet>522</a>                } <span class="kw">else </span>{
+<a href=#523 id=523 data-nosnippet>523</a>                    Vec::new()
+<a href=#524 id=524 data-nosnippet>524</a>                };
+<a href=#525 id=525 data-nosnippet>525</a>                (generics, <span class="prelude-val">None</span>)
+<a href=#526 id=526 data-nosnippet>526</a>            }
+<a href=#527 id=527 data-nosnippet>527</a>            PathResolutionItem::Method(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
+<a href=#528 id=528 data-nosnippet>528</a>            | PathResolutionItem::TraitFunction(<span class="kw">_</span>, <span class="prelude-val">None</span>, <span class="kw">_</span>)
+<a href=#529 id=529 data-nosnippet>529</a>            | PathResolutionItem::Module(..)
+<a href=#530 id=530 data-nosnippet>530</a>            | PathResolutionItem::Type(..)
+<a href=#531 id=531 data-nosnippet>531</a>            | PathResolutionItem::TypeAlias(..)
+<a href=#532 id=532 data-nosnippet>532</a>            | PathResolutionItem::PrimitiveType(..)
+<a href=#533 id=533 data-nosnippet>533</a>            | PathResolutionItem::Trait(..)
+<a href=#534 id=534 data-nosnippet>534</a>            | PathResolutionItem::TraitAssociatedType(..)
+<a href=#535 id=535 data-nosnippet>535</a>            | PathResolutionItem::Global(..)
+<a href=#536 id=536 data-nosnippet>536</a>            | PathResolutionItem::ModuleFunction(..)
+<a href=#537 id=537 data-nosnippet>537</a>            | PathResolutionItem::TraitConstant(..) =&gt; (Vec::new(), <span class="prelude-val">None</span>),
+<a href=#538 id=538 data-nosnippet>538</a>        };
+<a href=#539 id=539 data-nosnippet>539</a>        <span class="self">self</span>.push_errors(errors);
+<a href=#540 id=540 data-nosnippet>540</a>        result
+<a href=#541 id=541 data-nosnippet>541</a>    }
+<a href=#542 id=542 data-nosnippet>542</a>
+<a href=#543 id=543 data-nosnippet>543</a>    <span class="doccomment">/// Elaborates a type path used in an expression, e.g. `Type::method::&lt;Args&gt;`
+<a href=#544 id=544 data-nosnippet>544</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#545 id=545 data-nosnippet>545</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_type_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypePath) -&gt; (ExprId, Type) {
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>typ_location = path.typ.location;
+<a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">let </span>turbofish = path.turbofish;
+<a href=#548 id=548 data-nosnippet>548</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(path.typ, wildcard_allowed);
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="self">self</span>.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+<a href=#551 id=551 data-nosnippet>551</a>    }
+<a href=#552 id=552 data-nosnippet>552</a>
+<a href=#553 id=553 data-nosnippet>553</a>    <span class="doccomment">/// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
+<a href=#554 id=554 data-nosnippet>554</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#555 id=555 data-nosnippet>555</a>    </span><span class="kw">fn </span>elaborate_type_path_impl(
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#557 id=557 data-nosnippet>557</a>        typ: Type,
+<a href=#558 id=558 data-nosnippet>558</a>        ident: Ident,
+<a href=#559 id=559 data-nosnippet>559</a>        turbofish: <span class="prelude-ty">Option</span>&lt;GenericTypeArgs&gt;,
+<a href=#560 id=560 data-nosnippet>560</a>        typ_location: Location,
+<a href=#561 id=561 data-nosnippet>561</a>    ) -&gt; (ExprId, Type) {
+<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>ident_location = ident.location();
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
+<a href=#564 id=564 data-nosnippet>564</a>
+<a href=#565 id=565 data-nosnippet>565</a>        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, typ_location);
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
+<a href=#568 id=568 data-nosnippet>568</a>            <span class="kw-2">&amp;</span>typ,
+<a href=#569 id=569 data-nosnippet>569</a>            ident.as_str(),
+<a href=#570 id=570 data-nosnippet>570</a>            ident_location,
+<a href=#571 id=571 data-nosnippet>571</a>            typ_location,
+<a href=#572 id=572 data-nosnippet>572</a>            check_self_param,
+<a href=#573 id=573 data-nosnippet>573</a>        ) <span class="kw">else </span>{
+<a href=#574 id=574 data-nosnippet>574</a>            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, ident_location);
+<a href=#575 id=575 data-nosnippet>575</a>            <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);
+<a href=#576 id=576 data-nosnippet>576</a>        };
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw">let </span>func_id = method
+<a href=#579 id=579 data-nosnippet>579</a>            .func_id(<span class="self">self</span>.interner)
+<a href=#580 id=580 data-nosnippet>580</a>            .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
+<a href=#581 id=581 data-nosnippet>581</a>
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="kw">let </span>generics =
+<a href=#583 id=583 data-nosnippet>583</a>            turbofish.map(|turbofish| <span class="self">self</span>.use_type_args(turbofish, func_id, ident_location).<span class="number">0</span>);
+<a href=#584 id=584 data-nosnippet>584</a>
+<a href=#585 id=585 data-nosnippet>585</a>        <span class="self">self</span>.elaborate_type_path_impl_inner(<span class="kw-2">&amp;</span>typ, typ_location, ident_location, method, generics)
+<a href=#586 id=586 data-nosnippet>586</a>    }
+<a href=#587 id=587 data-nosnippet>587</a>
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="doccomment">/// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
+<a href=#589 id=589 data-nosnippet>589</a>    /// Used when the turbofish generics have already been resolved.
+<a href=#590 id=590 data-nosnippet>590</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#591 id=591 data-nosnippet>591</a>    </span><span class="kw">fn </span>elaborate_type_path_impl_with_resolved_generics(
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#593 id=593 data-nosnippet>593</a>        typ: Type,
+<a href=#594 id=594 data-nosnippet>594</a>        ident: Ident,
+<a href=#595 id=595 data-nosnippet>595</a>        resolved_generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#596 id=596 data-nosnippet>596</a>        typ_location: Location,
+<a href=#597 id=597 data-nosnippet>597</a>    ) -&gt; (ExprId, Type) {
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">let </span>ident_location = ident.location();
+<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
+<a href=#600 id=600 data-nosnippet>600</a>
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="self">self</span>.interner.push_type_ref_location(<span class="kw-2">&amp;</span>typ, typ_location);
+<a href=#602 id=602 data-nosnippet>602</a>
+<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(
+<a href=#604 id=604 data-nosnippet>604</a>            <span class="kw-2">&amp;</span>typ,
+<a href=#605 id=605 data-nosnippet>605</a>            ident.as_str(),
+<a href=#606 id=606 data-nosnippet>606</a>            ident_location,
+<a href=#607 id=607 data-nosnippet>607</a>            typ_location,
+<a href=#608 id=608 data-nosnippet>608</a>            check_self_param,
+<a href=#609 id=609 data-nosnippet>609</a>        ) <span class="kw">else </span>{
+<a href=#610 id=610 data-nosnippet>610</a>            <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, ident_location);
+<a href=#611 id=611 data-nosnippet>611</a>            <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);
+<a href=#612 id=612 data-nosnippet>612</a>        };
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>        <span class="self">self</span>.elaborate_type_path_impl_inner(
+<a href=#615 id=615 data-nosnippet>615</a>            <span class="kw-2">&amp;</span>typ,
+<a href=#616 id=616 data-nosnippet>616</a>            typ_location,
+<a href=#617 id=617 data-nosnippet>617</a>            ident_location,
+<a href=#618 id=618 data-nosnippet>618</a>            method,
+<a href=#619 id=619 data-nosnippet>619</a>            resolved_generics,
+<a href=#620 id=620 data-nosnippet>620</a>        )
+<a href=#621 id=621 data-nosnippet>621</a>    }
+<a href=#622 id=622 data-nosnippet>622</a>
+<a href=#623 id=623 data-nosnippet>623</a>    <span class="doccomment">/// Common implementation for type path impl variants.
+<a href=#624 id=624 data-nosnippet>624</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#625 id=625 data-nosnippet>625</a>    </span><span class="kw">fn </span>elaborate_type_path_impl_inner(
+<a href=#626 id=626 data-nosnippet>626</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#627 id=627 data-nosnippet>627</a>        typ: <span class="kw-2">&amp;</span>Type,
+<a href=#628 id=628 data-nosnippet>628</a>        _typ_location: Location,
+<a href=#629 id=629 data-nosnippet>629</a>        ident_location: Location,
+<a href=#630 id=630 data-nosnippet>630</a>        method: HirMethodReference,
+<a href=#631 id=631 data-nosnippet>631</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#632 id=632 data-nosnippet>632</a>    ) -&gt; (ExprId, Type) {
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>func_id = method
+<a href=#634 id=634 data-nosnippet>634</a>            .func_id(<span class="self">self</span>.interner)
+<a href=#635 id=635 data-nosnippet>635</a>            .expect(<span class="string">"Expected trait function to be a DefinitionKind::Function"</span>);
+<a href=#636 id=636 data-nosnippet>636</a>
+<a href=#637 id=637 data-nosnippet>637</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.function_definition_id(func_id);
+<a href=#638 id=638 data-nosnippet>638</a>
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>impl_kind = <span class="kw">match </span>method {
+<a href=#640 id=640 data-nosnippet>640</a>            HirMethodReference::FuncId(<span class="kw">_</span>) =&gt; ImplKind::NotATraitMethod,
+<a href=#641 id=641 data-nosnippet>641</a>            HirMethodReference::TraitItemId(HirTraitMethodReference {
+<a href=#642 id=642 data-nosnippet>642</a>                definition,
+<a href=#643 id=643 data-nosnippet>643</a>                trait_id,
+<a href=#644 id=644 data-nosnippet>644</a>                trait_generics,
+<a href=#645 id=645 data-nosnippet>645</a>                assumed: <span class="kw">_</span>,
+<a href=#646 id=646 data-nosnippet>646</a>            }) =&gt; {
+<a href=#647 id=647 data-nosnippet>647</a>                <span class="kw">let </span><span class="kw-2">mut </span>constraint =
+<a href=#648 id=648 data-nosnippet>648</a>                    <span class="self">self</span>.interner.get_trait(trait_id).as_constraint(ident_location);
+<a href=#649 id=649 data-nosnippet>649</a>                constraint.trait_bound.trait_generics = trait_generics;
+<a href=#650 id=650 data-nosnippet>650</a>                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>})
+<a href=#651 id=651 data-nosnippet>651</a>            }
+<a href=#652 id=652 data-nosnippet>652</a>        };
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a>        <span class="kw">let </span>ident = HirIdent { location: ident_location, id, impl_kind };
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">let </span>id =
+<a href=#656 id=656 data-nosnippet>656</a>            <span class="self">self</span>.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
+<a href=#657 id=657 data-nosnippet>657</a>
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="comment">// If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
+<a href=#659 id=659 data-nosnippet>659</a>        </span><span class="kw">let </span>function_meta = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>func_id);
+<a href=#660 id=660 data-nosnippet>660</a>        <span class="kw">let </span>self_type_generics_count =
+<a href=#661 id=661 data-nosnippet>661</a>            function_meta.all_generics.len() - function_meta.direct_generics.len();
+<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>bindings = <span class="kw">if </span>self_type_generics_count &gt; <span class="number">0 </span>{
+<a href=#663 id=663 data-nosnippet>663</a>            <span class="kw">if let </span>Type::Forall(type_vars, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>function_meta.typ
+<a href=#664 id=664 data-nosnippet>664</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span>function_meta.self_type
+<a href=#665 id=665 data-nosnippet>665</a>            {
+<a href=#666 id=666 data-nosnippet>666</a>                <span class="comment">// Only instantiate type vars corresponding to the `self` type, not to function direct generics
+<a href=#667 id=667 data-nosnippet>667</a>                </span><span class="kw">let </span>type_vars =
+<a href=#668 id=668 data-nosnippet>668</a>                    type_vars.iter().take(self_type_generics_count).cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#669 id=669 data-nosnippet>669</a>                <span class="kw">let </span>(self_type, instantiation_bindings) =
+<a href=#670 id=670 data-nosnippet>670</a>                    self_type.substitute_type_vars_with_fresh_type_vars(<span class="kw-2">&amp;</span>type_vars, <span class="self">self</span>.interner);
+<a href=#671 id=671 data-nosnippet>671</a>                <span class="kw">let _ </span>= typ.unify(<span class="kw-2">&amp;</span>self_type);
+<a href=#672 id=672 data-nosnippet>672</a>                instantiation_bindings
+<a href=#673 id=673 data-nosnippet>673</a>            } <span class="kw">else </span>{
+<a href=#674 id=674 data-nosnippet>674</a>                TypeBindings::default()
+<a href=#675 id=675 data-nosnippet>675</a>            }
+<a href=#676 id=676 data-nosnippet>676</a>        } <span class="kw">else </span>{
+<a href=#677 id=677 data-nosnippet>677</a>            TypeBindings::default()
+<a href=#678 id=678 data-nosnippet>678</a>        };
+<a href=#679 id=679 data-nosnippet>679</a>
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+<a href=#681 id=681 data-nosnippet>681</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>typ = <span class="self">self</span>.type_check_variable_with_bindings(
+<a href=#683 id=683 data-nosnippet>683</a>            ident,
+<a href=#684 id=684 data-nosnippet>684</a>            <span class="kw-2">&amp;</span>id,
+<a href=#685 id=685 data-nosnippet>685</a>            generics,
+<a href=#686 id=686 data-nosnippet>686</a>            bindings,
+<a href=#687 id=687 data-nosnippet>687</a>            push_required_type_variables,
+<a href=#688 id=688 data-nosnippet>688</a>        );
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">let </span>id = <span class="self">self</span>.intern_expr_type(id, typ.clone());
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a>        (id, typ)
+<a href=#692 id=692 data-nosnippet>692</a>    }
+<a href=#693 id=693 data-nosnippet>693</a>
+<a href=#694 id=694 data-nosnippet>694</a>    <span class="doccomment">/// Given an [HirIdent], look up its definition, and:
+<a href=#695 id=695 data-nosnippet>695</a>    /// * mark it as referenced at the ident [Location] (LSP mode only)
+<a href=#696 id=696 data-nosnippet>696</a>    /// * mark the item currently being elaborated as a dependency of it
+<a href=#697 id=697 data-nosnippet>697</a>    /// * elaborate a global definition, if needed
+<a href=#698 id=698 data-nosnippet>698</a>    /// * add local identifiers to lambda captures
+<a href=#699 id=699 data-nosnippet>699</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#700 id=700 data-nosnippet>700</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_definition_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, definition_id: DefinitionId, location: Location) {
+<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">match </span><span class="self">self</span>.interner.definition(definition_id).kind {
+<a href=#702 id=702 data-nosnippet>702</a>            DefinitionKind::Function(func_id) =&gt; {
+<a href=#703 id=703 data-nosnippet>703</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
+<a href=#704 id=704 data-nosnippet>704</a>                    <span class="self">self</span>.interner.add_function_dependency(current_item, func_id);
+<a href=#705 id=705 data-nosnippet>705</a>                }
+<a href=#706 id=706 data-nosnippet>706</a>
+<a href=#707 id=707 data-nosnippet>707</a>                <span class="self">self</span>.interner.add_function_reference(func_id, location);
+<a href=#708 id=708 data-nosnippet>708</a>            }
+<a href=#709 id=709 data-nosnippet>709</a>            DefinitionKind::Global(global_id) =&gt; {
+<a href=#710 id=710 data-nosnippet>710</a>                <span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>global_id);
 <a href=#711 id=711 data-nosnippet>711</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
-<a href=#712 id=712 data-nosnippet>712</a>                    <span class="self">self</span>.interner.add_function_dependency(current_item, func_id);
+<a href=#712 id=712 data-nosnippet>712</a>                    <span class="self">self</span>.interner.add_global_dependency(current_item, global_id);
 <a href=#713 id=713 data-nosnippet>713</a>                }
 <a href=#714 id=714 data-nosnippet>714</a>
-<a href=#715 id=715 data-nosnippet>715</a>                <span class="self">self</span>.interner.add_function_reference(func_id, location);
-<a href=#716 id=716 data-nosnippet>716</a>            }
-<a href=#717 id=717 data-nosnippet>717</a>            DefinitionKind::Global(global_id) =&gt; {
-<a href=#718 id=718 data-nosnippet>718</a>                <span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>global_id);
-<a href=#719 id=719 data-nosnippet>719</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
-<a href=#720 id=720 data-nosnippet>720</a>                    <span class="self">self</span>.interner.add_global_dependency(current_item, global_id);
+<a href=#715 id=715 data-nosnippet>715</a>                <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global_definition(global_id);
+<a href=#716 id=716 data-nosnippet>716</a>                <span class="kw">if </span>global.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+<a href=#717 id=717 data-nosnippet>717</a>                    <span class="self">self</span>.push_err(ResolverError::ComptimeGlobalInNonComptimeCode {
+<a href=#718 id=718 data-nosnippet>718</a>                        location,
+<a href=#719 id=719 data-nosnippet>719</a>                        name: global.name.clone(),
+<a href=#720 id=720 data-nosnippet>720</a>                    });
 <a href=#721 id=721 data-nosnippet>721</a>                }
 <a href=#722 id=722 data-nosnippet>722</a>
-<a href=#723 id=723 data-nosnippet>723</a>                <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global_definition(global_id);
-<a href=#724 id=724 data-nosnippet>724</a>                <span class="kw">if </span>global.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
-<a href=#725 id=725 data-nosnippet>725</a>                    <span class="self">self</span>.push_err(ResolverError::ComptimeGlobalInNonComptimeCode {
-<a href=#726 id=726 data-nosnippet>726</a>                        location,
-<a href=#727 id=727 data-nosnippet>727</a>                        name: global.name.clone(),
-<a href=#728 id=728 data-nosnippet>728</a>                    });
-<a href=#729 id=729 data-nosnippet>729</a>                }
-<a href=#730 id=730 data-nosnippet>730</a>
-<a href=#731 id=731 data-nosnippet>731</a>                <span class="self">self</span>.interner.add_global_reference(global_id, location);
-<a href=#732 id=732 data-nosnippet>732</a>            }
-<a href=#733 id=733 data-nosnippet>733</a>            DefinitionKind::NumericGeneric(<span class="kw">_</span>, <span class="kw-2">ref </span>numeric_typ) =&gt; {
-<a href=#734 id=734 data-nosnippet>734</a>                <span class="comment">// Initialize numeric generics to a polymorphic integer type in case
-<a href=#735 id=735 data-nosnippet>735</a>                // they're used in expressions. We must do this here since type_check_variable
-<a href=#736 id=736 data-nosnippet>736</a>                // does not check definition kinds and otherwise expects parameters to
-<a href=#737 id=737 data-nosnippet>737</a>                // already be typed.
-<a href=#738 id=738 data-nosnippet>738</a>                </span><span class="kw">if </span><span class="self">self</span>.interner.definition_type(definition_id) == Type::Error {
-<a href=#739 id=739 data-nosnippet>739</a>                    <span class="kw">let </span>type_var_kind = Kind::Numeric(numeric_typ.clone());
-<a href=#740 id=740 data-nosnippet>740</a>                    <span class="kw">let </span>typ = <span class="self">self</span>.type_variable_with_kind(type_var_kind);
-<a href=#741 id=741 data-nosnippet>741</a>                    <span class="self">self</span>.interner.push_definition_type(definition_id, typ);
-<a href=#742 id=742 data-nosnippet>742</a>                }
-<a href=#743 id=743 data-nosnippet>743</a>            }
-<a href=#744 id=744 data-nosnippet>744</a>            DefinitionKind::Local(<span class="kw">_</span>) =&gt; {
-<a href=#745 id=745 data-nosnippet>745</a>                <span class="comment">// Handled separately in `handle_local_variable`
-<a href=#746 id=746 data-nosnippet>746</a>            </span>}
-<a href=#747 id=747 data-nosnippet>747</a>            DefinitionKind::AssociatedConstant(..) =&gt; {
-<a href=#748 id=748 data-nosnippet>748</a>                <span class="comment">// Nothing to do here
-<a href=#749 id=749 data-nosnippet>749</a>            </span>}
-<a href=#750 id=750 data-nosnippet>750</a>        }
-<a href=#751 id=751 data-nosnippet>751</a>    }
-<a href=#752 id=752 data-nosnippet>752</a>
-<a href=#753 id=753 data-nosnippet>753</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#754 id=754 data-nosnippet>754</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_local_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>Variable) {
-<a href=#755 id=755 data-nosnippet>755</a>        <span class="self">self</span>.check_if_variable_is_captured_by_closure(variable);
-<a href=#756 id=756 data-nosnippet>756</a>        <span class="kw">let </span>hir_ident = <span class="kw-2">&amp;</span>variable.ident;
-<a href=#757 id=757 data-nosnippet>757</a>        <span class="self">self</span>.interner.add_local_reference(hir_ident.id, hir_ident.location);
-<a href=#758 id=758 data-nosnippet>758</a>    }
-<a href=#759 id=759 data-nosnippet>759</a>
-<a href=#760 id=760 data-nosnippet>760</a>    <span class="doccomment">/// Starting with empty bindings, perform the type checking of an interned expression
-<a href=#761 id=761 data-nosnippet>761</a>    /// and a corresponding identifier, returning the instantiated [Type].
-<a href=#762 id=762 data-nosnippet>762</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#763 id=763 data-nosnippet>763</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable(
-<a href=#764 id=764 data-nosnippet>764</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#765 id=765 data-nosnippet>765</a>        ident: HirIdent,
-<a href=#766 id=766 data-nosnippet>766</a>        expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
-<a href=#767 id=767 data-nosnippet>767</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#768 id=768 data-nosnippet>768</a>    ) -&gt; Type {
-<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>bindings = TypeBindings::default();
-<a href=#770 id=770 data-nosnippet>770</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-<a href=#771 id=771 data-nosnippet>771</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="self">self</span>.type_check_variable_with_bindings(
-<a href=#773 id=773 data-nosnippet>773</a>            ident,
-<a href=#774 id=774 data-nosnippet>774</a>            expr_id,
-<a href=#775 id=775 data-nosnippet>775</a>            generics,
-<a href=#776 id=776 data-nosnippet>776</a>            bindings,
-<a href=#777 id=777 data-nosnippet>777</a>            push_required_type_variables,
-<a href=#778 id=778 data-nosnippet>778</a>        )
-<a href=#779 id=779 data-nosnippet>779</a>    }
-<a href=#780 id=780 data-nosnippet>780</a>
-<a href=#781 id=781 data-nosnippet>781</a>    <span class="doccomment">/// Perform the type checking of an interned expression and a corresponding identifier,
-<a href=#782 id=782 data-nosnippet>782</a>    /// returning the instantiated [Type].
-<a href=#783 id=783 data-nosnippet>783</a>    ///
-<a href=#784 id=784 data-nosnippet>784</a>    /// If `push_required_type_variables`, the bindings are added to the function context,
-<a href=#785 id=785 data-nosnippet>785</a>    /// to be checked before it's finished.
-<a href=#786 id=786 data-nosnippet>786</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#787 id=787 data-nosnippet>787</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable_with_bindings(
-<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#789 id=789 data-nosnippet>789</a>        ident: HirIdent,
-<a href=#790 id=790 data-nosnippet>790</a>        expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
-<a href=#791 id=791 data-nosnippet>791</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw-2">mut </span>bindings: TypeBindings,
-<a href=#793 id=793 data-nosnippet>793</a>        push_required_type_variables: bool,
-<a href=#794 id=794 data-nosnippet>794</a>    ) -&gt; Type {
-<a href=#795 id=795 data-nosnippet>795</a>        <span class="comment">// Add type bindings from any constraints that were used.
-<a href=#796 id=796 data-nosnippet>796</a>        // We need to do this first since otherwise instantiating the type below
-<a href=#797 id=797 data-nosnippet>797</a>        // will replace each trait generic with a fresh type variable, rather than
-<a href=#798 id=798 data-nosnippet>798</a>        // the type used in the trait constraint (if it exists). See #4088.
-<a href=#799 id=799 data-nosnippet>799</a>        </span><span class="kw">if let </span>ImplKind::TraitItem(method) = <span class="kw-2">&amp;</span>ident.impl_kind {
-<a href=#800 id=800 data-nosnippet>800</a>            <span class="self">self</span>.bind_generics_from_trait_constraint(
-<a href=#801 id=801 data-nosnippet>801</a>                <span class="kw-2">&amp;</span>method.constraint,
-<a href=#802 id=802 data-nosnippet>802</a>                method.assumed,
-<a href=#803 id=803 data-nosnippet>803</a>                <span class="kw-2">&amp;mut </span>bindings,
-<a href=#804 id=804 data-nosnippet>804</a>            );
-<a href=#805 id=805 data-nosnippet>805</a>        }
-<a href=#806 id=806 data-nosnippet>806</a>
-<a href=#807 id=807 data-nosnippet>807</a>        <span class="comment">// If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
-<a href=#808 id=808 data-nosnippet>808</a>        </span><span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#809 id=809 data-nosnippet>809</a>        <span class="comment">// Some associated constants also have Global as Kind, and they are not defined when look them up here; want to restrict to global `let` statements.
-<a href=#810 id=810 data-nosnippet>810</a>        </span><span class="kw">if </span><span class="self">self</span>.in_comptime_context()
-<a href=#811 id=811 data-nosnippet>811</a>            &amp;&amp; definition.kind.is_global()
-<a href=#812 id=812 data-nosnippet>812</a>            &amp;&amp; <span class="self">self</span>.interner.try_definition_type(ident.id).is_none()
-<a href=#813 id=813 data-nosnippet>813</a>        {
-<a href=#814 id=814 data-nosnippet>814</a>            <span class="self">self</span>.push_err(ResolverError::DependencyCycle {
-<a href=#815 id=815 data-nosnippet>815</a>                location: ident.location,
-<a href=#816 id=816 data-nosnippet>816</a>                item: definition.name.clone(),
-<a href=#817 id=817 data-nosnippet>817</a>                cycle: <span class="string">"the variable definition type hasn't been resolved yet"</span>.to_string(),
-<a href=#818 id=818 data-nosnippet>818</a>            });
-<a href=#819 id=819 data-nosnippet>819</a>            <span class="kw">return </span>Type::Error;
-<a href=#820 id=820 data-nosnippet>820</a>        }
-<a href=#821 id=821 data-nosnippet>821</a>
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="comment">// An identifiers type may be forall-quantified in the case of generic functions.
-<a href=#823 id=823 data-nosnippet>823</a>        // E.g. `fn foo&lt;T&gt;(t: T, field: Field) -&gt; T` has type `forall T. fn(T, Field) -&gt; T`.
-<a href=#824 id=824 data-nosnippet>824</a>        // We must instantiate identifiers at every call site to replace this T with a new type
-<a href=#825 id=825 data-nosnippet>825</a>        // variable to handle generic functions.
-<a href=#826 id=826 data-nosnippet>826</a>        </span><span class="kw">let </span>t = <span class="self">self</span>.type_substitute_trait_as_type(<span class="kw-2">&amp;</span>ident);
-<a href=#827 id=827 data-nosnippet>827</a>
-<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>direct_generic_ids = <span class="kw">match </span>definition.kind {
-<a href=#830 id=830 data-nosnippet>830</a>            DefinitionKind::Function(function) =&gt; {
-<a href=#831 id=831 data-nosnippet>831</a>                vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>function).direct_generics, |generic| {
-<a href=#832 id=832 data-nosnippet>832</a>                    generic.type_var.id()
-<a href=#833 id=833 data-nosnippet>833</a>                })
-<a href=#834 id=834 data-nosnippet>834</a>            }
-<a href=#835 id=835 data-nosnippet>835</a>            <span class="kw">_ </span>=&gt; Vec::new(),
-<a href=#836 id=836 data-nosnippet>836</a>        };
+<a href=#723 id=723 data-nosnippet>723</a>                <span class="self">self</span>.interner.add_global_reference(global_id, location);
+<a href=#724 id=724 data-nosnippet>724</a>            }
+<a href=#725 id=725 data-nosnippet>725</a>            DefinitionKind::NumericGeneric(<span class="kw">_</span>, <span class="kw-2">ref </span>numeric_typ) =&gt; {
+<a href=#726 id=726 data-nosnippet>726</a>                <span class="comment">// Initialize numeric generics to a polymorphic integer type in case
+<a href=#727 id=727 data-nosnippet>727</a>                // they're used in expressions. We must do this here since type_check_variable
+<a href=#728 id=728 data-nosnippet>728</a>                // does not check definition kinds and otherwise expects parameters to
+<a href=#729 id=729 data-nosnippet>729</a>                // already be typed.
+<a href=#730 id=730 data-nosnippet>730</a>                </span><span class="kw">if </span><span class="self">self</span>.interner.definition_type(definition_id) == Type::Error {
+<a href=#731 id=731 data-nosnippet>731</a>                    <span class="kw">let </span>type_var_kind = Kind::Numeric(numeric_typ.clone());
+<a href=#732 id=732 data-nosnippet>732</a>                    <span class="kw">let </span>typ = <span class="self">self</span>.type_variable_with_kind(type_var_kind);
+<a href=#733 id=733 data-nosnippet>733</a>                    <span class="self">self</span>.interner.push_definition_type(definition_id, typ);
+<a href=#734 id=734 data-nosnippet>734</a>                }
+<a href=#735 id=735 data-nosnippet>735</a>            }
+<a href=#736 id=736 data-nosnippet>736</a>            DefinitionKind::Local(<span class="kw">_</span>) =&gt; {
+<a href=#737 id=737 data-nosnippet>737</a>                <span class="comment">// Handled separately in `handle_local_variable`
+<a href=#738 id=738 data-nosnippet>738</a>            </span>}
+<a href=#739 id=739 data-nosnippet>739</a>            DefinitionKind::AssociatedConstant(..) =&gt; {
+<a href=#740 id=740 data-nosnippet>740</a>                <span class="comment">// Nothing to do here
+<a href=#741 id=741 data-nosnippet>741</a>            </span>}
+<a href=#742 id=742 data-nosnippet>742</a>        }
+<a href=#743 id=743 data-nosnippet>743</a>    }
+<a href=#744 id=744 data-nosnippet>744</a>
+<a href=#745 id=745 data-nosnippet>745</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#746 id=746 data-nosnippet>746</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_local_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>Variable) {
+<a href=#747 id=747 data-nosnippet>747</a>        <span class="self">self</span>.check_if_variable_is_captured_by_closure(variable);
+<a href=#748 id=748 data-nosnippet>748</a>        <span class="kw">let </span>hir_ident = <span class="kw-2">&amp;</span>variable.ident;
+<a href=#749 id=749 data-nosnippet>749</a>        <span class="self">self</span>.interner.add_local_reference(hir_ident.id, hir_ident.location);
+<a href=#750 id=750 data-nosnippet>750</a>    }
+<a href=#751 id=751 data-nosnippet>751</a>
+<a href=#752 id=752 data-nosnippet>752</a>    <span class="doccomment">/// Starting with empty bindings, perform the type checking of an interned expression
+<a href=#753 id=753 data-nosnippet>753</a>    /// and a corresponding identifier, returning the instantiated [Type].
+<a href=#754 id=754 data-nosnippet>754</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#755 id=755 data-nosnippet>755</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable(
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#757 id=757 data-nosnippet>757</a>        ident: HirIdent,
+<a href=#758 id=758 data-nosnippet>758</a>        expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
+<a href=#759 id=759 data-nosnippet>759</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#760 id=760 data-nosnippet>760</a>    ) -&gt; Type {
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">let </span>bindings = TypeBindings::default();
+<a href=#762 id=762 data-nosnippet>762</a>        <span class="comment">// TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+<a href=#763 id=763 data-nosnippet>763</a>        </span><span class="kw">let </span>push_required_type_variables = <span class="self">self</span>.current_trait.is_none();
+<a href=#764 id=764 data-nosnippet>764</a>        <span class="self">self</span>.type_check_variable_with_bindings(
+<a href=#765 id=765 data-nosnippet>765</a>            ident,
+<a href=#766 id=766 data-nosnippet>766</a>            expr_id,
+<a href=#767 id=767 data-nosnippet>767</a>            generics,
+<a href=#768 id=768 data-nosnippet>768</a>            bindings,
+<a href=#769 id=769 data-nosnippet>769</a>            push_required_type_variables,
+<a href=#770 id=770 data-nosnippet>770</a>        )
+<a href=#771 id=771 data-nosnippet>771</a>    }
+<a href=#772 id=772 data-nosnippet>772</a>
+<a href=#773 id=773 data-nosnippet>773</a>    <span class="doccomment">/// Perform the type checking of an interned expression and a corresponding identifier,
+<a href=#774 id=774 data-nosnippet>774</a>    /// returning the instantiated [Type].
+<a href=#775 id=775 data-nosnippet>775</a>    ///
+<a href=#776 id=776 data-nosnippet>776</a>    /// If `push_required_type_variables`, the bindings are added to the function context,
+<a href=#777 id=777 data-nosnippet>777</a>    /// to be checked before it's finished.
+<a href=#778 id=778 data-nosnippet>778</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#779 id=779 data-nosnippet>779</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_check_variable_with_bindings(
+<a href=#780 id=780 data-nosnippet>780</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#781 id=781 data-nosnippet>781</a>        ident: HirIdent,
+<a href=#782 id=782 data-nosnippet>782</a>        expr_id: <span class="kw-2">&amp;</span>PushedExpr&lt;HasLocation&gt;,
+<a href=#783 id=783 data-nosnippet>783</a>        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#784 id=784 data-nosnippet>784</a>        <span class="kw-2">mut </span>bindings: TypeBindings,
+<a href=#785 id=785 data-nosnippet>785</a>        push_required_type_variables: bool,
+<a href=#786 id=786 data-nosnippet>786</a>    ) -&gt; Type {
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="comment">// Add type bindings from any constraints that were used.
+<a href=#788 id=788 data-nosnippet>788</a>        // We need to do this first since otherwise instantiating the type below
+<a href=#789 id=789 data-nosnippet>789</a>        // will replace each trait generic with a fresh type variable, rather than
+<a href=#790 id=790 data-nosnippet>790</a>        // the type used in the trait constraint (if it exists). See #4088.
+<a href=#791 id=791 data-nosnippet>791</a>        </span><span class="kw">if let </span>ImplKind::TraitItem(method) = <span class="kw-2">&amp;</span>ident.impl_kind {
+<a href=#792 id=792 data-nosnippet>792</a>            <span class="self">self</span>.bind_generics_from_trait_constraint(
+<a href=#793 id=793 data-nosnippet>793</a>                <span class="kw-2">&amp;</span>method.constraint,
+<a href=#794 id=794 data-nosnippet>794</a>                method.assumed,
+<a href=#795 id=795 data-nosnippet>795</a>                <span class="kw-2">&amp;mut </span>bindings,
+<a href=#796 id=796 data-nosnippet>796</a>            );
+<a href=#797 id=797 data-nosnippet>797</a>        }
+<a href=#798 id=798 data-nosnippet>798</a>
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="comment">// If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
+<a href=#800 id=800 data-nosnippet>800</a>        </span><span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#801 id=801 data-nosnippet>801</a>        <span class="comment">// Some associated constants also have Global as Kind, and they are not defined when look them up here; want to restrict to global `let` statements.
+<a href=#802 id=802 data-nosnippet>802</a>        </span><span class="kw">if </span><span class="self">self</span>.in_comptime_context()
+<a href=#803 id=803 data-nosnippet>803</a>            &amp;&amp; definition.kind.is_global()
+<a href=#804 id=804 data-nosnippet>804</a>            &amp;&amp; <span class="self">self</span>.interner.try_definition_type(ident.id).is_none()
+<a href=#805 id=805 data-nosnippet>805</a>        {
+<a href=#806 id=806 data-nosnippet>806</a>            <span class="self">self</span>.push_err(ResolverError::DependencyCycle {
+<a href=#807 id=807 data-nosnippet>807</a>                location: ident.location,
+<a href=#808 id=808 data-nosnippet>808</a>                item: definition.name.clone(),
+<a href=#809 id=809 data-nosnippet>809</a>                cycle: <span class="string">"the variable definition type hasn't been resolved yet"</span>.to_string(),
+<a href=#810 id=810 data-nosnippet>810</a>            });
+<a href=#811 id=811 data-nosnippet>811</a>            <span class="kw">return </span>Type::Error;
+<a href=#812 id=812 data-nosnippet>812</a>        }
+<a href=#813 id=813 data-nosnippet>813</a>
+<a href=#814 id=814 data-nosnippet>814</a>        <span class="comment">// An identifiers type may be forall-quantified in the case of generic functions.
+<a href=#815 id=815 data-nosnippet>815</a>        // E.g. `fn foo&lt;T&gt;(t: T, field: Field) -&gt; T` has type `forall T. fn(T, Field) -&gt; T`.
+<a href=#816 id=816 data-nosnippet>816</a>        // We must instantiate identifiers at every call site to replace this T with a new type
+<a href=#817 id=817 data-nosnippet>817</a>        // variable to handle generic functions.
+<a href=#818 id=818 data-nosnippet>818</a>        </span><span class="kw">let </span>t = <span class="self">self</span>.type_substitute_trait_as_type(<span class="kw-2">&amp;</span>ident);
+<a href=#819 id=819 data-nosnippet>819</a>
+<a href=#820 id=820 data-nosnippet>820</a>        <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span>direct_generic_ids = <span class="kw">match </span>definition.kind {
+<a href=#822 id=822 data-nosnippet>822</a>            DefinitionKind::Function(function) =&gt; {
+<a href=#823 id=823 data-nosnippet>823</a>                vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>function).direct_generics, |generic| {
+<a href=#824 id=824 data-nosnippet>824</a>                    generic.type_var.id()
+<a href=#825 id=825 data-nosnippet>825</a>                })
+<a href=#826 id=826 data-nosnippet>826</a>            }
+<a href=#827 id=827 data-nosnippet>827</a>            <span class="kw">_ </span>=&gt; Vec::new(),
+<a href=#828 id=828 data-nosnippet>828</a>        };
+<a href=#829 id=829 data-nosnippet>829</a>
+<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(expr_id);
+<a href=#831 id=831 data-nosnippet>831</a>
+<a href=#832 id=832 data-nosnippet>832</a>        <span class="comment">// This instantiates a trait's generics as well which need to be set
+<a href=#833 id=833 data-nosnippet>833</a>        // when the constraint below is later solved for when the function is
+<a href=#834 id=834 data-nosnippet>834</a>        // finished. How to link the two?
+<a href=#835 id=835 data-nosnippet>835</a>        </span><span class="kw">let </span>(typ, bindings) =
+<a href=#836 id=836 data-nosnippet>836</a>            <span class="self">self</span>.instantiate(t, bindings, generics, <span class="kw-2">&amp;</span>direct_generic_ids, location);
 <a href=#837 id=837 data-nosnippet>837</a>
-<a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(expr_id);
-<a href=#839 id=839 data-nosnippet>839</a>
-<a href=#840 id=840 data-nosnippet>840</a>        <span class="comment">// This instantiates a trait's generics as well which need to be set
-<a href=#841 id=841 data-nosnippet>841</a>        // when the constraint below is later solved for when the function is
-<a href=#842 id=842 data-nosnippet>842</a>        // finished. How to link the two?
-<a href=#843 id=843 data-nosnippet>843</a>        </span><span class="kw">let </span>(typ, bindings) =
-<a href=#844 id=844 data-nosnippet>844</a>            <span class="self">self</span>.instantiate(t, bindings, generics, <span class="kw-2">&amp;</span>direct_generic_ids, location);
-<a href=#845 id=845 data-nosnippet>845</a>
-<a href=#846 id=846 data-nosnippet>846</a>        <span class="kw">if let </span>ImplKind::TraitItem(<span class="kw-2">mut </span>method) = ident.impl_kind {
-<a href=#847 id=847 data-nosnippet>847</a>            method.constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
-<a href=#848 id=848 data-nosnippet>848</a>            <span class="kw">if </span>method.assumed {
-<a href=#849 id=849 data-nosnippet>849</a>                <span class="kw">let </span>trait_generics = method.constraint.trait_bound.trait_generics.clone();
-<a href=#850 id=850 data-nosnippet>850</a>                <span class="kw">let </span>object_type = method.constraint.typ;
-<a href=#851 id=851 data-nosnippet>851</a>                <span class="kw">let </span>trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-<a href=#852 id=852 data-nosnippet>852</a>                <span class="self">self</span>.interner.select_impl_for_expression(<span class="kw-2">**</span>expr_id, trait_impl);
-<a href=#853 id=853 data-nosnippet>853</a>            } <span class="kw">else </span>{
-<a href=#854 id=854 data-nosnippet>854</a>                <span class="comment">// this constraint should lead to choosing a trait impl method
-<a href=#855 id=855 data-nosnippet>855</a>                </span><span class="self">self</span>.push_trait_constraint(method.constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">true</span>);
-<a href=#856 id=856 data-nosnippet>856</a>            }
-<a href=#857 id=857 data-nosnippet>857</a>        }
-<a href=#858 id=858 data-nosnippet>858</a>
-<a href=#859 id=859 data-nosnippet>859</a>        <span class="comment">// Push any trait constraints required by this definition to the context
-<a href=#860 id=860 data-nosnippet>860</a>        // to be checked later when the type of this variable is further constrained.
+<a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">if let </span>ImplKind::TraitItem(<span class="kw-2">mut </span>method) = ident.impl_kind {
+<a href=#839 id=839 data-nosnippet>839</a>            method.constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+<a href=#840 id=840 data-nosnippet>840</a>            <span class="kw">if </span>method.assumed {
+<a href=#841 id=841 data-nosnippet>841</a>                <span class="kw">let </span>trait_generics = method.constraint.trait_bound.trait_generics.clone();
+<a href=#842 id=842 data-nosnippet>842</a>                <span class="kw">let </span>object_type = method.constraint.typ;
+<a href=#843 id=843 data-nosnippet>843</a>                <span class="kw">let </span>trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+<a href=#844 id=844 data-nosnippet>844</a>                <span class="self">self</span>.interner.select_impl_for_expression(<span class="kw-2">**</span>expr_id, trait_impl);
+<a href=#845 id=845 data-nosnippet>845</a>            } <span class="kw">else </span>{
+<a href=#846 id=846 data-nosnippet>846</a>                <span class="comment">// this constraint should lead to choosing a trait impl method
+<a href=#847 id=847 data-nosnippet>847</a>                </span><span class="self">self</span>.push_trait_constraint(method.constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">true</span>);
+<a href=#848 id=848 data-nosnippet>848</a>            }
+<a href=#849 id=849 data-nosnippet>849</a>        }
+<a href=#850 id=850 data-nosnippet>850</a>
+<a href=#851 id=851 data-nosnippet>851</a>        <span class="comment">// Push any trait constraints required by this definition to the context
+<a href=#852 id=852 data-nosnippet>852</a>        // to be checked later when the type of this variable is further constrained.
+<a href=#853 id=853 data-nosnippet>853</a>        //
+<a href=#854 id=854 data-nosnippet>854</a>        // This must be done before the above trait constraint in case the above one further
+<a href=#855 id=855 data-nosnippet>855</a>        // restricts types.
+<a href=#856 id=856 data-nosnippet>856</a>        //
+<a href=#857 id=857 data-nosnippet>857</a>        // For example, in this code:
+<a href=#858 id=858 data-nosnippet>858</a>        //
+<a href=#859 id=859 data-nosnippet>859</a>        // ```noir
+<a href=#860 id=860 data-nosnippet>860</a>        // trait One {}
 <a href=#861 id=861 data-nosnippet>861</a>        //
-<a href=#862 id=862 data-nosnippet>862</a>        // This must be done before the above trait constraint in case the above one further
-<a href=#863 id=863 data-nosnippet>863</a>        // restricts types.
-<a href=#864 id=864 data-nosnippet>864</a>        //
-<a href=#865 id=865 data-nosnippet>865</a>        // For example, in this code:
-<a href=#866 id=866 data-nosnippet>866</a>        //
-<a href=#867 id=867 data-nosnippet>867</a>        // ```noir
-<a href=#868 id=868 data-nosnippet>868</a>        // trait One {}
-<a href=#869 id=869 data-nosnippet>869</a>        //
-<a href=#870 id=870 data-nosnippet>870</a>        // trait Two&lt;O: One&gt; {
-<a href=#871 id=871 data-nosnippet>871</a>        //     fn new() -&gt; Self;
-<a href=#872 id=872 data-nosnippet>872</a>        // }
+<a href=#862 id=862 data-nosnippet>862</a>        // trait Two&lt;O: One&gt; {
+<a href=#863 id=863 data-nosnippet>863</a>        //     fn new() -&gt; Self;
+<a href=#864 id=864 data-nosnippet>864</a>        // }
+<a href=#865 id=865 data-nosnippet>865</a>        //
+<a href=#866 id=866 data-nosnippet>866</a>        // fn foo&lt;X: One, T: Two&lt;X&gt;&gt;() {
+<a href=#867 id=867 data-nosnippet>867</a>        //     let _: T = Two::new();
+<a href=#868 id=868 data-nosnippet>868</a>        // }
+<a href=#869 id=869 data-nosnippet>869</a>        // ```
+<a href=#870 id=870 data-nosnippet>870</a>        //
+<a href=#871 id=871 data-nosnippet>871</a>        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two&lt;'1&gt;`.
+<a href=#872 id=872 data-nosnippet>872</a>        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
 <a href=#873 id=873 data-nosnippet>873</a>        //
-<a href=#874 id=874 data-nosnippet>874</a>        // fn foo&lt;X: One, T: Two&lt;X&gt;&gt;() {
-<a href=#875 id=875 data-nosnippet>875</a>        //     let _: T = Two::new();
-<a href=#876 id=876 data-nosnippet>876</a>        // }
-<a href=#877 id=877 data-nosnippet>877</a>        // ```
-<a href=#878 id=878 data-nosnippet>878</a>        //
-<a href=#879 id=879 data-nosnippet>879</a>        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two&lt;'1&gt;`.
-<a href=#880 id=880 data-nosnippet>880</a>        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
-<a href=#881 id=881 data-nosnippet>881</a>        //
-<a href=#882 id=882 data-nosnippet>882</a>        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
-<a href=#883 id=883 data-nosnippet>883</a>        // Then we must first verify the constraint `'2: Two&lt;'1&gt;`, which is now `T: Two&lt;'1&gt;`, to find
-<a href=#884 id=884 data-nosnippet>884</a>        // that the implementation is the assumed one `T: Two&lt;X&gt;` so that `'1` is bound to `X`.
-<a href=#885 id=885 data-nosnippet>885</a>        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
-<a href=#886 id=886 data-nosnippet>886</a>        // because of the assumed constraint.
-<a href=#887 id=887 data-nosnippet>887</a>        //
-<a href=#888 id=888 data-nosnippet>888</a>        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-<a href=#889 id=889 data-nosnippet>889</a>        </span><span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#890 id=890 data-nosnippet>890</a>        <span class="kw">if let </span>DefinitionKind::Function(function) = definition.kind {
-<a href=#891 id=891 data-nosnippet>891</a>            <span class="kw">let </span>function = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>function);
-<a href=#892 id=892 data-nosnippet>892</a>            <span class="kw">for </span><span class="kw-2">mut </span>constraint <span class="kw">in </span>function.all_trait_constraints().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() {
-<a href=#893 id=893 data-nosnippet>893</a>                constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
-<a href=#894 id=894 data-nosnippet>894</a>
-<a href=#895 id=895 data-nosnippet>895</a>                <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
-<a href=#896 id=896 data-nosnippet>896</a>                </span><span class="self">self</span>.push_trait_constraint(constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">false</span>);
-<a href=#897 id=897 data-nosnippet>897</a>            }
-<a href=#898 id=898 data-nosnippet>898</a>        }
-<a href=#899 id=899 data-nosnippet>899</a>
-<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">if </span>push_required_type_variables {
-<a href=#901 id=901 data-nosnippet>901</a>            <span class="comment">// Record required type variables in a predictable order to avoid nondeterminism in error messages.
-<a href=#902 id=902 data-nosnippet>902</a>            </span><span class="kw">let </span>required_type_variables =
-<a href=#903 id=903 data-nosnippet>903</a>                btree_map(bindings.values(), |(type_variable, <span class="kw">_</span>, typ)| {
-<a href=#904 id=904 data-nosnippet>904</a>                    (type_variable.id(), typ.clone())
-<a href=#905 id=905 data-nosnippet>905</a>                });
-<a href=#906 id=906 data-nosnippet>906</a>
-<a href=#907 id=907 data-nosnippet>907</a>            <span class="kw">for </span>(type_variable_id, typ) <span class="kw">in </span>required_type_variables {
-<a href=#908 id=908 data-nosnippet>908</a>                <span class="self">self</span>.push_required_type_variable(
-<a href=#909 id=909 data-nosnippet>909</a>                    type_variable_id,
-<a href=#910 id=910 data-nosnippet>910</a>                    typ,
-<a href=#911 id=911 data-nosnippet>911</a>                    BindableTypeVariableKind::Ident(ident.id),
-<a href=#912 id=912 data-nosnippet>912</a>                    ident.location,
-<a href=#913 id=913 data-nosnippet>913</a>                );
-<a href=#914 id=914 data-nosnippet>914</a>            }
-<a href=#915 id=915 data-nosnippet>915</a>        }
-<a href=#916 id=916 data-nosnippet>916</a>
-<a href=#917 id=917 data-nosnippet>917</a>        <span class="self">self</span>.interner.store_instantiation_bindings(<span class="kw-2">**</span>expr_id, bindings);
-<a href=#918 id=918 data-nosnippet>918</a>        typ
-<a href=#919 id=919 data-nosnippet>919</a>    }
-<a href=#920 id=920 data-nosnippet>920</a>
-<a href=#921 id=921 data-nosnippet>921</a>    <span class="doccomment">/// If the type of the [HirIdent] is a function that returns an `impl Trait`,
-<a href=#922 id=922 data-nosnippet>922</a>    /// then it might need elaboration before it can be substituted to a [Type].
-<a href=#923 id=923 data-nosnippet>923</a>    /// Try to elaborate it now.
-<a href=#924 id=924 data-nosnippet>924</a>    ///
-<a href=#925 id=925 data-nosnippet>925</a>    /// Returns a type error if the callee cannot be resolved on a second try,
-<a href=#926 id=926 data-nosnippet>926</a>    /// which indicates a dependency cycle.
-<a href=#927 id=927 data-nosnippet>927</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#928 id=928 data-nosnippet>928</a>    </span><span class="kw">fn </span>type_substitute_trait_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>HirIdent) -&gt; Type {
-<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.interner.id_type_substitute_trait_as_type(ident.id) {
-<a href=#930 id=930 data-nosnippet>930</a>            <span class="prelude-val">Ok</span>(typ) =&gt; <span class="kw">return </span>typ,
-<a href=#931 id=931 data-nosnippet>931</a>            <span class="prelude-val">Err</span>(func_id) =&gt; func_id,
-<a href=#932 id=932 data-nosnippet>932</a>        };
-<a href=#933 id=933 data-nosnippet>933</a>
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="comment">// Try to elaborate, so we get an expression for the body.
-<a href=#935 id=935 data-nosnippet>935</a>        </span><span class="self">self</span>.elaborate_function(func_id);
-<a href=#936 id=936 data-nosnippet>936</a>
-<a href=#937 id=937 data-nosnippet>937</a>        <span class="comment">// Now try again. If it's still not working, give up.
-<a href=#938 id=938 data-nosnippet>938</a>        </span><span class="kw">match </span><span class="self">self</span>.interner.id_type_substitute_trait_as_type(ident.id) {
-<a href=#939 id=939 data-nosnippet>939</a>            <span class="prelude-val">Ok</span>(typ) =&gt; typ,
-<a href=#940 id=940 data-nosnippet>940</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-<a href=#941 id=941 data-nosnippet>941</a>                <span class="kw">let </span>def = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#942 id=942 data-nosnippet>942</a>                <span class="self">self</span>.push_err(ResolverError::DependencyCycle {
-<a href=#943 id=943 data-nosnippet>943</a>                    location: ident.location,
-<a href=#944 id=944 data-nosnippet>944</a>                    item: def.name.clone(),
-<a href=#945 id=945 data-nosnippet>945</a>                    cycle: <span class="string">"'impl Trait' could not be resolved to the type of the function body"
-<a href=#946 id=946 data-nosnippet>946</a>                        </span>.to_string(),
-<a href=#947 id=947 data-nosnippet>947</a>                });
-<a href=#948 id=948 data-nosnippet>948</a>                Type::Error
-<a href=#949 id=949 data-nosnippet>949</a>            }
-<a href=#950 id=950 data-nosnippet>950</a>        }
-<a href=#951 id=951 data-nosnippet>951</a>    }
-<a href=#952 id=952 data-nosnippet>952</a>
-<a href=#953 id=953 data-nosnippet>953</a>    <span class="doccomment">/// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
-<a href=#954 id=954 data-nosnippet>954</a>    /// extended from any turbofish generics.
-<a href=#955 id=955 data-nosnippet>955</a>    ///
-<a href=#956 id=956 data-nosnippet>956</a>    /// If there are turbofish generics and their number matches the expectations of the function,
-<a href=#957 id=957 data-nosnippet>957</a>    /// those are used as well, otherwise they are ignored and an error is pushed.
-<a href=#958 id=958 data-nosnippet>958</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#959 id=959 data-nosnippet>959</a>    </span><span class="kw">fn </span>instantiate(
-<a href=#960 id=960 data-nosnippet>960</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#961 id=961 data-nosnippet>961</a>        typ: Type,
-<a href=#962 id=962 data-nosnippet>962</a>        bindings: TypeBindings,
-<a href=#963 id=963 data-nosnippet>963</a>        turbofish_generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#964 id=964 data-nosnippet>964</a>        direct_generic_ids: <span class="kw-2">&amp;</span>[TypeVariableId],
-<a href=#965 id=965 data-nosnippet>965</a>        location: Location,
-<a href=#966 id=966 data-nosnippet>966</a>    ) -&gt; (Type, TypeBindings) {
-<a href=#967 id=967 data-nosnippet>967</a>        <span class="kw">match </span>turbofish_generics {
-<a href=#968 id=968 data-nosnippet>968</a>            <span class="prelude-val">Some</span>(turbofish_generics) =&gt; {
-<a href=#969 id=969 data-nosnippet>969</a>                <span class="kw">let </span>function_generic_count = direct_generic_ids.len();
-<a href=#970 id=970 data-nosnippet>970</a>                <span class="kw">let </span>forall_generic_count =
-<a href=#971 id=971 data-nosnippet>971</a>                    <span class="kw">if let </span>Type::Forall(generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>typ { generics.len() } <span class="kw">else </span>{ <span class="number">0 </span>};
-<a href=#972 id=972 data-nosnippet>972</a>
-<a href=#973 id=973 data-nosnippet>973</a>                <span class="kw">if </span>turbofish_generics.len() != function_generic_count {
-<a href=#974 id=974 data-nosnippet>974</a>                    <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-<a href=#975 id=975 data-nosnippet>975</a>                        expected_count: function_generic_count,
-<a href=#976 id=976 data-nosnippet>976</a>                        actual_count: turbofish_generics.len(),
-<a href=#977 id=977 data-nosnippet>977</a>                        location,
-<a href=#978 id=978 data-nosnippet>978</a>                    };
-<a href=#979 id=979 data-nosnippet>979</a>                    <span class="self">self</span>.push_err(CompilationError::TypeError(type_check_err));
-<a href=#980 id=980 data-nosnippet>980</a>                    typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner)
-<a href=#981 id=981 data-nosnippet>981</a>                } <span class="kw">else if </span>forall_generic_count &lt; function_generic_count {
-<a href=#982 id=982 data-nosnippet>982</a>                    <span class="comment">// The next branch asserts that the number of turbofish-bound typevars matches
-<a href=#983 id=983 data-nosnippet>983</a>                    // `direct_generic_ids`, but if the forall has fewer generics than the function
-<a href=#984 id=984 data-nosnippet>984</a>                    // (e.g. when the function's generics have duplicates that were filtered out)
-<a href=#985 id=985 data-nosnippet>985</a>                    // this can never hold. A duplicate error has already been reported elsewhere,
-<a href=#986 id=986 data-nosnippet>986</a>                    // so bail out silently.
-<a href=#987 id=987 data-nosnippet>987</a>                    </span><span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
-<a href=#988 id=988 data-nosnippet>988</a>                        <span class="string">"forall has fewer generics than function"</span>,
-<a href=#989 id=989 data-nosnippet>989</a>                        location,
-<a href=#990 id=990 data-nosnippet>990</a>                    ));
-<a href=#991 id=991 data-nosnippet>991</a>                    (Type::Error, bindings)
-<a href=#992 id=992 data-nosnippet>992</a>                } <span class="kw">else </span>{
-<a href=#993 id=993 data-nosnippet>993</a>                    typ.instantiate_with_bindings_and_turbofish(
-<a href=#994 id=994 data-nosnippet>994</a>                        bindings,
-<a href=#995 id=995 data-nosnippet>995</a>                        turbofish_generics,
-<a href=#996 id=996 data-nosnippet>996</a>                        <span class="self">self</span>.interner,
-<a href=#997 id=997 data-nosnippet>997</a>                        direct_generic_ids,
-<a href=#998 id=998 data-nosnippet>998</a>                    )
-<a href=#999 id=999 data-nosnippet>999</a>                }
-<a href=#1000 id=1000 data-nosnippet>1000</a>            }
-<a href=#1001 id=1001 data-nosnippet>1001</a>            <span class="prelude-val">None </span>=&gt; typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner),
-<a href=#1002 id=1002 data-nosnippet>1002</a>        }
-<a href=#1003 id=1003 data-nosnippet>1003</a>    }
-<a href=#1004 id=1004 data-nosnippet>1004</a>}
-<a href=#1005 id=1005 data-nosnippet>1005</a>
-<a href=#1006 id=1006 data-nosnippet>1006</a><span class="doccomment">/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
-<a href=#1007 id=1007 data-nosnippet>1007</a>/// recursively expanding the generics aliased aliases, finally returning the generics of the
-<a href=#1008 id=1008 data-nosnippet>1008</a>/// innermost aliased struct.
-<a href=#1009 id=1009 data-nosnippet>1009</a>///
-<a href=#1010 id=1010 data-nosnippet>1010</a>/// Panics if it encounters a type other than alias or struct.
-<a href=#1011 id=1011 data-nosnippet>1011</a></span><span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
-<a href=#1012 id=1012 data-nosnippet>1012</a>    <span class="kw">let </span>typ = type_alias.get_type(generics);
-<a href=#1013 id=1013 data-nosnippet>1013</a>    <span class="kw">match </span>typ {
-<a href=#1014 id=1014 data-nosnippet>1014</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; generics,
-<a href=#1015 id=1015 data-nosnippet>1015</a>        Type::Alias(type_alias, generics) =&gt; {
-<a href=#1016 id=1016 data-nosnippet>1016</a>            get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias.borrow(), <span class="kw-2">&amp;</span>generics)
-<a href=#1017 id=1017 data-nosnippet>1017</a>        }
-<a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="comment">// Primitive types have no generics
-<a href=#1019 id=1019 data-nosnippet>1019</a>        </span><span class="kw">_ </span>=&gt; Vec::new(),
-<a href=#1020 id=1020 data-nosnippet>1020</a>    }
-<a href=#1021 id=1021 data-nosnippet>1021</a>}</code></pre></div></section></main></body></html>
+<a href=#874 id=874 data-nosnippet>874</a>        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+<a href=#875 id=875 data-nosnippet>875</a>        // Then we must first verify the constraint `'2: Two&lt;'1&gt;`, which is now `T: Two&lt;'1&gt;`, to find
+<a href=#876 id=876 data-nosnippet>876</a>        // that the implementation is the assumed one `T: Two&lt;X&gt;` so that `'1` is bound to `X`.
+<a href=#877 id=877 data-nosnippet>877</a>        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+<a href=#878 id=878 data-nosnippet>878</a>        // because of the assumed constraint.
+<a href=#879 id=879 data-nosnippet>879</a>        //
+<a href=#880 id=880 data-nosnippet>880</a>        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
+<a href=#881 id=881 data-nosnippet>881</a>        </span><span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="kw">if let </span>DefinitionKind::Function(function) = definition.kind {
+<a href=#883 id=883 data-nosnippet>883</a>            <span class="kw">let </span>function = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>function);
+<a href=#884 id=884 data-nosnippet>884</a>            <span class="kw">for </span><span class="kw-2">mut </span>constraint <span class="kw">in </span>function.all_trait_constraints().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() {
+<a href=#885 id=885 data-nosnippet>885</a>                constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+<a href=#886 id=886 data-nosnippet>886</a>
+<a href=#887 id=887 data-nosnippet>887</a>                <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
+<a href=#888 id=888 data-nosnippet>888</a>                </span><span class="self">self</span>.push_trait_constraint(constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">false</span>);
+<a href=#889 id=889 data-nosnippet>889</a>            }
+<a href=#890 id=890 data-nosnippet>890</a>        }
+<a href=#891 id=891 data-nosnippet>891</a>
+<a href=#892 id=892 data-nosnippet>892</a>        <span class="kw">if </span>push_required_type_variables {
+<a href=#893 id=893 data-nosnippet>893</a>            <span class="comment">// Record required type variables in a predictable order to avoid nondeterminism in error messages.
+<a href=#894 id=894 data-nosnippet>894</a>            </span><span class="kw">let </span>required_type_variables =
+<a href=#895 id=895 data-nosnippet>895</a>                btree_map(bindings.values(), |(type_variable, <span class="kw">_</span>, typ)| {
+<a href=#896 id=896 data-nosnippet>896</a>                    (type_variable.id(), typ.clone())
+<a href=#897 id=897 data-nosnippet>897</a>                });
+<a href=#898 id=898 data-nosnippet>898</a>
+<a href=#899 id=899 data-nosnippet>899</a>            <span class="kw">for </span>(type_variable_id, typ) <span class="kw">in </span>required_type_variables {
+<a href=#900 id=900 data-nosnippet>900</a>                <span class="self">self</span>.push_required_type_variable(
+<a href=#901 id=901 data-nosnippet>901</a>                    type_variable_id,
+<a href=#902 id=902 data-nosnippet>902</a>                    typ,
+<a href=#903 id=903 data-nosnippet>903</a>                    BindableTypeVariableKind::Ident(ident.id),
+<a href=#904 id=904 data-nosnippet>904</a>                    ident.location,
+<a href=#905 id=905 data-nosnippet>905</a>                );
+<a href=#906 id=906 data-nosnippet>906</a>            }
+<a href=#907 id=907 data-nosnippet>907</a>        }
+<a href=#908 id=908 data-nosnippet>908</a>
+<a href=#909 id=909 data-nosnippet>909</a>        <span class="self">self</span>.interner.store_instantiation_bindings(<span class="kw-2">**</span>expr_id, bindings);
+<a href=#910 id=910 data-nosnippet>910</a>        typ
+<a href=#911 id=911 data-nosnippet>911</a>    }
+<a href=#912 id=912 data-nosnippet>912</a>
+<a href=#913 id=913 data-nosnippet>913</a>    <span class="doccomment">/// If the type of the [HirIdent] is a function that returns an `impl Trait`,
+<a href=#914 id=914 data-nosnippet>914</a>    /// then it might need elaboration before it can be substituted to a [Type].
+<a href=#915 id=915 data-nosnippet>915</a>    /// Try to elaborate it now.
+<a href=#916 id=916 data-nosnippet>916</a>    ///
+<a href=#917 id=917 data-nosnippet>917</a>    /// Returns a type error if the callee cannot be resolved on a second try,
+<a href=#918 id=918 data-nosnippet>918</a>    /// which indicates a dependency cycle.
+<a href=#919 id=919 data-nosnippet>919</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#920 id=920 data-nosnippet>920</a>    </span><span class="kw">fn </span>type_substitute_trait_as_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>HirIdent) -&gt; Type {
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.interner.id_type_substitute_trait_as_type(ident.id) {
+<a href=#922 id=922 data-nosnippet>922</a>            <span class="prelude-val">Ok</span>(typ) =&gt; <span class="kw">return </span>typ,
+<a href=#923 id=923 data-nosnippet>923</a>            <span class="prelude-val">Err</span>(func_id) =&gt; func_id,
+<a href=#924 id=924 data-nosnippet>924</a>        };
+<a href=#925 id=925 data-nosnippet>925</a>
+<a href=#926 id=926 data-nosnippet>926</a>        <span class="comment">// Try to elaborate, so we get an expression for the body.
+<a href=#927 id=927 data-nosnippet>927</a>        </span><span class="self">self</span>.elaborate_function(func_id);
+<a href=#928 id=928 data-nosnippet>928</a>
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="comment">// Now try again. If it's still not working, give up.
+<a href=#930 id=930 data-nosnippet>930</a>        </span><span class="kw">match </span><span class="self">self</span>.interner.id_type_substitute_trait_as_type(ident.id) {
+<a href=#931 id=931 data-nosnippet>931</a>            <span class="prelude-val">Ok</span>(typ) =&gt; typ,
+<a href=#932 id=932 data-nosnippet>932</a>            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+<a href=#933 id=933 data-nosnippet>933</a>                <span class="kw">let </span>def = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#934 id=934 data-nosnippet>934</a>                <span class="self">self</span>.push_err(ResolverError::DependencyCycle {
+<a href=#935 id=935 data-nosnippet>935</a>                    location: ident.location,
+<a href=#936 id=936 data-nosnippet>936</a>                    item: def.name.clone(),
+<a href=#937 id=937 data-nosnippet>937</a>                    cycle: <span class="string">"'impl Trait' could not be resolved to the type of the function body"
+<a href=#938 id=938 data-nosnippet>938</a>                        </span>.to_string(),
+<a href=#939 id=939 data-nosnippet>939</a>                });
+<a href=#940 id=940 data-nosnippet>940</a>                Type::Error
+<a href=#941 id=941 data-nosnippet>941</a>            }
+<a href=#942 id=942 data-nosnippet>942</a>        }
+<a href=#943 id=943 data-nosnippet>943</a>    }
+<a href=#944 id=944 data-nosnippet>944</a>
+<a href=#945 id=945 data-nosnippet>945</a>    <span class="doccomment">/// Instantiate a [Type] with the given [TypeBindings], returning the bindings potentially
+<a href=#946 id=946 data-nosnippet>946</a>    /// extended from any turbofish generics.
+<a href=#947 id=947 data-nosnippet>947</a>    ///
+<a href=#948 id=948 data-nosnippet>948</a>    /// If there are turbofish generics and their number matches the expectations of the function,
+<a href=#949 id=949 data-nosnippet>949</a>    /// those are used as well, otherwise they are ignored and an error is pushed.
+<a href=#950 id=950 data-nosnippet>950</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#951 id=951 data-nosnippet>951</a>    </span><span class="kw">fn </span>instantiate(
+<a href=#952 id=952 data-nosnippet>952</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#953 id=953 data-nosnippet>953</a>        typ: Type,
+<a href=#954 id=954 data-nosnippet>954</a>        bindings: TypeBindings,
+<a href=#955 id=955 data-nosnippet>955</a>        turbofish_generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#956 id=956 data-nosnippet>956</a>        direct_generic_ids: <span class="kw-2">&amp;</span>[TypeVariableId],
+<a href=#957 id=957 data-nosnippet>957</a>        location: Location,
+<a href=#958 id=958 data-nosnippet>958</a>    ) -&gt; (Type, TypeBindings) {
+<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">match </span>turbofish_generics {
+<a href=#960 id=960 data-nosnippet>960</a>            <span class="prelude-val">Some</span>(turbofish_generics) =&gt; {
+<a href=#961 id=961 data-nosnippet>961</a>                <span class="kw">let </span>function_generic_count = direct_generic_ids.len();
+<a href=#962 id=962 data-nosnippet>962</a>                <span class="kw">let </span>forall_generic_count =
+<a href=#963 id=963 data-nosnippet>963</a>                    <span class="kw">if let </span>Type::Forall(generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>typ { generics.len() } <span class="kw">else </span>{ <span class="number">0 </span>};
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a>                <span class="kw">if </span>turbofish_generics.len() != function_generic_count {
+<a href=#966 id=966 data-nosnippet>966</a>                    <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+<a href=#967 id=967 data-nosnippet>967</a>                        expected_count: function_generic_count,
+<a href=#968 id=968 data-nosnippet>968</a>                        actual_count: turbofish_generics.len(),
+<a href=#969 id=969 data-nosnippet>969</a>                        location,
+<a href=#970 id=970 data-nosnippet>970</a>                    };
+<a href=#971 id=971 data-nosnippet>971</a>                    <span class="self">self</span>.push_err(CompilationError::TypeError(type_check_err));
+<a href=#972 id=972 data-nosnippet>972</a>                    typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner)
+<a href=#973 id=973 data-nosnippet>973</a>                } <span class="kw">else if </span>forall_generic_count &lt; function_generic_count {
+<a href=#974 id=974 data-nosnippet>974</a>                    <span class="comment">// The next branch asserts that the number of turbofish-bound typevars matches
+<a href=#975 id=975 data-nosnippet>975</a>                    // `direct_generic_ids`, but if the forall has fewer generics than the function
+<a href=#976 id=976 data-nosnippet>976</a>                    // (e.g. when the function's generics have duplicates that were filtered out)
+<a href=#977 id=977 data-nosnippet>977</a>                    // this can never hold. A duplicate error has already been reported elsewhere,
+<a href=#978 id=978 data-nosnippet>978</a>                    // so bail out silently.
+<a href=#979 id=979 data-nosnippet>979</a>                    </span><span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
+<a href=#980 id=980 data-nosnippet>980</a>                        <span class="string">"forall has fewer generics than function"</span>,
+<a href=#981 id=981 data-nosnippet>981</a>                        location,
+<a href=#982 id=982 data-nosnippet>982</a>                    ));
+<a href=#983 id=983 data-nosnippet>983</a>                    (Type::Error, bindings)
+<a href=#984 id=984 data-nosnippet>984</a>                } <span class="kw">else </span>{
+<a href=#985 id=985 data-nosnippet>985</a>                    typ.instantiate_with_bindings_and_turbofish(
+<a href=#986 id=986 data-nosnippet>986</a>                        bindings,
+<a href=#987 id=987 data-nosnippet>987</a>                        turbofish_generics,
+<a href=#988 id=988 data-nosnippet>988</a>                        <span class="self">self</span>.interner,
+<a href=#989 id=989 data-nosnippet>989</a>                        direct_generic_ids,
+<a href=#990 id=990 data-nosnippet>990</a>                    )
+<a href=#991 id=991 data-nosnippet>991</a>                }
+<a href=#992 id=992 data-nosnippet>992</a>            }
+<a href=#993 id=993 data-nosnippet>993</a>            <span class="prelude-val">None </span>=&gt; typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner),
+<a href=#994 id=994 data-nosnippet>994</a>        }
+<a href=#995 id=995 data-nosnippet>995</a>    }
+<a href=#996 id=996 data-nosnippet>996</a>}
+<a href=#997 id=997 data-nosnippet>997</a>
+<a href=#998 id=998 data-nosnippet>998</a><span class="doccomment">/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+<a href=#999 id=999 data-nosnippet>999</a>/// recursively expanding the generics aliased aliases, finally returning the generics of the
+<a href=#1000 id=1000 data-nosnippet>1000</a>/// innermost aliased struct.
+<a href=#1001 id=1001 data-nosnippet>1001</a>///
+<a href=#1002 id=1002 data-nosnippet>1002</a>/// Panics if it encounters a type other than alias or struct.
+<a href=#1003 id=1003 data-nosnippet>1003</a></span><span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
+<a href=#1004 id=1004 data-nosnippet>1004</a>    <span class="kw">let </span>typ = type_alias.get_type(generics);
+<a href=#1005 id=1005 data-nosnippet>1005</a>    <span class="kw">match </span>typ {
+<a href=#1006 id=1006 data-nosnippet>1006</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; generics,
+<a href=#1007 id=1007 data-nosnippet>1007</a>        Type::Alias(type_alias, generics) =&gt; {
+<a href=#1008 id=1008 data-nosnippet>1008</a>            get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias.borrow(), <span class="kw-2">&amp;</span>generics)
+<a href=#1009 id=1009 data-nosnippet>1009</a>        }
+<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="comment">// Primitive types have no generics
+<a href=#1011 id=1011 data-nosnippet>1011</a>        </span><span class="kw">_ </span>=&gt; Vec::new(),
+<a href=#1012 id=1012 data-nosnippet>1012</a>    }
+<a href=#1013 id=1013 data-nosnippet>1013</a>}</code></pre></div></section></main></body></html>
