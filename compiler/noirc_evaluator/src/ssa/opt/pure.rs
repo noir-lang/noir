@@ -30,7 +30,10 @@ impl Ssa {
     /// This is purely an analysis pass on its own but can help future optimizations.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
-        let call_graph = CallGraph::from_ssa(&self);
+        // Purity falls back to `Impure` for any call whose callee cannot be statically
+        // resolved, so an incomplete call graph is fine — use the partial constructor
+        // to allow running on pre-defunctionalize SSA in unit tests.
+        let call_graph = CallGraph::from_ssa_partial(&self);
 
         let (sccs, recursive_functions) = call_graph.sccs();
 
