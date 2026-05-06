@@ -141,14 +141,7 @@ impl Elaborator<'_> {
                         }
                     }
 
-                    // The alias's numeric expression has already been kind-checked at
-                    // alias-definition time (see `convert_expression_type`), which is
-                    // where any "value does not fit" diagnostic is emitted. Drop any
-                    // literals queued for the function-context fit check during
-                    // re-elaboration so the same overflow is not reported twice.
-                    let literals_before = self.integer_literal_expr_ids_len();
                     let (id, typ) = self.elaborate_expression(expr);
-                    self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
                     self.unify_or_type_mismatch(&typ, &declared_type, expr_location);

@@ -1,5 +1,7 @@
 //! Function-local context management for type variables and trait constraints.
 
+use std::collections::BTreeSet;
+
 use noirc_errors::Location;
 
 use crate::{
@@ -40,7 +42,7 @@ pub(super) struct FunctionContext {
 
     /// All ExprId in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
-    integer_literal_expr_ids: Vec<ExprId>,
+    integer_literal_expr_ids: BTreeSet<ExprId>,
 }
 
 /// A type variable that is required to be bound after type-checking a function.
@@ -128,19 +130,7 @@ impl Elaborator<'_> {
     /// At the end of the current function we'll check that they fit in their type's range.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
-        self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
-    }
-
-    /// Snapshot the current count of pending integer-literal expression ids so a later
-    /// call to [`Self::truncate_integer_literal_expr_ids`] can drop any literals pushed
-    /// in the meantime. Used when elaborating a synthesized expression whose literals
-    /// have already been validated against their declared type elsewhere.
-    pub(super) fn integer_literal_expr_ids_len(&mut self) -> usize {
-        self.get_function_context_mut().integer_literal_expr_ids.len()
-    }
-
-    pub(super) fn truncate_integer_literal_expr_ids(&mut self, len: usize) {
-        self.get_function_context_mut().integer_literal_expr_ids.truncate(len);
+        self.get_function_context_mut().integer_literal_expr_ids.insert(literal_expr_id);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -175,7 +165,7 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn check_integer_literal_fit_their_type(&mut self, expr_ids: Vec<ExprId>) {
+    fn check_integer_literal_fit_their_type(&mut self, expr_ids: BTreeSet<ExprId>) {
         for expr_id in expr_ids {
             if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
                 self.push_err(error);
