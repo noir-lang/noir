@@ -144,6 +144,8 @@ impl Elaborator<'_> {
                     let (id, typ) = self.elaborate_expression(expr);
                     self.pop_scope();
 
+                    // Unify the expression's type with the declared type from the type alias
+                    // to ensure proper type checking.
                     self.unify_or_type_mismatch(&typ, &declared_type, expr_location);
 
                     return (id, declared_type, false, location);
