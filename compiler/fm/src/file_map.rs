@@ -22,6 +22,10 @@ impl PathString {
         PathString(p)
     }
 
+    pub fn as_path_buf(&self) -> &PathBuf {
+        &self.0
+    }
+
     pub fn into_path_buf(self) -> PathBuf {
         self.0
     }
@@ -71,7 +75,9 @@ impl<'input> File<'input> {
 impl FileMap {
     pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
         let file_id = FileId(self.files.add(file_name.clone(), code));
-        self.name_to_id.insert(file_name, file_id);
+        if self.name_to_id.insert(file_name, file_id).is_some() {
+            panic!("ice: the same file name was inserted into the file manager twice");
+        }
         file_id
     }
 
@@ -89,6 +95,10 @@ impl FileMap {
 
     pub fn all_file_ids(&self) -> impl Iterator<Item = &FileId> {
         self.name_to_id.values()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&PathString, &FileId)> {
+        self.name_to_id.iter()
     }
 
     pub fn get_name(&self, file_id: FileId) -> Result<PathString, Error> {

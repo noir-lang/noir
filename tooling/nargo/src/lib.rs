@@ -238,8 +238,10 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         .all_file_ids()
         .filter(|&&file_id| {
             let file_path = file_manager.path(file_id).expect("expected file to exist");
-            let file_extension =
-                file_path.extension().expect("expected all file paths to have an extension");
+            let file_extension = file_path
+                .as_path_buf()
+                .extension()
+                .expect("expected all file paths to have an extension");
             file_extension == "nr"
         })
         .copied()

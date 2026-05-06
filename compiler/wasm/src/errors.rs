@@ -126,7 +126,7 @@ impl CompileError {
                 let file_path = file_manager
                     .path(err.file)
                     .expect("File must exist to have caused diagnostics");
-                Diagnostic::new(err, file_path.to_str().unwrap().to_string())
+                Diagnostic::new(err, file_path.to_string())
             })
             .collect();
 

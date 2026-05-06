@@ -227,7 +227,7 @@ pub(super) fn tracker_to_report(
 }
 
 fn file_path(context: &Context, file_id: FileId) -> Option<PathBuf> {
-    context.file_manager.as_file_map().get_name(file_id).ok().map(|p| p.into_path_buf())
+    context.file_manager.path(file_id).map(|p| p.into_path_buf())
 }
 
 /// `lcov` rejects `:` in the `TN:` (test name) field — without sanitization it logs

@@ -525,7 +525,7 @@ fn publish_diagnostics(
     for custom_diagnostic in custom_diagnostics {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Some(uri) = uri_from_path(path)
+        if let Some(uri) = uri_from_path(path.as_path_buf())
             && let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
         {
@@ -622,7 +622,7 @@ fn secondary_to_related_information(
 ) -> Option<DiagnosticRelatedInformation> {
     let secondary_file = secondary.location.file;
     let path = fm.path(secondary_file)?;
-    let uri = uri_from_path(path)?;
+    let uri = uri_from_path(path.as_path_buf())?;
     let range = byte_span_to_range(files, secondary_file, secondary.location.span.into())?;
     let message = secondary.message;
     Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
@@ -644,7 +644,7 @@ fn call_stack_frame_to_related_information(
     fm: &FileManager,
 ) -> Option<DiagnosticRelatedInformation> {
     let path = fm.path(frame.file)?;
-    let uri = uri_from_path(path)?;
+    let uri = uri_from_path(path.as_path_buf())?;
     let range = byte_span_to_range(files, frame.file, frame.span.into())?;
     Some(DiagnosticRelatedInformation {
         location: lsp_types::Location { uri, range },

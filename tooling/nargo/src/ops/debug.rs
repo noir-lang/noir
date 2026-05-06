@@ -178,7 +178,7 @@ fn instrument_package_files(
     for (file_id, parsed_file) in parsed_files.iter_mut() {
         let file_path =
             file_manager.path(*file_id).expect("Parsed file ID not found in file manager");
-        for ancestor in file_path.ancestors() {
+        for ancestor in file_path.as_path_buf().ancestors() {
             if ancestor == entry_path_parent {
                 // file is in package
                 debug_instrumenter.instrument_module(&mut parsed_file.0);

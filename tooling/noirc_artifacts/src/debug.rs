@@ -84,7 +84,7 @@ impl DebugArtifact {
                 file_id,
                 DebugFile {
                     source: file_source.to_string(),
-                    path: file_path.to_path_buf(),
+                    path: file_path.into_path_buf(),
                     function_locations,
                 },
             );

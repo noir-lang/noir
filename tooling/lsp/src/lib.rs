@@ -246,7 +246,7 @@ fn get_package_tests_in_crate(
             let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-            let file_uri = Url::from_file_path(file_path)
+            let file_uri = Url::from_file_path(file_path.as_path_buf())
                 .expect("Expected a valid file path that can be converted into a URI");
 
             NargoTest {
@@ -370,12 +370,14 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             .par_bridge()
             .filter_map(|&file_id| {
                 let file_path = file_manager.path(file_id).expect("expected file to exist");
-                let file_extension =
-                    file_path.extension().expect("expected all file paths to have an extension");
+                let file_extension = file_path
+                    .as_path_buf()
+                    .extension()
+                    .expect("expected all file paths to have an extension");
                 if file_extension == "nr" {
                     Some((
                         file_id,
-                        file_path.to_path_buf(),
+                        file_path.into_path_buf(),
                         rustc_hash::FxBuildHasher
                             .hash_one(file_manager.fetch_file(file_id).expect("file must exist"))
                             as usize,

@@ -168,7 +168,7 @@ fn package_crate(
     broken_links.extend(module_broken_links);
 
     let root_file = &context.crate_graph[crate_id].root_file_id;
-    let root_file = file_manager.path(*root_file).unwrap().display().to_string();
+    let root_file = file_manager.path(*root_file).unwrap().to_string();
 
     let name = package.name.to_string();
     let version = package.version.clone();
@@ -189,7 +189,7 @@ fn collect_dependencies(
         let crate_id = dependency.crate_id;
         let crate_data = &context.crate_graph[crate_id];
         let root_file = crate_data.root_file_id;
-        let root_file = file_manager.path(root_file).unwrap().display().to_string();
+        let root_file = file_manager.path(root_file).unwrap().to_string();
         if dependencies.contains_key(&root_file) {
             continue;
         }

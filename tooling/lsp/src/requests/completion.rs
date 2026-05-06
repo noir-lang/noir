@@ -1167,7 +1167,8 @@ impl<'a> NodeFinder<'a> {
     /// Try to suggest the name of a module to declare based on which
     /// files exist in the filesystem, excluding modules that are already declared.
     fn complete_module_declaration(&mut self, module: &ModuleDeclaration) -> Option<()> {
-        let filename = self.files.get_absolute_name(self.file).ok()?.into_path_buf();
+        let filename = self.files.get_absolute_name(self.file).ok()?;
+        let filename = filename.as_path_buf();
 
         let is_main_lib_or_mod = filename.ends_with("main.nr")
             || filename.ends_with("lib.nr")

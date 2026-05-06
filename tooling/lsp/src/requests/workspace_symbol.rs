@@ -70,7 +70,7 @@ pub(crate) fn on_workspace_symbol_request(
     // figure out the symbols and store them in the cache.
     let parsed_files = parse_all(&file_manager);
     for (file_id, (parsed_module, _)) in parsed_files {
-        let path = file_manager.path(file_id).unwrap().to_path_buf();
+        let path = file_manager.path(file_id).unwrap().into_path_buf();
         let mut gatherer = WorkspaceSymbolGatherer::new(file_manager.as_file_map());
         parsed_module.accept(&mut gatherer);
         cache.symbols_per_path.insert(path, gatherer.symbols);

@@ -1465,6 +1465,7 @@ fn find_module(
     let anchor_path = file_manager
         .path(anchor)
         .expect("File must exist in file manager in order for us to be resolving its imports.")
+        .into_path_buf()
         .with_extension("");
     let anchor_dir = anchor_path.parent().unwrap();
 
