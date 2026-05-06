@@ -762,10 +762,27 @@ fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
     pub type X: u8 = 257u8;
-    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
                      ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
+        let _ = X;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11934_numeric_alias_overflow_used_multiple_times() {
+    // Regression test for https://github.com/noir-lang/noir/issues/11934
+    // The alias-definition-time check should fire exactly once even if the
+    // alias is referenced from many call sites.
+    let src = r#"
+    pub type X: u8 = 257u8;
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+
+    fn main() {
+        let _ = X;
+        let _ = X;
         let _ = X;
     }
     "#;

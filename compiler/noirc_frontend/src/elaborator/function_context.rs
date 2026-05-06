@@ -131,6 +131,18 @@ impl Elaborator<'_> {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
     }
 
+    /// Snapshot the current count of pending integer-literal expression ids so a later
+    /// call to [`Self::truncate_integer_literal_expr_ids`] can drop any literals pushed
+    /// in the meantime. Used when elaborating a synthesized expression whose literals
+    /// have already been validated against their declared type elsewhere.
+    pub(super) fn integer_literal_expr_ids_len(&mut self) -> usize {
+        self.get_function_context_mut().integer_literal_expr_ids.len()
+    }
+
+    pub(super) fn truncate_integer_literal_expr_ids(&mut self, len: usize) {
+        self.get_function_context_mut().integer_literal_expr_ids.truncate(len);
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
