@@ -12,8 +12,9 @@ use builtin_helpers::{
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
     get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
-    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
-    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
+    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_builtin_attribute,
+    has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident,
+    visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -134,8 +135,11 @@ impl Interpreter<'_, '_> {
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
+            "function_def_has_builtin_attribute" => {
+                function_def_has_attribute(interner, arguments, location, true)
+            }
             "function_def_has_named_attribute" => {
-                function_def_has_named_attribute(interner, arguments, location)
+                function_def_has_attribute(interner, arguments, location, false)
             }
             "function_def_hash" => function_def_hash(arguments, location),
             "function_def_is_unconstrained" => {
@@ -149,7 +153,8 @@ impl Interpreter<'_, '_> {
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
-            "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
+            "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
+            "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
             "module_hash" => module_hash(arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
@@ -213,8 +218,11 @@ impl Interpreter<'_, '_> {
                 type_def_fields_as_written(interner, arguments, location)
             }
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
+            "type_def_has_builtin_attribute" => {
+                type_def_has_attribute(interner, arguments, location, true)
+            }
             "type_def_has_named_attribute" => {
-                type_def_has_named_attribute(interner, arguments, location)
+                type_def_has_attribute(interner, arguments, location, false)
             }
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
@@ -518,10 +526,12 @@ fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn type_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn type_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let type_id = get_type_id(self_argument)?;
@@ -529,7 +539,13 @@ fn type_def_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
+    let attrs = interner.type_attributes(&type_id);
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
@@ -2487,10 +2503,12 @@ fn function_def_disable(
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn function_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn function_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
@@ -2505,7 +2523,13 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
+    let secondary = &modifiers.attributes.secondary;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, secondary)
+    } else {
+        has_named_attribute(&name, secondary, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2710,10 +2734,12 @@ fn module_structs(
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn module_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn module_has_attribute(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
@@ -2722,11 +2748,13 @@ fn module_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(
-        &name,
-        &module_data.attributes,
-        interpreter.elaborator.interner,
-    )))
+    let attrs = &module_data.attributes;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 // fn is_contract(self) -> bool

@@ -29,6 +29,11 @@ impl TypeDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     /// Return (type, option<type>) pairs of each generic in this type definition.
     /// If a generic is numeric, the second element of the pair will contain the numeric type.
     #[builtin(type_def_generics)]

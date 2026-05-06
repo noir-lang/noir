@@ -19,6 +19,11 @@ impl FunctionDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(function_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(function_def_is_unconstrained)]
     // docs:start:is_unconstrained
     pub comptime fn is_unconstrained(self) -> bool {}

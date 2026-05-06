@@ -590,28 +590,52 @@ pub(super) fn has_named_attribute(
     false
 }
 
+pub(super) fn has_builtin_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+    let matches_kind: fn(&SecondaryAttributeKind) -> bool = match name {
+        "deprecated" => |k| matches!(k, SecondaryAttributeKind::Deprecated(..)),
+        "contract_library_method" => |k| matches!(k, SecondaryAttributeKind::ContractLibraryMethod),
+        "export" => |k| matches!(k, SecondaryAttributeKind::Export),
+        "field" => |k| matches!(k, SecondaryAttributeKind::Field(_)),
+        "abi" => |k| matches!(k, SecondaryAttributeKind::Abi(_)),
+        "varargs" => |k| matches!(k, SecondaryAttributeKind::Varargs),
+        "use_callers_scope" => |k| matches!(k, SecondaryAttributeKind::UseCallersScope),
+        "allow" => |k| matches!(k, SecondaryAttributeKind::Allow(_)),
+        "must_use" => |k| matches!(k, SecondaryAttributeKind::MustUse(_)),
+        _ => return false,
+    };
+    attributes.iter().any(|attr| matches_kind(&attr.kind))
+}
+
 fn secondary_attribute_name(
     attribute: &SecondaryAttribute,
     interner: &NodeInterner,
 ) -> Option<String> {
+    if let Some(name) = builtin_secondary_attribute_name(attribute) {
+        return Some(name.to_string());
+    }
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
-        SecondaryAttributeKind::ContractLibraryMethod => {
-            Some("contract_library_method".to_string())
-        }
-        SecondaryAttributeKind::Export => Some("export".to_string()),
-        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
         SecondaryAttributeKind::Tag(contents) => {
             let mut lexer = Lexer::new_with_dummy_file(contents);
             let token = lexer.next()?.ok()?;
             if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
         }
         SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
-        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
-        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
-        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
-        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
-        SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        _ => None,
+    }
+}
+
+fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'static str> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated"),
+        SecondaryAttributeKind::ContractLibraryMethod => Some("contract_library_method"),
+        SecondaryAttributeKind::Export => Some("export"),
+        SecondaryAttributeKind::Field(_) => Some("field"),
+        SecondaryAttributeKind::Abi(_) => Some("abi"),
+        SecondaryAttributeKind::Varargs => Some("varargs"),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope"),
+        SecondaryAttributeKind::Allow(_) => Some("allow"),
+        SecondaryAttributeKind::MustUse(_) => Some("must_use"),
+        SecondaryAttributeKind::Tag(_) | SecondaryAttributeKind::Meta(_) => None,
     }
 }
 
