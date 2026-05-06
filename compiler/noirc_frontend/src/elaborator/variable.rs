@@ -193,7 +193,8 @@ impl Elaborator<'_> {
                 let func_meta = self.interner.function_meta(func_id);
                 let impl_generic_count =
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics = vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+                let impl_generics =
+                    vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
                 let self_type = func_meta.self_type.clone();
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
