@@ -31,7 +31,7 @@ hex.workspace = true
 sha1 = "0.11.0"
 redis = { version = "1.2" }
 strum_macros = "0.28"
-strum = "0.26"
+strum = "0.28"
 sha2.workspace = true
 p256.workspace = true
 k256.workspace = true
