@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778078905730,
+  "lastUpdate": 1778079012313,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23140,48 +23140,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ca7b6f2a01489fb11d2a5d882534ef43db7ed673",
-          "message": "fix: predicate the user-supplied index inside get_flattened_index (#12452)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-04-28T15:00:44Z",
-          "tree_id": "10d32fb0cff1bc2e646ffa881aa37c75cd3d7e03",
-          "url": "https://github.com/noir-lang/noir/commit/ca7b6f2a01489fb11d2a5d882534ef43db7ed673"
-        },
-        "date": 1777390072993,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167143,
-            "range": "± 678",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136951,
-            "range": "± 989",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644001,
-            "range": "± 11506",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "84ea5fce53c74cd6caa38ea5b6f4c21fd87c5f68",
           "message": "feat(fuzz): generate non-ABI functions returning `Unit` in the AST fuzzer (#12456)",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647303,
             "range": "± 2457",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e40e5dd949c757dcf8c4e118c39bc131b177719",
+          "message": "chore(monomorphization): minor improvements from audit (#12553)",
+          "timestamp": "2026-05-06T14:24:52Z",
+          "tree_id": "4763b46ed333ce3fb53a6a3b178e86053ed44586",
+          "url": "https://github.com/noir-lang/noir/commit/5e40e5dd949c757dcf8c4e118c39bc131b177719"
+        },
+        "date": 1778078950316,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 172298,
+            "range": "± 424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144313,
+            "range": "± 7056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644788,
+            "range": "± 1399",
             "unit": "ns/iter"
           }
         ]
