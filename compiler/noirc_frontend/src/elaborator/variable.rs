@@ -193,14 +193,20 @@ impl Elaborator<'_> {
                 let func_meta = self.interner.function_meta(func_id);
                 let impl_generic_count =
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics = &func_meta.all_generics[..impl_generic_count];
+                let impl_generics: Vec<TypeVariable> = func_meta.all_generics[..impl_generic_count]
+                    .iter()
+                    .map(|g| g.type_var.clone())
+                    .collect();
+                let self_type = func_meta.self_type.clone();
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
                 // impl generics differs from the number of struct generics. The turbofish
                 // `S::<u32, bool>` provides type_generics aligned with the struct's params
-                // [A, B], not the impl's generics [B]. Use the impl's self_type to find
-                // the correct positional mapping from struct params to impl generics.
-                if let Some(Type::DataType(_, self_type_args)) = &func_meta.self_type {
+                // [A, B], not the impl's generics [B]. Replace each impl generic in
+                // `self_type`'s args with a fresh type variable and unify those with the
+                // turbofish-provided type generics. The fresh type variables get bound by
+                // unification, and we record those bindings for the impl generics.
+                if let Some(Type::DataType(_, self_type_args)) = self_type {
                     assert_eq!(
                         type_generics.len(),
                         self_type_args.len(),
@@ -208,41 +214,29 @@ impl Elaborator<'_> {
                         type_generics.len(),
                         self_type_args.len(),
                     );
-                    let mut concrete_mismatches = Vec::new();
+                    let impl_replacements: TypeBindings = impl_generics
+                        .iter()
+                        .map(|type_var| {
+                            let kind = type_var.kind();
+                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                            (type_var.id(), (type_var.clone(), kind, fresh))
+                        })
+                        .collect();
                     for (type_generic, self_type_arg) in
                         type_generics.into_iter().zip_eq(self_type_args)
                     {
-                        let type_var = match self_type_arg {
-                            Type::NamedGeneric(named) => Some(&named.type_var),
-                            Type::TypeVariable(tv) => Some(tv),
-                            _ => None,
-                        };
-                        if let Some(type_var) = type_var {
-                            if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
-                                bindings.insert(
-                                    type_var.id(),
-                                    (type_var.clone(), type_var.kind(), type_generic),
-                                );
-                            }
-                        } else {
-                            // Concrete position: collect for verification after releasing borrow
-                            concrete_mismatches.push((type_generic, self_type_arg.clone()));
-                        }
+                        let substituted = self_type_arg.substitute(&impl_replacements);
+                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
                     }
-                    // Verify turbofish types match the impl's concrete types
-                    for (turbofish_type, concrete_type) in concrete_mismatches {
-                        self.unify_or_type_mismatch(&turbofish_type, &concrete_type, location);
-                    }
+                    bindings.extend(impl_replacements);
                 } else if type_generics.len() <= impl_generics.len() {
                     // For trait function paths, impl_generics may include Self and associated
                     // type generics after the trait's declared generics. The turbofish only
                     // provides types for the declared generics, which are always the first
                     // elements. Slice to match.
                     let impl_generics = &impl_generics[..type_generics.len()];
-                    for (type_generic, func_generic) in
-                        type_generics.into_iter().zip_eq(impl_generics)
+                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
                     {
-                        let type_var = &func_generic.type_var;
                         bindings.insert(
                             type_var.id(),
                             (type_var.clone(), type_var.kind(), type_generic),
