@@ -26,7 +26,6 @@ use serde_json::Value;
 /// entries as the underlying dependencies are eliminated or the misplaced
 /// crates are relocated.
 const ALLOWED_VIOLATIONS: &[(&str, &str)] = &[
-    ("acir", "noirc_span"),
     ("noir_wasm", "nargo"),
     ("noir_wasm", "noirc_artifacts"),
     ("noirc_driver", "noirc_abi"),
