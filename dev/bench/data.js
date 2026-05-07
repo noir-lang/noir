@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778162604881,
+  "lastUpdate": 1778171340641,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "727e2a034ff921e86344035be4a19343327f581e",
-          "message": "chore: precompute signature-based analysis (#12492)",
-          "timestamp": "2026-04-30T20:59:48Z",
-          "tree_id": "d855d6a76c526a315e47831a3943de51314da295",
-          "url": "https://github.com/noir-lang/noir/commit/727e2a034ff921e86344035be4a19343327f581e"
-        },
-        "date": 1777584235102,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167561,
-            "range": "± 675",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136288,
-            "range": "± 487",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2641792,
-            "range": "± 3042",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649330,
             "range": "± 3386",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bd6ad95a01585194c40c59ecd8773d67889816c6",
+          "message": "fix: do not skip truncating the results of field divisions (#12582)",
+          "timestamp": "2026-05-07T17:25:30+01:00",
+          "tree_id": "de5cfe049b1f4aab1ebbe79a6b86e701e4529298",
+          "url": "https://github.com/noir-lang/noir/commit/bd6ad95a01585194c40c59ecd8773d67889816c6"
+        },
+        "date": 1778171281206,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173431,
+            "range": "± 147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144077,
+            "range": "± 6735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646072,
+            "range": "± 31270",
             "unit": "ns/iter"
           }
         ]
