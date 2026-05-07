@@ -455,7 +455,7 @@ fn type_def_as_type_with_generics(
         && type_def
             .generics
             .iter()
-            .zip(&generics)
+            .zip_eq(&generics)
             .all(|(decl, arg)| decl.kind().unifies(&arg.kind()));
     drop(type_def);
 
@@ -568,7 +568,7 @@ fn type_def_fields(
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
     }
 
-    for (index, (decl, arg)) in struct_def.generics.iter().zip(&generic_args).enumerate() {
+    for (index, (decl, arg)) in struct_def.generics.iter().zip_eq(&generic_args).enumerate() {
         let decl_kind = decl.kind();
         let arg_kind = arg.kind();
         if !decl_kind.unifies(&arg_kind) {
