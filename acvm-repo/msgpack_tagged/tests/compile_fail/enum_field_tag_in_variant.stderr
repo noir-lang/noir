@@ -1,0 +1,5 @@
+error: `#[tag(...)]` on enum variant fields is not yet supported — only the variant itself can be tagged
+  --> tests/compile_fail/enum_field_tag_in_variant.rs:11:9
+   |
+11 |         #[tag(0)]
+   |         ^^^^^^^^^

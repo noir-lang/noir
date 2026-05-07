@@ -1,10 +1,10 @@
 //! Companion proc-macro crate for [`msgpack_tagged`].
 //!
-//! Currently handles named-field structs end-to-end (parses `#[tag(N)]` per
-//! field, emits `TAGS`, and emits a `register_into` that registers `Self` and
-//! recurses into each field's type). Tuple structs and enums fall through to
-//! a stub expansion (empty `TAGS`, no-op `register_into`) until subsequent
-//! steps add their handling.
+//! Handles named-field structs, tuple structs / newtypes, and enums end-to-end:
+//! parses `#[tag(N)]` annotations, emits `TAGS`, and emits a `register_into`
+//! that registers `Self` and recurses into each field/variant payload type.
+//! Unit structs and unions still fall through to a stub expansion until
+//! subsequent steps add their handling.
 //!
 //! Design: [issue #12554](https://github.com/noir-lang/noir/issues/12554).
 
@@ -12,8 +12,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Attribute, Data, DataStruct, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam, Ident,
-    Lit, LitInt, Meta, Token, Type, WhereClause,
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam,
+    Ident, Lit, LitInt, Meta, Token, Type, Variant, WhereClause,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -45,7 +45,8 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         Data::Struct(DataStruct { fields: Fields::Unnamed(unnamed), .. }) => {
             expand_unnamed_struct(input, &unnamed.unnamed, &type_attrs)
         }
-        // Unit structs, enums, unions: stub for now. Real expansion lands in
+        Data::Enum(data) => expand_enum(input, data, &type_attrs),
+        // Unit structs and unions: stub for now. Real expansion lands in
         // subsequent steps.
         _ => Ok(stub(input)),
     }
@@ -231,6 +232,195 @@ fn expand_tuple_struct(
     })
 }
 
+/// Per-tagged-variant info collected during enum macro expansion. `name` is
+/// the variant's wire-name (its Rust ident, as a string). `payload_types`
+/// holds the types appearing inside the variant's fields (named or unnamed)
+/// — the `register_into` recursion targets, and the source of per-payload
+/// `MsgpackTagged` bounds in the where clause.
+struct TaggedVariant<'a> {
+    tag: u8,
+    name: String,
+    payload_types: Vec<&'a Type>,
+}
+
+/// Enum (`enum E { A, B(...), C { ... } }`). Each variant carries an
+/// explicit `#[tag(N)]`; the variant tag, not any individual field tag, is
+/// what goes on the wire. `TAGS` lists `(variant_tag, variant_name)` pairs in
+/// tag-ascending order. `register_into` registers the enum itself and
+/// recurses into every variant's payload type so nested `MsgpackTagged`
+/// types are reached.
+///
+/// Field-level `#[tag(...)]` *inside* a variant payload is rejected here —
+/// per-variant struct/tuple field tagging is a follow-up that needs richer
+/// per-variant data on the registry to be sound. `#[tag(skip)]` and the
+/// `default` modifier are likewise rejected on variants (no clear semantics).
+fn expand_enum(
+    input: &DeriveInput,
+    data: &DataEnum,
+    type_attrs: &TypeAttrs,
+) -> syn::Result<TokenStream2> {
+    debug_assert!(type_attrs.via.is_none()); // handled in `expand`
+    let name = &input.ident;
+    let name_str = parse_serde_rename(input)?.unwrap_or_else(|| name.to_string());
+    let reserved = &type_attrs.reserved;
+    let allow_unknown_tags = type_attrs.allow_unknown_tags;
+
+    let mut variants: Vec<TaggedVariant<'_>> = Vec::with_capacity(data.variants.len());
+    let mut seen_tags = std::collections::HashSet::new();
+    for variant in &data.variants {
+        for field in &variant.fields {
+            for attr in &field.attrs {
+                if attr.path().is_ident("tag") {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "`#[tag(...)]` on enum variant fields is not yet supported — \
+                         only the variant itself can be tagged",
+                    ));
+                }
+            }
+        }
+        let tag = parse_variant_tag(variant, reserved)?;
+        if !seen_tags.insert(tag) {
+            return Err(syn::Error::new_spanned(
+                variant,
+                format!("variant tag {tag} is used more than once"),
+            ));
+        }
+        // `PhantomData<_>` is auto-skipped from both the recursion list and
+        // the where-clause bound, mirroring the struct-field behavior — it's
+        // zero-sized, doesn't appear on the wire, and doesn't implement
+        // `MsgpackTagged`, so binding it would be an unsatisfiable constraint.
+        let payload_types: Vec<&Type> = match &variant.fields {
+            Fields::Unit => Vec::new(),
+            Fields::Named(named) => {
+                named.named.iter().filter(|f| !is_phantom_data(&f.ty)).map(|f| &f.ty).collect()
+            }
+            Fields::Unnamed(unnamed) => {
+                unnamed.unnamed.iter().filter(|f| !is_phantom_data(&f.ty)).map(|f| &f.ty).collect()
+            }
+        };
+        variants.push(TaggedVariant { tag, name: variant.ident.to_string(), payload_types });
+    }
+    variants.sort_by_key(|v| v.tag);
+
+    let tag_entries = variants.iter().map(|v| {
+        let tag = v.tag;
+        let name = &v.name;
+        quote! { (#tag, #name) }
+    });
+    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
+    let recursion_calls = variants.iter().flat_map(|v| {
+        v.payload_types.iter().map(|ty| {
+            quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
+        })
+    });
+
+    let where_clause = build_enum_where_clause(input, &variants);
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+
+    Ok(quote! {
+        impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
+            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
+                #(#tag_entries),*
+            ];
+            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
+                #(#reserved_entries),*
+            ];
+            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
+            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
+
+            fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
+                if _reg.try_insert::<Self>(#name_str) {
+                    #(#recursion_calls)*
+                }
+            }
+        }
+    })
+}
+
+/// Parse the (required) `#[tag(N)]` attribute on an enum variant. Rejects the
+/// `skip` form and the `default` modifier — neither has clear semantics for a
+/// variant — and rejects tags that collide with the type's reserved list.
+fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
+    let mut found: Option<(&Attribute, TagArgs)> = None;
+    for attr in &variant.attrs {
+        if !attr.path().is_ident("tag") {
+            continue;
+        }
+        if found.is_some() {
+            return Err(syn::Error::new_spanned(attr, "duplicate `#[tag(...)]` attribute"));
+        }
+        found = Some((attr, attr.parse_args()?));
+    }
+    let Some((attr, args)) = found else {
+        return Err(syn::Error::new_spanned(
+            variant,
+            "missing `#[tag(N)]` attribute on enum variant — every variant needs an explicit tag",
+        ));
+    };
+    match args {
+        TagArgs::Tag { tag, default } => {
+            if default {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "`default` modifier is not allowed on enum variants",
+                ));
+            }
+            if reserved.contains(&tag) {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    format!(
+                        "tag {tag} is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
+                    ),
+                ));
+            }
+            Ok(tag)
+        }
+        TagArgs::Skip => {
+            Err(syn::Error::new_spanned(attr, "`#[tag(skip)]` is not allowed on enum variants"))
+        }
+    }
+}
+
+/// Where clause for an enum impl. Same shape as `build_where_clause` for
+/// structs — `T: 'static` per type parameter, plus a deduped
+/// `<PayloadType>: MsgpackTagged` bound for every type appearing in any
+/// variant's payload — but enums have no `default`-modifier semantics so
+/// we don't emit `Default` bounds.
+fn build_enum_where_clause(
+    input: &DeriveInput,
+    variants: &[TaggedVariant<'_>],
+) -> Option<WhereClause> {
+    let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
+    let any_payload = variants.iter().any(|v| !v.payload_types.is_empty());
+    if !any_payload && !has_type_params {
+        return input.generics.where_clause.clone();
+    }
+
+    let mut where_clause = input.generics.where_clause.clone().unwrap_or_else(|| WhereClause {
+        where_token: <Token![where]>::default(),
+        predicates: Punctuated::new(),
+    });
+
+    for param in &input.generics.params {
+        if let GenericParam::Type(type_param) = param {
+            let ident = &type_param.ident;
+            where_clause.predicates.push(parse_quote!(#ident: 'static));
+        }
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    for v in variants {
+        for ty in &v.payload_types {
+            let key = quote!(#ty).to_string();
+            if seen.insert(key) {
+                where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
+            }
+        }
+    }
+    Some(where_clause)
+}
+
 /// Where clause for newtype structs: every type param needs `'static` (from
 /// the supertrait), and the inner type must be `MsgpackTagged` so the
 /// `register_into` call type-checks. No field-type bounds beyond that — a
@@ -275,6 +465,16 @@ fn validate_no_field_tag_attrs(input: &DeriveInput) -> syn::Result<()> {
         Data::Struct(s) => check(&s.fields)?,
         Data::Enum(e) => {
             for variant in &e.variants {
+                for attr in &variant.attrs {
+                    if attr.path().is_ident("tag") {
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "variant-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — \
+                             variants of a `via`-delegating enum are wire-irrelevant; \
+                             tag the wire DTO's variants instead",
+                        ));
+                    }
+                }
                 check(&variant.fields)?;
             }
         }

@@ -1,9 +1,9 @@
-//! End-to-end tests for the `MsgpackTagged` derive on structs.
+//! End-to-end tests for the `MsgpackTagged` derive on structs and enums.
 //!
-//! Tuple structs and enums still fall through to the stub expansion (empty
-//! `TAGS`, no-op `register_into`); their tests here just verify the derive
-//! produces a valid impl. As the macro learns to handle each shape, the
-//! corresponding tests in this file get tightened.
+//! Unit structs still fall through to the stub expansion (empty `TAGS`, no-op
+//! `register_into`); their tests here just verify the derive produces a valid
+//! impl. As the macro learns to handle each shape, the corresponding tests
+//! in this file get tightened.
 
 // Test fixtures only exist to feed the derive; unused fields are expected.
 #![allow(dead_code)]
@@ -42,11 +42,64 @@ struct Named {
     b: bool,
 }
 
+/// Enum mixing all three variant shapes — unit, tuple, struct — to prove the
+/// derive handles each. Variant tags are out of declaration order to verify
+/// the canonical tag-ascending ordering on `TAGS`.
 #[derive(MsgpackTagged)]
 enum Choice {
-    Nothing,
-    Single(u32),
+    #[tag(2)]
     Multi { a: u32, b: bool },
+    #[tag(0)]
+    Nothing,
+    #[tag(1)]
+    Single(u32),
+}
+
+/// Enum whose variant payloads include a `MsgpackTagged` user type, used to
+/// verify `register_into` recurses into payload types.
+#[derive(MsgpackTagged)]
+enum WithInnerPayload {
+    #[tag(0)]
+    Empty,
+    #[tag(1)]
+    OneInner(Inner),
+    #[tag(2)]
+    Pair { left: Inner, right: bool },
+}
+
+/// Generic enum exercising the per-payload-type `where` bound on enums.
+/// `GenericChoice<Inner>` reaches `Inner::register_into` via the bound chain
+/// without the macro needing to know `T`'s identity.
+#[derive(MsgpackTagged)]
+enum GenericChoice<T> {
+    #[tag(0)]
+    Nothing,
+    #[tag(1)]
+    Some(T),
+}
+
+/// Enum with `#[tagged(reserved(...))]`: tags 1 and 2 are retired and must
+/// never be reused for a future variant.
+#[derive(MsgpackTagged)]
+#[tagged(reserved(1, 2))]
+enum WithReservedVariants {
+    #[tag(0)]
+    First,
+    #[tag(3)]
+    Fourth,
+}
+
+/// Variant payloads of `PhantomData<T>` are auto-skipped, just like in
+/// structs — the bound chain doesn't reach `T`, so non-`MsgpackTagged` types
+/// like `Opaque` can still be plugged in.
+#[derive(MsgpackTagged)]
+enum WithPhantomVariant<T> {
+    #[tag(0)]
+    Empty,
+    #[tag(1)]
+    Tagged(std::marker::PhantomData<T>),
+    #[tag(2)]
+    Named { _marker: std::marker::PhantomData<T> },
 }
 
 /// Inner type that registers itself, used to verify recursion through
@@ -211,6 +264,13 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<Wrapper<Inner>>();
     assert_impl::<Named>();
     assert_impl::<Choice>();
+    assert_impl::<WithInnerPayload>();
+    assert_impl::<GenericChoice<u32>>();
+    assert_impl::<GenericChoice<Inner>>();
+    assert_impl::<WithReservedVariants>();
+    // T = Opaque (no MsgpackTagged impl) still satisfies the enum's bounds,
+    // because PhantomData<T> in variant payloads is auto-skipped.
+    assert_impl::<WithPhantomVariant<Opaque>>();
     assert_impl::<Inner>();
     assert_impl::<Outer>();
     assert_impl::<Generic<u32>>();
@@ -449,4 +509,73 @@ fn serde_rename_drives_registry_key_not_rust_ident() {
         reg.get("RenamedWire").is_none(),
         "Rust ident should NOT appear when a rename is present"
     );
+}
+
+#[test]
+fn enum_tags_are_emitted_in_tag_order_with_variant_names() {
+    // Source: Multi (#[tag(2)]), Nothing (#[tag(0)]), Single (#[tag(1)]).
+    // After tag-ascending sort, the variant idents land in tag order.
+    assert_eq!(<Choice as MsgpackTagged>::TAGS, &[(0, "Nothing"), (1, "Single"), (2, "Multi")],);
+}
+
+#[test]
+fn enum_register_into_populates_registry_under_type_name() {
+    let mut reg = TagRegistry::new();
+    Choice::register_into(&mut reg);
+    let entry = reg.get("Choice").expect("Choice should register itself");
+    assert_eq!(entry.tags(), &[(0, "Nothing"), (1, "Single"), (2, "Multi")]);
+}
+
+/// Enums with no payload types still register themselves; the recursion list
+/// is empty so no other entries appear.
+#[test]
+fn enum_register_into_is_idempotent() {
+    let mut reg = TagRegistry::new();
+    Choice::register_into(&mut reg);
+    Choice::register_into(&mut reg);
+    assert_eq!(reg.len(), 1);
+}
+
+/// `register_into` walks every variant payload — `Inner` is reached through
+/// both the tuple and struct variants of `WithInnerPayload`.
+#[test]
+fn enum_register_into_recurses_into_variant_payloads() {
+    let mut reg = TagRegistry::new();
+    WithInnerPayload::register_into(&mut reg);
+    assert!(reg.get("WithInnerPayload").is_some(), "enum registers itself");
+    assert!(
+        reg.get("Inner").is_some(),
+        "register_into should recurse into the variants' payload types",
+    );
+}
+
+/// Generic enums hit `T`'s `register_into` via the bound chain, just like
+/// generic structs do.
+#[test]
+fn generic_enum_recurses_into_concrete_payload_type() {
+    let mut reg = TagRegistry::new();
+    <GenericChoice<Inner>>::register_into(&mut reg);
+    assert!(reg.get("GenericChoice").is_some());
+    assert!(reg.get("Inner").is_some());
+}
+
+#[test]
+fn enum_reserved_tags_appear_in_const_and_registry() {
+    assert_eq!(<WithReservedVariants as MsgpackTagged>::RESERVED, &[1, 2]);
+
+    let mut reg = TagRegistry::new();
+    WithReservedVariants::register_into(&mut reg);
+    let entry = reg.get("WithReservedVariants").expect("should register itself");
+    assert!(entry.is_reserved(1));
+    assert!(entry.is_reserved(2));
+    assert!(!entry.is_reserved(0));
+    assert!(!entry.is_reserved(3));
+}
+
+/// Enums never carry `default` semantics — `DEFAULTS` is always empty.
+#[test]
+#[allow(clippy::const_is_empty)]
+fn enum_defaults_are_always_empty() {
+    assert!(<Choice as MsgpackTagged>::DEFAULTS.is_empty());
+    assert!(<WithReservedVariants as MsgpackTagged>::DEFAULTS.is_empty());
 }
