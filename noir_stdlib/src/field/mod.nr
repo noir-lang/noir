@@ -303,10 +303,7 @@ impl Field {
         for i in 0..N {
             if !ok {
                 if bytes[i] != p[i] {
-                    assert(
-                        bytes[i] < p[i],
-                        "input bytes are not a canonical field representation",
-                    );
+                    assert(bytes[i] < p[i], "input bytes are not a canonical field representation");
                     ok = true;
                 }
             }
