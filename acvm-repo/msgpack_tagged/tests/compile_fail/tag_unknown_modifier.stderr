@@ -1,0 +1,5 @@
+error: unknown modifier `foo` (expected `default`)
+ --> tests/compile_fail/tag_unknown_modifier.rs:9:14
+  |
+9 |     #[tag(0, foo)]
+  |              ^^^
