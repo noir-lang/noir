@@ -205,19 +205,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Emit a 3-instruction sequence to store `source_reg` into the spill region
-    /// at the given offset relative to the per-frame spill base pointer.
+    /// Emit a store of `source_reg` into the spill region at the given offset relative
+    /// to the per-frame spill base pointer.
+    ///
+    /// At offset 0 this is a single store against the spill base pointer; at any other
+    /// offset it emits a 3-instruction sequence (const + add + store) via the scratch
+    /// registers.
     fn codegen_spill_store(&mut self, offset: usize, source_reg: MemoryAddress) {
-        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-        self.brillig_context
-            .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
-        self.brillig_context.memory_op_instruction(
-            ReservedRegisters::spill_base_pointer(),
-            scratch_offset,
-            scratch_addr,
-            BrilligBinaryOp::Add,
-        );
-        self.brillig_context.store_instruction(scratch_addr, source_reg);
+        let addr = self.codegen_spill_slot_address(offset);
+        self.brillig_context.store_instruction(addr, source_reg);
     }
 
     /// Spill a value: record it in the spill manager, optionally emit a store to its slot,
@@ -235,13 +231,34 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .as_mut()
             .expect("ICE: spill_value called without spill manager");
 
-        // Check fist permanent because ensure_permanent_spill() modifies the record.
-        if (permanent && sm.ensure_permanent_spill(&value_id)) || sm.is_spilled(&value_id) {
+        // For a permanent spill, try to promote an existing record first.
+        // ensure_permanent_spill() modifies the record, so capture the pre-call state first.
+        if permanent {
+            // A TransientReloaded value holds a register that must be freed when promoted to
+            // a permanent spill. Values already in PermanentReloaded state must not have their
+            // register freed here — they may still be live (e.g. the condition register of a
+            // jmpif instruction when spill_non_param_live_ins fires multiple times).
+            let was_transient_reloaded = sm.is_transient_reloaded(&value_id);
+            if sm.ensure_permanent_spill(&value_id) {
+                if was_transient_reloaded {
+                    sm.remove_from_lru(&value_id);
+                    self.variables.remove_variable(
+                        &value_id,
+                        self.function_context,
+                        self.brillig_context,
+                    );
+                }
+                return;
+            }
+        }
+
+        if sm.is_spilled(&value_id) {
             return;
         }
 
         let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-        let offset = sm.get_spill_offset(&value_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        let prior_offset = sm.get_spill_offset(&value_id);
+        let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
         sm.remove_from_lru(&value_id);
         if permanent {
             sm.record_permanent_spill(value_id, offset, var);
@@ -249,16 +266,35 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             sm.record_spill(value_id, offset, var);
         }
 
-        if emit_store {
+        // Only store when we've just allocated the slot. If the value already had a slot,
+        // the slot still holds the correct value (SSA values are immutable) so the store
+        // would be redundant.
+        if emit_store && prior_offset.is_none() {
             self.codegen_spill_store(offset, var.extract_register());
         }
 
         self.variables.remove_variable(&value_id, self.function_context, self.brillig_context);
     }
 
-    /// Emit a 3-instruction sequence to load a value from the spill region
-    /// at the given offset into `dest_reg`.
+    /// Emit a load from the spill region at the given offset into `dest_reg`.
+    ///
+    /// At offset 0 this is a single load from the spill base pointer; at any other
+    /// offset it emits a 3-instruction sequence (const + add + load) via the scratch
+    /// registers.
     fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
+        let addr = self.codegen_spill_slot_address(offset);
+        self.brillig_context.load_instruction(dest_reg, addr);
+    }
+
+    /// Return a register holding `spill_base + offset`.
+    ///
+    /// For offset 0 this returns the spill base pointer directly, emitting no opcodes.
+    /// Otherwise it materializes the address into the scratch register via a
+    /// 2-instruction const + add sequence.
+    fn codegen_spill_slot_address(&mut self, offset: usize) -> MemoryAddress {
+        if offset == 0 {
+            return ReservedRegisters::spill_base_pointer();
+        }
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
         self.brillig_context
             .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
@@ -268,7 +304,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             scratch_addr,
             BrilligBinaryOp::Add,
         );
-        self.brillig_context.load_instruction(dest_reg, scratch_addr);
+        scratch_addr
     }
 
     /// Spill the least-recently-used value to the spill region
@@ -482,7 +518,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     fn jmp(&mut self, dfg: &DataFlowGraph, destination: BasicBlockId, arguments: &[ValueId]) {
-        let moves = self.jmp_setup(dfg, destination, arguments);
+        let moves = self.jmp_setup(dfg, destination, arguments, None);
         for (src, dst) in &moves {
             self.brillig_context.mov_instruction(*dst, *src);
         }
@@ -491,11 +527,20 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .jump_instruction(self.create_block_label_for_current_function(destination));
     }
 
+    /// Lower a jmp/jmpif's parameter passing into Brillig instructions.
+    ///
+    /// Spill-slot stores for params with eagerly-spilled destinations are emitted
+    /// directly here. Register-to-register moves are *returned* (not emitted) so
+    /// the caller can wrap them with a conditional move when lowering a JmpIf
+    /// then-branch. When `condition` is `Some(_)`, the spill-slot stores are also
+    /// guarded by the condition; this prevents a JmpIf else-branch from leaving a
+    /// then-arg in the then-destination param's spill slot.
     fn jmp_setup(
         &mut self,
         dfg: &DataFlowGraph,
         destination: BasicBlockId,
         arguments: &[ValueId],
+        condition: Option<MemoryAddress>,
     ) -> Vec<(MemoryAddress, MemoryAddress)> {
         // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
         // The parallel moves may overwrite registers that hold values
@@ -523,7 +568,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             if let Some(offset) = spill_offset {
                 // Param was spilled — write arg directly to param's spill slot.
-                self.codegen_spill_store(offset, arg_reg);
+                // Guard the store with `condition` for JmpIf then-args so an
+                // else-taken branch leaves the slot intact.
+                match condition {
+                    Some(c) => self.codegen_conditional_spill_store(offset, arg_reg, c),
+                    None => self.codegen_spill_store(offset, arg_reg),
+                }
             } else {
                 let param_reg =
                     self.variables.get_allocation(self.function_context, *param).extract_register();
@@ -573,7 +623,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// ```
     /// Because we don't want to overwrite the parameters of the then-block if we don't end up
     /// taking that branch, the then arguments must be only conditionally moved while the else
-    /// arguments can be moved unconditionally.
+    /// arguments can be moved unconditionally. The same applies to spill-slot writes for
+    /// then-arguments whose destination param was eagerly spilled — those writes are guarded
+    /// by `condition` inside [Self::jmp_setup].
     fn jmpif_to_then_block(
         &mut self,
         dfg: &DataFlowGraph,
@@ -581,7 +633,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         then_destination: BasicBlockId,
         then_arguments: &[ValueId],
     ) {
-        let moves = self.jmp_setup(dfg, then_destination, then_arguments);
+        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
         for (src, dst) in &moves {
             // The else_address is the same as the destination here to avoid modification if the
             // condition is false.
@@ -592,6 +644,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             condition.address,
             self.create_block_label_for_current_function(then_destination),
         );
+    }
+
+    /// Emit a conditional store of `src` into the spill slot at `offset`.
+    ///
+    /// Brillig has no conditional store opcode, so this is implemented as
+    /// `load slot → tmp; cmov(condition, src, tmp, tmp); store slot ← tmp`.
+    /// When the condition is false the slot's existing value is written back
+    /// unchanged; when true `src` is written.
+    ///
+    /// `tmp` is a reserved scratch slot rather than an allocated register, so
+    /// this never has to evict a value from the stack frame mid-terminator
+    /// (which would leak a transient spill across the block boundary).
+    fn codegen_conditional_spill_store(
+        &mut self,
+        offset: usize,
+        src: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        let tmp = ReservedRegisters::spill_conditional_value();
+        self.codegen_spill_load(offset, tmp);
+        self.brillig_context.conditional_move_instruction(condition, src, tmp, tmp);
+        self.codegen_spill_store(offset, tmp);
     }
 
     /// Allocates the block parameters that the given block is defining.
@@ -724,10 +798,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         if !self.building_globals {
-            let dead_variables = self
-                .last_uses
-                .get(&instruction_id)
-                .expect("Last uses for instruction should have been computed");
+            // Instructions with no last uses are omitted from `last_uses` to save memory;
+            // a missing entry is equivalent to an empty set.
+            let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
 
             for dead_variable in dead_variables {
                 // Globals are reserved throughout the entirety of the program

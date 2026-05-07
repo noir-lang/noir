@@ -9036,14 +9036,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios@npm:^1.15.0":
-  version: 1.15.0
-  resolution: "axios@npm:1.15.0"
+"axios@npm:^1.15.2":
+  version: 1.15.2
+  resolution: "axios@npm:1.15.2"
   dependencies:
     follow-redirects: "npm:^1.15.11"
     form-data: "npm:^4.0.5"
     proxy-from-env: "npm:^2.1.0"
-  checksum: 10/d39a2c0ebc7ff4739401b282e726cc2673377949d6c46d60eb619458f8d7a2f7eadbcada7097f4dbc7d5c59abb4d3bf6fac33d474412bc3415d3f5aa7ed45530
+  checksum: 10/eebbd8cb777316d4252cd994a06ec9fb956ef519214a62dab6c5443ae8b753b5116e9a770502316789e6cdef1101e6aae53b6936d6a3791b2d66d75f4d7d2462
   languageName: node
   linkType: hard
 
@@ -11183,9 +11183,9 @@ __metadata:
   linkType: hard
 
 "defu@npm:^6.1.4":
-  version: 6.1.4
-  resolution: "defu@npm:6.1.4"
-  checksum: 10/aeffdb47300f45b4fdef1c5bd3880ac18ea7a1fd5b8a8faf8df29350ff03bf16dd34f9800205cab513d476e4c0a3783aa0cff0a433aff0ac84a67ddc4c8a2d64
+  version: 6.1.7
+  resolution: "defu@npm:6.1.7"
+  checksum: 10/09480a5fbe6318f622f30017f9386df6ae92ed895fb1ccc61e1ff0d5016b28a321c751749fdd52c996ddd4eafc2c95b77dc0c8cc109881a231c23c7fd630deb9
   languageName: node
   linkType: hard
 
@@ -11431,9 +11431,9 @@ __metadata:
     "@getbrevo/brevo": "npm:^4.0.1"
     "@mdx-js/react": "npm:^3.1.1"
     "@types/prettier": "npm:^3.0.0"
-    axios: "npm:^1.15.0"
+    axios: "npm:^1.15.2"
     clsx: "npm:^2.1.1"
-    docusaurus-plugin-llms: "npm:^0.3.0"
+    docusaurus-plugin-llms: "npm:^0.4.0"
     docusaurus-plugin-typedoc: "npm:1.4.2"
     eslint-plugin-prettier: "npm:^5.5.5"
     hast-util-is-element: "npm:^3.0.0"
@@ -11455,16 +11455,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"docusaurus-plugin-llms@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "docusaurus-plugin-llms@npm:0.3.0"
+"docusaurus-plugin-llms@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "docusaurus-plugin-llms@npm:0.4.0"
   dependencies:
     gray-matter: "npm:^4.0.3"
     minimatch: "npm:^9.0.3"
     yaml: "npm:^2.8.1"
   peerDependencies:
     "@docusaurus/core": ^3.0.0
-  checksum: 10/f89aa2cbde080cee3c5c3873a896d92c09630a9eb06051424fd85acd18893e06ab9b4c7a67e43ea1007e33cac66adb05c81e5ed2bc328798400f5ff537d13331
+  checksum: 10/12f3b05f7d4f5cb54ab9b9713ba4b4a2618f46c4513b71a6cd0cd2e35d56c6190258f273acc6dfd4947d7fa1cde15386b2f08fb74f0cd2a4b4e1ad7080f17f6c
   languageName: node
   linkType: hard
 
@@ -14446,9 +14446,9 @@ __metadata:
   linkType: hard
 
 "ip-address@npm:^10.0.1":
-  version: 10.0.1
-  resolution: "ip-address@npm:10.0.1"
-  checksum: 10/09731acda32cd8e14c46830c137e7e5940f47b36d63ffb87c737331270287d631cf25aa95570907a67d3f919fdb25f4470c404eda21e62f22e0a55927f4dd0fb
+  version: 10.1.1
+  resolution: "ip-address@npm:10.1.1"
+  checksum: 10/4289c1cd06eed843df627e0b8041f49a76b3683879dd1703aebf72b68071ee51b3e866a6ef5826a78c8222d78d3996d59c6e92ad44f2379660b63a47e8f7782c
   languageName: node
   linkType: hard
 

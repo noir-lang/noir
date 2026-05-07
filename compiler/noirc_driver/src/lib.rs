@@ -1,13 +1,18 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+#[cfg(test)]
+use insta as _;
+
 use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use acvm::AcirField;
+use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -19,6 +24,7 @@ use noirc_evaluator::brillig::brillig_ir::{
 };
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::checks;
 use noirc_evaluator::ssa::opt::{
     CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
     DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
@@ -162,6 +168,15 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_brillig_constraints_check: bool,
 
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    #[arg(long, hide = true, default_value_t = checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH)]
+    pub brillig_constraints_check_max_array_output_length: u32,
+
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    #[arg(long, hide = true, default_value_t = checks::DEFAULT_MAX_ANCESTOR_DISTANCE)]
+    pub brillig_constraints_check_max_ancestor_distance: u32,
+
     /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
@@ -178,12 +193,12 @@ pub struct CompileOptions {
 
     /// Maximum number of iterations to do in constant folding, as long as new values are being hoisted.
     /// A value of 0 effectively disables constant folding.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
+    #[arg(long, hide = true, default_value_t = CONSTANT_FOLDING_MAX_ITER)]
     pub constant_folding_max_iter: usize,
 
     /// Setting to decide the maximum weight threshold at which we designate a function
     /// as "small" and thus to always be inlined.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
+    #[arg(long, hide = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
@@ -282,6 +297,9 @@ impl Default for CompileOptions {
             show_artifact_paths: false,
             skip_underconstrained_check: false,
             skip_brillig_constraints_check: false,
+            brillig_constraints_check_max_array_output_length:
+                checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
             inliner_aggressiveness: i64::MAX,
@@ -328,6 +346,10 @@ impl CompileOptions {
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: self.skip_underconstrained_check,
             skip_brillig_constraints_check: self.skip_brillig_constraints_check,
+            brillig_constraints_check_max_array_output_length: self
+                .brillig_constraints_check_max_array_output_length,
+            brillig_constraints_check_max_ancestor_distance: self
+                .brillig_constraints_check_max_ancestor_distance,
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
@@ -573,7 +595,7 @@ pub fn compile_main(
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("{}", display_compiled_program(&compiled_program));
     }
 
     Ok((compiled_program, warnings))
@@ -1041,5 +1063,35 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
             let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
+    }
+}
+
+pub fn display_compiled_program(program: &CompiledProgram) -> String {
+    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types }.to_string()
+}
+
+/// Formats an ACIR [Program] together with its ABI error types so that any static
+/// assertion payloads embedded in the program are rendered as a `// message` comment
+/// next to the relevant ACIR/Brillig opcode. This is the same display used by
+/// `nargo compile --print-acir`.
+struct ProgramDisplay<'a, F: AcirField> {
+    program: &'a Program<F>,
+    error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_types = self
+            .error_types
+            .iter()
+            .filter_map(|(selector, abi_error_type)| {
+                if let AbiErrorType::String { string } = abi_error_type {
+                    Some((*selector, string.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+        display_program(self.program, Some(&error_types), f)
     }
 }

@@ -1,11 +1,11 @@
 use acir::{
     AcirField,
-    circuit::opcodes::MemOp,
+    circuit::opcodes::{MemOp, MemOpKind},
     native_types::{Witness, WitnessMap},
 };
 
 use super::{ErrorLocation, OpcodeResolutionError};
-use super::{arithmetic::ExpressionSolver, get_value, insert_value, witness_to_value};
+use super::{insert_value, witness_to_value};
 
 type MemoryIndex = u32;
 
@@ -107,49 +107,21 @@ impl<F: AcirField> MemoryOpSolver<F> {
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
-        let operation = get_value(&op.operation, initial_witness)?;
-
         // Find the memory index associated with this memory operation.
-        let index = get_value(&op.index, initial_witness)?;
+        let index = *witness_to_value(initial_witness, op.index)?;
         let memory_index = self.index_from_field(index)?;
 
-        // Calculate the value associated with this memory operation.
-        //
-        // In read operations, this corresponds to the witness index at which the value from memory will be written.
-        // In write operations, this corresponds to the expression which will be written to memory.
-        let value = ExpressionSolver::evaluate(&op.value, initial_witness);
-
-        // `operation == 0` implies a read operation. (`operation == 1` implies write operation).
-        let is_read_operation = operation.is_zero();
-        // We expect that the 'operation' should resolve to either 0 or 1.
-        if !is_read_operation && !operation.is_one() {
-            let opcode_location = ErrorLocation::Unresolved;
-            return Err(OpcodeResolutionError::MemoryOperationLargerThanOne {
-                opcode_location,
-                operation,
-            });
-        }
-
-        if is_read_operation {
-            // `value_read = arr[memory_index]`
-            //
-            // This is the value that we want to read into; i.e. copy from the memory block
-            // into this value.
-            let value_read_witness = value.to_witness().expect(
-                "Memory must be read into a specified witness index, encountered an Expression",
-            );
-
-            let value_in_array = self.read_memory_index(memory_index)?;
-            insert_value(&value_read_witness, value_in_array, initial_witness)
-        } else {
-            // `arr[memory_index] = value_write`
-            //
-            // This is the value that we want to write into; i.e. copy from `value_write`
-            // into the memory block.
-            let value_write = value;
-
-            let value_to_write = get_value(&value_write, initial_witness)?;
-            self.write_memory_index(memory_index, value_to_write)
+        match op.operation {
+            MemOpKind::Read => {
+                // `value_read = arr[memory_index]`
+                let value_in_array = self.read_memory_index(memory_index)?;
+                insert_value(&op.value, value_in_array, initial_witness)
+            }
+            MemOpKind::Write => {
+                // `arr[memory_index] = value_write`
+                let value_to_write = *witness_to_value(initial_witness, op.value)?;
+                self.write_memory_index(memory_index, value_to_write)
+            }
         }
     }
 }
@@ -159,7 +131,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use acir::{
-        AcirField, FieldElement,
+        FieldElement,
         circuit::opcodes::MemOp,
         native_types::{Witness, WitnessMap},
     };
@@ -175,10 +147,10 @@ mod tests {
         ]));
 
         let init = vec![Witness(1), Witness(2)];
-        // Write the value '2' at index '1', and then read from index '1' into witness 4
+        // Write the value '2' at index '1' (Witness(1) holds value 1), then read into witness 4
         let trace = vec![
-            MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-            MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
+            MemOp::write_to_mem_index(Witness(1), Witness(3)),
+            MemOp::read_at_mem_index(Witness(1), Witness(4)),
         ];
 
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
@@ -199,10 +171,10 @@ mod tests {
         ]));
 
         let init = vec![Witness(1), Witness(2)];
-        // Write at index '1', and then read at index '2' on an array of size 2.
+        // Write at index '1' (Witness(1)=1), then read at index '2' (Witness(3)=2) — out of bounds.
         let invalid_trace = vec![
-            MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-            MemOp::read_at_mem_index(FieldElement::from(2u128).into(), Witness(4)),
+            MemOp::write_to_mem_index(Witness(1), Witness(3)),
+            MemOp::read_at_mem_index(Witness(3), Witness(4)),
         ];
         let mut block_solver = MemoryOpSolver::new(&init, &initial_witness).unwrap();
         let mut err = None;

@@ -18,6 +18,7 @@ use crate::ast::{
     UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
+use crate::hir::LspMode;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
@@ -249,7 +250,7 @@ pub struct NodeInterner {
     interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
-    pub(crate) lsp_mode: bool,
+    pub(crate) lsp_mode: Option<LspMode>,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -518,7 +519,7 @@ impl Default for NodeInterner {
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
-            lsp_mode: false,
+            lsp_mode: None,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1100,6 +1101,23 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
@@ -1407,7 +1425,7 @@ impl NodeInterner {
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
-        self.lsp_mode
+        self.lsp_mode.is_some()
     }
 
     /// Sets the ordered generics and associated types for the given trait impl.
@@ -1656,6 +1674,26 @@ impl NodeInterner {
             Some(Node::Expression(_)) => Some(ExprId(index)),
             _ => None,
         }
+    }
+
+    /// Returns the location of every expression node whose source file is in `files`.
+    /// Used to build the zero-count baseline for lcov coverage reports: all expression
+    /// locations are emitted with a hit count of 0 before per-test data is written.
+    pub fn expr_locations_for_files<'a>(
+        &'a self,
+        files: &'a std::collections::HashSet<FileId>,
+    ) -> impl Iterator<Item = Location> + 'a {
+        self.id_to_location
+            .iter()
+            .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
+            .filter(|(idx, _)| {
+                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                    return false;
+                };
+                // Ignore blocks otherwise we highlight the opening brace.
+                !matches!(expr, HirExpression::Block(_))
+            })
+            .map(|(_, loc)| *loc)
     }
 
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {

@@ -25,7 +25,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -464,7 +464,7 @@ impl Elaborator<'_> {
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
             Type::Vector(elem_type)
         };
@@ -703,7 +703,7 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            Type::Array(ref size, ref base_type) => {
+            Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
             }
@@ -908,6 +908,8 @@ impl Elaborator<'_> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
+        self.usage_tracker.mark_impl_function_as_used(&func_id);
+
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
@@ -1066,7 +1068,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
     /// Elaborate a struct constructor.
@@ -1723,7 +1725,8 @@ impl Elaborator<'_> {
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
 
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let from_macro_call = false;
+        let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
@@ -1738,6 +1741,7 @@ impl Elaborator<'_> {
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
+        from_macro_call: bool,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
@@ -1754,14 +1758,19 @@ impl Elaborator<'_> {
 
         match value.into_expression(self, location) {
             Ok(new_expr) => {
-                // At this point the Expression was already elaborated and we got a Value.
+                // Unless the value to inline comes from a macro call (quoted content that is being unquoted),
+                // at this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.silence_field_visibility_errors += 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors += 1;
+                }
                 let value = self.elaborate_expression(new_expr);
-                self.silence_field_visibility_errors -= 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors -= 1;
+                }
                 value
             }
             Err(error) => make_error(self, error),
@@ -1847,7 +1856,8 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let from_macro_call = true;
+        let (expr_id, typ) = self.inline_comptime_value(result, location, from_macro_call);
         Some((self.interner.expression(&expr_id), typ))
     }
 
@@ -1897,7 +1907,23 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.intern_expr(HirExpression::Ident(ident.clone(), None), location);
+        let generics = if let Some(turbofish) = path.turbofish {
+            let definition_kind = self.interner.definition(definition).kind.clone();
+            if let DefinitionKind::Function(func_id) = definition_kind {
+                let ident_location = path.impl_item.location();
+                Some(self.use_type_args(turbofish, func_id, ident_location).0)
+            } else {
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("associated item `{}`", path.impl_item),
+                    location: path.impl_item.location(),
+                });
+                None
+            }
+        } else {
+            None
+        };
+
+        let id = self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), location);
 
         let mut bindings = TypeBindings::default();
 
@@ -1910,7 +1936,7 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(
             ident,
             &id,
-            None,
+            generics,
             bindings,
             push_required_type_variables,
         );

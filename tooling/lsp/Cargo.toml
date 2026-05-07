@@ -25,7 +25,7 @@ noirc_errors.workspace = true
 noirc_frontend.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-strum = "0.26"
+strum = "0.28"
 tower.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
 thiserror.workspace = true

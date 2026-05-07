@@ -191,12 +191,7 @@ impl ModCollector<'_> {
         let mut errors = CompilationErrors::default();
         let module_id = ModuleId { krate, local_id: self.module_id };
 
-        for mut r#impl in impls {
-            desugar_generic_trait_bounds_and_reorder_where_clause(
-                &mut r#impl.generics,
-                &mut r#impl.where_clause,
-            );
-
+        for r#impl in impls {
             collect_impl(
                 &mut context.def_interner,
                 &mut self.def_collector.items,
@@ -219,11 +214,6 @@ impl ModCollector<'_> {
         let mut errors = CompilationErrors::default();
 
         for mut trait_impl in impls {
-            desugar_generic_trait_bounds_and_reorder_where_clause(
-                &mut trait_impl.impl_generics,
-                &mut trait_impl.where_clause,
-            );
-
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     &mut context.def_interner,
@@ -296,12 +286,12 @@ impl ModCollector<'_> {
 
         let module = ModuleId { krate, local_id: self.module_id };
 
-        for function in functions {
+        for mut function in functions {
             let Some(func_id) = collect_function(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
-                &function.item,
+                &mut function.item,
                 module,
                 function.doc_comments,
                 &mut errors,
@@ -315,13 +305,7 @@ impl ModCollector<'_> {
             // and replace it
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
-            let mut noir_function = function.item;
-            desugar_generic_trait_bounds_and_reorder_where_clause(
-                &mut noir_function.def.generics,
-                &mut noir_function.def.where_clause,
-            );
-
-            unresolved_functions.push_fn(self.module_id, func_id, noir_function);
+            unresolved_functions.push_fn(self.module_id, func_id, function.item);
         }
 
         self.def_collector.items.functions.push(unresolved_functions);
@@ -1108,11 +1092,16 @@ pub fn collect_function(
     interner: &mut NodeInterner,
     def_map: &mut CrateDefMap,
     usage_tracker: &mut UsageTracker,
-    function: &NoirFunction,
+    function: &mut NoirFunction,
     module: ModuleId,
     doc_comments: Vec<DocComment>,
     errors: &mut CompilationErrors,
 ) -> Option<crate::node_interner::FuncId> {
+    desugar_generic_trait_bounds_and_reorder_where_clause(
+        &mut function.def.generics,
+        &mut function.def.where_clause,
+    );
+
     if let Some(field) = function.attributes().get_field_attribute()
         && !is_native_field(&field)
     {
@@ -1419,11 +1408,16 @@ pub fn collect_enum(
 pub fn collect_impl(
     interner: &mut NodeInterner,
     items: &mut CollectedItems,
-    r#impl: TypeImpl,
+    mut r#impl: TypeImpl,
     file_id: FileId,
     module_id: ModuleId,
     errors: &mut CompilationErrors,
 ) {
+    desugar_generic_trait_bounds_and_reorder_where_clause(
+        &mut r#impl.generics,
+        &mut r#impl.where_clause,
+    );
+
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
 
@@ -1557,6 +1551,11 @@ pub(crate) fn collect_trait_impl_items(
     local_id: LocalModuleId,
     errors: &mut CompilationErrors,
 ) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
+    desugar_generic_trait_bounds_and_reorder_where_clause(
+        &mut trait_impl.impl_generics,
+        &mut trait_impl.where_clause,
+    );
+
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
 

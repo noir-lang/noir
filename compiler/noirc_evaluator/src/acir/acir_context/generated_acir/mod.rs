@@ -181,6 +181,16 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         fresh_witness
     }
+
+    /// Attaches an assertion payload to the last opcode in the ACIR.
+    pub(crate) fn attach_assertion_payload(
+        &mut self,
+        payload: AssertionPayload<F>,
+    ) -> OpcodeLocation {
+        let location = self.last_acir_opcode_location();
+        self.assertion_payloads.insert(location, payload);
+        location
+    }
 }
 
 impl<F: AcirField> GeneratedAcir<F> {
@@ -408,7 +418,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let assertion_payload = self.generate_assertion_message_payload(format!(
             "Field failed to decompose into specified {limb_count} limbs"
         ));
-        self.assertion_payloads.insert(self.last_acir_opcode_location(), assertion_payload);
+        self.attach_assertion_payload(assertion_payload);
 
         Ok(limb_witnesses)
     }

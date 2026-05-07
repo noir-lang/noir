@@ -1,0 +1,7 @@
+[package]
+name = "coverage"
+type = "lib"
+authors = [""]
+compiler_version = ">=0.38.0"
+
+[dependencies]

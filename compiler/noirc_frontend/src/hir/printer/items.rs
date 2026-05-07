@@ -356,7 +356,7 @@ impl<'context> ItemBuilder<'context> {
 
     fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {
         match typ {
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 self.type_only_mention_types_outside_current_crate(length)
                     && self.type_only_mention_types_outside_current_crate(typ)
             }
@@ -497,7 +497,7 @@ impl<'context> ItemBuilder<'context> {
 
 fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) {
     match typ {
-        Type::Array(length, typ) => {
+        Type::Array(typ, length) => {
             gather_named_type_vars(length, type_vars);
             gather_named_type_vars(typ, type_vars);
         }
@@ -565,7 +565,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) 
 
 fn type_mentions_data_type(typ: &Type, data_type: &crate::DataType) -> bool {
     match typ {
-        Type::Array(length, typ) => {
+        Type::Array(typ, length) => {
             type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
         Type::Vector(typ) => type_mentions_data_type(typ, data_type),
@@ -618,7 +618,7 @@ fn type_mentions_primitive_type(typ: &Type, target_type: &Type) -> bool {
     }
 
     match typ {
-        Type::Array(length, typ) => {
+        Type::Array(typ, length) => {
             type_mentions_primitive_type(length, target_type)
                 || type_mentions_primitive_type(typ, target_type)
         }

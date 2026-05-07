@@ -68,19 +68,27 @@ pub enum Intrinsic {
     /// arguments:  vector length, vector contents, ...elements_to_push
     /// result: a vector containing `..elements_to_push, vector contents`
     VectorPushFront,
-    /// VectorPopBack - Removes the last element of a vector
+    /// VectorPopBack - Removes the last element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the last element of `vector contents`
     VectorPopBack,
-    /// VectorPopFront - Removes the first element of a vector
+    /// VectorPopFront - Removes the first element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the first element of `vector contents`
     VectorPopFront,
-    /// VectorInsert - Insert elements inside a vector.
+    /// VectorInsert - Insert elements inside a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
     /// arguments: vector length, vector contents, insert index, ...elements_to_insert
     /// result: a vector with ...elements_to_insert inserted at the `insert index`
     VectorInsert,
-    /// VectorRemove - Removes an element from a vector
+    /// VectorRemove - Removes an element from a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
@@ -377,8 +385,10 @@ pub enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// to those in the given array.
+    /// In ACIR this will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    /// In Brillig, this might modify the original array if the array's reference count is 1.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
