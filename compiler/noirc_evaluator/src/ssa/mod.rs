@@ -11,7 +11,19 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{acir::ssa::Artifacts, brillig::BrilligOptions, errors::RuntimeError};
+use crate::{
+    acir::ssa::Artifacts,
+    brillig::BrilligOptions,
+    errors::RuntimeError,
+    ssa::{
+        checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
+        opt::{
+            CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+            MAX_UNROLL_ITERATIONS,
+        },
+    },
+};
 use acvm::{
     FieldElement,
     acir::{
@@ -22,6 +34,7 @@ use acvm::{
 
 use ir::instruction::ErrorType;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
@@ -41,7 +54,7 @@ pub use builder::{SsaBuilder, SsaPass};
 
 mod artifact;
 mod builder;
-mod checks;
+pub mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
@@ -97,11 +110,11 @@ pub struct SsaEvaluatorOptions {
 
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
-
-    /// Enable the lookback feature of the Brillig call constraints
-    /// check (prevents some rare false positives, leads to a slowdown
-    /// on large rollout functions)
-    pub enable_brillig_constraints_check_lookback: bool,
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    pub brillig_constraints_check_max_array_output_length: u32,
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    pub brillig_constraints_check_max_ancestor_distance: u32,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -117,14 +130,51 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Maximum iterations for Brillig loop unrolling.
+    /// Loops exceeding this limit will not be unrolled even if they pass the instruction threshold.
+    pub max_unroll_iterations: usize,
+
     /// Override the threshold for force-unrolling small loops.
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
     /// Set to 0 to disable force-unrolling.
     pub force_unroll_threshold: usize,
 
+    /// Minimum percentage cost reduction required to keep a specialized Brillig function clone.
+    /// Setting to 0 disables the pass entirely.
+    pub specialization_threshold: usize,
+
+    /// Maximum number of specialized clones per original Brillig function.
+    pub max_specializations_per_fn: usize,
+
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+}
+
+/// Defaults used in tests.
+impl Default for SsaEvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            ssa_logging: SsaLogging::None,
+            ssa_logging_hide_unchanged: false,
+            brillig_options: BrilligOptions::default(),
+            print_codegen_timings: false,
+            emit_ssa: None,
+            skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
+            inliner_aggressiveness: 0,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            skip_passes: Vec::new(),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -133,13 +183,29 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
         SsaPass::new(Ssa::black_box_bypass, "black_box bypass"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // Use brillig-only mem2reg before inlining.
+        // Running ACIR mem2reg this early creates block parameters that cascade through
+        // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new(
+            Ssa::lower_refs_at_acir_brillig_boundary,
+            "Lower refs at ACIR/Brillig boundary",
+        ),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(
@@ -161,15 +227,26 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
-        // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
-        SsaPass::new(
-            Ssa::dead_instruction_elimination_pre_flattening,
-            "Dead Instruction Elimination",
-        ),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(
+            move |ssa| {
+                ssa.brillig_function_specialization(
+                    options.specialization_threshold,
+                    options.max_specializations_per_fn,
+                    options.constant_folding_max_iter,
+                )
+            },
+            "Brillig Function Specialization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
@@ -178,32 +255,49 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
         // introduce signed divisions.
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
+        // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
-        // then try to free memory before inlining, which involves copying a instructions.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
-        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
+        // Run mem2reg on all functions after flattening to handle cross-block promotion
+        // (Brillig still multi-block; ACIR is single-block so this is trivial for ACIR).
+        // Then run load_store_forwarding to handle aliased references within blocks
+        // (which mem2reg doesn't handle). Finally free memory before inlining.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-        // This pass must come immediately following `mem2reg` as the succeeding passes
+        // This pass must come immediately following load/store forwarding as the succeeding passes
         // may create an SSA which inlining fails to handle.
         SsaPass::new_try(
             move |ssa| {
@@ -214,6 +308,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        // Run LSF once when we are guaranteed for every function to be inlined (including no_predicates).
+        SsaPass::new(Ssa::load_store_forwarding, "Load-Store Forwarding"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(
@@ -231,6 +329,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
@@ -245,18 +344,18 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         // Removing unreachable instructions before mem2reg, which may result in some default Store
         // instructions being added, which it can pair up with Loads. If we ran it after it,
         // then DIE would just remove the Stores, leaving the Loads dangling.
         // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
-        // We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We cannot run load/store forwarding after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
@@ -284,7 +383,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(|ssa| {
                 // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
                 // that we don't know how to attribute to a concrete error with the Noir code.
-                ssa.dead_instruction_elimination_post_check(true);
+                ssa.dead_instruction_elimination_post_check();
                 ssa
             }),
     ]
@@ -308,6 +407,10 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
     ]
 }
 
@@ -363,7 +466,8 @@ pub fn optimize_ssa_builder_into_acir(
             options.print_codegen_timings,
             || {
                 ssa.check_for_missing_brillig_constraints(
-                    options.enable_brillig_constraints_check_lookback,
+                    options.brillig_constraints_check_max_array_output_length,
+                    options.brillig_constraints_check_max_ancestor_distance,
                 )
             },
         ));
@@ -475,7 +579,7 @@ pub fn combine_artifacts(
     );
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
-        .zip(arg_size_and_visibilities)
+        .zip_eq(arg_size_and_visibilities)
         .map(|(acir, arg_size_and_visibility)| {
             convert_generated_acir_into_circuit(
                 acir,
@@ -513,7 +617,6 @@ pub fn convert_generated_acir_into_circuit(
     debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index();
 
     let GeneratedAcir {
         return_witnesses,
@@ -535,9 +638,6 @@ pub fn convert_generated_acir_into_circuit(
 
     let circuit = Circuit {
         function_name: name.clone(),
-        // XXX: The Circuit cannot differentiate between having 0 or 1 witnesses,
-        // but making this field optional could break serialization.
-        current_witness_index: current_witness_index.unwrap_or_default().witness_index(),
         opcodes,
         private_parameters,
         public_parameters,
@@ -609,4 +709,46 @@ fn split_public_and_private_inputs(
             }
             (acc.0, acc.1)
         })
+}
+
+#[cfg(test)]
+mod minimal_passes_tests {
+    use super::{Ssa, minimal_passes};
+    use crate::errors::RuntimeError;
+
+    fn run_minimal(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        let mut ssa = ssa;
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa)?;
+        }
+        Ok(ssa)
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_assert_constant() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::AssertConstantFailed { .. })));
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_static_assert() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array b"Assertion failed"
+            v2 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v1, v2, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
 }

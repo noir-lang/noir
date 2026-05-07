@@ -10,7 +10,8 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
+use crate::hir::comptime::EvaluationTracker;
+use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
@@ -18,7 +19,6 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
-use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -48,6 +48,10 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub debug_instrumenter: DebugInstrumenter,
 
+    /// The CrateId of the `__debug` crate, if it has been linked.
+    /// Used to identify debug functions during monomorphization.
+    pub debug_crate_id: Option<CrateId>,
+
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<FileId, Location>,
@@ -61,6 +65,9 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
+
+    /// Tracks comptime expression locations to facilitate code coverage.
+    pub evaluation_tracker: Option<EvaluationTracker>,
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -76,6 +83,14 @@ pub enum FunctionNameMatch {
     Contains(Vec<String>),
 }
 
+#[derive(Debug)]
+pub enum LspMode {
+    // In full mode all files are type-checked, and errors are published and shown to the user.
+    Full,
+    // In single file mode only a single file is type-checked and errors are not shown to the user.
+    SingleFile,
+}
+
 impl Context<'_, '_> {
     pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
@@ -86,11 +101,13 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -106,11 +123,13 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -131,11 +150,13 @@ impl Context<'_, '_> {
             crate_graph,
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -274,14 +295,14 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
-        errors: &mut Vec<CompilationError>,
+        errors: &mut CompilationErrors,
     ) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push(err.into());
+                errors.push(err);
                 // When there's an error, unify with any other kinds
                 Kind::Any
             });
@@ -292,10 +313,10 @@ impl Context<'_, '_> {
             if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
                 let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
                 if !matches!(typ, Type::NamedGeneric(..)) {
-                    errors.push(
-                        ResolverError::MacroResultInGenericsListNotAGeneric { location, typ }
-                            .into(),
-                    );
+                    errors.push(ResolverError::MacroResultInGenericsListNotAGeneric {
+                        location,
+                        typ,
+                    });
                 }
             }
 
@@ -311,8 +332,8 @@ impl Context<'_, '_> {
     }
 
     /// Activates LSP mode, which will track references for all definitions.
-    pub fn activate_lsp_mode(&mut self) {
-        self.def_interner.lsp_mode = true;
+    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
+        self.def_interner.lsp_mode = Some(mode);
     }
 
     pub fn disable_comptime_printing(&mut self) {

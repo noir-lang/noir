@@ -5,7 +5,7 @@ pub contract SomeContract {
 }
 
 comptime fn utility(f: FunctionDefinition) -> () {
-    f.add_attribute("'custom")
+    println(f.name());
 }
 
 comptime fn add_utility(_: FunctionDefinition) -> Quoted {

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index 4098222575 is out of bounds for this array of length 2
+  ┌─ src/main.nr:4:18
+  │
+4 │     let c = if b[4098222575_u32].1 {
+  │                  --------------
+  │
+
+Aborting due to 1 previous error

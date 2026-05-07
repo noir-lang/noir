@@ -11,11 +11,9 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
-    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
-    visibility_to_quoted,
+    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
+    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
+    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -24,11 +22,10 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
-        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
+        Literal, Pattern, Statement, StatementKind, UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{
         ElaborateReason, Elaborator, PrimitiveType,
@@ -45,7 +42,6 @@ use crate::{
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
     },
     hir_def::{
@@ -53,11 +49,10 @@ use crate::{
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    shared::{Signedness, Visibility},
-    signed_field::SignedField,
-    token::{Attribute, LocatedToken, Token},
+    shared::Signedness,
+    token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -79,7 +74,7 @@ impl Interpreter<'_, '_> {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
-            "array_refcount" => Ok(Value::U32(0)),
+            "array_refcount" => Ok(Value::u32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_vector" => as_vector(arguments, location),
             "as_witness" => as_witness(arguments, location),
@@ -135,9 +130,9 @@ impl Interpreter<'_, '_> {
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
-            "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -150,22 +145,7 @@ impl Interpreter<'_, '_> {
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
-            "function_def_set_body" => function_def_set_body(self, arguments, location),
-            "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
-            "function_def_set_return_type" => {
-                function_def_set_return_type(self, arguments, location)
-            }
-            "function_def_set_return_public" => {
-                function_def_set_return_public(self, arguments, location)
-            }
-            "function_def_set_return_data" => {
-                function_def_set_return_data(self, arguments, location)
-            }
-            "function_def_set_unconstrained" => {
-                function_def_set_unconstrained(self, arguments, location)
-            }
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
-            "module_add_item" => module_add_item(self, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -192,7 +172,7 @@ impl Interpreter<'_, '_> {
             "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
             "vector_push_back" => vector_push_back(arguments, location),
             "vector_push_front" => vector_push_front(arguments, location),
-            "vector_refcount" => Ok(Value::U32(0)),
+            "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
@@ -222,8 +202,7 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
+            "type_def_add_abi" => type_def_add_abi(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -240,7 +219,6 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -291,7 +269,7 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (argument, argument_location) = check_one_argument(arguments, location)?;
 
     match argument {
-        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
+        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::u32(values.len() as u32)),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -307,9 +285,7 @@ fn apply_range_constraint(
 ) -> IResult<Value> {
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
-    let input = get_field(value)?;
-    let field = input.to_field_element();
-
+    let field = get_field(value)?;
     let num_bits = get_u32(num_bits)?;
     let field_num_bits = field.num_bits();
 
@@ -318,7 +294,7 @@ fn apply_range_constraint(
     } else {
         failing_constraint(
             format!(
-                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                "call to assert_max_bit_size: {} has {field_num_bits} bits which do not fit in {num_bits} bits",
                 field.to_short_hex()
             ),
             location,
@@ -339,7 +315,7 @@ fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (array, array_location) = check_one_argument(arguments, location)?;
 
     match array {
-        Value::Array(values, Type::Array(_, typ)) => Ok(Value::Vector(values, Type::Vector(typ))),
+        Value::Array(values, Type::Array(typ, _)) => Ok(Value::Vector(values, Type::Vector(typ))),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -403,7 +379,7 @@ fn static_assert(
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let string = check_one_argument(arguments, location)?;
     let string_bytes = get_str(string)?;
-    let bytes: Vector<Value> = string_bytes.iter().copied().map(Value::U8).collect();
+    let bytes: Vector<Value> = string_bytes.iter().copied().map(Value::u8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -415,23 +391,20 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::CtString(string_bytes))
 }
 
-// fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn type_def_add_attribute(
+// fn add_abi(self, abi_argument: CtString)
+fn type_def_add_abi(
     interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
-    let attribute = get_str(attribute)?;
+    let attribute = get_ctstring(attribute)?;
     let attribute = String::from_utf8_lossy(&attribute);
-    let attribute = format!("#[{attribute}]");
-    let mut parser = Parser::for_str(&attribute, attribute_location.file);
-    let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.clone(),
-            location: attribute_location,
-        });
+
+    let attribute = SecondaryAttribute {
+        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
+        location: attribute_location,
     };
 
     let self_arg = self_argument.0.clone();
@@ -443,62 +416,6 @@ fn type_def_add_attribute(
     });
 
     Ok(Value::Unit)
-}
-
-// fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn type_def_add_generic(
-    interpreter: &Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, generic) = check_two_arguments(arguments, location)?;
-    let generic_location = generic.1;
-    let generic = get_str(generic)?;
-    let generic = String::from_utf8_lossy(&generic);
-
-    let mut tokens = lex(&generic, location);
-    if tokens.len() != 1 {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic.to_string(),
-            location: generic_location,
-        });
-    }
-
-    let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic.to_string(),
-            location: generic_location,
-        });
-    };
-
-    let self_arg = self_argument.0.clone();
-    let struct_id = get_type_id(self_argument)?;
-    let struct_module = struct_id.module_id();
-
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
-
-    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
-    let mut the_struct = the_struct.borrow_mut();
-    let name = Rc::new(generic_name);
-
-    for generic in &the_struct.generics {
-        if generic.name == name {
-            return Err(InterpreterError::DuplicateGeneric {
-                name,
-                struct_name: the_struct.name.to_string(),
-                existing_location: generic.location,
-                duplicate_location: generic_location,
-            });
-        }
-    }
-
-    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
-    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
-    let typ = type_var.clone().into_named_generic(&name, None);
-    let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
-    the_struct.generics.push(new_generic);
-
-    Ok(Value::Type(typ))
 }
 
 /// fn as_type(self) -> Type
@@ -589,7 +506,7 @@ fn type_def_generics(
         })
         .collect();
 
-    Ok(Value::Vector(generics, vector_item_type))
+    Ok(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
 }
 
 fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -729,88 +646,6 @@ fn type_def_name(
     Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
-/// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
-/// Returns (name, type) pairs of each field of this TypeDefinition
-fn type_def_set_fields(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let self_arg = the_struct.0.clone();
-    let struct_id = get_type_id(the_struct)?;
-    let struct_module = struct_id.module_id();
-
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
-
-    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
-    let mut struct_def = struct_def.borrow_mut();
-
-    let field_location = fields.1;
-    let fields = get_vector(fields)?.0;
-    let fields = fields
-        .into_iter()
-        .flat_map(|field_pair| get_tuple((field_pair, field_location)))
-        .enumerate()
-        .collect::<Vec<_>>();
-
-    let mut new_fields = Vec::<StructField>::new();
-
-    for (index, mut field_pair) in fields {
-        if field_pair.len() != 3 {
-            let expected = "tuple".to_string();
-
-            let actual =
-                Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
-
-            return Err(InterpreterError::TypeMismatch { expected, actual, location });
-        }
-
-        let visibility = field_pair.pop().unwrap().unwrap_or_clone();
-        let typ = field_pair.pop().unwrap().unwrap_or_clone();
-        let name_value = field_pair.pop().unwrap().unwrap_or_clone();
-
-        let name_tokens = get_quoted((name_value.clone(), field_location))?;
-        let typ = get_type((typ, field_location))?;
-
-        match name_tokens.first().map(|t| t.token()) {
-            Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                let visibility = parse(
-                    interpreter.elaborator,
-                    (visibility, field_location),
-                    Parser::parse_item_visibility,
-                    "a visibility",
-                )?;
-
-                let name = Ident::new(name.clone(), field_location);
-                let previous_index = new_fields.iter().position(|field| field.name == name);
-
-                if let Some(previous_index) = previous_index {
-                    return Err(InterpreterError::DuplicateStructFieldInSetFields {
-                        name,
-                        index,
-                        previous_index,
-                    });
-                }
-
-                new_fields.push(StructField { visibility, name, typ });
-            }
-            _ => {
-                let value = name_value.display(interpreter.elaborator.interner).to_string();
-                let location = field_location;
-                return Err(InterpreterError::ExpectedIdentForStructField {
-                    value,
-                    index,
-                    location,
-                });
-            }
-        }
-    }
-
-    struct_def.set_fields(new_fields);
-    Ok(Value::Unit)
-}
-
 fn vector_remove(
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -822,12 +657,16 @@ fn vector_remove(
     let index = get_u32(index)? as usize;
 
     if values.is_empty() {
-        return failing_constraint("vector_remove called on empty vector", location, call_stack);
+        return failing_constraint(
+            "Index out of bounds: vector_remove called on empty vector",
+            location,
+            call_stack,
+        );
     }
 
     if index >= values.len() {
         let message = format!(
-            "vector_remove: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_remove: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
@@ -857,7 +696,11 @@ fn vector_pop_front(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
-        None => failing_constraint("vector_pop_front called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_front called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 
@@ -873,7 +716,11 @@ fn vector_pop_back(
         Some(element) => {
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
-        None => failing_constraint("vector_pop_back called on empty vector", location, call_stack),
+        None => failing_constraint(
+            "Index out of bounds: vector_pop_back called on empty vector",
+            location,
+            call_stack,
+        ),
     }
 }
 
@@ -890,7 +737,7 @@ fn vector_insert(
     // If index is equal to the length, the insert is equivalent to a push
     if index > values.len() {
         let message = format!(
-            "vector_insert: index {index} is out of bounds for a vector of length {}",
+            "Index out of bounds: vector_insert: index {index} is out of bounds for a vector of length {}",
             values.len()
         );
         return failing_constraint(message, location, call_stack);
@@ -1014,7 +861,7 @@ fn to_be_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1025,7 +872,7 @@ fn to_le_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1055,57 +902,48 @@ fn to_le_radix(
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
-        if let Type::Constant(limb_count, kind) = *length {
-            if kind.unifies(&Kind::u32()) {
-                (limb_count.to_field_element(), element_type)
-            } else {
-                return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
-            }
-        } else {
-            return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
-        }
+    let (limb_count, element_type) = if let Type::Array(element_type, length) = return_type {
+        let limb_count = length
+            .evaluate_to_u32(location)
+            .map_err(|_| InterpreterError::TypeAnnotationsNeededForMethodCall { location })?
+            as usize;
+        (limb_count, element_type)
     } else {
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
-    let return_type_is_bits =
-        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+    let return_type_is_bits = *element_type == Type::Bool;
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
-    let limb_count_usize = limb_count.to_u128() as usize;
-    if limb_count_usize < decomposed_integer.len() {
-        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+    if limb_count < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count} limbs");
         return failing_constraint(message, location, call_stack);
     }
 
-    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
+    let decomposed_integer = vecmap(0..limb_count, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
+        if return_type_is_bits { Value::Bool(digit != 0) } else { Value::u8(digit) }
     });
 
     let len: u32 = decomposed_integer
         .len()
         .try_into()
         .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
-    let result_type = Type::Array(Box::new(len.into()), element_type);
+    let result_type = Type::Array(element_type, Box::new(Type::constant_u32(len)));
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
-    let bit_size = u32::BITS - (radix - 1).leading_zeros();
-    let radix_big = BigUint::from(radix);
-    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
@@ -1119,7 +957,7 @@ fn type_as_array(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Array(length, array_type) = typ {
+        if let Type::Array(array_type, length) = typ {
             let array_type = Shared::new(Value::Type(*array_type));
             let length_type = Shared::new(Value::Type(*length));
             Some(Value::Tuple(vec![array_type, length_type]))
@@ -1140,7 +978,7 @@ fn type_as_constant(
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
         match typ.evaluate_to_u32(location) {
-            Ok(constant) => Ok(Some(Value::U32(constant))),
+            Ok(constant) => Ok(Some(Value::u32(constant))),
             Err(err) => {
                 // Evaluating to a non-constant returns 'None' in user code
                 if err.is_non_constant_evaluated() {
@@ -1163,7 +1001,7 @@ fn type_as_integer(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
             let sign = Shared::new(Value::Bool(sign.is_signed()));
-            let bit_size = Shared::new(Value::U8(bits.bit_size()));
+            let bit_size = Shared::new(Value::u8(bits.bit_size()));
             Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
@@ -1269,7 +1107,7 @@ where
     F: FnOnce(Type) -> IResult<Option<Value>>,
 {
     let value = check_one_argument(arguments, location)?;
-    let typ = get_type(value)?.follow_bindings();
+    let typ = get_type(value)?;
 
     let option_value = f(typ)?;
 
@@ -1565,30 +1403,28 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
-        Type::Array(length_type, elem) => {
+        Type::FieldElement => Value::field(FieldElement::zero()),
+        Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
                 let array = std::iter::repeat_n(element, length as usize).collect();
-                Value::Array(array, Type::Array(length_type, elem))
+                Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later
-                Value::Zeroed(Type::Array(length_type, elem))
+                Value::Zeroed(Type::Array(elem, length_type))
             }
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
-            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
-            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
-            (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::u8(0),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::u16(0),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::u32(0),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::u64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::u128(0),
+            (Signedness::Signed, IntegerBitSize::Eight) => Value::i8(0),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::i16(0),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::i32(0),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::i64(0),
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 unreachable!("invalid type: i128")
             }
@@ -1596,7 +1432,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new(vec![0; length as usize]))
+                Value::String(Rc::new(vec![0u8; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -2067,7 +1903,7 @@ fn expr_as_index(
     })
 }
 
-// fn as_integer(self) -> Option<(Field, bool)>
+// fn as_integer(self) -> Option<Field>
 fn expr_as_integer(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -2076,17 +1912,11 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::Tuple(vec![
-                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
-                Shared::new(Value::Bool(field.is_negative())),
-            ]))
+            Some(Value::field(field))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::Tuple(vec![
-                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
-                    Shared::new(Value::Bool(field.is_negative())),
-                ]))
+                Some(Value::field(field))
             } else {
                 None
             }
@@ -2370,6 +2200,7 @@ fn expr_has_semicolon(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value_except_semi(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
@@ -2381,6 +2212,7 @@ fn expr_is_break(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
 }
 
@@ -2392,6 +2224,7 @@ fn expr_is_continue(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
@@ -2487,15 +2320,36 @@ fn expr_resolve(
     })
 }
 
-fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
+fn unwrap_expr_value(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = true;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_except_semi(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = false;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_helper(
+    interner: &NodeInterner,
+    mut expr_value: ExprValue,
+    unwrap_semi: bool,
+) -> ExprValue {
     loop {
         match expr_value {
             ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
             }
-            ExprValue::Statement(StatementKind::Expression(expression))
-            | ExprValue::Statement(StatementKind::Semi(expression)) => {
+            ExprValue::Statement(StatementKind::Expression(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
+            }
+            ExprValue::Statement(StatementKind::Semi(expression)) => {
+                if unwrap_semi {
+                    expr_value = ExprValue::Expression(expression.kind);
+                } else {
+                    expr_value = ExprValue::Statement(StatementKind::Semi(expression));
+                    break;
+                }
             }
             ExprValue::Expression(ExpressionKind::Interned(id)) => {
                 expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone());
@@ -2544,42 +2398,6 @@ fn fmtstr_quoted_contents(
 // fn fresh_type_variable() -> Type
 fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
     Ok(Value::Type(interner.next_type_variable_with_kind(Kind::Any)))
-}
-
-// fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn function_def_add_attribute(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
-    let attribute_location = attribute.1;
-    let attribute = get_str(attribute)?;
-    let attribute = String::from_utf8_lossy(&attribute);
-    let attribute = format!("#[{attribute}]");
-    let mut parser = Parser::for_str(&attribute, attribute_location.file);
-    let Some((attribute, _span)) = parser.parse_attribute() else {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.clone(),
-            location: attribute_location,
-        });
-    };
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-
-    match &attribute {
-        Attribute::Function(attribute) => {
-            function_modifiers.attributes.set_function(attribute.clone());
-        }
-        Attribute::Secondary(attribute) => {
-            function_modifiers.attributes.secondary.push(attribute.clone());
-        }
-    }
-
-    Ok(Value::Unit)
 }
 
 // fn as_typed_expr(self) -> TypedExpr
@@ -2643,6 +2461,40 @@ fn function_def_body(
     } else {
         Err(InterpreterError::FunctionAlreadyResolved { location })
     }
+}
+
+// fn disable(self, error_message: CtString)
+fn function_def_disable(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, error_message) = check_two_arguments(arguments, location)?;
+    let error_message = get_ctstring(error_message)?;
+    let error_message = String::from_utf8_lossy(&error_message).into_owned();
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    function_modifiers.attributes.secondary.push(SecondaryAttribute {
+        kind: SecondaryAttributeKind::Deprecated(true, Some(error_message)),
+        location,
+    });
+
+    function_modifiers
+        .attributes
+        .secondary
+        .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+
+    // Lie and say that the body of this function is resolved in order to avoid any
+    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
+    // above should ensure it is never called.
+    func_meta.function_body = FunctionBody::Resolved;
+    Ok(Value::Unit)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
@@ -2757,189 +2609,6 @@ fn function_def_return_type(
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
 }
 
-// fn set_body(self, body: Expr)
-fn function_def_set_body(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
-    let body_location = body_argument.1;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
-    let statement_kind = match body_argument {
-        ExprValue::Expression(expression_kind) => {
-            StatementKind::Expression(Expression { kind: expression_kind, location: body_location })
-        }
-        ExprValue::Statement(statement_kind) => statement_kind,
-        ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
-        ExprValue::Pattern(pattern) => {
-            if let Some(expression) = pattern.try_as_expression(interpreter.elaborator.interner) {
-                StatementKind::Expression(expression)
-            } else {
-                let expression =
-                    Value::pattern(pattern).display(interpreter.elaborator.interner).to_string();
-                let location = body_location;
-                return Err(InterpreterError::CannotSetFunctionBody { location, expression });
-            }
-        }
-    };
-
-    let statement = Statement { kind: statement_kind, location: body_location };
-    let body = BlockExpression { statements: vec![statement] };
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.has_body = true;
-    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location);
-
-    Ok(Value::Unit)
-}
-
-// fn set_parameters(self, parameters: [(Quoted, Type)])
-fn function_def_set_parameters(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
-    let parameters_argument_location = parameters_argument.1;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let (input_parameters, _type) = get_vector(parameters_argument)?;
-
-    // What follows is very similar to what happens in Elaborator::define_function_meta
-    let mut parameters = Vec::new();
-    let mut parameter_types = Vec::new();
-    let mut parameter_idents = Vec::new();
-    let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
-
-    for input_parameter in input_parameters {
-        let mut tuple = get_tuple((input_parameter, parameters_argument_location))?;
-        let parameter = tuple.pop().unwrap().unwrap_or_clone();
-        let parameter_type = get_type((parameter, parameters_argument_location))?;
-        let parameter_pattern = parse(
-            interpreter.elaborator,
-            (tuple.pop().unwrap().unwrap_or_clone(), parameters_argument_location),
-            Parser::parse_pattern_or_error,
-            "a pattern",
-        )?;
-
-        let reason =
-            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
-        let reason = Some(reason);
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
-            elaborator.elaborate_pattern_and_store_ids(
-                parameter_pattern,
-                parameter_type.clone(),
-                DefinitionKind::Local(None),
-                &mut parameter_idents,
-                true, // warn_if_unused
-                true, // warn_if_not_mutated
-                &mut parameter_names_in_list,
-            )
-        });
-
-        parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
-        parameter_types.push(parameter_type);
-    }
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.parameters = parameters.into();
-        func_meta.parameter_idents = parameter_idents;
-        replace_func_meta_parameters(&mut func_meta.typ, parameter_types);
-    });
-
-    Ok(Value::Unit)
-}
-
-// fn set_return_type(self, return_type: Type)
-fn function_def_set_return_type(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
-    let return_type = get_type(return_type_argument)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
-            typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            location,
-        });
-        replace_func_meta_return_type(&mut func_meta.typ, return_type);
-    });
-
-    Ok(Value::Unit)
-}
-
-// fn set_return_public(self, public: bool)
-fn function_def_set_return_public(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, public) = check_two_arguments(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let public = get_bool(public)?;
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
-    func_meta.return_visibility_location = location;
-
-    Ok(Value::Unit)
-}
-
-// fn set_return_data(self)
-fn function_def_set_return_data(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = Visibility::ReturnData;
-    func_meta.return_visibility_location = location;
-
-    Ok(Value::Unit)
-}
-
-// fn set_unconstrained(self, value: bool)
-fn function_def_set_unconstrained(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let unconstrained = get_bool(unconstrained)?;
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.set_unconstrained(unconstrained);
-    });
-
-    Ok(Value::Unit)
-}
-
 // fn visibility(self) -> Quoted
 fn function_def_visibility(
     interner: &NodeInterner,
@@ -2950,35 +2619,6 @@ fn function_def_visibility(
     let func_id = get_function_def(self_argument)?;
     let visibility = interner.function_visibility(func_id);
     Ok(visibility_to_quoted(visibility, location))
-}
-
-// fn add_item(self, item: Quoted)
-fn module_add_item(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, item) = check_two_arguments(arguments, location)?;
-    let module_value = self_argument.0.clone();
-    let module_id = get_module(self_argument)?;
-
-    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
-
-    let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
-
-    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
-    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
-        let mut generated_items = CollectedItems::default();
-
-        elaborator.add_items(top_level_statements, &mut generated_items, location);
-
-        if !generated_items.is_empty() {
-            elaborator.elaborate_items(generated_items);
-        }
-    });
-
-    Ok(Value::Unit)
 }
 
 // fn child_modules(self) -> [Module]
@@ -3130,10 +2770,9 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
 
-    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
-    let typ = Type::Vector(Box::new(int_type));
+    let typ = Type::Vector(Box::new(Type::Bool));
     Ok(Value::Vector(bits_vector, typ))
 }
 
@@ -3141,7 +2780,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+    let bytes_vector = bytes.into_iter().map(Value::u8).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Vector(Box::new(int_type));
@@ -3167,7 +2806,7 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
 fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
+    Ok(Value::u64(bits))
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
@@ -3203,8 +2842,7 @@ fn quoted_hash(
 
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     tokens_string.hash(&mut hasher);
-    let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(hasher.finish().into()))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3270,7 +2908,7 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let Type::Array(size, elements) = return_type.clone() else {
+    let Type::Array(elements, size) = return_type.clone() else {
         panic!("ICE: Should only have an array return type");
     };
 
@@ -3285,10 +2923,8 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = false;
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
-    let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
     for generator in generators {
         let x_big: BigUint = generator.x.into();
@@ -3296,12 +2932,8 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-        embedded_curve_point_fields
-            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
+        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);
@@ -3317,4 +2949,45 @@ fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     let rhs = get_field(rhs)?;
 
     Ok(Value::Bool(lhs < rhs))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::field_less_than;
+    use crate::hir::comptime::value::Value;
+    use acvm::FieldElement;
+    use noirc_errors::Location;
+
+    fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
+        vec![(a, Location::dummy()), (b, Location::dummy())]
+    }
+
+    fn pos(v: u128) -> Value {
+        Value::field(v.into())
+    }
+
+    fn neg(v: u128) -> Value {
+        Value::field(-FieldElement::from(v))
+    }
+
+    #[test]
+    fn test_field_less_than() {
+        let loc = Location::dummy();
+
+        // positive comparisons
+        assert_eq!(field_less_than(args(pos(0), pos(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(1), pos(0)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(42), pos(42)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(0x100), pos(0x200)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(0x200), pos(0x100)), loc).unwrap(), Value::Bool(false));
+
+        // negative values wrap around
+        assert_eq!(field_less_than(args(pos(1), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), pos(1)), loc).unwrap(), Value::Bool(false));
+        // -2 < -1
+        assert_eq!(field_less_than(args(neg(2), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), neg(2)), loc).unwrap(), Value::Bool(false));
+        // -1 < -1 is false
+        assert_eq!(field_less_than(args(neg(1), neg(1)), loc).unwrap(), Value::Bool(false));
+    }
 }

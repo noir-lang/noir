@@ -57,7 +57,7 @@ use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVaria
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutConfig {
     max_stack_frame_size: usize,
-    max_stack_size: usize,
+    num_stack_frames: usize,
     max_scratch_space: usize,
 }
 
@@ -67,8 +67,7 @@ impl LayoutConfig {
         num_stack_frames: usize,
         max_scratch_space: usize,
     ) -> Self {
-        let max_stack_size = num_stack_frames * max_stack_frame_size;
-        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
+        Self { max_stack_frame_size, num_stack_frames, max_scratch_space }
     }
 
     /// The maximum size of an individual stack frame.
@@ -78,7 +77,15 @@ impl LayoutConfig {
 
     /// The overall maximum stack size is the maximum number of frames times the maximum size of an individual stack frame.
     pub(crate) fn max_stack_size(&self) -> usize {
-        self.max_stack_size
+        self.num_stack_frames * self.max_stack_frame_size
+    }
+
+    /// The maximum number of stack frames that should be active simultaneously.
+    ///
+    /// Note that currently this isn't strictly enforced: as long as the memory fits into [LayoutConfig::max_stack_size]
+    /// we allow more frames to be created during recursive calls.
+    pub(crate) fn num_stack_frames(&self) -> usize {
+        self.num_stack_frames
     }
 
     pub(crate) fn max_scratch_space(&self) -> usize {
@@ -329,7 +336,12 @@ pub(crate) struct GlobalSpace {
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         let start = Self::start_with_layout(&layout);
-        Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
+        assert!(start > 0, "global space does not start at 0");
+        Self {
+            storage: DeallocationListAllocator::new(start),
+            max_memory_address: start - 1,
+            layout,
+        }
     }
 
     /// Expand the global space to fit a new register if necessary.
@@ -349,7 +361,7 @@ impl GlobalSpace {
         if index == self.max_memory_address {
             let empty_start = assert_usize(self.empty_registers_start().unwrap_direct());
             self.max_memory_address =
-                empty_start.saturating_sub(1).max(self.storage.start_register_index);
+                empty_start.saturating_sub(1).max(self.storage.start_register_index - 1);
         }
     }
 
@@ -813,7 +825,7 @@ mod tests {
     fn global_space_max_addr_expands_and_shrinks() {
         let mut global = GlobalSpace::new(LayoutConfig::default());
         let start = global.storage.start_register_index;
-        assert_eq!(global.max_memory_address(), start, "max initialized to start");
+        assert_eq!(global.max_memory_address(), start - 1, "max initialized to start - 1 (empty)");
 
         let reg1 = global.allocate_register();
         let reg2 = global.allocate_register();
@@ -846,8 +858,8 @@ mod tests {
         global.deallocate_register(reg1);
         assert_eq!(
             global.max_memory_address(),
-            start,
-            "max shrinks to start when we have no registers"
+            start - 1,
+            "max shrinks to start - 1 when we have no registers (empty)"
         );
 
         let reg5 = global.allocate_register();

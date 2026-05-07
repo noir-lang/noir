@@ -154,7 +154,7 @@ mod hover_tests {
             Position { line: 15, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global invalid_global: Field = 2"#,
+    global invalid_global: Field = 0x02"#,
             // cSpell:enable
         )
         .await;
@@ -168,7 +168,7 @@ mod hover_tests {
             Position { line: 122, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global valid_global: Field = 2"#,
+    global valid_global: Field = 0x02"#,
             // cSpell:enable
         )
         .await;
@@ -181,7 +181,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 116, character: 9 },
             r#"    two
-    global array: [Field; 3] = [1, 5, 4]"#,
+    global array: [Field; 3] = [0x01, 0x05, 0x04]"#,
         )
         .await;
     }
@@ -299,8 +299,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 39, character: 17 },
-            r#"    std::default
-    trait Default"#,
+            "    std::default\n    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n",
         )
         .await;
     }
@@ -550,5 +549,13 @@ Like a tomato"
             // cSpell:enable
         )
         .await;
+    }
+
+    #[test]
+    async fn hover_on_numeric_generic() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 126, character: 12 })
+                .await;
+        assert_eq!(&hover_text, "    let N: u32");
     }
 }

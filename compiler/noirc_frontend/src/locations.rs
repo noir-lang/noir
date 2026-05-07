@@ -223,7 +223,7 @@ impl NodeInterner {
         location: Location,
         is_self_type: bool,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -242,7 +242,7 @@ impl NodeInterner {
         referenced: ReferenceId,
         referenced_location: Location,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -423,7 +423,7 @@ impl NodeInterner {
         visibility: ItemVisibility,
         defining_module: Option<ModuleId>,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 

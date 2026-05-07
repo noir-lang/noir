@@ -1,6 +1,8 @@
 //! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
+use itertools::Itertools;
+
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{
@@ -21,8 +23,8 @@ use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
-use crate::{Kind, Type, TypeBindings};
-use iter_extended::vecmap;
+use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
 /// The result of [`Elaborator::resolve_variable`].
@@ -35,6 +37,7 @@ pub(crate) enum VariableResolution {
 }
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let (id, typ, is_comptime_local, location) = self.elaborate_variable_inner(variable);
 
@@ -47,7 +50,8 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let from_macro_call = false;
+                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
@@ -60,6 +64,7 @@ impl Elaborator<'_> {
 
     /// Helper function containing the elaboration logic for a variable.
     /// Returns the expression ID, type, whether it's a comptime local, and location.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
         let variable = self.validate_path(variable);
         if let Some((expr_id, typ)) =
@@ -89,14 +94,67 @@ impl Elaborator<'_> {
                     let expr_location = type_alias.borrow().location;
                     let expr = UnresolvedTypeExpression::to_expression_kind(expr);
                     let expr = Expression::new(expr, expr_location);
+
+                    // Resolve turbofish generics for the type alias.
+                    // `resolved_turbofish` contains already-resolved types from
+                    // validate_path, so we use resolve_alias_turbofish_generics
+                    // directly which accepts resolved types.
+                    let alias_generics = &type_alias.borrow().generics;
+                    let alias_generic_types = vecmap(alias_generics, |generic| {
+                        self.interner.next_type_variable_with_kind(generic.kind())
+                    });
+                    let mut errors = Vec::new();
+                    let type_alias_ref = self.interner.get_type_alias(type_alias_id);
+                    let type_alias_ref = type_alias_ref.borrow();
+                    let resolved_generics = self.resolve_alias_turbofish_generics(
+                        &type_alias_ref,
+                        alias_generic_types,
+                        resolved_turbofish,
+                        location,
+                        &mut errors,
+                    );
+                    self.push_errors(errors);
+
+                    // Introduce alias generics into scope so the numeric expression
+                    // resolves them correctly (not to globals or other variables
+                    // that happen to share the same name). Bind each generic's type
+                    // variable to the turbofish-resolved type.
+                    self.push_scope();
+                    for (generic, resolved_type) in
+                        alias_generics.iter().zip_eq(resolved_generics.iter())
+                    {
+                        if let Kind::Numeric(numeric_type) = &generic.kind() {
+                            let id = self.interner.next_type_variable_id();
+                            let type_var = TypeVariable::unbound(id, generic.kind());
+                            type_var.bind(resolved_type.clone());
+                            let definition =
+                                DefinitionKind::NumericGeneric(type_var, numeric_type.clone());
+                            let ident = Ident::new(generic.name.to_string(), generic.location);
+                            let hir_ident = self.add_variable_decl(
+                                ident, false, // mutable
+                                true,  // allow_shadowing
+                                false, // warn_if_unused
+                                false, // warn_if_not_mutated
+                                definition,
+                            );
+                            self.interner.push_definition_type(hir_ident.id, *numeric_type.clone());
+                        }
+                    }
+
+                    // The alias's numeric expression has already been kind-checked at
+                    // alias-definition time (see `convert_expression_type`), which is
+                    // where any "value does not fit" diagnostic is emitted. Drop any
+                    // literals queued for the function-context fit check during
+                    // re-elaboration so the same overflow is not reported twice.
+                    let literals_before = self.integer_literal_expr_ids_len();
                     let (id, typ) = self.elaborate_expression(expr);
+                    self.truncate_integer_literal_expr_ids(literals_before);
+                    self.pop_scope();
+
                     // Unify the expression's type with the declared type from the type alias
                     // to ensure proper type checking.
-                    self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
-                        expected_typ: declared_type.to_string(),
-                        expr_typ: typ.to_string(),
-                        expr_location,
-                    });
+                    self.unify_or_type_mismatch(&typ, &declared_type, expr_location);
+
                     return (id, declared_type, false, location);
                 }
                 (None, None)
@@ -120,6 +178,8 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.usage_tracker.mark_impl_function_as_used(func_id);
+
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -134,12 +194,66 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` will always have the enclosing type generics first, so we need to bind those
-                let func_generics = &self.interner.function_meta(func_id).all_generics;
-                for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
-                    let type_var = &func_generic.type_var;
-                    bindings
-                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+                // `all_generics` has the enclosing type generics first, followed by `direct_generics`
+                // (the method's own generics). We must only bind the type-level portion here;
+                // method generics are handled separately by the method turbofish.
+                let func_meta = self.interner.function_meta(func_id);
+                let impl_generic_count =
+                    func_meta.all_generics.len() - func_meta.direct_generics.len();
+                let impl_generics =
+                    vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+                let self_type = func_meta.self_type.clone();
+
+                // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
+                // impl generics differs from the number of struct generics. The turbofish
+                // `S::<u32, bool>` provides type_generics aligned with the struct's params
+                // [A, B], not the impl's generics [B]. Replace each impl generic in
+                // `self_type`'s args with a fresh type variable and unify those with the
+                // turbofish-provided type generics. The fresh type variables get bound by
+                // unification, and we record those bindings for the impl generics.
+                if let Some(Type::DataType(_, self_type_args)) = self_type {
+                    assert_eq!(
+                        type_generics.len(),
+                        self_type_args.len(),
+                        "ICE: turbofish type_generics count ({}) should match self_type_args count ({})",
+                        type_generics.len(),
+                        self_type_args.len(),
+                    );
+                    let impl_replacements: TypeBindings = impl_generics
+                        .iter()
+                        .map(|type_var| {
+                            let kind = type_var.kind();
+                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                            (type_var.id(), (type_var.clone(), kind, fresh))
+                        })
+                        .collect();
+                    for (type_generic, self_type_arg) in
+                        type_generics.into_iter().zip_eq(self_type_args)
+                    {
+                        let substituted = self_type_arg.substitute(&impl_replacements);
+                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
+                    }
+                    bindings.extend(impl_replacements);
+                } else if type_generics.len() <= impl_generics.len() {
+                    // For trait function paths, impl_generics may include Self and associated
+                    // type generics after the trait's declared generics. The turbofish only
+                    // provides types for the declared generics, which are always the first
+                    // elements. Slice to match.
+                    let impl_generics = &impl_generics[..type_generics.len()];
+                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
+                    {
+                        bindings.insert(
+                            type_var.id(),
+                            (type_var.clone(), type_var.kind(), type_generic),
+                        );
+                    }
+                } else {
+                    unreachable!(
+                        "type_generics.len() ({}) > impl_generics.len() ({}): \
+                        turbofish resolution should normalize the count",
+                        type_generics.len(),
+                        impl_generics.len()
+                    );
                 }
             }
 
@@ -196,6 +310,7 @@ impl Elaborator<'_> {
     ///
     /// In the third case, we resolve the associated type first, then elaborate the method
     /// call on that resolved type.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
@@ -271,6 +386,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
@@ -331,6 +447,7 @@ impl Elaborator<'_> {
     /// foo::Bar::<i32>::baz
     /// ```
     /// Solve `<i32>` above
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_item_turbofish_and_self_type(
         &mut self,
         item: PathResolutionItem,
@@ -424,6 +541,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborates a type path used in an expression, e.g. `Type::method::<Args>`
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
@@ -433,6 +551,7 @@ impl Elaborator<'_> {
     }
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts unresolved generics.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
@@ -468,6 +587,7 @@ impl Elaborator<'_> {
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
     /// Used when the turbofish generics have already been resolved.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
@@ -501,6 +621,7 @@ impl Elaborator<'_> {
     }
 
     /// Common implementation for type path impl variants.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_inner(
         &mut self,
         typ: &Type,
@@ -575,6 +696,7 @@ impl Elaborator<'_> {
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
     /// * add local identifiers to lambda captures
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
         match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
@@ -620,6 +742,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn handle_local_variable(&mut self, variable: &Variable) {
         self.check_if_variable_is_captured_by_closure(variable);
         let hir_ident = &variable.ident;
@@ -628,6 +751,7 @@ impl Elaborator<'_> {
 
     /// Starting with empty bindings, perform the type checking of an interned expression
     /// and a corresponding identifier, returning the instantiated [Type].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
@@ -651,6 +775,7 @@ impl Elaborator<'_> {
     ///
     /// If `push_required_type_variables`, the bindings are added to the function context,
     /// to be checked before it's finished.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
@@ -693,11 +818,13 @@ impl Elaborator<'_> {
         let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.definition(ident.id);
-        let function_generic_count = match definition.kind {
+        let direct_generic_ids = match definition.kind {
             DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(&function).generic_count
+                vecmap(&self.interner.function_meta(&function).direct_generics, |generic| {
+                    generic.type_var.id()
+                })
             }
-            _ => 0,
+            _ => Vec::new(),
         };
 
         let location = self.interner.expr_location(expr_id);
@@ -706,7 +833,7 @@ impl Elaborator<'_> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
+            self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
@@ -763,10 +890,16 @@ impl Elaborator<'_> {
         }
 
         if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
+            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+            let required_type_variables =
+                btree_map(bindings.values(), |(type_variable, _, typ)| {
+                    (type_variable.id(), typ.clone())
+                });
+
+            for (type_variable_id, typ) in required_type_variables {
                 self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
+                    type_variable_id,
+                    typ,
                     BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );
@@ -783,6 +916,7 @@ impl Elaborator<'_> {
     ///
     /// Returns a type error if the callee cannot be resolved on a second try,
     /// which indicates a dependency cycle.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn type_substitute_trait_as_type(&mut self, ident: &HirIdent) -> Type {
         let func_id = match self.interner.id_type_substitute_trait_as_type(ident.id) {
             Ok(typ) => return typ,
@@ -813,16 +947,21 @@ impl Elaborator<'_> {
     ///
     /// If there are turbofish generics and their number matches the expectations of the function,
     /// those are used as well, otherwise they are ignored and an error is pushed.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn instantiate(
         &mut self,
         typ: Type,
         bindings: TypeBindings,
         turbofish_generics: Option<Vec<Type>>,
-        function_generic_count: usize,
+        direct_generic_ids: &[TypeVariableId],
         location: Location,
     ) -> (Type, TypeBindings) {
         match turbofish_generics {
             Some(turbofish_generics) => {
+                let function_generic_count = direct_generic_ids.len();
+                let forall_generic_count =
+                    if let Type::Forall(generics, _) = &typ { generics.len() } else { 0 };
+
                 if turbofish_generics.len() != function_generic_count {
                     let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
@@ -831,18 +970,23 @@ impl Elaborator<'_> {
                     };
                     self.push_err(CompilationError::TypeError(type_check_err));
                     typ.instantiate_with_bindings(bindings, self.interner)
+                } else if forall_generic_count < function_generic_count {
+                    // The next branch asserts that the number of turbofish-bound typevars matches
+                    // `direct_generic_ids`, but if the forall has fewer generics than the function
+                    // (e.g. when the function's generics have duplicates that were filtered out)
+                    // this can never hold. A duplicate error has already been reported elsewhere,
+                    // so bail out silently.
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "forall has fewer generics than function",
+                        location,
+                    ));
+                    (Type::Error, bindings)
                 } else {
-                    // Fetch the count of any implicit generics on the function, such as
-                    // for a method within a generic impl.
-                    let implicit_generic_count = match &typ {
-                        Type::Forall(generics, _) => generics.len() - function_generic_count,
-                        _ => 0,
-                    };
                     typ.instantiate_with_bindings_and_turbofish(
                         bindings,
                         turbofish_generics,
                         self.interner,
-                        implicit_generic_count,
+                        direct_generic_ids,
                     )
                 }
             }
@@ -863,6 +1007,7 @@ fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Typ
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }
-        _ => panic!("Expected type alias to point to struct or alias"),
+        // Primitive types have no generics
+        _ => Vec::new(),
     }
 }

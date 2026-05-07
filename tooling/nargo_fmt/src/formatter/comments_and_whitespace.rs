@@ -207,8 +207,7 @@ impl Formatter<'_> {
     pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
         for word in comment.split_inclusive([' ', '\n', '\t']) {
-            if self.current_line_width() + word.trim().chars().count() >= self.config.comment_width
-            {
+            if self.current_line_width() + word.trim().chars().count() > self.config.comment_width {
                 self.start_new_line();
                 if !prefix.is_empty() {
                     self.write(prefix);
@@ -232,18 +231,23 @@ impl Formatter<'_> {
         let all_stars = block_comment_has_all_leading_stars(comment);
 
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
-            self.start_new_line();
+            self.start_new_line_no_indentation();
         }
 
         for (index, line) in comment.lines().enumerate() {
+            // When moving to the next source line, only emit a newline. The line itself
+            // carries the leading whitespace from the source, so re-emitting the
+            // structural indent here would double it up.
             if index > 0 {
-                self.start_new_line();
+                self.start_new_line_no_indentation();
             }
 
             for word in line.split_inclusive([' ', '\n', '\t']) {
                 if self.current_line_width() + word.trim().chars().count()
-                    >= self.config.comment_width
+                    > self.config.comment_width
                 {
+                    // Wrapping introduces a new line that has no source whitespace, so
+                    // we re-emit the structural indent and the canonical `*` prefix.
                     self.start_new_line();
                     if all_stars {
                         self.write(" * ");
@@ -258,7 +262,7 @@ impl Formatter<'_> {
             self.start_new_line();
         }
 
-        if self.current_line_width() + 2 >= self.config.comment_width {
+        if self.current_line_width() + 2 > self.config.comment_width {
             self.start_new_line();
         }
 
@@ -311,9 +315,13 @@ impl Formatter<'_> {
     }
 
     pub(crate) fn start_new_line(&mut self) {
+        self.start_new_line_no_indentation();
+        self.write_indentation();
+    }
+
+    pub(crate) fn start_new_line_no_indentation(&mut self) {
         self.trim_spaces();
         self.write_line_without_skipping_whitespace_and_comments();
-        self.write_indentation();
     }
 
     /// Trim spaces from the end of the buffer.
@@ -988,9 +996,9 @@ global x: Field = 1;
         }
         ";
         let expected = "mod moo {
-    // This is a long
-    // comment that's going
-    // to be wrapped.
+    // This is a long comment
+    // that's going to be
+    // wrapped.
     global x: Field = 1;
 }
 ";
@@ -1017,9 +1025,9 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    // This is a long
-    // comment that's going
-    // to be wrapped.
+    // This is a long comment
+    // that's going to be
+    // wrapped.
     let x = 1;
 }
 ";
@@ -1109,8 +1117,8 @@ This is a long comment that's going to be wrapped.
 global x: Field = 1;
         ";
         let expected = "/*
-This is a long comment
-that's going to be wrapped.
+This is a long comment that's
+going to be wrapped.
 */
 global x: Field = 1;
 ";
@@ -1127,10 +1135,10 @@ This is a long comment that's wrapped.
 global x: Field = 1;
         ";
         let expected = "/*
-This is a long comment
-that's wrapped.
-This is a long comment
-that's wrapped.
+This is a long comment that's
+wrapped.
+This is a long comment that's
+wrapped.
 */
 global x: Field = 1;
 ";
@@ -1165,9 +1173,9 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    /* This is a long
-    comment that's going to
-    be wrapped. */
+    /* This is a long comment
+    that's going to be
+    wrapped. */
     let x = 1;
 }
 ";
@@ -1187,19 +1195,19 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    /* This is a long
-    comment that's going to
-    be wrapped.
+    /* This is a long comment
+    that's going to be
+    wrapped.
     This is a long comment
     that's going to be
     wrapped.
     */
-    // This is a long
-    // comment that's going
-    // to be wrapped.
-    /* This is a long
-    comment that's going to
-    be wrapped. */
+    // This is a long comment
+    // that's going to be
+    // wrapped.
+    /* This is a long comment
+    that's going to be
+    wrapped. */
     let x = 1;
 }
 ";
@@ -1220,6 +1228,14 @@ global x: Field = 1;
 }
 ";
         assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn does_not_wrap_line_comment_when_at_max() {
+        let src = "// One two three
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 16);
     }
 
     #[test]
@@ -1277,5 +1293,35 @@ global x: Field = 1;
         assert_formatter_changes_wrapping_comments(&comment, 29);
         let ignored_comment = format!("// noir-fmt:ignore\n{comment}");
         assert_format_wrapping_comments(&ignored_comment, &ignored_comment, 29);
+    }
+
+    #[test]
+    fn does_not_over_indent_block_comment_when_wrapping_is_enabled_all_stars() {
+        let src = "pub struct Foo {}
+
+impl Foo {
+    /**
+     * Build a Foo.
+     * @return a fresh Foo
+     */
+    fn build() {}
+}
+";
+        assert_format_wrapping_comments(src, src, 120);
+    }
+
+    #[test]
+    fn does_not_over_indent_block_comment_when_wrapping_is_enabled_not_all_stars() {
+        let src = "pub struct Foo {}
+
+impl Foo {
+    /**
+       Build a Foo.
+       @return a fresh Foo
+     */
+    fn build() {}
+}
+";
+        assert_format_wrapping_comments(src, src, 120);
     }
 }

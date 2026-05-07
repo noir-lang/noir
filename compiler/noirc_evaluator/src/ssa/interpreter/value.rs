@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{
-    AcirField, FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
-};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
@@ -129,6 +126,9 @@ pub struct ReferenceValue {
     pub element: Shared<Option<Value>>,
 
     pub element_type: Arc<Type>,
+
+    /// Whether this reference is mutable (`&mut T`) or immutable (`&T`).
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -141,7 +141,21 @@ pub struct ArrayValue {
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,
-    pub is_vector: bool,
+    /// Some length, if this is an array, otherwise None.
+    pub length: Option<SemanticLength>,
+}
+
+impl ArrayValue {
+    pub(crate) fn is_vector(&self) -> bool {
+        self.length.is_none()
+    }
+
+    pub(crate) fn get_type(&self) -> Type {
+        match self.length {
+            Some(length) => Type::Array(self.element_types.clone(), length),
+            None => Type::Vector(self.element_types.clone()),
+        }
+    }
 }
 
 impl Value {
@@ -149,29 +163,22 @@ impl Value {
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
-            Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
-            Value::ArrayOrVector(array) if array.is_vector => {
-                Type::Vector(array.element_types.clone())
+            Value::Reference(reference) => {
+                Type::Reference(reference.element_type.clone(), reference.mutable)
             }
-            Value::ArrayOrVector(array) => {
-                let element_types_length =
-                    ElementTypesLength(assert_u32(array.element_types.len()));
-                let len = if element_types_length.0 == 0 {
-                    SemanticLength(0)
-                } else {
-                    let semi_flattened_length =
-                        SemiFlattenedLength(assert_u32(array.elements.borrow().len()));
-                    semi_flattened_length / element_types_length
-                };
-                Type::Array(array.element_types.clone(), len)
-            }
+            Value::ArrayOrVector(array) => array.get_type(),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
 
     /// Create an empty reference value.
-    pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
-        Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
+    pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>, mutable: bool) -> Self {
+        Value::Reference(ReferenceValue {
+            original_id,
+            element_type,
+            element: Shared::new(None),
+            mutable,
+        })
     }
 
     pub(crate) fn as_bool(&self) -> Option<bool> {
@@ -280,11 +287,14 @@ impl Value {
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+        assert!(!element_types.is_empty());
+
+        let length = assert_u32(elements.len() / element_types.len());
         Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            is_vector: false,
+            length: Some(SemanticLength(length)),
         })
     }
 
@@ -293,7 +303,7 @@ impl Value {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_vector: true,
+            length: None,
         })
     }
 
@@ -304,7 +314,7 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => {
+            Type::Reference(element_type, mutable) => {
                 // Initialize the reference to a default value, so that if we execute a
                 // Load instruction when side effects are disabled, we don't get an error.
                 let value = Self::uninitialized(element_type, id);
@@ -312,6 +322,7 @@ impl Value {
                     original_id: id,
                     element_type: element_type.clone(),
                     element: Shared::new(Some(value)),
+                    mutable: *mutable,
                 })
             }
             Type::Array(element_types, length) => {
@@ -321,9 +332,22 @@ impl Value {
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }
-            Type::Vector(element_types) => Self::vector(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
+    }
+
+    /// Create an uninitialized (zeroed) vector of the given size.
+    /// Each element slot is filled with `Value::uninitialized` of the appropriate element type.
+    pub(crate) fn uninitialized_vector(element_types: &[Type], size: usize, id: ValueId) -> Value {
+        let element_count = element_types.len();
+        let elements = (0..size)
+            .map(|i| {
+                let element_type = &element_types[i % element_count.max(1)];
+                Self::uninitialized(element_type, id)
+            })
+            .collect();
+        Self::vector(elements, Arc::new(element_types.to_vec()))
     }
 
     pub(crate) fn as_string(&self) -> Option<String> {
@@ -347,6 +371,7 @@ impl Value {
                     original_id: r.original_id,
                     element: Shared::new(element),
                     element_type: r.element_type.clone(),
+                    mutable: r.mutable,
                 })
             }
             Value::ArrayOrVector(a) => {
@@ -355,7 +380,7 @@ impl Value {
                     elements: Shared::new(elements),
                     rc: Shared::new(*a.rc.borrow()),
                     element_types: a.element_types.clone(),
-                    is_vector: a.is_vector,
+                    length: a.length,
                 })
             }
             Value::Function(id) => Value::Function(*id),
@@ -603,7 +628,7 @@ impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let rc = self.rc.borrow();
 
-        let is_vector = if self.is_vector { "&" } else { "" };
+        let is_vector = if self.is_vector() { "&" } else { "" };
         write!(f, "rc{rc} {is_vector}")?;
 
         // Check if the array could be shown as a string literal
@@ -674,7 +699,7 @@ impl PartialEq for ArrayValue {
         // Don't compare RC
         self.elements == other.elements
             && self.element_types == other.element_types
-            && self.is_vector == other.is_vector
+            && self.length == other.length
     }
 }
 

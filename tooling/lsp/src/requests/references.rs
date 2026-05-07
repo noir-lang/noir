@@ -113,7 +113,7 @@ mod references_tests {
         let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
 
         // We call this to open the document, so that the entire workspace is analyzed
-        let workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
+        let workspace = workspace_from_document_uri(&mut state, one_lib.clone()).unwrap().unwrap();
 
         notifications::process_workspace(&mut state, &workspace).unwrap();
 

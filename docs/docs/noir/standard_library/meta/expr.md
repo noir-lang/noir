@@ -83,10 +83,11 @@ the expression and the for loop body.
 
 ### as_for_range
 
-#include_code as_for noir_stdlib/src/meta/expr.nr rust
+#include_code as_for_range noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a for statement over a range, return the identifier,
-the range start, the range end and the for loop body.
+the range start, the range end, whether the range is inclusive, and the
+for loop body.
 
 ### as_function_call
 
@@ -114,8 +115,8 @@ array and the index.
 
 #include_code as_integer noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an integer literal, return the integer as a field
-as well as whether the integer is negative (true) or not (false).
+If this expression is an integer literal, return the integer as a field.
+Negative integers are encoded as the equivalent negative field value.
 
 ### as_lambda
 

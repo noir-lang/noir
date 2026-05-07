@@ -109,6 +109,7 @@ pub fn compile_bin_package_for_debugging(
     report_errors(
         compilation_result,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
@@ -180,7 +181,7 @@ fn instrument_package_files(
         for ancestor in file_path.ancestors() {
             if ancestor == entry_path_parent {
                 // file is in package
-                debug_instrumenter.instrument_module(&mut parsed_file.0, *file_id);
+                debug_instrumenter.instrument_module(&mut parsed_file.0);
             }
         }
     }

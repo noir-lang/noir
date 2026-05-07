@@ -80,9 +80,9 @@ impl TokenStream<'_> {
     }
 }
 
-/// Maximum recursion depth for parsing nested expressions.
+/// Maximum recursion depth for parsing nested expressions and types.
 /// This limit prevents stack overflow when parsing deeply nested expressions.
-pub(super) const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
+const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
 
 pub struct Parser<'a> {
     pub(crate) errors: Vec<ParserError>,
@@ -501,7 +501,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat(&mut self, token: Token) -> bool {
-        if self.token.token() == &token {
+        if self.current_is(token) {
             self.bump();
             true
         } else {
@@ -539,12 +539,63 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn current_is(&self, token: Token) -> bool {
+        self.token.token() == &token
+    }
+
     fn next_is(&self, token: Token) -> bool {
         self.next_token.token() == &token
     }
 
     fn at_eof(&self) -> bool {
-        self.token.token() == &Token::EOF
+        self.current_is(Token::EOF)
+    }
+
+    /// Check if we reached the maximum recursion depth.
+    ///
+    /// If so, emit an error with the current token location,
+    /// skip to a recovery point, set `recovering_from_depth_overflow`
+    /// and return `true`; otherwise return `false`.
+    fn reached_max_recursion_depth(&mut self) -> bool {
+        // Check recursion depth to prevent stack overflow
+        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
+            self.push_error(
+                ParserErrorReason::MaximumRecursionDepthExceeded,
+                self.current_token_location,
+            );
+            // Skip to a recovery point to avoid cascading errors
+            self.skip_to_recovery_point();
+            // Set flag to suppress cascading errors during stack unwinding
+            self.recovering_from_depth_overflow = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check that we haven't reached the recursion limit before running a
+    /// lambda to perform the recursion.
+    fn with_max_recursion_depth_guard<T, F>(&mut self, mut f: F) -> Option<T>
+    where
+        F: FnMut(&mut Parser<'a>) -> Option<T>,
+    {
+        // Check recursion depth to prevent stack overflow
+        if self.reached_max_recursion_depth() {
+            return None;
+        }
+
+        self.recursion_depth += 1;
+        let result = f(self);
+        self.recursion_depth -= 1;
+
+        // Clear recovery flag when we've fully unwound (back at top level).
+        // This assumes that `skip_to_recovery_point` skipped over tokens
+        // and we can resume parsing with meaningful errors from here.
+        if self.recursion_depth == 0 {
+            self.recovering_from_depth_overflow = false;
+        }
+
+        result
     }
 
     /// Skips tokens until we reach a recovery point (`;`, `}`, or EOF).
@@ -559,6 +610,10 @@ impl<'a> Parser<'a> {
         loop {
             match self.token.token() {
                 Token::EOF => break,
+                Token::Semicolon if matches!(self.next_token.token(), Token::Int(_, _)) => {
+                    // Skip the semicolon if looks like array syntax.
+                    self.bump();
+                }
                 Token::Semicolon if brace_depth == 0 => {
                     // Don't consume the semicolon - let the caller handle it
                     break;
@@ -625,6 +680,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_token(&mut self, token: Token) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
@@ -633,6 +691,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_one_of_tokens(&mut self, tokens: &[Token]) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
@@ -641,6 +702,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_label(&mut self, label: ParsingRuleLabel) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
@@ -710,6 +774,11 @@ impl<'a> Parser<'a> {
         self.unconstrained_not_applicable(modifiers);
     }
 
+    fn mutable_and_unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
+        self.mutable_not_applicable(modifiers);
+        self.unconstrained_not_applicable(modifiers);
+    }
+
     fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.mutable {
             self.push_error(ParserErrorReason::MutableNotApplicable, location);
@@ -729,6 +798,9 @@ impl<'a> Parser<'a> {
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::with_reason(reason, location));
     }
 }

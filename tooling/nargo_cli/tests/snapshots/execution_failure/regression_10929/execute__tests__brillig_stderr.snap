@@ -3,18 +3,19 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: QPA
-   ┌─ src/main.nr:8:17
+   ┌─ src/main.nr:6:9
    │  
- 8 │ ╭                 if b {
+ 6 │ ╭         assert(
+ 7 │ │             (
+ 8 │ │                 if b {
  9 │ │                     // safety:
-10 │ │                     unsafe {
-11 │ │                         func_3()
    · │
-15 │ │                 }
-16 │ │                     != 0_u128
-   │ ╰─────────────────────────────'
+18 │ │             "QPA",
+19 │ │         );
+   │ ╰─────────'
    │  
    = Call stack:
-     1. src/main.nr:8:17
+     1: main
+             at src/main.nr:6:9
 
 Failed assertion

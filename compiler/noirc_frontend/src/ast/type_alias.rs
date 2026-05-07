@@ -11,6 +11,7 @@ pub struct TypeAlias {
     pub generics: UnresolvedGenerics,
     pub typ: UnresolvedType,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub location: Location,
     pub numeric_type: Option<UnresolvedType>,
     pub numeric_location: Location,

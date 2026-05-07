@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import assert_lt_json from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
 import { Noir } from '@noir-lang/noir_js';
 import { UltraHonkVerifierBackend, UltraHonkBackend, Barretenberg } from '@aztec/bb.js';
-import { CompiledCircuit } from '@noir-lang/types';
+import type { CompiledCircuit } from '@noir-lang/types';
 
 const assert_lt_program = assert_lt_json as CompiledCircuit;
 

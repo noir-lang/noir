@@ -2,9 +2,9 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global TWO: Field = 2;
+global TWO: Field = 0x02;
 
-global THREE: Field = 3;
+global THREE: Field = 0x03;
 
 fn main(x: Field, y: pub Field) {
     // Safety: comment added by `nargo expand`

@@ -285,19 +285,13 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        brillig::BrilligOptions,
-        ssa::{
-            SsaEvaluatorOptions,
-            function_builder::FunctionBuilder,
-            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{
-                FORCE_UNROLL_THRESHOLD, constant_folding,
-                flatten_cfg::branch_analysis::find_branch_ends, inlining,
-            },
-            primary_passes,
-            ssa_gen::Ssa,
-        },
+    use crate::ssa::{
+        SsaEvaluatorOptions,
+        function_builder::FunctionBuilder,
+        ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
+        opt::flatten_cfg::branch_analysis::find_branch_ends,
+        primary_passes,
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -640,22 +634,7 @@ mod tests {
     }
 
     fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
-        let options = SsaEvaluatorOptions {
-            ssa_logging: crate::ssa::SsaLogging::None,
-            brillig_options: BrilligOptions::default(),
-            print_codegen_timings: false,
-            emit_ssa: None,
-            skip_underconstrained_check: true,
-            skip_brillig_constraints_check: true,
-            enable_brillig_constraints_check_lookback: false,
-            inliner_aggressiveness: 0,
-            constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
-            max_bytecode_increase_percent: None,
-            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-            skip_passes: Vec::new(),
-            ssa_logging_hide_unchanged: false,
-        };
+        let options = SsaEvaluatorOptions::default();
         let pipeline = primary_passes(&options);
         for pass in pipeline {
             if pass.msg() == stop_before_pass {

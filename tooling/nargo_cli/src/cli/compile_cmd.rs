@@ -18,8 +18,8 @@ use noirc_driver::{CompilationResult, CompileOptions};
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
-use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
+use notify_debouncer_full::notify::{EventKind, RecursiveMode};
 
 use crate::errors::CliError;
 
@@ -65,7 +65,10 @@ pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliE
 }
 
 /// Continuously recompile the workspace on any Noir file change event.
-fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
+fn watch_workspace(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+) -> notify_debouncer_full::notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // No specific tickrate, max debounce time 1 seconds
@@ -73,7 +76,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    debouncer.watcher().watch(&workspace.root_dir, RecursiveMode::Recursive)?;
+    debouncer.watch(&workspace.root_dir, RecursiveMode::Recursive)?;
 
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
@@ -150,6 +153,7 @@ pub fn compile_workspace_full(
     report_errors(
         compiled_workspace,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;

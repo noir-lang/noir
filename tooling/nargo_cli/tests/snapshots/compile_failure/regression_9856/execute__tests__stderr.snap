@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: variable does not need to be mutable
+  ┌─ src/main.nr:2:13
+  │
+2 │     let mut e: [(Field, bool); 1] = [((-1), true)];
+  │             -
+  │
+
+error: Index 2147483648 is out of bounds for this array of length 1
+  ┌─ src/main.nr:3:7
+  │
+3 │     e[2147483648_u32].1
+  │       --------------
+  │
+
+Aborting due to 1 previous error

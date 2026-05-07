@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 contract Foo {
     #[abi(foo)]
-    pub global foo: Field = 42;
+    pub global foo: Field = 0x2a;
 
     #[abi(bar)]
     pub struct Bar {

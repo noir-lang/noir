@@ -1,18 +1,18 @@
 use std::fmt::Display;
 
-use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
     Type,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
+        ArrayLiteral, AsTraitPath, AssignOpStatement, AssignStatement, BlockExpression,
+        CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression,
+        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        WhileStatement,
     },
     hir::comptime::interpreter::builtin_helpers::fragments_to_string,
     hir_def::traits::TraitConstraint,
@@ -386,21 +386,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let msg = if *value { "true" } else { "false" };
                 write!(f, "{msg}")
             }
-            Value::Field(value) => {
-                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", value.to_field_element().to_short_hex())
-            }
-            Value::I8(value) => write!(f, "{value}"),
-            Value::I16(value) => write!(f, "{value}"),
-            Value::I32(value) => write!(f, "{value}"),
-            Value::I64(value) => write!(f, "{value}"),
-            Value::U1(false) => write!(f, "0"),
-            Value::U1(true) => write!(f, "1"),
-            Value::U8(value) => write!(f, "{value}"),
-            Value::U16(value) => write!(f, "{value}"),
-            Value::U32(value) => write!(f, "{value}"),
-            Value::U64(value) => write!(f, "{value}"),
-            Value::U128(value) => write!(f, "{value}"),
+            Value::Integer(int) => write!(f, "{int}"),
             Value::String(bytes) | Value::CtString(bytes) => {
                 let string = String::from_utf8_lossy(bytes);
                 write!(f, "{string}")
@@ -741,6 +727,9 @@ fn remove_interned_in_expression_kind(
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
             path.trait_generics =
                 remove_interned_in_generic_type_args(interner, path.trait_generics);
+            path.turbofish = path
+                .turbofish
+                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
             ExpressionKind::AsTraitPath(path)
         }
         ExpressionKind::TypePath(mut path) => {
@@ -835,6 +824,11 @@ fn remove_interned_in_statement_kind(
         StatementKind::Assign(assign) => StatementKind::Assign(AssignStatement {
             lvalue: assign.lvalue,
             expression: remove_interned_in_expression(interner, assign.expression),
+        }),
+        StatementKind::AssignOp(assign_op) => StatementKind::AssignOp(AssignOpStatement {
+            lvalue: assign_op.lvalue,
+            op: assign_op.op,
+            expression: remove_interned_in_expression(interner, assign_op.expression),
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
@@ -966,6 +960,9 @@ fn remove_interned_in_unresolved_type_data(
                     interner,
                     as_trait_path.trait_generics,
                 ),
+                turbofish: as_trait_path
+                    .turbofish
+                    .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish)),
                 ..*as_trait_path
             }))
         }

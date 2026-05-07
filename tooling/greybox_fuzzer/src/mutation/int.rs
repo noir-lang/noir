@@ -16,7 +16,7 @@ use num_traits::{
     ops::overflowing::{OverflowingAdd, OverflowingSub},
 };
 
-use rand::{Rng, seq::IndexedRandom};
+use rand::{RngExt, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 
 use super::{

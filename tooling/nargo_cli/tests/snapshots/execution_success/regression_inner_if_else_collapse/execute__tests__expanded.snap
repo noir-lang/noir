@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool) -> pub (bool, bool) {
+    if a {
+        (false <= a, a)
+    } else {
+        (false, true)
+    }
+}

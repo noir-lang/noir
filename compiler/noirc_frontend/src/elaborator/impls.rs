@@ -105,6 +105,7 @@ impl Elaborator<'_> {
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
@@ -141,6 +142,7 @@ impl Elaborator<'_> {
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,
         trait_id: Option<TraitId>,
@@ -178,11 +180,9 @@ impl Elaborator<'_> {
                 };
 
                 // Handle method shadowing when a duplicate method name is found
-                if result.is_err() {
-                    let existing = module.find_func_with_name(method.name_ident()).expect(
-                        "declare_function should only error if there is an existing function",
-                    );
-
+                if result.is_err()
+                    && let Some(existing) = module.find_func_with_name(method.name_ident())
+                {
                     // Inherent impls take precedence over trait impls for qualified calls.
                     // If the existing method is from a trait impl, remove it from module scope
                     // so that `TypeName::method` resolves to the inherent impl version.
@@ -201,6 +201,17 @@ impl Elaborator<'_> {
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
             if trait_id.is_none() {
                 self.declare_methods(self_type, &function_ids);
+
+                for (_, method_id, method) in &functions.functions {
+                    if !method.def.attributes.has_allow("dead_code") {
+                        let name = method.name_ident().clone();
+                        self.usage_tracker.add_unused_impl_function(
+                            *method_id,
+                            name,
+                            method.def.visibility,
+                        );
+                    }
+                }
             }
         // We can define methods on primitive types only if we're in the stdlib
         } else if trait_id.is_none() && *self_type != Type::Error {
@@ -235,6 +246,7 @@ impl Elaborator<'_> {
     /// impl Foo { fn bar(self) {} }
     /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
     /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();

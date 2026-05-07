@@ -23,6 +23,8 @@ impl Parser<'_> {
         let is_global_let = true;
 
         let Some(ident) = self.eat_non_underscore_ident() else {
+            self.expected_identifier();
+            self.skip_to_recovery_point();
             self.eat_semicolon();
             let location = self.location_at_previous_token_end();
             let ident = self.empty_ident_at_previous_token_end();
@@ -44,6 +46,7 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
+            self.skip_to_recovery_point();
             let location = self.location_at_previous_token_end();
             Expression { kind: ExpressionKind::Error, location }
         };
@@ -164,6 +167,28 @@ mod tests {
     }
 
     #[test]
+    fn parse_global_missing_identifier() {
+        let src = "
+        global : u32 = 100;
+               ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found ':'");
+    }
+
+    #[test]
+    fn parse_global_invalid_syntax_after_ident() {
+        let src = "global N<let X: u32>: u32 = 100;";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        // The parser should recover by skipping to `;` rather than producing cascading errors
+        assert_eq!(errors.len(), 1, "Expected 1 error, got: {errors:?}");
+        let reason = errors[0].reason().unwrap();
+        assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
+    }
+
+    #[test]
     fn parse_negative_field_global() {
         let src = "
         global foo: Field = -17;
@@ -181,7 +206,6 @@ mod tests {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(value.is_negative());
-        assert_eq!(value.absolute_value(), FieldElement::from(17u128));
+        assert_eq!(value, -FieldElement::from(17u128));
     }
 }

@@ -101,14 +101,17 @@ impl<F: AcirField> AcirContext<F> {
         // Allow constant inputs for most blackbox
         // Allow constant predicate for all blackbox having predicate
         let inputs = match name {
-            BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::Keccakf1600
+            BlackBoxFunc::MultiScalarMul => {
+                let [points, scalars, predicate] = <[AcirValue; 3]>::try_from(inputs)
+                    .expect("MultiScalarMul expects 3 inputs: points, scalars, predicate");
+                self.prepare_msm_inputs(points, scalars, predicate)?
+            }
+            BlackBoxFunc::Keccakf1600
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
             | BlackBoxFunc::AND
             | BlackBoxFunc::XOR
-            | BlackBoxFunc::AES128Encrypt
-            | BlackBoxFunc::EmbeddedCurveAdd => {
+            | BlackBoxFunc::AES128Encrypt => {
                 self.prepare_inputs_for_black_box_func_call(inputs, true)?
             }
             BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
@@ -128,6 +131,18 @@ impl<F: AcirField> AcirContext<F> {
                 // add back the predicate into the FunctionInputs
                 inputs.insert(4, vec![predicate]);
                 inputs
+            }
+            BlackBoxFunc::EmbeddedCurveAdd => {
+                // Coordinates of the points must not mix constant/witness, as per ACIR specification.
+                let mut function_inputs = Vec::new();
+                let [p1_x, p1_y, p1_inf, p2_x, p2_y, p2_inf, predicate] =
+                    <[AcirValue; 7]>::try_from(inputs).expect("EmbeddedCurveAdd expects 7 inputs");
+                function_inputs.extend(self.all_or_nothing_coordinates(p1_x, p1_y)?);
+                function_inputs.push(self.prepare_input_for_black_box_func_call(p1_inf, true)?);
+                function_inputs.extend(self.all_or_nothing_coordinates(p2_x, p2_y)?);
+                function_inputs.push(self.prepare_input_for_black_box_func_call(p2_inf, true)?);
+                function_inputs.push(self.prepare_input_for_black_box_func_call(predicate, true)?);
+                function_inputs
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let predicate = inputs.pop().ok_or_else(|| {
@@ -156,6 +171,55 @@ impl<F: AcirField> AcirContext<F> {
         Ok(inputs)
     }
 
+    /// Prepares inputs for the MultiScalarMul opcode.
+    ///
+    /// Point coordinates (x, y) and scalar halves (lo, hi) must each be
+    /// uniformly constant or witness — the backend's `to_grumpkin_scalar`
+    /// rejects mixed pairs.
+    fn prepare_msm_inputs(
+        &mut self,
+        points: AcirValue,
+        scalars: AcirValue,
+        predicate: AcirValue,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
+        // Points: each is (x, y, is_infinite).
+        let mut points_inputs = Vec::new();
+        for chunk in self.flatten(points)?.chunks(3) {
+            let x = AcirValue::Var(chunk[0].0, chunk[0].1);
+            let y = AcirValue::Var(chunk[1].0, chunk[1].1);
+            let inf = AcirValue::Var(chunk[2].0, chunk[2].1);
+            for input in self.all_or_nothing_coordinates(x, y)? {
+                points_inputs.extend(input);
+            }
+            points_inputs.extend(self.prepare_input_for_black_box_func_call(inf, true)?);
+        }
+
+        // Scalars: each is (lo, hi).
+        let mut scalars_inputs = Vec::new();
+        for chunk in self.flatten(scalars)?.chunks(2) {
+            let lo = AcirValue::Var(chunk[0].0, chunk[0].1);
+            let hi = AcirValue::Var(chunk[1].0, chunk[1].1);
+            for input in self.all_or_nothing_coordinates(lo, hi)? {
+                scalars_inputs.extend(input);
+            }
+        }
+
+        let predicate_input = self.prepare_input_for_black_box_func_call(predicate, true)?;
+        Ok(vec![points_inputs, scalars_inputs, predicate_input])
+    }
+
+    fn all_or_nothing_coordinates(
+        &mut self,
+        x: AcirValue,
+        y: AcirValue,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
+        let is_const = |v: &AcirValue| matches!(v, AcirValue::Var(var, _) if self.is_constant(var));
+        let allow_const_input = is_const(&x) == is_const(&y);
+        let x_input = self.prepare_input_for_black_box_func_call(x, allow_const_input)?;
+        let y_input = self.prepare_input_for_black_box_func_call(y, allow_const_input)?;
+        Ok(vec![x_input, y_input])
+    }
+
     /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
     ///
     /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
@@ -166,31 +230,41 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
         let mut witnesses = Vec::new();
         for input in inputs {
-            let mut single_val_witnesses = Vec::new();
-            for (input, typ) in self.flatten(input)? {
-                let num_bits = typ.bit_size::<F>();
-                match self.var_to_expression(input)?.to_const() {
-                    Some(constant) if allow_constant_inputs => {
-                        if num_bits < constant.num_bits() {
-                            return Err(RuntimeError::InvalidBlackBoxInputBitSize {
-                                value: constant.to_string(),
-                                num_bits: constant.num_bits(),
-                                max_num_bits: num_bits,
-                                call_stack: self.get_call_stack(),
-                            });
-                        }
-                        single_val_witnesses.push(FunctionInput::Constant(*constant));
-                    }
-                    _ => {
-                        let witness_var = self.get_or_create_witness_var(input)?;
-                        let witness = self.var_to_witness(witness_var)?;
-                        single_val_witnesses.push(FunctionInput::Witness(witness));
-                    }
-                }
-            }
+            let single_val_witnesses =
+                self.prepare_input_for_black_box_func_call(input, allow_constant_inputs)?;
             witnesses.push(single_val_witnesses);
         }
         Ok(witnesses)
+    }
+
+    pub(super) fn prepare_input_for_black_box_func_call(
+        &mut self,
+        input: AcirValue,
+        allow_constant_inputs: bool,
+    ) -> Result<Vec<FunctionInput<F>>, RuntimeError> {
+        let mut single_val_witnesses = Vec::new();
+        for (input, typ) in self.flatten(input)? {
+            let num_bits = typ.bit_size::<F>();
+            match self.var_to_expression(input)?.to_const() {
+                Some(constant) if allow_constant_inputs => {
+                    if num_bits < constant.num_bits() {
+                        return Err(RuntimeError::InvalidBlackBoxInputBitSize {
+                            value: constant.to_string(),
+                            num_bits: constant.num_bits(),
+                            max_num_bits: num_bits,
+                            call_stack: self.get_call_stack(),
+                        });
+                    }
+                    single_val_witnesses.push(FunctionInput::Constant(*constant));
+                }
+                _ => {
+                    let witness_var = self.get_or_create_witness_var(input)?;
+                    let witness = self.var_to_witness(witness_var)?;
+                    single_val_witnesses.push(FunctionInput::Witness(witness));
+                }
+            }
+        }
+        Ok(single_val_witnesses)
     }
 
     /// Converts an `AcirValue` into a `FunctionInput` for use in black box function calls.

@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+TwoNamed<A = Field, B = u8>
+TwoNamed<B = u8, A = Field>
+TwoOrdered<Field, u8>
+TwoOrdered<u8, Field>

@@ -1,4 +1,5 @@
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::{CustomDiagnostic, Location};
 use thiserror::Error;
 
@@ -60,24 +61,22 @@ pub enum PathResolutionError {
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
-    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
-    StructDefinitionDeprecated { location: Location },
+    #[error("No function named '{ident}' found for '{typ}' in the current scope")]
+    UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
 }
 
 impl PathResolutionError {
     pub fn location(&self) -> Location {
         match self {
             PathResolutionError::NoSuper(location)
-            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. }
-            | PathResolutionError::StructDefinitionDeprecated { location } => *location,
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
             | PathResolutionError::TraitMethodNotInScope { ident, .. }
             | PathResolutionError::MultipleTraitsInScope { ident, .. }
-            | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. } => {
-                ident.location()
-            }
+            | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
+            | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
     }
 }
@@ -143,13 +142,14 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ident.location(),
                 )
             }
-            PathResolutionError::StructDefinitionDeprecated { location } => {
-                CustomDiagnostic::simple_warning(
-                    "`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`"
-                        .to_string(),
-                    String::new(),
-                    *location,
-                )
+            PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
+                let secondary = if available_impls.is_empty() {
+                    String::new()
+                } else {
+                    let impls = vecmap(available_impls, |t| format!("`{t}`"));
+                    format!("the function was found for: {}", impls.join(", "))
+                };
+                CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
             }
         }
     }
@@ -383,7 +383,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
         let mut errors = Vec::new();
         for (index, (last_segment, current_segment)) in
-            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
+            path.segments.iter().tuple_windows().enumerate()
         {
             let last_ident = &last_segment.ident;
             let current_ident = &current_segment.ident;

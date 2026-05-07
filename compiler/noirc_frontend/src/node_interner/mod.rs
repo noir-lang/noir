@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -17,6 +18,7 @@ use crate::ast::{
     UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
+use crate::hir::LspMode;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
@@ -248,7 +250,7 @@ pub struct NodeInterner {
     interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
-    pub(crate) lsp_mode: bool,
+    pub(crate) lsp_mode: Option<LspMode>,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -517,7 +519,7 @@ impl Default for NodeInterner {
             interned_statement_kinds: Default::default(),
             interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
-            lsp_mode: false,
+            lsp_mode: None,
             location_indices: LocationIndices::default(),
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -596,7 +598,6 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -614,14 +615,17 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
+        is_struct: bool,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics, visibility);
+        let new_type =
+            DataType::new(type_id, name, location, generics, visibility, comptime, is_struct);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -641,6 +645,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            typ.type_alias_def.comptime,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
@@ -784,11 +789,16 @@ impl NodeInterner {
 
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
+        self.expression_ref(expr_id).clone()
+    }
+
+    /// Returns the interned expression corresponding to `expr_id`
+    pub fn expression_ref(&self, expr_id: &ExprId) -> &HirExpression {
         let def =
             self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
-            Node::Expression(expr) => expr.clone(),
+            Node::Expression(expr) => expr,
             _ => {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
@@ -1091,6 +1101,23 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns true if any method (direct or trait impl) is registered under `method_name`
+    /// for the type's method key, regardless of type compatibility.
+    pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
+        let Some(key) = get_type_method_key(typ) else { return false };
+        self.methods.get(&key).is_some_and(|h| h.contains_key(method_name))
+    }
+
+    /// Returns the self types of all direct (inherent) impls that define `method_name` for
+    /// the given type's method key, regardless of type compatibility.
+    pub fn get_direct_method_impl_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.direct.iter().map(|m| m.typ.clone()).collect()
+    }
+
     /// Looks up methods that apply to the given type but are defined in traits.
     pub fn lookup_trait_methods(
         &self,
@@ -1269,7 +1296,6 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
-            trait_bounds: vec![],
             where_clause: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
@@ -1399,7 +1425,7 @@ impl NodeInterner {
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
-        self.lsp_mode
+        self.lsp_mode.is_some()
     }
 
     /// Sets the ordered generics and associated types for the given trait impl.
@@ -1561,7 +1587,8 @@ impl NodeInterner {
             (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
         );
 
-        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
+        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
+        {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
@@ -1595,7 +1622,8 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        for parent_bound in &the_trait.trait_bounds {
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(
@@ -1646,6 +1674,26 @@ impl NodeInterner {
             Some(Node::Expression(_)) => Some(ExprId(index)),
             _ => None,
         }
+    }
+
+    /// Returns the location of every expression node whose source file is in `files`.
+    /// Used to build the zero-count baseline for lcov coverage reports: all expression
+    /// locations are emitted with a hit count of 0 before per-test data is written.
+    pub fn expr_locations_for_files<'a>(
+        &'a self,
+        files: &'a std::collections::HashSet<FileId>,
+    ) -> impl Iterator<Item = Location> + 'a {
+        self.id_to_location
+            .iter()
+            .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
+            .filter(|(idx, _)| {
+                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                    return false;
+                };
+                // Ignore blocks otherwise we highlight the opening brace.
+                !matches!(expr, HirExpression::Block(_))
+            })
+            .map(|(_, loc)| *loc)
     }
 
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {

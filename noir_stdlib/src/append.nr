@@ -1,11 +1,11 @@
-// Appends two values together, returning the result.
-//
-// An alternate name for this trait is `Monoid` if that is familiar.
-// If not, it can be ignored.
-//
-// It is expected that for any implementation:
-// - `T::empty().append(x) == x`
-// - `x.append(T::empty()) == x`
+/// Appends two values together, returning the result.
+///
+/// An alternate name for this trait is `Monoid` if that is familiar.
+/// If not, it can be ignored.
+///
+/// It is expected that for any implementation:
+/// - `T::empty().append(x) == x`
+/// - `x.append(T::empty()) == x`
 // docs:start:append-trait
 pub trait Append {
     fn empty() -> Self;
@@ -19,7 +19,7 @@ impl<T> Append for [T] {
     }
 
     fn append(self, other: Self) -> Self {
-        // Slices have an existing append function which this will resolve to.
+        // Vectors have an existing append function which this will resolve to.
         self.append(other)
     }
 }

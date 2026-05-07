@@ -70,6 +70,11 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
             // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
             ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
+
+            // Increase our array copy counter if that flag is set
+            if ctx.count_arrays_copied {
+                ctx.codegen_increment_array_copy_counter();
+            }
         }
     });
 }

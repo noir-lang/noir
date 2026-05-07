@@ -1,5 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stdout
----
-[brillig_poseidon_permutation] Circuit output: 0x01bd538c2ee014ed5141b29e9ae240bf8db3fe5b9a38629a9647cf8d76c01737

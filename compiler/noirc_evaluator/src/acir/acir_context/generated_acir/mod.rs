@@ -181,6 +181,16 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         fresh_witness
     }
+
+    /// Attaches an assertion payload to the last opcode in the ACIR.
+    pub(crate) fn attach_assertion_payload(
+        &mut self,
+        payload: AssertionPayload<F>,
+    ) -> OpcodeLocation {
+        let location = self.last_acir_opcode_location();
+        self.assertion_payloads.insert(location, payload);
+        location
+    }
 }
 
 impl<F: AcirField> GeneratedAcir<F> {
@@ -299,6 +309,17 @@ impl<F: AcirField> GeneratedAcir<F> {
                 let [input2_2] = expect_into(input2_2);
                 let [predicate] = expect_into(predicate);
                 let [output0, output1, output2] = expect_into(outputs);
+                // Sanity Check: Ensure coordinates of a point are both constant or both witness.
+                assert_eq!(
+                    input1_0.is_constant(),
+                    input1_1.is_constant(),
+                    "EmbeddedCurveAdd: point 1 has mixed constant/witness coordinates"
+                );
+                assert_eq!(
+                    input2_0.is_constant(),
+                    input2_1.is_constant(),
+                    "EmbeddedCurveAdd: point 2 has mixed constant/witness coordinates"
+                );
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1: Box::new([input1_0, input1_1, input1_2]),
                     input2: Box::new([input2_0, input2_1, input2_2]),
@@ -397,7 +418,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let assertion_payload = self.generate_assertion_message_payload(format!(
             "Field failed to decompose into specified {limb_count} limbs"
         ));
-        self.assertion_payloads.insert(self.last_acir_opcode_location(), assertion_payload);
+        self.attach_assertion_payload(assertion_payload);
 
         Ok(limb_witnesses)
     }

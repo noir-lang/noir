@@ -2,8 +2,8 @@ use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, LoopStatement,
+        AssignOp, AssignOpKind, AssignOpStatement, AssignStatement, Expression, ExpressionKind,
+        ForBounds, ForLoopStatement, ForRange, Ident, LValue, LetStatement, LoopStatement,
         Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
@@ -180,20 +180,10 @@ impl Parser<'_> {
             }
         }
 
-        if let Some(operator) = self.next_is_op_assign() {
+        if let Some(op) = self.next_is_op_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
-                // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-                // which is currently enforced by the restricted syntax of LValues.
-                let infix = InfixExpression {
-                    lhs: expression,
-                    operator,
-                    rhs: self.parse_expression_or_error(),
-                };
-                let expression = Expression::new(
-                    ExpressionKind::Infix(Box::new(infix)),
-                    self.location_since(start_location),
-                );
-                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                let expression = self.parse_expression_or_error();
+                return Some(StatementKind::AssignOp(AssignOpStatement { lvalue, op, expression }));
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
@@ -223,26 +213,26 @@ impl Parser<'_> {
         None
     }
 
-    fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
+    fn next_is_op_assign(&mut self) -> Option<AssignOp> {
         let start_location = self.current_token_location;
         let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
-                Token::Plus => Some(BinaryOpKind::Add),
-                Token::Minus => Some(BinaryOpKind::Subtract),
-                Token::Star => Some(BinaryOpKind::Multiply),
-                Token::Slash => Some(BinaryOpKind::Divide),
-                Token::Percent => Some(BinaryOpKind::Modulo),
-                Token::Ampersand => Some(BinaryOpKind::And),
-                Token::Caret => Some(BinaryOpKind::Xor),
-                Token::Pipe => Some(BinaryOpKind::Or),
+                Token::Plus => Some(AssignOpKind::Add),
+                Token::Minus => Some(AssignOpKind::Subtract),
+                Token::Star => Some(AssignOpKind::Multiply),
+                Token::Slash => Some(AssignOpKind::Divide),
+                Token::Percent => Some(AssignOpKind::Modulo),
+                Token::Ampersand => Some(AssignOpKind::And),
+                Token::Caret => Some(AssignOpKind::Xor),
+                Token::Pipe => Some(AssignOpKind::Or),
                 _ => None,
             }
         } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
             // >>=
-            Some(BinaryOpKind::ShiftRight)
+            Some(AssignOpKind::ShiftRight)
         } else if self.at(Token::Less) && self.next_is(Token::LessEqual) {
             // <<=
-            Some(BinaryOpKind::ShiftLeft)
+            Some(AssignOpKind::ShiftLeft)
         } else {
             None
         };
@@ -731,20 +721,20 @@ mod tests {
     fn parses_op_assignment() {
         let src = "x += 1";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(assign) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected AssignOp");
         };
-        assert_eq!(assign.to_string(), "x = (x + 1)");
+        assert_eq!(assign_op.to_string(), "x += 1");
     }
 
     #[test]
     fn parses_op_assignment_with_shift_right() {
         let src = "x >>= 1";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(assign) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected AssignOp");
         };
-        assert_eq!(assign.to_string(), "x = (x >> 1)");
+        assert_eq!(assign_op.to_string(), "x >>= 1");
     }
 
     #[test]
@@ -752,8 +742,8 @@ mod tests {
         let src = "// Safety: comment
         x += unsafe { 1 }";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(_) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(_) = statement.kind else {
+            panic!("Expected AssignOp");
         };
     }
 

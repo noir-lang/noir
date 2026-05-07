@@ -1,5 +1,5 @@
 ---
-title: Logging
+title: Logging and Panics
 description:
   Learn how to use the println statement for debugging in Noir with this tutorial. Understand the
   basics of logging in Noir and how to implement it in your code.
@@ -8,6 +8,7 @@ keywords:
     noir logging,
     println statement,
     print statement,
+    panic,
     debugging in noir,
     noir std library,
     logging tutorial,
@@ -24,7 +25,7 @@ You can print the output of both statements in your Noir code by using the `narg
 
 It is recommended to use `nargo execute` if you want to debug failing constraints with `println` or `print` statements. This is due to every input in a test being a constant rather than a witness, so we issue an error during compilation while we only print during execution (which comes after compilation). Neither `println`, nor `print` are callable for failed constraints caught at compile time.
 
-Both `print` and `println` are generic functions which can work on integers, fields, strings, and even structs or expressions. Note however, that vectors are currently unsupported. For example:
+Both `print` and `println` are generic functions which can work on integers, fields, strings, and even structs or expressions. For example:
 
 ```rust
 struct Person {
@@ -75,4 +76,32 @@ print(person);
 
 println("Hello world!"); // Prints with a newline at the end of the input
 print("Hello world!");   // Prints the input and keeps cursor on the same line
+```
+
+## `panic`
+
+The `panic` function halts execution with an error message. It is auto-imported via the prelude, so no `use` statement is needed.
+
+```rust
+fn panic<T, U>(message: T) -> U where T: StringLike
+```
+
+The message can be a string literal or a format string. The return type is polymorphic, so `panic` can be used in any expression position:
+
+```rust
+fn divide(x: Field, y: Field) -> Field {
+    if y == 0 {
+        panic("division by zero")
+    } else {
+        x / y
+    }
+}
+```
+
+```rust
+fn example(x: u32) {
+    if x > 100 {
+        panic(f"value too large: {x}");
+    }
+}
 ```

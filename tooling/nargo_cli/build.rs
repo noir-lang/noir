@@ -47,6 +47,9 @@ fn main() -> Result<(), String> {
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_comptime_interpret_noir_test_success_tests(&mut test_file, &test_dir);
+    generate_comptime_interpret_noir_test_failure_tests(&mut test_file, &test_dir);
+
     generate_brillig_small_stack_execution_success_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
@@ -175,8 +178,13 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 const IGNORED_COMPTIME_INTERPRET_EXECUTION_STDOUT_CHECK_TESTS: [&str; 4] =
     ["debug_logs", "regression_10156", "regression_10158", "regression_9578"];
 
+const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
+    // For some reason at comptime a `comptime` function is considered a constant.
+    "comptime_globals",
+];
+
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -193,6 +201,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
     "simple_shield",
     "strings",
     // The minimal SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
     // This relies on maximum inliner setting
@@ -205,7 +214,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 16] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -222,6 +231,8 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     "regression_10466",
     // bug
     "trait_associated_constant",
+    // Globals evaluate to invalid utf-8 which don't display correctly in a source file
+    "regression_12269",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -234,7 +245,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -250,6 +261,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
     "workspace_reexport_bug",
     // bug
     "trait_call_in_global",
+    // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
+    "regression_7648",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
@@ -398,8 +411,9 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     }};
 
     #[allow(unused_mut)]
-    let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
+    let (mut nargo, target_dir) = setup_nargo_command(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
     {test_content}
+    drop(target_dir);
 }}
 "#
     )
@@ -626,6 +640,65 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
     writeln!(test_file, "}}").unwrap();
 }
 
+fn generate_comptime_interpret_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_NOIR_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_comptime_interpret_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "noir_test_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod comptime_interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+        write!(
+            test_file,
+            r#"
+            #[test]
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_test_comptime_expect_failure(test_program_dir);
+            }}
+            "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
 fn generate_brillig_small_stack_execution_success_tests(
     test_file: &mut File,
     test_data_dir: &Path,
@@ -771,7 +844,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             &test_dir,
             "info",
             &format!(
-                "compile_success_empty(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
+                "compile_success_empty(nargo, {});",
                 !TESTS_WITH_EXPECTED_WARNINGS.contains(&test_name.as_str())
             ),
             &MatrixConfig::default(),
@@ -799,7 +872,7 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_contract(nargo, test_program_dir, force_brillig, inliner_aggressiveness);",
+            "compile_success_contract(nargo);",
             &MatrixConfig::default(),
         );
     }

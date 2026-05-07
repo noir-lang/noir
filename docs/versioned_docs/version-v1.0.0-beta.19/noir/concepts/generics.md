@@ -207,8 +207,56 @@ fn main() {
 
 Note that if there is any over or underflow the types will fail to unify:
 
-#include_code underflow-example test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr rust
+```rust title="underflow-example" showLineNumbers 
+fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
+    let mut result: [Field; N - 1] = std::mem::zeroed();
+    for i in 0..N - 1 {
+        result[i] = array[i];
+    }
+    result
+}
+
+fn main() {
+    // error: Could not determine array length `(0 - 1)`
+    pop([]);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14</a></sub></sup>
+
 
 This also applies if there is underflow in an intermediate calculation:
 
-#include_code intermediate-underflow-example test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr rust
+```rust title="intermediate-underflow-example" showLineNumbers 
+fn main() {
+    // From main it looks like there's nothing sketchy going on
+    seems_fine([]);
+}
+
+// Since `seems_fine` says it can receive and return any length N
+fn seems_fine<let N: u32>(array: [Field; N]) -> [Field; N] {
+    // But inside `seems_fine` we pop from the array which
+    // requires the length to be greater than zero.
+
+    // error: Could not determine array length `(0 - 1)`
+    push_zero(pop(array))
+}
+
+fn pop<let N: u32>(array: [Field; N]) -> [Field; N - 1] {
+    let mut result: [Field; N - 1] = std::mem::zeroed();
+    for i in 0..N - 1 {
+        result[i] = array[i];
+    }
+    result
+}
+
+fn push_zero<let N: u32>(array: [Field; N]) -> [Field; N + 1] {
+    let mut result: [Field; N + 1] = std::mem::zeroed();
+    for i in 0..N {
+        result[i] = array[i];
+    }
+    // index N is already zeroed
+    result
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32</a></sub></sup>
+

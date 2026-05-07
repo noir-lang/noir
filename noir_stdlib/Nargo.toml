@@ -2,5 +2,7 @@
 name = "std"
 type = "lib"
 authors = [""]
-version = "1.0.0-beta.14"
+# x-release-please-start-version
+version = "1.0.0-beta.20"
+# x-release-please-end
 [dependencies]

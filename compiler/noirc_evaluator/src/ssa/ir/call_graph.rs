@@ -39,6 +39,8 @@ pub(crate) struct CallGraph {
 impl CallGraph {
     /// Construct a [CallGraph] from the [Ssa]
     /// The edges in this graph are unweighted. Thus, it is a pure dependency map.
+    /// Panics if the SSA contains indirect calls.
+    /// Use [`Self::from_ssa_partial`] from contexts that tolerate an incomplete graph.
     pub(crate) fn from_ssa(ssa: &Ssa) -> Self {
         let function_deps = ssa
             .functions
@@ -53,8 +55,26 @@ impl CallGraph {
 
     /// Construct a [CallGraph] from the [Ssa] with its edges weighted.
     /// An edges weight refers to the numbers of times a descendant node was called by its ancestor.
+    ///
+    /// Panics if the SSA contains indirect calls.
+    /// Use [`Self::from_ssa_weighted_partial`] from contexts that tolerate an incomplete graph.
     pub(crate) fn from_ssa_weighted(ssa: &Ssa) -> Self {
-        let dependencies = compute_callees(ssa);
+        let dependencies = compute_callees(ssa, false);
+        Self::from_deps_weighted(dependencies)
+    }
+
+    /// Like [`Self::from_ssa`], but silently skips indirect calls instead of panicking.
+    /// For consumers (e.g. inliner unit tests, purity analysis) that work on possibly
+    /// pre-defunctionalize SSA and tolerate an incomplete call graph.
+    pub(crate) fn from_ssa_partial(ssa: &Ssa) -> Self {
+        let function_deps =
+            ssa.functions.iter().map(|(id, func)| (*id, called_functions_partial(func))).collect();
+        Self::from_deps(function_deps)
+    }
+
+    /// Like [`Self::from_ssa_weighted`], but silently skips indirect calls instead of panicking.
+    pub(crate) fn from_ssa_weighted_partial(ssa: &Ssa) -> Self {
+        let dependencies = compute_callees(ssa, true);
         Self::from_deps_weighted(dependencies)
     }
 
@@ -154,10 +174,10 @@ impl CallGraph {
         &self.indices_to_ids
     }
 
-    pub(crate) fn build_acyclic_subgraph(
-        &self,
-        recursive_functions: &HashSet<FunctionId>,
-    ) -> CallGraph {
+    /// Build a sub-graph from node that aren't contained in `recursive_functions`.
+    ///
+    /// The indices returned will be different than the ones in this graph.
+    pub(crate) fn build_acyclic_subgraph(&self, recursive_functions: &HashSet<FunctionId>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
@@ -247,6 +267,78 @@ impl CallGraph {
         counts
     }
 
+    /// Compute the maximum call-stack depth at which each function in `reachable` can be invoked.
+    ///
+    /// Returns a map with one entry per function in `reachable`:
+    /// - `None` — the function is recursive or reachable from a recursive function, so its
+    ///   call depth is unbounded.
+    /// - `Some(d)` — the deepest position in the call stack where this function can appear,
+    ///   counting from 1 for entry-point functions (those with no callers inside `reachable`).
+    ///
+    /// The algorithm proceeds in two phases:
+    /// 1. Forward BFS from every recursive function through its callees to build the "tainted"
+    ///    set. Every tainted function receives `None`.
+    /// 2. The remaining functions form a DAG (all cycles involve tainted nodes). Traversing nodes
+    ///    in topological order, we compute the longest caller-to-callee path, giving each function its
+    ///    worst-case depth.
+    pub(crate) fn max_call_depths(
+        &self,
+        reachable: &BTreeSet<FunctionId>,
+    ) -> BTreeMap<FunctionId, Option<usize>> {
+        let recursive = self.get_recursive_functions();
+
+        // Phase 1: forward-propagate "unbounded" through callees.
+        // Any function reachable (via calls) from a recursive function is also unbounded.
+        let tainted = self.reachable_from(recursive);
+
+        // Phase 2: compute max depth for non-tainted functions using topological BFS.
+        // We only count callers that are themselves inside `reachable` and not tainted.
+
+        // Select only the nodes which are not reachable from recursive functions.
+        let non_tainted = self.build_acyclic_subgraph(&tainted);
+
+        // Sort them topologically, so we can propagate the call depth from entries to leaves.
+        let topological_order = petgraph::algo::toposort(non_tainted.graph(), None).unwrap();
+
+        // The call depth of each function, to be filled out in the order we encounter them.
+        let mut depths: HashMap<FunctionId, usize> = HashMap::default();
+
+        for f_index in topological_order {
+            let f_id = non_tainted.indices_to_ids[&f_index];
+            if !reachable.contains(&f_id) {
+                continue;
+            }
+            // If this is the first time we reach a function, treat as a top level one with a depth of 1.
+            let f_depth = *depths.entry(f_id).or_insert(1);
+            // Propagate the depth to each callee before visiting them.
+            for edge in non_tainted.graph.edges(f_index) {
+                let callee_id = non_tainted.indices_to_ids[&edge.target()];
+                if !reachable.contains(&callee_id) {
+                    continue;
+                }
+                // Keep the maximum depth seen so far for this callee.
+                let callee_depth = depths.entry(callee_id).or_insert(0);
+                *callee_depth = (*callee_depth).max(f_depth + 1);
+            }
+        }
+
+        // Assemble the final result.
+        reachable
+            .iter()
+            .map(|f| {
+                if tainted.contains(f) {
+                    (*f, None)
+                } else if let Some(&d) = depths.get(f) {
+                    (*f, Some(d))
+                } else {
+                    // If a non-tainted function has no entry in `depths` it was unreachable within
+                    // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
+                    (*f, Some(1))
+                }
+            })
+            .collect()
+    }
+
     /// Returns all functions reachable from the provided root(s).
     ///
     /// This function uses DFS internally to find all nodes reachable from the provided root(s).
@@ -273,7 +365,27 @@ impl CallGraph {
 /// Utility function to find out the direct calls of a function.
 ///
 /// Returns the function IDs from all `Call` instructions without deduplication.
+///
+/// # Panics
+/// Panics if any `Call` instruction targets a value that is not statically known
+/// (i.e. an indirect/higher-order call). The call graph is only complete after
+/// defunctionalize has lowered such calls; building it earlier would silently
+/// miss edges and yield wrong results for callers, callees, SCCs, etc.
+///
+/// Callers that are designed to tolerate indirect calls (e.g. the inliner and
+/// purity analysis, which work on direct call sites and conservatively handle
+/// the rest) should use [`called_functions_vec_partial`] instead.
 pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
+    collect_called_functions(func, /* allow_indirect = */ false)
+}
+
+/// Like [`called_functions_vec`], but silently skips indirect calls instead of
+/// panicking. Use only from contexts that explicitly tolerate an incomplete graph.
+pub(crate) fn called_functions_vec_partial(func: &Function) -> Vec<FunctionId> {
+    collect_called_functions(func, /* allow_indirect = */ true)
+}
+
+fn collect_called_functions(func: &Function, allow_indirect: bool) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
@@ -281,8 +393,15 @@ pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                called_function_ids.push(function_id);
+            match func.dfg[*called_value_id] {
+                Value::Function(function_id) => called_function_ids.push(function_id),
+                Value::Intrinsic(_) | Value::ForeignFunction(_) => {}
+                _ if allow_indirect => {}
+                _ => panic!(
+                    "called_functions_vec: indirect call detected in {} — \
+                     CallGraph must be built post-defunctionalize",
+                    func.id()
+                ),
             }
         }
     }
@@ -295,12 +414,20 @@ pub(crate) fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
 
+/// Partial counterpart to [`called_functions`] — see [`called_functions_vec_partial`].
+pub(crate) fn called_functions_partial(func: &Function) -> BTreeSet<FunctionId> {
+    called_functions_vec_partial(func).into_iter().collect()
+}
+
 /// Compute for each function the set of functions called by it, and how many times it does so.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
+fn compute_callees(
+    ssa: &Ssa,
+    allow_indirect: bool,
+) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
         .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
+            let called_functions = collect_called_functions(function, allow_indirect);
             called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
         })
         .fold(
@@ -316,6 +443,8 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
         ssa_gen::Ssa,
@@ -394,7 +523,7 @@ mod tests {
         }
         // Non-recursive leaf function
         brillig(inline) fn baz f6 {
-          b0(): 
+          b0():
             return
         }
         ";
@@ -451,7 +580,7 @@ mod tests {
     fn self_recursive_and_calls_others() {
         let src = "
         acir(inline) fn main f0 {
-          b0(): 
+          b0():
             call f1()
             return
         }
@@ -462,7 +591,7 @@ mod tests {
             return
         }
         brillig(inline) fn foo f2 {
-          b0(): 
+          b0():
             return
         }
         ";
@@ -506,7 +635,7 @@ mod tests {
     fn pure_self_recursive_function() {
         let src = "
         brillig(inline) fn self_recur f0 {
-          b0(): 
+          b0():
             call f0()
             return
         }
@@ -666,11 +795,11 @@ mod tests {
     fn dead_function_not_called() {
         let src = "
         acir(inline) fn main f0 {
-          b0(): 
+          b0():
             return
         }
         brillig(inline) fn dead_code f1 {
-          b0(): 
+          b0():
             return
         }
         ";
@@ -682,5 +811,198 @@ mod tests {
         assert_eq!(*times_called.get(&Id::test_new(1)).unwrap(), 0);
         assert!(call_graph.callers().get(&Id::test_new(1)).unwrap().is_empty());
         assert!(call_graph.callees().get(&Id::test_new(1)).unwrap().is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // max_call_depths tests
+    // -----------------------------------------------------------------------
+
+    /// Linear chain: f0 -> f1 -> f2 -> f3
+    /// f0 is the entry point (depth 1), so expected depths are 1, 2, 3, 4.
+    #[test]
+    fn max_call_depths_linear_chain() {
+        let src = "
+        brillig(inline) fn f0 f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f3 f3 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa(&ssa);
+        let reachable: BTreeSet<_> = [0, 1, 2, 3].map(Id::test_new).into_iter().collect();
+        let depths = call_graph.max_call_depths(&reachable);
+
+        assert_eq!(depths[&Id::test_new(0)], Some(1));
+        assert_eq!(depths[&Id::test_new(1)], Some(2));
+        assert_eq!(depths[&Id::test_new(2)], Some(3));
+        assert_eq!(depths[&Id::test_new(3)], Some(4));
+    }
+
+    /// Diamond: f0 -> {f1, f2}, f1 -> f3, f2 -> f3.
+    /// f3 is reachable via two paths of equal length, max depth = 3.
+    #[test]
+    fn max_call_depths_diamond() {
+        let src = "
+        brillig(inline) fn f0 f0 {
+          b0():
+            call f1()
+            call f2()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f3 f3 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa(&ssa);
+        let reachable: BTreeSet<_> = [0, 1, 2, 3].map(Id::test_new).into_iter().collect();
+        let depths = call_graph.max_call_depths(&reachable);
+
+        assert_eq!(depths[&Id::test_new(0)], Some(1));
+        assert_eq!(depths[&Id::test_new(1)], Some(2));
+        assert_eq!(depths[&Id::test_new(2)], Some(2));
+        assert_eq!(depths[&Id::test_new(3)], Some(3)); // longest path wins
+    }
+
+    /// Self-recursive f1 and its callee f2: both should be None.
+    #[test]
+    fn max_call_depths_recursive_and_callee() {
+        let src = "
+        brillig(inline) fn f0 f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f1()
+            call f2()
+            return
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa(&ssa);
+        let reachable: BTreeSet<_> = [0, 1, 2].map(Id::test_new).into_iter().collect();
+        let depths = call_graph.max_call_depths(&reachable);
+
+        // f0 is not recursive and has no recursive callers -> bounded
+        assert_eq!(depths[&Id::test_new(0)], Some(1));
+        // f1 is self-recursive -> unbounded
+        assert_eq!(depths[&Id::test_new(1)], None);
+        // f2 is called by recursive f1 -> unbounded
+        assert_eq!(depths[&Id::test_new(2)], None);
+    }
+
+    /// f0 -> f1 (recursive cycle) -> f3 (leaf)
+    /// f0 -> f2 (non-recursive) -> f3
+    /// f3 is reachable from the recursive f1, so it must be None even though
+    /// it is also reachable via the non-recursive path f0 -> f2 -> f3.
+    #[test]
+    fn max_call_depths_shared_callee_of_recursive_and_non_recursive() {
+        let src = "
+        brillig(inline) fn f0 f0 {
+          b0():
+            call f1()
+            call f2()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f1()
+            call f3()
+            return
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f3 f3 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa(&ssa);
+        let reachable: BTreeSet<_> = [0, 1, 2, 3].map(Id::test_new).into_iter().collect();
+        let depths = call_graph.max_call_depths(&reachable);
+
+        assert_eq!(depths[&Id::test_new(0)], Some(1));
+        assert_eq!(depths[&Id::test_new(1)], None); // recursive
+        assert_eq!(depths[&Id::test_new(2)], Some(2));
+        assert_eq!(depths[&Id::test_new(3)], None); // tainted by f1
+    }
+
+    /// Two independent entry points calling a shared leaf:
+    /// f0 (depth 1) -> f2 -> f3
+    /// f1 (depth 1) -> f3
+    /// Max depth of f2 = 2, f3 = 3.
+    #[test]
+    fn max_call_depths_two_entry_points() {
+        let src = "
+        brillig(inline) fn f0 f0 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn f3 f3 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa(&ssa);
+        let reachable: BTreeSet<_> = [0, 1, 2, 3].map(Id::test_new).into_iter().collect();
+        let depths = call_graph.max_call_depths(&reachable);
+
+        assert_eq!(depths[&Id::test_new(0)], Some(1));
+        assert_eq!(depths[&Id::test_new(1)], Some(1));
+        assert_eq!(depths[&Id::test_new(2)], Some(2));
+        assert_eq!(depths[&Id::test_new(3)], Some(3));
     }
 }

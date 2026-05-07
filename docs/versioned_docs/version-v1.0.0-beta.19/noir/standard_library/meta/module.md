@@ -11,7 +11,11 @@ declarations in the source program.
 
 ### add_item
 
-#include_code add_item noir_stdlib/src/meta/module.nr rust
+```rust title="add_item" showLineNumbers 
+pub comptime fn add_item(self, item: Quoted) {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L5-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L5-L7</a></sub></sup>
+
 
 Adds a top-level item (a function, a struct, a global, etc.) to the module.
 Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
@@ -19,48 +23,118 @@ Note that the items are type-checked as if they are inside the module they are b
 
 ### child_modules
 
-#include_code child_modules noir_stdlib/src/meta/module.nr rust
+```rust title="child_modules" showLineNumbers 
+pub comptime fn child_modules(self) -> [Module] {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L30-L32" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L30-L32</a></sub></sup>
+
 
 Returns all the child modules of the current module.
 
-#include_code child_modules_example test_programs/compile_success_empty/comptime_module/src/main.nr rust
+```rust title="child_modules_example" showLineNumbers 
+mod my_module {
+    pub mod child1 {}
+    pub mod child2 {}
+    pub mod child3 {
+        pub mod nested_child {}
+    }
+}
+
+#[test]
+fn child_modules_test() {
+    comptime {
+        let my_module = quote [my_module].as_module().unwrap();
+        let children = my_module.child_modules().map(Module::name);
+
+        // The order children are returned in is left unspecified.
+        assert_eq(children, [quote [child1], quote [child2], quote [child3]].as_vector());
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_module/src/main.nr#L150-L169" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L150-L169</a></sub></sup>
+
 
 ### functions
 
-#include_code functions noir_stdlib/src/meta/module.nr rust
+```rust title="functions" showLineNumbers 
+pub comptime fn functions(self) -> [FunctionDefinition] {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L20-L22" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L20-L22</a></sub></sup>
+
 
 Returns each function defined in the module.
 
 ### has_named_attribute
 
-#include_code has_named_attribute noir_stdlib/src/meta/module.nr rust
+```rust title="has_named_attribute" showLineNumbers 
+pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L10-L12</a></sub></sup>
+
 
 Returns true if this module has a custom attribute with the given name.
 
 ### is_contract
 
-#include_code is_contract noir_stdlib/src/meta/module.nr rust
+```rust title="is_contract" showLineNumbers 
+pub comptime fn is_contract(self) -> bool {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L15-L17" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L15-L17</a></sub></sup>
+
 
 `true` if this module is a contract module (was declared via `contract foo { ... }`).
 
 ### name
 
-#include_code name noir_stdlib/src/meta/module.nr rust
+```rust title="name" showLineNumbers 
+pub comptime fn name(self) -> Quoted {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L35-L37" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L35-L37</a></sub></sup>
+
 
 Returns the name of the module.
 The top-level module in each crate has no name and is thus empty.
 
 ### parent
 
-#include_code parent noir_stdlib/src/meta/module.nr rust
+```rust title="parent" showLineNumbers 
+pub comptime fn parent(self) -> Option<Module> {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L40-L42" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L40-L42</a></sub></sup>
+
 
 Returns the parent module of the given module, if any.
 
-#include_code parent_example test_programs/compile_success_empty/comptime_module/src/main.nr rust
+```rust title="parent_example" showLineNumbers 
+mod module1 {
+    pub mod module2 {}
+}
+
+#[test]
+fn parent_test() {
+    comptime {
+        let my_module2 = quote [module1::module2].as_module().unwrap();
+        assert_eq(my_module2.name(), quote [module2]);
+
+        let my_module1 = my_module2.parent().unwrap();
+        assert_eq(my_module1.name(), quote [module1]);
+
+        // The top-level module in each crate has no name
+        let top_level_module = my_module1.parent().unwrap();
+        assert_eq(top_level_module.name(), quote []);
+    }
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_module/src/main.nr#L129-L148" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L129-L148</a></sub></sup>
+
 
 ### structs
 
-#include_code structs noir_stdlib/src/meta/module.nr rust
+```rust title="structs" showLineNumbers 
+pub comptime fn structs(self) -> [TypeDefinition] {}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/module.nr#L25-L27" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L25-L27</a></sub></sup>
+
 
 Returns each struct defined in the module.
 

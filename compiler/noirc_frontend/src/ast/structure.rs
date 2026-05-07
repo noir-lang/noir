@@ -14,6 +14,7 @@ pub struct NoirStruct {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<Documented<StructField>>,
     pub location: Location,

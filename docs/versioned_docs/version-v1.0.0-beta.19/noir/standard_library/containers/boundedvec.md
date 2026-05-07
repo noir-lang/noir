@@ -52,7 +52,18 @@ assert(empty_vector.len() == 0);
 Note that whenever calling `new` the maximum length of the vector should always be specified
 via a type signature:
 
-#include_code new_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="new_example" showLineNumbers 
+fn good() -> BoundedVec<Field, 10> {
+    // Ok! MaxLen is specified with a type annotation
+    let v1: BoundedVec<Field, 3> = BoundedVec::new();
+    let v2 = BoundedVec::new();
+
+    // Ok! MaxLen is known from the type of `good`'s return value
+    v2
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15</a></sub></sup>
+
 
 This defaulting of `MaxLen` (and numeric generics in general) to zero may change in future noir versions
 but for now make sure to use type annotations when using bounded vectors. Otherwise, you will receive a constraint failure at runtime when the vec is pushed to.
@@ -92,7 +103,19 @@ it is unsafe! Use at your own risk!
 
 Example:
 
-#include_code get_unchecked_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="get_unchecked_example" showLineNumbers 
+fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
+    // Always ensure the length is larger than the largest
+    // index passed to get_unchecked
+    assert(v.len() > 2);
+    let first = v.get_unchecked(0);
+    let second = v.get_unchecked(1);
+    let third = v.get_unchecked(2);
+    first + second + third
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52</a></sub></sup>
+
 
 ### set
 
@@ -128,7 +151,33 @@ Since this function does not perform a bounds check on length before accessing t
 
 Example:
 
-#include_code set_unchecked_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="set_unchecked_example" showLineNumbers 
+fn set_unchecked_example() {
+    let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+    vec.extend_from_array([1, 2]);
+
+    // Here we're safely writing within the valid range of `vec`
+    // `vec` now has the value [42, 2]
+    vec.set_unchecked(0, 42);
+
+    // We can then safely read this value back out of `vec`.
+    // Notice that we use the checked version of `get` which would prevent reading unsafe values.
+    assert_eq(vec.get(0), 42);
+
+    // We've now written past the end of `vec`.
+    // As this index is still within the maximum potential length of `v`,
+    // it won't cause a constraint failure.
+    vec.set_unchecked(2, 42);
+    println(vec);
+
+    // This will write past the end of the maximum potential length of `vec`,
+    // it will then trigger a constraint failure.
+    vec.set_unchecked(5, 42);
+    println(vec);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79</a></sub></sup>
+
 
 
 ### push
@@ -144,7 +193,17 @@ Panics if the new length of the vector will be greater than the max length.
 
 Example:
 
-#include_code bounded-vec-push-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-push-example" showLineNumbers 
+let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+
+    v.push(1);
+    v.push(2);
+
+    // Panics with failed assertion "push out of bounds"
+    v.push(3);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91</a></sub></sup>
+
 
 ### pop
 
@@ -159,7 +218,21 @@ Panics if the vector is empty.
 
 Example:
 
-#include_code bounded-vec-pop-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-pop-example" showLineNumbers 
+let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    v.push(1);
+    v.push(2);
+
+    let two = v.pop();
+    let one = v.pop();
+
+    assert(two == 2);
+    assert(one == 1);
+    // error: cannot pop from an empty vector
+    // let _ = v.pop();
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108</a></sub></sup>
+
 
 ### len
 
@@ -171,7 +244,24 @@ Returns the current length of this vector
 
 Example:
 
-#include_code bounded-vec-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-len-example" showLineNumbers 
+let mut v: BoundedVec<Field, 4> = BoundedVec::new();
+    assert(v.len() == 0);
+
+    v.push(100);
+    assert(v.len() == 1);
+
+    v.push(200);
+    v.push(300);
+    v.push(400);
+    assert(v.len() == 4);
+
+    let _ = v.pop();
+    let _ = v.pop();
+    assert(v.len() == 2);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128</a></sub></sup>
+
 
 ### max_len
 
@@ -184,7 +274,15 @@ equal to the `MaxLen` parameter this vector was initialized with.
 
 Example:
 
-#include_code bounded-vec-max-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-max-len-example" showLineNumbers 
+let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+
+    assert(v.max_len() == 5);
+    v.push(10);
+    assert(v.max_len() == 5);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139</a></sub></sup>
+
 
 ### storage
 
@@ -200,7 +298,16 @@ Note that uninitialized elements may be zeroed out!
 
 Example:
 
-#include_code bounded-vec-storage-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-storage-example" showLineNumbers 
+let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+
+    assert(v.storage() == [0, 0, 0, 0, 0]);
+
+    v.push(57);
+    assert(v.storage() == [57, 0, 0, 0, 0]);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151</a></sub></sup>
+
 
 ### extend_from_array
 
@@ -215,7 +322,16 @@ to exceed the maximum length.
 
 Example:
 
-#include_code bounded-vec-extend-from-array-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-extend-from-array-example" showLineNumbers 
+let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    vec.extend_from_array([2, 4]);
+
+    assert(vec.len() == 2);
+    assert(vec.get(0) == 2);
+    assert(vec.get(1) == 4);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163</a></sub></sup>
+
 
 ### extend_from_bounded_vec
 
@@ -231,7 +347,18 @@ to exceed the maximum length.
 
 Example:
 
-#include_code bounded-vec-extend-from-bounded-vec-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-extend-from-bounded-vec-example" showLineNumbers 
+let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
+    let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
+
+    v2.extend_from_array([1, 2, 3]);
+    v1.extend_from_bounded_vec(v2);
+
+    assert(v1.storage() == [1, 2, 3, 0, 0]);
+    assert(v2.storage() == [1, 2, 3, 0, 0, 0, 0]);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177</a></sub></sup>
+
 
 ### from_array
 
@@ -262,7 +389,18 @@ zeroed after that index, you can use `from_parts_unchecked` to remove the extra 
 
 Example:
 
-#include_code from-parts noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="from-parts" showLineNumbers 
+let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
+            assert_eq(vec.len(), 3);
+
+            // Any elements past the given length are zeroed out, so these
+            // two BoundedVecs will be completely equal
+            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
+            assert_eq(vec1, vec2);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129</a></sub></sup>
+
 
 ### from_parts_unchecked
 
@@ -281,7 +419,20 @@ to give incorrect results since it will check even elements past `len`.
 
 Example:
 
-#include_code from-parts-unchecked noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="from-parts-unchecked" showLineNumbers 
+let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
+            assert_eq(vec.len(), 3);
+
+            // invalid use!
+            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
+
+            // both vecs have length 3 so we'd expect them to be equal, but this
+            // fails because elements past the length are still checked in eq
+            assert(vec1 != vec2);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145</a></sub></sup>
+
 
 ### map
 
@@ -293,7 +444,12 @@ Creates a new vector of equal size by calling a closure on each element in this 
 
 Example:
 
-#include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="bounded-vec-map-example" showLineNumbers 
+let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|value| value * 2);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L770-L773" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L770-L773</a></sub></sup>
+
 
 ### mapi
 
@@ -306,7 +462,12 @@ vector, along with its index in the vector.
 
 Example:
 
-#include_code bounded-vec-mapi-example noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="bounded-vec-mapi-example" showLineNumbers 
+let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.mapi(|i, value| i + value * 2);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L831-L834" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L831-L834</a></sub></sup>
+
 
 ### for_each
 
@@ -318,7 +479,12 @@ Calls a closure on each element in this vector.
 
 Example:
 
-#include_code bounded-vec-for-each-example noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="bounded-vec-for-each-example" showLineNumbers 
+let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_each(|value| { *acc_ref += value; });
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L887-L890" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L887-L890</a></sub></sup>
+
 
 ### for_eachi
 
@@ -330,7 +496,12 @@ Calls a closure on each element in this vector, along with its index in the vect
 
 Example:
 
-#include_code bounded-vec-for-eachi-example noir_stdlib/src/collections/bounded_vec.nr rust
+```rust title="bounded-vec-for-eachi-example" showLineNumbers 
+let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_eachi(|i, value| { *acc_ref += i * value; });
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L959-L962" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L959-L962</a></sub></sup>
+
 
 ### any
 
@@ -343,4 +514,12 @@ in this vector.
 
 Example:
 
-#include_code bounded-vec-any-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+```rust title="bounded-vec-any-example" showLineNumbers 
+let mut v: BoundedVec<u32, 3> = BoundedVec::new();
+    v.extend_from_array([2, 4, 6]);
+
+    let all_even = !v.any(|elem: u32| elem % 2 != 0);
+    assert(all_even);
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250</a></sub></sup>
+

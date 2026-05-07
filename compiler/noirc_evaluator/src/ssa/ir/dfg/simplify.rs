@@ -67,6 +67,32 @@ impl SimplifyResult {
     }
 }
 
+/// Simplify the product `a * b`, returning `SimplifiedTo(a)` if b is 1,
+/// `SimplifiedTo(zero)` if b is 0, or `SimplifiedToInstruction(mul)` otherwise.
+/// This avoids emitting a mul instruction that would not be further simplified
+/// when the result of `simplify` is `SimplifiedToInstruction`.
+fn simplify_product(dfg: &DataFlowGraph, a: ValueId, b: ValueId) -> SimplifyResult {
+    if let Some(constant) = dfg.get_numeric_constant(b) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(a);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(b);
+        }
+    }
+    if let Some(constant) = dfg.get_numeric_constant(a) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(b);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(a);
+        }
+    }
+    SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+        BinaryOp::Mul { unchecked: true },
+        a,
+        b,
+    ))
+}
+
 /// Try to simplify this instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 ///
@@ -122,7 +148,7 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, SemanticLength(1)))
+            if matches!(*array_or_vector_type, Type::Array(_, SemanticLength(1)))
                 && array_or_vector_type.element_size() == ElementTypesLength(1)
             {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
@@ -133,26 +159,6 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
-            let array = dfg.get_array_constant(*array_id);
-            let index = dfg.get_numeric_constant(*index_id);
-            if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
-                    index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-
-                if index < array.len() {
-                    let elements = array.update(index, *value);
-                    let typ = dfg.type_of_value(*array_id);
-                    let instruction = Instruction::MakeArray { elements, typ };
-                    let new_array = dfg.insert_instruction_and_results(
-                        instruction,
-                        block,
-                        Option::None,
-                        call_stack,
-                    );
-                    return SimplifiedTo(new_array.first());
-                }
-            }
-
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -303,7 +309,19 @@ pub(crate) fn simplify(
             // TODO: We could check to see if `then_condition == inner_else_condition`
             // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
-            if matches!(&typ, Type::Numeric(_)) {
+            // IfElse conditions are always boolean, so not(cond) * cond = 0.
+            // When else_value == then_condition, the else term vanishes and
+            // the result is just then_condition * then_value.
+            if else_value == then_condition {
+                return simplify_product(dfg, then_condition, then_value);
+            }
+            // Symmetric case: when then_value == else_condition, the then term
+            // vanishes and the result is just else_condition * else_value.
+            if then_value == else_condition {
+                return simplify_product(dfg, else_condition, else_value);
+            }
+
+            if matches!(&*typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
                     dfg,
                     block,
@@ -463,6 +481,12 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
+        // The only `Value::Instruction` allowed in the globals graph is `MakeArray`, which
+        // doesn't appear in the local instructions table. Indexing `dfg[*instruction]` below
+        // assumes a local instruction id, so bail out as soon as we walk into a global.
+        if dfg.is_global(array_id) {
+            return SimplifyResult::None;
+        }
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
@@ -495,6 +519,28 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
     };
+
+    /// Regression for an OOB panic in `try_optimize_array_set_from_previous_get` when the
+    /// `array` operand of an `array_set` resolved to a global `make_array`. The loop walked
+    /// `dfg[*instruction]` into the local instruction table, but global instruction IDs only
+    /// exist in the globals graph, producing `index out of bounds: the len is N but the
+    /// index is M`. Triggered in the wild by inlining a callee whose array parameter was
+    /// supplied as a global at the call site (fuzzer seed 0xed3d88f800100000).
+    #[test]
+    fn array_set_with_global_array_does_not_panic() {
+        let src = "
+        g0 = u8 1
+        g1 = make_array [g0, g0] : [u8; 2]
+
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 2]):
+            v1 = array_get v0, index u32 0 -> u8
+            v2 = array_set g1, index u32 0, value v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
 
     #[test]
     fn removes_range_constraints_on_constants() {
@@ -680,30 +726,6 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_normalized_ssa_equals(ssa, src);
-    }
-
-    #[test]
-    fn simplifies_array_get_from_previous_array_set_with_make_array() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0():
-            v0 = make_array [Field 2, Field 3] : [Field; 2]
-            v1 = array_set mut v0, index u32 0, value Field 4
-            v2 = array_get v1, index u32 0 -> Field
-            v3 = array_get v1, index u32 1 -> Field
-            return v2, v3
-        }
-        ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0():
-            v2 = make_array [Field 2, Field 3] : [Field; 2]
-            v4 = make_array [Field 4, Field 3] : [Field; 2]
-            return Field 4, Field 3
-        }
-        ");
     }
 
     #[test]

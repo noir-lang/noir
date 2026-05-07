@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use acvm::FieldElement;
 use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
@@ -34,7 +35,6 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
-use crate::signed_field::SignedField;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
@@ -51,7 +51,6 @@ use strum_macros::EnumIter;
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, EnumIter)]
 pub enum IntegerBitSize {
-    One,
     Eight,
     Sixteen,
     ThirtyTwo,
@@ -62,7 +61,6 @@ pub enum IntegerBitSize {
 impl IntegerBitSize {
     pub fn bit_size(&self) -> u8 {
         match self {
-            IntegerBitSize::One => 1,
             IntegerBitSize::Eight => 8,
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
@@ -82,7 +80,6 @@ impl From<IntegerBitSize> for u32 {
     fn from(size: IntegerBitSize) -> u32 {
         use IntegerBitSize::*;
         match size {
-            One => 1,
             Eight => 8,
             Sixteen => 16,
             ThirtyTwo => 32,
@@ -101,7 +98,6 @@ impl TryFrom<u32> for IntegerBitSize {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use IntegerBitSize::*;
         match value {
-            1 => Ok(One),
             8 => Ok(Eight),
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
@@ -225,13 +221,14 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(SignedField, Option<IntegerTypeSuffix>, Location),
+    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
         Box<UnresolvedTypeExpression>,
         Location,
     ),
+    Negation(Box<UnresolvedTypeExpression>, Location),
     AsTraitPath(Box<AsTraitPath>),
 }
 
@@ -323,6 +320,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
+            UnresolvedTypeExpression::Negation(rhs, _) => write!(f, "-{rhs}"),
             UnresolvedTypeExpression::AsTraitPath(path) => write!(f, "{path}"),
         }
     }
@@ -359,7 +357,6 @@ impl UnresolvedTypeData {
     pub fn integer(signedness: Signedness, size: IntegerBitSize, location: Location) -> Self {
         let name = match signedness {
             Signedness::Signed => match size {
-                IntegerBitSize::One => "i1",
                 IntegerBitSize::Eight => "i8",
                 IntegerBitSize::Sixteen => "i16",
                 IntegerBitSize::ThirtyTwo => "i32",
@@ -367,7 +364,6 @@ impl UnresolvedTypeData {
                 IntegerBitSize::HundredTwentyEight => "i128",
             },
             Signedness::Unsigned => match size {
-                IntegerBitSize::One => "u1",
                 IntegerBitSize::Eight => "u8",
                 IntegerBitSize::Sixteen => "u16",
                 IntegerBitSize::ThirtyTwo => "u32",
@@ -475,6 +471,7 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(path) => path.location,
             UnresolvedTypeExpression::Constant(_, _, location) => *location,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
+            UnresolvedTypeExpression::Negation(_, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 path.trait_path.location.merge(path.impl_item.location())
             }
@@ -487,19 +484,13 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
-                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+            ExpressionKind::Literal(Literal::Integer(field, suffix)) => {
+                Ok(UnresolvedTypeExpression::Constant(field, suffix, expr.location))
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    SignedField::zero(),
-                    None,
-                    expr.location,
-                ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
-                let op = BinaryTypeOperator::Subtraction;
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
+                Ok(UnresolvedTypeExpression::Negation(rhs, expr.location))
             }
             ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
                 let lhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.lhs)?);
@@ -546,6 +537,12 @@ impl UnresolvedTypeExpression {
                     rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
                 }))
             }
+            UnresolvedTypeExpression::Negation(rhs, location) => {
+                ExpressionKind::Prefix(Box::new(PrefixExpression {
+                    operator: UnaryOp::Minus,
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 ExpressionKind::AsTraitPath(Box::new(*path.clone()))
             }
@@ -561,17 +558,6 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Divide
                 | BinaryOpKind::Modulo
         )
-    }
-
-    pub(crate) fn is_valid_expression(&self) -> bool {
-        match self {
-            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
-            UnresolvedTypeExpression::Constant(_, _, _) => true,
-            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                lhs.is_valid_expression() && rhs.is_valid_expression()
-            }
-            UnresolvedTypeExpression::AsTraitPath(_) => true,
-        }
     }
 }
 

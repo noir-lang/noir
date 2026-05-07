@@ -51,7 +51,8 @@
 
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
+    hash::{Hash, Hasher},
     rc::Rc,
 };
 
@@ -62,11 +63,11 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::{ComptimeError, InterpreterError},
+        comptime::{ComptimeError, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
-                UnresolvedTraitImpl, UnresolvedTypeAlias,
+                CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
+                UnresolvedGlobal, UnresolvedTraitImpl, UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -123,6 +124,7 @@ use path_resolution::{
 };
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+use rustc_hash::FxHasher;
 
 /// Maximum number of recursive calls allowed at comptime.
 ///
@@ -136,6 +138,18 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Protect against stack overflows when elaborating deeply nested expressions.
+///
+/// We could use the `stacker` library to monitor the remaining stack depth,
+/// but in order to make tests repeatable across platforms with various stack
+/// size limits, we hard code a limit instead.
+///
+/// A similar measure exists in the parser.
+///
+/// Note that if we decrease this, it could be hit before `MAX_EVALUATION_DEPTH`
+/// while evaluating comptime expressions.
+const MAX_RECURSION_DEPTH: usize = 200;
 
 /// Maximum depth of macro expansion (attribute execution).
 ///
@@ -183,16 +197,47 @@ pub struct Loop {
     pub has_break: bool,
 }
 
+/// Helper to keep track of visited items, without having to clone all of them.
+///
+/// It cannot be used to iterate visited items, only to detect the first visit.
+///
+/// This is used where we would normally use a `HashSet<&T>`, but the borrow
+/// checker doesn't allow us due to lifetime issues for example. By storing
+/// the hashes, and the values only if the hashes collide, we avoid cloning
+/// in the majority of cases.
+struct VisitedRefHashSet<T> {
+    /// Contains the hashes of every visited item (they might collide).
+    hashes: HashSet<u64>,
+    /// Contains the items which have collided in `hashes`.
+    values: HashSet<T>,
+}
+
+impl<T: Hash + Clone + Eq> VisitedRefHashSet<T> {
+    fn new() -> Self {
+        Self { hashes: HashSet::new(), values: HashSet::new() }
+    }
+    /// Insert a new value by reference.
+    ///
+    /// Returns `true` if this is the first time we visited this value, `false` otherwise.
+    fn insert(&mut self, value: &T) -> bool {
+        let mut hasher = FxHasher::default();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        self.hashes.insert(hash) || self.values.insert(value.clone())
+    }
+}
+
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub(crate) errors: Vec<CompilationError>,
+    pub(crate) errors: CompilationErrors,
 
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+    pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -226,7 +271,9 @@ pub struct Elaborator<'context> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    /// The trait  we're currently resolving, if we are resolving one.
+    /// The trait we're currently resolving or implementing, if any.
+    /// Set during both trait definitions (`trait Foo { ... }`) and
+    /// trait impl elaboration (`impl Foo for Bar { ... }`).
     current_trait: Option<TraitId>,
 
     /// In-resolution names
@@ -297,6 +344,40 @@ pub struct Elaborator<'context> {
     /// when an attribute generates code that triggers further attribute expansion.
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
+
+    /// Counter used to define temporary variables for non-simple indexes in l-values.
+    ///
+    /// For example, this expression:
+    ///
+    /// ```noir
+    /// array[x + y] = 10;
+    /// ```
+    ///
+    /// is transformed into:
+    ///
+    /// ```noir
+    /// let i_0 = x + y;
+    /// array[i_0] = 10;
+    /// ```
+    lvalue_index_counter: usize,
+
+    /// Current recursion depth.
+    recursion_depth: usize,
+
+    /// Set when resolving types in positions where `impl Trait` is not allowed
+    /// (e.g., struct fields, globals, type aliases, enum variants).
+    /// `impl Trait` is only valid in function parameter and return type positions.
+    ///
+    /// This is stored as a field rather than checked at the call site so that it
+    /// propagates through recursive `resolve_type` calls.
+    pub(super) impl_trait_is_disallowed: Option<types::ImplTraitDisallowedContext>,
+
+    /// Variable names from a parent runtime scope, used for error reporting only.
+    /// When a fresh elaborator is created for comptime evaluation, this is populated
+    /// with the names of variables from the parent elaborator's scope. If a variable
+    /// lookup fails and the name is in this set, we can report a more specific error
+    /// about runtime variables not being available in comptime code.
+    parent_runtime_variables: rustc_hash::FxHashSet<String>,
 }
 
 #[derive(Copy, Clone)]
@@ -329,6 +410,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
@@ -338,12 +420,13 @@ impl<'context> Elaborator<'context> {
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
-            errors: Vec::new(),
+            errors: CompilationErrors::default(),
             interner,
             def_maps,
             usage_tracker,
             crate_graph,
             interpreter_output,
+            evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
@@ -368,6 +451,10 @@ impl<'context> Elaborator<'context> {
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
+            lvalue_index_counter: 0,
+            recursion_depth: 0,
+            impl_trait_is_disallowed: None,
+            parent_runtime_variables: rustc_hash::FxHashSet::default(),
         }
     }
 
@@ -395,6 +482,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            context.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
             &mut context.unresolved_globals,
             crate_id,
@@ -404,15 +492,17 @@ impl<'context> Elaborator<'context> {
         )
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
-    ) -> Vec<CompilationError> {
+    ) -> CompilationErrors {
         Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn elaborate_and_return_self(
         context: &'context mut Context,
         crate_id: CrateId,
@@ -425,6 +515,7 @@ impl<'context> Elaborator<'context> {
         this
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -468,6 +559,11 @@ impl<'context> Elaborator<'context> {
             &items.module_attributes,
         );
 
+        // Check for dependency cycles before elaborating function bodies.
+        // This breaks cyclic type aliases (replacing them with Type::Error) so that
+        // later phases like path resolution don't infinite-loop following alias chains.
+        self.push_errors(self.interner.check_for_dependency_cycles());
+
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
@@ -481,10 +577,9 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
-
-        self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
@@ -494,38 +589,37 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
-        let error: CompilationError = error.into();
-        // Filter out internal control flow errors that should not be displayed
-        if !error.should_be_filtered() {
-            self.errors.push(error);
-        }
+        self.errors.push(error);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        for error in errors {
-            self.push_err(error);
-        }
+        self.errors.extend(errors);
     }
 
     /// Run a given function while also tracking whether any new errors were generated as a result.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
         // Count actual errors (ignore warnings)
         let initial_error_count = self.errors.len();
         let result = f(self);
-        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        let has_new_errors = self.errors.iter().skip(initial_error_count).any(|e| e.is_error());
         (result, has_new_errors)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
             self.push_err(error);
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
             Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
@@ -536,6 +630,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
@@ -549,23 +644,47 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {
-        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
+        self.mark_type_as_used_helper(
+            typ,
+            TypeRecursionContext::default(),
+            &mut VisitedRefHashSet::new(),
+        );
     }
 
+    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
+    ///
+    /// We use two helper contexts:
+    /// * `type_recursion_context` is used to prevent infinite recursion in cycles,
+    ///   and recursing over types too deep until we hit stack overflow
+    /// * `visited` is used to only visit each type once; we only need to mark them once,
+    ///   but deeply nested generics can cause a combinatorial explosion of visits
+    #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used_helper(
         &mut self,
         typ: &Type,
         mut type_recursion_context: TypeRecursionContext,
+        visited: &mut VisitedRefHashSet<Type>,
     ) {
+        if !visited.insert(typ) {
+            return;
+        }
         match typ {
-            Type::Array(_n, typ) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+            Type::Array(typ, _n) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
-            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
+            Type::Vector(typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
+            }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
+                    self.mark_type_as_used_helper(
+                        typ,
+                        type_recursion_context.clone().recur(),
+                        visited,
+                    );
                 }
             }
             Type::DataType(datatype, generics) => {
@@ -575,6 +694,7 @@ impl<'context> Elaborator<'context> {
                         self.mark_type_as_used_helper(
                             generic,
                             type_recursion_context.clone().recur(),
+                            visited,
                         );
                     }
                     if let Some(fields) = datatype.borrow().get_fields(generics) {
@@ -582,6 +702,7 @@ impl<'context> Elaborator<'context> {
                             self.mark_type_as_used_helper(
                                 &typ,
                                 type_recursion_context.clone().recur(),
+                                visited,
                             );
                         }
                     } else if let Some(variants) = datatype.borrow().get_variants(generics) {
@@ -590,6 +711,7 @@ impl<'context> Elaborator<'context> {
                                 self.mark_type_as_used_helper(
                                     &typ,
                                     type_recursion_context.clone().recur(),
+                                    visited,
                                 );
                             }
                         }
@@ -601,19 +723,28 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used_helper(
                         &alias_type.borrow().get_type(generics),
                         type_recursion_context.recur(),
+                        visited,
                     );
                 }
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
-                self.mark_type_as_used_helper(to, type_recursion_context.recur());
+                self.mark_type_as_used_helper(
+                    from,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.mark_type_as_used_helper(to, type_recursion_context.recur(), visited);
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
-                self.mark_type_as_used_helper(right, type_recursion_context.recur());
+                self.mark_type_as_used_helper(
+                    left,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.mark_type_as_used_helper(right, type_recursion_context.recur(), visited);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -643,10 +774,12 @@ impl<'context> Elaborator<'context> {
         self.module_is_contract(self.module_id())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn module_is_contract(&self, module_id: ModuleId) -> bool {
         module_id.module(self.def_maps).is_contract
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.current_trait = Some(trait_id);
@@ -655,30 +788,29 @@ impl<'context> Elaborator<'context> {
         self.current_trait = None;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
 
         self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = Some(*module);
-            let errors = check_trait_impl_method_matches_declaration(
-                self.interner,
-                *function,
-                noir_function,
-            );
+            let errors =
+                check_trait_impl_method_matches_declaration(self, *function, noir_function);
             self.push_errors(errors);
         }
 
@@ -686,6 +818,7 @@ impl<'context> Elaborator<'context> {
 
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -694,13 +827,18 @@ impl<'context> Elaborator<'context> {
         &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
         &mut def_maps.get_mut(&module.krate).expect(message)[module.local_id]
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
+
+        let previous_in_comptime_context =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
@@ -709,35 +847,35 @@ impl<'context> Elaborator<'context> {
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
+        let previous_impl_trait_context =
+            self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
             let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
 
             if let Some(num_expr) = num_expr {
-                // Checks that the expression only references generics and constants
-                if !num_expr.is_valid_expression() {
-                    self.errors.push(CompilationError::ResolverError(
-                        ResolverError::RecursiveTypeAlias {
-                            location: alias.type_alias_def.numeric_location,
-                        },
-                    ));
-                    (Type::Error, None)
+                let typ =
+                    self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
+                if let Type::Alias(ref alias_ref, _) = typ {
+                    if alias_ref.borrow().numeric_expr.is_none() {
+                        self.push_err(CompilationError::ResolverError(
+                            ResolverError::InvalidNumericAliasExpression {
+                                location: alias.type_alias_def.numeric_location,
+                            },
+                        ));
+                        (Type::Error, None)
+                    } else {
+                        (typ, Some(num_expr))
+                    }
                 } else {
-                    (
-                        self.resolve_type_with_kind(
-                            alias.type_alias_def.typ,
-                            &kind,
-                            wildcard_allowed,
-                        ),
-                        Some(num_expr),
-                    )
+                    (typ, Some(num_expr))
                 }
             } else {
-                self.errors.push(CompilationError::ResolverError(
+                self.push_err(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
-                        location,
+                        location: alias.type_alias_def.numeric_location,
                     },
                 ));
                 (Type::Error, None)
@@ -746,11 +884,16 @@ impl<'context> Elaborator<'context> {
             (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
         };
 
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
+
         if !visibility.is_private() {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.current_item = None;
+        self.in_comptime_context = previous_in_comptime_context;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -775,6 +918,7 @@ impl<'context> Elaborator<'context> {
 
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
         // Is the feature globally enabled via CLI options?
         if self.options.enabled_unstable_features.contains(&feature) {
@@ -801,6 +945,7 @@ impl<'context> Elaborator<'context> {
 
     /// Run the given function using the resolver and return true if any errors (not warnings)
     /// occurred while running it.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
         let previous_errors = self.errors.len();
         let ret = f(self);
@@ -811,6 +956,7 @@ impl<'context> Elaborator<'context> {
     /// Push a new location to the interpreter call stack.
     ///
     /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
         location: Location,
@@ -828,6 +974,7 @@ impl<'context> Elaborator<'context> {
     /// Pops the last item from the interpreter call stack.
     ///
     /// Panics if the call stack is empty.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn pop_interpreter_call_stack(&mut self) {
         self.interpreter_call_stack
             .pop_back()
@@ -835,8 +982,40 @@ impl<'context> Elaborator<'context> {
     }
 
     /// The current interpreter call stack.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn reset_lvalue_index_counter(&mut self) {
+        self.lvalue_index_counter = 0;
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
+        let lvalue_index_counter = self.lvalue_index_counter;
+        self.lvalue_index_counter += 1;
+        lvalue_index_counter
+    }
+
+    /// Check the current recursion depth. if the limit has been reached,
+    /// emit an error and return `true`, otherwise return `false`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn inc_recursion_depth(&mut self, location: Location) -> bool {
+        if self.recursion_depth >= MAX_RECURSION_DEPTH {
+            self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
+            false
+        } else {
+            self.recursion_depth = self.recursion_depth.saturating_add(1);
+            true
+        }
+    }
+
+    /// Decrease the recursion depth, assuming we called `inc_recursion_depth` before and it returned `true`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn dec_recursion_depth(&mut self) {
+        self.recursion_depth = self.recursion_depth.saturating_sub(1);
     }
 }
 
@@ -965,7 +1144,7 @@ pub mod test_utils {
         };
 
         let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), false);
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

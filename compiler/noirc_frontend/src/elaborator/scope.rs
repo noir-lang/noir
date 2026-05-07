@@ -33,6 +33,7 @@ impl Elaborator<'_> {
         ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
         let current_module =
             self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
@@ -45,12 +46,14 @@ impl Elaborator<'_> {
         self.interner.get_type(type_id)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn get_trait(&self, trait_id: TraitId) -> &Trait {
         self.interner.get_trait(trait_id)
     }
 
     /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
     /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
         // Only local variables can be captured by closures.
         // (the variable might point to a numeric generic like `let N: u32`, which is not captured)
@@ -69,7 +72,7 @@ impl Elaborator<'_> {
                     .iter()
                     .position(|capture| capture.ident.id == variable.ident.id);
 
-                if position.is_none() {
+                let capture_index = position.or_else(|| {
                     // In a comptime context we capture comptime and non-comptime variables
                     // (the latter will be an error).
                     // In a non-comptime context we don't capture comptime variables.
@@ -80,19 +83,20 @@ impl Elaborator<'_> {
                             ident: variable.ident.clone(),
                             transitive_capture_index,
                         });
+                        // If this was a fresh capture, we added it to the end of
+                        // the captures vector:
+                        Some(self.lambda_stack[lambda_index].captures.len() - 1)
+                    } else {
+                        None
                     }
-                }
+                });
 
                 if lambda_index + 1 < self.lambda_stack.len() {
                     // There is more than one closure between the current scope and
                     // the scope of the variable, so this is a propagated capture.
                     // We need to track the transitive capture index as we go up in
                     // the closure stack.
-                    transitive_capture_index = Some(position.unwrap_or(
-                        // If this was a fresh capture, we added it to the end of
-                        // the captures vector:
-                        self.lambda_stack[lambda_index].captures.len() - 1,
-                    ));
+                    transitive_capture_index = capture_index;
                 }
             }
         }
@@ -102,6 +106,7 @@ impl Elaborator<'_> {
     /// If the path resolves to an item that is not a value (for example a struct, an enum,
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_item_as_value(
         &mut self,
         path: TypedPath,
@@ -156,11 +161,13 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn push_scope(&mut self) {
         self.scopes.start_scope();
         self.interner.comptime_scopes.push(Default::default());
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
         self.interner.comptime_scopes.pop();
@@ -169,6 +176,7 @@ impl Elaborator<'_> {
         self.check_for_unnecessary_mut_variables_in_scope_tree(&scope_decls);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
         let mut unused_vars = Vec::new();
 
@@ -195,6 +203,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
         let mut unnecessary_mut_vars = Vec::new();
 
@@ -224,6 +233,7 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&Trait> {
         let location = path.location;
         match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
@@ -249,6 +259,7 @@ impl Elaborator<'_> {
     /// Looks up a given [Type] by name.
     ///
     /// This will also instantiate any struct types found.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment
@@ -285,6 +296,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_type_alias(
         &mut self,
         path: TypedPath,

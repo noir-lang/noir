@@ -1,8 +1,9 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
+use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::procedures::ProcedureId;
 use crate::ErrorType;
@@ -100,10 +101,64 @@ pub struct BrilligArtifact<F> {
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // If we have unresolved jumps, show a comment with the destination, instead of just 0.
+        let unresolved_jumps = self
+            .unresolved_jumps
+            .iter()
+            .chain(self.unresolved_external_call_labels.iter())
+            .map(|(loc, label)| (*loc, label))
+            .collect::<HashMap<_, _>>();
+
+        let unresolved_jump_destinations = unresolved_jumps.values().collect::<HashSet<_>>();
+
+        // Show where the labels actually are. There can be multiple at the same position.
+        let mut labels_by_loc: HashMap<usize, Vec<&Label>> = HashMap::new();
+        for (label, loc) in &self.labels {
+            // We could show labels for every block, but for now just for jump destinations.
+            if !unresolved_jump_destinations.contains(&label) {
+                continue;
+            }
+            let labels = labels_by_loc.entry(*loc).or_default();
+            labels.push(label);
+        }
+        // self.labels has a non-deterministic iteration order, which could affect the concat of labels.
+        labels_by_loc.values_mut().for_each(|v| v.sort());
+
+        // The default label format is a bit verbose.
+        fn short_label(label: &&Label) -> String {
+            let typ = match &label.label_type {
+                LabelType::Entrypoint => "entry".to_string(),
+                LabelType::Function(id, Some(block_id)) => format!("{id}/{block_id}"),
+                LabelType::Function(id, None) => format!("{id}"),
+                LabelType::Procedure(procedure_id) => format!("{procedure_id}"),
+                LabelType::GlobalInit(id) => format!("global init {id}"),
+            };
+            label.section.map(|s| format!("{typ}/{s}")).unwrap_or(typ)
+        }
+
+        let get_comment = |index| {
+            // Only annotate if there are jumps. We could show labels anyway if we wanted.
+            if unresolved_jumps.is_empty() {
+                return String::new();
+            }
+            let destination = unresolved_jumps.get(&index).map(|label| {
+                let short = short_label(label);
+                if let Some(loc) = self.labels.get(label) {
+                    format!("-> {loc}: {short}")
+                } else {
+                    format!("-> {short}")
+                }
+            });
+            let labels =
+                labels_by_loc.get(&index).map(|labels| vecmap(labels, short_label).join(", "));
+            destination.or(labels).map(|s| format!(" // {s}")).unwrap_or_default()
+        };
+
         writeln!(f, "fn {}", self.name)?;
         let width = self.byte_code.len().to_string().len();
         for (index, opcode) in self.byte_code.iter().enumerate() {
-            writeln!(f, "{index:>width$}: {opcode}")?;
+            let comment = get_comment(index);
+            writeln!(f, "{index:>width$}: {opcode}{comment}")?;
         }
         Ok(())
     }
@@ -112,7 +167,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum LabelType {
     /// Labels for the entry point bytecode
     Entrypoint,
@@ -130,15 +185,15 @@ impl std::fmt::Display for LabelType {
         match self {
             LabelType::Function(function_id, block_id) => {
                 if let Some(block_id) = block_id {
-                    write!(f, "Function({function_id:?}, {block_id:?})")
+                    write!(f, "Function({function_id}, {block_id})")
                 } else {
-                    write!(f, "Function({function_id:?})")
+                    write!(f, "Function({function_id})")
                 }
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
-            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id})"),
             LabelType::GlobalInit(function_id) => {
-                write!(f, "Globals Initialization({function_id:?})")
+                write!(f, "Globals Initialization({function_id})")
             }
         }
     }
@@ -148,7 +203,7 @@ impl std::fmt::Display for LabelType {
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) struct Label {
     pub(crate) label_type: LabelType,
     pub(crate) section: Option<usize>,
@@ -183,9 +238,9 @@ impl Label {
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(section) = self.section {
-            write!(f, "{:?} - {}", self.label_type, section)
+            write!(f, "{} / {}", self.label_type, section)
         } else {
-            write!(f, "{:?}", self.label_type)
+            write!(f, "{}", self.label_type)
         }
     }
 }

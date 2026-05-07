@@ -1,7 +1,11 @@
 //! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
-//! within the function caller. If all function calls are known, there will only
-//! be a single function remaining when the pass finishes.
+//! within the function caller. If all function calls are known, only the inline
+//! targets — `main`, any Brillig or folded ACIR entry point, and any recursive
+//! ACIR function (see [InlineInfo::is_inline_target]) — will remain when the pass finishes.
+//!
+//! Global [values][Value::Global] live in the shared SSA global DFG.
+//! Inlining preserves their [ValueId]s in place rather than cloning them into each inline target.
 
 use std::collections::HashSet;
 
@@ -12,7 +16,8 @@ use crate::{
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
-use noirc_errors::{Location, call_stack::CallStackId};
+use itertools::Itertools;
+use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -42,8 +47,8 @@ impl Ssa {
     /// In the case of recursive Acir functions, this will attempt
     /// to recursively inline until the RECURSION_LIMIT is reached.
     ///
-    /// Functions are recursively inlined into main until either we finish
-    /// inlining all functions or we encounter a function whose function id is not known.
+    /// Functions are recursively inlined into each [inline target][InlineInfo::is_inline_target] until either we
+    /// finish inlining all functions or we encounter a function whose function id is not known.
     /// When the later happens, the call instruction is kept in addition to the function
     /// it refers to. The function it refers to is kept unmodified without any inlining
     /// changes. This is because if the function's id later becomes known by a later
@@ -83,7 +88,9 @@ impl Ssa {
         loop {
             let num_functions_before = self.functions.len();
 
-            let call_graph = CallGraph::from_ssa_weighted(&self);
+            // The inliner works on direct call sites and is robust to indirect calls
+            // (which it cannot inline anyway).
+            let call_graph = CallGraph::from_ssa_weighted_partial(&self);
 
             let inline_infos = compute_inline_infos(
                 &self,
@@ -158,9 +165,10 @@ impl Function {
 
 /// The context for the function inlining pass.
 ///
-/// This works using an internal FunctionBuilder to build a new main function from scratch.
-/// Doing it this way properly handles importing instructions between functions and lets us
-/// reuse the existing API at the cost of essentially cloning each of main's instructions.
+/// This works using an internal FunctionBuilder to build a new inline-target function
+/// from scratch. Doing it this way properly handles importing instructions between
+/// functions and lets us reuse the existing API at the cost of essentially cloning
+/// each of the inline target's instructions.
 struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
@@ -207,10 +215,10 @@ struct PerFunctionContext<'function> {
 
 impl InlineContext {
     /// Create a new context object for the function inlining pass.
-    /// This starts off with an empty mapping of instructions for main's parameters.
-    /// The function being inlined into will always be the main function, although it is
-    /// actually a copy that is created in case the original main is still needed from a function
-    /// that could not be inlined calling it.
+    /// This starts off with an empty mapping of instructions for the inline target's
+    /// parameters. The function being inlined into is the current inline target,
+    /// although it is actually a copy that is created in case the original is still needed
+    /// from a function that could not be inlined calling it.
     fn new(ssa: &Ssa, entry_point: FunctionId) -> Self {
         let source = &ssa.functions[&entry_point];
         let builder = FunctionBuilder::from_existing(source, entry_point);
@@ -270,8 +278,7 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(self, entry_point, source_function);
 
         let parameters = source_function.parameters();
-        assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values = parameters.iter().copied().zip_eq(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
@@ -383,7 +390,7 @@ impl<'function> PerFunctionContext<'function> {
     ) {
         let original_parameters = self.source_function.dfg.block_parameters(source_block);
         for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let typ = self.source_function.dfg.type_of_value(*parameter).into_owned();
             let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
             self.values.insert(*parameter, new_parameter);
         }
@@ -527,7 +534,7 @@ impl<'function> PerFunctionContext<'function> {
     fn validate_callee(
         &self,
         callee: &Function,
-        call_stack: Vec<Location>,
+        call_stack: CallStack,
     ) -> Result<(), RuntimeError> {
         if self.entry_function.runtime().is_brillig() && callee.runtime().is_acir() {
             // If the caller is Brillig and the called function is ACIR,
@@ -582,7 +589,7 @@ impl<'function> PerFunctionContext<'function> {
         if new_results.is_empty() && !old_results.is_empty() {
             let unreachable_block = self.context.builder.insert_block();
             for old_result in old_results {
-                let typ = self.source_function.dfg.type_of_value(*old_result);
+                let typ = self.source_function.dfg.type_of_value(*old_result).into_owned();
                 let param = self.context.builder.add_block_parameter(unreachable_block, typ);
                 self.values.insert(*old_result, param);
             }
@@ -611,9 +618,9 @@ impl<'function> PerFunctionContext<'function> {
             .extend_call_stack(call_stack, &source_call_stack);
         let results = self.source_function.dfg.instruction_results(id).to_vec();
 
-        let ctrl_typevars = instruction
-            .requires_ctrl_typevars()
-            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
+        let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+            vecmap(&results, |result| self.source_function.dfg.type_of_value(*result).into_owned())
+        });
 
         self.context.builder.set_call_stack(call_stack);
 
@@ -1009,10 +1016,13 @@ mod tests {
 
     #[test]
     fn inliner_disabled() {
+        // At minimum aggressiveness, cost-based inlining is disabled.
+        // Use two call sites so the single-caller heuristic does not apply.
         let src = "
         brillig(inline) fn foo f0 {
           b0():
             v1 = call f1() -> Field
+            v2 = call f1() -> Field
             return v1
         }
         brillig(inline) fn bar f1 {
@@ -1267,9 +1277,11 @@ mod tests {
 
     #[test]
     fn inline_always_function() {
+        // Two call sites so the single-caller heuristic does not apply.
         let src = "
         brillig(inline) fn main f0 {
             b0():
+              call f1()
               call f1()
               return
         }
@@ -1287,8 +1299,8 @@ mod tests {
         }
         ");
 
-        // Check that with a minimum inliner aggressiveness we do not inline a function
-        // not marked with `inline_always`
+        // Without inline_always, the function is not inlined at minimum aggressiveness
+        // (two callers means the single-caller heuristic does not apply).
         let no_inline_always_src = &src.replace("inline_always", "inline");
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
@@ -1899,11 +1911,15 @@ mod simple_functions {
 
     #[test]
     fn does_not_inline_function_with_multiple_instructions() {
+        // f1 has >10 instructions (not simple) and is called from two sites,
+        // so it is not eligible for single-caller inlining. At minimum
+        // aggressiveness, cost-model inlining also does not apply.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field):
             v1 = call f1(v0) -> Field
-            return v1
+            v2 = call f1(v1) -> Field
+            return v2
         }
 
         brillig(inline) fn foo f1 {

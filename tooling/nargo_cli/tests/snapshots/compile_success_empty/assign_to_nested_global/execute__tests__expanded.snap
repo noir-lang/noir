@@ -9,7 +9,7 @@ mod foo {
 
     pub comptime mut global bar: u32 = 2;
 
-    pub comptime mut global baz: Struct = Struct { field: 3 };
+    pub comptime mut global baz: Struct = Struct { field: 0x03 };
 }
 
 fn main() {

@@ -34,7 +34,7 @@ const KECCAK_LANES: usize = 25;
 pub fn keccakf1600(
     mut state: [u64; KECCAK_LANES],
 ) -> Result<[u64; KECCAK_LANES], BlackBoxResolutionError> {
-    keccak::f1600(&mut state);
+    keccak::Keccak::new().with_f1600(|f1600| f1600(&mut state));
     Ok(state)
 }
 

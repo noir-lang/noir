@@ -156,3 +156,108 @@ There are some fuzzing-specific options that can be used with `nargo test`:
 
 By default, the fuzzing corpus is saved in a temporary directory, but this can be changed. This allows you to resume fuzzing from the same corpus if the process is interrupted, if you want to run continuous fuzzing on your corpus, or if you want to use previous failures for regression testing.
 
+## Coverage
+
+Pass `--coverage` to `nargo test` to measure which lines of your library are exercised by its tests.
+
+```bash
+nargo test --coverage
+```
+
+Coverage is collected by running each argument-free test through the comptime interpreter and recording which expressions are evaluated. Fuzz tests (tests with arguments) are not included.
+
+After the run, one `lcov.info` file is written per package:
+
+| Layout | Output path |
+|--------|-------------|
+| Single-package | `target/coverage/lcov.info` |
+| Multi-package workspace | `target/coverage/<package-name>/lcov.info` |
+
+The output directory can be overridden with `--coverage-dir <DIR>`. The same single-vs-multi-package nesting applies relative to the chosen directory.
+
+The files use [lcov trace file format](https://ltp.sourceforge.net/coverage/lcov/geninfo.1.php) and are compatible with standard coverage tools. For in-editor highlighting, install the [Coverage Gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) VS Code extension, which automatically picks up `lcov.info` files and highlights covered (green) and uncovered (red) lines in the editor.
+
+## Mocking Oracles
+
+When testing code that calls [oracles](../noir/concepts/oracles.mdx), you can use `OracleMock` from `std::test` to provide return values without needing an actual oracle server.
+
+### Basic usage
+
+```rust
+use std::test::OracleMock;
+
+#[oracle(get_price)]
+unconstrained fn get_price_oracle() -> Field {}
+
+unconstrained fn get_price() -> Field {
+    get_price_oracle()
+}
+
+#[test]
+fn test_with_mock() {
+    // Safety: testing context, return value is checked below
+    unsafe {
+        OracleMock::mock("get_price").returns(100);
+        assert_eq(get_price(), 100);
+    }
+}
+```
+
+### Matching parameters
+
+You can make a mock only respond to calls with specific parameters using `with_params`. The parameters are passed as a tuple:
+
+```rust
+#[oracle(get_balance)]
+unconstrained fn get_balance_oracle(account: Field) -> Field {}
+
+unconstrained fn get_balance(account: Field) -> Field {
+    get_balance_oracle(account)
+}
+
+#[test]
+fn test_multiple_accounts() {
+    // Safety: testing context
+    unsafe {
+        OracleMock::mock("get_balance").with_params((1,)).returns(100);
+        OracleMock::mock("get_balance").with_params((2,)).returns(200);
+
+        assert_eq(get_balance(1), 100);
+        assert_eq(get_balance(2), 200);
+    }
+}
+```
+
+### Limiting invocations
+
+Use `times` to limit how many times a mock can be invoked. After the limit is reached, the next mock in creation order is used:
+
+```rust
+#[test]
+fn test_changing_values() {
+    // Safety: testing context
+    unsafe {
+        OracleMock::mock("get_price").returns(100).times(2);
+        OracleMock::mock("get_price").returns(200);
+
+        assert_eq(get_price(), 100);  // First mock (call 1 of 2)
+        assert_eq(get_price(), 100);  // First mock (call 2 of 2)
+        assert_eq(get_price(), 200);  // First mock exhausted, falls through to second
+    }
+}
+```
+
+### OracleMock API reference
+
+All methods are unconstrained.
+
+| Method | Description |
+|--------|-------------|
+| `OracleMock::mock("name")` | Create a mock for the named oracle. Returns `Self` for chaining. |
+| `.with_params(params)` | Only match calls with these parameters (passed as a tuple). Returns `Self`. |
+| `.returns(value)` | Set the return value for matched calls. Returns `Self`. |
+| `.times(n)` | Limit the mock to `n` invocations, after which it is skipped. Returns `Self`. |
+| `.times_called()` | Returns how many times this mock has been invoked. |
+| `.get_last_params()` | Returns the parameters from the most recent matching call. |
+| `.clear()` | Remove this mock so it no longer matches any calls. |
+
