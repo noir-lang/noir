@@ -2039,6 +2039,18 @@ impl<'interner> Monomorphizer<'interner> {
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        // `resolve_trait_item_impl` extends the call expression's stored
+        // instantiation bindings with the resolved impl's bindings (so the
+        // ensuing `queue_function` call sees them) and writes the result back
+        // to the interner. The same call expression can be visited again
+        // under a different monomorphization context when its receiver type
+        // is generic and gets resolved to different concrete types across
+        // monomorphization contexts; on the second visit the freshly-extended
+        // bindings would otherwise inherit impl-specific entries from the
+        // first visit. Snapshot and restore here so each visit starts from
+        // the elaboration-time bindings.
+        let saved_bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
+
         let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
@@ -2052,11 +2064,17 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        self.monomorphize_constrained_and_unconstrained(
+        let result = self.monomorphize_constrained_and_unconstrained(
             use_current_runtime,
             self.force_unconstrained,
             |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
-        )
+        );
+
+        if let Some(saved) = saved_bindings {
+            self.interner.store_instantiation_bindings(expr_id, saved);
+        }
+
+        result
     }
 
     /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
