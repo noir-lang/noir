@@ -1056,6 +1056,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Break => Ok(ast::Expression::Break),
             HirStatement::Continue => Ok(ast::Expression::Continue),
             HirStatement::Error => unreachable!(),
+            HirStatement::TraitAssociatedConstant => {
+                unreachable!("trait-associated-constant placeholder reached monomorphization")
+            }
 
             // All `comptime` statements & expressions should be removed before runtime.
             HirStatement::Comptime(_) => unreachable!("comptime statement in runtime code"),
@@ -1447,6 +1450,15 @@ impl<'interner> Monomorphizer<'interner> {
             None,
             evaluate_builtin,
         )?;
+
+        // `static_assert` and the `print` oracle cannot be higher-order values because the compiler
+        // adds arguments to their call during monomorphization.
+        if evaluate_builtin && let Some(name) = special_function_name(&definition) {
+            return Err(MonomorphizationError::CannotUseFunctionAsValue {
+                name: name.to_string(),
+                location,
+            });
+        }
 
         if self.function_is_oracle(func_id)
             && let Type::Function(_args, ret, _env, _unconstrained) = typ
@@ -2924,6 +2936,23 @@ impl<'interner> Monomorphizer<'interner> {
         self.interner.function_modifiers(&func_id).attributes.function.as_ref().is_some_and(
             |(attribute, _)| matches!(attribute.kind, FunctionAttributeKind::Oracle(..)),
         )
+    }
+}
+
+/// If this definition refers to a builtin or oracle whose call site requires
+/// special handling in `function_call` (printable type info append), return
+/// the user-facing name. Otherwise return `None`. Such functions cannot be
+/// used as first-class values because the special handling only fires for
+/// direct calls.
+fn special_function_name(definition: &Definition) -> Option<&str> {
+    match definition {
+        Definition::Builtin(name) if name == "static_assert" => Some(name),
+        Definition::Oracle(name)
+            if matches!(ForeignCall::lookup(name), Some(ForeignCall::Print)) =>
+        {
+            Some(name)
+        }
+        _ => None,
     }
 }
 
