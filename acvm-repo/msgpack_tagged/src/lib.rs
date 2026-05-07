@@ -9,6 +9,7 @@
 //!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
 //!   wrapper Serializer/Deserializer (added in a follow-up step).
 
+mod primitives;
 mod registry;
 
 pub use registry::{Entry, TagRegistry};
