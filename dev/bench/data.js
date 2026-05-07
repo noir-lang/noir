@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778179277486,
+  "lastUpdate": 1778179658758,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "214dcce417492306a09b8dca6e9d8f59581d0b26",
-          "message": "fix: allow sorting empty arrays in constrained code (#12509)",
-          "timestamp": "2026-05-01T15:01:59Z",
-          "tree_id": "3450f55cdc54b38edb38a076bb8b960d13f31e69",
-          "url": "https://github.com/noir-lang/noir/commit/214dcce417492306a09b8dca6e9d8f59581d0b26"
-        },
-        "date": 1777650430274,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 294.73,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 518.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 275.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 356.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 355.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 357.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 355.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6050,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 357.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 874.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.93,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 97.74,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 146.09,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4884,6 +4785,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 517.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 275.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 355.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 355.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 357.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 355.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6050,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6050,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 356.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 874.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 354.54,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 97.3,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 145.65,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aaca1e0b853cc8e7556dc51ea3cf6a33a7e5db2f",
+          "message": "fix: drop noirc_span dep from acir to unblock publish (#12587)",
+          "timestamp": "2026-05-07T18:01:36Z",
+          "tree_id": "68f7726b7965b90e39a738e8e44e787081b8a536",
+          "url": "https://github.com/noir-lang/noir/commit/aaca1e0b853cc8e7556dc51ea3cf6a33a7e5db2f"
+        },
+        "date": 1778179598436,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 294.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 517.75,
             "unit": "MB"
           },
           {
