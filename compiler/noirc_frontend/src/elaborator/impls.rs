@@ -255,12 +255,6 @@ impl Elaborator<'_> {
     /// ```
     #[tracing::instrument(level = "trace", skip_all)]
     fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
-        // `add_method` reads `function_meta(method_id).typ` for overlap detection
-        // and `function_meta(method_id).name.location` for diagnostics, so the meta
-        // for each candidate must be resolved before we register it.
-        for method_id in function_ids {
-            self.define_function_meta_if_undefined(*method_id);
-        }
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
