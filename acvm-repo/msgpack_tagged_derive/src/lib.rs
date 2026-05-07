@@ -12,8 +12,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Token, Type,
-    WhereClause,
+    Attribute, Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Token,
+    Type, WhereClause,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -66,6 +66,10 @@ fn expand_named_struct(
     let name = &input.ident;
     let name_str = name.to_string();
 
+    // Type-level `#[reserved(N, M, ...)]`: tags retired from this type. Active
+    // `#[tag(N)]` annotations on fields are rejected if N is in this list.
+    let reserved = parse_reserved(input)?;
+
     // Parse each field. Tagged fields contribute to TAGS, the recursion list,
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
     // are silently dropped — they don't go on the wire and don't constrain
@@ -73,7 +77,7 @@ fn expand_named_struct(
     let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
-        match classify_field(field)? {
+        match classify_field(field, &reserved)? {
             FieldKind::Tagged { tag, has_default } => {
                 entries.push(TaggedField { tag, ident, ty: &field.ty, has_default });
             }
@@ -93,6 +97,8 @@ fn expand_named_struct(
         let tag = e.tag;
         quote! { #tag }
     });
+
+    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
@@ -114,7 +120,9 @@ fn expand_named_struct(
             const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
                 #(#tag_entries),*
             ];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
+            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
+                #(#reserved_entries),*
+            ];
             const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
                 #(#default_entries),*
             ];
@@ -194,9 +202,10 @@ impl Parse for TagArgs {
 
 /// Decide whether a field is wire-visible or skipped. Errors loudly when a
 /// field has no annotation and isn't a recognized auto-skip type — the
-/// strict-by-default discipline.
-fn classify_field(field: &Field) -> syn::Result<FieldKind> {
-    let mut found: Option<TagArgs> = None;
+/// strict-by-default discipline. Also enforces that an active `#[tag(N)]`
+/// doesn't collide with the type-level `#[reserved(...)]` list.
+fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
+    let mut found: Option<(&Attribute, TagArgs)> = None;
     for attr in &field.attrs {
         if !attr.path().is_ident("tag") {
             continue;
@@ -204,16 +213,26 @@ fn classify_field(field: &Field) -> syn::Result<FieldKind> {
         if found.is_some() {
             return Err(syn::Error::new_spanned(attr, "duplicate `#[tag(...)]` attribute"));
         }
-        found = Some(attr.parse_args()?);
+        found = Some((attr, attr.parse_args()?));
     }
 
     // Explicit annotation wins over auto-skip — if the user explicitly tags a
     // PhantomData field with `#[tag(N)]`, we honor that (unusual but valid).
-    if let Some(args) = found {
-        return Ok(match args {
-            TagArgs::Tag { tag, default } => FieldKind::Tagged { tag, has_default: default },
-            TagArgs::Skip => FieldKind::Skipped,
-        });
+    if let Some((attr, args)) = found {
+        return match args {
+            TagArgs::Tag { tag, default } => {
+                if reserved.contains(&tag) {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        format!(
+                            "tag {tag} is in the type's `#[reserved(...)]` list — pick a different tag, or remove it from `#[reserved(...)]`"
+                        ),
+                    ));
+                }
+                Ok(FieldKind::Tagged { tag, has_default: default })
+            }
+            TagArgs::Skip => Ok(FieldKind::Skipped),
+        };
     }
 
     // No `#[tag(...)]` at all — fall back to auto-skip for `PhantomData<_>`
@@ -227,6 +246,46 @@ fn classify_field(field: &Field) -> syn::Result<FieldKind> {
         field,
         "missing `#[tag(N)]` attribute — every field needs an explicit tag, `#[tag(skip)]`, or be `PhantomData<_>`",
     ))
+}
+
+/// Parse the type-level `#[reserved(N, M, ...)]` attribute, if present. At
+/// most one such attribute per type. Errors on duplicates within the list or
+/// out-of-range integers.
+fn parse_reserved(input: &DeriveInput) -> syn::Result<Vec<u8>> {
+    let mut reserved_attr: Option<&Attribute> = None;
+    for attr in &input.attrs {
+        if !attr.path().is_ident("reserved") {
+            continue;
+        }
+        if reserved_attr.is_some() {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "duplicate `#[reserved(...)]` attribute on this type",
+            ));
+        }
+        reserved_attr = Some(attr);
+    }
+
+    let Some(attr) = reserved_attr else {
+        return Ok(Vec::new());
+    };
+
+    let lits: Punctuated<LitInt, Token![,]> = attr.parse_args_with(Punctuated::parse_terminated)?;
+
+    let mut tags = Vec::with_capacity(lits.len());
+    let mut seen = std::collections::HashSet::new();
+    for lit in &lits {
+        let n: u8 = lit.base10_parse()?;
+        if !seen.insert(n) {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!("tag {n} listed more than once in `#[reserved(...)]`"),
+            ));
+        }
+        tags.push(n);
+    }
+
+    Ok(tags)
 }
 
 /// Syntactically detect `PhantomData<_>` by checking the last path segment.

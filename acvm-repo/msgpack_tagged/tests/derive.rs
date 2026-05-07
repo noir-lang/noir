@@ -126,6 +126,20 @@ struct WithDefaults {
     annotation: String,
 }
 
+/// Type-level `#[reserved(...)]`: tags 1 and 4 have been retired and must
+/// never be reused. The macro emits these into `RESERVED`, and a `#[tag(1)]`
+/// or `#[tag(4)]` on any field would now be a compile error.
+#[derive(MsgpackTagged)]
+#[reserved(1, 4)]
+struct WithReserved {
+    #[tag(0)]
+    a: u32,
+    #[tag(2)]
+    b: u32,
+    #[tag(3)]
+    c: u32,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -145,6 +159,7 @@ fn derive_compiles_for_basic_shapes() {
     // because PhantomData<T> is auto-skipped — the bound chain doesn't reach T.
     assert_impl::<WithPhantom<Opaque>>();
     assert_impl::<WithDefaults>();
+    assert_impl::<WithReserved>();
 }
 
 #[test]
@@ -245,4 +260,22 @@ fn defaults_show_up_on_the_registry_entry() {
     assert!(!entry.is_default(0), "tag 0 (`required`) is not defaulted");
     assert!(entry.is_default(1), "tag 1 (`extra`) is defaulted");
     assert!(entry.is_default(2), "tag 2 (`annotation`) is defaulted");
+}
+
+#[test]
+fn reserved_tags_appear_in_the_const_and_registry() {
+    assert_eq!(<WithReserved as MsgpackTagged>::RESERVED, &[1, 4]);
+
+    let mut reg = TagRegistry::new();
+    WithReserved::register_into(&mut reg);
+    let entry = reg.get("WithReserved").expect("WithReserved should register itself");
+    assert!(entry.is_reserved(1));
+    assert!(entry.is_reserved(4));
+    assert!(!entry.is_reserved(0));
+    assert!(!entry.is_reserved(2));
+}
+
+#[test]
+fn reserved_tags_do_not_appear_in_tags() {
+    assert_eq!(<WithReserved as MsgpackTagged>::TAGS, &[(0, "a"), (2, "b"), (3, "c")]);
 }
