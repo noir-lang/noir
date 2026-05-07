@@ -286,18 +286,10 @@ fn expand_enum(
                 format!("variant tag {tag} is used more than once"),
             ));
         }
-        // `PhantomData<_>` is auto-skipped from both the recursion list and
-        // the where-clause bound, mirroring the struct-field behavior — it's
-        // zero-sized, doesn't appear on the wire, and doesn't implement
-        // `MsgpackTagged`, so binding it would be an unsatisfiable constraint.
         let payload_types: Vec<&Type> = match &variant.fields {
             Fields::Unit => Vec::new(),
-            Fields::Named(named) => {
-                named.named.iter().filter(|f| !is_phantom_data(&f.ty)).map(|f| &f.ty).collect()
-            }
-            Fields::Unnamed(unnamed) => {
-                unnamed.unnamed.iter().filter(|f| !is_phantom_data(&f.ty)).map(|f| &f.ty).collect()
-            }
+            Fields::Named(named) => named.named.iter().map(|f| &f.ty).collect(),
+            Fields::Unnamed(unnamed) => unnamed.unnamed.iter().map(|f| &f.ty).collect(),
         };
         variants.push(TaggedVariant { tag, name: variant.ident.to_string(), payload_types });
     }

@@ -89,9 +89,10 @@ enum WithReservedVariants {
     Fourth,
 }
 
-/// Variant payloads of `PhantomData<T>` are auto-skipped, just like in
-/// structs — the bound chain doesn't reach `T`, so non-`MsgpackTagged` types
-/// like `Opaque` can still be plugged in.
+/// Variant payloads of `PhantomData<T>` rely on the blanket
+/// `impl<T: 'static> MsgpackTagged for PhantomData<T>` — its bound is
+/// `T: 'static`, not `T: MsgpackTagged`, so non-`MsgpackTagged` types like
+/// `Opaque` can still appear behind it.
 #[derive(MsgpackTagged)]
 enum WithPhantomVariant<T> {
     #[tag(0)]
@@ -268,8 +269,9 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<GenericChoice<u32>>();
     assert_impl::<GenericChoice<Inner>>();
     assert_impl::<WithReservedVariants>();
-    // T = Opaque (no MsgpackTagged impl) still satisfies the enum's bounds,
-    // because PhantomData<T> in variant payloads is auto-skipped.
+    // T = Opaque (no MsgpackTagged impl) still satisfies the enum's bounds —
+    // `PhantomData<T>: MsgpackTagged` is blanket-implemented with only
+    // `T: 'static`, not `T: MsgpackTagged`.
     assert_impl::<WithPhantomVariant<Opaque>>();
     assert_impl::<Inner>();
     assert_impl::<Outer>();

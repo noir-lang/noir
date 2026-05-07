@@ -4,6 +4,14 @@
 //! and never go through `serialize_struct` / `deserialize_struct`. Their
 //! `register_into` is a no-op — they exist only to satisfy the `T: MsgpackTagged`
 //! bound that the macro propagates onto every tagged field's type.
+//!
+//! `PhantomData<T>` lives here for the same reason: zero-sized, wire-irrelevant,
+//! never registers anything. The struct-field auto-skip in the derive still
+//! drops `PhantomData` fields from `TAGS`, but inside enum variant payloads (and
+//! anywhere else that just needs the bound to hold transitively), this blanket
+//! impl is what makes things compose.
+
+use std::marker::PhantomData;
 
 use crate::{MsgpackTagged, Tag, TagRegistry};
 
@@ -38,6 +46,11 @@ impl_msgpack_tagged_for_primitive!(
     f64,
     String,
 );
+
+impl<T: 'static> MsgpackTagged for PhantomData<T> {
+    const TAGS: &'static [(Tag, &'static str)] = &[];
+    fn register_into(_reg: &mut TagRegistry) {}
+}
 
 #[cfg(test)]
 mod tests {
@@ -82,6 +95,24 @@ mod tests {
         <i64>::register_into(&mut reg);
         <f64>::register_into(&mut reg);
         <String>::register_into(&mut reg);
+        assert!(reg.is_empty());
+    }
+
+    /// Type parameter that is *not* `MsgpackTagged` — proves the blanket impl's
+    /// bound is `T: 'static` only, never `T: MsgpackTagged`.
+    struct Opaque;
+
+    #[test]
+    fn phantom_data_satisfies_the_trait_bound_without_t_msgpack_tagged() {
+        fn assert_impl<T: MsgpackTagged>() {}
+        assert_impl::<PhantomData<u32>>();
+        assert_impl::<PhantomData<Opaque>>();
+    }
+
+    #[test]
+    fn phantom_data_does_not_register_anything() {
+        let mut reg = TagRegistry::new();
+        <PhantomData<Opaque>>::register_into(&mut reg);
         assert!(reg.is_empty());
     }
 }
