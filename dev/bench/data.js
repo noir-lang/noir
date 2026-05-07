@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778173883539,
+  "lastUpdate": 1778175066190,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "45cdb9aca6d98fe178de2b23890ebf630345c16e",
-          "message": "feat: strip down stdlib implementation of poseidon2 (#12402)",
-          "timestamp": "2026-05-01T10:25:28Z",
-          "tree_id": "ccae97c0716499748d5b6d9e325961536b54896d",
-          "url": "https://github.com/noir-lang/noir/commit/45cdb9aca6d98fe178de2b23890ebf630345c16e"
-        },
-        "date": 1777632420385,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167669,
-            "range": "± 1056",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136407,
-            "range": "± 4466",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643557,
-            "range": "± 5591",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648488,
             "range": "± 5403",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "884cef89fdfcc5aafa56653042593cbb29dab772",
+          "message": "fix(frontend): snapshot+restore call expr bindings around trait-item monomorphization (#12579)",
+          "timestamp": "2026-05-07T17:06:14Z",
+          "tree_id": "76a7d60145be4b4f5ddb5549f0046bb194ce04e8",
+          "url": "https://github.com/noir-lang/noir/commit/884cef89fdfcc5aafa56653042593cbb29dab772"
+        },
+        "date": 1778174996623,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163897,
+            "range": "± 456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 134761,
+            "range": "± 2693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2121803,
+            "range": "± 977",
             "unit": "ns/iter"
           }
         ]
