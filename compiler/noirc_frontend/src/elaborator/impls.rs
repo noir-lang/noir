@@ -104,7 +104,7 @@ impl Elaborator<'_> {
     ///
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
@@ -141,7 +141,7 @@ impl Elaborator<'_> {
     ///
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
-    /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    /// The self type should be resolved by [Self::register_function_metas] before this method is called.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,
