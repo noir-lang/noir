@@ -9,6 +9,7 @@
 //!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
 //!   wrapper Serializer/Deserializer (added in a follow-up step).
 
+mod containers;
 mod primitives;
 mod registry;
 
@@ -29,6 +30,10 @@ pub type Tag = u8;
 /// The trait is metadata-only: it does *not* replace [`serde::Serialize`] /
 /// [`serde::Deserialize`]. It sits alongside them and exposes per-type tag
 /// information plus a recursive registry-build hook.
+#[diagnostic::on_unimplemented(
+    note = "use `#[derive(MsgpackTagged)]` on the type, or `#[via(WireType)]` on a shadow-DTO public type that delegates to a wire companion",
+    note = "for container fields, use `BTreeMap` / `BTreeSet` — `HashMap` / `HashSet` are deliberately unsupported on the wire because their iteration order is non-deterministic"
+)]
 pub trait MsgpackTagged {
     /// Tag-to-field-name table for this type, written by the macro from `#[tag(N)]`
     /// attributes in tag order. Empty for newtypes and shadow-DTO public types
