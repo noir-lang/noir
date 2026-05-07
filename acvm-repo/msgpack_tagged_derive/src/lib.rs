@@ -12,8 +12,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Generics, LitInt, Token,
-    parse_macro_input, parse_quote, punctuated::Punctuated,
+    Data, DataStruct, DeriveInput, Field, Fields, LitInt, Token, WhereClause, parse_macro_input,
+    parse_quote, punctuated::Punctuated,
 };
 
 #[proc_macro_derive(MsgpackTagged, attributes(tag, reserved, allow_unknown_tags, via))]
@@ -75,11 +75,15 @@ fn expand_named_struct(
         quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
     });
 
-    // Add `: ::msgpack_tagged::MsgpackTagged` to every type parameter so the
-    // recursive `register_into` calls compile and the trait bound chain is
-    // statically validated through the type graph.
-    let augmented = augment_generics(&input.generics);
-    let (impl_generics, ty_generics, where_clause) = augmented.split_for_impl();
+    // Bound *each tagged field's type* (rather than each generic param) on
+    // `MsgpackTagged`. This composes correctly with hand-written impls that
+    // have unusual bounds: e.g. if `MyType<A, B>: MsgpackTagged` requires
+    // `A: SomeOtherTrait`, our `where MyType<A, B>: MsgpackTagged` propagates
+    // that requirement through to the caller without us having to know about
+    // it. Naive per-type-param bounds (`A: MsgpackTagged, B: MsgpackTagged`)
+    // would be both too restrictive and insufficient in that case.
+    let where_clause = build_where_clause(input, &entries);
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
@@ -121,15 +125,36 @@ fn parse_tag_attribute(field: &Field) -> syn::Result<u8> {
     })
 }
 
-/// Add `: ::msgpack_tagged::MsgpackTagged` as a bound to every type parameter
-/// in `generics`. Naive (adds the bound even to params that don't appear in
-/// any tagged field's type) but always sound — refinement is a later step.
-fn augment_generics(generics: &Generics) -> Generics {
-    let mut out = generics.clone();
-    for param in &mut out.params {
-        if let GenericParam::Type(type_param) = param {
-            type_param.bounds.push(parse_quote!(::msgpack_tagged::MsgpackTagged));
+/// Build a `where` clause that requires every tagged field's type to implement
+/// `MsgpackTagged`, on top of any existing where clause on the input.
+///
+/// Field types appearing more than once (e.g. two fields of `Vec<u8>`) are
+/// only emitted as a bound once — Rust accepts duplicate bounds silently, but
+/// a single bound is cleaner in cargo-expand output and avoids tickling any
+/// future lint that flags duplicate trait bounds.
+///
+/// Returns `None` only if there are no tagged fields *and* no pre-existing
+/// where clause — that lets the caller avoid emitting a stray `where` token.
+fn build_where_clause(
+    input: &DeriveInput,
+    entries: &[(u8, &syn::Ident, &syn::Type)],
+) -> Option<WhereClause> {
+    if entries.is_empty() {
+        return input.generics.where_clause.clone();
+    }
+    let mut where_clause = input.generics.where_clause.clone().unwrap_or_else(|| WhereClause {
+        where_token: <Token![where]>::default(),
+        predicates: Punctuated::new(),
+    });
+    let mut seen = std::collections::HashSet::new();
+    for (_, _, ty) in entries {
+        // Dedup by stringified token-stream of the type. Not semantic equality
+        // (`Vec<u32>` vs `std::vec::Vec<u32>` would be treated as distinct),
+        // but it dedupes the common case where the same path is written the
+        // same way in multiple field declarations.
+        if seen.insert(quote!(#ty).to_string()) {
+            where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
         }
     }
-    out
+    Some(where_clause)
 }

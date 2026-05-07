@@ -55,6 +55,27 @@ struct Generic<T> {
     count: u32,
 }
 
+/// `WithMap<K, V>` exercises the per-field-type `where` bound: the impl emits
+/// `where BTreeMap<K, V>: MsgpackTagged` rather than `K: MsgpackTagged, V: MsgpackTagged`,
+/// so whatever bounds `BTreeMap`'s impl requires get propagated transitively.
+#[derive(MsgpackTagged)]
+struct WithMap<K, V> {
+    #[tag(0)]
+    map: std::collections::BTreeMap<K, V>,
+}
+
+/// Multiple fields of the same type — exercises dedup in the where-clause
+/// builder so we don't emit `u32: MsgpackTagged` twice.
+#[derive(MsgpackTagged)]
+struct SameTypeFields {
+    #[tag(0)]
+    a: u32,
+    #[tag(1)]
+    b: u32,
+    #[tag(2)]
+    c: u32,
+}
+
 /// Tags are not declared in source order, to assert the canonical
 /// tag-ascending ordering the derive should produce.
 #[derive(MsgpackTagged)]
@@ -79,6 +100,8 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<Generic<u32>>();
     assert_impl::<Generic<Inner>>();
     assert_impl::<OutOfOrder>();
+    assert_impl::<WithMap<u32, Inner>>();
+    assert_impl::<SameTypeFields>();
 }
 
 #[test]
@@ -130,4 +153,19 @@ fn generic_struct_recurses_into_its_concrete_type_parameter() {
     <Generic<Inner>>::register_into(&mut reg);
     assert!(reg.get("Generic").is_some());
     assert!(reg.get("Inner").is_some());
+}
+
+/// The per-field-type `where` bound transitively propagates whatever the
+/// inner container's impl requires. `WithMap<u32, Inner>` works because
+/// `BTreeMap<u32, Inner>: MsgpackTagged` holds (its blanket impl needs both
+/// key and value to implement the trait, and they do).
+#[test]
+fn generic_struct_with_container_field_recurses_into_both_inner_types() {
+    let mut reg = TagRegistry::new();
+    <WithMap<u32, Inner>>::register_into(&mut reg);
+    assert!(reg.get("WithMap").is_some());
+    assert!(
+        reg.get("Inner").is_some(),
+        "BTreeMap value type should be reached via the bound chain"
+    );
 }
