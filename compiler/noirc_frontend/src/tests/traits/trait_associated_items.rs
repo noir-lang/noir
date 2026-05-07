@@ -2141,3 +2141,50 @@ fn trait_associated_constant_duplicate_is_an_error() {
     "#;
     check_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12574
+/// Using a trait associated constant directly as the length of an array parameter on `main`
+/// used to be rejected with a misleading "Invalid entry point type" error, even though the
+/// constant resolves to a valid `u32` array length.
+#[test]
+fn entry_point_accepts_trait_associated_constant_as_array_length() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    unconstrained fn main(fields: [Field; <Field as Deserialize>::N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12574
+/// Using a `global` whose value comes from a trait associated constant as the length of an
+/// array parameter on `main` used to ICE with "Prepared trait impl should have been replaced
+/// by a Normal one" because the global was eagerly elaborated mid-signature-resolution while
+/// the trait impl was still in `Prepared` state.
+#[test]
+fn entry_point_accepts_global_backed_by_trait_associated_constant_as_array_length() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    global FIELD_N: u32 = <Field as Deserialize>::N;
+
+    unconstrained fn main(fields: [Field; FIELD_N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    assert_no_errors(src);
+}

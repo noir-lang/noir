@@ -117,8 +117,18 @@ impl Elaborator<'_> {
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
             // Now solve the actual types of the associated types
-            // (before this we only declared them without knowing their type)
-            if let Some(trait_impl_id) = trait_impl.impl_id {
+            // (before this we only declared them without knowing their type).
+            //
+            // [`Self::bind_trait_impl_associated_constants`] is also called earlier so that
+            // signatures and globals can refer to them while function metas are still being
+            // built; impls whose associated-constant values can be resolved without first
+            // looking up another impl will already have been bound there, and we skip them.
+            // Impls that *do* require another impl's bound state (for example, an associated
+            // constant defined in terms of `<T as Trait>::N`) are still bound for the first
+            // time here, after every trait impl has been registered as `Normal`.
+            if let Some(trait_impl_id) = trait_impl.impl_id
+                && !trait_impl.unresolved_associated_types.is_empty()
+            {
                 let unresolved_associated_types =
                     std::mem::take(&mut trait_impl.unresolved_associated_types);
                 let mut unresolved_associated_types =
@@ -827,6 +837,116 @@ impl Elaborator<'_> {
         (new_generics_trait_constraints, generics)
     }
 
+    /// Resolve and bind the value of every associated constant declared on `trait_impl`,
+    /// but only when none of the values reference another trait impl's associated item.
+    ///
+    /// Each associated constant of an impl is initially declared as an unbound
+    /// `NamedGeneric` in [`Self::resolve_trait_impl_associated_types`]. This step is what
+    /// finally evaluates the right-hand side (e.g. `let N: u32 = 1;`) and `try_bind`s the
+    /// result onto that `NamedGeneric`'s type variable.
+    ///
+    /// Running this pass before any function meta is defined lets entry-point signatures
+    /// and globals observe a fully-bound value when they read `<T as Trait>::N`, instead
+    /// of an unresolved `NamedGeneric` that would either be misclassified as an invalid
+    /// entry-point length or trigger an ICE when the comptime interpreter is invoked
+    /// mid-signature-resolution to evaluate a global.
+    ///
+    /// Impls whose associated constants reference *another* impl's associated item via
+    /// `<T as Trait>::Item` are skipped here and bound later in [`Self::collect_trait_impl`],
+    /// once every impl has been registered as `Normal` in the interner. Without that
+    /// deferral, an inter-impl lookup would resolve against a `Prepared` entry whose stored
+    /// object type isn't generalized, and `try_unify` would either fail to find a match or
+    /// permanently mutate one of the impl's generics.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn bind_trait_impl_associated_constants(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+    ) {
+        let Some(trait_impl_id) = trait_impl.impl_id else {
+            return;
+        };
+        if trait_impl.trait_id.is_none() {
+            return;
+        }
+        if trait_impl.unresolved_associated_types.is_empty() {
+            return;
+        }
+        if trait_impl
+            .unresolved_associated_types
+            .iter()
+            .any(|(_, typ)| unresolved_type_references_trait_impl_item(typ))
+        {
+            return;
+        }
+
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_self_type = std::mem::replace(
+            &mut self.self_type,
+            trait_impl.resolved_object_type.clone(),
+        );
+        let previous_current_trait_impl =
+            std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
+        let previous_current_trait =
+            std::mem::replace(&mut self.current_trait, trait_impl.trait_id);
+        let previous_generics =
+            std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
+
+        let where_clause =
+            self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
+
+        let unresolved_associated_types =
+            std::mem::take(&mut trait_impl.unresolved_associated_types);
+        let mut unresolved_associated_types =
+            unresolved_associated_types.into_iter().collect::<HashMap<_, _>>();
+
+        let associated_types =
+            self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+
+        for associated_type in &associated_types {
+            let Type::NamedGeneric(named_generic) = &associated_type.typ else {
+                // This can happen if the associated type is specified directly in the impl trait generics,
+                // This can't be done in code, but it could happen with unquoted types.
+                continue;
+            };
+
+            let Some(unresolved_type) =
+                unresolved_associated_types.remove(&associated_type.name)
+            else {
+                // This too can happen if the associated type is specified directly in the impl trait generics,
+                // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
+                // This can't be done in code, but it could happen with unquoted types.
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "bind_trait_impl_associated_constants: missing associated type",
+                    trait_impl.object_type.location,
+                ));
+                continue;
+            };
+            let wildcard_allowed =
+                WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            let location = unresolved_type.location;
+            let resolved_type = self.resolve_type_with_kind(
+                unresolved_type,
+                &associated_type.typ.kind(),
+                wildcard_allowed,
+            );
+            if let Err(error) = named_generic.type_var.try_bind(
+                resolved_type,
+                &named_generic.type_var.kind(),
+                location,
+            ) {
+                self.push_err(error);
+            }
+        }
+
+        self.remove_trait_constraints_from_scope(where_clause.iter());
+
+        self.generics = previous_generics;
+        self.current_trait = previous_current_trait;
+        self.current_trait_impl = previous_current_trait_impl;
+        self.self_type = previous_self_type;
+        self.local_module = previous_local_module;
+    }
+
     /// Resolves the trait path from a trait impl declaration.
     /// Returns (trait_id, trait_generics, path_location).
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1013,6 +1133,54 @@ impl Elaborator<'_> {
             wildcard_allowed,
         )
     }
+}
+
+/// Returns true if `typ` syntactically references another trait impl's associated item via
+/// `<T as Trait>::Item`. Used to decide whether a trait impl's associated-constant value can
+/// safely be resolved before all trait impls have been registered as `Normal`.
+fn unresolved_type_references_trait_impl_item(typ: &UnresolvedType) -> bool {
+    fn data_references(data: &UnresolvedTypeData) -> bool {
+        match data {
+            UnresolvedTypeData::Expression(expr) => expr_references(expr),
+            UnresolvedTypeData::Array(len, elem) => {
+                expr_references(len) || data_references(&elem.typ)
+            }
+            UnresolvedTypeData::Vector(elem) => data_references(&elem.typ),
+            UnresolvedTypeData::Reference(inner, _) => data_references(&inner.typ),
+            UnresolvedTypeData::Tuple(elems) => elems.iter().any(|e| data_references(&e.typ)),
+            UnresolvedTypeData::Parenthesized(inner) => data_references(&inner.typ),
+            UnresolvedTypeData::Named(_, args, _)
+            | UnresolvedTypeData::TraitAsType(_, args) => generic_args_reference(args),
+            UnresolvedTypeData::AsTraitPath(_) => true,
+            UnresolvedTypeData::Function(args, ret, env, _) => {
+                args.iter().any(|a| data_references(&a.typ))
+                    || data_references(&ret.typ)
+                    || data_references(&env.typ)
+            }
+            UnresolvedTypeData::Resolved(_)
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Error
+            | UnresolvedTypeData::Interned(_) => false,
+        }
+    }
+
+    fn expr_references(expr: &UnresolvedTypeExpression) -> bool {
+        match expr {
+            UnresolvedTypeExpression::AsTraitPath(_) => true,
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                expr_references(lhs) || expr_references(rhs)
+            }
+            UnresolvedTypeExpression::Negation(inner, _) => expr_references(inner),
+            UnresolvedTypeExpression::Variable(_) | UnresolvedTypeExpression::Constant(..) => false,
+        }
+    }
+
+    fn generic_args_reference(args: &GenericTypeArgs) -> bool {
+        args.ordered_args.iter().any(|t| data_references(&t.typ))
+            || args.named_args.iter().any(|(_, t)| data_references(&t.typ))
+    }
+
+    data_references(&typ.typ)
 }
 
 /// Returns true if the impl-level `where` constraint and the method-level

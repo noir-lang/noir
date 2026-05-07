@@ -3038,10 +3038,12 @@ fn resolve_trait_item_impl(
     })?;
 
     match trait_impl {
-        TraitImplKind::Normal(impl_id) => Ok(impl_id),
-        TraitImplKind::Prepared { .. } => {
-            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
-        }
+        // The per-expression cache (`selected_trait_implementations`) records whichever
+        // `TraitImplKind` `find_impl` returned at elaboration time, which may still be
+        // `Prepared` for impls that hadn't yet been finalised. Both variants carry the same
+        // `TraitImplId`, so resolving against `Prepared` is equivalent to resolving against
+        // the eventual `Normal` entry.
+        TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => Ok(impl_id),
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
@@ -3051,7 +3053,10 @@ fn resolve_trait_item_impl(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                Ok((
+                    TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _),
+                    instantiation_bindings,
+                )) => {
                     // Insert any additional instantiation bindings into this expression's instantiation bindings.
                     // This is similar to what's done in `verify_trait_constraint` in the frontend.
                     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
@@ -3069,11 +3074,6 @@ fn resolve_trait_item_impl(
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     Err(InterpreterError::NoImpl { location })
-                }
-                Ok((TraitImplKind::Prepared { .. }, _)) => {
-                    unreachable!(
-                        "ICE: Prepared trait impl should have been replaced by a Normal one"
-                    )
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
@@ -3198,18 +3198,13 @@ pub(crate) fn resolve_trait_item(
     let impl_id = resolve_trait_item_impl(interner, method_id, expr_id)?;
 
     let name = interner.definition_name(method_id.item_id);
-    let impl_ = interner.get_trait_implementation(impl_id);
-    let impl_ = impl_.borrow();
 
-    for method in &impl_.methods {
-        if interner.function_name(method) == name {
-            return Ok(TraitItem::Method(*method));
-        }
-    }
-
+    // Look up associated constants first: their data is stored on `trait_impl_associated_constants`
+    // and `associated_types`, both of which are populated as soon as the impl is *prepared*.
+    // This lets the comptime interpreter evaluate `<T as Foo>::N` while it is invoked
+    // mid-elaboration (for example to resolve a global referenced from a function signature),
+    // before the impl's `TraitImpl` entry has been added to `trait_implementations`.
     if let Some((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
-        // The lookup above returns the expected type but not the value that
-        // is expected to resolve to a Type::Constant - we have to look that up separately.
         for item in interner.get_associated_types_for_impl(impl_id) {
             if item.name.as_str() == name {
                 let id = *id;
@@ -3225,6 +3220,15 @@ pub(crate) fn resolve_trait_item(
 
                 return Ok(TraitItem::Constant { id, expected_type, value });
             }
+        }
+    }
+
+    let impl_ = interner.get_trait_implementation(impl_id);
+    let impl_ = impl_.borrow();
+
+    for method in &impl_.methods {
+        if interner.function_name(method) == name {
+            return Ok(TraitItem::Method(*method));
         }
     }
 

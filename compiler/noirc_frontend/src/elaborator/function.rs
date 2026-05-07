@@ -57,6 +57,14 @@ impl Elaborator<'_> {
             self.prepare_trait_impl_for_function_meta_definition(trait_impl)
         });
 
+        // Now that every trait impl has its associated-item NamedGenerics declared, we can
+        // resolve and bind their actual values. This must run before any function metas are
+        // defined so that signatures and globals referencing `<T as Trait>::N` (directly or
+        // through another global) see a bound value rather than an unresolved NamedGeneric.
+        for trait_impl in trait_impls.iter_mut() {
+            self.bind_trait_impl_associated_constants(trait_impl);
+        }
+
         // Define metas for regular functions
         for function_set in functions {
             self.define_function_metas_for_functions(function_set, &[]);
