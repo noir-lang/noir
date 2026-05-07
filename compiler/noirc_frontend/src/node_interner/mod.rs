@@ -599,6 +599,7 @@ impl NodeInterner {
             associated_types,
             associated_type_bounds: HashMap::default(),
             where_clause: Vec::new(),
+            parent_bounds: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
         };
@@ -1297,6 +1298,7 @@ impl NodeInterner {
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
             where_clause: vec![],
+            parent_bounds: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
         };

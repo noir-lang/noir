@@ -312,22 +312,22 @@ impl Elaborator<'_> {
 
             if overrides.is_empty() {
                 if let Some(default_impl) = &method.default_impl {
-                    // copy 'where' clause from unresolved trait impl
                     let mut default_impl_clone = default_impl.clone();
-                    default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
 
                     let func_id = self.interner.push_empty_fn();
                     let module = self.module_id();
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
+                    let extras =
+                        vecmap(trait_impl_where_clause, |c| (c.clone(), c.trait_bound.location));
+
                     self.recover_generics(|this| {
                         let no_trait_id = None;
-                        let no_extra_trait_constraints = &[];
                         this.define_function_meta(
                             &mut default_impl_clone,
                             func_id,
                             no_trait_id,
-                            no_extra_trait_constraints,
+                            &extras,
                         );
                     });
                     func_ids_in_trait.insert(func_id);
@@ -627,17 +627,23 @@ impl Elaborator<'_> {
         let impl_trait = the_trait.name.to_string();
         let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
-        // Bind Self to the object type of the impl so that parent-trait bounds
-        // (which are stored in the trait's where clause as constraints on Self)
-        // get checked against the concrete impl type.
+        // Bind Self to the object type of the impl so that parent-trait bounds get
+        // checked against the concrete impl type.
         let self_var = the_trait.self_type_typevar.clone();
         let self_kind = self_var.kind();
         let mut bindings = TypeBindings::default();
-        bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
+        bindings.insert(self_var.id(), (self_var.clone(), self_kind, object_type.clone()));
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
+        let self_type = Type::TypeVariable(self_var);
+        let parent_constraints = the_trait.parent_bounds.iter().map(|trait_bound| {
+            TraitConstraint { typ: self_type.clone(), trait_bound: trait_bound.clone() }
+        });
+        let constraints =
+            the_trait.where_clause.iter().cloned().chain(parent_constraints).collect();
+
         self.check_trait_bounds_are_satisfied(
-            the_trait.where_clause.clone(),
+            constraints,
             &impl_trait,
             &trait_impl.object_type.location,
             &mut bindings,

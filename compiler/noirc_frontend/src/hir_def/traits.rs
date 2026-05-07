@@ -81,11 +81,12 @@ pub struct Trait {
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
 
-    /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
-    /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
-    /// bounds and where-clause constraints share a single representation. Use
-    /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
+    /// The user-written where clause on the trait, e.g. the `T: Eq` in
+    /// `trait Foo<T> where T: Eq`.
     pub where_clause: Vec<TraitConstraint>,
+
+    /// The trait's super-trait bounds: the `Bar` in `trait Foo: Bar`.
+    pub parent_bounds: Vec<ResolvedTraitBound>,
 
     pub all_generics: ResolvedGenerics,
 
@@ -221,16 +222,13 @@ impl Trait {
         self.where_clause = where_clause;
     }
 
+    pub fn set_parent_bounds(&mut self, parent_bounds: Vec<ResolvedTraitBound>) {
+        self.parent_bounds = parent_bounds;
+    }
+
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
-    ///
-    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
-    /// trait's `Self` type variable; this accessor filters them back out.
     pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
-        let self_id = self.self_type_typevar.id();
-        self.where_clause.iter().filter_map(move |c| match &c.typ {
-            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
-            _ => None,
-        })
+        self.parent_bounds.iter()
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {

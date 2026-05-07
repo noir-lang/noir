@@ -292,18 +292,9 @@ impl Elaborator<'_> {
                 self.interner.add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
             }
 
-            // Lower super-trait bounds (`trait Foo: Bar`) into where-clause constraints
-            // keyed on `Self`, so that parent bounds and explicit where-clause entries
-            // share a single representation on `Trait`.
-            let self_type =
-                self.self_type.clone().expect("Expected Self type to be set inside collect_traits");
-            let mut where_clause = where_clause;
-            for trait_bound in resolved_trait_bounds {
-                where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
-            }
-
             self.interner.update_trait(*trait_id, |trait_def| {
                 trait_def.set_where_clause(where_clause);
+                trait_def.set_parent_bounds(resolved_trait_bounds);
                 trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 trait_def.set_associated_type_bounds(associated_type_bounds);
                 trait_def.set_all_generics(self.generics.clone());
