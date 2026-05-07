@@ -1,10 +1,15 @@
 //! Companion proc-macro crate for [`msgpack_tagged`].
 //!
 //! Handles named-field structs, tuple structs / newtypes, and enums end-to-end:
-//! parses `#[tag(N)]` annotations, emits `TAGS`, and emits a `register_into`
+//! parses `#[tag(N)]` annotations, builds a `Tagged::Product` (struct-shaped)
+//! or `Tagged::Sum` (enum-shaped) wire description, and emits a `register_into`
 //! that registers `Self` and recurses into each field/variant payload type.
 //! Unit structs and unions still fall through to a stub expansion until
 //! subsequent steps add their handling.
+//!
+//! Per-variant struct/tuple field tagging on enum variants is the next
+//! incremental step — at this point every enum variant gets an *empty*
+//! payload `Product`, and any `#[tag(...)]` on a variant's field is rejected.
 //!
 //! Design: [issue #12554](https://github.com/noir-lang/noir/issues/12554).
 
@@ -23,6 +28,78 @@ use syn::{
 pub fn derive_msgpack_tagged(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(&input).unwrap_or_else(syn::Error::into_compile_error).into()
+}
+
+/// Build a `Tagged::Product { ... }` literal from parsed field entries plus
+/// the type-level reserved list and unknown-tag policy. Used for named
+/// structs, tuple structs, and (eventually) enum variant payloads.
+fn product_literal(
+    entries: &[TaggedField<'_>],
+    reserved: &[u8],
+    allow_unknown_tags: bool,
+) -> TokenStream2 {
+    let field_entries = entries.iter().map(|e| {
+        let tag = e.tag;
+        let name = &e.name;
+        quote! { (#tag, #name) }
+    });
+    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
+        let tag = e.tag;
+        quote! { #tag }
+    });
+    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
+    quote! {
+        ::msgpack_tagged::Tagged::Product(::msgpack_tagged::Product {
+            fields: &[#(#field_entries),*],
+            reserved: &[#(#reserved_entries),*],
+            defaults: &[#(#default_entries),*],
+            allow_unknown_tags: #allow_unknown_tags,
+        })
+    }
+}
+
+/// Empty `Tagged::Product` literal — used by newtypes, `via`-delegating
+/// types, the stub expansion, and any other shape that contributes no wire
+/// metadata of its own.
+fn empty_product_literal() -> TokenStream2 {
+    quote! {
+        ::msgpack_tagged::Tagged::Product(::msgpack_tagged::Product {
+            fields: &[],
+            reserved: &[],
+            defaults: &[],
+            allow_unknown_tags: false,
+        })
+    }
+}
+
+/// Build a `Tagged::Sum` literal from variant entries and the
+/// enum-level reserved variant-tag list. Each variant carries an *empty*
+/// payload [`Product`] in this iteration — per-variant field tags are the
+/// next incremental step and will populate the payload's `fields`.
+fn sum_literal(variants: &[TaggedVariant<'_>], reserved: &[u8]) -> TokenStream2 {
+    let variant_entries = variants.iter().map(|v| {
+        let tag = v.tag;
+        let name = &v.name;
+        quote! {
+            ::msgpack_tagged::Variant {
+                tag: #tag,
+                name: #name,
+                payload: ::msgpack_tagged::Product {
+                    fields: &[],
+                    reserved: &[],
+                    defaults: &[],
+                    allow_unknown_tags: false,
+                },
+            }
+        }
+    });
+    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
+    quote! {
+        ::msgpack_tagged::Tagged::Sum(::msgpack_tagged::Sum {
+            variants: &[#(#variant_entries),*],
+            reserved: &[#(#reserved_entries),*],
+        })
+    }
 }
 
 fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
@@ -106,13 +183,11 @@ fn expand_newtype(
     let inner_type = &inner_field.ty;
     let where_clause = build_passthrough_where_clause(input, inner_type);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+    let tagged = empty_product_literal();
 
     Ok(quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
-            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
-            const ALLOW_UNKNOWN_TAGS: bool = false;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 <#inner_type as ::msgpack_tagged::MsgpackTagged>::register_into(_reg);
@@ -192,36 +267,18 @@ fn expand_tuple_struct(
     }
     entries.sort_by_key(|e| e.tag);
 
-    let tag_entries = entries.iter().map(|e| {
-        let tag = e.tag;
-        let name = &e.name;
-        quote! { (#tag, #name) }
-    });
-    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
-        let tag = e.tag;
-        quote! { #tag }
-    });
-    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
         quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
     });
 
+    let tagged = product_literal(&entries, reserved, allow_unknown_tags);
     let where_clause = build_where_clause(input, &entries);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
-                #(#tag_entries),*
-            ];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
-                #(#reserved_entries),*
-            ];
-            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
-                #(#default_entries),*
-            ];
-            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 if _reg.try_insert::<Self>(#name_str) {
@@ -244,26 +301,40 @@ struct TaggedVariant<'a> {
 }
 
 /// Enum (`enum E { A, B(...), C { ... } }`). Each variant carries an
-/// explicit `#[tag(N)]`; the variant tag, not any individual field tag, is
-/// what goes on the wire. `TAGS` lists `(variant_tag, variant_name)` pairs in
-/// tag-ascending order. `register_into` registers the enum itself and
+/// explicit `#[tag(N)]`; the variant tag is what goes on the wire as the
+/// discriminator. The expansion emits a `Tagged::Sum` listing every variant
+/// in tag-ascending order, and a `register_into` that registers `Self` and
 /// recurses into every variant's payload type so nested `MsgpackTagged`
 /// types are reached.
 ///
-/// Field-level `#[tag(...)]` *inside* a variant payload is rejected here —
-/// per-variant struct/tuple field tagging is a follow-up that needs richer
-/// per-variant data on the registry to be sound. `#[tag(skip)]` and the
-/// `default` modifier are likewise rejected on variants (no clear semantics).
+/// Per-variant struct/tuple field tagging is the next step — for now the
+/// macro emits an *empty* `Product` payload for every variant and rejects
+/// `#[tag(...)]` annotations *inside* a variant's payload. `#[tag(skip)]`
+/// and the `default` modifier are likewise rejected on variants (no clear
+/// semantics).
+///
+/// `#[tagged(allow_unknown_tags)]` is also rejected on enums: an unknown
+/// variant tag has no skip semantics — there's no fragment to skip, since
+/// the value's discriminator itself is unknown — so the flag would have
+/// nowhere to land in the wire shape.
 fn expand_enum(
     input: &DeriveInput,
     data: &DataEnum,
     type_attrs: &TypeAttrs,
 ) -> syn::Result<TokenStream2> {
     debug_assert!(type_attrs.via.is_none()); // handled in `expand`
+    if type_attrs.allow_unknown_tags {
+        return Err(syn::Error::new_spanned(
+            input,
+            "`#[tagged(allow_unknown_tags)]` doesn't apply to enums — there's no \
+             meaningful skip semantics for an unknown variant tag (the value's \
+             discriminator itself becomes unrepresentable). Use it on a struct \
+             field whose unknown tags can be silently dropped instead",
+        ));
+    }
     let name = &input.ident;
     let name_str = parse_serde_rename(input)?.unwrap_or_else(|| name.to_string());
     let reserved = &type_attrs.reserved;
-    let allow_unknown_tags = type_attrs.allow_unknown_tags;
 
     let mut variants: Vec<TaggedVariant<'_>> = Vec::with_capacity(data.variants.len());
     let mut seen_tags = std::collections::HashSet::new();
@@ -295,31 +366,19 @@ fn expand_enum(
     }
     variants.sort_by_key(|v| v.tag);
 
-    let tag_entries = variants.iter().map(|v| {
-        let tag = v.tag;
-        let name = &v.name;
-        quote! { (#tag, #name) }
-    });
-    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
     let recursion_calls = variants.iter().flat_map(|v| {
         v.payload_types.iter().map(|ty| {
             quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
         })
     });
 
+    let tagged = sum_literal(&variants, reserved);
     let where_clause = build_enum_where_clause(input, &variants);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
-                #(#tag_entries),*
-            ];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
-                #(#reserved_entries),*
-            ];
-            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
-            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 if _reg.try_insert::<Self>(#name_str) {
@@ -488,16 +547,15 @@ fn validate_no_field_tag_attrs(input: &DeriveInput) -> syn::Result<()> {
     Ok(())
 }
 
-/// Stub expansion: empty `TAGS`/`RESERVED`, no-op `register_into`. Used for
+/// Stub expansion: empty `Tagged::Product`, no-op `register_into`. Used for
 /// shapes the macro hasn't learned to handle yet.
 fn stub(input: &DeriveInput) -> TokenStream2 {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let tagged = empty_product_literal();
     quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
-            const ALLOW_UNKNOWN_TAGS: bool = false;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {}
         }
     }
@@ -558,19 +616,6 @@ fn expand_named_struct(
     // Canonical order on the wire is tag-ascending, not source-declaration order.
     entries.sort_by_key(|e| e.tag);
 
-    let tag_entries = entries.iter().map(|e| {
-        let tag = e.tag;
-        let name = &e.name;
-        quote! { (#tag, #name) }
-    });
-
-    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
-        let tag = e.tag;
-        quote! { #tag }
-    });
-
-    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
-
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
         quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
@@ -583,21 +628,13 @@ fn expand_named_struct(
     // that requirement through to the caller without us having to know about
     // it. Naive per-type-param bounds (`A: MsgpackTagged, B: MsgpackTagged`)
     // would be both too restrictive and insufficient in that case.
+    let tagged = product_literal(&entries, reserved, allow_unknown_tags);
     let where_clause = build_where_clause(input, &entries);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
-                #(#tag_entries),*
-            ];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
-                #(#reserved_entries),*
-            ];
-            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
-                #(#default_entries),*
-            ];
-            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 if _reg.try_insert::<Self>(#name_str) {
@@ -610,24 +647,18 @@ fn expand_named_struct(
 
 /// Expand the `#[tagged(via(WireType))]` form: the public type delegates
 /// `register_into` entirely to the wire DTO and contributes no entry of its
-/// own. `TAGS` / `RESERVED` / `DEFAULTS` are emitted as empty slices and
-/// `ALLOW_UNKNOWN_TAGS` as `false` purely to satisfy the trait — they're
-/// inert because the public type itself never appears in the registry.
-///
-/// Field-level `#[tag(...)]` annotations on a `via` type become inert (the
-/// macro doesn't read them) — the public type's fields are an internal
-/// concern not visible to the wire format.
+/// own. The emitted `TAGGED` is an empty `Tagged::Product` purely to
+/// satisfy the trait — it's never consulted, because the public type itself
+/// never appears in the registry.
 fn expand_via(input: &DeriveInput, wire_type: &Type) -> TokenStream2 {
     let name = &input.ident;
     let where_clause = build_via_where_clause(input, wire_type);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+    let tagged = empty_product_literal();
 
     quote! {
         impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
-            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[];
-            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
-            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
-            const ALLOW_UNKNOWN_TAGS: bool = false;
+            const TAGGED: ::msgpack_tagged::Tagged = #tagged;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 <#wire_type as ::msgpack_tagged::MsgpackTagged>::register_into(_reg);

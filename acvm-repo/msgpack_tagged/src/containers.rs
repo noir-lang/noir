@@ -15,38 +15,45 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{MsgpackTagged, Tag, TagRegistry};
+use crate::{MsgpackTagged, Product, TagRegistry, Tagged};
+
+const LEAF: Tagged = Tagged::Product(Product {
+    fields: &[],
+    reserved: &[],
+    defaults: &[],
+    allow_unknown_tags: false,
+});
 
 impl<T: MsgpackTagged> MsgpackTagged for Vec<T> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         T::register_into(reg);
     }
 }
 
 impl<T: MsgpackTagged, const N: usize> MsgpackTagged for [T; N] {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         T::register_into(reg);
     }
 }
 
 impl<T: MsgpackTagged> MsgpackTagged for Option<T> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         T::register_into(reg);
     }
 }
 
 impl<T: MsgpackTagged> MsgpackTagged for Box<T> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         T::register_into(reg);
     }
 }
 
 impl<K: MsgpackTagged, V: MsgpackTagged> MsgpackTagged for BTreeMap<K, V> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         K::register_into(reg);
         V::register_into(reg);
@@ -54,7 +61,7 @@ impl<K: MsgpackTagged, V: MsgpackTagged> MsgpackTagged for BTreeMap<K, V> {
 }
 
 impl<T: MsgpackTagged> MsgpackTagged for BTreeSet<T> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(reg: &mut TagRegistry) {
         T::register_into(reg);
     }
@@ -63,7 +70,7 @@ impl<T: MsgpackTagged> MsgpackTagged for BTreeSet<T> {
 macro_rules! impl_msgpack_tagged_for_tuple {
     ($($t:ident),+ $(,)?) => {
         impl<$($t: MsgpackTagged),+> MsgpackTagged for ($($t,)+) {
-            const TAGS: &'static [(Tag, &'static str)] = &[];
+            const TAGGED: Tagged = LEAF;
             fn register_into(reg: &mut TagRegistry) {
                 $($t::register_into(reg);)+
             }
@@ -92,7 +99,12 @@ mod tests {
     /// containers correctly propagate the recursion.
     struct Foo;
     impl MsgpackTagged for Foo {
-        const TAGS: &'static [(Tag, &'static str)] = &[(0, "x")];
+        const TAGGED: Tagged = Tagged::Product(Product {
+            fields: &[(0, "x")],
+            reserved: &[],
+            defaults: &[],
+            allow_unknown_tags: false,
+        });
         fn register_into(reg: &mut TagRegistry) {
             reg.try_insert::<Foo>("Foo");
         }
@@ -101,7 +113,12 @@ mod tests {
     /// Another self-registering type, for two-recursion tests (maps, tuples).
     struct Bar;
     impl MsgpackTagged for Bar {
-        const TAGS: &'static [(Tag, &'static str)] = &[(0, "y")];
+        const TAGGED: Tagged = Tagged::Product(Product {
+            fields: &[(0, "y")],
+            reserved: &[],
+            defaults: &[],
+            allow_unknown_tags: false,
+        });
         fn register_into(reg: &mut TagRegistry) {
             reg.try_insert::<Bar>("Bar");
         }

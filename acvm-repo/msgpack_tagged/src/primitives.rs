@@ -3,23 +3,32 @@
 //! Primitives don't have struct fields or enum variants, so they have no tags
 //! and never go through `serialize_struct` / `deserialize_struct`. Their
 //! `register_into` is a no-op — they exist only to satisfy the `T: MsgpackTagged`
-//! bound that the macro propagates onto every tagged field's type.
+//! bound that the macro propagates onto every tagged field's type. The
+//! [`Tagged`] shape they advertise is a [`Product`] with empty `fields`,
+//! signalling "no on-the-wire structure of my own."
 //!
 //! `PhantomData<T>` lives here for the same reason: zero-sized, wire-irrelevant,
 //! never registers anything. The struct-field auto-skip in the derive still
-//! drops `PhantomData` fields from `TAGS`, but inside enum variant payloads (and
-//! anywhere else that just needs the bound to hold transitively), this blanket
-//! impl is what makes things compose.
+//! drops `PhantomData` fields from the wire, but inside enum variant payloads
+//! (and anywhere else that just needs the bound to hold transitively), this
+//! blanket impl is what makes things compose.
 
 use std::marker::PhantomData;
 
-use crate::{MsgpackTagged, Tag, TagRegistry};
+use crate::{MsgpackTagged, Product, TagRegistry, Tagged};
+
+const LEAF: Tagged = Tagged::Product(Product {
+    fields: &[],
+    reserved: &[],
+    defaults: &[],
+    allow_unknown_tags: false,
+});
 
 macro_rules! impl_msgpack_tagged_for_primitive {
     ($($t:ty),* $(,)?) => {
         $(
             impl MsgpackTagged for $t {
-                const TAGS: &'static [(Tag, &'static str)] = &[];
+                const TAGGED: Tagged = LEAF;
                 fn register_into(_reg: &mut TagRegistry) {}
             }
         )*
@@ -48,7 +57,7 @@ impl_msgpack_tagged_for_primitive!(
 );
 
 impl<T: 'static> MsgpackTagged for PhantomData<T> {
-    const TAGS: &'static [(Tag, &'static str)] = &[];
+    const TAGGED: Tagged = LEAF;
     fn register_into(_reg: &mut TagRegistry) {}
 }
 

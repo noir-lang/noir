@@ -4,7 +4,7 @@ error[E0277]: the trait bound `HashMap<String, u32>: MsgpackTagged` is not satis
 12 |     requires_tagged::<HashMap<String, u32>>();
    |                       ^^^^^^^^^^^^^^^^^^^^ the trait `MsgpackTagged` is not implemented for `HashMap<String, u32>`
    |
-   = note: use `#[derive(MsgpackTagged)]` on the type, or `#[via(WireType)]` on a shadow-DTO public type that delegates to a wire companion
+   = note: use `#[derive(MsgpackTagged)]` on the type, or `#[tagged(via(WireType))]` on a shadow-DTO public type that delegates to a wire companion
    = note: for container fields, use `BTreeMap` / `BTreeSet` — `HashMap` / `HashSet` are deliberately unsupported on the wire because their iteration order is non-deterministic
    = help: the following other types implement trait `MsgpackTagged`:
              ()

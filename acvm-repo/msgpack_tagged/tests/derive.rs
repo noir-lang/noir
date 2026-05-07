@@ -1,14 +1,14 @@
 //! End-to-end tests for the `MsgpackTagged` derive on structs and enums.
 //!
-//! Unit structs still fall through to the stub expansion (empty `TAGS`, no-op
-//! `register_into`); their tests here just verify the derive produces a valid
-//! impl. As the macro learns to handle each shape, the corresponding tests
-//! in this file get tightened.
+//! Unit structs still fall through to the stub expansion (empty `Tagged::Product`,
+//! no-op `register_into`); their tests here just verify the derive produces a
+//! valid impl. As the macro learns to handle each shape, the corresponding
+//! tests in this file get tightened.
 
 // Test fixtures only exist to feed the derive; unused fields are expected.
 #![allow(dead_code)]
 
-use msgpack_tagged::{MsgpackTagged, TagRegistry};
+use msgpack_tagged::{Entry, MsgpackTagged, Product, Sum, TagRegistry};
 
 #[derive(MsgpackTagged)]
 struct Unit;
@@ -19,7 +19,7 @@ struct Tuple(u32, bool);
 
 /// Multi-element tuple struct with explicit per-field `#[tag(N)]`. Field
 /// positions are reordered relative to tag order — proves the macro sorts
-/// `TAGS` by tag value, not source position.
+/// fields by tag value, not source position.
 #[derive(MsgpackTagged)]
 struct ExplicitTuple(#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8);
 
@@ -44,7 +44,7 @@ struct Named {
 
 /// Enum mixing all three variant shapes — unit, tuple, struct — to prove the
 /// derive handles each. Variant tags are out of declaration order to verify
-/// the canonical tag-ascending ordering on `TAGS`.
+/// the canonical tag-ascending ordering on the emitted `Sum.variants`.
 #[derive(MsgpackTagged)]
 enum Choice {
     #[tag(2)]
@@ -187,7 +187,8 @@ struct WithPhantom<T> {
 }
 
 /// `#[tag(N, default)]` fields: tag 1 (`extra`) is wire-tolerant — appears in
-/// `TAGS` and `DEFAULTS`, decoder will fill `Vec::default()` if missing.
+/// `Product.fields` and `Product.defaults`, decoder will fill `Vec::default()`
+/// if missing.
 #[derive(MsgpackTagged)]
 struct WithDefaults {
     #[tag(0)]
@@ -199,8 +200,8 @@ struct WithDefaults {
 }
 
 /// Type-level `#[tagged(reserved(...))]`: tags 1 and 4 have been retired and must
-/// never be reused. The macro emits these into `RESERVED`, and a `#[tag(1)]`
-/// or `#[tag(4)]` on any field would now be a compile error.
+/// never be reused. The macro emits these into the product's `reserved`, and a
+/// `#[tag(1)]` or `#[tag(4)]` on any field would now be a compile error.
 #[derive(MsgpackTagged)]
 #[tagged(reserved(1, 4))]
 struct WithReserved {
@@ -255,6 +256,26 @@ struct Public {
     other: Vec<u8>,
 }
 
+fn product_of<T: MsgpackTagged>() -> Product {
+    T::TAGGED.as_product().expect("expected a product-shaped type")
+}
+
+fn sum_of<T: MsgpackTagged>() -> Sum {
+    T::TAGGED.as_sum().expect("expected a sum-shaped type")
+}
+
+fn entry_product(entry: &Entry) -> Product {
+    entry.tagged().as_product().expect("expected entry with product shape")
+}
+
+fn entry_sum(entry: &Entry) -> Sum {
+    entry.tagged().as_sum().expect("expected entry with sum shape")
+}
+
+fn variant_pairs(s: Sum) -> Vec<(u8, &'static str)> {
+    s.variants.iter().map(|v| (v.tag, v.name)).collect()
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -293,21 +314,22 @@ fn derive_compiles_for_basic_shapes() {
 }
 
 #[test]
-fn unit_struct_has_empty_tags() {
-    assert!(<Unit as MsgpackTagged>::TAGS.is_empty());
+fn unit_struct_has_empty_fields() {
+    assert!(product_of::<Unit>().fields.is_empty());
 }
 
 #[test]
 fn implicit_tuple_struct_uses_positional_tags() {
-    assert_eq!(<Tuple as MsgpackTagged>::TAGS, &[(0, "0"), (1, "1")]);
+    assert_eq!(product_of::<Tuple>().fields, &[(0, "0"), (1, "1")]);
 }
 
 #[test]
 fn explicit_tuple_struct_tags_match_annotations_and_sort_by_tag() {
     // Source: (#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8)
     // After tag-ascending sort: position-string names follow the tags.
-    assert_eq!(<ExplicitTuple as MsgpackTagged>::TAGS, &[(0, "1"), (1, "2"), (3, "0")]);
-    assert_eq!(<ExplicitTuple as MsgpackTagged>::DEFAULTS, &[3]);
+    let p = product_of::<ExplicitTuple>();
+    assert_eq!(p.fields, &[(0, "1"), (1, "2"), (3, "0")]);
+    assert_eq!(p.defaults, &[3]);
 }
 
 #[test]
@@ -327,19 +349,20 @@ fn newtype_does_not_register_itself_but_recurses_into_inner() {
 
 #[test]
 fn newtype_constants_are_empty() {
-    assert!(<Witness as MsgpackTagged>::TAGS.is_empty());
-    assert!(<Witness as MsgpackTagged>::RESERVED.is_empty());
-    assert!(<Witness as MsgpackTagged>::DEFAULTS.is_empty());
+    let p = product_of::<Witness>();
+    assert!(p.fields.is_empty());
+    assert!(p.reserved.is_empty());
+    assert!(p.defaults.is_empty());
 }
 
 #[test]
 fn named_struct_tags_match_declarations() {
-    assert_eq!(<Named as MsgpackTagged>::TAGS, &[(0, "a"), (1, "b")]);
+    assert_eq!(product_of::<Named>().fields, &[(0, "a"), (1, "b")]);
 }
 
 #[test]
 fn tags_are_emitted_in_tag_order_not_source_order() {
-    assert_eq!(<OutOfOrder as MsgpackTagged>::TAGS, &[(0, "b"), (1, "a"), (2, "c")]);
+    assert_eq!(product_of::<OutOfOrder>().fields, &[(0, "b"), (1, "a"), (2, "c")]);
 }
 
 #[test]
@@ -347,7 +370,7 @@ fn named_struct_register_into_populates_registry_under_type_name() {
     let mut reg = TagRegistry::new();
     Named::register_into(&mut reg);
     let entry = reg.get("Named").expect("Named should register itself");
-    assert_eq!(entry.tags(), &[(0, "a"), (1, "b")]);
+    assert_eq!(entry_product(entry).fields, &[(0, "a"), (1, "b")]);
 }
 
 /// Idempotent re-registration: calling `register_into` twice produces a
@@ -394,27 +417,24 @@ fn generic_struct_with_container_field_recurses_into_both_inner_types() {
 }
 
 #[test]
-fn explicit_skip_field_is_absent_from_tags() {
-    assert_eq!(<WithExplicitSkip as MsgpackTagged>::TAGS, &[(0, "visible")]);
+fn explicit_skip_field_is_absent_from_fields() {
+    assert_eq!(product_of::<WithExplicitSkip>().fields, &[(0, "visible")]);
 }
 
 #[test]
-fn phantom_data_field_is_absent_from_tags() {
-    assert_eq!(<WithPhantom<Opaque> as MsgpackTagged>::TAGS, &[(0, "visible")]);
+fn phantom_data_field_is_absent_from_fields() {
+    assert_eq!(product_of::<WithPhantom<Opaque>>().fields, &[(0, "visible")]);
 }
 
 #[test]
-fn default_fields_appear_in_both_tags_and_defaults() {
+fn default_fields_appear_in_both_fields_and_defaults() {
+    let p = product_of::<WithDefaults>();
     assert_eq!(
-        <WithDefaults as MsgpackTagged>::TAGS,
+        p.fields,
         &[(0, "required"), (1, "extra"), (2, "annotation")],
-        "default fields still appear in TAGS — they're encoded normally, only the decoder is tolerant",
+        "default fields still appear on the wire — they're encoded normally, only the decoder is tolerant",
     );
-    assert_eq!(
-        <WithDefaults as MsgpackTagged>::DEFAULTS,
-        &[1, 2],
-        "DEFAULTS lists exactly the tags marked `#[tag(N, default)]`",
-    );
+    assert_eq!(p.defaults, &[1, 2], "defaults lists exactly the tags marked `#[tag(N, default)]`",);
 }
 
 #[test]
@@ -422,40 +442,39 @@ fn defaults_show_up_on_the_registry_entry() {
     let mut reg = TagRegistry::new();
     WithDefaults::register_into(&mut reg);
     let entry = reg.get("WithDefaults").expect("WithDefaults should register itself");
-    assert!(!entry.is_default(0), "tag 0 (`required`) is not defaulted");
-    assert!(entry.is_default(1), "tag 1 (`extra`) is defaulted");
-    assert!(entry.is_default(2), "tag 2 (`annotation`) is defaulted");
+    let p = entry_product(entry);
+    assert!(!p.is_default(0), "tag 0 (`required`) is not defaulted");
+    assert!(p.is_default(1), "tag 1 (`extra`) is defaulted");
+    assert!(p.is_default(2), "tag 2 (`annotation`) is defaulted");
 }
 
 #[test]
 fn reserved_tags_appear_in_the_const_and_registry() {
-    assert_eq!(<WithReserved as MsgpackTagged>::RESERVED, &[1, 4]);
+    assert_eq!(product_of::<WithReserved>().reserved, &[1, 4]);
 
     let mut reg = TagRegistry::new();
     WithReserved::register_into(&mut reg);
     let entry = reg.get("WithReserved").expect("WithReserved should register itself");
-    assert!(entry.is_reserved(1));
-    assert!(entry.is_reserved(4));
-    assert!(!entry.is_reserved(0));
-    assert!(!entry.is_reserved(2));
+    let p = entry_product(entry);
+    assert!(p.is_reserved(1));
+    assert!(p.is_reserved(4));
+    assert!(!p.is_reserved(0));
+    assert!(!p.is_reserved(2));
 }
 
 #[test]
-fn reserved_tags_do_not_appear_in_tags() {
-    assert_eq!(<WithReserved as MsgpackTagged>::TAGS, &[(0, "a"), (2, "b"), (3, "c")]);
+fn reserved_tags_do_not_appear_in_fields() {
+    assert_eq!(product_of::<WithReserved>().fields, &[(0, "a"), (2, "b"), (3, "c")]);
 }
 
-/// Verifies the `#[tagged(allow_unknown_tags)]` attribute flips the trait const, and
-/// the absence of the attribute leaves the default `false` in place. The
-/// `#[allow]` is needed because the assertion's truth is statically known —
-/// intentional, the test catches a regression if the macro stops emitting the
-/// attribute-driven value.
+/// The `#[tagged(allow_unknown_tags)]` attribute flips the product's
+/// `allow_unknown_tags` flag, while its absence leaves the default `false`
+/// in place.
 #[test]
-#[allow(clippy::assertions_on_constants)]
 fn allow_unknown_tags_flag_is_propagated() {
-    assert!(<LenientType as MsgpackTagged>::ALLOW_UNKNOWN_TAGS);
+    assert!(product_of::<LenientType>().allow_unknown_tags);
     // Default for any other type — verified here via a fixture without the attr.
-    assert!(!<Named as MsgpackTagged>::ALLOW_UNKNOWN_TAGS);
+    assert!(!product_of::<Named>().allow_unknown_tags);
 }
 
 #[test]
@@ -463,7 +482,7 @@ fn allow_unknown_tags_shows_up_on_the_registry_entry() {
     let mut reg = TagRegistry::new();
     LenientType::register_into(&mut reg);
     let entry = reg.get("LenientType").expect("LenientType should register itself");
-    assert!(entry.allow_unknown_tags());
+    assert!(entry_product(entry).allow_unknown_tags);
 }
 
 /// `via`-delegating type doesn't put itself in the registry; instead, calling
@@ -482,15 +501,16 @@ fn via_delegates_register_into_to_the_wire_dto() {
     assert!(reg.get("Public").is_none(), "public type should NOT appear in the registry");
 }
 
-/// The public type's own constants are inert (empty / false) — the wire
-/// shape comes from the wire DTO, which has its own non-empty TAGS.
+/// The public type's own tagged shape is inert (empty product) — the wire
+/// shape comes from the wire DTO, which has its own non-empty `fields`.
 #[test]
 fn via_public_type_constants_are_empty() {
-    assert!(<Public as MsgpackTagged>::TAGS.is_empty());
-    assert!(<Public as MsgpackTagged>::RESERVED.is_empty());
-    assert!(<Public as MsgpackTagged>::DEFAULTS.is_empty());
-    // The wire DTO's TAGS, by contrast, are populated from its own #[tag(N)].
-    assert_eq!(<WireDto as MsgpackTagged>::TAGS, &[(0, "payload")]);
+    let p = product_of::<Public>();
+    assert!(p.fields.is_empty());
+    assert!(p.reserved.is_empty());
+    assert!(p.defaults.is_empty());
+    // The wire DTO's fields, by contrast, are populated from its own #[tag(N)].
+    assert_eq!(product_of::<WireDto>().fields, &[(0, "payload")]);
 }
 
 /// `#[serde(rename = "X")]` on the wire DTO drives the registry key — the
@@ -514,10 +534,13 @@ fn serde_rename_drives_registry_key_not_rust_ident() {
 }
 
 #[test]
-fn enum_tags_are_emitted_in_tag_order_with_variant_names() {
+fn enum_variants_are_emitted_in_tag_order_with_variant_names() {
     // Source: Multi (#[tag(2)]), Nothing (#[tag(0)]), Single (#[tag(1)]).
     // After tag-ascending sort, the variant idents land in tag order.
-    assert_eq!(<Choice as MsgpackTagged>::TAGS, &[(0, "Nothing"), (1, "Single"), (2, "Multi")],);
+    assert_eq!(
+        variant_pairs(sum_of::<Choice>()),
+        vec![(0, "Nothing"), (1, "Single"), (2, "Multi")],
+    );
 }
 
 #[test]
@@ -525,7 +548,7 @@ fn enum_register_into_populates_registry_under_type_name() {
     let mut reg = TagRegistry::new();
     Choice::register_into(&mut reg);
     let entry = reg.get("Choice").expect("Choice should register itself");
-    assert_eq!(entry.tags(), &[(0, "Nothing"), (1, "Single"), (2, "Multi")]);
+    assert_eq!(variant_pairs(entry_sum(entry)), vec![(0, "Nothing"), (1, "Single"), (2, "Multi")],);
 }
 
 /// Enums with no payload types still register themselves; the recursion list
@@ -563,21 +586,28 @@ fn generic_enum_recurses_into_concrete_payload_type() {
 
 #[test]
 fn enum_reserved_tags_appear_in_const_and_registry() {
-    assert_eq!(<WithReservedVariants as MsgpackTagged>::RESERVED, &[1, 2]);
+    assert_eq!(sum_of::<WithReservedVariants>().reserved, &[1, 2]);
 
     let mut reg = TagRegistry::new();
     WithReservedVariants::register_into(&mut reg);
     let entry = reg.get("WithReservedVariants").expect("should register itself");
-    assert!(entry.is_reserved(1));
-    assert!(entry.is_reserved(2));
-    assert!(!entry.is_reserved(0));
-    assert!(!entry.is_reserved(3));
+    let s = entry_sum(entry);
+    assert!(s.is_reserved(1));
+    assert!(s.is_reserved(2));
+    assert!(!s.is_reserved(0));
+    assert!(!s.is_reserved(3));
 }
 
-/// Enums never carry `default` semantics — `DEFAULTS` is always empty.
+/// Until per-variant field tagging lands, every variant's payload is an
+/// empty `Product`. This test pins that expectation so the follow-up step
+/// has to update it.
 #[test]
-#[allow(clippy::const_is_empty)]
-fn enum_defaults_are_always_empty() {
-    assert!(<Choice as MsgpackTagged>::DEFAULTS.is_empty());
-    assert!(<WithReservedVariants as MsgpackTagged>::DEFAULTS.is_empty());
+fn variant_payloads_are_empty_products_until_field_tagging_lands() {
+    for variant in sum_of::<WithInnerPayload>().variants {
+        assert!(
+            variant.payload.fields.is_empty(),
+            "variant {} payload should have no field-tags yet",
+            variant.name,
+        );
+    }
 }
