@@ -19,7 +19,7 @@ use syn::{
     punctuated::Punctuated,
 };
 
-#[proc_macro_derive(MsgpackTagged, attributes(tag, reserved, allow_unknown_tags, via))]
+#[proc_macro_derive(MsgpackTagged, attributes(tag, tagged))]
 pub fn derive_msgpack_tagged(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(&input).unwrap_or_else(syn::Error::into_compile_error).into()
@@ -66,13 +66,9 @@ fn expand_named_struct(
     let name = &input.ident;
     let name_str = name.to_string();
 
-    // Type-level `#[reserved(N, M, ...)]`: tags retired from this type. Active
-    // `#[tag(N)]` annotations on fields are rejected if N is in this list.
-    let reserved = parse_reserved(input)?;
-
-    // Type-level `#[allow_unknown_tags]`: opts the type into lenient decode of
-    // unknown tags (skip on decode rather than error). Default is strict.
-    let allow_unknown_tags = parse_allow_unknown_tags(input)?;
+    // Type-level `#[tagged(...)]`: parses `reserved(...)`, `allow_unknown_tags`,
+    // and (eventually) `via(...)` items in a single namespaced attribute.
+    let TypeAttrs { reserved, allow_unknown_tags } = parse_tagged_type_attrs(input)?;
 
     // Parse each field. Tagged fields contribute to TAGS, the recursion list,
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
@@ -207,7 +203,7 @@ impl Parse for TagArgs {
 /// Decide whether a field is wire-visible or skipped. Errors loudly when a
 /// field has no annotation and isn't a recognized auto-skip type — the
 /// strict-by-default discipline. Also enforces that an active `#[tag(N)]`
-/// doesn't collide with the type-level `#[reserved(...)]` list.
+/// doesn't collide with the type-level `#[tagged(reserved(...))]` list.
 fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     let mut found: Option<(&Attribute, TagArgs)> = None;
     for attr in &field.attrs {
@@ -229,7 +225,7 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
                     return Err(syn::Error::new_spanned(
                         attr,
                         format!(
-                            "tag {tag} is in the type's `#[reserved(...)]` list — pick a different tag, or remove it from `#[reserved(...)]`"
+                            "tag {tag} is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
                         ),
                     ));
                 }
@@ -252,70 +248,82 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     ))
 }
 
-/// Parse the type-level `#[reserved(N, M, ...)]` attribute, if present. At
-/// most one such attribute per type. Errors on duplicates within the list or
-/// out-of-range integers.
-fn parse_reserved(input: &DeriveInput) -> syn::Result<Vec<u8>> {
-    let mut reserved_attr: Option<&Attribute> = None;
-    for attr in &input.attrs {
-        if !attr.path().is_ident("reserved") {
-            continue;
-        }
-        if reserved_attr.is_some() {
-            return Err(syn::Error::new_spanned(
-                attr,
-                "duplicate `#[reserved(...)]` attribute on this type",
-            ));
-        }
-        reserved_attr = Some(attr);
-    }
-
-    let Some(attr) = reserved_attr else {
-        return Ok(Vec::new());
-    };
-
-    let lits: Punctuated<LitInt, Token![,]> = attr.parse_args_with(Punctuated::parse_terminated)?;
-
-    let mut tags = Vec::with_capacity(lits.len());
-    let mut seen = std::collections::HashSet::new();
-    for lit in &lits {
-        let n: u8 = lit.base10_parse()?;
-        if !seen.insert(n) {
-            return Err(syn::Error::new_spanned(
-                lit,
-                format!("tag {n} listed more than once in `#[reserved(...)]`"),
-            ));
-        }
-        tags.push(n);
-    }
-
-    Ok(tags)
+/// Type-level configuration parsed from one or more `#[tagged(...)]`
+/// attributes on the struct/enum. Holds every modifier the macro understands
+/// at the type level.
+#[derive(Default)]
+struct TypeAttrs {
+    /// Tags listed in `#[tagged(reserved(N, M, ...))]`. Empty if absent.
+    reserved: Vec<u8>,
+    /// `true` iff `#[tagged(allow_unknown_tags)]` appears anywhere.
+    allow_unknown_tags: bool,
 }
 
-/// Detect the type-level `#[allow_unknown_tags]` flag. Presence-only —
-/// rejects any args (`#[allow_unknown_tags(...)]` and
-/// `#[allow_unknown_tags = "..."]` are both errors).
-fn parse_allow_unknown_tags(input: &DeriveInput) -> syn::Result<bool> {
-    let mut found = false;
+/// Parse the type-level `#[tagged(...)]` attributes (if any) into a single
+/// `TypeAttrs`. Multiple `#[tagged(...)]` attributes are allowed and merged,
+/// but each named modifier may appear at most once across them.
+///
+/// Inner grammar — comma-separated items, each one of:
+/// * `reserved(N, M, ...)` — list-form, integer literals, no duplicates.
+/// * `allow_unknown_tags` — bare ident, presence-only.
+fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
+    let mut out = TypeAttrs::default();
+    let mut seen_reserved = false;
+    let mut seen_allow_unknown = false;
+
     for attr in &input.attrs {
-        if !attr.path().is_ident("allow_unknown_tags") {
+        if !attr.path().is_ident("tagged") {
             continue;
         }
-        if found {
+        let items: Punctuated<Meta, Token![,]> =
+            attr.parse_args_with(Punctuated::parse_terminated)?;
+        for item in items {
+            if let Meta::List(list) = &item
+                && list.path.is_ident("reserved")
+            {
+                if seen_reserved {
+                    return Err(syn::Error::new_spanned(
+                        list,
+                        "duplicate `reserved(...)` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_reserved = true;
+                let lits: Punctuated<LitInt, Token![,]> =
+                    list.parse_args_with(Punctuated::parse_terminated)?;
+                let mut seen_dup = std::collections::HashSet::new();
+                for lit in &lits {
+                    let n: u8 = lit.base10_parse()?;
+                    if !seen_dup.insert(n) {
+                        return Err(syn::Error::new_spanned(
+                            lit,
+                            format!("tag {n} listed more than once in `reserved(...)`"),
+                        ));
+                    }
+                    out.reserved.push(n);
+                }
+                continue;
+            }
+            if let Meta::Path(path) = &item
+                && path.is_ident("allow_unknown_tags")
+            {
+                if seen_allow_unknown {
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_allow_unknown = true;
+                out.allow_unknown_tags = true;
+                continue;
+            }
             return Err(syn::Error::new_spanned(
-                attr,
-                "duplicate `#[allow_unknown_tags]` attribute",
+                &item,
+                "expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` on a type",
             ));
         }
-        if !matches!(&attr.meta, Meta::Path(_)) {
-            return Err(syn::Error::new_spanned(
-                attr,
-                "`#[allow_unknown_tags]` does not take any arguments",
-            ));
-        }
-        found = true;
     }
-    Ok(found)
+
+    Ok(out)
 }
 
 /// Syntactically detect `PhantomData<_>` by checking the last path segment.

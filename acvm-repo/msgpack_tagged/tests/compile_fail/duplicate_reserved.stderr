@@ -1,5 +1,5 @@
-error: tag 2 listed more than once in `#[reserved(...)]`
- --> tests/compile_fail/duplicate_reserved.rs:7:18
+error: tag 2 listed more than once in `reserved(...)`
+ --> tests/compile_fail/duplicate_reserved.rs:7:25
   |
-7 | #[reserved(2, 5, 2)] // tag 2 listed twice
-  |                  ^
+7 | #[tagged(reserved(2, 5, 2))] // tag 2 listed twice
+  |                         ^

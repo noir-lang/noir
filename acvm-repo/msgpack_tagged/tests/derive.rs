@@ -126,11 +126,11 @@ struct WithDefaults {
     annotation: String,
 }
 
-/// Type-level `#[reserved(...)]`: tags 1 and 4 have been retired and must
+/// Type-level `#[tagged(reserved(...))]`: tags 1 and 4 have been retired and must
 /// never be reused. The macro emits these into `RESERVED`, and a `#[tag(1)]`
 /// or `#[tag(4)]` on any field would now be a compile error.
 #[derive(MsgpackTagged)]
-#[reserved(1, 4)]
+#[tagged(reserved(1, 4))]
 struct WithReserved {
     #[tag(0)]
     a: u32,
@@ -140,12 +140,12 @@ struct WithReserved {
     c: u32,
 }
 
-/// Type-level `#[allow_unknown_tags]`: opts the type into lenient decode of
+/// Type-level `#[tagged(allow_unknown_tags)]`: opts the type into lenient decode of
 /// unknown tags. Recommended for top-level metadata-bearing types like
 /// `Program` and `Circuit`; not for cryptographic-shape types where silently
 /// dropping fields could change proof semantics.
 #[derive(MsgpackTagged)]
-#[allow_unknown_tags]
+#[tagged(allow_unknown_tags)]
 struct LenientType {
     #[tag(0)]
     a: u32,
@@ -292,7 +292,7 @@ fn reserved_tags_do_not_appear_in_tags() {
     assert_eq!(<WithReserved as MsgpackTagged>::TAGS, &[(0, "a"), (2, "b"), (3, "c")]);
 }
 
-/// Verifies the `#[allow_unknown_tags]` attribute flips the trait const, and
+/// Verifies the `#[tagged(allow_unknown_tags)]` attribute flips the trait const, and
 /// the absence of the attribute leaves the default `false` in place. The
 /// `#[allow]` is needed because the assertion's truth is statically known —
 /// intentional, the test catches a regression if the macro stops emitting the

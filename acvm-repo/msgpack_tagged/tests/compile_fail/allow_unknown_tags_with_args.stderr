@@ -1,5 +1,5 @@
-error: `#[allow_unknown_tags]` does not take any arguments
- --> tests/compile_fail/allow_unknown_tags_with_args.rs:7:1
+error: expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` on a type
+ --> tests/compile_fail/allow_unknown_tags_with_args.rs:9:10
   |
-7 | #[allow_unknown_tags(true)] // attribute takes no arguments
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 | #[tagged(allow_unknown_tags = true)] // attribute takes no arguments
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^^

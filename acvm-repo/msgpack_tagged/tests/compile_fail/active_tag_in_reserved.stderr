@@ -1,4 +1,4 @@
-error: tag 2 is in the type's `#[reserved(...)]` list — pick a different tag, or remove it from `#[reserved(...)]`
+error: tag 2 is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list
   --> tests/compile_fail/active_tag_in_reserved.rs:12:5
    |
 12 |     #[tag(2)] // collides with the reserved list
