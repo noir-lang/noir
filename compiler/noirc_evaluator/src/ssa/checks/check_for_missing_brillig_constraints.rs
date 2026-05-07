@@ -115,15 +115,37 @@ impl ValueSet {
         self.0.get(value.to_u32().try_into().unwrap()).expect("initialized with all values")
     }
 
-    fn insert(&mut self, value: ValueId) {
-        self.0.set(value.to_u32().try_into().unwrap(), true);
+    fn insert(&mut self, value: ValueId) -> bool {
+        let index = value.to_u32().try_into().unwrap();
+        let was_present = self.0.get(index).expect("initialized with all values");
+        self.0.set(index, true);
+        !was_present
     }
 
     fn extend<'a>(&mut self, values: impl IntoIterator<Item = &'a ValueId>) {
         for value in values {
-            self.insert(*value);
+            let _ = self.insert(*value);
         }
     }
+}
+
+#[derive(Debug, Default)]
+struct ConstraintProgress {
+    fully_constrained: bool,
+    newly_trusted: Vec<ValueId>,
+    blocked_on: Vec<ValueId>,
+}
+
+#[derive(Debug, Default)]
+struct ArgumentIntersection {
+    accepts: bool,
+    blocked_on: Vec<ValueId>,
+}
+
+#[derive(Debug, Default)]
+struct TaintedAncestorScan {
+    accepts: bool,
+    blockers: Vec<ValueId>,
 }
 
 /// Outputs of a Brillig call and their descendants.
@@ -217,7 +239,7 @@ impl TaintedDescendants {
     ///
     /// Any constrained output is added to the `all_constrained` set.
     ///
-    /// Return `true` if all outputs have been constrained.
+    /// Return the trust propagation caused by this constraint.
     fn try_constrain(
         &mut self,
         constrained_values: &[ValueId],
@@ -226,10 +248,12 @@ impl TaintedDescendants {
         all_tainted: &ValueSet,
         all_constrained: &mut ValueSet,
         max_ancestor_distance: u32,
-    ) -> bool {
+    ) -> ConstraintProgress {
+        let mut progress = ConstraintProgress::default();
+
         // Make sure this constraint has something to do with the outputs.
         if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
-            return false;
+            return progress;
         }
 
         let is_against_const = constrained_values.len() == 1;
@@ -237,18 +261,19 @@ impl TaintedDescendants {
 
         // Make sure this constraint has something to do with the inputs,
         // unless there are no inputs, or the output is against a constant.
-        if !is_against_const
-            && !is_const_args
-            && !self.arguments_intersect(
+        if !is_against_const && !is_const_args {
+            let intersection = self.arguments_intersect(
                 constrained_values,
                 parents,
                 equivalences,
                 all_tainted,
                 all_constrained,
                 max_ancestor_distance,
-            )
-        {
-            return false;
+            );
+            if !intersection.accepts {
+                progress.blocked_on = intersection.blocked_on;
+                return progress;
+            }
         }
 
         // Remove any results that have been directly or indirectly constrained.
@@ -257,8 +282,8 @@ impl TaintedDescendants {
                 any_ancestor(*value, |a| a == *output, parents, equivalences, max_ancestor_distance)
             });
 
-            if constrained {
-                all_constrained.insert(*output);
+            if constrained && all_constrained.insert(*output) {
+                progress.newly_trusted.push(*output);
             }
 
             !constrained
@@ -292,17 +317,26 @@ impl TaintedDescendants {
                 });
 
                 if constrained {
-                    all_constrained.extend(descendants.iter());
+                    for descendant in descendants.iter() {
+                        if all_constrained.insert(*descendant) {
+                            progress.newly_trusted.push(*descendant);
+                        }
+                    }
                 }
 
                 !constrained
             });
 
             // Keep the array until all indexed items have been constrained.
-            !index_outputs.is_empty()
+            let keep_array = !index_outputs.is_empty();
+            if !keep_array && all_constrained.insert(*array) {
+                progress.newly_trusted.push(*array);
+            }
+            keep_array
         });
 
-        self.is_constrained()
+        progress.fully_constrained = self.is_constrained();
+        progress
     }
 
     /// Whether one of the constrained values:
@@ -316,42 +350,99 @@ impl TaintedDescendants {
         all_tainted: &ValueSet,
         all_constrained: &ValueSet,
         max_ancestor_distance: u32,
-    ) -> bool {
+    ) -> ArgumentIntersection {
+        let mut intersection = ArgumentIntersection::default();
+
         for &cv in constrained_values {
+            if !all_tainted.contains(&cv) {
+                if any_ancestor(
+                    cv,
+                    |a| self.arg_ancestors.contains(&a),
+                    parents,
+                    equivalences,
+                    max_ancestor_distance,
+                ) {
+                    return ArgumentIntersection { accepts: true, blocked_on: Vec::new() };
+                }
+                continue;
+            }
+
             // We want to avoid using tainted inputs to constrain Brillig outputs.
             // Allowing them would mean we could constrain the output of one call
             // with the output of another Brillig call, and also that outputs of
             // the call would trivially connect to the inputs.
             // However if a tainted input has been constrained already, we can use it.
-            if all_tainted.contains(&cv)
-                && (
-                    // Tainted and hasn't been constrained.
-                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences, max_ancestor_distance)
-                    // Tainted because it's the output of this call itself.
-                    || any_ancestor(
-                        cv,
-                        |a| self.single_outputs.contains(&a) || self.array_outputs.contains_key(&a),
-                        parents,
-                        equivalences,
-                        max_ancestor_distance
-                    )
-                )
-            {
-                continue;
-            }
-            // arg_ancestors contains the arguments themselves and all their transitive ancestors.
-            // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
-            if any_ancestor(
+            let scan = self.scan_tainted_ancestors(
                 cv,
-                |a| self.arg_ancestors.contains(&a),
                 parents,
                 equivalences,
+                all_tainted,
+                all_constrained,
                 max_ancestor_distance,
-            ) {
-                return true;
+            );
+            if scan.accepts {
+                return ArgumentIntersection { accepts: true, blocked_on: Vec::new() };
+            }
+            for blocker in scan.blockers {
+                push_unique(&mut intersection.blocked_on, blocker);
             }
         }
-        false
+
+        intersection
+    }
+
+    fn scan_tainted_ancestors(
+        &self,
+        value: ValueId,
+        parents: &HashMap<ValueId, Vec<ValueId>>,
+        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        all_tainted: &ValueSet,
+        all_constrained: &ValueSet,
+        max_distance: u32,
+    ) -> TaintedAncestorScan {
+        let mut scan = TaintedAncestorScan::default();
+        let mut seen = HashSet::new();
+        let mut queue = VecDeque::new();
+        queue.push_back((value, 0, false, false));
+
+        while let Some((current, distance, trusted_seen, blocked_by_current_output)) =
+            queue.pop_front()
+        {
+            if !seen.insert((current, trusted_seen, blocked_by_current_output)) {
+                continue;
+            }
+
+            let current_trusted = all_constrained.contains(&current);
+            let trusted_seen = trusted_seen || current_trusted;
+            let is_current_output =
+                self.single_outputs.contains(&current) || self.array_outputs.contains_key(&current);
+            let blocked_by_current_output =
+                if is_current_output { !current_trusted } else { blocked_by_current_output };
+
+            if all_tainted.contains(&current) {
+                scan.blockers.push(current);
+            }
+            if self.arg_ancestors.contains(&current) && trusted_seen && !blocked_by_current_output {
+                scan.accepts = true;
+                return scan;
+            }
+
+            if distance == max_distance {
+                continue;
+            }
+            if let Some(parents) = parents.get(&current) {
+                queue.extend(parents.iter().map(|parent| {
+                    (*parent, distance + 1, trusted_seen, blocked_by_current_output)
+                }));
+            }
+            if let Some(equivalences) = equivalences.get(&current) {
+                queue.extend(equivalences.iter().map(|equivalence| {
+                    (*equivalence, distance + 1, trusted_seen, blocked_by_current_output)
+                }));
+            }
+        }
+
+        scan
     }
 
     /// Add to the descendants of a particular array element.
@@ -414,6 +505,12 @@ struct Context {
 
     /// Maximum distance to travel looking for an intersecting ancestor.
     max_ancestor_distance: u32,
+}
+
+#[derive(Debug)]
+struct TrackedConstraint {
+    constrained_values: Vec<ValueId>,
+    active_tainted_len: usize,
 }
 
 impl Context {
@@ -704,8 +801,85 @@ impl Context {
         let mut all_tainted = ValueSet::new(&func.dfg);
         // Unless such output has already been shown to be constrained.
         let mut all_constrained = ValueSet::new(&func.dfg);
-        // Skip checks until we encounter the tainted instruction.
-        let mut active_tainted = HashSet::new();
+
+        let (tracked_constraints, active_tainted) =
+            self.collect_tracked_constraints(func, all_functions, &mut all_tainted);
+        let mut worklist: VecDeque<usize> = (0..tracked_constraints.len()).collect();
+        let mut queued = vec![true; tracked_constraints.len()];
+        // Relevance and ancestry do not change during this pass. Retry only
+        // constraints that were waiting for a tainted value to become trusted.
+        let mut blocked_by: HashMap<ValueId, HashSet<usize>> = HashMap::new();
+        let mut blocked_values = vec![Vec::new(); tracked_constraints.len()];
+
+        while let Some(constraint_index) = worklist.pop_front() {
+            queued[constraint_index] = false;
+            forget_blockers(constraint_index, &mut blocked_by, &mut blocked_values);
+
+            let constraint = &tracked_constraints[constraint_index];
+            let mut fully_constrained_calls = Vec::new();
+            let mut blocked_on = Vec::new();
+            let mut newly_trusted = Vec::new();
+
+            let parents = &self.parents;
+            let equivalences = &self.equivalences;
+
+            for id in &active_tainted[..constraint.active_tainted_len] {
+                let Some(tainted) = self.tainted.get_mut(id) else {
+                    continue;
+                };
+
+                let progress = tainted.try_constrain(
+                    &constraint.constrained_values,
+                    parents,
+                    equivalences,
+                    &all_tainted,
+                    &mut all_constrained,
+                    self.max_ancestor_distance,
+                );
+
+                for value in progress.blocked_on {
+                    if !all_constrained.contains(&value) {
+                        push_unique(&mut blocked_on, value);
+                    }
+                }
+                newly_trusted.extend(progress.newly_trusted);
+
+                if progress.fully_constrained {
+                    fully_constrained_calls.push(*id);
+                }
+            }
+
+            blocked_on.retain(|value| !all_constrained.contains(value));
+            remember_blockers(constraint_index, blocked_on, &mut blocked_by, &mut blocked_values);
+            for value in newly_trusted {
+                wake_blocked_constraints(
+                    value,
+                    &mut blocked_by,
+                    &mut blocked_values,
+                    &mut queued,
+                    &mut worklist,
+                );
+            }
+
+            for id in fully_constrained_calls {
+                self.tainted.remove(&id);
+            }
+            if self.tainted.is_empty() {
+                break;
+            }
+        }
+
+        self
+    }
+
+    fn collect_tracked_constraints(
+        &self,
+        func: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+        all_tainted: &mut ValueSet,
+    ) -> (Vec<TrackedConstraint>, Vec<InstructionId>) {
+        let mut tracked_constraints = Vec::new();
+        let mut active_tainted = Vec::new();
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -726,42 +900,18 @@ impl Context {
                     // Always keep track of tainted descendants, required for correct constraint checks.
                     all_tainted.extend(&results);
                     if self.tainted.contains_key(instruction_id) {
-                        active_tainted.insert(instruction_id);
+                        active_tainted.push(*instruction_id);
                     }
-                } else if self.constraints.contains(instruction_id)
-                    && !self.tainted.is_empty()
-                    && !active_tainted.is_empty()
-                {
-                    let constrained_values = instruction_arguments(func, instruction);
-                    // Split borrows: extract parents/equivalences before the closure that
-                    // mutably borrows self.tainted.
-                    let parents = &self.parents;
-                    let equivalences = &self.equivalences;
-                    self.tainted.retain(|id, tainted| {
-                        if !active_tainted.contains(id) {
-                            return true;
-                        }
-
-                        let constrained = tainted.try_constrain(
-                            &constrained_values,
-                            parents,
-                            equivalences,
-                            &all_tainted,
-                            &mut all_constrained,
-                            self.max_ancestor_distance,
-                        );
-
-                        if constrained {
-                            active_tainted.remove(id);
-                        }
-
-                        !constrained
+                } else if self.constraints.contains(instruction_id) && !active_tainted.is_empty() {
+                    tracked_constraints.push(TrackedConstraint {
+                        constrained_values: arguments,
+                        active_tainted_len: active_tainted.len(),
                     });
                 }
             }
         }
 
-        self
+        (tracked_constraints, active_tainted)
     }
 
     /// Every Brillig call not properly constrained should remain in the tainted set
@@ -775,6 +925,151 @@ impl Context {
                 })
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod issue_12506_tests {
+    use super::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH};
+    use crate::ssa::ssa_gen::Ssa;
+
+    fn missing_brillig_constraints(src: &str) -> usize {
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.check_for_missing_brillig_constraints(
+            DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            DEFAULT_MAX_ANCESTOR_DISTANCE,
+        )
+        .len()
+    }
+
+    #[test]
+    fn issue_12506_order_is_not_reported() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v3
+            constrain v2 == v1
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        assert_eq!(missing_brillig_constraints(src), 0);
+    }
+
+    #[test]
+    fn issue_12506_swapped_order_is_not_reported() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v1
+            constrain v2 == v3
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        assert_eq!(missing_brillig_constraints(src), 0);
+    }
+
+    #[test]
+    fn mutually_constrained_brillig_outputs_still_warn() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v3
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        assert!(missing_brillig_constraints(src) > 0);
+    }
+
+    #[test]
+    fn same_call_outputs_asserted_equal_still_warn_without_a_pin() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2, v3 = call f1(v1) -> (Field, Field)
+            constrain v2 == v3
+            return
+        }
+
+        brillig(inline) fn read_pair f1 {
+          b0(v0: Field):
+            return v0, v0
+        }
+        "#;
+
+        assert!(missing_brillig_constraints(src) > 0);
+    }
+
+    #[test]
+    fn multi_output_partial_progress_is_revisited() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2, v3 = call f1(v1) -> (Field, Field)
+            constrain v2 == v3
+            constrain v2 == v1
+            return
+        }
+
+        brillig(inline) fn read_pair f1 {
+          b0(v0: Field):
+            return v0, v0
+        }
+        "#;
+
+        assert_eq!(missing_brillig_constraints(src), 0);
+    }
+
+    #[test]
+    fn array_index_partial_progress_is_revisited() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> [Field; 2]
+            v3 = array_get v2, index u32 0 -> Field
+            v4 = array_get v2, index u32 1 -> Field
+            constrain v3 == v4
+            constrain v3 == v1
+            return
+        }
+
+        brillig(inline) fn read_pair_array f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return v1
+        }
+        "#;
+
+        assert_eq!(missing_brillig_constraints(src), 0);
     }
 }
 
@@ -931,6 +1226,63 @@ fn bfs_ancestors(
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> HashSet<ValueId> {
     bfs_traverse_ancestors(starts, parents, equivalences, |_, _| true)
+}
+
+fn push_unique(values: &mut Vec<ValueId>, value: ValueId) {
+    if !values.contains(&value) {
+        values.push(value);
+    }
+}
+
+fn forget_blockers(
+    constraint_index: usize,
+    blocked_by: &mut HashMap<ValueId, HashSet<usize>>,
+    blocked_values: &mut [Vec<ValueId>],
+) {
+    for value in std::mem::take(&mut blocked_values[constraint_index]) {
+        let remove_entry = if let Some(waiting) = blocked_by.get_mut(&value) {
+            waiting.remove(&constraint_index);
+            waiting.is_empty()
+        } else {
+            false
+        };
+        if remove_entry {
+            blocked_by.remove(&value);
+        }
+    }
+}
+
+fn remember_blockers(
+    constraint_index: usize,
+    blockers: Vec<ValueId>,
+    blocked_by: &mut HashMap<ValueId, HashSet<usize>>,
+    blocked_values: &mut [Vec<ValueId>],
+) {
+    for value in blockers {
+        if !blocked_values[constraint_index].contains(&value) {
+            blocked_values[constraint_index].push(value);
+            blocked_by.entry(value).or_default().insert(constraint_index);
+        }
+    }
+}
+
+fn wake_blocked_constraints(
+    value: ValueId,
+    blocked_by: &mut HashMap<ValueId, HashSet<usize>>,
+    blocked_values: &mut [Vec<ValueId>],
+    queued: &mut [bool],
+    worklist: &mut VecDeque<usize>,
+) {
+    let Some(waiting) = blocked_by.remove(&value) else {
+        return;
+    };
+    for constraint_index in waiting {
+        blocked_values[constraint_index].retain(|blocked_value| *blocked_value != value);
+        if !queued[constraint_index] {
+            queued[constraint_index] = true;
+            worklist.push_back(constraint_index);
+        }
+    }
 }
 
 /// Returns `true` if `start` itself, or any value reachable from `start` by following
