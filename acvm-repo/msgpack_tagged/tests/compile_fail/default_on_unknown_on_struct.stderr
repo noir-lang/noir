@@ -1,0 +1,9 @@
+error: `#[tagged(default_on_unknown)]` only applies to enums — products skip or error on unknown field tags via `allow_unknown_tags` instead
+  --> tests/compile_fail/default_on_unknown_on_struct.rs:9:1
+   |
+9  | / #[tagged(default_on_unknown)]
+10 | | struct NotAnEnum {
+11 | |     #[tag(0)]
+12 | |     payload: u32,
+13 | | }
+   | |_^

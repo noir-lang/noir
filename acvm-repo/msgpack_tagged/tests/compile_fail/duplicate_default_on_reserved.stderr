@@ -1,0 +1,5 @@
+error: duplicate `default_on_reserved` modifier in `#[tagged(...)]`
+ --> tests/compile_fail/duplicate_default_on_reserved.rs:8:10
+  |
+8 | #[tagged(default_on_reserved)]
+  |          ^^^^^^^^^^^^^^^^^^^

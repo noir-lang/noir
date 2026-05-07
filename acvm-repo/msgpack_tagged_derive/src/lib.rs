@@ -30,6 +30,29 @@ pub fn derive_msgpack_tagged(input: TokenStream) -> TokenStream {
     expand(&input).unwrap_or_else(syn::Error::into_compile_error).into()
 }
 
+/// `default_on_reserved` and `default_on_unknown` are sum-only decode
+/// policies — a product has nothing to substitute (its fields are independent
+/// and an unknown one is just skipped or errored, depending on
+/// `allow_unknown_tags`). Reject them eagerly with a clear message rather
+/// than silently dropping the flag.
+fn reject_sum_only_decode_flags(input: &DeriveInput, type_attrs: &TypeAttrs) -> syn::Result<()> {
+    if type_attrs.default_on_reserved {
+        return Err(syn::Error::new_spanned(
+            input,
+            "`#[tagged(default_on_reserved)]` only applies to enums — products skip or \
+             error on unknown field tags via `allow_unknown_tags` instead",
+        ));
+    }
+    if type_attrs.default_on_unknown {
+        return Err(syn::Error::new_spanned(
+            input,
+            "`#[tagged(default_on_unknown)]` only applies to enums — products skip or \
+             error on unknown field tags via `allow_unknown_tags` instead",
+        ));
+    }
+    Ok(())
+}
+
 /// Build a `Tagged::Product { ... }` literal from parsed field entries plus
 /// the type-level reserved list and unknown-tag policy. Used for named
 /// structs, tuple structs, and (eventually) enum variant payloads.
@@ -72,11 +95,17 @@ fn empty_product_literal() -> TokenStream2 {
     }
 }
 
-/// Build a `Tagged::Sum` literal from variant entries and the
-/// enum-level reserved variant-tag list. Each variant carries an *empty*
-/// payload [`Product`] in this iteration — per-variant field tags are the
-/// next incremental step and will populate the payload's `fields`.
-fn sum_literal(variants: &[TaggedVariant<'_>], reserved: &[u8]) -> TokenStream2 {
+/// Build a `Tagged::Sum` literal from variant entries, the enum-level
+/// reserved variant-tag list, and the runtime decode-policy flags. Each
+/// variant carries an *empty* payload [`Product`] in this iteration —
+/// per-variant field tags are the next incremental step and will populate
+/// the payload's `fields`.
+fn sum_literal(
+    variants: &[TaggedVariant<'_>],
+    reserved: &[u8],
+    default_on_reserved: bool,
+    default_on_unknown: bool,
+) -> TokenStream2 {
     let variant_entries = variants.iter().map(|v| {
         let tag = v.tag;
         let name = &v.name;
@@ -98,6 +127,8 @@ fn sum_literal(variants: &[TaggedVariant<'_>], reserved: &[u8]) -> TokenStream2 
         ::msgpack_tagged::Tagged::Sum(::msgpack_tagged::Sum {
             variants: &[#(#variant_entries),*],
             reserved: &[#(#reserved_entries),*],
+            default_on_reserved: #default_on_reserved,
+            default_on_unknown: #default_on_unknown,
         })
     }
 }
@@ -155,6 +186,7 @@ fn expand_newtype(
     inner_field: &Field,
     type_attrs: &TypeAttrs,
 ) -> syn::Result<TokenStream2> {
+    reject_sum_only_decode_flags(input, type_attrs)?;
     if !type_attrs.reserved.is_empty() {
         return Err(syn::Error::new_spanned(
             input,
@@ -213,6 +245,7 @@ fn expand_tuple_struct(
     fields: &Punctuated<Field, Token![,]>,
     type_attrs: &TypeAttrs,
 ) -> syn::Result<TokenStream2> {
+    reject_sum_only_decode_flags(input, type_attrs)?;
     let name = &input.ident;
     let name_str = parse_serde_rename(input)?.unwrap_or_else(|| name.to_string());
     let reserved = &type_attrs.reserved;
@@ -372,8 +405,11 @@ fn expand_enum(
         })
     });
 
-    let tagged = sum_literal(&variants, reserved);
-    let where_clause = build_enum_where_clause(input, &variants);
+    let default_on_reserved = type_attrs.default_on_reserved;
+    let default_on_unknown = type_attrs.default_on_unknown;
+    let needs_default_bound = default_on_reserved || default_on_unknown;
+    let tagged = sum_literal(&variants, reserved, default_on_reserved, default_on_unknown);
+    let where_clause = build_enum_where_clause(input, &variants, needs_default_bound);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
@@ -436,15 +472,18 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
 /// Where clause for an enum impl. Same shape as `build_where_clause` for
 /// structs — `T: 'static` per type parameter, plus a deduped
 /// `<PayloadType>: MsgpackTagged` bound for every type appearing in any
-/// variant's payload — but enums have no `default`-modifier semantics so
-/// we don't emit `Default` bounds.
+/// variant's payload. When `needs_default_bound` is set (because the type
+/// opts into `default_on_reserved` or `default_on_unknown`), we also add
+/// `Self: Default` so a missing `derive(Default)` surfaces as a clear
+/// "Self: Default is not satisfied" error at the impl site.
 fn build_enum_where_clause(
     input: &DeriveInput,
     variants: &[TaggedVariant<'_>],
+    needs_default_bound: bool,
 ) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
     let any_payload = variants.iter().any(|v| !v.payload_types.is_empty());
-    if !any_payload && !has_type_params {
+    if !any_payload && !has_type_params && !needs_default_bound {
         return input.generics.where_clause.clone();
     }
 
@@ -469,6 +508,11 @@ fn build_enum_where_clause(
             }
         }
     }
+
+    if needs_default_bound {
+        where_clause.predicates.push(parse_quote!(Self: ::std::default::Default));
+    }
+
     Some(where_clause)
 }
 
@@ -577,6 +621,7 @@ fn expand_named_struct(
     fields: &Punctuated<Field, Token![,]>,
     type_attrs: &TypeAttrs,
 ) -> syn::Result<TokenStream2> {
+    reject_sum_only_decode_flags(input, type_attrs)?;
     let name = &input.ident;
     // The registry key is the *serde* name — it must match what
     // `serialize_struct(name, ...)` will pass at runtime. So we honor
@@ -835,13 +880,23 @@ fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
 struct TypeAttrs {
     /// Tags listed in `#[tagged(reserved(N, M, ...))]`. Empty if absent.
     reserved: Vec<u8>,
-    /// `true` iff `#[tagged(allow_unknown_tags)]` appears anywhere.
+    /// `true` iff `#[tagged(allow_unknown_tags)]` appears anywhere. Applies
+    /// to product (struct) shapes only — sums reject it (no skip semantics
+    /// for an unknown variant tag).
     allow_unknown_tags: bool,
+    /// `true` iff `#[tagged(default_on_reserved)]` appears anywhere. Sum-only
+    /// runtime decode policy: substitute `T::default()` when the encoded
+    /// variant tag is in `reserved`.
+    default_on_reserved: bool,
+    /// `true` iff `#[tagged(default_on_unknown)]` appears anywhere. Sum-only
+    /// runtime decode policy: substitute `T::default()` when the encoded
+    /// variant tag is in neither `variants` nor `reserved`.
+    default_on_unknown: bool,
     /// The wire DTO from `#[tagged(via(WireType))]`, if present. When set,
     /// the public type delegates `register_into` to this type and contributes
-    /// no entry of its own to the registry. Mutually exclusive with `reserved`
-    /// and `allow_unknown_tags` (those are wire-format properties and belong
-    /// on the wire DTO).
+    /// no entry of its own to the registry. Mutually exclusive with every
+    /// other type-level modifier — those are wire-format properties and
+    /// belong on the wire DTO.
     via: Option<Type>,
 }
 
@@ -851,14 +906,18 @@ struct TypeAttrs {
 ///
 /// Inner grammar — comma-separated items, each one of:
 /// * `reserved(N, M, ...)` — list-form, integer literals, no duplicates.
-/// * `allow_unknown_tags` — bare ident, presence-only.
+/// * `allow_unknown_tags` — bare ident, presence-only. Product-shapes only.
+/// * `default_on_reserved` — bare ident, presence-only. Sum-shapes only.
+/// * `default_on_unknown` — bare ident, presence-only. Sum-shapes only.
 /// * `via(WireType)` — list-form, single Rust type (the wire DTO to delegate
-///   `register_into` to). Mutually exclusive with `reserved` and
-///   `allow_unknown_tags` — those properties belong on the wire DTO.
+///   `register_into` to). Mutually exclusive with every other modifier —
+///   those properties belong on the wire DTO.
 fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     let mut out = TypeAttrs::default();
     let mut seen_reserved = false;
     let mut seen_allow_unknown = false;
+    let mut seen_default_on_reserved = false;
+    let mut seen_default_on_unknown = false;
     let mut seen_via = false;
 
     for attr in &input.attrs {
@@ -906,6 +965,32 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                 out.allow_unknown_tags = true;
                 continue;
             }
+            if let Meta::Path(path) = &item
+                && path.is_ident("default_on_reserved")
+            {
+                if seen_default_on_reserved {
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "duplicate `default_on_reserved` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_default_on_reserved = true;
+                out.default_on_reserved = true;
+                continue;
+            }
+            if let Meta::Path(path) = &item
+                && path.is_ident("default_on_unknown")
+            {
+                if seen_default_on_unknown {
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "duplicate `default_on_unknown` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_default_on_unknown = true;
+                out.default_on_unknown = true;
+                continue;
+            }
             if let Meta::List(list) = &item
                 && list.path.is_ident("via")
             {
@@ -921,13 +1006,14 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
             }
             return Err(syn::Error::new_spanned(
                 &item,
-                "expected `reserved(...)`, `allow_unknown_tags`, or `via(...)` inside `#[tagged(...)]` on a type",
+                "expected `reserved(...)`, `allow_unknown_tags`, `default_on_reserved`, \
+                 `default_on_unknown`, or `via(...)` inside `#[tagged(...)]` on a type",
             ));
         }
     }
 
-    // `via` is wire-format-agnostic delegation — the wire DTO carries
-    // `reserved` / `allow_unknown_tags` if anyone does.
+    // `via` is wire-format-agnostic delegation — the wire DTO carries every
+    // wire-format property, the public type carries none.
     if out.via.is_some() {
         if seen_reserved {
             return Err(syn::Error::new_spanned(
@@ -941,6 +1027,20 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                 input,
                 "`#[tagged(via(...))]` is incompatible with `allow_unknown_tags` — \
                  that flag belongs on the wire DTO, not on the public type",
+            ));
+        }
+        if seen_default_on_reserved {
+            return Err(syn::Error::new_spanned(
+                input,
+                "`#[tagged(via(...))]` is incompatible with `default_on_reserved` — \
+                 decode-policy flags belong on the wire DTO, not on the public type",
+            ));
+        }
+        if seen_default_on_unknown {
+            return Err(syn::Error::new_spanned(
+                input,
+                "`#[tagged(via(...))]` is incompatible with `default_on_unknown` — \
+                 decode-policy flags belong on the wire DTO, not on the public type",
             ));
         }
     }

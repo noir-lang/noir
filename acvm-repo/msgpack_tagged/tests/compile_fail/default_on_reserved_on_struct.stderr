@@ -1,0 +1,9 @@
+error: `#[tagged(default_on_reserved)]` only applies to enums — products skip or error on unknown field tags via `allow_unknown_tags` instead
+  --> tests/compile_fail/default_on_reserved_on_struct.rs:8:1
+   |
+8  | / #[tagged(default_on_reserved)]
+9  | | struct NotAnEnum {
+10 | |     #[tag(0)]
+11 | |     payload: u32,
+12 | | }
+   | |_^

@@ -89,6 +89,43 @@ enum WithReservedVariants {
     Fourth,
 }
 
+/// Enum opting into `default_on_reserved` — encountering a reserved variant
+/// tag on decode should produce `Self::default()` instead of erroring. The
+/// macro's `where Self: Default` bound is what forces `#[derive(Default)]`
+/// here: drop the derive and the impl stops compiling.
+#[derive(MsgpackTagged, Default)]
+#[tagged(reserved(2), default_on_reserved)]
+enum BackwardsCompat {
+    #[default]
+    #[tag(0)]
+    First,
+    #[tag(1)]
+    Second,
+}
+
+/// Enum opting into `default_on_unknown` — forward-compat for types where
+/// "I don't recognize this tag" is safely interpretable as `default()`.
+#[derive(MsgpackTagged, Default)]
+#[tagged(default_on_unknown)]
+enum ForwardCompat {
+    #[default]
+    #[tag(0)]
+    Empty,
+    #[tag(1)]
+    Some(u32),
+}
+
+/// Both flags at once — `InlineType`-shaped fully-lenient policy.
+#[derive(MsgpackTagged, Default)]
+#[tagged(reserved(7), default_on_reserved, default_on_unknown)]
+enum FullyLenient {
+    #[default]
+    #[tag(0)]
+    A,
+    #[tag(1)]
+    B,
+}
+
 /// Variant payloads of `PhantomData<T>` rely on the blanket
 /// `impl<T: 'static> MsgpackTagged for PhantomData<T>` — its bound is
 /// `T: 'static`, not `T: MsgpackTagged`, so non-`MsgpackTagged` types like
@@ -290,6 +327,9 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<GenericChoice<u32>>();
     assert_impl::<GenericChoice<Inner>>();
     assert_impl::<WithReservedVariants>();
+    assert_impl::<BackwardsCompat>();
+    assert_impl::<ForwardCompat>();
+    assert_impl::<FullyLenient>();
     // T = Opaque (no MsgpackTagged impl) still satisfies the enum's bounds —
     // `PhantomData<T>: MsgpackTagged` is blanket-implemented with only
     // `T: 'static`, not `T: MsgpackTagged`.
@@ -610,4 +650,52 @@ fn variant_payloads_are_empty_products_until_field_tagging_lands() {
             variant.name,
         );
     }
+}
+
+/// Default decode policy for any enum that doesn't opt in is strict on both
+/// ends — encountering a reserved or unknown variant tag is an error.
+#[test]
+#[allow(clippy::assertions_on_constants)]
+fn default_decode_policy_is_strict_for_plain_enums() {
+    let s = sum_of::<Choice>();
+    assert!(!s.default_on_reserved);
+    assert!(!s.default_on_unknown);
+    let s = sum_of::<WithReservedVariants>();
+    assert!(!s.default_on_reserved, "reserved alone doesn't imply default-fallback");
+    assert!(!s.default_on_unknown);
+}
+
+#[test]
+fn default_on_reserved_flag_propagates_into_sum() {
+    let s = sum_of::<BackwardsCompat>();
+    assert!(s.default_on_reserved);
+    assert!(!s.default_on_unknown);
+    assert_eq!(s.reserved, &[2]);
+}
+
+#[test]
+fn default_on_unknown_flag_propagates_into_sum() {
+    let s = sum_of::<ForwardCompat>();
+    assert!(!s.default_on_reserved);
+    assert!(s.default_on_unknown);
+}
+
+#[test]
+fn both_decode_policy_flags_can_combine() {
+    let s = sum_of::<FullyLenient>();
+    assert!(s.default_on_reserved);
+    assert!(s.default_on_unknown);
+    assert_eq!(s.reserved, &[7]);
+}
+
+/// The decode-policy flags also reach the registry entry — the wrapper
+/// will read them off the `Sum` shape on the entry, not off the trait const.
+#[test]
+fn decode_policy_flags_show_up_on_the_registry_entry() {
+    let mut reg = TagRegistry::new();
+    FullyLenient::register_into(&mut reg);
+    let entry = reg.get("FullyLenient").expect("FullyLenient should register itself");
+    let s = entry_sum(entry);
+    assert!(s.default_on_reserved);
+    assert!(s.default_on_unknown);
 }

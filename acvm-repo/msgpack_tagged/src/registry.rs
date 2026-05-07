@@ -110,16 +110,41 @@ pub struct Variant {
     pub payload: Product,
 }
 
-/// A sum type — a discriminated union of [`Variant`]s. `reserved` lists
-/// retired *variant* tags (compile-time-only, prevents reuse).
+/// A sum type — a discriminated union of [`Variant`]s.
 ///
-/// Note: there's no `allow_unknown_tags` at the sum level. An unknown variant
-/// tag has no `skip` semantics — there's no fragment to skip, since the value
-/// itself is structurally unrepresentable when its discriminator is unknown.
+/// `reserved` lists retired *variant* tags. Like `Product::reserved`, this is
+/// always a compile-time tag-reuse guard; whether the runtime decoder
+/// substitutes a default value when it encounters one is controlled
+/// independently by `default_on_reserved`.
+///
+/// `default_on_reserved` and `default_on_unknown` opt into runtime-lenient
+/// decode of variant tags. Unlike for products there's no `allow_unknown_tags`
+/// "skip" — sums can't skip a fragment, since the value's discriminator is
+/// the value — so the tolerance is expressed as "fall back to `T::default()`
+/// instead of erroring":
+///
+/// * `default_on_reserved` — substitute `T::default()` when the encoded
+///   variant tag is in `reserved`. Useful for backwards-compat: legacy data
+///   carrying a now-retired tag still decodes (to a safe default) instead of
+///   killing the whole structure. Use only when `T::default()` is a sound
+///   stand-in for "this used to be something we no longer support."
+/// * `default_on_unknown` — substitute `T::default()` when the encoded tag
+///   is in neither `variants` nor `reserved`. Useful for forward-compat:
+///   legacy readers can still parse data produced by a newer schema.
+///   **More dangerous**: silently swallows real corruption and unknown
+///   discriminators, so opt in only when "default" is a safe semantic
+///   substitute for "anything I don't recognize" (e.g. metadata-bearing
+///   `InlineType`-shaped types — definitely not `BrilligOpcode`-shaped ones,
+///   where an unknown discriminator means we can't execute the program).
+///
+/// The macro emits `where Self: Default` on the generated impl whenever
+/// either flag is set, so misuse (no `Default` impl) is a compile error.
 #[derive(Clone, Copy, Debug)]
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
+    pub default_on_reserved: bool,
+    pub default_on_unknown: bool,
 }
 
 impl Sum {
@@ -263,6 +288,43 @@ mod tests {
                 },
             ],
             reserved: &[5],
+            default_on_reserved: false,
+            default_on_unknown: false,
+        });
+        fn register_into(_reg: &mut TagRegistry) {}
+    }
+
+    /// Hand-written sum exercising both decode-policy flags together. Mirrors
+    /// the derive-macro emission for an enum like
+    /// `#[tagged(reserved(7), default_on_reserved, default_on_unknown)] enum Lenient { #[tag(0)] A, #[tag(1)] B }`.
+    struct Lenient;
+    impl MsgpackTagged for Lenient {
+        const TAGGED: Tagged = Tagged::Sum(Sum {
+            variants: &[
+                Variant {
+                    tag: 0,
+                    name: "A",
+                    payload: Product {
+                        fields: &[],
+                        reserved: &[],
+                        defaults: &[],
+                        allow_unknown_tags: false,
+                    },
+                },
+                Variant {
+                    tag: 1,
+                    name: "B",
+                    payload: Product {
+                        fields: &[],
+                        reserved: &[],
+                        defaults: &[],
+                        allow_unknown_tags: false,
+                    },
+                },
+            ],
+            reserved: &[7],
+            default_on_reserved: true,
+            default_on_unknown: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -428,5 +490,22 @@ mod tests {
         assert!(s.is_reserved(5));
         assert!(!s.is_reserved(0));
         assert!(!s.is_reserved(99));
+    }
+
+    /// Both decode-policy flags default to `false` — strict decode unless
+    /// the type opts in.
+    #[test]
+    #[allow(clippy::assertions_on_constants)]
+    fn sum_default_decode_policy_is_strict() {
+        let s = sum_of::<Choice>();
+        assert!(!s.default_on_reserved);
+        assert!(!s.default_on_unknown);
+    }
+
+    #[test]
+    fn sum_decode_policy_flags_propagate_when_set() {
+        let s = sum_of::<Lenient>();
+        assert!(s.default_on_reserved);
+        assert!(s.default_on_unknown);
     }
 }

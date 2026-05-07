@@ -1,0 +1,6 @@
+error: `#[tagged(via(...))]` is incompatible with `default_on_reserved` — decode-policy flags belong on the wire DTO, not on the public type
+  --> tests/compile_fail/default_on_reserved_with_via.rs:16:1
+   |
+16 | / #[tagged(via(WireDto), default_on_reserved)]
+17 | | struct Public;
+   | |______________^

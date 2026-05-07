@@ -1,0 +1,8 @@
+error[E0277]: the trait bound `BackwardsCompat: Default` is not satisfied
+ --> tests/compile_fail/default_on_reserved_without_default_impl.rs:8:10
+  |
+8 | #[derive(MsgpackTagged)]
+  |          ^^^^^^^^^^^^^ the trait `Default` is not implemented for `BackwardsCompat`
+  |
+  = help: see issue #48214
+  = note: this error originates in the derive macro `MsgpackTagged` (in Nightly builds, run with -Z macro-backtrace for more info)
