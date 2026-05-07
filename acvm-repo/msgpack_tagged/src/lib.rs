@@ -5,12 +5,19 @@
 //! This crate currently provides:
 //! - The [`MsgpackTagged`] trait — metadata-only, exposing per-type tag information
 //!   plus a hook for building a [`TagRegistry`].
-//! - A stub [`TagRegistry`] (will be fleshed out alongside the wrapper Serializer
-//!   in a follow-up step).
-//!
-//! Future steps will add: blanket impls for primitives and standard containers,
-//! the `TaggedMsgpackSerializer`/`TaggedMsgpackDeserializer` wrappers, and the
-//! companion `msgpack_tagged_derive` crate that emits this trait.
+//! - [`TagRegistry`] / [`Entry`] — the runtime data structure populated by
+//!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
+//!   wrapper Serializer/Deserializer (added in a follow-up step).
+
+mod registry;
+
+pub use registry::{Entry, TagRegistry};
+
+/// The integer tag used as a wire-level identifier for struct fields and enum
+/// variants. `u8` keeps tags inside msgpack's `fixint` range (0–127) at the
+/// 1-byte-per-tag encoding and rejects `#[tag(N)]` annotations with `N > 255`
+/// at compile time.
+pub type Tag = u8;
 
 /// A type that participates in the tagged-map wire format.
 ///
@@ -25,13 +32,13 @@ pub trait MsgpackTagged {
     /// Tag-to-field-name table for this type, written by the macro from `#[tag(N)]`
     /// attributes in tag order. Empty for newtypes and shadow-DTO public types
     /// using `#[via(...)]`.
-    const TAGS: &'static [(u8, &'static str)];
+    const TAGS: &'static [(Tag, &'static str)];
 
     /// Tags that have been retired via `#[reserved(...)]` on the type. These tags
     /// must never be reused for a different field meaning — the macro enforces
     /// this at compile time, and the decoder skips values keyed by reserved tags
     /// silently (assuming they're remnants from an older schema).
-    const RESERVED: &'static [u8] = &[];
+    const RESERVED: &'static [Tag] = &[];
 
     /// Whether unknown tags encountered on decode should be ignored (`true`) or
     /// treated as a decode error (`false`).
@@ -50,26 +57,6 @@ pub trait MsgpackTagged {
     fn register_into(reg: &mut TagRegistry);
 }
 
-/// A registry of types participating in tagged-map serialization.
-///
-/// Built once per encode/decode call by walking the type graph from a top-level
-/// type via [`MsgpackTagged::register_into`]. The wrapper Serializer/Deserializer
-/// consults the registry at `serialize_struct` / `deserialize_struct` time to
-/// translate between serde field names and integer tags.
-///
-/// Stub: implementation deferred to a follow-up step alongside the wrapper.
-#[derive(Default)]
-pub struct TagRegistry {
-    _placeholder: (),
-}
-
-impl TagRegistry {
-    /// Construct an empty registry.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,8 +66,8 @@ mod tests {
     struct Foo;
 
     impl MsgpackTagged for Foo {
-        const TAGS: &'static [(u8, &'static str)] = &[(0, "a"), (1, "b")];
-        const RESERVED: &'static [u8] = &[3];
+        const TAGS: &'static [(Tag, &'static str)] = &[(0, "a"), (1, "b")];
+        const RESERVED: &'static [Tag] = &[3];
         const ALLOW_UNKNOWN_TAGS: bool = true;
 
         fn register_into(_reg: &mut TagRegistry) {}
@@ -92,17 +79,23 @@ mod tests {
     struct Bar;
 
     impl MsgpackTagged for Bar {
-        const TAGS: &'static [(u8, &'static str)] = &[];
+        const TAGS: &'static [(Tag, &'static str)] = &[];
 
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
+    /// `Bar` opts into neither `ALLOW_UNKNOWN_TAGS` nor any reserved tags, so
+    /// its constants must take the trait's defaults. The `#[allow]` is needed
+    /// because the assertion's truth is statically known — this is intentional;
+    /// the test exists to catch regressions if the trait's defaults flip.
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn disallows_unknown_by_default() {
         assert!(!<Bar as MsgpackTagged>::ALLOW_UNKNOWN_TAGS);
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn nothing_reserved_by_default() {
         assert!(<Bar as MsgpackTagged>::RESERVED.is_empty());
     }
@@ -111,12 +104,5 @@ mod tests {
     fn impl_constants_match_what_was_written() {
         assert_eq!(Foo::TAGS, &[(0, "a"), (1, "b")]);
         assert_eq!(Foo::RESERVED, &[3]);
-    }
-
-    #[test]
-    fn register_into_compiles_against_stub_registry() {
-        let mut reg = TagRegistry::new();
-        Foo::register_into(&mut reg);
-        Bar::register_into(&mut reg);
     }
 }
