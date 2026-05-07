@@ -395,7 +395,7 @@ fn collect_called_functions(func: &Function, allow_indirect: bool) -> Vec<Functi
 
             match func.dfg[*called_value_id] {
                 Value::Function(function_id) => called_function_ids.push(function_id),
-                Value::Intrinsic(_) | Value::ForeignFunction(_) => {}
+                Value::Intrinsic(_) | Value::ForeignFunction { .. } => {}
                 _ if allow_indirect => {}
                 _ => panic!(
                     "called_functions_vec: indirect call detected in {} — \
