@@ -151,6 +151,38 @@ struct LenientType {
     a: u32,
 }
 
+/// Wire DTO that registers itself; the `Public` type below delegates to this
+/// via `#[tagged(via(...))]`.
+#[derive(MsgpackTagged)]
+struct WireDto {
+    #[tag(0)]
+    payload: u32,
+}
+
+/// Realistic shadow-DTO setup: the wire type carries `#[serde(rename = "...")]`
+/// pointing at the public type's name, so on the wire it appears as if the
+/// public type were being serialized directly. The macro reads the `rename`
+/// and uses it as the registry key — matching what `serialize_struct` will
+/// pass at runtime through the auto-derived `Serialize` impl.
+#[derive(MsgpackTagged, serde::Serialize)]
+#[serde(rename = "Renamed")]
+struct RenamedWire {
+    #[tag(0)]
+    payload: u32,
+}
+
+/// `#[tagged(via(WireDto))]`: the macro emits a delegation impl that calls
+/// `WireDto::register_into` instead of registering `Public` itself. The
+/// public type's own fields are wire-irrelevant — they must NOT carry
+/// `#[tag(...)]` annotations (the macro rejects that combination — see the
+/// `via_with_field_tag` compile-fail test), and they don't constrain anything.
+#[derive(MsgpackTagged)]
+#[tagged(via(WireDto))]
+struct Public {
+    internal_only: Opaque,
+    other: Vec<u8>,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -172,6 +204,9 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<WithDefaults>();
     assert_impl::<WithReserved>();
     assert_impl::<LenientType>();
+    assert_impl::<WireDto>();
+    assert_impl::<Public>();
+    assert_impl::<RenamedWire>();
 }
 
 #[test]
@@ -311,4 +346,51 @@ fn allow_unknown_tags_shows_up_on_the_registry_entry() {
     LenientType::register_into(&mut reg);
     let entry = reg.get("LenientType").expect("LenientType should register itself");
     assert!(entry.allow_unknown_tags());
+}
+
+/// `via`-delegating type doesn't put itself in the registry; instead, calling
+/// its `register_into` registers the wire DTO under the wire DTO's name.
+///
+/// Without `#[serde(rename)]` the wire DTO registers under its Rust ident
+/// (`"WireDto"`). In real use this would mismatch what `serialize_struct`
+/// passes at runtime through the public type's `Serialize` impl — see
+/// `serde_rename_drives_registry_key_not_rust_ident` for the realistic case
+/// where the wire type uses `#[serde(rename = "Public")]` to align names.
+#[test]
+fn via_delegates_register_into_to_the_wire_dto() {
+    let mut reg = TagRegistry::new();
+    Public::register_into(&mut reg);
+    assert!(reg.get("WireDto").is_some(), "wire DTO should be registered");
+    assert!(reg.get("Public").is_none(), "public type should NOT appear in the registry");
+}
+
+/// The public type's own constants are inert (empty / false) — the wire
+/// shape comes from the wire DTO, which has its own non-empty TAGS.
+#[test]
+fn via_public_type_constants_are_empty() {
+    assert!(<Public as MsgpackTagged>::TAGS.is_empty());
+    assert!(<Public as MsgpackTagged>::RESERVED.is_empty());
+    assert!(<Public as MsgpackTagged>::DEFAULTS.is_empty());
+    // The wire DTO's TAGS, by contrast, are populated from its own #[tag(N)].
+    assert_eq!(<WireDto as MsgpackTagged>::TAGS, &[(0, "payload")]);
+}
+
+/// `#[serde(rename = "X")]` on the wire DTO drives the registry key — the
+/// wire type registers under its rename target, not its Rust ident. This is
+/// the load-bearing mechanism for the shadow-DTO pattern: the wrapper
+/// Serializer's `serialize_struct(...)` call (driven by serde's auto-derived
+/// `Serialize`) passes the rename target as the name, and the registry
+/// lookup matches.
+#[test]
+fn serde_rename_drives_registry_key_not_rust_ident() {
+    let mut reg = TagRegistry::new();
+    RenamedWire::register_into(&mut reg);
+    assert!(
+        reg.get("Renamed").is_some(),
+        "registry should be keyed by the `#[serde(rename)]` target"
+    );
+    assert!(
+        reg.get("RenamedWire").is_none(),
+        "Rust ident should NOT appear when a rename is present"
+    );
 }

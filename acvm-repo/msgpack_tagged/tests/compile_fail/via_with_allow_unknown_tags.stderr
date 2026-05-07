@@ -1,0 +1,6 @@
+error: `#[tagged(via(...))]` is incompatible with `allow_unknown_tags` — that flag belongs on the wire DTO, not on the public type
+  --> tests/compile_fail/via_with_allow_unknown_tags.rs:14:1
+   |
+14 | / #[tagged(via(Wire), allow_unknown_tags)] // allow_unknown_tags doesn't belong here
+15 | | struct Public {}
+   | |________________^

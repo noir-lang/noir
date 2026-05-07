@@ -12,8 +12,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Attribute, Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Meta,
-    Token, Type, WhereClause,
+    Attribute, Data, DataStruct, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam, Ident,
+    Lit, LitInt, Meta, Token, Type, WhereClause,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -26,14 +26,72 @@ pub fn derive_msgpack_tagged(input: TokenStream) -> TokenStream {
 }
 
 fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
+    let type_attrs = parse_tagged_type_attrs(input)?;
+
+    // `via(...)` short-circuits the rest of expansion regardless of shape:
+    // struct, tuple struct, or enum — they all delegate to the wire DTO. The
+    // public type's own fields/variants are wire-irrelevant in this case, so
+    // we also reject any field-level `#[tag(...)]` annotations that would
+    // suggest otherwise.
+    if let Some(wire_type) = &type_attrs.via {
+        validate_no_field_tag_attrs(input)?;
+        return Ok(expand_via(input, wire_type));
+    }
+
     match &input.data {
         Data::Struct(DataStruct { fields: Fields::Named(named), .. }) => {
-            expand_named_struct(input, &named.named)
+            expand_named_struct(input, &named.named, &type_attrs)
         }
         // Tuple structs, unit structs, enums, unions: stub for now. Real
         // expansion lands in subsequent steps.
         _ => Ok(stub(input)),
     }
+}
+
+/// Reject any field-level `#[tag(...)]` attribute on the input. Used when
+/// `#[tagged(via(...))]` is set: the public type's fields are wire-irrelevant,
+/// so a `#[tag(...)]` annotation would either be a leftover from before the
+/// migration to `via` or a misunderstanding of where tags belong (on the
+/// wire DTO). Either way, loud rejection is better than silent ignore.
+fn validate_no_field_tag_attrs(input: &DeriveInput) -> syn::Result<()> {
+    let check = |fields: &Fields| -> syn::Result<()> {
+        for field in fields {
+            for attr in &field.attrs {
+                if attr.path().is_ident("tag") {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "field-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — \
+                         fields of a `via`-delegating type are wire-irrelevant; \
+                         tag the wire DTO's fields instead",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    };
+    match &input.data {
+        Data::Struct(s) => check(&s.fields)?,
+        Data::Enum(e) => {
+            for variant in &e.variants {
+                check(&variant.fields)?;
+            }
+        }
+        Data::Union(u) => {
+            for field in &u.fields.named {
+                for attr in &field.attrs {
+                    if attr.path().is_ident("tag") {
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "field-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — \
+                             fields of a `via`-delegating type are wire-irrelevant; \
+                             tag the wire DTO's fields instead",
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Stub expansion: empty `TAGS`/`RESERVED`, no-op `register_into`. Used for
@@ -62,13 +120,24 @@ struct TaggedField<'a> {
 fn expand_named_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Token![,]>,
+    type_attrs: &TypeAttrs,
 ) -> syn::Result<TokenStream2> {
     let name = &input.ident;
-    let name_str = name.to_string();
+    // The registry key is the *serde* name — it must match what
+    // `serialize_struct(name, ...)` will pass at runtime. So we honor
+    // `#[serde(rename = "...")]` if present, fall back to the Rust ident
+    // otherwise. This is what makes the shadow-DTO pattern work: the wire
+    // DTO `MemOpWire` with `#[serde(rename = "MemOp")]` registers under
+    // `"MemOp"`, and the wrapper's lookup at `serialize_struct("MemOp", ...)`
+    // hits correctly.
+    let name_str = parse_serde_rename(input)?.unwrap_or_else(|| name.to_string());
 
-    // Type-level `#[tagged(...)]`: parses `reserved(...)`, `allow_unknown_tags`,
-    // and (eventually) `via(...)` items in a single namespaced attribute.
-    let TypeAttrs { reserved, allow_unknown_tags } = parse_tagged_type_attrs(input)?;
+    // `via` is handled in `expand` before dispatch — by the time we reach
+    // this function, it must be `None`. Reservation list and unknown-tag
+    // policy come from the already-parsed type attrs.
+    debug_assert!(type_attrs.via.is_none());
+    let reserved = &type_attrs.reserved;
+    let allow_unknown_tags = type_attrs.allow_unknown_tags;
 
     // Parse each field. Tagged fields contribute to TAGS, the recursion list,
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
@@ -77,7 +146,7 @@ fn expand_named_struct(
     let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
-        match classify_field(field, &reserved)? {
+        match classify_field(field, reserved)? {
             FieldKind::Tagged { tag, has_default } => {
                 entries.push(TaggedField { tag, ident, ty: &field.ty, has_default });
             }
@@ -135,6 +204,54 @@ fn expand_named_struct(
             }
         }
     })
+}
+
+/// Expand the `#[tagged(via(WireType))]` form: the public type delegates
+/// `register_into` entirely to the wire DTO and contributes no entry of its
+/// own. `TAGS` / `RESERVED` / `DEFAULTS` are emitted as empty slices and
+/// `ALLOW_UNKNOWN_TAGS` as `false` purely to satisfy the trait — they're
+/// inert because the public type itself never appears in the registry.
+///
+/// Field-level `#[tag(...)]` annotations on a `via` type become inert (the
+/// macro doesn't read them) — the public type's fields are an internal
+/// concern not visible to the wire format.
+fn expand_via(input: &DeriveInput, wire_type: &Type) -> TokenStream2 {
+    let name = &input.ident;
+    let where_clause = build_via_where_clause(input, wire_type);
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+
+    quote! {
+        impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
+            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[];
+            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
+            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
+            const ALLOW_UNKNOWN_TAGS: bool = false;
+
+            fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
+                <#wire_type as ::msgpack_tagged::MsgpackTagged>::register_into(_reg);
+            }
+        }
+    }
+}
+
+/// Build the where clause for a `via`-delegating impl. The public type
+/// contributes no field-type bounds (it has no field types on the wire), but
+/// it does need:
+/// 1. `T: 'static` on every type parameter (the supertrait propagates `Self: 'static`).
+/// 2. `<WireType>: MsgpackTagged` so the recursive call type-checks.
+fn build_via_where_clause(input: &DeriveInput, wire_type: &Type) -> Option<WhereClause> {
+    let mut where_clause = input.generics.where_clause.clone().unwrap_or_else(|| WhereClause {
+        where_token: <Token![where]>::default(),
+        predicates: Punctuated::new(),
+    });
+    for param in &input.generics.params {
+        if let GenericParam::Type(type_param) = param {
+            let ident = &type_param.ident;
+            where_clause.predicates.push(parse_quote!(#ident: 'static));
+        }
+    }
+    where_clause.predicates.push(parse_quote!(#wire_type: ::msgpack_tagged::MsgpackTagged));
+    Some(where_clause)
 }
 
 /// What the macro should do with a given field on the wire.
@@ -248,6 +365,36 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     ))
 }
 
+/// Read `#[serde(rename = "X")]` off the type, if present, and return `"X"`.
+/// The returned name becomes the registry key for the type — matching what
+/// `serialize_struct(name, ...)` will pass at runtime, so the wrapper's
+/// lookup hits correctly.
+///
+/// Only the simple symmetric form `rename = "X"` is recognized. Other serde
+/// items (`default`, `skip`, `rename_all`, asymmetric `rename(serialize = ...,
+/// deserialize = ...)`, etc.) are ignored — they don't affect the registry
+/// key. If the user has multiple `#[serde(rename = "X")]` attributes that
+/// disagree, the last one wins (matches serde's own behavior).
+fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
+    let mut found: Option<String> = None;
+    for attr in &input.attrs {
+        if !attr.path().is_ident("serde") {
+            continue;
+        }
+        let items: Punctuated<Meta, Token![,]> =
+            attr.parse_args_with(Punctuated::parse_terminated)?;
+        for item in items {
+            if let Meta::NameValue(nv) = &item
+                && nv.path.is_ident("rename")
+                && let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = &nv.value
+            {
+                found = Some(s.value());
+            }
+        }
+    }
+    Ok(found)
+}
+
 /// Type-level configuration parsed from one or more `#[tagged(...)]`
 /// attributes on the struct/enum. Holds every modifier the macro understands
 /// at the type level.
@@ -257,6 +404,12 @@ struct TypeAttrs {
     reserved: Vec<u8>,
     /// `true` iff `#[tagged(allow_unknown_tags)]` appears anywhere.
     allow_unknown_tags: bool,
+    /// The wire DTO from `#[tagged(via(WireType))]`, if present. When set,
+    /// the public type delegates `register_into` to this type and contributes
+    /// no entry of its own to the registry. Mutually exclusive with `reserved`
+    /// and `allow_unknown_tags` (those are wire-format properties and belong
+    /// on the wire DTO).
+    via: Option<Type>,
 }
 
 /// Parse the type-level `#[tagged(...)]` attributes (if any) into a single
@@ -266,10 +419,14 @@ struct TypeAttrs {
 /// Inner grammar — comma-separated items, each one of:
 /// * `reserved(N, M, ...)` — list-form, integer literals, no duplicates.
 /// * `allow_unknown_tags` — bare ident, presence-only.
+/// * `via(WireType)` — list-form, single Rust type (the wire DTO to delegate
+///   `register_into` to). Mutually exclusive with `reserved` and
+///   `allow_unknown_tags` — those properties belong on the wire DTO.
 fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     let mut out = TypeAttrs::default();
     let mut seen_reserved = false;
     let mut seen_allow_unknown = false;
+    let mut seen_via = false;
 
     for attr in &input.attrs {
         if !attr.path().is_ident("tagged") {
@@ -316,9 +473,41 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                 out.allow_unknown_tags = true;
                 continue;
             }
+            if let Meta::List(list) = &item
+                && list.path.is_ident("via")
+            {
+                if seen_via {
+                    return Err(syn::Error::new_spanned(
+                        list,
+                        "duplicate `via(...)` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_via = true;
+                out.via = Some(list.parse_args::<Type>()?);
+                continue;
+            }
             return Err(syn::Error::new_spanned(
                 &item,
-                "expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` on a type",
+                "expected `reserved(...)`, `allow_unknown_tags`, or `via(...)` inside `#[tagged(...)]` on a type",
+            ));
+        }
+    }
+
+    // `via` is wire-format-agnostic delegation — the wire DTO carries
+    // `reserved` / `allow_unknown_tags` if anyone does.
+    if out.via.is_some() {
+        if seen_reserved {
+            return Err(syn::Error::new_spanned(
+                input,
+                "`#[tagged(via(...))]` is incompatible with `reserved(...)` — \
+                 the reserved-tag list belongs on the wire DTO, not on the public type",
+            ));
+        }
+        if seen_allow_unknown {
+            return Err(syn::Error::new_spanned(
+                input,
+                "`#[tagged(via(...))]` is incompatible with `allow_unknown_tags` — \
+                 that flag belongs on the wire DTO, not on the public type",
             ));
         }
     }

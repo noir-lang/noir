@@ -17,4 +17,5 @@ workspace = true
 msgpack_tagged_derive.workspace = true
 
 [dev-dependencies]
+serde.workspace = true
 trybuild.workspace = true

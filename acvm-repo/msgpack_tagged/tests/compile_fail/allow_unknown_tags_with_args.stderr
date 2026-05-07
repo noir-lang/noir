@@ -1,4 +1,4 @@
-error: expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` on a type
+error: expected `reserved(...)`, `allow_unknown_tags`, or `via(...)` inside `#[tagged(...)]` on a type
  --> tests/compile_fail/allow_unknown_tags_with_args.rs:9:10
   |
 9 | #[tagged(allow_unknown_tags = true)] // attribute takes no arguments
