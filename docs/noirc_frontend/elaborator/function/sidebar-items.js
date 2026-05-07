@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"type":["ResolvedParametersInfo"]};
+window.SIDEBAR_ITEMS = {"struct":["UnresolvedFunctionMeta"],"type":["ResolvedParametersInfo"]};
