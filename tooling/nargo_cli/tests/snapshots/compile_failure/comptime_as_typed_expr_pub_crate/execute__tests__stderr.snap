@@ -1,12 +1,11 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 340
 expression: stderr
 ---
 error: Function `crate_only` is private
-   ┌─ src/main.nr:14:31
+   ┌─ src/main.nr:12:31
    │
-14 │         let crate_only_expr = found.unwrap().as_typed_expr();
+12 │         let crate_only_expr = found.unwrap().as_typed_expr();
    │                               ------------------------------ `crate_only` is declared in `foo::bar`
    │
 
