@@ -100,11 +100,11 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     /// Substitutions captured while resolving this impl's generic declarations.
-    /// Populated by [`crate::elaborator::Elaborator::resolve_generic`] when the impl
-    /// was emitted by a comptime macro that interpolated an existing
-    /// [`crate::Type::NamedGeneric`] in both its generic list and its `Self`/where-clause
-    /// types. Replayed whenever subsequent passes re-resolve those macro-emitted
-    /// types so they continue to share the impl's allocated [`crate::TypeVariable`].
+    /// Populated when the impl was emitted by a comptime macro that interpolated an
+    /// existing [`crate::Type::NamedGeneric`] in both its generic list and its
+    /// `Self`/where-clause types. Replayed whenever subsequent passes re-resolve
+    /// those macro-emitted types so they continue to share the impl's allocated
+    /// [`crate::TypeVariable`].
     pub resolved_generic_substitutions: TypeBindings,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 }
