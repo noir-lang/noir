@@ -51,6 +51,14 @@ fn stub(input: &DeriveInput) -> TokenStream2 {
     }
 }
 
+/// Per-tagged-field info collected during macro expansion.
+struct TaggedField<'a> {
+    tag: u8,
+    ident: &'a Ident,
+    ty: &'a Type,
+    has_default: bool,
+}
+
 fn expand_named_struct(
     input: &DeriveInput,
     fields: &Punctuated<Field, Token![,]>,
@@ -62,23 +70,32 @@ fn expand_named_struct(
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
     // are silently dropped — they don't go on the wire and don't constrain
     // their type.
-    let mut entries: Vec<(u8, &Ident, &Type)> = Vec::with_capacity(fields.len());
+    let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
         match classify_field(field)? {
-            FieldKind::Tagged(tag) => entries.push((tag, ident, &field.ty)),
+            FieldKind::Tagged { tag, has_default } => {
+                entries.push(TaggedField { tag, ident, ty: &field.ty, has_default });
+            }
             FieldKind::Skipped => {}
         }
     }
     // Canonical order on the wire is tag-ascending, not source-declaration order.
-    entries.sort_by_key(|(tag, _, _)| *tag);
+    entries.sort_by_key(|e| e.tag);
 
-    let tag_entries = entries.iter().map(|(tag, ident, _)| {
-        let name = ident.to_string();
+    let tag_entries = entries.iter().map(|e| {
+        let tag = e.tag;
+        let name = e.ident.to_string();
         quote! { (#tag, #name) }
     });
 
-    let recursion_calls = entries.iter().map(|(_, _, ty)| {
+    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
+        let tag = e.tag;
+        quote! { #tag }
+    });
+
+    let recursion_calls = entries.iter().map(|e| {
+        let ty = e.ty;
         quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
     });
 
@@ -98,6 +115,9 @@ fn expand_named_struct(
                 #(#tag_entries),*
             ];
             const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
+            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
+                #(#default_entries),*
+            ];
             const ALLOW_UNKNOWN_TAGS: bool = false;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
@@ -111,18 +131,25 @@ fn expand_named_struct(
 
 /// What the macro should do with a given field on the wire.
 enum FieldKind {
-    /// Field appears on the wire under integer tag `N`.
-    Tagged(u8),
+    /// Field appears on the wire under integer tag `tag`. `has_default = true`
+    /// when the user wrote `#[tag(N, default)]`: encoder always emits, decoder
+    /// fills `T::default()` if the tag is missing.
+    Tagged { tag: u8, has_default: bool },
     /// Field is omitted from the wire (via explicit `#[tag(skip)]` or because
     /// its type is `PhantomData<_>`). Skipped fields contribute no entry to
     /// `TAGS`, no recursion into `register_into`, and no where-clause bound.
     Skipped,
 }
 
-/// Inner-args grammar for `#[tag(...)]`. Either an integer literal `N` (a tag
-/// number) or the bare ident `skip`.
+/// Inner-args grammar for `#[tag(...)]`:
+/// * `#[tag(skip)]` — the bare ident `skip`.
+/// * `#[tag(N)]` — an integer tag literal.
+/// * `#[tag(N, default)]` — integer tag plus the wire-tolerance modifier.
+///
+/// More modifiers can be added later by extending the comma-separated list
+/// after the integer tag.
 enum TagArgs {
-    Tag(u8),
+    Tag { tag: u8, default: bool },
     Skip,
 }
 
@@ -131,8 +158,27 @@ impl Parse for TagArgs {
         let lookahead = input.lookahead1();
         if lookahead.peek(LitInt) {
             let lit: LitInt = input.parse()?;
-            let n: u8 = lit.base10_parse()?;
-            Ok(TagArgs::Tag(n))
+            let tag: u8 = lit.base10_parse()?;
+            let mut default = false;
+            while input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+                let modifier: Ident = input.parse()?;
+                if modifier == "default" {
+                    if default {
+                        return Err(syn::Error::new(
+                            modifier.span(),
+                            "duplicate `default` modifier",
+                        ));
+                    }
+                    default = true;
+                } else {
+                    return Err(syn::Error::new(
+                        modifier.span(),
+                        format!("unknown modifier `{modifier}` (expected `default`)"),
+                    ));
+                }
+            }
+            Ok(TagArgs::Tag { tag, default })
         } else if lookahead.peek(Ident) {
             let ident: Ident = input.parse()?;
             if ident == "skip" {
@@ -165,7 +211,7 @@ fn classify_field(field: &Field) -> syn::Result<FieldKind> {
     // PhantomData field with `#[tag(N)]`, we honor that (unusual but valid).
     if let Some(args) = found {
         return Ok(match args {
-            TagArgs::Tag(n) => FieldKind::Tagged(n),
+            TagArgs::Tag { tag, default } => FieldKind::Tagged { tag, has_default: default },
             TagArgs::Skip => FieldKind::Skipped,
         });
     }
@@ -197,7 +243,7 @@ fn is_phantom_data(ty: &Type) -> bool {
     false
 }
 
-/// Build a `where` clause for the generated impl. Adds two kinds of bounds:
+/// Build a `where` clause for the generated impl. Adds three kinds of bounds:
 ///
 /// 1. **`T: 'static` for every type parameter on the input.** The
 ///    `MsgpackTagged: 'static` supertrait propagates `Self: 'static` onto the
@@ -212,11 +258,17 @@ fn is_phantom_data(ty: &Type) -> bool {
 ///    our `where MyType<A, B>: MsgpackTagged` propagates that requirement to
 ///    the caller transparently. Field types appearing more than once are only
 ///    emitted as a bound once.
+/// 3. **`<TaggedFieldType>: Default` for each `#[tag(N, default)]` field.**
+///    The `default` modifier promises the decoder can fill `T::default()` if
+///    the tag is missing on the wire — that's only sound when `T: Default`.
+///    Enforcing it via a where bound surfaces a clear "X: Default is not
+///    satisfied" error at the impl site if a user marks a field `default`
+///    whose type isn't `Default`.
 ///
 /// Returns `None` only if the input has no generic params, no tagged fields,
 /// and no pre-existing where clause — that lets the caller avoid emitting a
 /// stray `where` token.
-fn build_where_clause(input: &DeriveInput, entries: &[(u8, &Ident, &Type)]) -> Option<WhereClause> {
+fn build_where_clause(input: &DeriveInput, entries: &[TaggedField<'_>]) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
     if entries.is_empty() && !has_type_params {
         return input.generics.where_clause.clone();
@@ -234,14 +286,20 @@ fn build_where_clause(input: &DeriveInput, entries: &[(u8, &Ident, &Type)]) -> O
         }
     }
 
-    let mut seen = std::collections::HashSet::new();
-    for (_, _, ty) in entries {
+    let mut seen_tagged = std::collections::HashSet::new();
+    let mut seen_default = std::collections::HashSet::new();
+    for entry in entries {
+        let ty = entry.ty;
         // Dedup by stringified token-stream of the type. Not semantic equality
         // (`Vec<u32>` vs `std::vec::Vec<u32>` would be treated as distinct),
         // but it dedupes the common case where the same path is written the
         // same way in multiple field declarations.
-        if seen.insert(quote!(#ty).to_string()) {
+        let key = quote!(#ty).to_string();
+        if seen_tagged.insert(key.clone()) {
             where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
+        }
+        if entry.has_default && seen_default.insert(key) {
+            where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
         }
     }
     Some(where_clause)

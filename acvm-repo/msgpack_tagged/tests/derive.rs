@@ -114,6 +114,18 @@ struct WithPhantom<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
+/// `#[tag(N, default)]` fields: tag 1 (`extra`) is wire-tolerant — appears in
+/// `TAGS` and `DEFAULTS`, decoder will fill `Vec::default()` if missing.
+#[derive(MsgpackTagged)]
+struct WithDefaults {
+    #[tag(0)]
+    required: u32,
+    #[tag(1, default)]
+    extra: Vec<u8>,
+    #[tag(2, default)]
+    annotation: String,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -132,6 +144,7 @@ fn derive_compiles_for_basic_shapes() {
     // T = Opaque (no MsgpackTagged impl) still satisfies WithPhantom<T>'s bound,
     // because PhantomData<T> is auto-skipped — the bound chain doesn't reach T.
     assert_impl::<WithPhantom<Opaque>>();
+    assert_impl::<WithDefaults>();
 }
 
 #[test]
@@ -208,4 +221,28 @@ fn explicit_skip_field_is_absent_from_tags() {
 #[test]
 fn phantom_data_field_is_absent_from_tags() {
     assert_eq!(<WithPhantom<Opaque> as MsgpackTagged>::TAGS, &[(0, "visible")]);
+}
+
+#[test]
+fn default_fields_appear_in_both_tags_and_defaults() {
+    assert_eq!(
+        <WithDefaults as MsgpackTagged>::TAGS,
+        &[(0, "required"), (1, "extra"), (2, "annotation")],
+        "default fields still appear in TAGS — they're encoded normally, only the decoder is tolerant",
+    );
+    assert_eq!(
+        <WithDefaults as MsgpackTagged>::DEFAULTS,
+        &[1, 2],
+        "DEFAULTS lists exactly the tags marked `#[tag(N, default)]`",
+    );
+}
+
+#[test]
+fn defaults_show_up_on_the_registry_entry() {
+    let mut reg = TagRegistry::new();
+    WithDefaults::register_into(&mut reg);
+    let entry = reg.get("WithDefaults").expect("WithDefaults should register itself");
+    assert!(!entry.is_default(0), "tag 0 (`required`) is not defaulted");
+    assert!(entry.is_default(1), "tag 1 (`extra`) is defaulted");
+    assert!(entry.is_default(2), "tag 2 (`annotation`) is defaulted");
 }

@@ -47,6 +47,11 @@ pub trait MsgpackTagged: 'static {
     /// silently (assuming they're remnants from an older schema).
     const RESERVED: &'static [Tag] = &[];
 
+    /// Tags whose fields are marked `#[tag(N, default)]` — wire-tolerant. If
+    /// such a tag is missing on decode the field is filled with `T::default()`
+    /// rather than raising an error. Encoder always emits.
+    const DEFAULTS: &'static [Tag] = &[];
+
     /// Whether unknown tags encountered on decode should be ignored (`true`) or
     /// treated as a decode error (`false`).
     ///
@@ -81,8 +86,8 @@ mod tests {
     }
 
     /// Minimal impl that supplies only `TAGS` and `register_into`, leaving
-    /// `RESERVED` and `ALLOW_UNKNOWN_TAGS` at their defaults. This impl
-    /// compiling is itself the proof that the defaults are in place.
+    /// `RESERVED`, `DEFAULTS`, and `ALLOW_UNKNOWN_TAGS` at their defaults.
+    /// This impl compiling is itself the proof that the defaults are in place.
     struct Bar;
 
     impl MsgpackTagged for Bar {
@@ -105,6 +110,12 @@ mod tests {
     #[allow(clippy::const_is_empty)]
     fn nothing_reserved_by_default() {
         assert!(<Bar as MsgpackTagged>::RESERVED.is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::const_is_empty)]
+    fn no_default_fields_by_default() {
+        assert!(<Bar as MsgpackTagged>::DEFAULTS.is_empty());
     }
 
     #[test]

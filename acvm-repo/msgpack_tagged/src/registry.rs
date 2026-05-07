@@ -16,6 +16,7 @@ pub struct Entry {
     type_id: TypeId,
     tags: &'static [(Tag, &'static str)],
     reserved: &'static [Tag],
+    defaults: &'static [Tag],
     allow_unknown_tags: bool,
 }
 
@@ -26,6 +27,10 @@ impl Entry {
 
     pub fn reserved(&self) -> &'static [Tag] {
         self.reserved
+    }
+
+    pub fn defaults(&self) -> &'static [Tag] {
+        self.defaults
     }
 
     pub fn allow_unknown_tags(&self) -> bool {
@@ -49,6 +54,13 @@ impl Entry {
     /// older schema version — silently skipped on decode).
     pub fn is_reserved(&self, tag: Tag) -> bool {
         self.reserved.contains(&tag)
+    }
+
+    /// Whether the field at `tag` is marked `#[tag(N, default)]` — i.e.,
+    /// wire-tolerant: the decoder should fill in `T::default()` if the tag
+    /// is missing rather than raising an error.
+    pub fn is_default(&self, tag: Tag) -> bool {
+        self.defaults.contains(&tag)
     }
 }
 
@@ -82,6 +94,7 @@ impl TagRegistry {
                     type_id: TypeId::of::<T>(),
                     tags: T::TAGS,
                     reserved: T::RESERVED,
+                    defaults: T::DEFAULTS,
                     allow_unknown_tags: T::ALLOW_UNKNOWN_TAGS,
                 });
                 true
@@ -122,6 +135,7 @@ mod tests {
     impl MsgpackTagged for Foo {
         const TAGS: &'static [(Tag, &'static str)] = &[(0, "a"), (1, "b")];
         const RESERVED: &'static [Tag] = &[3];
+        const DEFAULTS: &'static [Tag] = &[1];
         const ALLOW_UNKNOWN_TAGS: bool = true;
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -207,6 +221,16 @@ mod tests {
         assert!(entry.is_reserved(3));
         assert!(!entry.is_reserved(0));
         assert!(!entry.is_reserved(99));
+    }
+
+    #[test]
+    fn entry_is_default_only_for_listed_tags() {
+        let mut reg = TagRegistry::new();
+        reg.try_insert::<Foo>("Foo");
+        let entry = reg.get("Foo").unwrap();
+        assert!(entry.is_default(1), "Foo's tag 1 (`b`) is in DEFAULTS");
+        assert!(!entry.is_default(0), "tag 0 (`a`) is not defaulted");
+        assert!(!entry.is_default(99), "unknown tags are not defaulted");
     }
 
     #[test]

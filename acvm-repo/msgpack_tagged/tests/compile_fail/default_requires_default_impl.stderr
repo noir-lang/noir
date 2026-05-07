@@ -1,0 +1,13 @@
+error[E0277]: the trait bound `NotDefault: Default` is not satisfied
+  --> tests/compile_fail/default_requires_default_impl.rs:16:10
+   |
+16 | #[derive(MsgpackTagged)]
+   |          ^^^^^^^^^^^^^ the trait `Default` is not implemented for `NotDefault`
+   |
+   = help: see issue #48214
+   = note: this error originates in the derive macro `MsgpackTagged` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `NotDefault` with `#[derive(Default)]`
+   |
+9  + #[derive(Default)]
+10 | struct NotDefault {
+   |
