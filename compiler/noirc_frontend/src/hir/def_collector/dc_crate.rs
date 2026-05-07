@@ -9,7 +9,7 @@ use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
-use crate::{ResolvedGenerics, Type};
+use crate::{ResolvedGenerics, Type, TypeBindings};
 
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, ResolvedImport, resolve_import};
@@ -99,6 +99,13 @@ pub struct UnresolvedTraitImpl {
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
+    /// Substitutions captured while resolving this impl's generic declarations.
+    /// Populated by [`crate::elaborator::Elaborator::resolve_generic`] when the impl
+    /// was emitted by a comptime macro that interpolated an existing
+    /// [`crate::Type::NamedGeneric`] in both its generic list and its `Self`/where-clause
+    /// types. Replayed whenever subsequent passes re-resolve those macro-emitted
+    /// types so they continue to share the impl's allocated [`crate::TypeVariable`].
+    pub resolved_generic_substitutions: TypeBindings,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 }
 

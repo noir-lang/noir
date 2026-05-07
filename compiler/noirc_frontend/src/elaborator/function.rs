@@ -134,6 +134,7 @@ impl Elaborator<'_> {
         self.current_trait = trait_impl.trait_id;
         self.self_type = trait_impl.methods.self_type.clone();
         self.generics = generics;
+        self.generic_substitutions = trait_impl.resolved_generic_substitutions.clone();
 
         // Now define the function metas with the constraints from where clause desugaring
         self.define_function_metas_for_functions(
@@ -146,6 +147,7 @@ impl Elaborator<'_> {
         self.current_trait_impl = None;
         self.current_trait = None;
         self.generics.clear();
+        self.generic_substitutions.clear();
     }
 
     /// Extracts and stores metadata from a function definition.

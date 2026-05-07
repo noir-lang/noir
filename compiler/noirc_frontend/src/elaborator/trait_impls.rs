@@ -112,6 +112,10 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_impl.trait_id {
             let previous_generics =
                 std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
+            let previous_substitutions = std::mem::replace(
+                &mut self.generic_substitutions,
+                trait_impl.resolved_generic_substitutions.clone(),
+            );
 
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
@@ -269,6 +273,7 @@ impl Elaborator<'_> {
             }
 
             self.generics = previous_generics;
+            self.generic_substitutions = previous_substitutions;
         }
 
         self.local_module = previous_local_module;
@@ -823,6 +828,7 @@ impl Elaborator<'_> {
         self.local_module = previous_local_module;
 
         let generics = std::mem::take(&mut self.generics);
+        trait_impl.resolved_generic_substitutions = std::mem::take(&mut self.generic_substitutions);
 
         (new_generics_trait_constraints, generics)
     }

@@ -276,7 +276,14 @@ impl Elaborator<'_> {
             Parenthesized(typ) => {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
-            Resolved(id) => self.interner.get_quoted_type(id).clone(),
+            Resolved(id) => {
+                let typ = self.interner.get_quoted_type(id).clone();
+                if self.generic_substitutions.is_empty() {
+                    typ
+                } else {
+                    typ.substitute(&self.generic_substitutions)
+                }
+            }
             AsTraitPath(path) => self.resolve_as_trait_path(*path, mode, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();

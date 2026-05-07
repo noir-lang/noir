@@ -57,7 +57,7 @@ use std::{
 };
 
 use crate::{
-    Type,
+    Type, TypeBindings,
     ast::UnresolvedGenerics,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
@@ -255,6 +255,18 @@ pub struct Elaborator<'context> {
     /// were declared in.
     generics: Vec<ResolvedGeneric>,
 
+    /// Substitutions to apply to resolved types loaded from the interner via
+    /// [`crate::ast::UnresolvedTypeData::Resolved`]. Populated by
+    /// [`Self::resolve_generic`] when a generic declaration carries a macro-
+    /// emitted [`crate::ast::IdentOrQuotedType::Quoted`] type variable: a
+    /// fresh `TypeVariable` is allocated for the new generic and the original
+    /// `TypeVariable` is recorded here so that any subsequent resolved type
+    /// that still references it (e.g. an impl's `Self` type that the macro
+    /// interpolated alongside the generic declaration) is rewritten to use
+    /// the fresh `TypeVariable`. This decouples macro-emitted impl generics
+    /// from any outer-scope `TypeVariable` they were aliased with.
+    generic_substitutions: TypeBindings,
+
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
@@ -428,6 +440,7 @@ impl<'context> Elaborator<'context> {
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
+            generic_substitutions: TypeBindings::default(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
@@ -795,6 +808,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
+        self.generic_substitutions = trait_impl.resolved_generic_substitutions.clone();
         self.current_trait_impl = trait_impl.impl_id;
         self.current_trait = trait_impl.trait_id;
 
@@ -815,6 +829,7 @@ impl<'context> Elaborator<'context> {
         self.current_trait_impl = None;
         self.current_trait = None;
         self.generics.clear();
+        self.generic_substitutions.clear();
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {

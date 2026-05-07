@@ -23,6 +23,11 @@ use super::Elaborator;
 /// Saved generics state for restoration after a scope exits.
 pub(super) struct GenericsState {
     generics_count: usize,
+    /// Snapshot of [`Elaborator::generic_substitutions`] at scope entry. On exit we restore
+    /// this verbatim, which has the side effect of discarding any entries added inside the
+    /// scope while preserving the entries (and bindings) that were already in flight from an
+    /// enclosing scope.
+    saved_substitutions: crate::TypeBindings,
 }
 
 impl Elaborator<'_> {
@@ -31,13 +36,17 @@ impl Elaborator<'_> {
     /// position of the current generics so that any generics added afterward can later be discarded
     /// via a call to [Self::exit_generics_scope].
     pub(super) fn enter_generics_scope(&self) -> GenericsState {
-        GenericsState { generics_count: self.generics.len() }
+        GenericsState {
+            generics_count: self.generics.len(),
+            saved_substitutions: self.generic_substitutions.clone(),
+        }
     }
 
     /// Restores the generics state saved by `enter_generics_scope`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn exit_generics_scope(&mut self, state: GenericsState) {
         self.generics.truncate(state.generics_count);
+        self.generic_substitutions = state.saved_substitutions;
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -147,7 +156,35 @@ impl Elaborator<'_> {
             }
             IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => Ok((type_var, name)),
+                    Type::NamedGeneric(named_generic) => {
+                        // The macro emitted this generic by interpolating an existing
+                        // `Type::NamedGeneric`, which carries an outer-scope `TypeVariable`.
+                        // Reusing that `TypeVariable` would alias the impl's generic with the
+                        // outer one, so binding the impl's generic during monomorphization
+                        // would also bind the outer one. Allocate a fresh `TypeVariable` and
+                        // record the substitution so any sibling resolved types the macro
+                        // interpolated using the same outer `TypeVariable` (e.g. an impl's
+                        // `Self` type) can be rewritten to use the fresh one.
+                        //
+                        // The substitution rewrites the original `NamedGeneric` to a
+                        // `NamedGeneric` carrying the fresh `TypeVariable` (rather than a
+                        // bare `Type::TypeVariable`) so downstream consumers — particularly
+                        // constructor-expression generic checks that treat a bare
+                        // `TypeVariable` as requiring an inferred binding — continue to see
+                        // a named generic.
+                        let type_var = named_generic.type_var.clone();
+                        let name = named_generic.name.clone();
+                        let fresh_id = self.interner.next_type_variable_id();
+                        let kind = type_var.kind();
+                        let fresh_tv = TypeVariable::unbound(fresh_id, kind.clone());
+                        let mut fresh_named = named_generic;
+                        fresh_named.type_var = fresh_tv.clone();
+                        self.generic_substitutions.insert(
+                            type_var.id(),
+                            (type_var, kind, Type::NamedGeneric(fresh_named)),
+                        );
+                        Ok((fresh_tv, name))
+                    }
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         location: *location,
                         typ: other,
