@@ -1,5 +1,5 @@
+use super::span::{Position, Span, Spanned};
 use acir_field::FieldElement;
-use noirc_span::{Position, Span, Spanned};
 
 #[derive(Debug)]
 pub(crate) struct SpannedToken(Spanned<Token>);
