@@ -22,7 +22,9 @@
 <ul class="sidebar-list">
 <li><a href="#assert_max_bit_size">assert_max_bit_size</a></li>
 <li><a href="#from_be_bytes">from_be_bytes</a></li>
+<li><a href="#from_be_bytes_checked">from_be_bytes_checked</a></li>
 <li><a href="#from_le_bytes">from_le_bytes</a></li>
+<li><a href="#from_le_bytes_checked">from_le_bytes_checked</a></li>
 <li><a href="#lt">lt</a></li>
 <li><a href="#pow_32">pow_32</a></li>
 <li><a href="#sgn0">sgn0</a></li>
@@ -195,12 +197,34 @@ and no more than the number of bytes required to represent the field modulus</p>
 <div class="padded-description"><div class="comments">
 <p>Convert a little endian byte array to a field element.
 If the provided byte array overflows the field modulus then the Field will silently wrap around.</p>
+<h4>Failures</h4>
+<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p>
 </div>
 </div><code id="from_be_bytes" class="code-header">pub fn <a href="#from_be_bytes"><span class="fn">from_be_bytes</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Convert a big endian byte array to a field element.
 If the provided byte array overflows the field modulus then the Field will silently wrap around.</p>
+<h4>Failures</h4>
+<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p>
+</div>
+</div><code id="from_le_bytes_checked" class="code-header">pub fn <a href="#from_le_bytes_checked"><span class="fn">from_le_bytes_checked</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Convert a little endian byte array to a field element, asserting that the input is a
+canonical representation (strictly less than the field modulus).</p>
+<h4>Failures</h4>
+<p>Causes a constraint failure if <code>bytes</code> encodes a value greater than or equal to the
+field modulus.</p>
+</div>
+</div><code id="from_be_bytes_checked" class="code-header">pub fn <a href="#from_be_bytes_checked"><span class="fn">from_be_bytes_checked</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Convert a big endian byte array to a field element, asserting that the input is a
+canonical representation (strictly less than the field modulus).</p>
+<h4>Failures</h4>
+<p>Causes a constraint failure if <code>bytes</code> encodes a value greater than or equal to the
+field modulus.</p>
 </div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-Field"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.Field.html" class="primitive">Field</a></code></h3>
