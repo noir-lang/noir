@@ -13,8 +13,26 @@ use msgpack_tagged::{MsgpackTagged, TagRegistry};
 #[derive(MsgpackTagged)]
 struct Unit;
 
+/// Multi-element tuple struct with implicit positional tags (0, 1).
 #[derive(MsgpackTagged)]
 struct Tuple(u32, bool);
+
+/// Multi-element tuple struct with explicit per-field `#[tag(N)]`. Field
+/// positions are reordered relative to tag order — proves the macro sorts
+/// `TAGS` by tag value, not source position.
+#[derive(MsgpackTagged)]
+struct ExplicitTuple(#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8);
+
+/// Newtype (single-element tuple struct). Wire bytes are the inner u32's
+/// bytes; the newtype itself doesn't appear in the registry.
+#[derive(MsgpackTagged)]
+struct Witness(u32);
+
+/// Generic newtype, exercising the bound chain through the inner type.
+/// `Wrapper<Inner>` reaches `Inner::register_into` via the `where` clause
+/// without registering `Wrapper` itself.
+#[derive(MsgpackTagged)]
+struct Wrapper<T>(T);
 
 #[derive(MsgpackTagged)]
 struct Named {
@@ -188,6 +206,9 @@ fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
     assert_impl::<Unit>();
     assert_impl::<Tuple>();
+    assert_impl::<ExplicitTuple>();
+    assert_impl::<Witness>();
+    assert_impl::<Wrapper<Inner>>();
     assert_impl::<Named>();
     assert_impl::<Choice>();
     assert_impl::<Inner>();
@@ -212,6 +233,41 @@ fn derive_compiles_for_basic_shapes() {
 #[test]
 fn unit_struct_has_empty_tags() {
     assert!(<Unit as MsgpackTagged>::TAGS.is_empty());
+}
+
+#[test]
+fn implicit_tuple_struct_uses_positional_tags() {
+    assert_eq!(<Tuple as MsgpackTagged>::TAGS, &[(0, "0"), (1, "1")]);
+}
+
+#[test]
+fn explicit_tuple_struct_tags_match_annotations_and_sort_by_tag() {
+    // Source: (#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8)
+    // After tag-ascending sort: position-string names follow the tags.
+    assert_eq!(<ExplicitTuple as MsgpackTagged>::TAGS, &[(0, "1"), (1, "2"), (3, "0")]);
+    assert_eq!(<ExplicitTuple as MsgpackTagged>::DEFAULTS, &[3]);
+}
+
+#[test]
+fn tuple_struct_register_into_populates_registry() {
+    let mut reg = TagRegistry::new();
+    Tuple::register_into(&mut reg);
+    assert!(reg.get("Tuple").is_some(), "tuple structs register themselves");
+}
+
+#[test]
+fn newtype_does_not_register_itself_but_recurses_into_inner() {
+    let mut reg = TagRegistry::new();
+    Wrapper::<Inner>::register_into(&mut reg);
+    assert!(reg.get("Wrapper").is_none(), "newtype passes through; no registry entry of its own");
+    assert!(reg.get("Inner").is_some(), "the inner type is reached via the bound chain");
+}
+
+#[test]
+fn newtype_constants_are_empty() {
+    assert!(<Witness as MsgpackTagged>::TAGS.is_empty());
+    assert!(<Witness as MsgpackTagged>::RESERVED.is_empty());
+    assert!(<Witness as MsgpackTagged>::DEFAULTS.is_empty());
 }
 
 #[test]

@@ -42,10 +42,212 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         Data::Struct(DataStruct { fields: Fields::Named(named), .. }) => {
             expand_named_struct(input, &named.named, &type_attrs)
         }
-        // Tuple structs, unit structs, enums, unions: stub for now. Real
-        // expansion lands in subsequent steps.
+        Data::Struct(DataStruct { fields: Fields::Unnamed(unnamed), .. }) => {
+            expand_unnamed_struct(input, &unnamed.unnamed, &type_attrs)
+        }
+        // Unit structs, enums, unions: stub for now. Real expansion lands in
+        // subsequent steps.
         _ => Ok(stub(input)),
     }
+}
+
+/// Dispatch for tuple structs (`struct Foo(A, B)`). Single-field tuple
+/// structs are *newtypes* and pass through to the inner type without a
+/// registry entry of their own; multi-field tuple structs register
+/// themselves with positional names ("0", "1", …).
+fn expand_unnamed_struct(
+    input: &DeriveInput,
+    fields: &Punctuated<Field, Token![,]>,
+    type_attrs: &TypeAttrs,
+) -> syn::Result<TokenStream2> {
+    debug_assert!(type_attrs.via.is_none()); // handled in `expand`
+    if fields.len() == 1 {
+        expand_newtype(input, fields.first().unwrap(), type_attrs)
+    } else {
+        expand_tuple_struct(input, fields, type_attrs)
+    }
+}
+
+/// Newtype (single-element tuple struct): wire bytes are exactly the inner
+/// type's bytes. The newtype itself doesn't get a registry entry — only its
+/// inner type does (via the recursive `register_into`). Type-level
+/// `reserved`/`allow_unknown_tags` are inert and rejected for clarity.
+fn expand_newtype(
+    input: &DeriveInput,
+    inner_field: &Field,
+    type_attrs: &TypeAttrs,
+) -> syn::Result<TokenStream2> {
+    if !type_attrs.reserved.is_empty() {
+        return Err(syn::Error::new_spanned(
+            input,
+            "newtype structs (single-element tuple structs) pass through to the inner type \
+             and have no wire shape of their own — `#[tagged(reserved(...))]` doesn't apply",
+        ));
+    }
+    if type_attrs.allow_unknown_tags {
+        return Err(syn::Error::new_spanned(
+            input,
+            "newtype structs (single-element tuple structs) pass through to the inner type \
+             and have no wire shape of their own — `#[tagged(allow_unknown_tags)]` doesn't apply",
+        ));
+    }
+    for attr in &inner_field.attrs {
+        if attr.path().is_ident("tag") {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "newtype structs pass through to the inner type — \
+                 `#[tag(...)]` on the inner field is not allowed",
+            ));
+        }
+    }
+
+    let name = &input.ident;
+    let inner_type = &inner_field.ty;
+    let where_clause = build_passthrough_where_clause(input, inner_type);
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+
+    Ok(quote! {
+        impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
+            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[];
+            const RESERVED: &'static [::msgpack_tagged::Tag] = &[];
+            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[];
+            const ALLOW_UNKNOWN_TAGS: bool = false;
+
+            fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
+                <#inner_type as ::msgpack_tagged::MsgpackTagged>::register_into(_reg);
+            }
+        }
+    })
+}
+
+/// Multi-element tuple struct (`struct Pair(A, B, ...)`). Tagging style must
+/// be uniform: either every field carries `#[tag(N)]` (explicit, allows
+/// reordering / `default`) or none do (implicit positional 0, 1, 2, …).
+/// Mixing is rejected.
+///
+/// To be clear, even with positional tagging, the tags becomes keys in a map,
+/// not indexes in an array, they just don't have to be spelled out. As such,
+/// they can be reserved, if one field replaces another in a newer version.
+///
+/// Field names in `TAGS` are positional strings ("0", "1", …) — the wrapper
+/// Serializer addresses tuple-struct fields positionally, not by name, so
+/// the names are placeholders.
+fn expand_tuple_struct(
+    input: &DeriveInput,
+    fields: &Punctuated<Field, Token![,]>,
+    type_attrs: &TypeAttrs,
+) -> syn::Result<TokenStream2> {
+    let name = &input.ident;
+    let name_str = parse_serde_rename(input)?.unwrap_or_else(|| name.to_string());
+    let reserved = &type_attrs.reserved;
+    let allow_unknown_tags = type_attrs.allow_unknown_tags;
+
+    // First pass: count how many fields have an explicit `#[tag(...)]`.
+    // Mixing implicit and explicit is rejected.
+    let explicit_count =
+        fields.iter().filter(|f| f.attrs.iter().any(|a| a.path().is_ident("tag"))).count();
+    if explicit_count != 0 && explicit_count != fields.len() {
+        return Err(syn::Error::new_spanned(
+            input,
+            "tuple-struct fields must either all carry `#[tag(N)]` or none — \
+             mixing implicit positional tags with explicit tags is rejected",
+        ));
+    }
+    let all_explicit = explicit_count == fields.len();
+
+    let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
+    for (position, field) in fields.iter().enumerate() {
+        let position_u8: u8 = position.try_into().map_err(|_| {
+            syn::Error::new_spanned(
+                field,
+                format!("tuple-struct position {position} is out of range for u8 tags"),
+            )
+        })?;
+        let (tag, has_default) = if all_explicit {
+            match classify_field(field, reserved)? {
+                FieldKind::Tagged { tag, has_default } => (tag, has_default),
+                FieldKind::Skipped => {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "`#[tag(skip)]` on tuple-struct fields is not supported",
+                    ));
+                }
+            }
+        } else {
+            // Implicit positional: tag = position, no default.
+            if reserved.contains(&position_u8) {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    format!(
+                        "implicit positional tag {position_u8} collides with the type's \
+                         `#[tagged(reserved(...))]` list — assign explicit `#[tag(N)]`s, \
+                         or remove the reserved entry"
+                    ),
+                ));
+            }
+            (position_u8, false)
+        };
+        entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty, has_default });
+    }
+    entries.sort_by_key(|e| e.tag);
+
+    let tag_entries = entries.iter().map(|e| {
+        let tag = e.tag;
+        let name = &e.name;
+        quote! { (#tag, #name) }
+    });
+    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
+        let tag = e.tag;
+        quote! { #tag }
+    });
+    let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
+    let recursion_calls = entries.iter().map(|e| {
+        let ty = e.ty;
+        quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
+    });
+
+    let where_clause = build_where_clause(input, &entries);
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+
+    Ok(quote! {
+        impl #impl_generics ::msgpack_tagged::MsgpackTagged for #name #ty_generics #where_clause {
+            const TAGS: &'static [(::msgpack_tagged::Tag, &'static str)] = &[
+                #(#tag_entries),*
+            ];
+            const RESERVED: &'static [::msgpack_tagged::Tag] = &[
+                #(#reserved_entries),*
+            ];
+            const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
+                #(#default_entries),*
+            ];
+            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
+
+            fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
+                if _reg.try_insert::<Self>(#name_str) {
+                    #(#recursion_calls)*
+                }
+            }
+        }
+    })
+}
+
+/// Where clause for newtype structs: every type param needs `'static` (from
+/// the supertrait), and the inner type must be `MsgpackTagged` so the
+/// `register_into` call type-checks. No field-type bounds beyond that — a
+/// newtype contributes no fields of its own to the wire.
+fn build_passthrough_where_clause(input: &DeriveInput, inner_type: &Type) -> Option<WhereClause> {
+    let mut where_clause = input.generics.where_clause.clone().unwrap_or_else(|| WhereClause {
+        where_token: <Token![where]>::default(),
+        predicates: Punctuated::new(),
+    });
+    for param in &input.generics.params {
+        if let GenericParam::Type(type_param) = param {
+            let ident = &type_param.ident;
+            where_clause.predicates.push(parse_quote!(#ident: 'static));
+        }
+    }
+    where_clause.predicates.push(parse_quote!(#inner_type: ::msgpack_tagged::MsgpackTagged));
+    Some(where_clause)
 }
 
 /// Reject any field-level `#[tag(...)]` attribute on the input. Used when
@@ -109,10 +311,13 @@ fn stub(input: &DeriveInput) -> TokenStream2 {
     }
 }
 
-/// Per-tagged-field info collected during macro expansion.
+/// Per-tagged-field info collected during macro expansion. `name` is the
+/// field's wire-name as a string — for named structs that's the field
+/// identifier; for tuple structs it's the source-position-as-string ("0",
+/// "1", …). Either way, the name lands in `TAGS` as a `&'static str` literal.
 struct TaggedField<'a> {
     tag: u8,
-    ident: &'a Ident,
+    name: String,
     ty: &'a Type,
     has_default: bool,
 }
@@ -148,7 +353,12 @@ fn expand_named_struct(
         let ident = field.ident.as_ref().expect("named field has an ident");
         match classify_field(field, reserved)? {
             FieldKind::Tagged { tag, has_default } => {
-                entries.push(TaggedField { tag, ident, ty: &field.ty, has_default });
+                entries.push(TaggedField {
+                    tag,
+                    name: ident.to_string(),
+                    ty: &field.ty,
+                    has_default,
+                });
             }
             FieldKind::Skipped => {}
         }
@@ -158,7 +368,7 @@ fn expand_named_struct(
 
     let tag_entries = entries.iter().map(|e| {
         let tag = e.tag;
-        let name = e.ident.to_string();
+        let name = &e.name;
         quote! { (#tag, #name) }
     });
 
