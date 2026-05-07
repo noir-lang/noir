@@ -350,6 +350,54 @@ struct RenamedWire {
     payload: u32,
 }
 
+/// Field-level `#[serde(rename = "...")]` overrides the wire-name in
+/// `Product.fields` for that field — load-bearing for shadow-DTOs whose
+/// wire DTO renames individual fields. Field 0 is renamed `index` → `i`,
+/// field 1 keeps its Rust ident.
+#[derive(MsgpackTagged, serde::Serialize)]
+struct WireWithRenamedFields {
+    #[serde(rename = "i")]
+    #[tag(0)]
+    index: u32,
+    #[tag(1)]
+    value: bool,
+}
+
+/// `Opaque` doesn't implement `serde::Serialize`, but `#[serde(skip)]`
+/// drops the field before serde inspects it — so a type with a skipped
+/// `Opaque` field still derives `Serialize` cleanly. Used by the fixtures
+/// below to keep `#[serde(skip)]` recognized as an attribute.
+impl serde::Serialize for Opaque {
+    fn serialize<S: serde::Serializer>(&self, _s: S) -> Result<S::Ok, S::Error> {
+        unreachable!("Opaque is `#[serde(skip)]`-ed in every fixture that touches it")
+    }
+}
+
+/// `#[serde(skip)]` is recognized as an alias for `#[tag(skip)]` — the
+/// field is dropped from the wire and contributes no bound. `Opaque`
+/// doesn't implement `MsgpackTagged`; the impl still compiles because
+/// the field is skipped.
+#[derive(MsgpackTagged, serde::Serialize)]
+struct WithSerdeSkip {
+    #[tag(0)]
+    visible: u32,
+    #[serde(skip)]
+    hidden: Opaque,
+}
+
+/// `#[serde(skip)]` works inside a named variant payload too — the
+/// payload field is dropped, no `MsgpackTagged` bound on its type.
+#[derive(MsgpackTagged, serde::Serialize)]
+enum WithSerdeSkipInVariant {
+    #[tag(0)]
+    Plain {
+        #[tag(0)]
+        keep: u32,
+        #[serde(skip)]
+        drop: Opaque,
+    },
+}
+
 /// `#[tagged(via(WireDto))]`: the macro emits a delegation impl that calls
 /// `WireDto::register_into` instead of registering `Public` itself. The
 /// public type's own fields are wire-irrelevant — they must NOT carry
@@ -426,6 +474,9 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<WireDto>();
     assert_impl::<Public>();
     assert_impl::<RenamedWire>();
+    assert_impl::<WireWithRenamedFields>();
+    assert_impl::<WithSerdeSkip>();
+    assert_impl::<WithSerdeSkipInVariant>();
 }
 
 #[test]
@@ -863,4 +914,35 @@ fn decode_policy_flags_show_up_on_the_registry_entry() {
     let s = entry_sum(entry);
     assert!(s.default_on_reserved);
     assert!(s.default_on_unknown);
+}
+
+/// Field-level `#[serde(rename = "X")]` rewrites the wire name in
+/// `Product.fields` so the wrapper's `tag_for("X")` matches what serde's
+/// `serialize_field("X", ...)` will pass at runtime.
+#[test]
+fn serde_field_rename_drives_wire_field_name() {
+    let p = product_of::<WireWithRenamedFields>();
+    assert_eq!(
+        p.fields,
+        &[(0, "i"), (1, "value")],
+        "renamed field uses the rename target; un-renamed field keeps its Rust ident",
+    );
+    assert_eq!(p.tag_for("i"), Some(0), "wrapper lookup for the renamed name should hit");
+    assert_eq!(p.tag_for("index"), None, "Rust ident must NOT be used after a rename");
+}
+
+/// `#[serde(skip)]` is honored as an alias for `#[tag(skip)]` — the field
+/// is absent from `Product.fields` and the type compiles even when the
+/// skipped field's type doesn't implement `MsgpackTagged`.
+#[test]
+fn serde_skip_is_an_alias_for_tag_skip() {
+    let p = product_of::<WithSerdeSkip>();
+    assert_eq!(p.fields, &[(0, "visible")], "`#[serde(skip)]` field is absent from fields");
+}
+
+#[test]
+fn serde_skip_works_inside_variant_payload() {
+    let s = sum_of::<WithSerdeSkipInVariant>();
+    let plain = s.variant_for("Plain").unwrap();
+    assert_eq!(plain.payload.fields, &[(0, "keep")]);
 }

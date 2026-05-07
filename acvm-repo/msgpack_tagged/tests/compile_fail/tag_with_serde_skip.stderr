@@ -1,0 +1,5 @@
+error: field has both `#[tag(N)]` and `#[serde(skip)]` — these are contradictory; pick one (use `#[tag(skip)]` for our skip semantics, or `#[tag(N)]` to put the field on the wire under tag N)
+  --> tests/compile_fail/tag_with_serde_skip.rs:10:5
+   |
+10 |     #[tag(0)]
+   |     ^^^^^^^^^

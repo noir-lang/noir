@@ -1,0 +1,5 @@
+error: `#[serde(skip)]` on tuple-style fields is not supported
+ --> tests/compile_fail/serde_skip_in_implicit_tuple.rs:9:18
+  |
+9 | struct Pair(u32, #[serde(skip)] bool);
+  |                  ^^^^^^^^^^^^^^^^^^^

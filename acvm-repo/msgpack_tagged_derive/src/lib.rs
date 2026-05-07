@@ -623,12 +623,13 @@ fn parse_named_fields<'a>(
         let ident = field.ident.as_ref().expect("named field has an ident");
         match classify_field(field, reserved)? {
             FieldKind::Tagged { tag, has_default } => {
-                entries.push(TaggedField {
-                    tag,
-                    name: ident.to_string(),
-                    ty: &field.ty,
-                    has_default,
-                });
+                // Field-level `#[serde(rename = "X")]` overrides the wire
+                // name. This is what makes the shadow-DTO pattern work when
+                // the wire DTO uses a different field name than the public
+                // type — `serialize_field("X", ...)` matches our `tag_for("X")`.
+                let wire_name =
+                    parse_serde_field_rename(field)?.unwrap_or_else(|| ident.to_string());
+                entries.push(TaggedField { tag, name: wire_name, ty: &field.ty, has_default });
             }
             FieldKind::Skipped => {}
         }
@@ -682,6 +683,15 @@ fn parse_tuple_fields<'a>(
                 }
             }
         } else {
+            // Implicit positional: `#[serde(skip)]` would shift positional
+            // indices, same brittleness rationale as `#[tag(skip)]` in the
+            // all-explicit branch. Reject it instead of silently honoring it.
+            if has_serde_skip(field)? {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    "`#[serde(skip)]` on tuple-style fields is not supported",
+                ));
+            }
             if reserved.contains(&position_u8) {
                 return Err(syn::Error::new_spanned(
                     field,
@@ -866,8 +876,12 @@ impl Parse for TagArgs {
 /// Decide whether a field is wire-visible or skipped. Errors loudly when a
 /// field has no annotation and isn't a recognized auto-skip type — the
 /// strict-by-default discipline. Also enforces that an active `#[tag(N)]`
-/// doesn't collide with the type-level `#[tagged(reserved(...))]` list.
+/// doesn't collide with the surrounding `#[tagged(reserved(...))]` list,
+/// and that `#[tag(N)]` and `#[serde(skip)]` aren't both set on the same
+/// field (those are contradictory — one says "on the wire", the other
+/// "not on the wire").
 fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
+    let serde_skip = has_serde_skip(field)?;
     let mut found: Option<(&Attribute, TagArgs)> = None;
     for attr in &field.attrs {
         if !attr.path().is_ident("tag") {
@@ -884,6 +898,14 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     if let Some((attr, args)) = found {
         return match args {
             TagArgs::Tag { tag, default } => {
+                if serde_skip {
+                    return Err(syn::Error::new_spanned(
+                        attr,
+                        "field has both `#[tag(N)]` and `#[serde(skip)]` — these are \
+                         contradictory; pick one (use `#[tag(skip)]` for our skip semantics, \
+                         or `#[tag(N)]` to put the field on the wire under tag N)",
+                    ));
+                }
                 if reserved.contains(&tag) {
                     return Err(syn::Error::new_spanned(
                         attr,
@@ -898,32 +920,37 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
         };
     }
 
-    // No `#[tag(...)]` at all — fall back to auto-skip for `PhantomData<_>`
+    // No `#[tag(...)]` at all — `#[serde(skip)]` is recognized as an
+    // alias for `#[tag(skip)]`; otherwise auto-skip for `PhantomData<_>`
     // (the conventional zero-sized "use a type parameter without storing
-    // anything" pattern), otherwise error.
+    // anything" pattern). Any other untagged field is an error.
+    if serde_skip {
+        return Ok(FieldKind::Skipped);
+    }
     if is_phantom_data(&field.ty) {
         return Ok(FieldKind::Skipped);
     }
 
     Err(syn::Error::new_spanned(
         field,
-        "missing `#[tag(N)]` attribute — every field needs an explicit tag, `#[tag(skip)]`, or be `PhantomData<_>`",
+        "missing `#[tag(N)]` attribute — every field needs an explicit tag, \
+         `#[tag(skip)]`, `#[serde(skip)]`, or be `PhantomData<_>`",
     ))
 }
 
-/// Read `#[serde(rename = "X")]` off the type, if present, and return `"X"`.
-/// The returned name becomes the registry key for the type — matching what
-/// `serialize_struct(name, ...)` will pass at runtime, so the wrapper's
-/// lookup hits correctly.
+/// Read `#[serde(rename = "X")]` off a list of attributes, if present, and
+/// return `"X"`. Used both at the type level (the returned name becomes the
+/// registry key) and at the field level (the returned name becomes the
+/// `Product.fields` wire-name for that field).
 ///
 /// Only the simple symmetric form `rename = "X"` is recognized. Other serde
 /// items (`default`, `skip`, `rename_all`, asymmetric `rename(serialize = ...,
-/// deserialize = ...)`, etc.) are ignored — they don't affect the registry
-/// key. If the user has multiple `#[serde(rename = "X")]` attributes that
-/// disagree, the last one wins (matches serde's own behavior).
-fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
+/// deserialize = ...)`, etc.) are ignored. If the user has multiple
+/// `#[serde(rename = "X")]` attributes that disagree, the last one wins
+/// (matches serde's own behavior).
+fn parse_serde_rename_in_attrs(attrs: &[Attribute]) -> syn::Result<Option<String>> {
     let mut found: Option<String> = None;
-    for attr in &input.attrs {
+    for attr in attrs {
         if !attr.path().is_ident("serde") {
             continue;
         }
@@ -939,6 +966,45 @@ fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
         }
     }
     Ok(found)
+}
+
+/// Type-level `#[serde(rename = "X")]` — used as the registry key for a
+/// type, so it matches what `serialize_struct(name, ...)` passes at runtime
+/// through the auto-derived `Serialize` impl.
+fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
+    parse_serde_rename_in_attrs(&input.attrs)
+}
+
+/// Field-level `#[serde(rename = "X")]` — used as the wire-name in
+/// `Product.fields` for that field, matching what `serialize_field("X", ...)`
+/// passes at runtime through the auto-derived `Serialize` impl. The
+/// load-bearing piece for the shadow-DTO pattern when the wire DTO renames
+/// individual fields (e.g., `index` → `i`).
+fn parse_serde_field_rename(field: &Field) -> syn::Result<Option<String>> {
+    parse_serde_rename_in_attrs(&field.attrs)
+}
+
+/// Whether a field carries `#[serde(skip)]` — recognized by the macro as an
+/// alias for `#[tag(skip)]`. Only the bare-ident form is honored;
+/// asymmetric `skip_serializing` / `skip_deserializing` and conditional
+/// `skip_serializing_if = "..."` are deliberately ignored, since they don't
+/// have a clean encode-and-decode-symmetric mapping in this format.
+fn has_serde_skip(field: &Field) -> syn::Result<bool> {
+    for attr in &field.attrs {
+        if !attr.path().is_ident("serde") {
+            continue;
+        }
+        let items: Punctuated<Meta, Token![,]> =
+            attr.parse_args_with(Punctuated::parse_terminated)?;
+        for item in items {
+            if let Meta::Path(path) = &item
+                && path.is_ident("skip")
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
 }
 
 /// Variant-level configuration parsed from one or more `#[tagged(...)]`
