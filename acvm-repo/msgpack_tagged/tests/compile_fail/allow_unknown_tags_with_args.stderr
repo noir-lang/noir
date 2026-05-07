@@ -1,0 +1,5 @@
+error: `#[allow_unknown_tags]` does not take any arguments
+ --> tests/compile_fail/allow_unknown_tags_with_args.rs:7:1
+  |
+7 | #[allow_unknown_tags(true)] // attribute takes no arguments
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^

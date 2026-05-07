@@ -1,0 +1,5 @@
+error: duplicate `#[allow_unknown_tags]` attribute
+ --> tests/compile_fail/duplicate_allow_unknown_tags.rs:8:1
+  |
+8 | #[allow_unknown_tags] // duplicate
+  | ^^^^^^^^^^^^^^^^^^^^^

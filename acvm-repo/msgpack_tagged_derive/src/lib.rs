@@ -12,8 +12,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Attribute, Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Token,
-    Type, WhereClause,
+    Attribute, Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Meta,
+    Token, Type, WhereClause,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -69,6 +69,10 @@ fn expand_named_struct(
     // Type-level `#[reserved(N, M, ...)]`: tags retired from this type. Active
     // `#[tag(N)]` annotations on fields are rejected if N is in this list.
     let reserved = parse_reserved(input)?;
+
+    // Type-level `#[allow_unknown_tags]`: opts the type into lenient decode of
+    // unknown tags (skip on decode rather than error). Default is strict.
+    let allow_unknown_tags = parse_allow_unknown_tags(input)?;
 
     // Parse each field. Tagged fields contribute to TAGS, the recursion list,
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
@@ -126,7 +130,7 @@ fn expand_named_struct(
             const DEFAULTS: &'static [::msgpack_tagged::Tag] = &[
                 #(#default_entries),*
             ];
-            const ALLOW_UNKNOWN_TAGS: bool = false;
+            const ALLOW_UNKNOWN_TAGS: bool = #allow_unknown_tags;
 
             fn register_into(_reg: &mut ::msgpack_tagged::TagRegistry) {
                 if _reg.try_insert::<Self>(#name_str) {
@@ -286,6 +290,32 @@ fn parse_reserved(input: &DeriveInput) -> syn::Result<Vec<u8>> {
     }
 
     Ok(tags)
+}
+
+/// Detect the type-level `#[allow_unknown_tags]` flag. Presence-only —
+/// rejects any args (`#[allow_unknown_tags(...)]` and
+/// `#[allow_unknown_tags = "..."]` are both errors).
+fn parse_allow_unknown_tags(input: &DeriveInput) -> syn::Result<bool> {
+    let mut found = false;
+    for attr in &input.attrs {
+        if !attr.path().is_ident("allow_unknown_tags") {
+            continue;
+        }
+        if found {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "duplicate `#[allow_unknown_tags]` attribute",
+            ));
+        }
+        if !matches!(&attr.meta, Meta::Path(_)) {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "`#[allow_unknown_tags]` does not take any arguments",
+            ));
+        }
+        found = true;
+    }
+    Ok(found)
 }
 
 /// Syntactically detect `PhantomData<_>` by checking the last path segment.

@@ -140,6 +140,17 @@ struct WithReserved {
     c: u32,
 }
 
+/// Type-level `#[allow_unknown_tags]`: opts the type into lenient decode of
+/// unknown tags. Recommended for top-level metadata-bearing types like
+/// `Program` and `Circuit`; not for cryptographic-shape types where silently
+/// dropping fields could change proof semantics.
+#[derive(MsgpackTagged)]
+#[allow_unknown_tags]
+struct LenientType {
+    #[tag(0)]
+    a: u32,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -160,6 +171,7 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<WithPhantom<Opaque>>();
     assert_impl::<WithDefaults>();
     assert_impl::<WithReserved>();
+    assert_impl::<LenientType>();
 }
 
 #[test]
@@ -278,4 +290,25 @@ fn reserved_tags_appear_in_the_const_and_registry() {
 #[test]
 fn reserved_tags_do_not_appear_in_tags() {
     assert_eq!(<WithReserved as MsgpackTagged>::TAGS, &[(0, "a"), (2, "b"), (3, "c")]);
+}
+
+/// Verifies the `#[allow_unknown_tags]` attribute flips the trait const, and
+/// the absence of the attribute leaves the default `false` in place. The
+/// `#[allow]` is needed because the assertion's truth is statically known —
+/// intentional, the test catches a regression if the macro stops emitting the
+/// attribute-driven value.
+#[test]
+#[allow(clippy::assertions_on_constants)]
+fn allow_unknown_tags_flag_is_propagated() {
+    assert!(<LenientType as MsgpackTagged>::ALLOW_UNKNOWN_TAGS);
+    // Default for any other type — verified here via a fixture without the attr.
+    assert!(!<Named as MsgpackTagged>::ALLOW_UNKNOWN_TAGS);
+}
+
+#[test]
+fn allow_unknown_tags_shows_up_on_the_registry_entry() {
+    let mut reg = TagRegistry::new();
+    LenientType::register_into(&mut reg);
+    let entry = reg.get("LenientType").expect("LenientType should register itself");
+    assert!(entry.allow_unknown_tags());
 }
