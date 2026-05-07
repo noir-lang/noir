@@ -12,8 +12,11 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    Data, DataStruct, DeriveInput, Field, Fields, LitInt, Token, WhereClause, parse_macro_input,
-    parse_quote, punctuated::Punctuated,
+    Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Ident, LitInt, Token, Type,
+    WhereClause,
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote,
+    punctuated::Punctuated,
 };
 
 #[proc_macro_derive(MsgpackTagged, attributes(tag, reserved, allow_unknown_tags, via))]
@@ -55,13 +58,17 @@ fn expand_named_struct(
     let name = &input.ident;
     let name_str = name.to_string();
 
-    // Parse `#[tag(N)]` per field. Every named field must have one (eventual
-    // `#[tag(skip)]` and `PhantomData<_>` auto-skip will land in a later step).
-    let mut entries: Vec<(u8, &syn::Ident, &syn::Type)> = Vec::with_capacity(fields.len());
+    // Parse each field. Tagged fields contribute to TAGS, the recursion list,
+    // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
+    // are silently dropped — they don't go on the wire and don't constrain
+    // their type.
+    let mut entries: Vec<(u8, &Ident, &Type)> = Vec::with_capacity(fields.len());
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
-        let tag = parse_tag_attribute(field)?;
-        entries.push((tag, ident, &field.ty));
+        match classify_field(field)? {
+            FieldKind::Tagged(tag) => entries.push((tag, ident, &field.ty)),
+            FieldKind::Skipped => {}
+        }
     }
     // Canonical order on the wire is tag-ascending, not source-declaration order.
     entries.sort_by_key(|(tag, _, _)| *tag);
@@ -102,10 +109,48 @@ fn expand_named_struct(
     })
 }
 
-/// Read the `#[tag(N)]` attribute off a field. Errors loudly if missing or
-/// malformed — the strict-by-default discipline is the point.
-fn parse_tag_attribute(field: &Field) -> syn::Result<u8> {
-    let mut found: Option<u8> = None;
+/// What the macro should do with a given field on the wire.
+enum FieldKind {
+    /// Field appears on the wire under integer tag `N`.
+    Tagged(u8),
+    /// Field is omitted from the wire (via explicit `#[tag(skip)]` or because
+    /// its type is `PhantomData<_>`). Skipped fields contribute no entry to
+    /// `TAGS`, no recursion into `register_into`, and no where-clause bound.
+    Skipped,
+}
+
+/// Inner-args grammar for `#[tag(...)]`. Either an integer literal `N` (a tag
+/// number) or the bare ident `skip`.
+enum TagArgs {
+    Tag(u8),
+    Skip,
+}
+
+impl Parse for TagArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(LitInt) {
+            let lit: LitInt = input.parse()?;
+            let n: u8 = lit.base10_parse()?;
+            Ok(TagArgs::Tag(n))
+        } else if lookahead.peek(Ident) {
+            let ident: Ident = input.parse()?;
+            if ident == "skip" {
+                Ok(TagArgs::Skip)
+            } else {
+                Err(syn::Error::new(ident.span(), "expected an integer tag or the keyword `skip`"))
+            }
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+/// Decide whether a field is wire-visible or skipped. Errors loudly when a
+/// field has no annotation and isn't a recognized auto-skip type — the
+/// strict-by-default discipline.
+fn classify_field(field: &Field) -> syn::Result<FieldKind> {
+    let mut found: Option<TagArgs> = None;
     for attr in &field.attrs {
         if !attr.path().is_ident("tag") {
             continue;
@@ -113,39 +158,82 @@ fn parse_tag_attribute(field: &Field) -> syn::Result<u8> {
         if found.is_some() {
             return Err(syn::Error::new_spanned(attr, "duplicate `#[tag(...)]` attribute"));
         }
-        let lit: LitInt = attr.parse_args()?;
-        let tag: u8 = lit.base10_parse()?;
-        found = Some(tag);
+        found = Some(attr.parse_args()?);
     }
-    found.ok_or_else(|| {
-        syn::Error::new_spanned(
-            field,
-            "missing `#[tag(N)]` attribute — every field of a `MsgpackTagged` struct needs an explicit tag",
-        )
-    })
+
+    // Explicit annotation wins over auto-skip — if the user explicitly tags a
+    // PhantomData field with `#[tag(N)]`, we honor that (unusual but valid).
+    if let Some(args) = found {
+        return Ok(match args {
+            TagArgs::Tag(n) => FieldKind::Tagged(n),
+            TagArgs::Skip => FieldKind::Skipped,
+        });
+    }
+
+    // No `#[tag(...)]` at all — fall back to auto-skip for `PhantomData<_>`
+    // (the conventional zero-sized "use a type parameter without storing
+    // anything" pattern), otherwise error.
+    if is_phantom_data(&field.ty) {
+        return Ok(FieldKind::Skipped);
+    }
+
+    Err(syn::Error::new_spanned(
+        field,
+        "missing `#[tag(N)]` attribute — every field needs an explicit tag, `#[tag(skip)]`, or be `PhantomData<_>`",
+    ))
 }
 
-/// Build a `where` clause that requires every tagged field's type to implement
-/// `MsgpackTagged`, on top of any existing where clause on the input.
+/// Syntactically detect `PhantomData<_>` by checking the last path segment.
+/// Matches the conventional forms (`PhantomData`, `marker::PhantomData`,
+/// `std::marker::PhantomData`, `core::marker::PhantomData`). Won't recognize
+/// a `PhantomData` re-imported under a different alias — that's the standard
+/// trade-off for syntactic detection (serde-derive's auto-skip works the same way).
+fn is_phantom_data(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty
+        && let Some(last) = type_path.path.segments.last()
+    {
+        return last.ident == "PhantomData";
+    }
+    false
+}
+
+/// Build a `where` clause for the generated impl. Adds two kinds of bounds:
 ///
-/// Field types appearing more than once (e.g. two fields of `Vec<u8>`) are
-/// only emitted as a bound once — Rust accepts duplicate bounds silently, but
-/// a single bound is cleaner in cargo-expand output and avoids tickling any
-/// future lint that flags duplicate trait bounds.
+/// 1. **`T: 'static` for every type parameter on the input.** The
+///    `MsgpackTagged: 'static` supertrait propagates `Self: 'static` onto the
+///    impl, which requires every generic param to be `'static` regardless of
+///    whether it appears in a tagged field. (Skipped fields like
+///    `_phantom: PhantomData<T>` still reference T at the type level, so
+///    `Self: 'static` requires `T: 'static` even though we don't tag the
+///    PhantomData field.)
+/// 2. **`<TaggedFieldType>: MsgpackTagged` for each tagged field's type.**
+///    Per-field-type bounds compose with hand-written impls that have unusual
+///    bounds: if `MyType<A, B>: MsgpackTagged` requires `A: SomeOtherTrait`,
+///    our `where MyType<A, B>: MsgpackTagged` propagates that requirement to
+///    the caller transparently. Field types appearing more than once are only
+///    emitted as a bound once.
 ///
-/// Returns `None` only if there are no tagged fields *and* no pre-existing
-/// where clause — that lets the caller avoid emitting a stray `where` token.
-fn build_where_clause(
-    input: &DeriveInput,
-    entries: &[(u8, &syn::Ident, &syn::Type)],
-) -> Option<WhereClause> {
-    if entries.is_empty() {
+/// Returns `None` only if the input has no generic params, no tagged fields,
+/// and no pre-existing where clause — that lets the caller avoid emitting a
+/// stray `where` token.
+fn build_where_clause(input: &DeriveInput, entries: &[(u8, &Ident, &Type)]) -> Option<WhereClause> {
+    let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
+    if entries.is_empty() && !has_type_params {
         return input.generics.where_clause.clone();
     }
+
     let mut where_clause = input.generics.where_clause.clone().unwrap_or_else(|| WhereClause {
         where_token: <Token![where]>::default(),
         predicates: Punctuated::new(),
     });
+
+    for param in &input.generics.params {
+        if let GenericParam::Type(type_param) = param {
+            let ident = &type_param.ident;
+            where_clause.predicates.push(parse_quote!(#ident: 'static));
+        }
+    }
+
     let mut seen = std::collections::HashSet::new();
     for (_, _, ty) in entries {
         // Dedup by stringified token-stream of the type. Not semantic equality

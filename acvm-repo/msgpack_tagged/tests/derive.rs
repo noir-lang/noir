@@ -88,6 +88,32 @@ struct OutOfOrder {
     b: u32,
 }
 
+/// Type that intentionally does *not* implement `MsgpackTagged`, used to
+/// verify that `#[tag(skip)]` and `PhantomData<_>` exempt their field type
+/// from the bound chain.
+struct Opaque {
+    payload: Vec<u8>,
+}
+
+/// `#[tag(skip)]` on a field whose type isn't `MsgpackTagged`. The container
+/// still derives because the skipped field doesn't contribute a where bound.
+#[derive(MsgpackTagged)]
+struct WithExplicitSkip {
+    #[tag(0)]
+    visible: u32,
+    #[tag(skip)]
+    hidden: Opaque,
+}
+
+/// `PhantomData<T>` auto-skip: no `#[tag]` annotation needed, and the
+/// container-impl works for `T` without requiring `T: MsgpackTagged`.
+#[derive(MsgpackTagged)]
+struct WithPhantom<T> {
+    #[tag(0)]
+    visible: u32,
+    _phantom: std::marker::PhantomData<T>,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -102,6 +128,10 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<OutOfOrder>();
     assert_impl::<WithMap<u32, Inner>>();
     assert_impl::<SameTypeFields>();
+    assert_impl::<WithExplicitSkip>();
+    // T = Opaque (no MsgpackTagged impl) still satisfies WithPhantom<T>'s bound,
+    // because PhantomData<T> is auto-skipped — the bound chain doesn't reach T.
+    assert_impl::<WithPhantom<Opaque>>();
 }
 
 #[test]
@@ -168,4 +198,14 @@ fn generic_struct_with_container_field_recurses_into_both_inner_types() {
         reg.get("Inner").is_some(),
         "BTreeMap value type should be reached via the bound chain"
     );
+}
+
+#[test]
+fn explicit_skip_field_is_absent_from_tags() {
+    assert_eq!(<WithExplicitSkip as MsgpackTagged>::TAGS, &[(0, "visible")]);
+}
+
+#[test]
+fn phantom_data_field_is_absent_from_tags() {
+    assert_eq!(<WithPhantom<Opaque> as MsgpackTagged>::TAGS, &[(0, "visible")]);
 }
