@@ -7296,6 +7296,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "workspace_layering"
+version = "1.0.0-beta.21"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
