@@ -480,5 +480,25 @@ fn can_use_trait_associated_constant_in_main_signature() {
         fields[0]
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_use_trait_associated_constant_via_global_in_main_signature() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    global FIELD_N: u32 = <Field as Deserialize>::N;
+
+    unconstrained fn main(fields: [Field; FIELD_N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    assert_no_errors(src);
 }

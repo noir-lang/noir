@@ -81,7 +81,7 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -375,10 +375,12 @@ pub struct Elaborator<'context> {
     /// about runtime variables not being available in comptime code.
     parent_runtime_variables: rustc_hash::FxHashSet<String>,
 
-    /// Entry-point validity checks deferred until after all trait impls and globals
-    /// have been elaborated, so that types using trait-associated constants or globals
-    /// can fully evaluate their array/string lengths before being validated.
-    pending_entry_point_checks: Vec<function::PendingEntryPointCheck>,
+    /// Function metadata that has been *registered* but not yet *resolved*. We register
+    /// up-front (capturing the impl/trait-impl context) and resolve lazily on first read,
+    /// so that forward references between functions, globals, and trait associated
+    /// constants don't depend on source order. Any entries left after lazy resolution
+    /// has played out are drained at the end of [Self::elaborate_items].
+    unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
 }
 
 #[derive(Copy, Clone)]
@@ -455,7 +457,7 @@ impl<'context> Elaborator<'context> {
             recursion_depth: 0,
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
-            pending_entry_point_checks: Vec::new(),
+            unresolved_function_metas: BTreeMap::default(),
         }
     }
 
@@ -529,7 +531,11 @@ impl<'context> Elaborator<'context> {
         self.collect_enum_definitions(&items.enums);
         self.collect_traits(&mut items.traits);
 
-        self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+        self.register_function_metas(
+            &mut items.functions,
+            &mut items.impls,
+            &mut items.trait_impls,
+        );
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -546,6 +552,14 @@ impl<'context> Elaborator<'context> {
         for trait_impl in &mut items.trait_impls {
             self.collect_trait_impl(trait_impl);
         }
+
+        // Resolve any function metas that weren't pulled in by a forward reference
+        // during the collect-* phases above. Doing this before global elaboration
+        // means a global's RHS can call user-defined functions, while doing it after
+        // `collect_trait_impl` means meta resolution sees fully-bound trait
+        // associated constants. Globals referenced from a meta still elaborate
+        // lazily during the drain.
+        self.drain_unresolved_function_metas();
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
@@ -578,12 +592,6 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
-
-        // Now that trait impls and globals have been elaborated, run the
-        // entry-point validity checks queued during function-meta definition.
-        // Deferring lets array/string lengths involving trait-associated
-        // constants or globals evaluate before being validated.
-        self.run_pending_entry_point_checks();
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

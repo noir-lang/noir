@@ -380,3 +380,35 @@ fn regression_5626_global_annotation_flows_into_block() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn can_refer_to_complex_global_in_function_signature() {
+    let src = r#"
+    global LENGTH: u32 = init();
+
+    pub fn another(_array: [Field; LENGTH]) {}
+
+    fn init() -> u32 {
+        10
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_refer_to_complex_global_in_method_signature() {
+    let src = r#"
+    global LENGTH: u32 = init();
+
+    pub struct Foo {}
+
+    impl Foo {
+        pub fn another(_array: [Field; LENGTH]) {}
+    }
+
+    fn init() -> u32 {
+        10
+    }
+    "#;
+    assert_no_errors(src);
+}

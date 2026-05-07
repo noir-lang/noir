@@ -811,6 +811,13 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        // If the variable is a function whose meta hasn't been resolved yet, resolve
+        // it now. This handles forward references — a global's RHS may name a
+        // function whose meta would otherwise only be drained at end-of-elaboration.
+        if let DefinitionKind::Function(func_id) = definition.kind {
+            self.define_function_meta_if_undefined(func_id);
+        }
+
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type

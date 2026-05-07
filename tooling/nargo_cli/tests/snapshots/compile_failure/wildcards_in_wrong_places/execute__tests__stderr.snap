@@ -38,41 +38,6 @@ error: The placeholder `_` is not allowed in trait bounds
    │
 
 error: The placeholder `_` is not allowed in function parameter types
-  ┌─ src/main.nr:1:16
-  │
-1 │ pub fn foo(_: [_; _]) -> [_; _] {
-  │                -
-  │
-
-error: The placeholder `_` is not allowed in function parameter types
-  ┌─ src/main.nr:1:19
-  │
-1 │ pub fn foo(_: [_; _]) -> [_; _] {
-  │                   -
-  │
-
-error: The placeholder `_` is not allowed in function return types
-  ┌─ src/main.nr:1:27
-  │
-1 │ pub fn foo(_: [_; _]) -> [_; _] {
-  │                           -
-  │
-
-error: The placeholder `_` is not allowed in function return types
-  ┌─ src/main.nr:1:30
-  │
-1 │ pub fn foo(_: [_; _]) -> [_; _] {
-  │                              -
-  │
-
-error: The placeholder `_` is not allowed in trait constraints
-   ┌─ src/main.nr:24:9
-   │
-24 │     Gen<_>: Trait2<T>,
-   │         -
-   │
-
-error: The placeholder `_` is not allowed in function parameter types
    ┌─ src/main.nr:10:20
    │
 10 │     pub fn foo(_: [_; _]) -> [_; _] {
@@ -140,6 +105,41 @@ error: The placeholder `_` is not allowed in trait bounds
    │
 29 │     Gen<_>: Trait2<_>,
    │                    -
+   │
+
+error: The placeholder `_` is not allowed in function parameter types
+  ┌─ src/main.nr:1:16
+  │
+1 │ pub fn foo(_: [_; _]) -> [_; _] {
+  │                -
+  │
+
+error: The placeholder `_` is not allowed in function parameter types
+  ┌─ src/main.nr:1:19
+  │
+1 │ pub fn foo(_: [_; _]) -> [_; _] {
+  │                   -
+  │
+
+error: The placeholder `_` is not allowed in function return types
+  ┌─ src/main.nr:1:27
+  │
+1 │ pub fn foo(_: [_; _]) -> [_; _] {
+  │                           -
+  │
+
+error: The placeholder `_` is not allowed in function return types
+  ┌─ src/main.nr:1:30
+  │
+1 │ pub fn foo(_: [_; _]) -> [_; _] {
+  │                              -
+  │
+
+error: The placeholder `_` is not allowed in trait constraints
+   ┌─ src/main.nr:24:9
+   │
+24 │     Gen<_>: Trait2<T>,
+   │         -
    │
 
 Aborting due to 19 previous errors
