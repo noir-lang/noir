@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: set_secret is private and not visible from the current module
+   ┌─ src/main.nr:20:27
+   │
+20 │         let secret_expr = quote { set_secret }.as_expr().unwrap().resolve(Option::some(victim_module.functions()[0]));
+   │                           -------------------------------------------------------------------------------------------
+   │                           │       │
+   │                           │       set_secret is private
+   │                           While evaluating `Expr::resolve`
+   │
+
+Aborting due to 1 previous error
