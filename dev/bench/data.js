@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778183429442,
+  "lastUpdate": 1778183717479,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23140,48 +23140,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "0e5abb1fa9ef8df468a4a0e7ea5344865a35052a",
-          "message": "fix: validate oracle-resolver argument (#12516)",
-          "timestamp": "2026-05-04T16:28:17Z",
-          "tree_id": "1feddfafd9e77fa63323d3f563a031fb56823bf0",
-          "url": "https://github.com/noir-lang/noir/commit/0e5abb1fa9ef8df468a4a0e7ea5344865a35052a"
-        },
-        "date": 1777913505445,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127705,
-            "range": "± 481",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114108,
-            "range": "± 3459",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3037386,
-            "range": "± 8788",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "0430dec1bbfdf7778afe2d47f733eb9b433a3019",
           "message": "fix(ssa): special handling of intrinsics for zero-sized vectors (#12487)",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641622,
             "range": "± 11829",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64184e6554021dce4d946ca317fc15e32725f57c",
+          "message": "chore: enforce crate layering via cargo metadata test (#12588)",
+          "timestamp": "2026-05-07T19:30:32Z",
+          "tree_id": "f2f06a0d4755e87926810ab61db5908a4a88d420",
+          "url": "https://github.com/noir-lang/noir/commit/64184e6554021dce4d946ca317fc15e32725f57c"
+        },
+        "date": 1778183655598,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127130,
+            "range": "± 423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113191,
+            "range": "± 1606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041668,
+            "range": "± 11235",
             "unit": "ns/iter"
           }
         ]
