@@ -174,7 +174,14 @@ impl Context<'_, '_, '_> {
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        if max_bit <= typ.bit_size::<FieldElement>() {
+        // For signed types the high bit is the sign bit, so a value whose unsigned-bit-count
+        // equals `bit_size` does not fit in the positive signed range and would cause the
+        // subsequent `unchecked_mul` to overflow the target type.
+        let happy_path_max_bit = match typ {
+            NumericType::Signed { bit_size } => bit_size - 1,
+            _ => typ.bit_size::<FieldElement>(),
+        };
+        if max_bit <= happy_path_max_bit {
             // If the result is guaranteed to fit in the target type we can simply multiply
             let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
@@ -840,9 +847,8 @@ mod tests {
             assert_ssa_snapshot!(ssa, @"
             acir(inline) fn main f0 {
               b0(v0: i8):
-                v3 = unchecked_mul i8 77, i8 2
-                v4 = lt v3, v0
-                constrain v4 == u1 1
+                v2 = lt i8 -102, v0
+                constrain v2 == u1 1
                 return
             }
             ");
@@ -897,8 +903,10 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: u1):
                 v1 = cast v0 as i16
-                v3 = unchecked_mul v1, i16 -32768
-                return v3
+                v2 = cast v0 as Field
+                v4 = mul v2, Field 32768
+                v5 = cast v4 as i16
+                return v5
             }
             ");
         }
