@@ -1347,7 +1347,7 @@
 <a href=#1347 id=1347 data-nosnippet>1347</a>                <span class="self">self</span>.evaluate(expression)<span class="question-mark">?</span>;
 <a href=#1348 id=1348 data-nosnippet>1348</a>                <span class="prelude-val">Ok</span>(Value::Unit)
 <a href=#1349 id=1349 data-nosnippet>1349</a>            }
-<a href=#1350 id=1350 data-nosnippet>1350</a>            HirStatement::Error =&gt; {
+<a href=#1350 id=1350 data-nosnippet>1350</a>            HirStatement::Error | HirStatement::TraitAssociatedConstant =&gt; {
 <a href=#1351 id=1351 data-nosnippet>1351</a>                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.id_location(statement);
 <a href=#1352 id=1352 data-nosnippet>1352</a>                <span class="prelude-val">Err</span>(InterpreterError::ErrorNodeEncountered { location })
 <a href=#1353 id=1353 data-nosnippet>1353</a>            }
