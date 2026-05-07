@@ -42,7 +42,8 @@ use crate::{
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        resolution::visibility::item_in_module_is_visible,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -2409,6 +2410,29 @@ fn function_def_as_typed_expr(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
     let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
+
+    // Check visibility for non-trait functions
+    if trait_impl_id.is_none() {
+        let defining_module = interpreter.elaborator.interner.function_module(func_id);
+        let visibility = interpreter.elaborator.interner.function_visibility(func_id);
+        let caller_module = interpreter.elaborator.module_id();
+        if !item_in_module_is_visible(
+            interpreter.elaborator.def_maps,
+            caller_module,
+            defining_module,
+            visibility,
+        ) {
+            let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+            let defining_module = fully_qualified_module_path(
+                interpreter.elaborator.def_maps,
+                interpreter.elaborator.crate_graph,
+                &caller_module.krate,
+                defining_module,
+            );
+            return Err(InterpreterError::FunctionNotVisible { name, defining_module, location });
+        }
+    }
+
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);

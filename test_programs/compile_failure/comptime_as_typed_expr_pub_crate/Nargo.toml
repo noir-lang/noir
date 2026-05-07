@@ -1,0 +1,7 @@
+[package]
+name = "comptime_as_typed_expr_pub_crate"
+type = "bin"
+authors = [""]
+
+[dependencies]
+foo = { path = "./foo" }

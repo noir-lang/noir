@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 340
+expression: stderr
+---
+warning: unused variable original_vault
+   ┌─ src/main.nr:26:9
+   │
+26 │     let original_vault = victim::new();
+   │         -------------- unused variable
+   │
+
+warning: unused function set_secret
+   ┌─ src/main.nr:19:8
+   │
+19 │     fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+   │        ---------- unused function
+   │
+
+error: Function `set_secret` is private
+   ┌─ src/main.nr:37:31
+   │
+37 │         let set_secret_expr = set_secret.as_typed_expr();
+   │                               -------------------------- `set_secret` is declared in `victim`
+   │
+
+Aborting due to 1 previous error
