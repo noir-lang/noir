@@ -1,0 +1,5 @@
+error: variant-level `#[tagged(...)]` is not allowed on a type with `#[tagged(via(...))]` — variants of a `via`-delegating enum are wire-irrelevant; configure the wire DTO instead
+  --> tests/compile_fail/via_with_variant_tagged.rs:16:5
+   |
+16 |     #[tagged(reserved(2))]
+   |     ^^^^^^^^^^^^^^^^^^^^^^

@@ -110,6 +110,32 @@ enum WithVariantFieldExtras<T> {
     },
 }
 
+/// Variant-level `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]`
+/// configure each variant's payload independently. `Strict` keeps the strict
+/// default; `Lenient` opts in to skipping unknown payload field tags and
+/// retires payload tag 5; `Brief` retires payload tag 9 without lenience.
+/// The variant-level `reserved` lists govern *payload field* tags only —
+/// they don't interact with the enclosing enum's variant-tag space.
+#[derive(MsgpackTagged)]
+enum VariantPayloadConfigs {
+    #[tag(0)]
+    Strict {
+        #[tag(0)]
+        a: u32,
+    },
+    #[tag(1)]
+    #[tagged(reserved(5), allow_unknown_tags)]
+    Lenient {
+        #[tag(0)]
+        b: u32,
+        #[tag(1)]
+        c: bool,
+    },
+    #[tag(2)]
+    #[tagged(reserved(9))]
+    Brief(#[tag(0)] u32),
+}
+
 /// Generic enum exercising the per-payload-type `where` bound on enums.
 /// `GenericChoice<Inner>` reaches `Inner::register_into` via the bound chain
 /// without the macro needing to know `T`'s identity.
@@ -372,6 +398,7 @@ fn derive_compiles_for_basic_shapes() {
     // the `Opaque` field is `#[tag(skip)]` and the `PhantomData<T>` field
     // auto-skips — neither contributes a `MsgpackTagged: Opaque` bound.
     assert_impl::<WithVariantFieldExtras<Opaque>>();
+    assert_impl::<VariantPayloadConfigs>();
     assert_impl::<GenericChoice<u32>>();
     assert_impl::<GenericChoice<Inner>>();
     assert_impl::<WithReservedVariants>();
@@ -754,17 +781,40 @@ fn variant_payload_supports_skip_and_phantom() {
     assert_eq!(plain.payload.defaults, &[1]);
 }
 
-/// Variant payloads still don't carry their own `reserved` list or
-/// `allow_unknown_tags` flag — there's no per-variant `#[tagged(...)]`
-/// syntax for those yet. Pinning the empty defaults so a future change
-/// to add per-variant attrs has to update this test.
+/// Variants without a `#[tagged(...)]` annotation default to a strict
+/// payload — empty `reserved` and `allow_unknown_tags = false`.
 #[test]
 #[allow(clippy::const_is_empty)]
-fn variant_payloads_have_no_reserved_or_allow_unknown_tags_yet() {
+fn variant_payload_defaults_are_strict_when_no_tagged_attr() {
     for variant in sum_of::<Choice>().variants {
         assert!(variant.payload.reserved.is_empty(), "{} payload reserved", variant.name);
         assert!(!variant.payload.allow_unknown_tags, "{} payload allow_unknown_tags", variant.name);
     }
+}
+
+/// Per-variant `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]`
+/// land on the variant's payload `Product`, not on the enum's `Sum`. Each
+/// variant's policy is independent of the others.
+#[test]
+fn variant_level_tagged_attrs_propagate_per_variant() {
+    let s = sum_of::<VariantPayloadConfigs>();
+
+    let strict = s.variant_for("Strict").expect("Strict variant exists");
+    assert!(strict.payload.reserved.is_empty());
+    assert!(!strict.payload.allow_unknown_tags);
+
+    let lenient = s.variant_for("Lenient").expect("Lenient variant exists");
+    assert_eq!(lenient.payload.reserved, &[5]);
+    assert!(lenient.payload.allow_unknown_tags);
+
+    let brief = s.variant_for("Brief").expect("Brief variant exists");
+    assert_eq!(brief.payload.reserved, &[9]);
+    assert!(!brief.payload.allow_unknown_tags);
+
+    // Variant-level reserved doesn't bleed into the enum-level reserved
+    // variant-tag list — that space is governed by the type-level
+    // `#[tagged(reserved(...))]`.
+    assert!(s.reserved.is_empty(), "enum-level reserved is independent");
 }
 
 /// Default decode policy for any enum that doesn't opt in is strict on both

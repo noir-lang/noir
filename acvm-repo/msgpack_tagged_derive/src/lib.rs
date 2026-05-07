@@ -109,10 +109,9 @@ fn empty_product_literal() -> TokenStream2 {
 
 /// Build a `Tagged::Sum` literal from variant entries, the enum-level
 /// reserved variant-tag list, and the runtime decode-policy flags. Each
-/// variant's `payload` is rendered as a `Product` populated from its
-/// per-variant tagged-field entries. Variant payloads don't carry a
-/// reserved list or `allow_unknown_tags` flag yet (no per-variant
-/// `#[tagged(...)]` syntax).
+/// variant's `payload` is rendered as a `Product` populated from the
+/// variant's parsed tagged fields, plus its variant-level
+/// `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]` flags.
 fn sum_literal(
     variants: &[TaggedVariant<'_>],
     reserved: &[u8],
@@ -122,7 +121,8 @@ fn sum_literal(
     let variant_entries = variants.iter().map(|v| {
         let tag = v.tag;
         let name = &v.name;
-        let payload = product_struct_literal(&v.payload, &[], false);
+        let payload =
+            product_struct_literal(&v.payload, &v.payload_reserved, v.payload_allow_unknown_tags);
         quote! {
             ::msgpack_tagged::Variant {
                 tag: #tag,
@@ -291,10 +291,17 @@ fn expand_tuple_struct(
 /// for tuple-shaped variants. The entries drive both the variant's emitted
 /// payload `Product` and the per-field bounds (`MsgpackTagged`, `Default`)
 /// in the impl's where clause.
+///
+/// `payload_reserved` and `payload_allow_unknown_tags` are the variant-level
+/// `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]` flags,
+/// scoped to the variant's *payload field* tag space (not to the variant
+/// tag itself — that's governed by the enclosing type's `#[tagged(...)]`).
 struct TaggedVariant<'a> {
     tag: u8,
     name: String,
     payload: Vec<TaggedField<'a>>,
+    payload_reserved: Vec<u8>,
+    payload_allow_unknown_tags: bool,
 }
 
 /// Enum (`enum E { A, B(...), C { ... } }`). Each variant carries an
@@ -346,14 +353,25 @@ fn expand_enum(
                 format!("variant tag {tag} is used more than once"),
             ));
         }
-        // Variant payloads have their own field tags but *not* their own
-        // reserved-tag list (no per-variant `#[tagged(...)]` syntax yet).
+        // Variant-level `#[tagged(...)]` configures the variant's payload —
+        // its `reserved` list governs payload field tags (not the variant
+        // tag itself), and `allow_unknown_tags` governs unknown payload
+        // field tags on decode.
+        let variant_attrs = parse_tagged_variant_attrs(variant)?;
         let payload = match &variant.fields {
             Fields::Unit => Vec::new(),
-            Fields::Named(named) => parse_named_fields(&named.named, &[])?,
-            Fields::Unnamed(unnamed) => parse_tuple_fields(variant, &unnamed.unnamed, &[])?,
+            Fields::Named(named) => parse_named_fields(&named.named, &variant_attrs.reserved)?,
+            Fields::Unnamed(unnamed) => {
+                parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved)?
+            }
         };
-        variants.push(TaggedVariant { tag, name: variant.ident.to_string(), payload });
+        variants.push(TaggedVariant {
+            tag,
+            name: variant.ident.to_string(),
+            payload,
+            payload_reserved: variant_attrs.reserved,
+            payload_allow_unknown_tags: variant_attrs.allow_unknown_tags,
+        });
     }
     variants.sort_by_key(|v| v.tag);
 
@@ -533,6 +551,14 @@ fn validate_no_field_tag_attrs(input: &DeriveInput) -> syn::Result<()> {
                             "variant-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — \
                              variants of a `via`-delegating enum are wire-irrelevant; \
                              tag the wire DTO's variants instead",
+                        ));
+                    }
+                    if attr.path().is_ident("tagged") {
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "variant-level `#[tagged(...)]` is not allowed on a type with `#[tagged(via(...))]` — \
+                             variants of a `via`-delegating enum are wire-irrelevant; \
+                             configure the wire DTO instead",
                         ));
                     }
                 }
@@ -862,7 +888,7 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
                     return Err(syn::Error::new_spanned(
                         attr,
                         format!(
-                            "tag {tag} is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
+                            "tag {tag} is in the surrounding `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
                         ),
                     ));
                 }
@@ -913,6 +939,83 @@ fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
         }
     }
     Ok(found)
+}
+
+/// Variant-level configuration parsed from one or more `#[tagged(...)]`
+/// attributes on an enum variant. The grammar is a strict subset of the
+/// type-level grammar — only `reserved(...)` and `allow_unknown_tags`
+/// apply to a variant payload (which is shape-equivalent to a struct).
+/// `default_on_reserved`, `default_on_unknown`, and `via(...)` are
+/// sum-level decisions that have no place on individual variants.
+#[derive(Default)]
+struct VariantAttrs {
+    reserved: Vec<u8>,
+    allow_unknown_tags: bool,
+}
+
+/// Parse the variant-level `#[tagged(...)]` attributes (if any) into a
+/// `VariantAttrs`. Multiple `#[tagged(...)]` attributes on the same variant
+/// are allowed and merged, but each named modifier may appear at most once
+/// across them.
+fn parse_tagged_variant_attrs(variant: &Variant) -> syn::Result<VariantAttrs> {
+    let mut out = VariantAttrs::default();
+    let mut seen_reserved = false;
+    let mut seen_allow_unknown = false;
+
+    for attr in &variant.attrs {
+        if !attr.path().is_ident("tagged") {
+            continue;
+        }
+        let items: Punctuated<Meta, Token![,]> =
+            attr.parse_args_with(Punctuated::parse_terminated)?;
+        for item in items {
+            if let Meta::List(list) = &item
+                && list.path.is_ident("reserved")
+            {
+                if seen_reserved {
+                    return Err(syn::Error::new_spanned(
+                        list,
+                        "duplicate `reserved(...)` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_reserved = true;
+                let lits: Punctuated<LitInt, Token![,]> =
+                    list.parse_args_with(Punctuated::parse_terminated)?;
+                let mut seen_dup = std::collections::HashSet::new();
+                for lit in &lits {
+                    let n: u8 = lit.base10_parse()?;
+                    if !seen_dup.insert(n) {
+                        return Err(syn::Error::new_spanned(
+                            lit,
+                            format!("tag {n} listed more than once in `reserved(...)`"),
+                        ));
+                    }
+                    out.reserved.push(n);
+                }
+                continue;
+            }
+            if let Meta::Path(path) = &item
+                && path.is_ident("allow_unknown_tags")
+            {
+                if seen_allow_unknown {
+                    return Err(syn::Error::new_spanned(
+                        path,
+                        "duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`",
+                    ));
+                }
+                seen_allow_unknown = true;
+                out.allow_unknown_tags = true;
+                continue;
+            }
+            return Err(syn::Error::new_spanned(
+                &item,
+                "expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` \
+                 on an enum variant — `default_on_reserved`, `default_on_unknown`, and \
+                 `via(...)` are type-level modifiers, not variant-level",
+            ));
+        }
+    }
+    Ok(out)
 }
 
 /// Type-level configuration parsed from one or more `#[tagged(...)]`
