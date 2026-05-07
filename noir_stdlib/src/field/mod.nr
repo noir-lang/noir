@@ -204,7 +204,12 @@ impl Field {
 
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
+    ///
+    /// # Failures
+    /// `N` must be no greater than the number of bytes required to represent the field modulus
+    // docs:start:from_le_bytes
     pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+        // docs:end:from_le_bytes
         static_assert(
             N <= modulus_le_bytes().len(),
             "N must be less than or equal to modulus_le_bytes().len()",
@@ -221,10 +226,95 @@ impl Field {
 
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
+    ///
+    /// # Failures
+    /// `N` must be no greater than the number of bytes required to represent the field modulus
+    // docs:start:from_be_bytes
     pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
+        // docs:end:from_be_bytes
+        static_assert(
+            N <= modulus_be_bytes().len(),
+            "N must be less than or equal to modulus_be_bytes().len()",
+        );
         let mut v = 1;
         let mut result = 0;
 
+        for i in 0..N {
+            result += (bytes[N - 1 - i] as Field) * v;
+            v = v * 256;
+        }
+        result
+    }
+
+    /// Convert a little endian byte array to a field element, asserting that the input is a
+    /// canonical representation (strictly less than the field modulus).
+    ///
+    /// # Failures
+    /// Causes a constraint failure if `bytes` encodes a value greater than or equal to the
+    /// field modulus.
+    // docs:start:from_le_bytes_checked
+    pub fn from_le_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
+        // docs:end:from_le_bytes_checked
+        static_assert(
+            N <= modulus_le_bytes().len(),
+            "N must be less than or equal to modulus_le_bytes().len()",
+        );
+
+        let p = modulus_le_bytes();
+        let mut ok = N != p.len();
+        for i in 0..N {
+            if !ok {
+                if bytes[N - 1 - i] != p[N - 1 - i] {
+                    assert(
+                        bytes[N - 1 - i] < p[N - 1 - i],
+                        "input bytes are not a canonical field representation",
+                    );
+                    ok = true;
+                }
+            }
+        }
+        assert(ok, "input bytes are not a canonical field representation");
+
+        let mut v = 1;
+        let mut result = 0;
+        for i in 0..N {
+            result += (bytes[i] as Field) * v;
+            v = v * 256;
+        }
+        result
+    }
+
+    /// Convert a big endian byte array to a field element, asserting that the input is a
+    /// canonical representation (strictly less than the field modulus).
+    ///
+    /// # Failures
+    /// Causes a constraint failure if `bytes` encodes a value greater than or equal to the
+    /// field modulus.
+    // docs:start:from_be_bytes_checked
+    pub fn from_be_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
+        // docs:end:from_be_bytes_checked
+        static_assert(
+            N <= modulus_be_bytes().len(),
+            "N must be less than or equal to modulus_be_bytes().len()",
+        );
+
+        let p = modulus_be_bytes();
+        let mut ok = N != p.len();
+        for i in 0..N {
+            if !ok {
+                if bytes[i] != p[i] {
+                    assert(
+                        bytes[i] < p[i],
+                        "input bytes are not a canonical field representation",
+                    );
+                    ok = true;
+                }
+            }
+        }
+        assert(ok, "input bytes are not a canonical field representation");
+
+        let mut v = 1;
+        let mut result = 0;
         for i in 0..N {
             result += (bytes[N - 1 - i] as Field) * v;
             v = v * 256;
@@ -655,6 +745,80 @@ mod tests {
             let p_bytes: [u8; 32] = 0.to_le_bytes();
             assert_eq(p_bytes, [0; 32]);
         }
+    }
+
+    #[test]
+    fn test_from_le_bytes_checked_accepts_modulus_minus_one() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bytes: [u8; 32] = modulus_le_bytes().as_array();
+            assert(p_minus_1_bytes[0] > 0);
+            p_minus_1_bytes[0] -= 1;
+            let p_minus_1 = Field::from_le_bytes_checked::<32>(p_minus_1_bytes);
+            assert_eq(p_minus_1 + 1, 0);
+        }
+    }
+
+    #[test(should_fail_with = "input bytes are not a canonical field representation")]
+    fn test_from_le_bytes_checked_rejects_modulus() {
+        if crate::compat::is_bn254() {
+            let _ = Field::from_le_bytes_checked::<32>(modulus_le_bytes().as_array());
+        } else {
+            panic("input bytes are not a canonical field representation");
+        }
+    }
+
+    #[test(should_fail_with = "input bytes are not a canonical field representation")]
+    fn test_from_le_bytes_checked_rejects_modulus_plus_one() {
+        if crate::compat::is_bn254() {
+            let mut p_plus_1_bytes: [u8; 32] = modulus_le_bytes().as_array();
+            assert(p_plus_1_bytes[0] < 255);
+            p_plus_1_bytes[0] += 1;
+            let _ = Field::from_le_bytes_checked::<32>(p_plus_1_bytes);
+        } else {
+            panic("input bytes are not a canonical field representation");
+        }
+    }
+
+    #[test]
+    fn test_from_be_bytes_checked_accepts_modulus_minus_one() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bytes: [u8; 32] = modulus_be_bytes().as_array();
+            assert(p_minus_1_bytes[32 - 1] > 0);
+            p_minus_1_bytes[32 - 1] -= 1;
+            let p_minus_1 = Field::from_be_bytes_checked::<32>(p_minus_1_bytes);
+            assert_eq(p_minus_1 + 1, 0);
+        }
+    }
+
+    #[test(should_fail_with = "input bytes are not a canonical field representation")]
+    fn test_from_be_bytes_checked_rejects_modulus() {
+        if crate::compat::is_bn254() {
+            let _ = Field::from_be_bytes_checked::<32>(modulus_be_bytes().as_array());
+        } else {
+            panic("input bytes are not a canonical field representation");
+        }
+    }
+
+    #[test(should_fail_with = "input bytes are not a canonical field representation")]
+    fn test_from_be_bytes_checked_rejects_modulus_plus_one() {
+        if crate::compat::is_bn254() {
+            let mut p_plus_1_bytes: [u8; 32] = modulus_be_bytes().as_array();
+            assert(p_plus_1_bytes[32 - 1] < 255);
+            p_plus_1_bytes[32 - 1] += 1;
+            let _ = Field::from_be_bytes_checked::<32>(p_plus_1_bytes);
+        } else {
+            panic("input bytes are not a canonical field representation");
+        }
+    }
+
+    #[test]
+    fn test_from_bytes_checked_small_n() {
+        // For N < modulus_bytes().len(), the input cannot overflow the modulus, so the checked
+        // variants behave identically to the unchecked ones.
+        let le_bytes: [u8; 8] = [3, 1, 0, 0, 0, 0, 0, 0];
+        assert_eq(Field::from_le_bytes_checked::<8>(le_bytes), 259);
+        let be_bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 1, 3];
+        assert_eq(Field::from_be_bytes_checked::<8>(be_bytes), 259);
     }
 
     /// Convert a little endian bit array to a field element.
