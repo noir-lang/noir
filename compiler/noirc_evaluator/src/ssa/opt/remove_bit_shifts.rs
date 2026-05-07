@@ -174,7 +174,14 @@ impl Context<'_, '_, '_> {
             max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
             FieldElement::max_num_bits(),
         );
-        if max_bit <= typ.bit_size::<FieldElement>() {
+        // For signed types the high bit is the sign bit, so a value whose unsigned-bit-count
+        // equals `bit_size` does not fit in the positive signed range and would cause the
+        // subsequent `unchecked_mul` to overflow the target type.
+        let happy_path_max_bit = match typ {
+            NumericType::Signed { bit_size } => bit_size - 1,
+            _ => typ.bit_size::<FieldElement>(),
+        };
+        if max_bit <= happy_path_max_bit {
             // If the result is guaranteed to fit in the target type we can simply multiply
             let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
@@ -815,6 +822,95 @@ mod tests {
 
     mod signed {
         use super::*;
+
+        // Regression test for fuzzer seed 0x17e3645200100000.
+        //
+        // For a positive signed constant whose unsigned bit-width plus the shift amount
+        // equals the type's bit size, the result is in the "negative" half of the unsigned
+        // representation, so it does not fit in the positive signed range. The pass'
+        // happy-path multiplication therefore overflows the target type and the SSA
+        // interpreter later panics with `unfit 'lt': fit types should have been restored
+        // already` when the value reaches `lt`/bitwise operators that require fit operands.
+        #[test]
+        fn removes_shl_with_constant_lhs_overflowing_signed_range() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 77, i8 1
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v2 = lt i8 -102, v0
+                constrain v2 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Constant-folded boundary case that does *not* go through the buggy
+        // `unchecked_mul i8 _, i8 _` path even on the unfixed code: when the shift amount
+        // alone is `bit_size - 1` the cast of `2^(bit_size - 1)` to the signed type wraps
+        // to `iN::MIN`, so the subsequent multiplication by a small positive lhs
+        // (`i8 1 << 7 == -128`) evaluates without overflow inside `checked_mul`.
+        #[test]
+        fn removes_shl_with_constant_lhs_one_and_max_shift() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 1, i8 7
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v2 = lt i8 -128, v0
+                constrain v2 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Non-constant boundary case: an `i16` value reconstructed by a chain of casts
+        // from a `u1`. `get_value_max_num_bits` walks the casts and reports a max width of
+        // 1, so with a shift of 15 the pass picks the same boundary that triggered the
+        // fuzzer for `i8`. Unlike the constant-only cases above, there is no constant
+        // folding to obscure the structural change in the emitted SSA.
+        #[test]
+        fn removes_shl_with_lhs_cast_from_u1_to_i16_at_signed_boundary() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v2 = shl v1, i16 15
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v2 = cast v0 as Field
+                v4 = mul v2, Field 32768
+                v5 = cast v4 as i16
+                return v5
+            }
+            ");
+        }
+
         #[test]
         fn removes_shl_with_constant_rhs() {
             let src = "
