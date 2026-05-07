@@ -815,6 +815,94 @@ mod tests {
 
     mod signed {
         use super::*;
+
+        // Regression test for fuzzer seed 0x17e3645200100000.
+        //
+        // For a positive signed constant whose unsigned bit-width plus the shift amount
+        // equals the type's bit size, the result is in the "negative" half of the unsigned
+        // representation, so it does not fit in the positive signed range. The pass'
+        // happy-path multiplication therefore overflows the target type and the SSA
+        // interpreter later panics with `unfit 'lt': fit types should have been restored
+        // already` when the value reaches `lt`/bitwise operators that require fit operands.
+        #[test]
+        fn removes_shl_with_constant_lhs_overflowing_signed_range() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 77, i8 1
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = unchecked_mul i8 77, i8 2
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Constant-folded boundary case that does *not* go through the buggy
+        // `unchecked_mul i8 _, i8 _` path even on the unfixed code: when the shift amount
+        // alone is `bit_size - 1` the cast of `2^(bit_size - 1)` to the signed type wraps
+        // to `iN::MIN`, so the subsequent multiplication by a small positive lhs
+        // (`i8 1 << 7 == -128`) evaluates without overflow inside `checked_mul`.
+        #[test]
+        fn removes_shl_with_constant_lhs_one_and_max_shift() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v3 = shl i8 1, i8 7
+                v4 = lt v3, v0
+                constrain v4 == u1 1
+                return
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: i8):
+                v2 = lt i8 -128, v0
+                constrain v2 == u1 1
+                return
+            }
+            ");
+        }
+
+        // Non-constant boundary case: an `i16` value reconstructed by a chain of casts
+        // from a `u1`. `get_value_max_num_bits` walks the casts and reports a max width of
+        // 1, so with a shift of 15 the pass picks the same boundary that triggered the
+        // fuzzer for `i8`. Unlike the constant-only cases above, there is no constant
+        // folding to obscure the structural change in the emitted SSA.
+        #[test]
+        fn removes_shl_with_lhs_cast_from_u1_to_i16_at_signed_boundary() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v2 = shl v1, i16 15
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @"
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as i16
+                v3 = unchecked_mul v1, i16 -32768
+                return v3
+            }
+            ");
+        }
+
         #[test]
         fn removes_shl_with_constant_rhs() {
             let src = "
