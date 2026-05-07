@@ -13,7 +13,6 @@ dependencies = [
  "criterion",
  "flate2",
  "insta",
- "noirc_span",
  "num-bigint",
  "num-traits",
  "num_enum",
