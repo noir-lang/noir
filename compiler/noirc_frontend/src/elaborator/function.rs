@@ -39,7 +39,23 @@ use crate::{
 
 use super::Elaborator;
 
-type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
+type ResolvedParametersInfo =
+    (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>, Vec<Location>);
+
+/// Validation of entry-point parameter and return types is deferred until after
+/// all trait impls and globals are elaborated. This struct captures everything
+/// needed to run the check later: the function id (so we can fetch the resolved
+/// parameter and return types out of the interner), the source locations to
+/// attribute any errors to, and the flags that determine whether the entry-point
+/// or `#[fold]`/`#[no_predicates]` checks apply.
+pub(super) struct PendingEntryPointCheck {
+    pub(super) func_id: FuncId,
+    pub(super) parameter_locations: Vec<Location>,
+    pub(super) return_type_location: Location,
+    pub(super) is_entry_point: bool,
+    pub(super) has_inline_attribute: bool,
+    pub(super) check_return_type: bool,
+}
 
 impl Elaborator<'_> {
     /// Defines function metadata for all functions, impl methods, and trait impl methods.
@@ -197,7 +213,7 @@ impl Elaborator<'_> {
         extra_trait_constraints.extend(associated_generics_trait_constraints);
 
         // Resolve parameters
-        let (parameters, parameter_types, parameter_idents) =
+        let (parameters, parameter_types, parameter_idents, parameter_locations) =
             self.resolve_function_parameters(func, &mut generics, &mut trait_constraints);
 
         // Resolve return type
@@ -206,18 +222,25 @@ impl Elaborator<'_> {
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
-        // Temporary allow vectors for contract functions, until contracts are re-factored.
-        if !func.attributes().has_contract_library_method() {
-            let output = true;
-            if let Err(err) = Self::check_if_type_is_valid_for_program(
-                &return_type,
-                is_entry_point || func.is_test_or_fuzz(),
-                func.has_inline_attribute(),
-                output,
-                func.return_type().location,
-            ) {
-                self.push_err(err);
-            }
+        let is_entry_point_check = is_entry_point || func.is_test_or_fuzz();
+        let has_inline_attribute = func.has_inline_attribute();
+        // Defer entry-point validity checks until the end of elaboration so that
+        // types that depend on trait-associated constants or globals (which may not
+        // yet be bound at this point) have a chance to fully resolve. The check is
+        // a no-op unless one of these flags is set, so we only enqueue then.
+        if is_entry_point_check || has_inline_attribute {
+            // Vectors are temporarily allowed in contract library methods' return
+            // types, so we skip the return-type check for them.
+            let check_return_type = !func.attributes().has_contract_library_method();
+            let return_type_location = func.return_type().location;
+            self.pending_entry_point_checks.push(PendingEntryPointCheck {
+                func_id,
+                parameter_locations,
+                return_type_location,
+                check_return_type,
+                is_entry_point: is_entry_point_check,
+                has_inline_attribute,
+            });
         }
 
         // Build function type
@@ -357,12 +380,12 @@ impl Elaborator<'_> {
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         let is_test_or_fuzz = func.is_test_or_fuzz();
 
-        let has_inline_attribute = func.has_inline_attribute();
         let is_pub_allowed = self.pub_allowed(func, self.is_function_in_contract(), is_crate_root);
 
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
+        let mut parameter_locations = Vec::new();
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
@@ -407,16 +430,7 @@ impl Elaborator<'_> {
                 _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
-            let output = false;
-            if let Err(err) = Self::check_if_type_is_valid_for_program(
-                &typ,
-                is_entry_point || is_test_or_fuzz,
-                has_inline_attribute,
-                output,
-                type_location,
-            ) {
-                self.push_err(err);
-            }
+            parameter_locations.push(type_location);
 
             if is_entry_point || is_test_or_fuzz {
                 self.mark_type_as_used(&typ);
@@ -436,7 +450,48 @@ impl Elaborator<'_> {
             parameter_types.push(typ);
         }
 
-        (parameters, parameter_types, parameter_idents)
+        (parameters, parameter_types, parameter_idents, parameter_locations)
+    }
+
+    /// Runs the validity checks queued during `define_function_meta` for entry points,
+    /// tests, fuzz targets, and `#[fold]`/`#[no_predicates]` functions. This must be
+    /// called after trait impls and globals have been elaborated so that array and
+    /// string lengths involving trait-associated constants or globals can evaluate.
+    pub(super) fn run_pending_entry_point_checks(&mut self) {
+        let pending = std::mem::take(&mut self.pending_entry_point_checks);
+        for check in pending {
+            let (parameter_types, return_type) = {
+                let func_meta = self.interner.function_meta(&check.func_id);
+                let parameter_types: Vec<Type> =
+                    func_meta.parameters.iter().map(|p| p.1.clone()).collect();
+                let return_type = func_meta.return_type().clone();
+                (parameter_types, return_type)
+            };
+
+            for (typ, location) in parameter_types.iter().zip(check.parameter_locations.iter()) {
+                if let Err(err) = Self::check_if_type_is_valid_for_program(
+                    typ,
+                    check.is_entry_point,
+                    check.has_inline_attribute,
+                    false, // output
+                    *location,
+                ) {
+                    self.push_err(err);
+                }
+            }
+
+            if check.check_return_type
+                && let Err(err) = Self::check_if_type_is_valid_for_program(
+                    &return_type,
+                    check.is_entry_point,
+                    check.has_inline_attribute,
+                    true, // output
+                    check.return_type_location,
+                )
+            {
+                self.push_err(err);
+            }
+        }
     }
 
     /// Only sized types are valid to be used as main's parameters or the parameters to a contract

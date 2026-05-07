@@ -464,3 +464,21 @@ fn errors_if_using_comptime_enum_in_fn() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn can_use_trait_associated_constant_in_main_signature() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+    }
+
+    unconstrained fn main(fields: [Field; <Field as Deserialize>::N]) -> pub Field {
+        fields[0]
+    }
+    "#;
+    check_errors(src);
+}

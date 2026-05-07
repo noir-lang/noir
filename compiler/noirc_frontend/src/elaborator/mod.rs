@@ -374,6 +374,11 @@ pub struct Elaborator<'context> {
     /// lookup fails and the name is in this set, we can report a more specific error
     /// about runtime variables not being available in comptime code.
     parent_runtime_variables: rustc_hash::FxHashSet<String>,
+
+    /// Entry-point validity checks deferred until after all trait impls and globals
+    /// have been elaborated, so that types using trait-associated constants or globals
+    /// can fully evaluate their array/string lengths before being validated.
+    pending_entry_point_checks: Vec<function::PendingEntryPointCheck>,
 }
 
 #[derive(Copy, Clone)]
@@ -450,6 +455,7 @@ impl<'context> Elaborator<'context> {
             recursion_depth: 0,
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
+            pending_entry_point_checks: Vec::new(),
         }
     }
 
@@ -572,6 +578,12 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
+
+        // Now that trait impls and globals have been elaborated, run the
+        // entry-point validity checks queued during function-meta definition.
+        // Deferring lets array/string lengths involving trait-associated
+        // constants or globals evaluate before being validated.
+        self.run_pending_entry_point_checks();
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
