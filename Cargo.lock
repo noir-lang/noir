@@ -3320,6 +3320,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "msgpack_tagged"
+version = "1.0.0-beta.20"
+
+[[package]]
 name = "nargo"
 version = "1.0.0-beta.20"
 dependencies = [
