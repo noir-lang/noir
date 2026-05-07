@@ -131,9 +131,9 @@ impl Context<'_> {
 
             // 3.1 Computes the flatten_idx where to write into the dynamic array.
             // `get_flattened_index` handles both homogeneous (constant element size) and
-            // heterogeneous (element_type_sizes memory lookup with predicate guard) cases.
-            // The `is_safe_index: false` ensures the index is multiplied by the side-effects
-            // predicate to prevent out-of-bounds memory reads when side effects are disabled.
+            // heterogeneous (element_type_sizes memory lookup) cases. Passing
+            // `is_safe_index: false` gates the index by the side-effects predicate so that
+            // a disabled branch writes to index 0 (always in bounds) instead of an OOB slot.
             let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
             let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
             let mut flatten_idx = self.get_flattened_index(
@@ -651,7 +651,12 @@ impl Context<'_> {
             };
 
         let value_types = flat_element_types(&vector_typ);
-        assert_eq!(vector_size.to_usize() % value_types.len(), 0);
+
+        // For types like `[(); 3]` we always end up with no elements and a zero-sized type
+        assert!(
+            vector_size.to_usize() == 0 && value_types.is_empty()
+                || vector_size.to_usize().is_multiple_of(value_types.len())
+        );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -846,7 +851,12 @@ impl Context<'_> {
             };
 
         let value_types = flat_element_types(&vector_typ);
-        assert_eq!(result_size.to_usize() % value_types.len(), 0);
+
+        // For types like `[(); 3]` we always end up with no elements and a zero-sized type
+        assert!(
+            result_size.to_usize() == 0 && value_types.is_empty()
+                || result_size.to_usize().is_multiple_of(value_types.len())
+        );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,

@@ -24,7 +24,7 @@ impl ItemPrinter<'_, '_> {
         }
 
         match typ {
-            Type::Array(length, typ) => {
+            Type::Array(typ, length) => {
                 if as_expression {
                     self.push('<');
                 }

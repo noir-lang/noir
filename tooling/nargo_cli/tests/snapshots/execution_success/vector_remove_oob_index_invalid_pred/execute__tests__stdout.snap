@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[vector_remove_oob_index_invalid_pred] Circuit output: 3

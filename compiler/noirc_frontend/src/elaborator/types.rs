@@ -209,7 +209,7 @@ impl Elaborator<'_> {
                 ));
                 let size =
                     self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
-                Type::Array(Box::new(size), elem)
+                Type::Array(elem, Box::new(size))
             }
             Vector(elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(
@@ -1762,6 +1762,17 @@ impl Elaborator<'_> {
         self.unify(actual, expected, |elaborator| {
             elaborator.new_type_mismatch_error(actual, expected, location)
         });
+    }
+
+    pub(super) fn unify_with_reference_coercion(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        location: Location,
+    ) {
+        if !actual.try_reference_coercion(expected) {
+            self.unify_or_type_mismatch(actual, expected, location);
+        }
     }
 
     pub(super) fn unify_or_type_mismatch_with_source(

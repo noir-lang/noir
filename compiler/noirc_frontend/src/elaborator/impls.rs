@@ -180,11 +180,9 @@ impl Elaborator<'_> {
                 };
 
                 // Handle method shadowing when a duplicate method name is found
-                if result.is_err() {
-                    let existing = module.find_func_with_name(method.name_ident()).expect(
-                        "declare_function should only error if there is an existing function",
-                    );
-
+                if result.is_err()
+                    && let Some(existing) = module.find_func_with_name(method.name_ident())
+                {
                     // Inherent impls take precedence over trait impls for qualified calls.
                     // If the existing method is from a trait impl, remove it from module scope
                     // so that `TypeName::method` resolves to the inherent impl version.
@@ -203,6 +201,17 @@ impl Elaborator<'_> {
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
             if trait_id.is_none() {
                 self.declare_methods(self_type, &function_ids);
+
+                for (_, method_id, method) in &functions.functions {
+                    if !method.def.attributes.has_allow("dead_code") {
+                        let name = method.name_ident().clone();
+                        self.usage_tracker.add_unused_impl_function(
+                            *method_id,
+                            name,
+                            method.def.visibility,
+                        );
+                    }
+                }
             }
         // We can define methods on primitive types only if we're in the stdlib
         } else if trait_id.is_none() && *self_type != Type::Error {
