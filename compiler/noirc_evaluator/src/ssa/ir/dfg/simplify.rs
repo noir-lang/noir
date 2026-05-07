@@ -189,7 +189,7 @@ pub(crate) fn simplify(
                         // be any field element.
 
                         let Type::Numeric(NumericType::Unsigned { bit_size: max_numerator_bits }) =
-                            dfg.type_of_value(*lhs)
+                            *dfg.type_of_value(*lhs)
                         else {
                             return None;
                         };
