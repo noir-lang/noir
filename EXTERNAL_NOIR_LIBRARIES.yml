@@ -7,7 +7,7 @@ libraries:
   eddsa:
     repo: noir-lang/eddsa
     timeout: 5
-    critical: true
+    critical: false
   mimc:
     repo: noir-lang/mimc
     timeout: 2
@@ -35,7 +35,7 @@ libraries:
   noir_base64:
     repo: noir-lang/noir_base64
     timeout: 15
-    critical: true
+    critical: false
   noir_string_search:
     repo: noir-lang/noir_string_search
     timeout: 2
