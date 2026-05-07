@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778179672893,
+  "lastUpdate": 1778182308661,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "def68c9d4dc20f47b558fc4894389826d88ba417",
-          "message": "fix: error on failing assert_constant in minimal SSA passes (#12514)",
-          "timestamp": "2026-05-04T15:17:58Z",
-          "tree_id": "543cc0633bef405b3519f062cf2463c0d6c45cf1",
-          "url": "https://github.com/noir-lang/noir/commit/def68c9d4dc20f47b558fc4894389826d88ba417"
-        },
-        "date": 1777909196058,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126974,
-            "range": "± 219",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113364,
-            "range": "± 2843",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040586,
-            "range": "± 9231",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043349,
             "range": "± 17558",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4690c50a5a3bfe5db2b00c7ba71f51328cd91040",
+          "message": "chore: regenerate stdlib docs in release-please PR (#12589)",
+          "timestamp": "2026-05-07T19:05:54Z",
+          "tree_id": "c5db23fd5078e283fa9aba6813581c366c54e469",
+          "url": "https://github.com/noir-lang/noir/commit/4690c50a5a3bfe5db2b00c7ba71f51328cd91040"
+        },
+        "date": 1778182246199,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168108,
+            "range": "± 1354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136043,
+            "range": "± 6430",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2641622,
+            "range": "± 11829",
             "unit": "ns/iter"
           }
         ]
