@@ -1,14 +1,13 @@
 //! Enforces the architectural layering of the workspace.
 //!
-//! The workspace is organised into three layers, listed from lowest to
-//! highest: `acvm-repo`, `compiler`, and `tooling`. A crate in a lower layer
-//! must never depend on a crate in a higher layer (whether as a normal,
-//! dev, or build dependency). Crates living outside these directories
-//! (e.g. `utils/`) are unlayered and are not subject to the rule.
+//! The workspace is organised into four layers, listed from lowest to
+//! highest: `utils`, `acvm-repo`, `compiler`, and `tooling`. A crate in a
+//! lower layer must never depend on a crate in a higher layer (whether as a
+//! normal, dev, or build dependency). Crates living outside these
+//! directories are unlayered and are not subject to the rule.
 //!
-//! The classification is purely directory-based, so new crates added under
-//! one of the three directories are picked up automatically with no list to
-//! maintain here.
+//! The classification is purely directory-based, so new crates are picked up
+//! automatically with no list to maintain here.
 //!
 //! `ALLOWED_VIOLATIONS` lists the dependencies that pre-date this check.
 //! The list is meant to ratchet down to empty: the test fails both on a
@@ -38,6 +37,7 @@ const ALLOWED_VIOLATIONS: &[(&str, &str)] = &[
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Layer {
+    Utils,
     Acvm,
     Compiler,
     Tooling,
@@ -46,6 +46,7 @@ enum Layer {
 impl Layer {
     fn dir_name(self) -> &'static str {
         match self {
+            Layer::Utils => "utils",
             Layer::Acvm => "acvm-repo",
             Layer::Compiler => "compiler",
             Layer::Tooling => "tooling",
@@ -57,6 +58,7 @@ fn classify(manifest_path: &Path, workspace_root: &Path) -> Option<Layer> {
     let relative = manifest_path.strip_prefix(workspace_root).ok()?;
     let first = relative.iter().next()?.to_str()?;
     match first {
+        "utils" => Some(Layer::Utils),
         "acvm-repo" => Some(Layer::Acvm),
         "compiler" => Some(Layer::Compiler),
         "tooling" => Some(Layer::Tooling),
@@ -133,7 +135,7 @@ fn no_upward_dependencies_between_layers() {
     if !new_violations.is_empty() {
         messages.push(format!(
             "New crate layering violation(s) detected. Lower layers must not depend on higher \
-             layers (allowed order, low → high: acvm-repo → compiler → tooling):\n\n{}",
+             layers (allowed order, low → high: utils → acvm-repo → compiler → tooling):\n\n{}",
             new_violations.join("\n"),
         ));
     }
