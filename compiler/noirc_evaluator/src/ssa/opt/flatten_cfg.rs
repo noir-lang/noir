@@ -2009,7 +2009,7 @@ mod tests {
             store v5 at v3
             jmp b2()
           b2():
-            v24 = load v3 -> Field
+            v24 = load v3 -> [Field; 1]
             return v24
         }";
 

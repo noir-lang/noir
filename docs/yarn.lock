@@ -11183,9 +11183,9 @@ __metadata:
   linkType: hard
 
 "defu@npm:^6.1.4":
-  version: 6.1.4
-  resolution: "defu@npm:6.1.4"
-  checksum: 10/aeffdb47300f45b4fdef1c5bd3880ac18ea7a1fd5b8a8faf8df29350ff03bf16dd34f9800205cab513d476e4c0a3783aa0cff0a433aff0ac84a67ddc4c8a2d64
+  version: 6.1.7
+  resolution: "defu@npm:6.1.7"
+  checksum: 10/09480a5fbe6318f622f30017f9386df6ae92ed895fb1ccc61e1ff0d5016b28a321c751749fdd52c996ddd4eafc2c95b77dc0c8cc109881a231c23c7fd630deb9
   languageName: node
   linkType: hard
 
@@ -14446,9 +14446,9 @@ __metadata:
   linkType: hard
 
 "ip-address@npm:^10.0.1":
-  version: 10.0.1
-  resolution: "ip-address@npm:10.0.1"
-  checksum: 10/09731acda32cd8e14c46830c137e7e5940f47b36d63ffb87c737331270287d631cf25aa95570907a67d3f919fdb25f4470c404eda21e62f22e0a55927f4dd0fb
+  version: 10.1.1
+  resolution: "ip-address@npm:10.1.1"
+  checksum: 10/4289c1cd06eed843df627e0b8041f49a76b3683879dd1703aebf72b68071ee51b3e866a6ef5826a78c8222d78d3996d59c6e92ad44f2379660b63a47e8f7782c
   languageName: node
   linkType: hard
 

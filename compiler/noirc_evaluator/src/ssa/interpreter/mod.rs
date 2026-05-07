@@ -1153,8 +1153,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let array = self.lookup_array_or_vector(array, "array get")?;
         let length = array.elements.borrow().len() as u32;
 
+        // Per `Instruction::requires_acir_gen_predicate`, in Brillig an
+        // `array_get` is pure-in-isolation: the OOB check is inserted as a
+        // separate constraint, not part of the access itself. Match that here
+        // so the interpreter agrees with the Brillig VM on dead/unused gets.
+        let oob_is_pure = self.current_function().runtime().is_brillig();
+
         let index = match self.lookup_array_index(index, "array get index", length) {
-            Err(InterpreterError::IndexOutOfBounds { .. }) if !side_effects_enabled => {
+            Err(InterpreterError::IndexOutOfBounds { .. })
+                if !side_effects_enabled || oob_is_pure =>
+            {
                 return uninitialized(self);
             }
             other => other?,
@@ -1166,11 +1174,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
             // So we can simply replace it with uninitialized value
-            if side_effects_enabled {
+            if side_effects_enabled && !oob_is_pure {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
             } else {
                 return uninitialized(self);
             }
+        }
+
+        if oob_is_pure && index >= length {
+            return uninitialized(self);
         }
 
         let element = {

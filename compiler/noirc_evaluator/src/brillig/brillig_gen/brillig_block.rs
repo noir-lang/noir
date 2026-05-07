@@ -518,7 +518,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     fn jmp(&mut self, dfg: &DataFlowGraph, destination: BasicBlockId, arguments: &[ValueId]) {
-        let moves = self.jmp_setup(dfg, destination, arguments);
+        let moves = self.jmp_setup(dfg, destination, arguments, None);
         for (src, dst) in &moves {
             self.brillig_context.mov_instruction(*dst, *src);
         }
@@ -527,11 +527,20 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .jump_instruction(self.create_block_label_for_current_function(destination));
     }
 
+    /// Lower a jmp/jmpif's parameter passing into Brillig instructions.
+    ///
+    /// Spill-slot stores for params with eagerly-spilled destinations are emitted
+    /// directly here. Register-to-register moves are *returned* (not emitted) so
+    /// the caller can wrap them with a conditional move when lowering a JmpIf
+    /// then-branch. When `condition` is `Some(_)`, the spill-slot stores are also
+    /// guarded by the condition; this prevents a JmpIf else-branch from leaving a
+    /// then-arg in the then-destination param's spill slot.
     fn jmp_setup(
         &mut self,
         dfg: &DataFlowGraph,
         destination: BasicBlockId,
         arguments: &[ValueId],
+        condition: Option<MemoryAddress>,
     ) -> Vec<(MemoryAddress, MemoryAddress)> {
         // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
         // The parallel moves may overwrite registers that hold values
@@ -559,7 +568,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             if let Some(offset) = spill_offset {
                 // Param was spilled — write arg directly to param's spill slot.
-                self.codegen_spill_store(offset, arg_reg);
+                // Guard the store with `condition` for JmpIf then-args so an
+                // else-taken branch leaves the slot intact.
+                match condition {
+                    Some(c) => self.codegen_conditional_spill_store(offset, arg_reg, c),
+                    None => self.codegen_spill_store(offset, arg_reg),
+                }
             } else {
                 let param_reg =
                     self.variables.get_allocation(self.function_context, *param).extract_register();
@@ -609,7 +623,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// ```
     /// Because we don't want to overwrite the parameters of the then-block if we don't end up
     /// taking that branch, the then arguments must be only conditionally moved while the else
-    /// arguments can be moved unconditionally.
+    /// arguments can be moved unconditionally. The same applies to spill-slot writes for
+    /// then-arguments whose destination param was eagerly spilled — those writes are guarded
+    /// by `condition` inside [Self::jmp_setup].
     fn jmpif_to_then_block(
         &mut self,
         dfg: &DataFlowGraph,
@@ -617,7 +633,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         then_destination: BasicBlockId,
         then_arguments: &[ValueId],
     ) {
-        let moves = self.jmp_setup(dfg, then_destination, then_arguments);
+        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
         for (src, dst) in &moves {
             // The else_address is the same as the destination here to avoid modification if the
             // condition is false.
@@ -628,6 +644,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             condition.address,
             self.create_block_label_for_current_function(then_destination),
         );
+    }
+
+    /// Emit a conditional store of `src` into the spill slot at `offset`.
+    ///
+    /// Brillig has no conditional store opcode, so this is implemented as
+    /// `load slot → tmp; cmov(condition, src, tmp, tmp); store slot ← tmp`.
+    /// When the condition is false the slot's existing value is written back
+    /// unchanged; when true `src` is written.
+    ///
+    /// `tmp` is a reserved scratch slot rather than an allocated register, so
+    /// this never has to evict a value from the stack frame mid-terminator
+    /// (which would leak a transient spill across the block boundary).
+    fn codegen_conditional_spill_store(
+        &mut self,
+        offset: usize,
+        src: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        let tmp = ReservedRegisters::spill_conditional_value();
+        self.codegen_spill_load(offset, tmp);
+        self.brillig_context.conditional_move_instruction(condition, src, tmp, tmp);
+        self.codegen_spill_store(offset, tmp);
     }
 
     /// Allocates the block parameters that the given block is defining.
