@@ -15,7 +15,7 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{ToTokens, quote};
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam,
     Ident, Lit, LitInt, Meta, Token, Type, Variant, WhereClause,
@@ -53,10 +53,11 @@ fn reject_sum_only_decode_flags(input: &DeriveInput, type_attrs: &TypeAttrs) -> 
     Ok(())
 }
 
-/// Build a `Tagged::Product { ... }` literal from parsed field entries plus
-/// the type-level reserved list and unknown-tag policy. Used for named
-/// structs, tuple structs, and (eventually) enum variant payloads.
-fn product_literal(
+/// Build a bare `Product { ... }` struct literal from parsed field entries
+/// plus the reserved list and unknown-tag policy. Used both for top-level
+/// struct shapes (wrapped in `Tagged::Product(...)`) and for the inner
+/// payload of enum variants (used unwrapped).
+fn product_struct_literal(
     entries: &[TaggedField<'_>],
     reserved: &[u8],
     allow_unknown_tags: bool,
@@ -72,13 +73,24 @@ fn product_literal(
     });
     let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
     quote! {
-        ::msgpack_tagged::Tagged::Product(::msgpack_tagged::Product {
+        ::msgpack_tagged::Product {
             fields: &[#(#field_entries),*],
             reserved: &[#(#reserved_entries),*],
             defaults: &[#(#default_entries),*],
             allow_unknown_tags: #allow_unknown_tags,
-        })
+        }
     }
+}
+
+/// Build a `Tagged::Product(Product { ... })` literal — top-level
+/// struct/tuple-struct emission. Wraps [`product_struct_literal`].
+fn product_literal(
+    entries: &[TaggedField<'_>],
+    reserved: &[u8],
+    allow_unknown_tags: bool,
+) -> TokenStream2 {
+    let inner = product_struct_literal(entries, reserved, allow_unknown_tags);
+    quote! { ::msgpack_tagged::Tagged::Product(#inner) }
 }
 
 /// Empty `Tagged::Product` literal — used by newtypes, `via`-delegating
@@ -97,9 +109,10 @@ fn empty_product_literal() -> TokenStream2 {
 
 /// Build a `Tagged::Sum` literal from variant entries, the enum-level
 /// reserved variant-tag list, and the runtime decode-policy flags. Each
-/// variant carries an *empty* payload [`Product`] in this iteration —
-/// per-variant field tags are the next incremental step and will populate
-/// the payload's `fields`.
+/// variant's `payload` is rendered as a `Product` populated from its
+/// per-variant tagged-field entries. Variant payloads don't carry a
+/// reserved list or `allow_unknown_tags` flag yet (no per-variant
+/// `#[tagged(...)]` syntax).
 fn sum_literal(
     variants: &[TaggedVariant<'_>],
     reserved: &[u8],
@@ -109,16 +122,12 @@ fn sum_literal(
     let variant_entries = variants.iter().map(|v| {
         let tag = v.tag;
         let name = &v.name;
+        let payload = product_struct_literal(&v.payload, &[], false);
         quote! {
             ::msgpack_tagged::Variant {
                 tag: #tag,
                 name: #name,
-                payload: ::msgpack_tagged::Product {
-                    fields: &[],
-                    reserved: &[],
-                    defaults: &[],
-                    allow_unknown_tags: false,
-                },
+                payload: #payload,
             }
         }
     });
@@ -251,54 +260,7 @@ fn expand_tuple_struct(
     let reserved = &type_attrs.reserved;
     let allow_unknown_tags = type_attrs.allow_unknown_tags;
 
-    // First pass: count how many fields have an explicit `#[tag(...)]`.
-    // Mixing implicit and explicit is rejected.
-    let explicit_count =
-        fields.iter().filter(|f| f.attrs.iter().any(|a| a.path().is_ident("tag"))).count();
-    if explicit_count != 0 && explicit_count != fields.len() {
-        return Err(syn::Error::new_spanned(
-            input,
-            "tuple-struct fields must either all carry `#[tag(N)]` or none — \
-             mixing implicit positional tags with explicit tags is rejected",
-        ));
-    }
-    let all_explicit = explicit_count == fields.len();
-
-    let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
-    for (position, field) in fields.iter().enumerate() {
-        let position_u8: u8 = position.try_into().map_err(|_| {
-            syn::Error::new_spanned(
-                field,
-                format!("tuple-struct position {position} is out of range for u8 tags"),
-            )
-        })?;
-        let (tag, has_default) = if all_explicit {
-            match classify_field(field, reserved)? {
-                FieldKind::Tagged { tag, has_default } => (tag, has_default),
-                FieldKind::Skipped => {
-                    return Err(syn::Error::new_spanned(
-                        field,
-                        "`#[tag(skip)]` on tuple-struct fields is not supported",
-                    ));
-                }
-            }
-        } else {
-            // Implicit positional: tag = position, no default.
-            if reserved.contains(&position_u8) {
-                return Err(syn::Error::new_spanned(
-                    field,
-                    format!(
-                        "implicit positional tag {position_u8} collides with the type's \
-                         `#[tagged(reserved(...))]` list — assign explicit `#[tag(N)]`s, \
-                         or remove the reserved entry"
-                    ),
-                ));
-            }
-            (position_u8, false)
-        };
-        entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty, has_default });
-    }
-    entries.sort_by_key(|e| e.tag);
+    let entries = parse_tuple_fields(input, fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
@@ -323,33 +285,38 @@ fn expand_tuple_struct(
 }
 
 /// Per-tagged-variant info collected during enum macro expansion. `name` is
-/// the variant's wire-name (its Rust ident, as a string). `payload_types`
-/// holds the types appearing inside the variant's fields (named or unnamed)
-/// — the `register_into` recursion targets, and the source of per-payload
-/// `MsgpackTagged` bounds in the where clause.
+/// the variant's wire-name (its Rust ident, as a string). `payload` holds
+/// the parsed payload-field entries — empty for unit variants, populated by
+/// [`parse_named_fields`] for struct-shaped variants and [`parse_tuple_fields`]
+/// for tuple-shaped variants. The entries drive both the variant's emitted
+/// payload `Product` and the per-field bounds (`MsgpackTagged`, `Default`)
+/// in the impl's where clause.
 struct TaggedVariant<'a> {
     tag: u8,
     name: String,
-    payload_types: Vec<&'a Type>,
+    payload: Vec<TaggedField<'a>>,
 }
 
 /// Enum (`enum E { A, B(...), C { ... } }`). Each variant carries an
 /// explicit `#[tag(N)]`; the variant tag is what goes on the wire as the
 /// discriminator. The expansion emits a `Tagged::Sum` listing every variant
 /// in tag-ascending order, and a `register_into` that registers `Self` and
-/// recurses into every variant's payload type so nested `MsgpackTagged`
-/// types are reached.
+/// recurses into every tagged variant-payload field type so nested
+/// `MsgpackTagged` types are reached.
 ///
-/// Per-variant struct/tuple field tagging is the next step — for now the
-/// macro emits an *empty* `Product` payload for every variant and rejects
-/// `#[tag(...)]` annotations *inside* a variant's payload. `#[tag(skip)]`
-/// and the `default` modifier are likewise rejected on variants (no clear
-/// semantics).
+/// Variant payloads carry their own `#[tag(N)]` annotations: named-variant
+/// fields use the same "every field needs an explicit tag (or auto-skip)"
+/// rule as top-level named structs, and tuple-variant fields use the same
+/// all-or-nothing implicit/explicit positional rule as top-level tuple
+/// structs. `#[tagged(reserved(...))]` at the enum level applies only to
+/// the variant tags, not the field tags inside any variant's payload —
+/// each variant's payload starts with an empty reserved list.
 ///
-/// `#[tagged(allow_unknown_tags)]` is also rejected on enums: an unknown
-/// variant tag has no skip semantics — there's no fragment to skip, since
-/// the value's discriminator itself is unknown — so the flag would have
-/// nowhere to land in the wire shape.
+/// `#[tagged(allow_unknown_tags)]` is rejected on enums: an unknown variant
+/// tag has no skip semantics — there's no fragment to skip, since the
+/// value's discriminator itself is unknown — so the flag would have nowhere
+/// to land in the wire shape. Use `#[tagged(default_on_unknown)]` instead
+/// for sums where `T::default()` is a sound stand-in.
 fn expand_enum(
     input: &DeriveInput,
     data: &DataEnum,
@@ -372,17 +339,6 @@ fn expand_enum(
     let mut variants: Vec<TaggedVariant<'_>> = Vec::with_capacity(data.variants.len());
     let mut seen_tags = std::collections::HashSet::new();
     for variant in &data.variants {
-        for field in &variant.fields {
-            for attr in &field.attrs {
-                if attr.path().is_ident("tag") {
-                    return Err(syn::Error::new_spanned(
-                        attr,
-                        "`#[tag(...)]` on enum variant fields is not yet supported — \
-                         only the variant itself can be tagged",
-                    ));
-                }
-            }
-        }
         let tag = parse_variant_tag(variant, reserved)?;
         if !seen_tags.insert(tag) {
             return Err(syn::Error::new_spanned(
@@ -390,17 +346,20 @@ fn expand_enum(
                 format!("variant tag {tag} is used more than once"),
             ));
         }
-        let payload_types: Vec<&Type> = match &variant.fields {
+        // Variant payloads have their own field tags but *not* their own
+        // reserved-tag list (no per-variant `#[tagged(...)]` syntax yet).
+        let payload = match &variant.fields {
             Fields::Unit => Vec::new(),
-            Fields::Named(named) => named.named.iter().map(|f| &f.ty).collect(),
-            Fields::Unnamed(unnamed) => unnamed.unnamed.iter().map(|f| &f.ty).collect(),
+            Fields::Named(named) => parse_named_fields(&named.named, &[])?,
+            Fields::Unnamed(unnamed) => parse_tuple_fields(variant, &unnamed.unnamed, &[])?,
         };
-        variants.push(TaggedVariant { tag, name: variant.ident.to_string(), payload_types });
+        variants.push(TaggedVariant { tag, name: variant.ident.to_string(), payload });
     }
     variants.sort_by_key(|v| v.tag);
 
     let recursion_calls = variants.iter().flat_map(|v| {
-        v.payload_types.iter().map(|ty| {
+        v.payload.iter().map(|entry| {
+            let ty = entry.ty;
             quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
         })
     });
@@ -471,18 +430,20 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
 
 /// Where clause for an enum impl. Same shape as `build_where_clause` for
 /// structs — `T: 'static` per type parameter, plus a deduped
-/// `<PayloadType>: MsgpackTagged` bound for every type appearing in any
-/// variant's payload. When `needs_default_bound` is set (because the type
-/// opts into `default_on_reserved` or `default_on_unknown`), we also add
-/// `Self: Default` so a missing `derive(Default)` surfaces as a clear
-/// "Self: Default is not satisfied" error at the impl site.
+/// `<PayloadFieldType>: MsgpackTagged` bound for every tagged field type
+/// appearing in any variant's payload, plus `<PayloadFieldType>: Default`
+/// for any field marked `#[tag(N, default)]`. When `needs_default_bound`
+/// is set (because the type opts into `default_on_reserved` or
+/// `default_on_unknown`), we additionally add `Self: Default` so a missing
+/// `derive(Default)` surfaces as a clear "Self: Default is not satisfied"
+/// error at the impl site.
 fn build_enum_where_clause(
     input: &DeriveInput,
     variants: &[TaggedVariant<'_>],
     needs_default_bound: bool,
 ) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
-    let any_payload = variants.iter().any(|v| !v.payload_types.is_empty());
+    let any_payload = variants.iter().any(|v| !v.payload.is_empty());
     if !any_payload && !has_type_params && !needs_default_bound {
         return input.generics.where_clause.clone();
     }
@@ -499,12 +460,17 @@ fn build_enum_where_clause(
         }
     }
 
-    let mut seen = std::collections::HashSet::new();
+    let mut seen_msgpack = std::collections::HashSet::new();
+    let mut seen_default = std::collections::HashSet::new();
     for v in variants {
-        for ty in &v.payload_types {
+        for entry in &v.payload {
+            let ty = entry.ty;
             let key = quote!(#ty).to_string();
-            if seen.insert(key) {
+            if seen_msgpack.insert(key.clone()) {
                 where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
+            }
+            if entry.has_default && seen_default.insert(key) {
+                where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
             }
         }
     }
@@ -608,12 +574,104 @@ fn stub(input: &DeriveInput) -> TokenStream2 {
 /// Per-tagged-field info collected during macro expansion. `name` is the
 /// field's wire-name as a string — for named structs that's the field
 /// identifier; for tuple structs it's the source-position-as-string ("0",
-/// "1", …). Either way, the name lands in `TAGS` as a `&'static str` literal.
+/// "1", …). Either way, the name lands in the `Product`'s `fields` slice
+/// as a `&'static str` literal.
 struct TaggedField<'a> {
     tag: u8,
     name: String,
     ty: &'a Type,
     has_default: bool,
+}
+
+/// Parse a list of named fields (struct fields or named-variant payload
+/// fields) into the per-tagged-field entries that drive `Product` emission.
+/// Every field needs an explicit `#[tag(N)]` or auto-skips via `#[tag(skip)]`
+/// / `PhantomData<_>`; missing both is a compile error. The returned vec is
+/// already in tag-ascending order, the canonical wire order.
+fn parse_named_fields<'a>(
+    fields: &'a Punctuated<Field, Token![,]>,
+    reserved: &[u8],
+) -> syn::Result<Vec<TaggedField<'a>>> {
+    let mut entries = Vec::with_capacity(fields.len());
+    for field in fields {
+        let ident = field.ident.as_ref().expect("named field has an ident");
+        match classify_field(field, reserved)? {
+            FieldKind::Tagged { tag, has_default } => {
+                entries.push(TaggedField {
+                    tag,
+                    name: ident.to_string(),
+                    ty: &field.ty,
+                    has_default,
+                });
+            }
+            FieldKind::Skipped => {}
+        }
+    }
+    entries.sort_by_key(|e| e.tag);
+    Ok(entries)
+}
+
+/// Parse a list of unnamed (positional) fields — top-level tuple-struct
+/// fields or tuple-variant payload fields. Tagging style must be uniform:
+/// either every field carries `#[tag(N)]` (explicit, allows reordering /
+/// `default`) or none do (implicit positional 0, 1, 2, …). Mixing is
+/// rejected. The returned vec is in tag-ascending order with names being
+/// the position-as-string ("0", "1", …).
+///
+/// `mixing_error_span` controls where the "mixing implicit and explicit
+/// is rejected" error is anchored — typically the surrounding `DeriveInput`
+/// for top-level tuple structs or the variant for variant payloads.
+fn parse_tuple_fields<'a>(
+    mixing_error_span: &dyn ToTokens,
+    fields: &'a Punctuated<Field, Token![,]>,
+    reserved: &[u8],
+) -> syn::Result<Vec<TaggedField<'a>>> {
+    let explicit_count =
+        fields.iter().filter(|f| f.attrs.iter().any(|a| a.path().is_ident("tag"))).count();
+    if explicit_count != 0 && explicit_count != fields.len() {
+        return Err(syn::Error::new_spanned(
+            mixing_error_span,
+            "tuple-style fields must either all carry `#[tag(N)]` or none — \
+             mixing implicit positional tags with explicit tags is rejected",
+        ));
+    }
+    let all_explicit = explicit_count == fields.len();
+
+    let mut entries = Vec::with_capacity(fields.len());
+    for (position, field) in fields.iter().enumerate() {
+        let position_u8: u8 = position.try_into().map_err(|_| {
+            syn::Error::new_spanned(
+                field,
+                format!("tuple position {position} is out of range for u8 tags"),
+            )
+        })?;
+        let (tag, has_default) = if all_explicit {
+            match classify_field(field, reserved)? {
+                FieldKind::Tagged { tag, has_default } => (tag, has_default),
+                FieldKind::Skipped => {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "`#[tag(skip)]` on tuple-style fields is not supported",
+                    ));
+                }
+            }
+        } else {
+            if reserved.contains(&position_u8) {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    format!(
+                        "implicit positional tag {position_u8} collides with the type's \
+                         `#[tagged(reserved(...))]` list — assign explicit `#[tag(N)]`s, \
+                         or remove the reserved entry"
+                    ),
+                ));
+            }
+            (position_u8, false)
+        };
+        entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty, has_default });
+    }
+    entries.sort_by_key(|e| e.tag);
+    Ok(entries)
 }
 
 fn expand_named_struct(
@@ -643,23 +701,7 @@ fn expand_named_struct(
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
     // are silently dropped — they don't go on the wire and don't constrain
     // their type.
-    let mut entries: Vec<TaggedField<'_>> = Vec::with_capacity(fields.len());
-    for field in fields {
-        let ident = field.ident.as_ref().expect("named field has an ident");
-        match classify_field(field, reserved)? {
-            FieldKind::Tagged { tag, has_default } => {
-                entries.push(TaggedField {
-                    tag,
-                    name: ident.to_string(),
-                    ty: &field.ty,
-                    has_default,
-                });
-            }
-            FieldKind::Skipped => {}
-        }
-    }
-    // Canonical order on the wire is tag-ascending, not source-declaration order.
-    entries.sort_by_key(|e| e.tag);
+    let entries = parse_named_fields(fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;

@@ -1,0 +1,5 @@
+error: missing `#[tag(N)]` attribute — every field needs an explicit tag, `#[tag(skip)]`, or be `PhantomData<_>`
+  --> tests/compile_fail/enum_named_variant_missing_field_tag.rs:15:9
+   |
+15 |         b: bool,
+   |         ^^^^^^^

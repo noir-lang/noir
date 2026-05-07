@@ -1,4 +1,4 @@
-error: tuple-struct fields must either all carry `#[tag(N)]` or none — mixing implicit positional tags with explicit tags is rejected
+error: tuple-style fields must either all carry `#[tag(N)]` or none — mixing implicit positional tags with explicit tags is rejected
  --> tests/compile_fail/tuple_struct_mixed_tagging.rs:8:1
   |
 8 | struct Mixed(#[tag(0)] u32, bool, #[tag(2)] u8);

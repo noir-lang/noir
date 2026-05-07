@@ -1,0 +1,6 @@
+error: tuple-style fields must either all carry `#[tag(N)]` or none — mixing implicit positional tags with explicit tags is rejected
+  --> tests/compile_fail/enum_tuple_variant_mixed_tagging.rs:11:5
+   |
+11 | /     #[tag(0)]
+12 | |     Mixed(#[tag(0)] u32, bool),
+   | |______________________________^

@@ -45,10 +45,17 @@ struct Named {
 /// Enum mixing all three variant shapes — unit, tuple, struct — to prove the
 /// derive handles each. Variant tags are out of declaration order to verify
 /// the canonical tag-ascending ordering on the emitted `Sum.variants`.
+/// Named variants need explicit `#[tag(N)]` on every payload field; the
+/// single-element `Single` tuple variant takes implicit positional tags.
 #[derive(MsgpackTagged)]
 enum Choice {
     #[tag(2)]
-    Multi { a: u32, b: bool },
+    Multi {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    },
     #[tag(0)]
     Nothing,
     #[tag(1)]
@@ -64,7 +71,43 @@ enum WithInnerPayload {
     #[tag(1)]
     OneInner(Inner),
     #[tag(2)]
-    Pair { left: Inner, right: bool },
+    Pair {
+        #[tag(0)]
+        left: Inner,
+        #[tag(1)]
+        right: bool,
+    },
+}
+
+/// Tuple variant with explicit per-field tags — proves the same all-explicit
+/// machinery used by top-level tuple structs works inside variants. Tags are
+/// declared out of source order to verify the variant payload's `fields`
+/// land in tag-ascending order.
+#[derive(MsgpackTagged)]
+enum ExplicitTupleVariants {
+    #[tag(0)]
+    Triple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1, default)] u8),
+    #[tag(1)]
+    ImplicitPair(u32, bool),
+}
+
+/// Named variant exercising the field-level `default` modifier inside a
+/// variant payload. The variant-payload field bound is `Vec<u8>: Default`,
+/// added by the macro to the impl's where clause. `_phantom: PhantomData<T>`
+/// auto-skips and `hidden: Opaque` opts out via `#[tag(skip)]` — neither
+/// contributes a `MsgpackTagged` bound, which is why `T = Opaque` works.
+#[derive(MsgpackTagged)]
+enum WithVariantFieldExtras<T> {
+    #[tag(0)]
+    Plain {
+        #[tag(0)]
+        required: u32,
+        #[tag(1, default)]
+        annotation: Vec<u8>,
+        #[tag(skip)]
+        hidden: Opaque,
+        _phantom: std::marker::PhantomData<T>,
+    },
 }
 
 /// Generic enum exercising the per-payload-type `where` bound on enums.
@@ -324,6 +367,11 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<Named>();
     assert_impl::<Choice>();
     assert_impl::<WithInnerPayload>();
+    assert_impl::<ExplicitTupleVariants>();
+    // T = Opaque (no MsgpackTagged impl) still satisfies the bounds because
+    // the `Opaque` field is `#[tag(skip)]` and the `PhantomData<T>` field
+    // auto-skips — neither contributes a `MsgpackTagged: Opaque` bound.
+    assert_impl::<WithVariantFieldExtras<Opaque>>();
     assert_impl::<GenericChoice<u32>>();
     assert_impl::<GenericChoice<Inner>>();
     assert_impl::<WithReservedVariants>();
@@ -638,17 +686,84 @@ fn enum_reserved_tags_appear_in_const_and_registry() {
     assert!(!s.is_reserved(3));
 }
 
-/// Until per-variant field tagging lands, every variant's payload is an
-/// empty `Product`. This test pins that expectation so the follow-up step
-/// has to update it.
+/// Named-variant payloads pick up `#[tag(N)]` annotations on every field —
+/// same rule as a top-level named struct. The variant-payload `Product`'s
+/// `fields` slice lists `(field_tag, field_name)` pairs in tag-ascending
+/// order.
 #[test]
-fn variant_payloads_are_empty_products_until_field_tagging_lands() {
-    for variant in sum_of::<WithInnerPayload>().variants {
-        assert!(
-            variant.payload.fields.is_empty(),
-            "variant {} payload should have no field-tags yet",
-            variant.name,
-        );
+fn named_variant_payload_has_field_tags() {
+    let s = sum_of::<Choice>();
+    let multi = s.variant_for("Multi").expect("Multi variant exists");
+    assert_eq!(multi.payload.fields, &[(0, "a"), (1, "b")]);
+}
+
+/// Unit variants and single-element tuple ("newtype-style") variants flow
+/// through the same `parse_tuple_fields` helper as multi-element tuples,
+/// using implicit positional tags when the user doesn't supply explicit
+/// `#[tag(N)]` annotations on the payload field.
+#[test]
+fn variant_payload_shapes_pick_the_right_field_layout() {
+    let s = sum_of::<WithInnerPayload>();
+
+    let empty = s.variant_for("Empty").unwrap();
+    assert!(empty.payload.fields.is_empty(), "unit variant has no fields");
+
+    let one_inner = s.variant_for("OneInner").unwrap();
+    assert_eq!(
+        one_inner.payload.fields,
+        &[(0, "0")],
+        "single-element tuple variant gets implicit positional tag 0",
+    );
+
+    let pair = s.variant_for("Pair").unwrap();
+    assert_eq!(
+        pair.payload.fields,
+        &[(0, "left"), (1, "right")],
+        "named-variant fields keep their declared `#[tag(N)]`s",
+    );
+}
+
+/// Tuple variants follow the all-or-nothing rule: explicit `#[tag(N)]` on
+/// every field allows reordering and `default`, just like top-level tuple
+/// structs. `Triple` declares tags out of source order to verify
+/// tag-ascending sorting on the wire.
+#[test]
+fn explicit_tuple_variant_payload_sorts_and_carries_defaults() {
+    let s = sum_of::<ExplicitTupleVariants>();
+    let triple = s.variant_for("Triple").unwrap();
+    assert_eq!(triple.payload.fields, &[(0, "1"), (1, "2"), (2, "0")]);
+    assert_eq!(triple.payload.defaults, &[1]);
+
+    let pair = s.variant_for("ImplicitPair").unwrap();
+    assert_eq!(pair.payload.fields, &[(0, "0"), (1, "1")]);
+    assert!(pair.payload.defaults.is_empty());
+}
+
+/// Inside a named variant payload, `#[tag(skip)]` and `PhantomData<_>`
+/// behave the same as in a top-level named struct — neither shows up on
+/// the wire and neither contributes to the type's bound chain.
+#[test]
+fn variant_payload_supports_skip_and_phantom() {
+    let s = sum_of::<WithVariantFieldExtras<Opaque>>();
+    let plain = s.variant_for("Plain").unwrap();
+    assert_eq!(
+        plain.payload.fields,
+        &[(0, "required"), (1, "annotation")],
+        "skipped and phantom-data fields don't appear in the variant payload",
+    );
+    assert_eq!(plain.payload.defaults, &[1]);
+}
+
+/// Variant payloads still don't carry their own `reserved` list or
+/// `allow_unknown_tags` flag — there's no per-variant `#[tagged(...)]`
+/// syntax for those yet. Pinning the empty defaults so a future change
+/// to add per-variant attrs has to update this test.
+#[test]
+#[allow(clippy::const_is_empty)]
+fn variant_payloads_have_no_reserved_or_allow_unknown_tags_yet() {
+    for variant in sum_of::<Choice>().variants {
+        assert!(variant.payload.reserved.is_empty(), "{} payload reserved", variant.name);
+        assert!(!variant.payload.allow_unknown_tags, "{} payload allow_unknown_tags", variant.name);
     }
 }
 
