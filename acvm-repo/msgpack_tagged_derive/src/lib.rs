@@ -1,4 +1,4 @@
-//! Companion proc-macro crate for [`msgpack_tagged`].
+//! Companion proc-macro crate for `msgpack_tagged`.
 //!
 //! Handles named-field structs, tuple structs / newtypes, and enums end-to-end:
 //! parses `#[tag(N)]` annotations, builds a `Tagged::Product` (struct-shaped)
