@@ -13,6 +13,7 @@ mod containers;
 mod primitives;
 mod registry;
 
+pub use msgpack_tagged_derive::MsgpackTagged;
 pub use registry::{Entry, TagRegistry};
 
 /// The integer tag used as a wire-level identifier for struct fields and enum

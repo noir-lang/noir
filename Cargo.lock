@@ -3323,7 +3323,17 @@ dependencies = [
 name = "msgpack_tagged"
 version = "1.0.0-beta.20"
 dependencies = [
+ "msgpack_tagged_derive",
  "trybuild",
+]
+
+[[package]]
+name = "msgpack_tagged_derive"
+version = "1.0.0-beta.20"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

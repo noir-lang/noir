@@ -1,6 +1,6 @@
 [package]
-name = "msgpack_tagged"
-description = "Tagged-map serialization format for Noir bytecode (https://github.com/noir-lang/noir/issues/12554)."
+name = "msgpack_tagged_derive"
+description = "Companion proc-macro crate for `msgpack_tagged` — emits the `MsgpackTagged` derive."
 # x-release-please-start-version
 version = "1.0.0-beta.20"
 # x-release-please-end
@@ -10,11 +10,13 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[lib]
+proc-macro = true
+
 [lints]
 workspace = true
 
 [dependencies]
-msgpack_tagged_derive.workspace = true
-
-[dev-dependencies]
-trybuild.workspace = true
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true

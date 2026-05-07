@@ -42,6 +42,7 @@ members = [
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
     "acvm-repo/msgpack_tagged",
+    "acvm-repo/msgpack_tagged_derive",
     # Utility crates
     "utils/iter-extended",
 
@@ -118,6 +119,7 @@ brillig_vm = { version = "1.0.0-beta.20", path = "acvm-repo/brillig_vm", default
 acvm_blackbox_solver = { version = "1.0.0-beta.20", path = "acvm-repo/blackbox_solver", default-features = false }
 bn254_blackbox_solver = { version = "1.0.0-beta.20", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 msgpack_tagged = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged", default-features = false }
+msgpack_tagged_derive = { version = "1.0.0-beta.20", path = "acvm-repo/msgpack_tagged_derive" }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -245,6 +247,9 @@ rust-embed = "^8.7.2"
 petgraph = "^0.8.2"
 insta = "1.47.2"
 trybuild = "1.0.116"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
