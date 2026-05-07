@@ -13,6 +13,7 @@ dependencies = [
  "criterion",
  "flate2",
  "insta",
+ "msgpack_tagged",
  "num-bigint",
  "num-traits",
  "num_enum",
