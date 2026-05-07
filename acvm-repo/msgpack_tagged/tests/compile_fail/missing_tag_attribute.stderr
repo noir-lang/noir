@@ -1,0 +1,5 @@
+error: missing `#[tag(N)]` attribute — every field of a `MsgpackTagged` struct needs an explicit tag
+  --> tests/compile_fail/missing_tag_attribute.rs:10:5
+   |
+10 |     b: bool, // missing #[tag(N)] — error
+   |     ^^^^^^^

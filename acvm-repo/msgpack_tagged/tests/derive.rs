@@ -1,14 +1,11 @@
-//! End-to-end smoke tests for the `MsgpackTagged` derive.
+//! End-to-end tests for the `MsgpackTagged` derive on structs.
 //!
-//! Currently the derive is a stub: it produces a syntactically valid impl
-//! with empty `TAGS` / `RESERVED` and a no-op `register_into`. These tests
-//! check the scaffold compiles for each of the basic shapes — unit struct,
-//! struct with named fields, enum with multiple kinds of variants. As real
-//! expansion logic lands in subsequent steps, the tests in this file will
-//! grow to assert the expected `TAGS` / registry-population behavior.
+//! Tuple structs and enums still fall through to the stub expansion (empty
+//! `TAGS`, no-op `register_into`); their tests here just verify the derive
+//! produces a valid impl. As the macro learns to handle each shape, the
+//! corresponding tests in this file get tightened.
 
-// Test fixtures only exist to feed the derive; unused fields/variants are
-// expected.
+// Test fixtures only exist to feed the derive; unused fields are expected.
 #![allow(dead_code)]
 
 use msgpack_tagged::{MsgpackTagged, TagRegistry};
@@ -21,7 +18,9 @@ struct Tuple(u32, bool);
 
 #[derive(MsgpackTagged)]
 struct Named {
+    #[tag(0)]
     a: u32,
+    #[tag(1)]
     b: bool,
 }
 
@@ -32,9 +31,42 @@ enum Choice {
     Multi { a: u32, b: bool },
 }
 
-/// The mere fact that each `#[derive(MsgpackTagged)]` above expands without a
-/// compile error is the test. This explicit instantiation makes failures
-/// surface as a missing-bound error rather than dead-code warnings.
+/// Inner type that registers itself, used to verify recursion through
+/// `register_into` lands in the registry.
+#[derive(MsgpackTagged)]
+struct Inner {
+    #[tag(0)]
+    x: u32,
+}
+
+#[derive(MsgpackTagged)]
+struct Outer {
+    #[tag(0)]
+    inner: Inner,
+    #[tag(1)]
+    flag: bool,
+}
+
+#[derive(MsgpackTagged)]
+struct Generic<T> {
+    #[tag(0)]
+    value: T,
+    #[tag(1)]
+    count: u32,
+}
+
+/// Tags are not declared in source order, to assert the canonical
+/// tag-ascending ordering the derive should produce.
+#[derive(MsgpackTagged)]
+struct OutOfOrder {
+    #[tag(2)]
+    c: u32,
+    #[tag(1)]
+    a: u32,
+    #[tag(0)]
+    b: u32,
+}
+
 #[test]
 fn derive_compiles_for_basic_shapes() {
     fn assert_impl<T: MsgpackTagged>() {}
@@ -42,20 +74,60 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<Tuple>();
     assert_impl::<Named>();
     assert_impl::<Choice>();
+    assert_impl::<Inner>();
+    assert_impl::<Outer>();
+    assert_impl::<Generic<u32>>();
+    assert_impl::<Generic<Inner>>();
+    assert_impl::<OutOfOrder>();
 }
 
-/// Stub expansion contract: the derive emits empty `TAGS`/`RESERVED` and a
-/// `register_into` that does nothing. These assertions will be tightened as
-/// real expansion logic lands.
 #[test]
-fn stub_expansion_emits_empty_metadata() {
+fn unit_struct_has_empty_tags() {
     assert!(<Unit as MsgpackTagged>::TAGS.is_empty());
-    assert!(<Named as MsgpackTagged>::TAGS.is_empty());
-    assert!(<Choice as MsgpackTagged>::TAGS.is_empty());
+}
 
+#[test]
+fn named_struct_tags_match_declarations() {
+    assert_eq!(<Named as MsgpackTagged>::TAGS, &[(0, "a"), (1, "b")]);
+}
+
+#[test]
+fn tags_are_emitted_in_tag_order_not_source_order() {
+    assert_eq!(<OutOfOrder as MsgpackTagged>::TAGS, &[(0, "b"), (1, "a"), (2, "c")]);
+}
+
+#[test]
+fn named_struct_register_into_populates_registry_under_type_name() {
     let mut reg = TagRegistry::new();
-    Unit::register_into(&mut reg);
     Named::register_into(&mut reg);
-    Choice::register_into(&mut reg);
-    assert!(reg.is_empty());
+    let entry = reg.get("Named").expect("Named should register itself");
+    assert_eq!(entry.tags(), &[(0, "a"), (1, "b")]);
+}
+
+/// Idempotent re-registration: calling `register_into` twice produces a
+/// registry with one entry, the second call short-circuits.
+#[test]
+fn named_struct_register_into_is_idempotent() {
+    let mut reg = TagRegistry::new();
+    Named::register_into(&mut reg);
+    Named::register_into(&mut reg);
+    assert_eq!(reg.len(), 1);
+}
+
+#[test]
+fn nested_register_into_walks_the_field_graph() {
+    let mut reg = TagRegistry::new();
+    Outer::register_into(&mut reg);
+    assert!(reg.get("Outer").is_some(), "Outer registers itself");
+    assert!(reg.get("Inner").is_some(), "register_into recurses into field types");
+}
+
+/// `Generic<T>` reaches `T`'s `register_into` via the bound chain. Pass
+/// `Inner` as `T` and verify it ends up in the registry.
+#[test]
+fn generic_struct_recurses_into_its_concrete_type_parameter() {
+    let mut reg = TagRegistry::new();
+    <Generic<Inner>>::register_into(&mut reg);
+    assert!(reg.get("Generic").is_some());
+    assert!(reg.get("Inner").is_some());
 }

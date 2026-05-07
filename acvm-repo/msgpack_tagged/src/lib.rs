@@ -35,7 +35,7 @@ pub type Tag = u8;
     note = "use `#[derive(MsgpackTagged)]` on the type, or `#[via(WireType)]` on a shadow-DTO public type that delegates to a wire companion",
     note = "for container fields, use `BTreeMap` / `BTreeSet` — `HashMap` / `HashSet` are deliberately unsupported on the wire because their iteration order is non-deterministic"
 )]
-pub trait MsgpackTagged {
+pub trait MsgpackTagged: 'static {
     /// Tag-to-field-name table for this type, written by the macro from `#[tag(N)]`
     /// attributes in tag order. Empty for newtypes and shadow-DTO public types
     /// using `#[via(...)]`.

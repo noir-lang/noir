@@ -74,7 +74,7 @@ impl TagRegistry {
     /// **Panics** if a *different* Rust type is already registered under the same
     /// `name` — that signals a real serde-name collision, which the user must
     /// resolve with `#[serde(rename = "...")]` on one of the types.
-    pub fn try_insert<T: MsgpackTagged + 'static>(&mut self, name: &'static str) -> bool {
+    pub fn try_insert<T: MsgpackTagged>(&mut self, name: &'static str) -> bool {
         use std::collections::hash_map::Entry as HashEntry;
         match self.entries.entry(name) {
             HashEntry::Vacant(slot) => {
