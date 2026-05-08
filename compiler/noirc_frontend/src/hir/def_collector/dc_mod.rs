@@ -43,6 +43,7 @@ use super::{
 use crate::hir::Context;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
+use crate::hir_def::stmt::HirStatement;
 
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
@@ -629,6 +630,16 @@ impl ModCollector<'_> {
                             false,
                             false,
                             ItemVisibility::Public,
+                        );
+
+                        // Trait-level associated constants have no value (only impls do), so
+                        // mark the placeholder statement as `TraitAssociatedConstant` rather than
+                        // leaving the `HirStatement::Error` that `push_empty_global` defaults to.
+                        let placeholder_stmt =
+                            context.def_interner.get_global(global_id).let_statement;
+                        context.def_interner.replace_statement(
+                            placeholder_stmt,
+                            HirStatement::TraitAssociatedConstant,
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map

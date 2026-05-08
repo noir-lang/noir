@@ -472,7 +472,7 @@ impl Context {
                         continue;
                     }
 
-                    let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
+                    let args = args.get_or_insert_with(|| parent_arguments(func, instruction));
 
                     self.parents.entry(*result_id).or_default().extend(args.iter().copied());
 
@@ -861,6 +861,22 @@ fn instruction_arguments(func: &Function, instruction: &Instruction) -> Vec<Valu
         is_first = false;
     });
     arguments
+}
+
+/// Like [`instruction_arguments`], but tailored for the parent-graph edges that
+/// drive the ancestry-based check. For an [`Instruction::ArrayGet`] with a
+/// *non-constant* index the result is some single element of `array`, not a
+/// function of the whole array; treating `array` as a parent would propagate
+/// every element's ancestry to the result, letting a constraint on the result
+/// trivially "explain" outputs that are actually free for the prover when
+/// `index` happens to point at a different slot.
+fn parent_arguments(func: &Function, instruction: &Instruction) -> Vec<ValueId> {
+    if let Instruction::ArrayGet { index, .. } = instruction
+        && func.dfg.get_numeric_constant(*index).is_none()
+    {
+        return vec![*index];
+    }
+    instruction_arguments(func, instruction)
 }
 
 /// Collect non-constant results of an instruction.
@@ -1848,5 +1864,37 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// A Brillig output sits at index 0 of a regular array, and the only
+    /// constraint involves an `array_get` at a *non-constant* index. With
+    /// `idx != 0` the assertion `arr[idx] == x` reduces to `x == x` and says
+    /// nothing about the Brillig output, so the call is effectively
+    /// unconstrained and the check must report a warning.
+    fn dynamic_array_get_does_not_constrain_brillig_output() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = call f1(v0) -> u32
+            v3 = make_array [v2, v0, v0, v0] : [u32; 4]
+            v4 = array_get v3, index v1 -> u32
+            constrain v4 == v0
+            return v2
+        }
+
+        brillig(inline) fn evil f1 {
+          b0(v0: u32):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(
+            ssa_level_warnings.len(),
+            1,
+            "arr[idx] == x with dynamic idx does not constrain arr[0] = brillig(x)"
+        );
     }
 }

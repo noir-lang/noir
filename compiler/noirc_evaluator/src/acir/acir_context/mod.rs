@@ -496,9 +496,7 @@ impl<F: AcirField> AcirContext<F> {
 
         self.acir_ir.assert_is_zero(diff_expr);
         if let Some(payload) = assert_message {
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         self.mark_variables_equivalent(lhs, rhs)?;
 
@@ -547,9 +545,7 @@ impl<F: AcirField> AcirContext<F> {
             if self.acir_ir.opcodes().len() - old_opcodes_len == 0 {
                 return Ok(());
             }
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
 
         Ok(())
@@ -1107,9 +1103,7 @@ impl<F: AcirField> AcirContext<F> {
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
             let payload = self.generate_assertion_message_payload(message);
-            self.acir_ir
-                .assertion_payloads
-                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+            self.acir_ir.attach_assertion_payload(payload);
         }
         if return_zero {
             let zero = self.add_constant(F::zero());

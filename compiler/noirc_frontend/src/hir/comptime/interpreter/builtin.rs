@@ -295,7 +295,7 @@ fn apply_range_constraint(
     } else {
         failing_constraint(
             format!(
-                "{} has {field_num_bits} bits which do not fit in {num_bits} bits",
+                "call to assert_max_bit_size: {} has {field_num_bits} bits which do not fit in {num_bits} bits",
                 field.to_short_hex()
             ),
             location,
@@ -922,15 +922,11 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let (limb_count, element_type) = if let Type::Array(element_type, length) = return_type {
-        if let Type::Constant(limb_count) = *length {
-            if limb_count.get_type().unify(&Type::u32()).is_ok() {
-                (limb_count.as_field(), element_type)
-            } else {
-                return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
-            }
-        } else {
-            return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
-        }
+        let limb_count = length
+            .evaluate_to_u32(location)
+            .map_err(|_| InterpreterError::TypeAnnotationsNeededForMethodCall { location })?
+            as usize;
+        (limb_count, element_type)
     } else {
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
@@ -942,17 +938,12 @@ fn to_le_radix(
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
-    let Some(limb_count_u64) = limb_count.try_to_u64().map(|x| x as usize) else {
+    if limb_count < decomposed_integer.len() {
         let message = format!("Field failed to decompose into specified {limb_count} limbs");
-        return failing_constraint(message, location, call_stack);
-    };
-
-    if limb_count_u64 < decomposed_integer.len() {
-        let message = format!("Field failed to decompose into specified {limb_count_u64} limbs");
         return failing_constraint(message, location, call_stack);
     }
 
-    let decomposed_integer = vecmap(0..limb_count_u64, |i| {
+    let decomposed_integer = vecmap(0..limb_count, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,

@@ -199,7 +199,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for entry in entries {
             let (key, value) = f(entry.0, entry.1);
-            new_map.insert(key, value);
+            let _ = new_map.insert(key, value);
         }
 
         self._len = new_map._len;
@@ -219,7 +219,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for entry in entries {
             let (key, value) = (f(entry.0), entry.1);
-            new_map.insert(key, value);
+            let _ = new_map.insert(key, value);
         }
 
         self._len = new_map._len;
@@ -300,8 +300,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     }
 
     /// Insert key-value entry. In case key was already present, value is overridden.
+    ///
+    /// Returns true if the element was newly-inserted. In other words, this returns false
+    /// if the key already has a value in this map.
     // docs:start:insert
-    pub unconstrained fn insert(&mut self, key: K, value: V)
+    pub unconstrained fn insert(&mut self, key: K, value: V) -> bool
     where
         K: Eq + Hash,
         B: BuildHasher,
@@ -348,6 +351,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         if increment_length {
             self._len += 1;
         }
+        increment_length
     }
 
     unconstrained fn try_resize(&mut self)
@@ -360,7 +364,7 @@ impl<K, V, B> UHashMap<K, V, B> {
             let mut new_map = UHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
 
             for entry in self.entries() {
-                new_map.insert(entry.0, entry.1);
+                let _ = new_map.insert(entry.0, entry.1);
             }
             *self = new_map;
         }
@@ -471,10 +475,10 @@ mod test {
             BuildHasherDefault::<Poseidon2Hasher> {},
             8,
         );
-        map.insert(5, 5);
-        map.insert(8, 8);
+        assert(map.insert(5, 5));
+        assert(map.insert(8, 8));
         map.remove(5);
-        map.insert(8, 9);
+        assert(!map.insert(8, 9));
 
         assert_eq(map.entries(), @[(8, 9)]);
         assert_eq(map.keys(), @[8]);

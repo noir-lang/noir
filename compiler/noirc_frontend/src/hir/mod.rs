@@ -10,6 +10,7 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::comptime::EvaluationTracker;
 use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
@@ -65,6 +66,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 
+    /// Tracks comptime expression locations to facilitate code coverage.
+    pub evaluation_tracker: Option<EvaluationTracker>,
+
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -103,6 +107,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -124,6 +129,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -150,6 +156,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 

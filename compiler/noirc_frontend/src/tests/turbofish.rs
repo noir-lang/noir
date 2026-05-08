@@ -1022,3 +1022,53 @@ fn struct_turbofish_mixed_generics_visibility_error() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn struct_turbofish_matching_identity_type_alias() {
+    let src = r#"
+    type Id<T> = T;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<u64>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_struct_type_alias() {
+    let src = r#"
+    struct Foo<T> {}
+
+    type Id<T> = Foo<T>;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<Foo<u64>>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -33,6 +33,7 @@ fm.workspace = true
 itertools.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
+lcov = "0.8.2"
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole
 # workspace. A crate could opt out using `path` dependency,

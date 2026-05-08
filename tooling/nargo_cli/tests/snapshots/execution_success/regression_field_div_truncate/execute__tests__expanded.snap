@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(inp: Field) {
+    let mut x: Field = -1_Field;
+    for _i in 0_u32..1_u32 {
+        x = -1_Field;
+    }
+    let mut y: [Field; 1] = [inp / x];
+    let expected: Field = (y[0_u32] as u128) as Field;
+    let mut actual: Field = 0_Field;
+    if inp.lt(42_Field) {
+        actual = (y[0_u32] as u128) as Field;
+    };
+    assert(actual == expected);
+}

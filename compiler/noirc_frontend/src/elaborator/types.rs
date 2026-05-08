@@ -3051,8 +3051,14 @@ impl Elaborator<'_> {
         expr: ExprId,
         location: Location,
     ) -> Result<bool, CompilationError> {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
-            let meta = self.interner.function_meta(&func_id);
+        // `try_function_meta` rather than `function_meta`: the call may happen while
+        // the callee's meta is still mid-resolution (e.g. a function whose signature
+        // transitively calls itself through a global). A dependency-cycle error has
+        // already been pushed in that case; treat the call as constrained to avoid a
+        // panic.
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)?
+            && let Some(meta) = self.interner.try_function_meta(&func_id)
+        {
             Ok(meta.is_unconstrained())
         } else {
             Ok(false)
