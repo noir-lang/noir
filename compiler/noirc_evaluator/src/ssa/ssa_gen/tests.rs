@@ -892,6 +892,61 @@ fn mut_local_struct_field_assign_only_stores_needed_field() {
     ");
 }
 
+/// `&mut *p` is a re-borrow and must alias the same memory location as `p`.
+#[test]
+fn mut_reborrow_aliases_original_location() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut f;
+        let p1 = &mut *p;
+        *p1 = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    // Exactly one `allocate` for f. The store from `*p1 = 15` writes directly to v0,
+    // and the subsequent `f == 15` load observes the updated value.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
+/// Shows that `&mut (*&f)` is Ok in Noir, contrary to Rust.
+#[test]
+fn can_reborrow_through_immutable_ref() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut (*&f);
+        *p = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
 /// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
 /// the old values before any stores. Regression test for a lazy `codegen_ident` bug
 /// where stores were interleaved with lazy loads, causing stale reads.
