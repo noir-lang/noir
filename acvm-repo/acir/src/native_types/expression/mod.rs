@@ -1,5 +1,6 @@
 use crate::{circuit::PublicInputs, native_types::Witness};
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 mod operators;
@@ -20,7 +21,8 @@ mod operators;
 ///
 /// # Multiplication polynomial
 /// - If we were allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Expression<F> {
     /// Collection of multiplication terms.
@@ -29,16 +31,20 @@ pub struct Expression<F> {
     /// We collect all of the multiplication terms in the assert-zero opcode
     /// A multiplication term is of the form q_M * wL * wR
     /// Hence this vector represents the following sum: q_M1 * wL1 * wR1 + q_M2 * wL2 * wR2 + .. +
+    #[tag(0)]
     pub mul_terms: Vec<(F, Witness, Witness)>,
 
     /// Collection of linear terms in the expression.
     ///
     /// Each term follows the form: `q_L * w`, where `q_L` is a coefficient
     /// and `w` is a witness.
+    #[tag(1)]
     pub linear_combinations: Vec<(F, Witness)>,
+
     /// A constant term in the expression
     // TODO: rename q_c to `constant` moreover q_X is not clear to those who
     // TODO: are not familiar with PLONK
+    #[tag(2)]
     pub q_c: F,
 }
 
