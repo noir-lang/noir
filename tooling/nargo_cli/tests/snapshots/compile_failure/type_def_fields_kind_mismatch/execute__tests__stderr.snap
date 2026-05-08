@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: `TypeDefinition::fields` expected generic argument 0 of `Foo` to have kind `u32` but found kind `normal`
+   ┌─ src/main.nr:15:32
+   │
+15 │         let _ = foo_def.fields([bool_t, field_t].as_vector());
+   │                                ----------------------------- Assertion failed
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:15:17
+
+Aborting due to 1 previous error
