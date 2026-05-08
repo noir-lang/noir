@@ -222,6 +222,21 @@ impl TagRegistry {
         Self::default()
     }
 
+    /// Construct a registry by starting the type-graph walk at `T`. Calls
+    /// `T::register_into` against a fresh registry, which registers `T`
+    /// itself and then recurses through every reachable tagged field/variant
+    /// type. The standard one-shot way to build a registry for a top-level
+    /// value about to be encoded.
+    ///
+    /// ```ignore
+    /// let registry = TagRegistry::from_type::<Program>();
+    /// ```
+    pub fn from_type<T: ?Sized + MsgpackTagged>() -> Self {
+        let mut reg = Self::new();
+        T::register_into(&mut reg);
+        reg
+    }
+
     /// Register a type under its serde name.
     ///
     /// Returns `true` if this type was newly inserted — the caller (typically a
@@ -374,6 +389,31 @@ mod tests {
 
     fn sum_of<T: MsgpackTagged>() -> Sum {
         T::TAGGED.as_sum().expect("expected a sum-shaped type")
+    }
+
+    /// Self-registering fixture: unlike `Foo` / `Choice`, this fixture's
+    /// `register_into` actually populates the registry — exercises the
+    /// `TagRegistry::of::<T>` helper end-to-end.
+    struct SelfRegistering;
+    impl MsgpackTagged for SelfRegistering {
+        const TAGGED: Tagged = Tagged::Product(Product {
+            fields: &[],
+            reserved: &[],
+            defaults: &[],
+            allow_unknown_tags: false,
+        });
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("SelfRegistering");
+        }
+    }
+
+    #[test]
+    fn from_type_walks_the_type_graph_from_a_typed_entry_point() {
+        let reg = TagRegistry::from_type::<SelfRegistering>();
+        assert!(
+            reg.get("SelfRegistering").is_some(),
+            "SelfRegistering's `register_into` should run via `TagRegistry::from_type`",
+        );
     }
 
     #[test]

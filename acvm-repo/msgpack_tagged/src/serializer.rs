@@ -56,8 +56,7 @@ pub fn msgpack_tagged_serialize<T>(value: &T) -> std::io::Result<Vec<u8>>
 where
     T: ?Sized + Serialize + MsgpackTagged,
 {
-    let mut registry = TagRegistry::new();
-    T::register_into(&mut registry);
+    let registry = TagRegistry::from_type::<T>();
 
     let mut buf = Vec::new();
     let mut serializer = TaggedMsgpackSerializer::new(&mut buf, &registry);
