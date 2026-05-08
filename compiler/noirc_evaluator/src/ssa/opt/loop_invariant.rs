@@ -758,7 +758,9 @@ impl<'f> LoopInvariantContext<'f> {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
                 let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
-                if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
+                if let (Type::Array(_, len), Some(upper_bound)) =
+                    (array_typ.into_owned(), upper_bound)
+                {
                     upper_bound.apply(|i| i <= len.0.into(), |i| i <= len.0.into())
                 } else {
                     // We're dealing with a loop that doesn't have a fixed upper bound.
@@ -935,11 +937,70 @@ mod tests {
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::{LoopOrder, Loops};
-    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use crate::ssa::opt::{
+        assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+        assert_ssa_does_not_change,
+    };
     use acvm::AcirField;
     use acvm::acir::brillig::lengths::SemanticLength;
     use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
+
+    #[test]
+    fn signed_mul_overflow_at_lower_bound_not_converted_to_unchecked() {
+        // Regression: the loop invariant pass checked only the upper bound when deciding
+        // whether to convert a signed checked mul to unchecked. For signed types, the lower
+        // bound can overflow in the opposite direction.
+        //
+        // i8 206 = -50 in two's complement. Range is -50..40.
+        //   upper check: 3 * 40 = 120 < 128  (passes, no overflow)
+        //   lower check: 3 * (-50) = -150 < -128  (overflows!)
+        //
+        // The pass must keep the mul checked so the overflow is caught at runtime.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 40
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = mul v0, i8 3
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn signed_sub_overflow_at_upper_bound_not_converted_to_unchecked() {
+        // i - (-100) overflows at the upper bound: 99 - (-100) = 199 > 127.
+        // i8 206 = -50, i8 156 = -100. Range is -50..100.
+        // The pass checks only lower: -50 - (-100) = 50 (safe), missing upper: 99 - (-100) = 199.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                jmp b1(i8 206)
+              b1(v0: i8):
+                v1 = lt v0, i8 100
+                jmpif v1 then: b2(), else: b3()
+              b2():
+                v2 = sub v0, i8 156
+                v3 = unchecked_add v0, i8 1
+                jmp b1(v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
 
     #[test]
     fn hoists_casts() {
@@ -3761,5 +3822,44 @@ mod control_dependence {
             jmp b1(v4)
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_consider_descending_loop_bounds_as_valid() {
+        // The loop header is `b1(v0: u8, v1: u32)` where `v0` is the first block parameter
+        // and is therefore mistakenly identified as the induction variable. The header exits
+        // via `eq v0, u8 0`, which causes `get_const_upper_bound` to return 0 as the upper
+        // bound while the pre-header supplies 5 as the lower bound — an inverted range (5, 0).
+        // The bounds simplification must not use an inverted range: doing so would wrongly
+        // fold `v12 = lt v0, u8 3` to `u1 1` because `upper_bound (0) <= constant (3)`.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u8 5, u32 0)
+          b1(v0: u8, v1: u32):
+            v6 = eq v0, u8 0
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v8 = eq v1, u32 2
+            jmpif v8 then: b4(), else: b5()
+          b4():
+            jmp b2()
+          b5():
+            v10 = add v1, u32 1
+            v12 = lt v0, u8 3
+            jmpif v12 then: b6(), else: b7()
+          b6():
+            jmp b8(u8 3)
+          b7():
+            jmp b8(u8 1)
+          b8(v2: u8):
+            v32 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v2, v32, u1 0)
+            jmp b1(v2, v10)
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }

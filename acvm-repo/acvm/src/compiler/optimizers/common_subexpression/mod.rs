@@ -34,7 +34,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, FunctionInput},
     },
     native_types::{Expression, Witness},
 };
@@ -46,7 +46,6 @@ mod merge_expressions;
 use csat::CSatTransformer;
 use merge_expressions::MergeExpressionsOptimizer;
 
-use std::hash::BuildHasher;
 use tracing::info;
 
 use super::RangeOptimizer;
@@ -76,10 +75,13 @@ pub(super) fn transform_internal<F: AcirField>(
     }
 
     // Allow multiple passes until we have stable output.
-    let mut prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
+    // We use opcode count rather than a structural hash as the convergence signal,
+    // because intermediate variables are created in step 1. to fits the width and then
+    // sometimes are removed in step 2. to benefit from the 'big-add' gates of the proving system.
+    // Opcode count tracks the metric we actually care about.
+    let mut prev_opcode_count = acir.opcodes.len();
 
-    // Checking for stable output after MAX_TRANSFORMER_PASSES
-    let mut opcodes_hash_stabilized = false;
+    let mut opcode_count_stabilized = false;
 
     let max_transformer_passes =
         max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
@@ -94,20 +96,16 @@ pub(super) fn transform_internal<F: AcirField>(
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
 
-        let new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
+        let new_opcode_count = acir.opcodes.len();
 
-        if new_opcodes_hash == prev_opcodes_hash {
-            opcodes_hash_stabilized = true;
+        if new_opcode_count == prev_opcode_count {
+            opcode_count_stabilized = true;
             break;
         }
-        prev_opcodes_hash = new_opcodes_hash;
+        prev_opcode_count = new_opcode_count;
     }
 
-    // After the elimination of intermediate variables the `current_witness_index` is potentially higher than it needs to be,
-    // which would cause gaps if we ran the optimization a second time, making it look like new variables were added.
-    acir.current_witness_index = max_witness(&acir).witness_index();
-
-    (acir, acir_opcode_positions, opcodes_hash_stabilized)
+    (acir, acir_opcode_positions, opcode_count_stabilized)
 }
 
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
@@ -143,7 +141,7 @@ fn transform_internal_once<F: AcirField>(
     // creating intermediate variables when necessary
     let mut transformed_opcodes = Vec::new();
 
-    let mut next_witness_index = acir.current_witness_index + 1;
+    let mut next_witness_index = max_witness(&acir).witness_index() + 1;
     // maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
     // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
     let mut intermediate_variables: IndexMap<Expression<F>, (F, Witness)> = IndexMap::new();
@@ -187,13 +185,7 @@ fn transform_internal_once<F: AcirField>(
                 transformed_opcodes.push(opcode);
             }
             Opcode::MemoryOp { ref op, .. } => {
-                for (_, witness1, witness2) in &op.value.mul_terms {
-                    transformer.mark_solvable(*witness1);
-                    transformer.mark_solvable(*witness2);
-                }
-                for (_, witness) in &op.value.linear_combinations {
-                    transformer.mark_solvable(*witness);
-                }
+                transformer.mark_solvable(op.value);
                 new_acir_opcode_positions.push(acir_opcode_positions[index]);
                 transformed_opcodes.push(opcode);
             }
@@ -225,10 +217,7 @@ fn transform_internal_once<F: AcirField>(
         }
     }
 
-    let current_witness_index = next_witness_index - 1;
-
     acir = Circuit {
-        current_witness_index,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir
@@ -240,7 +229,6 @@ fn transform_internal_once<F: AcirField>(
     let (opcodes, new_acir_opcode_positions) =
         merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 
-    // n.b. if we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
     acir = Circuit {
         opcodes,
         // The optimizer does not add new public inputs
@@ -316,10 +304,8 @@ where
             }
             Opcode::BlackBoxFuncCall(call) => self.fold_blackbox(call),
             Opcode::MemoryOp { block_id: _, op } => {
-                let MemOp { operation, index, value } = op;
-                self.fold_expr(operation);
-                self.fold_expr(index);
-                self.fold_expr(value);
+                self.fold(op.index);
+                self.fold(op.value);
             }
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 for witness in init {
@@ -588,8 +574,8 @@ mod tests {
         let mut brillig_side_effects = BTreeMap::new();
         brillig_side_effects.insert(BrilligFunctionId(0), false);
 
-        let (_, _, opcodes_hash_stabilized) =
+        let (_, _, opcode_count_stabilized) =
             transform_internal(acir, acir_opcode_positions, &brillig_side_effects, None);
-        assert!(!opcodes_hash_stabilized);
+        assert!(!opcode_count_stabilized);
     }
 }

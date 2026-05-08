@@ -167,7 +167,7 @@ fn vector_with_nested_array_behind_generics_returned_from_oracle() {
     let src = r#"
     unconstrained fn main() {
         let _result: [[(u8, u8); 3]] = get_array();
-                                       ^^^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
+                                       ^^^^^^^^^ Vector with nested array `[[(u8, u8); 3]]` cannot be returned from an oracle function
     }
 
     #[oracle(get_array)]

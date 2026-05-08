@@ -27,10 +27,12 @@ pub enum MonomorphizationError {
     NestedOrContainerReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
+    CannotUseFunctionAsValue { name: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -58,10 +60,14 @@ impl MonomorphizationError {
                 location, ..
             }
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
+                location, ..
+            }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
-            | MonomorphizationError::ComplexType { location, .. } => *location,
+            | MonomorphizationError::ComplexType { location, .. }
+            | MonomorphizationError::CannotUseFunctionAsValue { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -164,6 +170,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
+            MonomorphizationError::UnconstrainedFunctionReturnToConstrained { typ, .. } => {
+                format!(
+                    "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
                 format!("Mutable reference `{typ}` cannot be returned from an oracle function")
             }
@@ -198,6 +209,13 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Type is too complex (complexity: {complexity}, max: {max_complexity})",
                 );
                 let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotUseFunctionAsValue { name, location } => {
+                let message = format!(
+                    "`{name}` cannot be used as a function value; it must be called directly"
+                );
+                let secondary = "Used as a value here".to_string();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

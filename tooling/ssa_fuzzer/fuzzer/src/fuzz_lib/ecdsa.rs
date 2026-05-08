@@ -1,4 +1,4 @@
-use rand::{Rng, RngCore, SeedableRng, rngs::StdRng};
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 
 use sha2::{Digest, Sha256};
 

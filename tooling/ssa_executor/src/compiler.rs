@@ -60,7 +60,7 @@ pub fn optimize_ssa_into_acir(
             let error_msg = panic_message.lock().unwrap().clone();
             Err(RuntimeError::InternalError(InternalError::General {
                 message: format!("Panic occurred: {error_msg}"),
-                call_stack: CallStack::default(),
+                call_stack: CallStack::empty(),
             }))
         }
     }

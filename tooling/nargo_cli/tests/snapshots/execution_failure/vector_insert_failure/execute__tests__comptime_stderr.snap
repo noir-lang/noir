@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: vector_insert: index 10 is out of bounds for a vector of length 3
+error: Index out of bounds: vector_insert: index 10 is out of bounds for a vector of length 3
    ┌─ src/main.nr:10:14
    │
 10 │     vector = vector.insert(10, 100);

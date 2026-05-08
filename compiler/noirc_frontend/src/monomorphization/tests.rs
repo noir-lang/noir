@@ -1266,8 +1266,8 @@ fn evaluates_builtin_modulus_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let _$l0 = 254;
-        let _$l1 = @[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1];
-        let _$l2 = @[1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let _$l1 = @[true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, false, false, true, false, false, true, true, false, true, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, false, true, false, false, false, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, true, true, false, false, true, true, true, true, false, false, false, false, true, false, false, true, false, false, false, false, true, false, true, true, true, true, true, false, false, true, true, false, false, false, false, false, true, false, true, false, false, true, false, true, true, true, false, true, false, false, false, false, true, true, false, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, true, false, false, false, false, false, true, false, true, false, false, false, false, true, true, true, false, true, true, false, false, true, false, true, false, false, false, false, false, false, false, true, false, true, true, false, false, false, true, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, false, false, true, false, false, true, true, false, false, false, false, false, true, true];
+        let _$l2 = @[true, true, false, false, false, false, false, true, true, false, false, true, false, false, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, true, false, false, false, true, true, false, true, false, false, false, false, false, false, false, true, false, true, false, false, true, true, false, true, true, true, false, false, false, false, true, false, true, false, false, false, false, false, true, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, false, true, true, false, false, false, false, true, false, true, true, true, false, true, false, false, true, false, true, false, false, false, false, false, true, true, false, false, true, true, true, true, true, false, true, false, false, false, false, true, false, false, true, false, false, false, false, true, true, true, true, false, false, true, true, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, false, false, false, true, false, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, true, false, true, true, false, false, true, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true];
         let _$l3 = @[1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
         let _$l4 = @[48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0, 0, 1]
     }
@@ -1552,4 +1552,87 @@ fn outer_immref_from_brillig_is_rejected() {
         }
     ";
     check_monomorphization_error_using_features(src, &[], true);
+}
+
+const STATIC_ASSERT_STDLIB: &str = "
+    #[builtin(static_assert)]
+    pub fn static_assert<T>(predicate: bool, message: T) {}
+";
+
+#[test]
+fn static_assert_used_as_value_in_let_is_rejected() {
+    let src = r#"
+    fn main() {
+        let f = static_assert;
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_passed_as_argument_is_rejected() {
+    let src = r#"
+    fn main() {
+        call_it(static_assert);
+    }
+
+    fn call_it(f: fn(bool, str<3>) -> ()) {
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_in_block_callee_is_rejected() {
+    // The block expression evaluates to the static_assert function value, which is then called.
+    // Even though the program "looks like" a direct call, the value form goes through monomorphization.
+    let src = r#"
+    fn main() {
+        ({ static_assert })(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn print_oracle_used_as_value_is_rejected() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+            let p = print_oracle;
+            p(true, 1);
+        }
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "print"),
+        "expected CannotUseFunctionAsValue for print oracle, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_called_directly_still_works() {
+    let src = r#"
+    fn main() {
+        static_assert(true, "msg");
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
+        .expect("direct call to static_assert should still monomorphize");
 }

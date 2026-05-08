@@ -44,10 +44,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     /// 2*w3*w4 + w1 + w4 = 0        // which is only used here
     ///
     /// For w1 we can say:
-    /// w1 = -1/2*w2*w3 - w2 - 1/2*w3
+    /// w1 = -w2*w3 - 2*w2 - w3
     ///
     /// Then we will remove the first one and modify the second one like this:
-    /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
+    /// 2*w3*w4 + w4 - 2*w2 - w3 - w2*w3 = 0
     ///
     /// Pre-condition:
     /// - This pass is relevant for backends that can handle unlimited width and
@@ -203,10 +203,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 }
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op } => CircuitSimulator::expr_witness(&op.operation)
-                .chain(CircuitSimulator::expr_witness(&op.index))
-                .chain(CircuitSimulator::expr_witness(&op.value))
-                .collect(),
+            Opcode::MemoryOp { block_id: _, op } => [op.index, op.value].into_iter().collect(),
 
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
                 init.iter().copied().collect()

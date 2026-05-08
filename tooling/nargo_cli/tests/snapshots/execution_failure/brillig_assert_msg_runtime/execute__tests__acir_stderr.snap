@@ -13,15 +13,15 @@ bug: Input to Brillig function is in a separate subgraph to output
             at src/main.nr:3:26
 
 error: Assertion failed: Expected x to equal 10, but got 0x05
-  ┌─ src/main.nr:9:12
+  ┌─ src/main.nr:9:5
   │
 9 │     assert(x == 10, f"Expected x to equal 10, but got {x}");
-  │            -------
+  │     -------------------------------------------------------
   │
   = Call stack:
     1: main
             at src/main.nr:3:26
     2: conditional
-            at src/main.nr:9:12
+            at src/main.nr:9:5
 
 Failed assertion

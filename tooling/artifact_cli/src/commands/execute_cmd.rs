@@ -10,7 +10,7 @@ use crate::{
     execution::{self, ExecutionResults},
 };
 use nargo::foreign_calls::{
-    DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor,
+    DefaultForeignCallBuilder, OracleResolverUrl, layers, transcript::ReplayForeignCallExecutor,
 };
 
 use super::parse_and_normalize_path;
@@ -57,7 +57,7 @@ pub struct ExecuteCommand {
 
     /// JSON RPC url to solve oracle calls.
     #[clap(long, conflicts_with = "oracle_file")]
-    pub oracle_resolver: Option<String>,
+    pub oracle_resolver: Option<OracleResolverUrl>,
 
     /// Root directory for the RPC oracle resolver.
     #[clap(long, value_parser = parse_and_normalize_path)]
@@ -122,13 +122,13 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     // default, rather than trying to match it to the transcript.
     let transcript_executor = match args.oracle_file {
         Some(ref path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
-        None => layers::Either::Right(layers::Empty),
+        None => layers::Either::Right(layers::Unhandled),
     };
 
     let mut foreign_call_executor = DefaultForeignCallBuilder {
         output: std::io::stdout(),
         enable_mocks: false,
-        resolver_url: args.oracle_resolver.clone(),
+        resolver_url: args.oracle_resolver.as_ref().map(|url| url.to_string()),
         root_path: None,
         package_name: None,
     }

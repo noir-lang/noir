@@ -790,7 +790,7 @@ struct TypeLinksGatherer<'a> {
 impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
-            Type::Array(typ, _) => self.gather_type_links(typ),
+            Type::Array(_, typ) => self.gather_type_links(typ),
             Type::Vector(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {

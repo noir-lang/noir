@@ -128,10 +128,6 @@ impl Value {
         Value::Integer(Integer::Field(x))
     }
 
-    pub fn u1(x: bool) -> Self {
-        Value::Integer(Integer::U1(x))
-    }
-
     int_constructor!(u8, U8);
     int_constructor!(u16, U16);
     int_constructor!(u32, U32);
@@ -340,13 +336,16 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
-                let typ = Type::DataType(data_type, generics);
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
 
+                let typ = Type::DataType(data_type, generics);
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
@@ -485,8 +484,7 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
             Value::String(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+                HirExpression::Literal(HirLiteral::Str(Rc::unwrap_or_clone(bytes)))
             }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -532,13 +530,16 @@ impl Value {
                 for field in data_type.borrow().fields_raw().unwrap() {
                     let name = field.name.as_string();
                     let Some(field) = fields.remove(name) else {
-                        continue;
+                        panic!(
+                            "Expected struct value to have all fields set, missing field `{name}`"
+                        );
                     };
                     let field =
                         field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                    ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
+                assert!(fields.is_empty(), "There should be no remaining fields to add");
                 HirExpression::Constructor(HirConstructorExpression {
                     r#type: data_type,
                     struct_generics: generics,
@@ -684,14 +685,6 @@ impl Value {
         Ok(tokens)
     }
 
-    pub(crate) fn is_zero(&self) -> bool {
-        use Value::*;
-        match self {
-            Integer(value) => value.is_zero(),
-            _ => false,
-        }
-    }
-
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
             Value::Function(..) => true,
@@ -712,11 +705,11 @@ impl Value {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::FormatString(_, typ, _) => typ.contains_function(),
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
             | Value::String(_)
-            | Value::FormatString(_, _, _)
             | Value::CtString(_)
             | Value::Quoted(_)
             | Value::TypeDefinition(_)
@@ -760,15 +753,6 @@ impl Value {
                 let value = self.display(elaborator.interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
-        }
-    }
-
-    /// True if this value is negative.
-    /// Defaults to false if this value is not negative or is not an integer.
-    pub fn is_negative(&self) -> bool {
-        match self {
-            Value::Integer(int) => int.is_negative(),
-            _ => false,
         }
     }
 

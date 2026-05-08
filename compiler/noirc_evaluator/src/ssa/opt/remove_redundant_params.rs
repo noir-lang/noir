@@ -41,8 +41,8 @@
 //!
 //! ## Pipeline placement
 //!
-//! After `mem2reg` (which introduces the redundant params) and before
-//! `flatten_cfg` (where the cost is highest for ACIR).
+//! Chained after every `mem2reg` call in the pipeline. `mem2reg` is likely to generate
+//! redundant parameters when promoting memory variables.  
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
@@ -106,7 +106,7 @@ struct BlockSummary {
 }
 
 impl Function {
-    fn remove_redundant_params(&mut self) {
+    pub(crate) fn remove_redundant_params(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let rpo = PostOrder::with_cfg(&cfg).into_vec_reverse();
 
@@ -233,13 +233,8 @@ impl Function {
             }
 
             // Filter the block's parameter list.
-            let old_params = self.dfg[block].take_parameters();
-            let new_params: Vec<ValueId> = old_params
-                .into_iter()
-                .zip(&keep_list)
-                .filter_map(|(p, &k)| k.then_some(p))
-                .collect();
-            self.dfg[block].set_parameters(new_params);
+            let mut keep_list_iter = keep_list.iter().copied();
+            self.dfg[block].parameters_mut().retain(|_| keep_list_iter.next().unwrap());
 
             // Strip corresponding arguments from predecessor terminators.
             for pred in cfg.predecessors(block) {
@@ -293,12 +288,8 @@ fn remove_terminator_args(
     keep_list: &[bool],
 ) {
     let remove_args = |args: &mut Vec<ValueId>| {
-        let mut i = 0;
-        args.retain(|_| {
-            let keep = keep_list[i];
-            i += 1;
-            keep
-        });
+        let mut keep_list_iter = keep_list.iter().copied();
+        args.retain(|_| keep_list_iter.next().unwrap());
     };
 
     let terminator = pred_block.unwrap_terminator_mut();
@@ -527,5 +518,43 @@ mod tests {
         }";
 
         assert_ssa_does_not_change(src, Ssa::remove_redundant_params);
+    }
+
+    #[test]
+    fn redundant_loop_carried_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, v0, u32 0)
+          b1(v2: u32, v3: u32, v4: u32):
+            v5 = lt v2, u32 5
+            jmpif v5 then: b2(v3, v4), else: b3(v4)
+          b2(v6: u32, v7: u32):
+            v8 = add v7, u32 10
+            v9 = unchecked_add v2, u32 1
+            jmp b1(v9, v6, v8)
+          b3(v10: u32):
+            return v10
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v7 = lt v1, u32 5
+            jmpif v7 then: b2(v2), else: b3(v2)
+          b2(v3: u32):
+            v9 = add v3, u32 10
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11, v9)
+          b3(v4: u32):
+            return v4
+        }
+        ");
     }
 }

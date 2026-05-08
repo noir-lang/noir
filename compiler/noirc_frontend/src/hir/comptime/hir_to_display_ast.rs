@@ -64,6 +64,7 @@ impl HirStatement {
             }
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_display_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::TraitAssociatedConstant => StatementKind::Error,
             HirStatement::Comptime(statement) => {
                 StatementKind::Comptime(Box::new(statement.to_display_ast(interner)))
             }
@@ -106,8 +107,9 @@ impl HirExpression {
                 // displaying these values anyway
                 ExpressionKind::Literal(Literal::Integer(*value, None))
             }
-            HirExpression::Literal(HirLiteral::Str(string)) => {
-                ExpressionKind::Literal(Literal::Str(string.clone()))
+            HirExpression::Literal(HirLiteral::Str(bytes)) => {
+                // [String::from_utf8_lossy] here should be okay since this is only for display purposes
+                ExpressionKind::Literal(Literal::Str(String::from_utf8_lossy(bytes).into_owned()))
             }
             HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?
@@ -386,7 +388,7 @@ impl Type {
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
             Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)

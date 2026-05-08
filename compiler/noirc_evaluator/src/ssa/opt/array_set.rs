@@ -136,7 +136,7 @@ impl Function {
                     ) {
                         context.remove_current_instruction();
 
-                        let typ = context.dfg.type_of_value(array);
+                        let typ = context.dfg.type_of_value(array).into_owned();
                         let make_array = Instruction::MakeArray { elements, typ: typ.clone() };
                         let [result] = context.dfg.instruction_result(instruction_id);
                         let ctrl_typevars = Some(vec![typ]);

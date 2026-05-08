@@ -129,7 +129,7 @@ pub enum HirLiteral {
     Vector(HirArrayLiteral),
     Bool(bool),
     Integer(FieldElement),
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
 }
@@ -236,7 +236,7 @@ pub struct HirMethodCallExpression {
 #[derive(Debug, Clone)]
 pub struct HirConstrainExpression(
     /*condition*/ pub ExprId,
-    pub FileId,
+    pub Location,
     /*message*/ pub Option<ExprId>,
 );
 

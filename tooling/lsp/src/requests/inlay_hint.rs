@@ -445,7 +445,7 @@ fn text_part_with_location(str: String, location: Location, files: &FileMap) -> 
 
 fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &FileMap) {
     match typ {
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("; "));
@@ -1105,7 +1105,7 @@ mod inlay_hints_tests {
             panic!("Expected label parts");
         };
         let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
-        assert_eq!(label, " &[u32; 14]");
+        assert_eq!(label, " [u32; 14]");
 
         let inlay_hint = &inlay_hints[1];
         assert_eq!(inlay_hint.position.line, 126);

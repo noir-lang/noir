@@ -4,7 +4,7 @@ use crate::brillig::brillig_gen::brillig_block::{BrilligBlock, type_of_binary_op
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
 use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
-use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext, SignedDivisionOperator};
 use crate::ssa::ir::instruction::{BinaryOp, InstructionId, binary::Binary};
 use crate::ssa::ir::printer::try_to_extract_string_from_error_payload;
 use crate::ssa::ir::types::{NumericType, Type};
@@ -42,7 +42,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let brillig_binary_op = match binary.operator {
             BinaryOp::Div => {
                 if is_signed {
-                    self.brillig_context.convert_signed_division(left, right, result_variable);
+                    self.brillig_context.convert_signed_division(
+                        left,
+                        right,
+                        result_variable,
+                        SignedDivisionOperator::Div,
+                    );
                     return;
                 } else if is_field {
                     BrilligBinaryOp::FieldDiv
@@ -103,7 +108,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let scratch_var_j = self.brillig_context.allocate_single_addr(left.bit_size);
 
         // i = left / right
-        self.brillig_context.convert_signed_division(left, right, *scratch_var_i);
+        self.brillig_context.convert_signed_division(
+            left,
+            right,
+            *scratch_var_i,
+            SignedDivisionOperator::Mod,
+        );
 
         // j = i * right
         self.brillig_context.binary_instruction(
@@ -164,7 +174,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 // Right shift using division on 1-complement
                 ctx.binary_instruction(left, *one, result, BrilligBinaryOp::Add);
-                ctx.convert_signed_division(result, *two_pow, result);
+                ctx.convert_signed_division(
+                    result,
+                    *two_pow,
+                    result,
+                    SignedDivisionOperator::Shift,
+                );
                 ctx.binary_instruction(result, *one, result, BrilligBinaryOp::Sub);
             } else {
                 ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);

@@ -4,6 +4,7 @@
 //! simpler form until the IR only has a single function remaining with 1 block within it.
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
+mod alias_analysis;
 mod array_get;
 mod array_set;
 mod array_set_window_optimization;
@@ -32,7 +33,6 @@ mod loop_invariant;
 mod lower_refs_at_acir_brillig_boundary;
 mod make_constrain_not_equal;
 mod mem2reg;
-mod mem2reg_simple;
 mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
