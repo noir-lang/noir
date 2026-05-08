@@ -4,7 +4,7 @@
 //! and never go through `serialize_struct` / `deserialize_struct`. Their
 //! `register_into` is a no-op — they exist only to satisfy the `T: MsgpackTagged`
 //! bound that the macro propagates onto every tagged field's type. The
-//! [`Tagged`] shape they advertise is a [`Product`] with empty `fields`,
+//! [`Tagged`] shape they advertise is a [`Product`](crate::Product) with empty `fields`,
 //! signalling "no on-the-wire structure of my own."
 //!
 //! `PhantomData<T>` lives here for the same reason: zero-sized, wire-irrelevant,
