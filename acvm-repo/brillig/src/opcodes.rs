@@ -4,6 +4,7 @@ use crate::{
 };
 use acir_field::AcirField;
 use itertools::Itertools;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Represents a program location (instruction index) used as a jump target.
@@ -11,10 +12,12 @@ pub type Label = usize;
 
 /// Represents an address in the VM's memory.
 /// Supports both direct and relative addressing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
     /// Specifies an exact index in the VM's memory.
+    #[tag(0)]
     Direct(u32),
     /// Specifies an index relative to the stack pointer.
     ///
@@ -22,6 +25,7 @@ pub enum MemoryAddress {
     ///
     /// The stack pointer is stored in memory slot 0, so this address is resolved
     /// by reading that slot and adding the offset to get the final memory address.
+    #[tag(1)]
     Relative(u32),
 }
 
@@ -95,7 +99,8 @@ impl std::fmt::Display for MemoryAddress {
 }
 
 /// Describes the memory layout for an array/vector element
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub enum HeapValueType {
     /// A single field element is enough to represent the value with a given bit size.
     Simple(BitSize),
@@ -107,6 +112,65 @@ pub enum HeapValueType {
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
     Vector { value_types: Vec<HeapValueType> },
+}
+
+/// Hand-written `MsgpackTagged` impl: `HeapValueType` is self-recursive (its
+/// `Array` and `Vector` variants hold `Vec<HeapValueType>`) and the derive
+/// macro emits `Vec<HeapValueType>: MsgpackTagged` as a per-field bound,
+/// which leads to a co-inductive cycle the trait solver hits its recursion
+/// limit on. We reproduce what the macro would emit, except `register_into`
+/// stops recursing into the self-typed payload — `try_insert` would no-op
+/// on re-entry anyway, so dropping the `Vec<Self>` recursion call is sound.
+impl MsgpackTagged for HeapValueType {
+    const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::Sum(msgpack_tagged::Sum {
+        variants: &[
+            msgpack_tagged::Variant {
+                tag: 0,
+                name: "Simple",
+                payload: msgpack_tagged::Product {
+                    fields: &[(0, "0")],
+                    reserved: &[],
+                    defaults: &[],
+                    allow_unknown_tags: false,
+                },
+            },
+            msgpack_tagged::Variant {
+                tag: 1,
+                name: "Array",
+                payload: msgpack_tagged::Product {
+                    fields: &[(0, "value_types"), (1, "size")],
+                    reserved: &[],
+                    defaults: &[],
+                    allow_unknown_tags: false,
+                },
+            },
+            msgpack_tagged::Variant {
+                tag: 2,
+                name: "Vector",
+                payload: msgpack_tagged::Product {
+                    fields: &[(0, "value_types")],
+                    reserved: &[],
+                    defaults: &[],
+                    allow_unknown_tags: false,
+                },
+            },
+        ],
+        reserved: &[],
+        default_on_reserved: false,
+        default_on_unknown: false,
+    });
+
+    fn register_into(reg: &mut msgpack_tagged::TagRegistry) {
+        if reg.try_insert::<Self>("HeapValueType") {
+            BitSize::register_into(reg);
+            SemanticLength::register_into(reg);
+            // The `Vec<HeapValueType>` payload recursion is omitted: it would
+            // re-enter this impl via `try_insert`, short-circuit, and add
+            // nothing to the registry — but emitting the call requires the
+            // `Vec<Self>: MsgpackTagged` bound, which is exactly the cycle
+            // we're avoiding.
+        }
+    }
 }
 
 impl HeapValueType {
@@ -182,14 +246,17 @@ impl std::fmt::Display for HeapValueType {
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapArray {
     /// Pointer to a memory address which hold the address to the start of the items in the array.
     ///
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
+    #[tag(0)]
     pub pointer: MemoryAddress,
     /// Statically known size of the array.
+    #[tag(1)]
     pub size: SemiFlattenedLength,
 }
 
@@ -206,14 +273,17 @@ impl std::fmt::Display for HeapArray {
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
     /// Pointer to a memory address which hold the address to the start of the items in the vector.
     ///
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
+    #[tag(0)]
     pub pointer: MemoryAddress,
     /// Address to a memory slot holding the semantic length of the vector.
+    #[tag(1)]
     pub size: MemoryAddress,
 }
 
@@ -226,14 +296,21 @@ impl std::fmt::Display for HeapVector {
 /// Represents the bit size of unsigned integer types in Brillig.
 ///
 /// These correspond to the standard unsigned integer types, with U1 representing a boolean.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum IntegerBitSize {
+    #[tag(0)]
     U1,
+    #[tag(1)]
     U8,
+    #[tag(2)]
     U16,
+    #[tag(3)]
     U32,
+    #[tag(4)]
     U64,
+    #[tag(5)]
     U128,
 }
 
@@ -283,10 +360,13 @@ impl std::fmt::Display for IntegerBitSize {
 ///
 /// Values can either be field elements (whose size depends on the field being used)
 /// or fixed-size unsigned integers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BitSize {
+    #[tag(0)]
     Field,
+    #[tag(1)]
     Integer(IntegerBitSize),
 }
 
@@ -330,21 +410,25 @@ impl std::fmt::Display for BitSize {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the `ForeignCall` instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ValueOrArray {
     /// A single value to be passed to or from an external call.
     /// It is an 'immediate' value - used without dereferencing.
     /// For a foreign call input, the value is read directly from memory.
     /// For a foreign call output, the value is written directly to memory.
+    #[tag(0)]
     MemoryAddress(MemoryAddress),
     /// An array to be passed to or from an external call.
     /// In the case of a foreign call input, the array is read from this Brillig memory location + `size` more cells.
     /// In the case of a foreign call output, the array is written to this Brillig memory location with the `size` being here just as a sanity check for the write size.
+    #[tag(1)]
     HeapArray(HeapArray),
     /// A vector to be passed to or from an external call.
     /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the second address indicates.
     /// In the case of a foreign call output, the vector is written to this Brillig memory location as 'size' cells, with size being stored in the second address.
+    #[tag(2)]
     HeapVector(HeapVector),
 }
 
@@ -364,45 +448,87 @@ impl std::fmt::Display for ValueOrArray {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`,
     /// performs the specified binary operation,
     /// and stores the value in the `destination` address.
+    #[tag(0)]
     BinaryFieldOp {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         op: BinaryFieldOp,
+        #[tag(2)]
         lhs: MemoryAddress,
+        #[tag(3)]
         rhs: MemoryAddress,
     },
     /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`,
     /// performs the specified binary operation,
     /// and stores the value in the `destination` address.
+    #[tag(1)]
     BinaryIntOp {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         op: BinaryIntOp,
+        #[tag(2)]
         bit_size: IntegerBitSize,
+        #[tag(3)]
         lhs: MemoryAddress,
+        #[tag(4)]
         rhs: MemoryAddress,
     },
     /// Takes the value from the `source` address, inverts it,
     /// and stores the value in the `destination` address.
-    Not { destination: MemoryAddress, source: MemoryAddress, bit_size: IntegerBitSize },
+    #[tag(2)]
+    Not {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+        #[tag(2)]
+        bit_size: IntegerBitSize,
+    },
     /// Takes the value from the `source` address,
     /// casts it into the type indicated by `bit_size`,
     /// and stores the value in the `destination` address.
-    Cast { destination: MemoryAddress, source: MemoryAddress, bit_size: BitSize },
+    #[tag(3)]
+    Cast {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+        #[tag(2)]
+        bit_size: BitSize,
+    },
     /// Sets the program counter to the value of `location`
     /// if the value at `condition` is non-zero.
-    JumpIf { condition: MemoryAddress, location: Label },
+    #[tag(4)]
+    JumpIf {
+        #[tag(0)]
+        condition: MemoryAddress,
+        #[tag(1)]
+        location: Label,
+    },
     /// Sets the program counter to the value of `location`.
-    Jump { location: Label },
+    #[tag(5)]
+    Jump {
+        #[tag(0)]
+        location: Label,
+    },
     /// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
     /// to the specified `destination_address` in the memory.
+    #[tag(6)]
     CalldataCopy {
+        #[tag(0)]
         destination_address: MemoryAddress,
+        #[tag(1)]
         size_address: MemoryAddress,
+        #[tag(2)]
         offset_address: MemoryAddress,
     },
     /// Pushes the current program counter to the call stack as to set a return location.
@@ -410,63 +536,122 @@ pub enum BrilligOpcode<F> {
     ///
     /// We don't support dynamic jumps or calls;
     /// see <https://github.com/ethereum/aleth/issues/3404> for reasoning.
-    Call { location: Label },
+    #[tag(7)]
+    Call {
+        #[tag(0)]
+        location: Label,
+    },
     /// Stores a constant `value` with a `bit_size` in the `destination` address.
-    Const { destination: MemoryAddress, bit_size: BitSize, value: F },
+    #[tag(8)]
+    Const {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        bit_size: BitSize,
+        #[tag(2)]
+        value: F,
+    },
     /// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
-    IndirectConst { destination_pointer: MemoryAddress, bit_size: BitSize, value: F },
+    #[tag(9)]
+    IndirectConst {
+        #[tag(0)]
+        destination_pointer: MemoryAddress,
+        #[tag(1)]
+        bit_size: BitSize,
+        #[tag(2)]
+        value: F,
+    },
     /// Pops the top element from the call stack, which represents the return location,
     /// and sets the program counter to that value. This operation is used to return
     /// from a function call.
+    #[tag(10)]
     Return,
     /// Used to get data from an outside source.
     ///
     /// Also referred to as an Oracle, intended for things like state tree reads;
     /// it shouldn't be confused with e.g. blockchain price oracles.
+    #[tag(11)]
     ForeignCall {
         /// Interpreted by caller context, ie. this will have different meanings depending on
         /// who the caller is.
+        #[tag(0)]
         function: String,
         /// Destination addresses (may be single values or memory pointers).
         ///
         /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
         /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
         /// the current free memory pointer, and store the heap address into the destination.
+        #[tag(1)]
         destinations: Vec<ValueOrArray>,
         /// Destination value types.
+        #[tag(2)]
         destination_value_types: Vec<HeapValueType>,
         /// Input addresses (may be single values or memory pointers).
+        #[tag(3)]
         inputs: Vec<ValueOrArray>,
         /// Input value types (for heap allocated structures indicates how to
         /// retrieve the elements).
+        #[tag(4)]
         input_value_types: Vec<HeapValueType>,
     },
     /// Moves the content in the `source` address to the `destination` address.
-    Mov { destination: MemoryAddress, source: MemoryAddress },
+    #[tag(12)]
+    Mov {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+    },
     /// If the value at `condition` is non-zero, moves the content in the `source_a`
     /// address to the `destination` address, otherwise moves the content from the
     /// `source_b` address instead.
     ///
     /// `destination = condition > 0 ? source_a : source_b`
+    #[tag(13)]
     ConditionalMov {
+        #[tag(0)]
         destination: MemoryAddress,
+        #[tag(1)]
         source_a: MemoryAddress,
+        #[tag(2)]
         source_b: MemoryAddress,
+        #[tag(3)]
         condition: MemoryAddress,
     },
     /// Reads the `source_pointer` to obtain a memory address, then retrieves the data
     /// stored at that address and writes it to the `destination` address.
-    Load { destination: MemoryAddress, source_pointer: MemoryAddress },
+    #[tag(14)]
+    Load {
+        #[tag(0)]
+        destination: MemoryAddress,
+        #[tag(1)]
+        source_pointer: MemoryAddress,
+    },
     /// Reads the `destination_pointer` to obtain a memory address, then stores the value
     /// from the `source` address at that location.
-    Store { destination_pointer: MemoryAddress, source: MemoryAddress },
+    #[tag(15)]
+    Store {
+        #[tag(0)]
+        destination_pointer: MemoryAddress,
+        #[tag(1)]
+        source: MemoryAddress,
+    },
     /// Native functions in the VM.
     /// These are equivalent to the black box functions in ACIR.
+    #[tag(16)]
     BlackBox(BlackBoxOp),
     /// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
-    Trap { revert_data: HeapVector },
+    #[tag(17)]
+    Trap {
+        #[tag(0)]
+        revert_data: HeapVector,
+    },
     /// Halts execution and returns data specified by a dynamically-sized vector.
-    Stop { return_data: HeapVector },
+    #[tag(18)]
+    Stop {
+        #[tag(0)]
+        return_data: HeapVector,
+    },
 }
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
@@ -571,21 +756,30 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 /// Most operations work with field arithmetic, but some operations like
 /// `IntegerDiv` interpret the field elements as unsigned integers for the purpose
 /// of the operation (useful when field elements are used to represent integer values).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryFieldOp {
+    #[tag(0)]
     Add,
+    #[tag(1)]
     Sub,
+    #[tag(2)]
     Mul,
     /// Field division (inverse multiplication in the field)
+    #[tag(3)]
     Div,
     /// Unsigned integer division (treating field elements as unsigned integers)
+    #[tag(4)]
     IntegerDiv,
     /// (==) Equal
+    #[tag(5)]
     Equals,
     /// (<) Field less than
+    #[tag(6)]
     LessThan,
     /// (<=) Field less or equal
+    #[tag(7)]
     LessThanEquals,
 }
 
@@ -605,28 +799,41 @@ impl std::fmt::Display for BinaryFieldOp {
 }
 
 /// Binary fixed-length integer expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryIntOp {
+    #[tag(0)]
     Add,
+    #[tag(1)]
     Sub,
+    #[tag(2)]
     Mul,
+    #[tag(3)]
     Div,
     /// (==) Equal
+    #[tag(4)]
     Equals,
     /// (<) Integer less than
+    #[tag(5)]
     LessThan,
     /// (<=) Integer less or equal
+    #[tag(6)]
     LessThanEquals,
     /// (&) Bitwise AND
+    #[tag(7)]
     And,
     /// (|) Bitwise OR
+    #[tag(8)]
     Or,
     /// (^) Bitwise XOR
+    #[tag(9)]
     Xor,
     /// (<<) Shift left
+    #[tag(10)]
     Shl,
     /// (>>) Shift right
+    #[tag(11)]
     Shr,
 }
 

@@ -863,6 +863,7 @@ version = "1.0.0-beta.21"
 dependencies = [
  "acir_field",
  "itertools 0.14.0",
+ "msgpack_tagged",
  "proptest",
  "proptest-derive",
  "serde",
