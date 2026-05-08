@@ -458,7 +458,7 @@ impl Elaborator<'_> {
             // here from the impl record.
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
-            let prev_self_type = std::mem::replace(&mut self.self_type, Some(impl_self_type));
+            let prev_self_type = self.self_type.replace(impl_self_type);
 
             self.check_where_clause_against_trait(
                 &check.impl_method_func_id,
