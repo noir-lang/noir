@@ -195,6 +195,59 @@ enum FullyLenient {
     B,
 }
 
+/// Self-recursive enum: `Branch` carries `Vec<Tree>` (self-typed). The macro
+/// detects the self-reference and skips emitting the `Vec<Tree>: MsgpackTagged`
+/// where-clause bound that would otherwise trigger a co-inductive cycle in
+/// the trait solver. The recursion call inside `register_into` is still
+/// emitted; Rust's call-site resolution accepts it co-inductively against
+/// the impl being defined.
+#[derive(MsgpackTagged)]
+enum Tree {
+    #[tag(0)]
+    Leaf(u32),
+    #[tag(1)]
+    Branch(Vec<Tree>),
+}
+
+/// Self-recursive struct: `parent` is `Option<Box<Cons>>`, also self-typed.
+/// Same handling as the enum case — bound dropped, recursion call retained.
+#[derive(MsgpackTagged)]
+struct Cons {
+    #[tag(0)]
+    value: u32,
+    #[tag(1)]
+    parent: Option<Box<Cons>>,
+}
+
+/// Self-recursive enum where the recursive variant *also* contains a
+/// sibling type. The self-filter drops the `Vec<(Inner, NestedTree)>: MsgpackTagged`
+/// bound (because it contains `Self`), but the recursion call still needs
+/// `Inner: MsgpackTagged` to resolve at the call site. `extra_bound`
+/// restores it; without it, the impl would fail to compile with a clear
+/// "Inner: MsgpackTagged is not satisfied" error.
+#[derive(MsgpackTagged)]
+#[tagged(extra_bound = "Inner: msgpack_tagged::MsgpackTagged")]
+enum NestedTree {
+    #[tag(0)]
+    Leaf(Inner),
+    #[tag(1)]
+    Branch(Vec<(Inner, NestedTree)>),
+}
+
+/// Multiple `extra_bound` attributes accumulate — each one's predicates are
+/// appended to the impl's where clause. The two extra bounds here are
+/// equivalent to a single `extra_bound = "Inner: ..., u32: ..."` but split
+/// across attributes for clarity.
+#[derive(MsgpackTagged)]
+#[tagged(extra_bound = "Inner: msgpack_tagged::MsgpackTagged")]
+#[tagged(extra_bound = "u32: msgpack_tagged::MsgpackTagged")]
+enum NestedTreeMulti {
+    #[tag(0)]
+    Leaf(Inner),
+    #[tag(1)]
+    Branch(Vec<(Inner, u32, NestedTreeMulti)>),
+}
+
 /// Variant payloads of `PhantomData<T>` rely on the blanket
 /// `impl<T: 'static> MsgpackTagged for PhantomData<T>` — its bound is
 /// `T: 'static`, not `T: MsgpackTagged`, so non-`MsgpackTagged` types like
@@ -453,6 +506,16 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<BackwardsCompat>();
     assert_impl::<ForwardCompat>();
     assert_impl::<FullyLenient>();
+    // Self-recursive types: the macro's self-filter drops the
+    // `Vec<Self>: MsgpackTagged` / `Option<Box<Self>>: MsgpackTagged` bound
+    // that would otherwise trigger a co-inductive trait-solver cycle.
+    assert_impl::<Tree>();
+    assert_impl::<Cons>();
+    // Self-recursive with sibling: `extra_bound` restores the sibling's
+    // `MsgpackTagged` bound that the self-filter would otherwise have
+    // implied via the (now-dropped) `Vec<(Inner, Self)>` bound.
+    assert_impl::<NestedTree>();
+    assert_impl::<NestedTreeMulti>();
     // T = Opaque (no MsgpackTagged impl) still satisfies the enum's bounds —
     // `PhantomData<T>: MsgpackTagged` is blanket-implemented with only
     // `T: 'static`, not `T: MsgpackTagged`.
@@ -1023,4 +1086,48 @@ fn serde_skip_works_inside_variant_payload() {
     let s = sum_of::<WithSerdeSkipInVariant>();
     let plain = s.variant_for("Plain").unwrap();
     assert_eq!(plain.payload.fields, &[(0, "keep")]);
+}
+
+/// Self-recursive enum: the derive emits `Vec<Tree>` as the `Branch` payload
+/// field and the `register_into` body still recurses into `<Vec<Tree>>` —
+/// only the where-clause bound was dropped to break the cycle. At runtime,
+/// `try_insert` short-circuits the inner `Self::register_into` call.
+#[test]
+fn self_recursive_enum_registers_itself_once() {
+    let mut reg = TagRegistry::new();
+    Tree::register_into(&mut reg);
+    Tree::register_into(&mut reg);
+    let entry = reg.get("Tree").expect("Tree should register itself");
+    assert_eq!(reg.len(), 1, "self-recursion is bounded by `try_insert` idempotency");
+    let pairs: Vec<_> = entry_sum(entry).variants.iter().map(|v| (v.tag, v.name)).collect();
+    assert_eq!(pairs, vec![(0, "Leaf"), (1, "Branch")]);
+}
+
+/// Self-recursive struct: same idea, struct shape — `parent` field's type
+/// is `Option<Box<Cons>>`, so the bound chain hits `Cons: MsgpackTagged`
+/// (the impl being defined). The self-filter drops the bound; the impl
+/// compiles and registers correctly.
+#[test]
+fn self_recursive_struct_registers_itself_once() {
+    let mut reg = TagRegistry::new();
+    Cons::register_into(&mut reg);
+    let entry = reg.get("Cons").expect("Cons should register itself");
+    assert_eq!(reg.len(), 1);
+    assert_eq!(entry_product(entry).fields, &[(0, "value"), (1, "parent")]);
+}
+
+/// `extra_bound` reaches the sibling type. After `NestedTree::register_into`
+/// runs, both `NestedTree` and `Inner` are in the registry — `Inner` is
+/// reached via the `Vec<(Inner, NestedTree)>` recursion call (which compiles
+/// because the `extra_bound` keeps `Inner: MsgpackTagged` in the where
+/// clause).
+#[test]
+fn extra_bound_restores_sibling_type_in_self_recursive_payload() {
+    let mut reg = TagRegistry::new();
+    NestedTree::register_into(&mut reg);
+    assert!(reg.get("NestedTree").is_some(), "self-recursive type registers itself");
+    assert!(
+        reg.get("Inner").is_some(),
+        "sibling type reached via Vec<(Inner, NestedTree)> recursion",
+    );
 }

@@ -100,77 +100,29 @@ impl std::fmt::Display for MemoryAddress {
 
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 pub enum HeapValueType {
     /// A single field element is enough to represent the value with a given bit size.
+    #[tag(0)]
     Simple(BitSize),
     /// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
-    Array { value_types: Vec<HeapValueType>, size: SemanticLength },
+    #[tag(1)]
+    Array {
+        #[tag(0)]
+        value_types: Vec<HeapValueType>,
+        #[tag(1)]
+        size: SemanticLength,
+    },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
-    Vector { value_types: Vec<HeapValueType> },
-}
-
-/// Hand-written `MsgpackTagged` impl: `HeapValueType` is self-recursive (its
-/// `Array` and `Vector` variants hold `Vec<HeapValueType>`) and the derive
-/// macro emits `Vec<HeapValueType>: MsgpackTagged` as a per-field bound,
-/// which leads to a co-inductive cycle the trait solver hits its recursion
-/// limit on. We reproduce what the macro would emit, except `register_into`
-/// stops recursing into the self-typed payload — `try_insert` would no-op
-/// on re-entry anyway, so dropping the `Vec<Self>` recursion call is sound.
-impl MsgpackTagged for HeapValueType {
-    const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::Sum(msgpack_tagged::Sum {
-        variants: &[
-            msgpack_tagged::Variant {
-                tag: 0,
-                name: "Simple",
-                payload: msgpack_tagged::Product {
-                    fields: &[(0, "0")],
-                    reserved: &[],
-                    defaults: &[],
-                    allow_unknown_tags: false,
-                },
-            },
-            msgpack_tagged::Variant {
-                tag: 1,
-                name: "Array",
-                payload: msgpack_tagged::Product {
-                    fields: &[(0, "value_types"), (1, "size")],
-                    reserved: &[],
-                    defaults: &[],
-                    allow_unknown_tags: false,
-                },
-            },
-            msgpack_tagged::Variant {
-                tag: 2,
-                name: "Vector",
-                payload: msgpack_tagged::Product {
-                    fields: &[(0, "value_types")],
-                    reserved: &[],
-                    defaults: &[],
-                    allow_unknown_tags: false,
-                },
-            },
-        ],
-        reserved: &[],
-        default_on_reserved: false,
-        default_on_unknown: false,
-    });
-
-    fn register_into(reg: &mut msgpack_tagged::TagRegistry) {
-        if reg.try_insert::<Self>("HeapValueType") {
-            BitSize::register_into(reg);
-            SemanticLength::register_into(reg);
-            // The `Vec<HeapValueType>` payload recursion is omitted: it would
-            // re-enter this impl via `try_insert`, short-circuit, and add
-            // nothing to the registry — but emitting the call requires the
-            // `Vec<Self>: MsgpackTagged` bound, which is exactly the cycle
-            // we're avoiding.
-        }
-    }
+    #[tag(2)]
+    Vector {
+        #[tag(0)]
+        value_types: Vec<HeapValueType>,
+    },
 }
 
 impl HeapValueType {

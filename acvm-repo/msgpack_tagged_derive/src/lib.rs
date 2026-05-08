@@ -18,7 +18,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, quote};
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, ExprLit, Field, Fields, GenericParam,
-    Ident, Lit, LitInt, Meta, Token, Type, Variant, WhereClause,
+    Ident, Lit, LitInt, Meta, Token, Type, Variant, WhereClause, WherePredicate,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -302,7 +302,7 @@ fn expand_tuple_struct(
     });
 
     let tagged = product_literal(&entries, reserved, allow_unknown_tags);
-    let where_clause = build_where_clause(input, &entries);
+    let where_clause = build_where_clause(input, &entries, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
@@ -477,7 +477,8 @@ fn expand_enum(
     let default_on_unknown = type_attrs.default_on_unknown;
     let needs_default_bound = default_on_reserved || default_on_unknown;
     let tagged = sum_literal(&variants, reserved, default_on_reserved, default_on_unknown);
-    let where_clause = build_enum_where_clause(input, &variants, needs_default_bound);
+    let where_clause =
+        build_enum_where_clause(input, &variants, needs_default_bound, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
@@ -550,11 +551,13 @@ fn build_enum_where_clause(
     input: &DeriveInput,
     variants: &[TaggedVariant<'_>],
     needs_default_bound: bool,
+    extra_bounds: &[WherePredicate],
 ) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
     let any_bound_source =
         variants.iter().any(|v| !v.payload.is_empty() || v.newtype_inner.is_some());
-    if !any_bound_source && !has_type_params && !needs_default_bound {
+
+    if !any_bound_source && !has_type_params && !needs_default_bound && extra_bounds.is_empty() {
         return input.generics.where_clause.clone();
     }
 
@@ -570,13 +573,19 @@ fn build_enum_where_clause(
         }
     }
 
+    let self_ident = &input.ident;
     let mut seen_msgpack = std::collections::HashSet::new();
     let mut seen_default = std::collections::HashSet::new();
     for v in variants {
         for entry in &v.payload {
             let ty = entry.ty;
             let key = quote!(#ty).to_string();
-            if seen_msgpack.insert(key.clone()) {
+            // Same self-recursion handling as `build_where_clause`: skip the
+            // `MsgpackTagged` bound for fields whose type contains the
+            // self-ident, but keep the `Default` bound and let the recursion
+            // call resolve co-inductively at the call site.
+            let self_typed = type_contains_ident(ty, self_ident);
+            if !self_typed && seen_msgpack.insert(key.clone()) {
                 where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
             }
             if entry.has_default && seen_default.insert(key) {
@@ -586,10 +595,13 @@ fn build_enum_where_clause(
         // Newtype variants don't go through the payload entries (their
         // payload is empty), but their inner type still needs the
         // `MsgpackTagged` bound so the recursive `register_into` call
-        // type-checks.
+        // type-checks. Same self-recursion handling as above — drop the
+        // bound when the inner type is `Self`-typed and let the recursion
+        // call resolve co-inductively.
         if let Some(ty) = v.newtype_inner {
             let key = quote!(#ty).to_string();
-            if seen_msgpack.insert(key) {
+            let self_typed = type_contains_ident(ty, self_ident);
+            if !self_typed && seen_msgpack.insert(key) {
                 where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
             }
         }
@@ -597,6 +609,10 @@ fn build_enum_where_clause(
 
     if needs_default_bound {
         where_clause.predicates.push(parse_quote!(Self: ::std::default::Default));
+    }
+
+    for predicate in extra_bounds {
+        where_clause.predicates.push(predicate.clone());
     }
 
     Some(where_clause)
@@ -868,7 +884,7 @@ fn expand_named_struct(
     // it. Naive per-type-param bounds (`A: MsgpackTagged, B: MsgpackTagged`)
     // would be both too restrictive and insufficient in that case.
     let tagged = product_literal(&entries, reserved, allow_unknown_tags);
-    let where_clause = build_where_clause(input, &entries);
+    let where_clause = build_where_clause(input, &entries, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
@@ -1225,6 +1241,15 @@ struct TypeAttrs {
     /// other type-level modifier — those are wire-format properties and
     /// belong on the wire DTO.
     via: Option<Type>,
+    /// Extra where-clause predicates from one or more
+    /// `#[tagged(extra_bound = "...")]` attributes. The string is parsed as
+    /// a comma-separated list of where-predicates and appended verbatim to
+    /// the impl's where clause. Used to restore bounds the macro can't infer
+    /// — most commonly to put back a sibling type's `MsgpackTagged` bound
+    /// after the self-filter has dropped the bound on a self-recursive field
+    /// like `Vec<(Other, Self)>` (the recursion call still needs
+    /// `Other: MsgpackTagged` to type-check).
+    extra_bounds: Vec<WherePredicate>,
 }
 
 /// Parse the type-level `#[tagged(...)]` attributes (if any) into a single
@@ -1239,6 +1264,11 @@ struct TypeAttrs {
 /// * `via(WireType)` — list-form, single Rust type (the wire DTO to delegate
 ///   `register_into` to). Mutually exclusive with every other modifier —
 ///   those properties belong on the wire DTO.
+/// * `extra_bound = "..."` — string-form, parsed as a comma-separated list
+///   of where-predicates appended to the impl's where clause. Escape hatch
+///   for bounds the macro can't infer — typically to restore a sibling
+///   type's `MsgpackTagged` bound after the self-filter has dropped a
+///   bound on a self-recursive field like `Vec<(Other, Self)>`.
 fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     let mut out = TypeAttrs::default();
     let mut seen_reserved = false;
@@ -1331,10 +1361,41 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                 out.via = Some(list.parse_args::<Type>()?);
                 continue;
             }
+            if let Meta::NameValue(nv) = &item
+                && nv.path.is_ident("extra_bound")
+            {
+                // Multiple `extra_bound = "..."` items accumulate — each
+                // string contributes its predicates to the impl's where
+                // clause. No duplicate-detection: extra_bound is purely
+                // additive and there's no harm in repeating identical
+                // bounds (the where clause is set-like at the language level).
+                let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = &nv.value else {
+                    return Err(syn::Error::new_spanned(
+                        &nv.value,
+                        "`extra_bound` requires a string literal of the form \
+                         `\"T: Trait, U: Trait\"`",
+                    ));
+                };
+                let bound_str = s.value();
+                // Parse as a where clause and steal its predicates. The
+                // explicit `where` keyword lets us reuse syn's WhereClause
+                // parser; without it, syn doesn't expose a public path for
+                // parsing comma-separated WherePredicate lists directly.
+                let where_clause: WhereClause = syn::parse_str(&format!("where {bound_str}"))
+                    .map_err(|e| {
+                        syn::Error::new_spanned(
+                            s,
+                            format!("failed to parse `extra_bound` predicates: {e}"),
+                        )
+                    })?;
+                out.extra_bounds.extend(where_clause.predicates);
+                continue;
+            }
             return Err(syn::Error::new_spanned(
                 &item,
                 "expected `reserved(...)`, `allow_unknown_tags`, `default_on_reserved`, \
-                 `default_on_unknown`, or `via(...)` inside `#[tagged(...)]` on a type",
+                 `default_on_unknown`, `via(...)`, or `extra_bound = \"...\"` inside \
+                 `#[tagged(...)]` on a type",
             ));
         }
     }
@@ -1370,6 +1431,14 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                  decode-policy flags belong on the wire DTO, not on the public type",
             ));
         }
+        if !out.extra_bounds.is_empty() {
+            return Err(syn::Error::new_spanned(
+                input,
+                "`#[tagged(via(...))]` is incompatible with `extra_bound = \"...\"` — \
+                 the public type's where clause is just the delegation glue; \
+                 if a custom bound is needed, put it on the wire DTO",
+            ));
+        }
     }
 
     Ok(out)
@@ -1387,6 +1456,59 @@ fn is_phantom_data(ty: &Type) -> bool {
         return last.ident == "PhantomData";
     }
     false
+}
+
+/// Walk a type's AST and check whether the impl's self-type ident appears
+/// anywhere inside it. Used to detect self-recursive tagged fields like
+/// `children: Vec<Self>` in `enum Tree { ... Vec<Tree> ... }`.
+///
+/// We use this to *skip* emitting the `<FieldType>: MsgpackTagged` bound for
+/// such fields — that bound triggers a co-inductive cycle in Rust's trait
+/// solver (`Vec<Tree>: MsgpackTagged` → `Tree: MsgpackTagged` → which is the
+/// impl we're defining → recursion-limit overflow). We *don't* skip the
+/// recursion call inside `register_into`: at the call site, Rust resolves
+/// `Vec<Tree>: MsgpackTagged` co-inductively against the current impl, which
+/// works fine — only the impl-validity-time check chokes on the cycle. The
+/// `try_insert` short-circuit makes the runtime self-recursion a no-op.
+///
+/// The catch: for a field like `Vec<(Other, Self)>`, dropping the bound is
+/// still safe (Other's bound chases via the call-site path), but if no other
+/// impl provides `Other: MsgpackTagged` the user gets a clear compile-time
+/// error pointing at the field. They restore the bound via
+/// `#[tagged(extra_bound = "Other: MsgpackTagged")]`.
+///
+/// Detection is purely syntactic — anywhere the self-ident appears as a path
+/// segment counts. Won't catch type aliases that resolve to Self, or types
+/// re-imported under a different name; those edge cases need a hand-written
+/// impl, same as more complex self-recursion shapes.
+fn type_contains_ident(ty: &Type, target: &Ident) -> bool {
+    match ty {
+        Type::Path(p) => {
+            for seg in &p.path.segments {
+                if &seg.ident == target {
+                    return true;
+                }
+                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                    for arg in &args.args {
+                        if let syn::GenericArgument::Type(inner) = arg
+                            && type_contains_ident(inner, target)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+        Type::Reference(r) => type_contains_ident(&r.elem, target),
+        Type::Array(a) => type_contains_ident(&a.elem, target),
+        Type::Slice(s) => type_contains_ident(&s.elem, target),
+        Type::Tuple(t) => t.elems.iter().any(|e| type_contains_ident(e, target)),
+        Type::Paren(p) => type_contains_ident(&p.elem, target),
+        Type::Group(g) => type_contains_ident(&g.elem, target),
+        Type::Ptr(p) => type_contains_ident(&p.elem, target),
+        _ => false,
+    }
 }
 
 /// Build a `where` clause for the generated impl. Adds three kinds of bounds:
@@ -1414,9 +1536,13 @@ fn is_phantom_data(ty: &Type) -> bool {
 /// Returns `None` only if the input has no generic params, no tagged fields,
 /// and no pre-existing where clause — that lets the caller avoid emitting a
 /// stray `where` token.
-fn build_where_clause(input: &DeriveInput, entries: &[TaggedField<'_>]) -> Option<WhereClause> {
+fn build_where_clause(
+    input: &DeriveInput,
+    entries: &[TaggedField<'_>],
+    extra_bounds: &[WherePredicate],
+) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
-    if entries.is_empty() && !has_type_params {
+    if entries.is_empty() && !has_type_params && extra_bounds.is_empty() {
         return input.generics.where_clause.clone();
     }
 
@@ -1432,6 +1558,7 @@ fn build_where_clause(input: &DeriveInput, entries: &[TaggedField<'_>]) -> Optio
         }
     }
 
+    let self_ident = &input.ident;
     let mut seen_tagged = std::collections::HashSet::new();
     let mut seen_default = std::collections::HashSet::new();
     for entry in entries {
@@ -1441,12 +1568,22 @@ fn build_where_clause(input: &DeriveInput, entries: &[TaggedField<'_>]) -> Optio
         // but it dedupes the common case where the same path is written the
         // same way in multiple field declarations.
         let key = quote!(#ty).to_string();
-        if seen_tagged.insert(key.clone()) {
+        // Self-typed field types (e.g. `Vec<Self>` in a recursive enum) skip
+        // the `MsgpackTagged` bound to dodge the trait-solver cycle. The
+        // recursion call inside `register_into` is still emitted; Rust's
+        // call-site resolution accepts the co-inductive cycle, and `Default`
+        // bounds for `#[tag(N, default)]` stay since they're independent of
+        // the `MsgpackTagged` chain.
+        let self_typed = type_contains_ident(ty, self_ident);
+        if !self_typed && seen_tagged.insert(key.clone()) {
             where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
         }
         if entry.has_default && seen_default.insert(key) {
             where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
         }
+    }
+    for predicate in extra_bounds {
+        where_clause.predicates.push(predicate.clone());
     }
     Some(where_clause)
 }

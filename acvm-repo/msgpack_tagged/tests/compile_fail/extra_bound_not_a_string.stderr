@@ -1,0 +1,5 @@
+error: `extra_bound` requires a string literal of the form `"T: Trait, U: Trait"`
+ --> tests/compile_fail/extra_bound_not_a_string.rs:8:24
+  |
+8 | #[tagged(extra_bound = 42)]
+  |                        ^^
