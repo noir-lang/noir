@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778262839464,
+  "lastUpdate": 1778262843441,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14857,95 +14857,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0a89ab09dc7d2bd8bf13035957e3d86ab5ab55c6",
-          "message": "chore(deps): bump the hardhat group with 2 updates (#12528)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-05T09:52:43Z",
-          "tree_id": "8bad4f6ed016598f78dc74bed7f588d58cf559e1",
-          "url": "https://github.com/noir-lang/noir/commit/0a89ab09dc7d2bd8bf13035957e3d86ab5ab55c6"
-        },
-        "date": 1777977318259,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 282.79,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 307.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 356.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 465.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 475.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.35,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 77.16,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 74.98,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -19230,6 +19141,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d70c86f3ee4eda273b1a861299ca182cd5e0b53e"
         },
         "date": 1778261123338,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 282.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 306.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 277.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 357.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 357.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1290,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 357.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 464.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 475.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 357.12,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 78.36,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 74.54,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "596070fdc67b9730d17b3a8e63ed230ae90612db",
+          "message": "chore: Better error for unsigned types in JSON and TOML parsers (#12111)",
+          "timestamp": "2026-05-08T16:55:16Z",
+          "tree_id": "ce3a30dc992cbdd29d8e9767f9399c5a9e247ead",
+          "url": "https://github.com/noir-lang/noir/commit/596070fdc67b9730d17b3a8e63ed230ae90612db"
+        },
+        "date": 1778262782974,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
