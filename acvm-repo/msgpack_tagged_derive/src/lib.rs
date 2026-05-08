@@ -619,10 +619,17 @@ fn parse_named_fields<'a>(
     reserved: &[u8],
 ) -> syn::Result<Vec<TaggedField<'a>>> {
     let mut entries = Vec::with_capacity(fields.len());
+    let mut seen_tags = std::collections::HashSet::new();
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
         match classify_field(field, reserved)? {
             FieldKind::Tagged { tag, has_default } => {
+                if !seen_tags.insert(tag) {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        format!("tag {tag} is used more than once"),
+                    ));
+                }
                 // Field-level `#[serde(rename = "X")]` overrides the wire
                 // name. This is what makes the shadow-DTO pattern work when
                 // the wire DTO uses a different field name than the public
@@ -665,6 +672,7 @@ fn parse_tuple_fields<'a>(
     let all_explicit = explicit_count == fields.len();
 
     let mut entries = Vec::with_capacity(fields.len());
+    let mut seen_tags = std::collections::HashSet::new();
     for (position, field) in fields.iter().enumerate() {
         let position_u8: u8 = position.try_into().map_err(|_| {
             syn::Error::new_spanned(
@@ -704,6 +712,12 @@ fn parse_tuple_fields<'a>(
             }
             (position_u8, false)
         };
+        if !seen_tags.insert(tag) {
+            return Err(syn::Error::new_spanned(
+                field,
+                format!("tag {tag} is used more than once"),
+            ));
+        }
         entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty, has_default });
     }
     entries.sort_by_key(|e| e.tag);
