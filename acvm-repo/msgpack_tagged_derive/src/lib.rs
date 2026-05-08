@@ -135,12 +135,7 @@ fn reject_payload_only_attrs_on_empty_variant(
 /// metadata of its own.
 fn empty_product_literal() -> TokenStream2 {
     quote! {
-        ::msgpack_tagged::Tagged::Product(::msgpack_tagged::Product {
-            fields: &[],
-            reserved: &[],
-            defaults: &[],
-            allow_unknown_tags: false,
-        })
+        ::msgpack_tagged::Tagged::empty_product()
     }
 }
 

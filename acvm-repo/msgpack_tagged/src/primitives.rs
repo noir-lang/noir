@@ -15,14 +15,9 @@
 
 use std::marker::PhantomData;
 
-use crate::{MsgpackTagged, Product, TagRegistry, Tagged};
+use crate::{MsgpackTagged, TagRegistry, Tagged};
 
-const LEAF: Tagged = Tagged::Product(Product {
-    fields: &[],
-    reserved: &[],
-    defaults: &[],
-    allow_unknown_tags: false,
-});
+const LEAF: Tagged = Tagged::empty_product();
 
 macro_rules! impl_msgpack_tagged_for_primitive {
     ($($t:ty),* $(,)?) => {

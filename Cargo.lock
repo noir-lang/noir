@@ -45,6 +45,7 @@ dependencies = [
  "cfg-if",
  "criterion",
  "hex",
+ "msgpack_tagged",
  "num-bigint",
  "proptest",
  "serde",

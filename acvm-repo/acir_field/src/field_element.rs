@@ -1,5 +1,6 @@
 use ark_ff::PrimeField;
 use ark_ff::Zero;
+use msgpack_tagged::MsgpackTagged;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -583,6 +584,15 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     fn sub_assign(&mut self, rhs: FieldElement<F>) {
         self.0.sub_assign(&rhs.0);
     }
+}
+
+impl<F: PrimeField> MsgpackTagged for FieldElement<F> {
+    const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::empty_product();
+
+    /// `F` is going to be a prime field from e.g. arkworks,
+    /// which is a primitive and doesn't implement `MsgpackTagged`,
+    /// so we have nothing to register.
+    fn register_into(_reg: &mut msgpack_tagged::TagRegistry) {}
 }
 
 #[cfg(test)]

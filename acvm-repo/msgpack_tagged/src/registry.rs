@@ -53,6 +53,11 @@ impl Tagged {
             Tagged::Product(_) => None,
         }
     }
+
+    /// Empty [Tagged::Product] used for primitives and _newtypes_.
+    pub const fn empty_product() -> Self {
+        Self::Product(Product::empty())
+    }
 }
 
 /// A product type — a fixed list of named, integer-tagged fields. Used for
@@ -98,6 +103,11 @@ impl Product {
     /// wire-tolerant: the decoder fills `T::default()` when it's missing.
     pub fn is_default(self, tag: Tag) -> bool {
         self.defaults.contains(&tag)
+    }
+
+    /// Empty [Product] used for primitives and _newtypes_.
+    pub const fn empty() -> Self {
+        Self { fields: &[], reserved: &[], defaults: &[], allow_unknown_tags: false }
     }
 }
 
