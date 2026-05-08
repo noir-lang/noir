@@ -2965,7 +2965,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn special_function_name(definition: &Definition) -> Option<&str> {
     match definition {
         Definition::Builtin(name) if name == "static_assert" => Some(name),
-        Definition::Oracle(name)
+        Definition::Oracle { name, .. }
             if matches!(ForeignCall::lookup(name), Some(ForeignCall::Print)) =>
         {
             Some(name)
