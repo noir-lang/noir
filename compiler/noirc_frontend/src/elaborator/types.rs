@@ -2858,8 +2858,6 @@ impl Elaborator<'_> {
         };
 
         // The function we are elaborating, ie. where we make the method call from.
-        // Clone the bits we need so we don't hold a borrow through the
-        // `&mut self` calls below.
         let (func_meta_trait_id, func_trait_constraints) = {
             let meta = self.function_meta(func_id);
             (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())

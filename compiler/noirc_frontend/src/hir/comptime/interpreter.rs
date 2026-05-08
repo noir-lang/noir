@@ -251,9 +251,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Afterwards, if the function's body is still not known or the function is still
     /// in a Resolving state we issue an error.
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
-        // Resolve meta first if it's still deferred. Snapshot the bit we need
-        // (whether the body is still unresolved) so we don't hold a borrow
-        // across the elaborator call below.
         let body_is_unresolved = matches!(
             self.elaborator.function_meta(function).function_body,
             FunctionBody::Unresolved(..)
@@ -823,9 +820,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
         // it calls) reads `function_meta` directly on both the trait method and
-        // the matching trait impl method. With deferred metas, those reads can
-        // ICE if we don't pre-resolve them. Resolve every candidate of the
-        // trait now via the lazy path.
+        // the matching trait impl method. We need to have them resolved first.
         self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
 
         match resolve_trait_item(self.elaborator.interner, item.id(), id)? {

@@ -2563,8 +2563,6 @@ fn function_def_parameters(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    // Snapshot what we need from the meta first, since `hir_pattern_to_tokens`
-    // borrows the interner and we can't hold a `&FuncMeta` across that call.
     let parameters_meta: Vec<_> = interpreter
         .elaborator
         .function_meta(func_id)

@@ -987,7 +987,8 @@ impl Elaborator<'_> {
     /// `TraitFunction` record on the trait. Until this runs, those fields hold
     /// the stub values written by [Self::resolve_trait_methods].
     pub(super) fn populate_resolved_trait_method_records(&mut self) {
-        let pending = std::mem::take(&mut self.pending_trait_method_records);
+        let pending: Vec<(TraitId, FuncId, Ident)> =
+            std::mem::take(&mut self.pending_trait_method_records);
         // Track the set of trait_ids touched here so we can re-run operator
         // trait registration after their methods are populated.
         let mut traits_touched: BTreeSet<TraitId> = BTreeSet::new();
@@ -1039,9 +1040,7 @@ impl Elaborator<'_> {
     }
 
     /// Lazily resolves the metas of every method (declaration and impl) of the
-    /// given trait. Used by paths that read `function_meta` directly on these
-    /// methods — e.g. monomorphization's `bind_trait_impl_func_generics_*` —
-    /// before that read happens, so deferred metas don't ICE.
+    /// given trait.
     pub(crate) fn resolve_trait_method_metas_for(&mut self, trait_id: TraitId) {
         // Resolve the trait method declarations.
         let trait_method_func_ids: Vec<FuncId> =
@@ -1110,9 +1109,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         .and_then(|impl_id| elaborator.interner.try_get_trait_implementation(impl_id))
         .map(|impl_| impl_.borrow().trait_id);
     if let Some(trait_id) = trait_id {
-        // The trait method declarations may still be deferred. Resolve them now
+        // The trait method declarations may still be deferred. Resolve them now.
         // so the direct `function_meta` reads below (and inside the helpers we
-        // call) don't ICE.
+        // call) find them.
         elaborator.resolve_trait_method_metas_for(trait_id);
     }
 

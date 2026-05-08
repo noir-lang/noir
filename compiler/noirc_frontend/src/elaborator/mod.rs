@@ -396,8 +396,7 @@ pub struct Elaborator<'context> {
 
     /// Pending where-clause-against-trait checks deferred from `collect_trait_impl_methods`
     /// so they run after the post-attribute drain (when both the trait method's and the
-    /// impl method's metas are fully resolved). The tuple is
-    /// `(impl_method_func_id, trait_id, impl_id, trait_method_name, trait_impl_where_clause, ordered_generics)`.
+    /// impl method's metas are fully resolved).
     pending_where_clause_checks: Vec<PendingWhereClauseCheck>,
 }
 
@@ -985,18 +984,14 @@ impl<'context> Elaborator<'context> {
 
     /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
-    fn in_constrained_function(&self) -> bool {
+    fn in_constrained_function(&mut self) -> bool {
         if self.in_comptime_context() {
             return false;
         }
 
-        // We deliberately do *not* go through the lazy `Elaborator::function_meta`
-        // helper here: this method takes `&self`, and at the points where
-        // `in_constrained_function` is called the current function's meta has
-        // already been resolved (it's the function we're elaborating).
         let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
-                self.interner.function_meta(&id).is_unconstrained()
+                self.function_meta(id).is_unconstrained()
             } else {
                 false
             }

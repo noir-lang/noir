@@ -656,8 +656,6 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        // Clone the bits we need so the helper's mutable borrow of self is released
-        // before we touch self.interner below.
         let (self_type_generics_count, function_typ, function_self_type) = {
             let function_meta = self.function_meta(func_id);
             (

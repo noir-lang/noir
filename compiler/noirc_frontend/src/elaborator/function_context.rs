@@ -303,9 +303,6 @@ impl Elaborator<'_> {
                         let definition_kind = definition.kind.clone();
                         match definition_kind {
                             DefinitionKind::Function(func_id) => {
-                                // Resolve the func meta once; clone the bits we
-                                // need so we don't hold a borrow across the
-                                // `&mut self` calls below (push_err / etc.).
                                 let func_meta = self.function_meta(func_id);
                                 let direct_generics_clone = func_meta.direct_generics.clone();
                                 let self_type_clone = func_meta.self_type.clone();

@@ -1140,8 +1140,7 @@ impl NodeInterner {
     /// Returns every `FuncId` registered as either a direct or trait-impl method
     /// under `method_name` for the given type's method key, without filtering by
     /// type compatibility. Used by the elaborator to lazily resolve candidate
-    /// metas before delegating to the type-aware `lookup_*` methods, since
-    /// those methods would ICE on a candidate whose meta is still deferred.
+    /// metas before delegating to the type-aware `lookup_*` methods.
     pub fn method_candidate_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
         let Some(key) = get_type_method_key(typ) else { return Vec::new() };
         let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
