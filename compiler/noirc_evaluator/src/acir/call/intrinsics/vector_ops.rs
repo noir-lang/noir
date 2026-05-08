@@ -85,18 +85,10 @@ impl Context<'_> {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
                         elements_var.push(acir_var);
                     }
-                    AcirValue::Array(vector) => {
+                    AcirValue::Array(_) | AcirValue::DynamicArray(_) => {
                         let zero_value = self.array_zero_value(&ssa_typ)?;
                         new_vector.push_back(zero_value);
-                        for acir_value in vector {
-                            let acir_vars = self.flatten(&acir_value)?;
-                            elements_var.extend(acir_vars);
-                        }
-                    }
-                    AcirValue::DynamicArray(_) => {
-                        unimplemented!(
-                            "pushing a dynamic array into a vector is not yet supported"
-                        );
+                        elements_var.extend(self.flatten(&element)?);
                     }
                 }
             }

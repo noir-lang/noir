@@ -94,7 +94,7 @@ pub(super) fn optimize_internal<F: AcirField>(
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
     let max_transformer_passes_or_default = None;
-    let (acir, acir_opcode_positions, _opcodes_hash_stabilized) =
+    let (acir, acir_opcode_positions, _opcode_count_stabilized) =
         common_subexpression::transform_internal(
             acir,
             acir_opcode_positions,

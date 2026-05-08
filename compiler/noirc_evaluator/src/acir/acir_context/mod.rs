@@ -1036,10 +1036,12 @@ impl<F: AcirField> AcirContext<F> {
             let r = two_pow_bit_size_minus_one - rhs_offset;
 
             // we need to ensure lhs_offset + r does not overflow
-            if bits + bit_size_u128(r) < F::max_num_bits() {
-                // lhs_offset < rhs_offset
-                // -> lhs_offset + r < rhs_offset + r = 2^bit_size
-                // -> lhs_offset + r < 2^bit_size
+            if u32::max(bits, bit_size_u128(r)) + 1 < F::max_num_bits() {
+                // let max = u32::max(bits, bit_size_u128(r)), then
+                // - lhs_offset < 2^max
+                // - r < 2^max
+                // -> lhs_offset + r < 2^(max+1)
+                // the condition above is: 2^(max +1) < 2^bit_size
 
                 let r_var = self.add_constant(r);
                 let aor = self.add_var(lhs_offset, r_var)?;
