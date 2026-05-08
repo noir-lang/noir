@@ -20,7 +20,8 @@ use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
 use serde::ser::{
-    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeTuple, Serializer,
+    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeTuple,
+    SerializeTupleStruct, Serializer,
 };
 
 use crate::{MsgpackTagged, TagRegistry};
@@ -83,10 +84,10 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
 
     type SerializeSeq = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeTuple = TaggedSerializeViaParent<'ser, 'a, W>;
-    type SerializeTupleStruct = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTupleStruct;
+    type SerializeTupleStruct = TaggedSerializeProduct<'ser, 'a, W>;
     type SerializeTupleVariant = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTupleVariant;
     type SerializeMap = TaggedSerializeViaParent<'ser, 'a, W>;
-    type SerializeStruct = TaggedSerializeStruct<'ser, 'a, W>;
+    type SerializeStruct = TaggedSerializeProduct<'ser, 'a, W>;
     type SerializeStructVariant =
         <&'ser mut RmpSerializer<W> as Serializer>::SerializeStructVariant;
 
@@ -217,16 +218,19 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     // -------- tuple struct / variant / unit variant / newtype variant:
     //          forwarded for now; subsequent commits intercept these.
 
-    // TODO: top-level tuple struct (e.g. `struct Pair(u32, bool)`) — the macro
-    // emits a `Product` with positional names ("0", "1", …). Reuse the
-    // struct-style adapter: look up the `Product`, write the map header, and
-    // route each element through `&mut self` under the matching positional tag.
     fn serialize_tuple_struct(
         self,
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        self.inner.serialize_tuple_struct(name, len)
+        // Same shape as a named struct on the wire — the registered `Product`
+        // just uses positional wire-names ("0", "1", …) instead of field
+        // idents. The adapter handles both via different trait impls on the
+        // same struct.
+        let product = self.product_for(name);
+        let _ = len;
+        write_map_header(self.inner.get_mut(), product.fields.len())?;
+        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
     }
 
     // TODO: tuple variants (`VariantKind::Tuple`) — emit
@@ -289,30 +293,14 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         self.inner.serialize_struct_variant(name, variant_index, variant, len)
     }
 
-    // -------- the one we actually intercept this commit ---------------------
+    // -------- product shapes (named struct + multi-element tuple struct) ---
 
     fn serialize_struct(
         self,
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        // Look up the type's `Product` in the registry and start an int-keyed
-        // msgpack map sized to its tagged-field count. If the registry has no
-        // entry, that signals a real bug — `register_into` should have
-        // visited every `MsgpackTagged` type reachable from the root — so we
-        // panic loudly per the design doc.
-        let entry = self.registry.get(name).unwrap_or_else(|| {
-            panic!(
-                "MsgpackTagged registry miss for {name:?} during serialize_struct — \
-                 the top-level `register_into` walk should have registered every \
-                 reachable type. Either the type is missing `#[derive(MsgpackTagged)]` \
-                 (or a hand-written impl that calls `try_insert`), or its `serde` name \
-                 doesn't match the registered name (check `#[serde(rename = ...)]`)"
-            )
-        });
-        let product = entry.tagged().as_product().unwrap_or_else(|| {
-            panic!("registry entry for {name:?} is sum-shaped but `serialize_struct` was called")
-        });
+        let product = self.product_for(name);
         // TODO: tighten to `assert_eq!(len, product.fields.len(), ...)`
         // once the variant/tuple paths are wrapped and we've stress-tested
         // the invariant against `#[tag(skip)]` / `PhantomData` fixtures.
@@ -330,7 +318,30 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         // types decode the same way as top-level ones.
         write_map_header(self.inner.get_mut(), product.fields.len())?;
 
-        Ok(TaggedSerializeStruct { product, parent: self })
+        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
+    }
+}
+
+impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
+    /// Resolve a registered `Product` by serde name. Used by both
+    /// `serialize_struct` and `serialize_tuple_struct`. A registry miss or a
+    /// sum-shaped entry signals a real bug — `register_into` should have
+    /// reached every type encoded under our wrapper, and the macro guarantees
+    /// product/sum shape matches the Rust definition — so we panic loudly per
+    /// the design doc rather than fabricating a synthetic shape.
+    fn product_for(&self, name: &'static str) -> crate::Product {
+        let entry = self.registry.get(name).unwrap_or_else(|| {
+            panic!(
+                "MsgpackTagged registry miss for {name:?} — the top-level `register_into` \
+                 walk should have registered every reachable type. Either the type is \
+                 missing `#[derive(MsgpackTagged)]` (or a hand-written impl that calls \
+                 `try_insert`), or its `serde` name doesn't match the registered name \
+                 (check `#[serde(rename = ...)]`)"
+            )
+        });
+        entry.tagged().as_product().unwrap_or_else(|| {
+            panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
+        })
     }
 }
 
@@ -355,18 +366,30 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
     Ok(())
 }
 
-/// `SerializeStruct` adapter that emits each `serialize_field(name, value)`
-/// call as an `(int_key, value)` map entry — looking up `name`'s tag in the
-/// registered `Product` to derive the int key. Both the integer key and the
-/// value are serialized *back through* the parent [`TaggedMsgpackSerializer`],
-/// so a nested tagged value gets the same int-keyed-map treatment instead of
-/// falling through to `rmp_serde`'s default positional-array struct encoding.
-pub(crate) struct TaggedSerializeStruct<'ser, 'a, W: Write> {
+/// Adapter for product shapes — both named structs and multi-element tuple
+/// structs go through here. The two trait impls below differ only in how
+/// they resolve a serde call to a wire tag: named-struct calls carry a
+/// field-name string, tuple-struct calls carry an implicit position counter.
+/// The map header is already written in the corresponding `serialize_*`
+/// method before this adapter is constructed; from there each
+/// `serialize_field` call appends a `(tag, value)` pair to the writer
+/// through the parent [`TaggedMsgpackSerializer`], so any nested tagged
+/// value in `value` recurses through the wrapper instead of falling through
+/// to `rmp_serde`'s default positional-array struct encoding.
+///
+/// `next_position` is only consulted by the [`SerializeTupleStruct`] impl;
+/// the [`SerializeStruct`] impl ignores it.
+pub(crate) struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
     parent: &'ser mut TaggedMsgpackSerializer<'a, W>,
+    next_position: usize,
 }
 
-impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeStruct<'ser, 'a, W> {
+/// Named-field struct (`struct Foo { a: u32, b: bool }`). Each
+/// `serialize_field(name, value)` call resolves `name` against the
+/// registered `Product` (honoring `#[serde(rename)]`) to derive the wire
+/// tag, then writes `tag` and `value` through the parent.
+impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -381,18 +404,60 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeStruct<'ser, 'a, W> 
                  disagree on field names (check `#[serde(rename = ...)]`)",
             ))
         })?;
-        // The map header was already written in `serialize_struct`. Each
-        // entry is just two more values written back-to-back: the integer
-        // tag (the map key) and the field value. Both go through the
-        // wrapper so that any nested tagged types in `value` recurse
-        // correctly.
         Serializer::serialize_u8(&mut *self.parent, tag)?;
         value.serialize(&mut *self.parent)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        // msgpack maps are length-prefixed, not terminated, so there's
-        // nothing left to write at end-of-struct.
+        // msgpack maps are length-prefixed, not terminated.
+        Ok(())
+    }
+}
+
+/// Multi-element tuple struct (`struct Pair(u32, bool)`). serde calls
+/// `serialize_field(value)` once per element in source-declaration order
+/// without supplying a name, so we keep an internal position counter and
+/// look up the wire tag for the source position (the registered `Product`
+/// uses positional names `"0"`, `"1"`, … as wire-name strings). Resolving by
+/// position lets `#[tag(N)]`-reordered tuple structs (e.g.
+/// `struct Triple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8)`) emit each
+/// field under the right wire tag even though the calls arrive in source
+/// order.
+///
+/// Note on wire ordering: entries are emitted in serde's *call order*, which
+/// is source-declaration order — not necessarily tag-ascending. Same as the
+/// `SerializeStruct` impl above. Tightening to tag-ascending for
+/// determinism is a known follow-up that affects both impls and would
+/// require buffering field bytes; doing it consistently for both shapes is
+/// out of scope for this commit.
+impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        let position = self.next_position;
+        self.next_position += 1;
+        // Wire-name strings are positional ("0", "1", …) — produced by the
+        // macro from `position.to_string()` lifted into a `&'static str`
+        // const. We allocate a fresh `String` per call to look it up; for
+        // the small (typically 2–5) field counts of tuple structs this is
+        // not in any hot path.
+        let position_name = position.to_string();
+        let tag = self.product.tag_for(&position_name).ok_or_else(|| {
+            RmpError::custom(format!(
+                "MsgpackTagged: tuple-struct position {position} not found in registered \
+                 Product — the macro's emitted `Product` has fewer fields than serde is \
+                 trying to serialize"
+            ))
+        })?;
+        Serializer::serialize_u8(&mut *self.parent, tag)?;
+        value.serialize(&mut *self.parent)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(())
     }
 }
@@ -625,6 +690,87 @@ mod tests {
             assert!(matches!(k, Value::Integer(_)), "pair key {k:?} should be an integer");
         }
         assert_eq!(elements[1].as_u64(), Some(99), "second tuple element is the bare u32");
+    }
+
+    /// Multi-element tuple struct with implicit positional tags
+    /// (`#[derive]` synthesizes `(0, "0")`, `(1, "1")`). On the wire we
+    /// expect an int-keyed map, *not* an array — that's the int-keyed-map
+    /// shape we promise for any tagged product.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    struct PositionalTriple(u32, bool, u8);
+
+    #[test]
+    fn tuple_struct_encodes_as_int_keyed_map() {
+        let value = PositionalTriple(7, true, 9);
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].0.as_u64(), Some(0));
+        assert_eq!(entries[0].1.as_u64(), Some(7));
+        assert_eq!(entries[1].0.as_u64(), Some(1));
+        assert_eq!(entries[1].1.as_bool(), Some(true));
+        assert_eq!(entries[2].0.as_u64(), Some(2));
+        assert_eq!(entries[2].1.as_u64(), Some(9));
+    }
+
+    /// Explicit `#[tag(N)]` on each element reorders the wire tags relative
+    /// to source position. Each element ends up under the correct tag —
+    /// position-0 element under tag 2, position-1 under tag 0, etc. —
+    /// proving the position counter resolves through the `Product`'s
+    /// positional names rather than blindly using the source position as
+    /// the wire tag.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    struct ReorderedTriple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8);
+
+    #[test]
+    fn tuple_struct_with_explicit_tags_emits_under_the_right_wire_tag() {
+        let value = ReorderedTriple(7, true, 9);
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 3);
+
+        // serde calls in source order, so the *on-wire entry order* is
+        // source-declaration order — but the *tag* on each entry reflects
+        // the explicit `#[tag(N)]`. Match (tag, value) pairs by tag so the
+        // assertion isn't sensitive to call order vs. tag-ascending order.
+        let by_tag: std::collections::BTreeMap<u64, &Value> =
+            entries.iter().map(|(k, v)| (k.as_u64().expect("tag is integer"), v)).collect();
+        assert_eq!(by_tag[&2].as_u64(), Some(7), "element 0 (u32 7) → tag 2");
+        assert_eq!(by_tag[&0].as_bool(), Some(true), "element 1 (bool true) → tag 0");
+        assert_eq!(by_tag[&1].as_u64(), Some(9), "element 2 (u8 9) → tag 1");
+    }
+
+    /// Tuple-struct fields recurse through the wrapper just like named
+    /// struct fields — a tagged element nested in a tuple struct still gets
+    /// the int-keyed-map treatment.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    struct TupleWithNested(Pair, u8);
+
+    #[test]
+    fn tuple_struct_with_nested_tagged_element_recurses_through_wrapper() {
+        let value = TupleWithNested(Pair { first: 1, second: false }, 42);
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].0.as_u64(), Some(0));
+        let Value::Map(inner) = &entries[0].1 else {
+            panic!("element 0 (`Pair`) should be an int-keyed map, got {:?}", entries[0].1);
+        };
+        assert_eq!(inner.len(), 2);
+        assert_eq!(entries[1].0.as_u64(), Some(1));
+        assert_eq!(entries[1].1.as_u64(), Some(42));
     }
 
     /// `BTreeMap<_, Pair>` exercises the `serialize_map` adapter: every value
