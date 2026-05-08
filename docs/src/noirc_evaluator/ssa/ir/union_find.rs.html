@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>
 <a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// Find the root representative of the set containing `v`, without path
 <a href=#42 id=42 data-nosnippet>42</a>    /// compression.
-<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">fn </span>find_immutable(<span class="kw-2">&amp;</span><span class="self">self</span>, v: K) -&gt; <span class="prelude-ty">Option</span>&lt;K&gt; {
+<a href=#43 id=43 data-nosnippet>43</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>find_immutable(<span class="kw-2">&amp;</span><span class="self">self</span>, v: K) -&gt; <span class="prelude-ty">Option</span>&lt;K&gt; {
 <a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span><span class="kw-2">mut </span>current = v;
 <a href=#45 id=45 data-nosnippet>45</a>        <span class="kw">loop </span>{
 <a href=#46 id=46 data-nosnippet>46</a>            <span class="kw">let </span>parent = <span class="kw-2">*</span><span class="self">self</span>.parent.get(<span class="kw-2">&amp;</span>current)<span class="question-mark">?</span>;
