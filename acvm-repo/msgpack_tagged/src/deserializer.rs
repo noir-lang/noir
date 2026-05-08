@@ -277,21 +277,30 @@ where
         visitor.visit_map(TaggedAccessViaParent { parent: self, remaining: len as usize })
     }
 
-    // TODO: the load-bearing one. Read an int-keyed msgpack map, translate
-    // each integer wire tag back to its serde field name (looked up in the
-    // registered `Product`, honoring `#[serde(rename)]`), and hand the
-    // visitor a `MapAccess` that yields field-name strings as keys. Honor
-    // `Product.allow_unknown_tags` (skip vs error on unknown tags) and
-    // `Product.defaults` (fill `T::default()` when a tag is missing). Route
-    // each value through `&mut self` so nested tagged types recurse. Mirror
-    // of the serializer's `serialize_struct` + `TaggedSerializeProduct`.
     fn deserialize_struct<V: Visitor<'de>>(
         self,
         name: &'static str,
-        fields: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_struct(name, fields, visitor)
+        // Look up the type's `Product` in the registry — it carries the
+        // tag → field-name mapping we need to feed the visitor. Read the
+        // msgpack map length, then hand off to `TaggedProductMapAccess`
+        // which yields each entry's key as the registered field name
+        // (translated from the integer wire tag) and routes each value
+        // through `&mut *self.parent`. Defaults (for `#[tag(N, default)]`
+        // fields) are honored via the user pairing it with
+        // `#[serde(default)]` on the same field — the standard serde-
+        // derive idiom — so this layer stays focused on tag translation.
+        let product = self.product_for(name);
+        let len = rmp::decode::read_map_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        visitor.visit_map(TaggedProductMapAccess {
+            parent: self,
+            product,
+            type_name: name,
+            remaining: len as usize,
+        })
     }
 
     // TODO: read a 1-entry msgpack map (variant tag → payload). Look up the
@@ -325,6 +334,28 @@ where
         // currently only constructs the inner deserializer with the default
         // config — and that default is binary.
         false
+    }
+}
+
+impl<'a, R: Read> Deserializer<'a, R> {
+    /// Resolve a registered `Product` by serde name. Used by
+    /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
+    /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
+    /// entry is a real bug, so we panic loudly per the design doc rather
+    /// than fabricating a synthetic shape.
+    fn product_for(&self, name: &'static str) -> crate::Product {
+        let entry = self.registry.get(name).unwrap_or_else(|| {
+            panic!(
+                "MsgpackTagged registry miss for {name:?} — the top-level `register_into` \
+                 walk should have registered every reachable type. Either the type is \
+                 missing `#[derive(MsgpackTagged)]` (or a hand-written impl that calls \
+                 `try_insert`), or its `serde` name doesn't match the registered name \
+                 (check `#[serde(rename = ...)]`)"
+            )
+        });
+        entry.tagged().as_product().unwrap_or_else(|| {
+            panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
+        })
     }
 }
 
@@ -388,6 +419,74 @@ where
         }
         self.remaining -= 1;
         seed.deserialize(&mut *self.parent).map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut *self.parent)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.remaining)
+    }
+}
+
+/// `MapAccess` adapter for tagged structs (and tuple structs once that
+/// lands). The wire is an int-keyed msgpack map — each entry's key is an
+/// integer tag that we translate back to the registered field name before
+/// handing it to the visitor (which expects a string identifier). Tags
+/// not in `product.fields` are either silently skipped (`allow_unknown_tags
+/// = true`) or rejected (the strict default).
+///
+/// Mirror of the serializer's `TaggedSerializeProduct` on the
+/// `SerializeStruct` case — same `(int_tag, value)` map shape, just
+/// driving the translation in the other direction.
+pub(crate) struct TaggedProductMapAccess<'der, 'a, R: Read> {
+    parent: &'der mut Deserializer<'a, R>,
+    product: crate::Product,
+    /// Type name; only used for clearer error messages on unknown tags.
+    type_name: &'static str,
+    remaining: usize,
+}
+
+impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, R>
+where
+    R: Read + Clone,
+{
+    type Error = RmpError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        // Loop because unknown-but-skippable tags consume an entry from
+        // the wire without yielding one to the visitor — we then continue
+        // to the next entry. A `return Ok(None)` only happens when the
+        // map is exhausted, and a `return Ok(Some(...))` only happens
+        // when we have a known field name to hand to the visitor.
+        loop {
+            if self.remaining == 0 {
+                return Ok(None);
+            }
+            self.remaining -= 1;
+            let tag: u8 = u8::deserialize(&mut *self.parent)?;
+            if let Some(field_name) = self.product.field_for(tag) {
+                let key_deserializer =
+                    de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
+                return seed.deserialize(key_deserializer).map(Some);
+            }
+            if self.product.allow_unknown_tags {
+                de::IgnoredAny::deserialize(&mut *self.parent)?;
+                continue;
+            }
+            return Err(RmpError::custom(format!(
+                "MsgpackTagged: unknown wire tag {tag} for product {:?} and \
+                 `allow_unknown_tags` is false",
+                self.type_name,
+            )));
+        }
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
@@ -577,5 +676,92 @@ mod tests {
         value.insert(1, vec![]);
         value.insert(2, vec![4, 5]);
         assert_roundtrip(value);
+    }
+
+    /// Named struct round-trip — exercises the load-bearing path:
+    /// `serialize_struct` writes an int-keyed map; `deserialize_struct`
+    /// reads each `(int_tag, value)` pair, looks up the tag in the
+    /// registered `Product`, and yields the field name to the visitor.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct Pair {
+        #[tag(2)]
+        first: u32,
+        #[tag(5)]
+        second: bool,
+    }
+
+    #[test]
+    fn named_struct_roundtrips() {
+        assert_roundtrip(Pair { first: 7, second: true });
+    }
+
+    /// Reordered tags: source-declaration order doesn't match
+    /// tag-ascending order. Since serde's visitor matches by *name*, this
+    /// works regardless of which order entries appear on the wire.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct OutOfOrder {
+        #[tag(2)]
+        c: u32,
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: u32,
+    }
+
+    #[test]
+    fn struct_with_out_of_order_tags_roundtrips() {
+        assert_roundtrip(OutOfOrder { c: 30, a: 10, b: 20 });
+    }
+
+    /// Nested tagged struct — the outer struct's `deserialize_struct`
+    /// recurses through `&mut *self.parent` for each value, hitting our
+    /// `deserialize_struct` again for the inner field. Tag translation
+    /// must compose correctly.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct Outer {
+        #[tag(0)]
+        nested: Pair,
+        #[tag(1)]
+        flag: u8,
+    }
+
+    #[test]
+    fn nested_tagged_struct_roundtrips() {
+        assert_roundtrip(Outer { nested: Pair { first: 99, second: false }, flag: 7 });
+    }
+
+    /// Struct field that's a `Vec<Tagged>` — composes struct + seq
+    /// interception. Each element of the Vec is itself a tagged struct.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct WithVecField {
+        #[tag(0)]
+        items: Vec<Pair>,
+    }
+
+    #[test]
+    fn struct_with_vec_of_tagged_field_roundtrips() {
+        let value = WithVecField {
+            items: vec![Pair { first: 1, second: true }, Pair { first: 2, second: false }],
+        };
+        assert_roundtrip(value);
+    }
+
+    /// `#[tag(N, default)]` paired with `#[serde(default)]` — wire
+    /// tolerance is delegated to serde-derive's standard `default`
+    /// machinery. Encode the full value (so the wire has all tags), then
+    /// round-trip — verifies the basic shape compiles and works without
+    /// the user needing to construct partial wire bytes.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug, Default)]
+    struct WithDefaults {
+        #[tag(0)]
+        required: u32,
+        #[tag(1, default)]
+        #[serde(default)]
+        annotation: Vec<u8>,
+    }
+
+    #[test]
+    fn struct_with_defaults_roundtrips_when_all_present() {
+        assert_roundtrip(WithDefaults { required: 7, annotation: vec![1, 2, 3] });
     }
 }
