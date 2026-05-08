@@ -198,17 +198,23 @@ where
         (&mut self.inner).deserialize_unit_struct(name, visitor)
     }
 
-    // TODO: newtype structs pass through to the inner type on the wire (no
-    // wrapping), matching the serializer's `serialize_newtype_struct`. Call
-    // `visitor.visit_newtype_struct(&mut *self)` directly so the inner
-    // value's deserialization recurses through this wrapper instead of
-    // falling through to rmp_serde's inner.
     fn deserialize_newtype_struct<V: Visitor<'de>>(
         self,
         name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_newtype_struct(name, visitor)
+        // rmp_serde handles its `_ExtStruct` newtype specially (msgpack
+        // extension types — timestamps and friends), reading an ext header
+        // and constructing an `ExtDeserializer`. We don't model that wire
+        // shape here, so let it through to inner verbatim. Every other
+        // newtype passes through to the inner type on the wire (matching
+        // the serializer's `serialize_newtype_struct`) — call
+        // `visitor.visit_newtype_struct(&mut *self)` so the inner value's
+        // deserialization recurses through this wrapper.
+        if name == rmp_serde::MSGPACK_EXT_STRUCT_NAME {
+            return (&mut self.inner).deserialize_newtype_struct(name, visitor);
+        }
+        visitor.visit_newtype_struct(&mut *self)
     }
 
     // -------- collection / aggregate shapes: forwarded for now; subsequent
@@ -363,5 +369,38 @@ mod tests {
     fn nested_option_roundtrips() {
         let value: Option<Option<u32>> = Some(Some(7));
         assert_roundtrip(value);
+    }
+
+    /// Newtype struct around a primitive — wire bytes are the inner
+    /// value's bytes alone (no wrapping). Round-trip exercises
+    /// `deserialize_newtype_struct` calling `visitor.visit_newtype_struct(&mut *self)`,
+    /// which dispatches to our `deserialize_u32` for the inner.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct Witness(u32);
+
+    #[test]
+    fn newtype_struct_with_primitive_roundtrips() {
+        assert_roundtrip(Witness(42));
+    }
+
+    /// Generic newtype around a tagged inner type. The inner deserializer
+    /// invocation must go through our wrapper (not rmp_serde's inner) so
+    /// the inner type's `deserialize_seq` / etc. ends up at our
+    /// interception once those methods land.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct Wrapper<T>(T);
+
+    #[test]
+    fn newtype_struct_with_tagged_inner_roundtrips() {
+        assert_roundtrip(Wrapper(Witness(7)));
+    }
+
+    /// Newtype struct carrying an Option exercises both interception
+    /// paths: outer `deserialize_newtype_struct` recurses through us,
+    /// then the inner `deserialize_option` does its peek/restore dance.
+    #[test]
+    fn newtype_struct_with_option_inner_roundtrips() {
+        assert_roundtrip(Wrapper(Some(99u32)));
+        assert_roundtrip(Wrapper::<Option<u32>>(None));
     }
 }
