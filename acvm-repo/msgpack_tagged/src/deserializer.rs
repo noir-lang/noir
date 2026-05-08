@@ -19,7 +19,7 @@ use rmp_serde::decode::ReadReader;
 // `de::Deserializer` would clash with our own `Deserializer` struct below if
 // pulled in via `use`; importing the `de` module instead lets us write
 // `de::Deserializer` for the trait at the few sites that need it.
-use serde::de::{self, Deserialize, DeserializeSeed, Error as _, SeqAccess, Visitor};
+use serde::de::{self, Deserialize, DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
 
 use crate::{MsgpackTagged, TagRegistry};
 
@@ -258,11 +258,12 @@ where
         (&mut self.inner).deserialize_tuple_struct(name, len, visitor)
     }
 
-    // TODO: needs a map adapter — both key and value of every entry should
-    // be deserialized through `&mut self` so nested tagged values inside a
-    // `BTreeMap<_, Tagged>` recurse via this wrapper.
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_map(visitor)
+        // Same shape as `deserialize_seq` — read the length-prefixed
+        // header, then yield each entry's key+value through the parent.
+        let len = rmp::decode::read_map_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        visitor.visit_map(TaggedMapAccess { parent: self, remaining: len as usize })
     }
 
     // TODO: the load-bearing one. Read an int-keyed msgpack map, translate
@@ -344,6 +345,47 @@ where
         }
         self.remaining -= 1;
         seed.deserialize(&mut *self.parent).map(Some)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.remaining)
+    }
+}
+
+/// `MapAccess` adapter for free-form maps (`BTreeMap<K, V>` and friends).
+/// The msgpack map header was already consumed in `deserialize_map`. Each
+/// entry is a key+value pair: `next_key_seed` decrements `remaining` and
+/// deserializes the key through the parent; `next_value_seed` deserializes
+/// the value through the parent without decrementing (it's paired with
+/// the key that was just yielded). Routing through `&mut *self.parent`
+/// keeps any tagged keys/values recursing through the wrapper.
+pub(crate) struct TaggedMapAccess<'der, 'a, R: Read> {
+    parent: &'der mut Deserializer<'a, R>,
+    remaining: usize,
+}
+
+impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedMapAccess<'der, 'a, R>
+where
+    R: Read + Clone,
+{
+    type Error = RmpError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        if self.remaining == 0 {
+            return Ok(None);
+        }
+        self.remaining -= 1;
+        seed.deserialize(&mut *self.parent).map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut *self.parent)
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -462,5 +504,51 @@ mod tests {
     fn newtype_struct_with_option_inner_roundtrips() {
         assert_roundtrip(Wrapper(Some(99u32)));
         assert_roundtrip(Wrapper::<Option<u32>>(None));
+    }
+
+    /// Free-form map (`BTreeMap`) with primitive keys and values —
+    /// basic round-trip through both `serialize_map` and our
+    /// `deserialize_map` adapter.
+    #[test]
+    fn btree_map_roundtrips() {
+        use std::collections::BTreeMap;
+        let mut value: BTreeMap<u32, u32> = BTreeMap::new();
+        value.insert(1, 100);
+        value.insert(2, 200);
+        value.insert(3, 300);
+        assert_roundtrip(value);
+    }
+
+    /// Empty map — exercises the zero-length map shape.
+    #[test]
+    fn empty_btree_map_roundtrips() {
+        use std::collections::BTreeMap;
+        let value: BTreeMap<u32, u32> = BTreeMap::new();
+        assert_roundtrip(value);
+    }
+
+    /// Map values that themselves need interception — verifies
+    /// `next_value_seed` routes through `&mut *self.parent`.
+    #[test]
+    fn btree_map_with_option_values_roundtrips() {
+        use std::collections::BTreeMap;
+        let mut value: BTreeMap<u8, Option<u32>> = BTreeMap::new();
+        value.insert(0, Some(7));
+        value.insert(1, None);
+        value.insert(2, Some(11));
+        assert_roundtrip(value);
+    }
+
+    /// Map values containing a sequence — composes map + seq
+    /// interception. Each value is a Vec, decoded via our
+    /// `deserialize_seq`.
+    #[test]
+    fn btree_map_with_vec_values_roundtrips() {
+        use std::collections::BTreeMap;
+        let mut value: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+        value.insert(0, vec![1, 2, 3]);
+        value.insert(1, vec![]);
+        value.insert(2, vec![4, 5]);
+        assert_roundtrip(value);
     }
 }
