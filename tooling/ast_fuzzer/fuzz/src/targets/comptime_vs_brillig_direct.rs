@@ -69,6 +69,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2500);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 10000);
     }
 }
