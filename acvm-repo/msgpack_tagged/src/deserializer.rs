@@ -254,19 +254,39 @@ where
         visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len })
     }
 
-    // TODO: top-level tuple struct (e.g. `struct Pair(u32, bool)`) is an
-    // int-keyed map on the wire — the registered `Product` uses positional
-    // names ("0", "1", …). Read the map, look up each int key in the
-    // `Product` to get the positional name, and route each value through
-    // `&mut self` so nested tagged types recurse. Mirror of the serializer's
-    // `serialize_tuple_struct`.
     fn deserialize_tuple_struct<V: Visitor<'de>>(
         self,
         name: &'static str,
         len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_tuple_struct(name, len, visitor)
+        // Top-level tuple structs (`struct Pair(u32, bool)`) are encoded
+        // as int-keyed maps on the wire — same shape as named structs —
+        // but the `Deserialize` impl calls `next_element_seed` (positional)
+        // instead of `next_key_seed` (by name). We hand the visitor a
+        // SeqAccess that, per element, reads the wire entry's integer tag
+        // and discards it, then deserializes the value through the parent.
+        //
+        // The tag-discarding here is a *stopgap*, not the intended end
+        // state — see `TaggedTupleStructAccess`'s doc for the design-doc
+        // divergence. It works only because the current `Serializer`
+        // also emits entries in source-declaration order; if either side
+        // is fixed to honor tag-ascending wire order, the other must
+        // follow in lockstep.
+        //
+        // Calling `product_for` for the side effect of asserting that the
+        // type is registered (matches what `serialize_tuple_struct` does):
+        // a registry miss here is a hard bug, not a partial decode.
+        let _product = self.product_for(name);
+        let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        if wire_len as usize != len {
+            return Err(RmpError::custom(format!(
+                "tuple-struct {name:?} length mismatch: type expects {len} elements, \
+                 wire has {wire_len}",
+            )));
+        }
+        visitor.visit_seq(TaggedTupleStructAccess { parent: self, remaining: len })
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -494,6 +514,54 @@ where
         V: DeserializeSeed<'de>,
     {
         seed.deserialize(&mut *self.parent)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.remaining)
+    }
+}
+
+/// `SeqAccess` adapter for top-level tuple structs (multi-element
+/// `struct Pair(u32, bool)` shapes). Each wire entry is an `(int_tag,
+/// value)` pair: we read the tag, discard it, then decode the value
+/// through the parent so any nested tagged types recurse.
+///
+/// **Note — divergence from the design doc.** The wire format is
+/// supposed to emit entries in *tag-ascending* order so that two
+/// semantically-equal values encode to byte-identical output regardless
+/// of how the user laid out the fields in source. The current
+/// `Serializer` instead emits in serde's call-order = source-declaration
+/// order (a known follow-up flagged in `serializer.rs` and the README's
+/// determinism section). This deserializer matches that current
+/// serializer behavior exactly: it reads positionally, treating
+/// wire-position N as source-position N regardless of the tag value.
+/// That is *not* the intended end state — tag-discarding is a stopgap,
+/// not a deliberate "source order is canonical" decision. When the
+/// serializer is fixed to emit tag-ascending, this adapter must be
+/// updated in lockstep to dispatch values by tag (using the registered
+/// `Product`'s `field_for(tag)` to recover the source position) rather
+/// than by wire arrival order.
+pub(crate) struct TaggedTupleStructAccess<'der, 'a, R: Read> {
+    parent: &'der mut Deserializer<'a, R>,
+    remaining: usize,
+}
+
+impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, R>
+where
+    R: Read + Clone,
+{
+    type Error = RmpError;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if self.remaining == 0 {
+            return Ok(None);
+        }
+        self.remaining -= 1;
+        let _tag: u8 = u8::deserialize(&mut *self.parent)?;
+        seed.deserialize(&mut *self.parent).map(Some)
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -763,5 +831,39 @@ mod tests {
     #[test]
     fn struct_with_defaults_roundtrips_when_all_present() {
         assert_roundtrip(WithDefaults { required: 7, annotation: vec![1, 2, 3] });
+    }
+
+    /// Multi-element tuple struct with implicit positional tags — the
+    /// load-bearing test for `deserialize_tuple_struct`. Wire is an
+    /// int-keyed map; we read each entry's tag, discard it, decode the
+    /// value positionally.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct PositionalTriple(u32, bool, u8);
+
+    #[test]
+    fn tuple_struct_roundtrips() {
+        assert_roundtrip(PositionalTriple(7, true, 9));
+    }
+
+    /// Tuple struct with explicit `#[tag(N)]` reordering tags relative to
+    /// source position — round-trips because the serializer writes in
+    /// source-position order and the deserializer reads positionally,
+    /// discarding the wire tag.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct ReorderedTriple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8);
+
+    #[test]
+    fn tuple_struct_with_explicit_tags_roundtrips() {
+        assert_roundtrip(ReorderedTriple(7, true, 9));
+    }
+
+    /// Tuple struct holding a tagged inner element — verifies recursion
+    /// through the wrapper for the value side.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    struct TupleWithNested(Pair, u8);
+
+    #[test]
+    fn tuple_struct_with_nested_tagged_element_roundtrips() {
+        assert_roundtrip(TupleWithNested(Pair { first: 1, second: false }, 42));
     }
 }
