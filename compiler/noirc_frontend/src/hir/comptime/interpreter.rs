@@ -188,7 +188,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let meta = self.elaborator.function_meta(function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -222,7 +222,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let meta = self.elaborator.function_meta(function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -251,11 +251,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Afterwards, if the function's body is still not known or the function is still
     /// in a Resolving state we issue an error.
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        // Resolve meta first if it's still deferred. Snapshot the bit we need
+        // (whether the body is still unresolved) so we don't hold a borrow
+        // across the elaborator call below.
+        let body_is_unresolved = matches!(
+            self.elaborator.function_meta(function).function_body,
+            FunctionBody::Unresolved(..)
+        );
         match self.elaborator.interner.function(&function).try_as_expr() {
             Some(body) => Ok(body),
             None => {
-                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                if body_is_unresolved {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });

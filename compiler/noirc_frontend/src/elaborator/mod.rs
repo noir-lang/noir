@@ -572,7 +572,7 @@ impl<'context> Elaborator<'context> {
 
         // Compute the set of function metas to defer past `run_attributes`.
         // This must happen before `items` is partially consumed below.
-        let deferable_function_ids = Self::deferable_function_ids(&items);
+        let deferable_function_ids = self.deferable_function_ids(&items);
 
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -999,6 +999,10 @@ impl<'context> Elaborator<'context> {
             return false;
         }
 
+        // We deliberately do *not* go through the lazy `Elaborator::function_meta`
+        // helper here: this method takes `&self`, and at the points where
+        // `in_constrained_function` is called the current function's meta has
+        // already been resolved (it's the function we're elaborating).
         let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
                 self.interner.function_meta(&id).is_unconstrained()

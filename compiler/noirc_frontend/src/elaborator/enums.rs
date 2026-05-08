@@ -722,7 +722,7 @@ impl Elaborator<'_> {
                 }
                 PathResolutionItem::Method(_, _, func_id)
                 | PathResolutionItem::SelfMethod(func_id) => {
-                    self.interner.function_meta(func_id).enum_variant_index.is_some()
+                    self.function_meta(*func_id).enum_variant_index.is_some()
                 }
                 _ => false,
             };
@@ -833,14 +833,17 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
-                let meta = self.interner.function_meta(func_id);
-                let Some(variant_index) = meta.enum_variant_index else {
+                let (variant_index, meta_typ) = {
+                    let meta = self.function_meta(*func_id);
+                    (meta.enum_variant_index, meta.typ.clone())
+                };
+                let Some(variant_index) = variant_index else {
                     let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
                     return Pattern::Error;
                 };
 
-                let (actual_type, expected_arg_types) = match meta.typ.instantiate(self.interner).0
+                let (actual_type, expected_arg_types) = match meta_typ.instantiate(self.interner).0
                 {
                     Type::Function(args, ret, _env, _) => (*ret, args),
                     other => unreachable!("Not a function! Found {other}"),

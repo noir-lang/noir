@@ -501,11 +501,11 @@ pub(super) fn check_item_crate_matches_current_crate(
 }
 
 pub(super) fn check_function_not_yet_resolved(
-    interpreter: &Interpreter,
+    interpreter: &mut Interpreter,
     func_id: FuncId,
     location: Location,
 ) -> IResult<()> {
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {

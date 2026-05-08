@@ -1235,8 +1235,12 @@ impl NodeInterner {
         Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
     }
 
-    /// Add the given trait as an operator trait if its name matches one of the
-    /// operator trait names (Add, Sub, ...).
+    /// Registers the given trait under its matching operator (Add, Sub, ...) in
+    /// `infix_operator_traits` if its name corresponds to one. Does *not* read
+    /// the trait's methods, so it is safe to call before trait method metas
+    /// have been resolved (e.g. while their `TraitFunction` records still hold
+    /// stub types). Use [Self::try_set_ordering_type_from_ord_trait] later to
+    /// finish the `Ord` setup.
     pub fn try_add_infix_operator_trait(&mut self, trait_id: TraitId) {
         let the_trait = self.get_trait(trait_id);
 
@@ -1267,18 +1271,30 @@ impl NodeInterner {
                 self.infix_operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
                 self.infix_operator_traits.insert(BinaryOpKind::Greater, trait_id);
                 self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
-
-                let the_trait = self.get_trait(trait_id);
-                self.ordering_type = match &the_trait.methods[0].typ {
-                    Type::Forall(_, typ) => match typ.as_ref() {
-                        Type::Function(_, return_type, _, _) => Some(return_type.as_ref().clone()),
-                        other => unreachable!("Expected function type for `cmp`, found {}", other),
-                    },
-                    other => unreachable!("Expected Forall type for `cmp`, found {}", other),
-                };
+                // `ordering_type` (read from `the_trait.methods[0].typ`) is
+                // populated separately by [Self::try_set_ordering_type_from_ord_trait]
+                // once the trait's methods are fully resolved.
             }
             _ => (),
         }
+    }
+
+    /// If the given trait is the stdlib's `Ord` trait, extract its `cmp`
+    /// method's return type into `self.ordering_type`. This must run only
+    /// after the trait's method metas are resolved (i.e. after the
+    /// post-attribute drain), since it reads `methods[0].typ`.
+    pub fn try_set_ordering_type_from_ord_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+        if the_trait.name.as_str() != "Ord" {
+            return;
+        }
+        self.ordering_type = match &the_trait.methods[0].typ {
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(_, return_type, _, _) => Some(return_type.as_ref().clone()),
+                other => unreachable!("Expected function type for `cmp`, found {}", other),
+            },
+            other => unreachable!("Expected Forall type for `cmp`, found {}", other),
+        };
     }
 
     /// Add the given trait as an operator trait if its name matches one of the

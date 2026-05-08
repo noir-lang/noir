@@ -182,7 +182,7 @@ impl Elaborator<'_> {
 
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
-                let func_generics = &self.interner.function_meta(func_id).all_generics;
+                let func_generics = &self.function_meta(*func_id).all_generics;
                 let self_resolved_generic =
                     func_generics.iter().find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
                 if let Some(self_resolved_generic) = self_resolved_generic {
@@ -197,7 +197,7 @@ impl Elaborator<'_> {
                 // `all_generics` has the enclosing type generics first, followed by `direct_generics`
                 // (the method's own generics). We must only bind the type-level portion here;
                 // method generics are handled separately by the method turbofish.
-                let func_meta = self.interner.function_meta(func_id);
+                let func_meta = self.function_meta(*func_id);
                 let impl_generic_count =
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
                 let impl_generics =
@@ -656,12 +656,19 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        let function_meta = self.interner.function_meta(&func_id);
-        let self_type_generics_count =
-            function_meta.all_generics.len() - function_meta.direct_generics.len();
+        // Clone the bits we need so the helper's mutable borrow of self is released
+        // before we touch self.interner below.
+        let (self_type_generics_count, function_typ, function_self_type) = {
+            let function_meta = self.function_meta(func_id);
+            (
+                function_meta.all_generics.len() - function_meta.direct_generics.len(),
+                function_meta.typ.clone(),
+                function_meta.self_type.clone(),
+            )
+        };
         let bindings = if self_type_generics_count > 0 {
-            if let Type::Forall(type_vars, _) = &function_meta.typ
-                && let Some(self_type) = &function_meta.self_type
+            if let Type::Forall(type_vars, _) = &function_typ
+                && let Some(self_type) = &function_self_type
             {
                 // Only instantiate type vars corresponding to the `self` type, not to function direct generics
                 let type_vars =
@@ -837,10 +844,10 @@ impl Elaborator<'_> {
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition = self.interner.definition(ident.id);
-        let direct_generic_ids = match definition.kind {
+        let definition_kind = self.interner.definition(ident.id).kind.clone();
+        let direct_generic_ids = match definition_kind {
             DefinitionKind::Function(function) => {
-                vecmap(&self.interner.function_meta(&function).direct_generics, |generic| {
+                vecmap(&self.function_meta(function).direct_generics, |generic| {
                     generic.type_var.id()
                 })
             }
@@ -898,9 +905,9 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        let definition = self.interner.definition(ident.id);
-        if let DefinitionKind::Function(function) = definition.kind {
-            let function = self.interner.function_meta(&function);
+        let definition_kind = self.interner.definition(ident.id).kind.clone();
+        if let DefinitionKind::Function(function) = definition_kind {
+            let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);
 

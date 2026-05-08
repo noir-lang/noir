@@ -85,11 +85,14 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let meta = elaborator.interner.function_meta(&function);
+                let meta = elaborator.function_meta(function);
+                let source_crate = meta.source_crate;
+                let source_module = meta.source_module;
+                let all_generics = meta.all_generics.clone();
                 elaborator.current_item = Some(DependencyId::Function(function));
-                elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = Some(meta.source_module);
-                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+                elaborator.crate_id = source_crate;
+                elaborator.local_module = Some(source_module);
+                elaborator.introduce_generics_into_scope(all_generics);
             }
         })
     }
@@ -461,7 +464,7 @@ impl<'context> Elaborator<'context> {
         arguments: Vec<Expression>,
         location: Location,
     ) -> Result<Vec<(Value, Location)>, CompilationError> {
-        let meta = interpreter.elaborator.interner.function_meta(&function);
+        let meta = interpreter.elaborator.function_meta(function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
 

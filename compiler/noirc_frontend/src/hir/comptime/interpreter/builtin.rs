@@ -131,7 +131,7 @@ impl Interpreter<'_, '_> {
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
-            "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_body" => function_def_body(self, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
@@ -139,12 +139,12 @@ impl Interpreter<'_, '_> {
             }
             "function_def_hash" => function_def_hash(arguments, location),
             "function_def_is_unconstrained" => {
-                function_def_is_unconstrained(interner, arguments, location)
+                function_def_is_unconstrained(self, arguments, location)
             }
             "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
-            "function_def_parameters" => function_def_parameters(interner, arguments, location),
-            "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "function_def_parameters" => function_def_parameters(self, arguments, location),
+            "function_def_return_type" => function_def_return_type(self, arguments, location),
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
@@ -2397,7 +2397,7 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
+    let trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
@@ -2438,13 +2438,13 @@ fn function_def_as_typed_expr(
 
 // fn body(self) -> Expr
 fn function_def_body(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     if let FunctionBody::Unresolved(_, block_expr, _) = &func_meta.function_body {
         Ok(Value::expression(ExpressionKind::Block(block_expr.clone())))
     } else {
@@ -2477,7 +2477,7 @@ fn function_def_disable(
         .secondary
         .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
 
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
     // Lie and say that the body of this function is resolved in order to avoid any
     // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
@@ -2518,13 +2518,13 @@ fn function_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 // fn is_unconstrained(self) -> bool
 fn function_def_is_unconstrained(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
+    let is_unconstrained = interpreter.elaborator.function_meta(func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2557,22 +2557,29 @@ fn function_def_name(
 
 // fn parameters(self) -> [(Quoted, Type)]
 fn function_def_parameters(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
-
-    let parameters = func_meta
+    // Snapshot what we need from the meta first, since `hir_pattern_to_tokens`
+    // borrows the interner and we can't hold a `&FuncMeta` across that call.
+    let parameters_meta: Vec<_> = interpreter
+        .elaborator
+        .function_meta(func_id)
         .parameters
         .iter()
-        .map(|(hir_pattern, typ, _visibility)| {
-            let tokens = hir_pattern_to_tokens(interner, hir_pattern);
+        .map(|(hir_pattern, typ, _visibility)| (hir_pattern.clone(), typ.clone()))
+        .collect();
+
+    let parameters = parameters_meta
+        .into_iter()
+        .map(|(hir_pattern, typ)| {
+            let tokens = hir_pattern_to_tokens(interpreter.elaborator.interner, &hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
             let name = Shared::new(Value::Quoted(Rc::new(tokens)));
-            let typ = Shared::new(Value::Type(typ.clone()));
+            let typ = Shared::new(Value::Type(typ));
             Value::Tuple(vec![name, typ])
         })
         .collect();
@@ -2587,13 +2594,13 @@ fn function_def_parameters(
 
 // fn return_type(self) -> Type
 fn function_def_return_type(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
 }

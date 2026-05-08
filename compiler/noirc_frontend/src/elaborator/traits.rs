@@ -332,10 +332,16 @@ impl Elaborator<'_> {
 
             self.exit_trait_scope(state);
 
-            // Operator-trait registration is deferred to
-            // [Self::populate_resolved_trait_method_records] because it inspects
-            // the trait method's resolved `typ`, which is only filled in after
-            // the post-attribute drain.
+            // Register this trait under its operator slot if its name matches
+            // (e.g. `Add` / `Sub` / `Eq`). This must happen here — *before*
+            // global elaboration — because globals (in stdlib especially) use
+            // `+` and similar operators. The piece that depends on the trait
+            // method's resolved type (`Ord::cmp`'s return type → `ordering_type`)
+            // is filled in later in [Self::populate_resolved_trait_method_records].
+            if self.crate_id.is_stdlib() {
+                self.interner.try_add_infix_operator_trait(*trait_id);
+                self.interner.try_add_prefix_operator_trait(*trait_id);
+            }
         }
     }
 
@@ -1021,12 +1027,13 @@ impl Elaborator<'_> {
             });
         }
 
-        // Operator trait registration must happen after the trait's methods'
-        // types are filled in (it reads `the_trait.methods[0].typ`).
+        // The remaining bit of operator-trait setup that needs the trait
+        // method's resolved type: `Ord::cmp`'s return type goes into
+        // `ordering_type`. The base operator-to-trait mapping was already
+        // registered earlier in [Self::collect_trait_methods].
         if self.crate_id.is_stdlib() {
             for trait_id in traits_touched {
-                self.interner.try_add_infix_operator_trait(trait_id);
-                self.interner.try_add_prefix_operator_trait(trait_id);
+                self.interner.try_set_ordering_type_from_ord_trait(trait_id);
             }
         }
     }

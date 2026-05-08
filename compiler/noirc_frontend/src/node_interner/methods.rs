@@ -184,7 +184,16 @@ impl Methods {
         method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
-        let function_typ = &interner.function_meta(&method).typ;
+        // The method's meta may still be deferred when this is reached from a
+        // path that bypasses the elaborator's lazy-resolution wrappers (e.g.
+        // type unification's array-to-vector coercion check). Treat such a
+        // candidate as "no match" rather than ICE'ing — callers that need the
+        // method to actually be findable resolve metas up-front through
+        // [Elaborator::lookup_direct_method] et al.
+        let Some(func_meta) = interner.try_function_meta(&method) else {
+            return false;
+        };
+        let function_typ = &func_meta.typ;
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {

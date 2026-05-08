@@ -303,11 +303,18 @@ impl Elaborator<'_> {
                         let definition_kind = definition.kind.clone();
                         match definition_kind {
                             DefinitionKind::Function(func_id) => {
+                                // Resolve the func meta once; clone the bits we
+                                // need so we don't hold a borrow across the
+                                // `&mut self` calls below (push_err / etc.).
+                                let func_meta = self.function_meta(func_id);
+                                let direct_generics_clone = func_meta.direct_generics.clone();
+                                let self_type_clone = func_meta.self_type.clone();
+                                let all_generics_clone = func_meta.all_generics.clone();
+
                                 // Try to find the type variable in the function's generic arguments
-                                let mut direct_generics =
-                                    self.interner.function_meta(&func_id).direct_generics.iter();
-                                let generic =
-                                    direct_generics.find(|generic| generic.type_var.id() == id);
+                                let generic = direct_generics_clone
+                                    .iter()
+                                    .find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {
                                     let item_name =
                                         self.interner.definition_name(definition_id).to_string();
@@ -325,9 +332,7 @@ impl Elaborator<'_> {
 
                                 // If we find one in `all_generics` it means it's a generic on the type
                                 // the function is in.
-                                let Some(Type::DataType(typ, ..)) =
-                                    &self.interner.function_meta(&func_id).self_type
-                                else {
+                                let Some(Type::DataType(typ, ..)) = &self_type_clone else {
                                     continue;
                                 };
                                 let typ = typ.borrow();
@@ -335,8 +340,7 @@ impl Elaborator<'_> {
                                 let item_kind = if typ.is_struct() { "struct" } else { "enum" };
                                 drop(typ);
 
-                                let mut all_generics =
-                                    self.interner.function_meta(&func_id).all_generics.iter();
+                                let mut all_generics = all_generics_clone.iter();
                                 let generic =
                                     all_generics.find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {

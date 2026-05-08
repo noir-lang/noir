@@ -2858,10 +2858,15 @@ impl Elaborator<'_> {
         };
 
         // The function we are elaborating, ie. where we make the method call from.
-        let func_meta = self.interner.function_meta(&func_id);
+        // Clone the bits we need so we don't hold a borrow through the
+        // `&mut self` calls below.
+        let (func_meta_trait_id, func_trait_constraints) = {
+            let meta = self.function_meta(func_id);
+            (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
+        };
 
         // If inside a trait method, check if it's a method on `self`
-        if let Some(trait_id) = func_meta.trait_id
+        if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.self_type.as_ref()
         {
             let the_trait = self.interner.get_trait(trait_id);
@@ -2898,7 +2903,7 @@ impl Elaborator<'_> {
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
 
-        for constraint in func_meta.all_trait_constraints() {
+        for constraint in &func_trait_constraints {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
