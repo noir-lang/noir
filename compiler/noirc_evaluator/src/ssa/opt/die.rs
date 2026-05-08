@@ -342,11 +342,10 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block)
-            && {
-                let results = function.dfg.instruction_results(instruction_id);
-                results.iter().all(|result| !self.used_values.contains(result))
-            }
+        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block) && {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
+        }
     }
 
     /// Adds values referenced by the terminator to the set of used values.
