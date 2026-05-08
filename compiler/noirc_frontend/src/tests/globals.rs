@@ -380,3 +380,53 @@ fn regression_5626_global_annotation_flows_into_block() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn can_refer_to_complex_global_in_function_signature() {
+    let src = r#"
+    global LENGTH: u32 = init();
+
+    pub fn another(_array: [Field; LENGTH]) {}
+
+    fn init() -> u32 {
+        10
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_refer_to_complex_global_in_method_signature() {
+    let src = r#"
+    global LENGTH: u32 = init();
+
+    pub struct Foo {}
+
+    impl Foo {
+        pub fn another(_array: [Field; LENGTH]) {}
+    }
+
+    fn init() -> u32 {
+        10
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_global_is_needed_in_initialize_and_function_signature() {
+    let src = r#"
+    global FOO: u32 = init([0; 10]);
+           ^^^ Dependency cycle found
+           ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
+                      ^^^^ Dependency cycle found
+                      ~~~~ 'init' recursively depends on itself: the function signature hasn't been resolved yet
+                      ^^^^^^^^^^^^^ Global failed to evaluate
+
+    fn init(_array: [Field; FOO]) {}
+                            ^^^ expected type, found global `FOO`
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

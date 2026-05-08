@@ -811,6 +811,26 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        // If the variable is a function whose meta hasn't been resolved yet, resolve
+        // it now. This handles forward references — a global's RHS may name a
+        // function whose meta would otherwise only be drained at end-of-elaboration.
+        if let DefinitionKind::Function(func_id) = definition.kind {
+            let item_name = definition.name.clone();
+            self.define_function_meta_if_undefined(func_id);
+
+            // If lazy resolution leaves the meta still unset, the function is currently
+            // mid-resolution and we have a dependency cycle (e.g. `global F = f();`
+            // combined with `fn f(_: [u8; F]) {}`).
+            if self.interner.try_function_meta(&func_id).is_none() {
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: item_name,
+                    cycle: "the function signature hasn't been resolved yet".to_string(),
+                });
+                return Type::Error;
+            }
+        }
+
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
