@@ -19,9 +19,18 @@ umbrella tracker [#7934](https://github.com/noir-lang/noir/issues/7934).
   containers (`Vec`, `BTreeMap`, `BTreeSet`, `Option`, `Box`, arrays,
   tuples up to 12), and `PhantomData<T>`.
 
-This crate does not produce wire bytes yet. The companion
-`TaggedMsgpackSerializer` / `TaggedMsgpackDeserializer` (forthcoming) will
-read this metadata and translate between serde calls and msgpack bytes.
+Wire bytes are produced by the in-crate `Serializer` (and consumed by the
+companion `Deserializer`), thin wrappers around `rmp_serde` that translate
+between serde calls and msgpack bytes by consulting the `TagRegistry`. The
+public one-shot entry points are:
+
+```rust
+let bytes = msgpack_tagged::msgpack_tagged_serialize(&value)?;
+let decoded: T = msgpack_tagged::msgpack_tagged_deserialize(&bytes)?;
+```
+
+The `Serializer` is feature-complete; the `Deserializer` is currently a
+skeleton that forwards to `rmp_serde` and is being filled in shape by shape.
 
 ## Wire shape
 
@@ -41,7 +50,7 @@ Tags are `u8` (so they stay in msgpack's `fixint` range at the 1-byte
 encoding). Field names never appear on the wire. Adding, removing, or
 reordering fields is safe as long as tag values stay stable.
 
-The wrapper will support three encoding strategies, all driven by the
+The `Serializer` will support three encoding strategies, all driven by the
 *same* `Tagged` metadata:
 
 | strategy | wire shape | when |
@@ -50,7 +59,7 @@ The wrapper will support three encoding strategies, all driven by the
 | **Array** | positional msgpack array | small leaf types where size matters more than evolvability |
 | **Named** | string-keyed map | falls back to `rmp_serde` defaults |
 
-Strategy is per-type and picked by the wrapper, not by the macro — every
+Strategy is per-type and picked by the serializer, not by the macro — every
 `#[derive(MsgpackTagged)]` type works under all three. Decode is
 shape-agnostic (peek at the next msgpack token, dispatch to the right
 reader), so a single binary can read all three formats without a
@@ -175,7 +184,7 @@ Newtype variants are pass-through and zero-cost on the wire. Consequently:
 
 The metadata distinction lives in `VariantKind` (`Newtype` vs. `Tuple` vs.
 `Struct` vs. `Unit`). Both `Unit` and `Newtype` carry an empty `payload`
-`Product`; the kind discriminator is what tells the wrapper how to encode.
+`Product`; the kind discriminator is what tells the `Serializer` how to encode.
 
 ### Type-level `#[tagged(...)]`
 
