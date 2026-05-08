@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778264681669,
+  "lastUpdate": 1778269115137,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23130,48 +23130,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ec78f70b973adcad58815ff9d2c89105a9126d3e",
-          "message": "chore(deps): bump afl from 0.17.1 to 0.18.1 (#12525)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-05T10:35:15Z",
-          "tree_id": "ee5a897b323ac3fcf7d9574392ee3f7e15ee8363",
-          "url": "https://github.com/noir-lang/noir/commit/ec78f70b973adcad58815ff9d2c89105a9126d3e"
-        },
-        "date": 1777978718292,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167382,
-            "range": "± 626",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137188,
-            "range": "± 3877",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2641966,
-            "range": "± 2225",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "847adef3095316f9777a67f719adc895423b3680",
           "message": "chore(deps): bump slackapi/slack-github-action from 3.0.2 to 3.0.3 (#12512)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647491,
             "range": "± 4037",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d9727a6e0a9df75a71bb9c87daacbe30659ba09",
+          "message": "chore: enhance allocation sites tracking and uses must-alias queries in load_store_forwarding (#12478)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2026-05-08T19:08:39Z",
+          "tree_id": "b09af56562e85fef5a6ccd2bb46a7870614740a2",
+          "url": "https://github.com/noir-lang/noir/commit/1d9727a6e0a9df75a71bb9c87daacbe30659ba09"
+        },
+        "date": 1778269053185,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169632,
+            "range": "± 1143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136602,
+            "range": "± 219",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645454,
+            "range": "± 1753",
             "unit": "ns/iter"
           }
         ]
