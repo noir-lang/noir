@@ -618,7 +618,7 @@ impl<'context> Elaborator<'context> {
         // can't lazy-resolve, and would silently fail to coerce inside the
         // stdlib's own elaboration.
         if self.crate_id.is_stdlib() {
-            self.drain_unresolved_function_metas_skipping(&outer_pending);
+            self.resolve_unresolved_function_metas_skipping(&outer_pending);
         }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
@@ -638,7 +638,7 @@ impl<'context> Elaborator<'context> {
         // by attributes (such as new structs) are now in scope, so a signature
         // like `fn bar(_: Generated)` can finally resolve. Outer-pending metas are
         // still skipped — only this call's metas are drained.
-        self.drain_unresolved_function_metas_skipping(&outer_pending);
+        self.resolve_unresolved_function_metas_skipping(&outer_pending);
 
         // Now that trait method metas are defined, fill in the stub
         // `TraitFunction` records on each trait, and run the empty-body /
