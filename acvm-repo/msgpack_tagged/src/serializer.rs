@@ -227,7 +227,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         // idents. The adapter handles both via different trait impls on the
         // same struct.
         let product = self.product_for(name);
-        let _ = len;
+        assert_field_count_matches(name, len, product.fields.len());
         write_map_header(self.inner.get_mut(), product.fields.len())?;
         Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
     }
@@ -274,7 +274,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         let v = self.write_variant_header(name, variant)?;
-        let _ = len;
+        assert_field_count_matches(variant, len, v.payload.fields.len());
         write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
         Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
     }
@@ -287,7 +287,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         let v = self.write_variant_header(name, variant)?;
-        let _ = len;
+        assert_field_count_matches(variant, len, v.payload.fields.len());
         write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
         Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
     }
@@ -300,13 +300,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
         let product = self.product_for(name);
-        // TODO: tighten to `assert_eq!(len, product.fields.len(), ...)`
-        // once the variant/tuple paths are wrapped and we've stress-tested
-        // the invariant against `#[tag(skip)]` / `PhantomData` fixtures.
-        // Auto-skipped fields are absent from both `len` and `product.fields`,
-        // so they should always agree — the assert would catch any future
-        // macro/serde-derive divergence.
-        let _ = len;
+        assert_field_count_matches(name, len, product.fields.len());
 
         // Write the msgpack map header directly to the underlying writer via
         // `rmp::encode`. We deliberately bypass `inner.serialize_map(...)` —
@@ -395,6 +389,23 @@ fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpErr
     rmp::encode::write_array_len(writer, len_u32)
         .map_err(|e| RmpError::custom(format!("failed to write msgpack array header: {e}")))?;
     Ok(())
+}
+
+/// Assert that serde's reported field count matches the registered
+/// `Product`'s — both should drop the same skipped fields, so they should
+/// always agree. A mismatch is a real misconfiguration: the most common
+/// cause is a `PhantomData<T>` or `#[tag(skip)]` field that's missing a
+/// paired `#[serde(skip)]`, which would otherwise fail later with a
+/// confusing "field not found in registered Product" error from a tag
+/// lookup. The assert surfaces it earlier, with a more actionable message.
+fn assert_field_count_matches(name: &str, serde_len: usize, product_len: usize) {
+    assert_eq!(
+        serde_len, product_len,
+        "MsgpackTagged: serde reports {serde_len} fields for {name:?} but the registered \
+         Product carries {product_len}. The macro and `serde::Serialize` disagree on \
+         which fields are on the wire — typically because a `PhantomData<T>` or \
+         `#[tag(skip)]` field is missing a paired `#[serde(skip)]`",
+    );
 }
 
 /// Write a msgpack map header (`fixmap` / `map16` / `map32` depending on
@@ -1058,6 +1069,56 @@ mod tests {
             panic!("nested Pair should be int-keyed map, got {:?}", inner[0].1);
         };
         assert!(nested.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+    }
+
+    /// `#[serde(skip)]` is recognized as an alias for `#[tag(skip)]` by the
+    /// macro, so both sides drop the field. The serializer's field-count
+    /// assert checks that they agree — without the matching skip, the assert
+    /// would fire with a clear "macro and serde disagree" message.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    struct WithSerdeSkippedField {
+        #[tag(0)]
+        visible: u32,
+        #[serde(skip)]
+        #[allow(dead_code)]
+        hidden: u32,
+    }
+
+    #[test]
+    fn serde_skipped_field_does_not_appear_on_the_wire() {
+        let value = WithSerdeSkippedField { visible: 7, hidden: 99 };
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 1, "skipped field should be absent from the wire map");
+        assert_eq!(entries[0].0.as_u64(), Some(0));
+        assert_eq!(entries[0].1.as_u64(), Some(7));
+    }
+
+    /// `PhantomData<T>` is auto-skipped by the macro; pairing it with
+    /// `#[serde(skip)]` keeps serde-derive in sync. The field-count assert
+    /// confirms both sides agree on the wire-visible field count.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    struct WithPhantomField<T: 'static> {
+        #[tag(0)]
+        visible: u32,
+        #[serde(skip)]
+        _marker: std::marker::PhantomData<T>,
+    }
+
+    #[test]
+    fn phantom_data_field_paired_with_serde_skip_does_not_appear_on_the_wire() {
+        let value: WithPhantomField<u32> =
+            WithPhantomField { visible: 42, _marker: std::marker::PhantomData };
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].1.as_u64(), Some(42));
     }
 
     /// Tagged values nested inside a struct-variant payload still recurse
