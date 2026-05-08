@@ -603,20 +603,12 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
-        // For non-stdlib crates every function meta stays deferred until *after*
-        // `run_attributes`. The remaining elaborator and interpreter paths that
-        // read function metas all go through the lazy [Self::function_meta] /
-        // [Self::define_function_meta_if_undefined] entry points, and
-        // `Methods::method_matches` skips deferred candidates rather than
-        // ICE'ing — so anything that genuinely needs a meta during global or
-        // attribute elaboration triggers on-demand resolution, while signatures
-        // that only get touched after attributes have generated new items can
-        // finally see those items.
-        //
-        // The stdlib still uses the eager flow: the array→vector coercion in
-        // `unification.rs` reads `function_meta` with only `&NodeInterner`,
-        // can't lazy-resolve, and would silently fail to coerce inside the
-        // stdlib's own elaboration.
+        // In the case of the stdlib we eagerly resolve function metas as these are
+        // needed in some globals initializers regarding built-in trait methods
+        // like Add, Ord, etc. Trying to define these lazily is a lot of work compared
+        // to just not supporting it in the stdlib. The stdlib right now doesn't generate
+        // types that are used in other function signatures and we can always extend
+        // with the stdlib with this small restriction in place.
         if self.crate_id.is_stdlib() {
             self.resolve_unresolved_function_metas_skipping(&outer_pending);
         }
