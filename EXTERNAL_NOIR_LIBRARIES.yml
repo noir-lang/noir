@@ -61,7 +61,7 @@ libraries:
     critical: true
   poseidon:
     repo: noir-lang/poseidon
-    timeout: 5
+    timeout: 8
     critical: true
   aztec_nr:
     repo: AztecProtocol/aztec-packages
