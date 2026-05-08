@@ -19,7 +19,9 @@
 use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
-use serde::ser::{Error as _, Serialize, SerializeStruct, Serializer};
+use serde::ser::{
+    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeTuple, Serializer,
+};
 
 use crate::{MsgpackTagged, TagRegistry};
 
@@ -79,11 +81,11 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     type Ok = ();
     type Error = RmpError;
 
-    type SerializeSeq = <&'ser mut RmpSerializer<W> as Serializer>::SerializeSeq;
-    type SerializeTuple = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTuple;
+    type SerializeSeq = TaggedSerializeViaParent<'ser, 'a, W>;
+    type SerializeTuple = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeTupleStruct = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTupleStruct;
     type SerializeTupleVariant = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTupleVariant;
-    type SerializeMap = <&'ser mut RmpSerializer<W> as Serializer>::SerializeMap;
+    type SerializeMap = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeStruct = TaggedSerializeStruct<'ser, 'a, W>;
     type SerializeStructVariant =
         <&'ser mut RmpSerializer<W> as Serializer>::SerializeStructVariant;
@@ -179,36 +181,37 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         value.serialize(self)
     }
 
-    // -------- collection / map shapes: forward to inner ---------------------
+    // -------- collection / map shapes: intercepted -------------------------
     //
-    // These don't need interception: serde's auto-derived `Serialize` for our
-    // tagged types calls `serialize_struct` / `serialize_*_variant`, never
-    // `serialize_seq` / `serialize_map` directly. Containers like `Vec<T>` /
-    // `BTreeMap<K, V>` recurse into their elements through us via the
-    // `Serializer` trait, so nested tagged types still get int-keyed.
+    // We write the array/map header directly to the underlying writer and
+    // route each element/entry back through *this* wrapper via dedicated
+    // adapters (`TaggedSerializeArray`, `TaggedSerializeMap`). Without this
+    // interception, rmp_serde's adapters would route nested values through
+    // its own inner serializer — a tagged element inside a `Vec<Tagged>` /
+    // `BTreeMap<_, Tagged>` would then fall through to rmp's default
+    // positional-array struct encoding instead of recursing back to our
+    // int-keyed map shape.
 
-    // TODO: needs a `TaggedSerializeSeq` adapter — rmp_serde's
-    // `SerializeSeq::serialize_element` routes values through its inner
-    // serializer, so any tagged element inside a `Vec<Tagged>` / `&[Tagged]`
-    // currently falls through to rmp's default struct encoding instead of
-    // recursing via this wrapper. Write the array header via
-    // `rmp::encode::write_array_len` and route each element through `&mut self`.
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        self.inner.serialize_seq(len)
+        // msgpack arrays are length-prefixed, so we need a known length up
+        // front — same constraint rmp_serde itself imposes.
+        let len = len.ok_or_else(|| {
+            RmpError::custom("MsgpackTagged: sequences need a known length to encode")
+        })?;
+        write_array_header(self.inner.get_mut(), len)?;
+        Ok(TaggedSerializeViaParent { parent: self })
     }
 
-    // TODO: same fix as `serialize_seq` for fixed-length tuples — `(Tagged, ...)`
-    // elements need to recurse through this wrapper.
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
-        self.inner.serialize_tuple(len)
+        write_array_header(self.inner.get_mut(), len)?;
+        Ok(TaggedSerializeViaParent { parent: self })
     }
 
-    // TODO: needs a `TaggedSerializeMap` adapter — rmp_serde's `SerializeMap`
-    // routes both keys and values through its inner serializer, so values
-    // inside a `BTreeMap<_, Tagged>` skip our wrapper. Write the map header
-    // via `rmp::encode::write_map_len` and route each key/value through `&mut self`.
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        self.inner.serialize_map(len)
+        let len = len
+            .ok_or_else(|| RmpError::custom("MsgpackTagged: maps need a known length to encode"))?;
+        write_map_header(self.inner.get_mut(), len)?;
+        Ok(TaggedSerializeViaParent { parent: self })
     }
 
     // -------- tuple struct / variant / unit variant / newtype variant:
@@ -325,12 +328,31 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         // back through *this* wrapper. Routing field *values* (not just the
         // top-level struct) through the wrapper is what makes nested tagged
         // types decode the same way as top-level ones.
-        let map_len: u32 = product.fields.len().try_into().expect("product field count fits u32");
-        rmp::encode::write_map_len(self.inner.get_mut(), map_len)
-            .map_err(|e| RmpError::custom(format!("failed to write msgpack map header: {e}")))?;
+        write_map_header(self.inner.get_mut(), product.fields.len())?;
 
         Ok(TaggedSerializeStruct { product, parent: self })
     }
+}
+
+/// Write a msgpack array header (`fixarray` / `array16` / `array32` depending
+/// on `len`) directly to the underlying writer. Used by sequences and tuples.
+fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError> {
+    let len_u32: u32 =
+        len.try_into().map_err(|_| RmpError::custom("array length doesn't fit in u32"))?;
+    rmp::encode::write_array_len(writer, len_u32)
+        .map_err(|e| RmpError::custom(format!("failed to write msgpack array header: {e}")))?;
+    Ok(())
+}
+
+/// Write a msgpack map header (`fixmap` / `map16` / `map32` depending on
+/// `len`) directly to the underlying writer. Used by structs, maps, and the
+/// variant shapes once those land.
+fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError> {
+    let len_u32: u32 =
+        len.try_into().map_err(|_| RmpError::custom("map length doesn't fit in u32"))?;
+    rmp::encode::write_map_len(writer, len_u32)
+        .map_err(|e| RmpError::custom(format!("failed to write msgpack map header: {e}")))?;
+    Ok(())
 }
 
 /// `SerializeStruct` adapter that emits each `serialize_field(name, value)`
@@ -371,6 +393,89 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeStruct<'ser, 'a, W> 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         // msgpack maps are length-prefixed, not terminated, so there's
         // nothing left to write at end-of-struct.
+        Ok(())
+    }
+}
+
+/// Stateless pass-through adapter shared by every shape whose only job is
+/// to route element/key/value calls back through the parent
+/// [`TaggedMsgpackSerializer`]. The msgpack header (array length or map
+/// length) is written upfront in the corresponding `serialize_*` method
+/// before the adapter is constructed; from there each entry is just one or
+/// two more values appended to the writer through the wrapper, so any
+/// tagged value nested inside still gets the int-keyed-map treatment.
+///
+/// Used as `SerializeSeq` (e.g. `Vec<T>`), `SerializeTuple` (fixed-length
+/// Rust tuples), and `SerializeMap` (e.g. `BTreeMap<K, V>`). Struct shapes
+/// have their own adapter ([`TaggedSerializeStruct`]) because they carry
+/// the [`Product`](crate::Product) needed to translate field names into
+/// integer tags.
+pub(crate) struct TaggedSerializeViaParent<'ser, 'a, W: Write> {
+    parent: &'ser mut TaggedMsgpackSerializer<'a, W>,
+}
+
+/// Variable-length sequences (`Vec<T>`, `&[T]`, …). Each element recurses
+/// through the parent so tagged elements stay int-keyed.
+impl<'ser, 'a, W: Write> SerializeSeq for TaggedSerializeViaParent<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut *self.parent)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        // msgpack arrays/maps are length-prefixed, not terminated — nothing
+        // to write here.
+        Ok(())
+    }
+}
+
+/// Fixed-length Rust tuples (`(A, B)`, `(A, B, C)`, …). Same wire shape as a
+/// sequence — msgpack has one length-prefixed array, regardless of whether
+/// the source was variable- or fixed-length on the Rust side.
+impl<'ser, 'a, W: Write> SerializeTuple for TaggedSerializeViaParent<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut *self.parent)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(())
+    }
+}
+
+/// Free-form maps (`BTreeMap<K, V>` and friends). Both keys and values are
+/// routed through the parent. Routing keys is mostly a no-op for the common
+/// primitive-key case (the wrapper forwards primitives to inner verbatim),
+/// but it keeps the door open for tagged keys without a special case here.
+impl<'ser, 'a, W: Write> SerializeMap for TaggedSerializeViaParent<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        key.serialize(&mut *self.parent)
+    }
+
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut *self.parent)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(())
     }
 }
@@ -453,6 +558,106 @@ mod tests {
         assert_eq!(inner.len(), 2);
         for (k, _) in inner {
             assert!(matches!(k, Value::Integer(_)), "inner key {k:?} should be an integer");
+        }
+    }
+
+    /// `Vec<Pair>` exercises the `serialize_seq` adapter: each element must
+    /// recurse through the wrapper so it lands as an int-keyed map, not as
+    /// rmp_serde's default positional-array struct encoding. Without the
+    /// adapter, each `Pair` would decode as `Array([Integer, Boolean])`.
+    #[test]
+    fn vec_of_tagged_recurses_each_element_through_wrapper() {
+        let value: Vec<Pair> = vec![
+            Pair { first: 1, second: true },
+            Pair { first: 2, second: false },
+            Pair { first: 3, second: true },
+        ];
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Array(elements) = decoded else {
+            panic!("expected msgpack array, got {decoded:?}");
+        };
+        assert_eq!(elements.len(), 3);
+        for (i, element) in elements.iter().enumerate() {
+            let Value::Map(entries) = element else {
+                panic!("element {i} should be an int-keyed map, got {element:?}");
+            };
+            assert_eq!(entries.len(), 2);
+            for (k, _) in entries {
+                assert!(
+                    matches!(k, Value::Integer(_)),
+                    "element {i} key {k:?} should be an integer",
+                );
+            }
+        }
+    }
+
+    /// Empty sequences still produce a valid msgpack array with length 0,
+    /// not nil — the encoder shouldn't short-circuit on `len == 0`.
+    #[test]
+    fn empty_vec_encodes_as_zero_length_array() {
+        let value: Vec<Pair> = vec![];
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let Value::Array(elements) = decoded else {
+            panic!("expected msgpack array, got {decoded:?}");
+        };
+        assert!(elements.is_empty());
+    }
+
+    /// Rust tuples go through `serialize_tuple` (fixed-length). The
+    /// tagged element should still recurse — same fix as `Vec<Tagged>`.
+    #[test]
+    fn tuple_with_tagged_element_recurses_through_wrapper() {
+        let value: (Pair, u32) = (Pair { first: 4, second: false }, 99);
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Array(elements) = decoded else {
+            panic!("expected msgpack array, got {decoded:?}");
+        };
+        assert_eq!(elements.len(), 2);
+        let Value::Map(pair_entries) = &elements[0] else {
+            panic!("first tuple element (Pair) should be an int-keyed map, got {:?}", elements[0]);
+        };
+        for (k, _) in pair_entries {
+            assert!(matches!(k, Value::Integer(_)), "pair key {k:?} should be an integer");
+        }
+        assert_eq!(elements[1].as_u64(), Some(99), "second tuple element is the bare u32");
+    }
+
+    /// `BTreeMap<_, Pair>` exercises the `serialize_map` adapter: every value
+    /// must recurse through the wrapper. Keys (here `u8`) forward through the
+    /// wrapper to inner verbatim — they're scalar primitives.
+    #[test]
+    fn btree_map_with_tagged_values_recurses_each_value_through_wrapper() {
+        use std::collections::BTreeMap;
+        let mut value: BTreeMap<u8, Pair> = BTreeMap::new();
+        value.insert(10, Pair { first: 11, second: true });
+        value.insert(20, Pair { first: 22, second: false });
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+
+        let Value::Map(entries) = decoded else {
+            panic!("expected msgpack map, got {decoded:?}");
+        };
+        assert_eq!(entries.len(), 2);
+        // BTreeMap iterates in key order, so the on-the-wire order is
+        // deterministic — ascending by key.
+        assert_eq!(entries[0].0.as_u64(), Some(10));
+        assert_eq!(entries[1].0.as_u64(), Some(20));
+        for (i, (_, v)) in entries.iter().enumerate() {
+            let Value::Map(pair_entries) = v else {
+                panic!("entry {i} value should be an int-keyed map, got {v:?}");
+            };
+            assert_eq!(pair_entries.len(), 2);
+            for (k, _) in pair_entries {
+                assert!(
+                    matches!(k, Value::Integer(_)),
+                    "entry {i} pair key {k:?} should be an integer",
+                );
+            }
         }
     }
 }
