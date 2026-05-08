@@ -535,6 +535,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
+            | HirStatement::TraitAssociatedConstant
             | HirStatement::Error => true,
         })
     };

@@ -63,7 +63,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::{ComptimeError, InterpreterError},
+        comptime::{ComptimeError, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
@@ -81,7 +81,7 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -237,6 +237,7 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+    pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -373,6 +374,13 @@ pub struct Elaborator<'context> {
     /// lookup fails and the name is in this set, we can report a more specific error
     /// about runtime variables not being available in comptime code.
     parent_runtime_variables: rustc_hash::FxHashSet<String>,
+
+    /// Function metadata that has been *registered* but not yet *resolved*. We register
+    /// up-front (capturing the impl/trait-impl context) and resolve lazily on first read,
+    /// so that forward references between functions, globals, and trait associated
+    /// constants don't depend on source order. Any entries left after lazy resolution
+    /// has played out are drained at the end of [Self::elaborate_items].
+    unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
 }
 
 #[derive(Copy, Clone)]
@@ -405,6 +413,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
@@ -420,6 +429,7 @@ impl<'context> Elaborator<'context> {
             usage_tracker,
             crate_graph,
             interpreter_output,
+            evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
@@ -447,6 +457,7 @@ impl<'context> Elaborator<'context> {
             recursion_depth: 0,
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
+            unresolved_function_metas: BTreeMap::default(),
         }
     }
 
@@ -474,6 +485,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            context.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
             &mut context.unresolved_globals,
             crate_id,
@@ -519,7 +531,11 @@ impl<'context> Elaborator<'context> {
         self.collect_enum_definitions(&items.enums);
         self.collect_traits(&mut items.traits);
 
-        self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
+        self.register_function_metas(
+            &mut items.functions,
+            &mut items.impls,
+            &mut items.trait_impls,
+        );
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -536,6 +552,14 @@ impl<'context> Elaborator<'context> {
         for trait_impl in &mut items.trait_impls {
             self.collect_trait_impl(trait_impl);
         }
+
+        // Resolve any function metas that weren't pulled in by a forward reference
+        // during the collect-* phases above. Doing this before global elaboration
+        // means a global's RHS can call user-defined functions, while doing it after
+        // `collect_trait_impl` means meta resolution sees fully-bound trait
+        // associated constants. Globals referenced from a meta still elaborate
+        // lazily during the drain.
+        self.drain_unresolved_function_metas();
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.

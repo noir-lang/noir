@@ -655,7 +655,7 @@ impl Context<'_> {
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
         assert!(
             vector_size.to_usize() == 0 && value_types.is_empty()
-                || vector_size.to_usize() % value_types.len() == 0
+                || vector_size.to_usize().is_multiple_of(value_types.len())
         );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
@@ -855,7 +855,7 @@ impl Context<'_> {
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
         assert!(
             result_size.to_usize() == 0 && value_types.is_empty()
-                || result_size.to_usize() % value_types.len() == 0
+                || result_size.to_usize().is_multiple_of(value_types.len())
         );
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {

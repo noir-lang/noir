@@ -29,7 +29,10 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
-    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{
+        basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction,
+        post_order::PostOrder,
+    },
     ssa_gen::Ssa,
 };
 
@@ -51,11 +54,20 @@ struct Validator<'f> {
     // If they occurred before the value being cast to a smaller type
     // Stores: A set of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
+
+    // Element type of each `allocate` result, populated as we traverse blocks in
+    // reverse post-order so the allocate is recorded before any of its uses.
+    allocate_element_types: HashMap<ValueId, Type>,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default() }
+        Self {
+            function,
+            ssa,
+            range_checks: HashMap::default(),
+            allocate_element_types: HashMap::default(),
+        }
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -210,6 +222,14 @@ impl<'f> Validator<'f> {
                     panic!(
                         "Left-hand side and right-hand side of constrain must have the same type"
                     );
+                }
+                // Constrain instructions are only defined for numeric values: aggregate
+                // equality is decomposed elementwise during SSA generation, and references
+                // / functions are never legal operands. Enforcing this here lets later
+                // passes assume that any `Value::Instruction` operand of a constrain is a
+                // numeric instruction (e.g. `MakeArray` cannot reach here).
+                if !matches!(*lhs_type, Type::Numeric(_)) {
+                    panic!("Constrain operands must be numeric, got {lhs_type}");
                 }
             }
             Instruction::MakeArray { elements, typ: _ } => {
@@ -1082,9 +1102,9 @@ impl<'f> Validator<'f> {
                 for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
                     let parameter_type = self.function.dfg.type_of_value(*parameter);
-                    assert_eq!(
-                        argument_type, parameter_type,
-                        "Argument type in jmp must match block parameter type"
+                    assert!(
+                        types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
+                        "Argument type in jmp must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
                     );
                 }
             }
@@ -1105,14 +1125,52 @@ impl<'f> Validator<'f> {
         self.type_check_globals();
         self.validate_single_return_block();
 
-        for block in self.function.reachable_blocks() {
+        for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
+                self.track_allocate_and_check_load_store(*instruction);
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
             }
             self.validate_block_terminator(block);
+        }
+    }
+
+    /// Records the element type of each `allocate` and verifies that every
+    /// subsequent `load`/`store` against such an allocate uses that element
+    /// type.
+    fn track_allocate_and_check_load_store(&mut self, instruction: InstructionId) {
+        let dfg = &self.function.dfg;
+        match &dfg[instruction] {
+            Instruction::Allocate => {
+                let result = dfg.instruction_results(instruction)[0];
+                let result_type = dfg.type_of_value(result);
+                let Type::Reference(element_type, _) = &*result_type else {
+                    panic!("allocate must return a reference type, got {result_type}");
+                };
+                self.allocate_element_types.insert(result, (**element_type).clone());
+            }
+            Instruction::Load { address } => {
+                let Some(expected_type) = self.allocate_element_types.get(address) else {
+                    return;
+                };
+                let result = dfg.instruction_results(instruction)[0];
+                let result_type = dfg.type_of_value(result);
+                if *result_type != *expected_type {
+                    panic!("load should return {expected_type}, not {result_type}");
+                }
+            }
+            Instruction::Store { address, value } => {
+                let Some(expected_type) = self.allocate_element_types.get(address) else {
+                    return;
+                };
+                let value_type = dfg.type_of_value(*value);
+                if *value_type != *expected_type {
+                    panic!("store value should have type {expected_type}, not {value_type}");
+                }
+            }
+            _ => (),
         }
     }
 }
@@ -1132,6 +1190,25 @@ fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
         (arg, param),
         (Type::Reference(a, true), Type::Reference(b, false)) if a == b
     )
+}
+
+/// Compares two types, treating mutable and immutable references as equivalent.
+fn types_equal_ignoring_reference_mutability(a: &Type, b: &Type) -> bool {
+    let all_eq = |a: &[Type], b: &[Type]| {
+        a.len() == b.len()
+            && a.iter().zip(b).all(|(a, b)| types_equal_ignoring_reference_mutability(a, b))
+    };
+
+    match (a, b) {
+        (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => {
+            types_equal_ignoring_reference_mutability(a_elem, b_elem)
+        }
+        (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+            a_len == b_len && all_eq(a_elems, b_elems)
+        }
+        (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
+        _ => a == b,
+    }
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1448,6 +1525,45 @@ mod tests {
         let _ = Ssa::from_str(src).unwrap();
     }
 
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_with_array_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 2], v1: [u8; 2]):
+            constrain v0 == v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_neq_with_array_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: [u8; 2], v1: [u8; 2]):
+            constrain v0 != v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[should_panic(expected = "Constrain operands must be numeric")]
+    #[test]
+    fn constrain_with_reference_operands_is_rejected() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            constrain v0 == v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
@@ -1726,7 +1842,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Store address type u8 does not match value type Field")]
+    #[should_panic(expected = "store value should have type u8, not Field")]
     fn store_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
@@ -2148,6 +2264,97 @@ mod tests {
           b0():
             jmp b1(u8 0)
           b1(v0: u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn jmp_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut T` argument is accepted by a `&T` block parameter
+        // (and vice versa).
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            jmp b1(v0)
+          b1(v1: &u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &u32
+            jmp b1(v0)
+          b1(v1: &mut u32):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn jmp_allows_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // `[&mut Field; 1]` should be accepted by a `[&Field; 1]` block parameter.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            jmp b1(v1)
+          b1(v2: [&Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn jmp_allows_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // `&mut &mut Field` should be accepted by a `&mut &Field` block parameter.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            jmp b1(v1)
+          b1(v2: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "load should return Field, not u32")]
+    fn disallows_load_with_wrong_type() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = load v0 -> u32
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "store value should have type Field, not u32")]
+    fn disallows_store_with_wrong_type() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store u32 1 at v0
             return
         }
         ";

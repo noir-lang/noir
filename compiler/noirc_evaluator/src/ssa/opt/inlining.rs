@@ -88,7 +88,9 @@ impl Ssa {
         loop {
             let num_functions_before = self.functions.len();
 
-            let call_graph = CallGraph::from_ssa_weighted(&self);
+            // The inliner works on direct call sites and is robust to indirect calls
+            // (which it cannot inline anyway).
+            let call_graph = CallGraph::from_ssa_weighted_partial(&self);
 
             let inline_infos = compute_inline_infos(
                 &self,

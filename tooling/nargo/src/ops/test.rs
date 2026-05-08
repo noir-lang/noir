@@ -372,7 +372,10 @@ pub fn test_status_comptime_interpret_result(
     test_function: &TestFunction,
 ) -> TestStatus {
     match result {
-        Err(InterpreterError::Unimplemented { .. }) => {
+        Err(
+            InterpreterError::Unimplemented { .. }
+            | InterpreterError::InvalidInComptimeContext { .. },
+        ) => {
             // Most likely called an unknown oracle function.
             TestStatus::Skipped
         }

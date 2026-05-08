@@ -1,13 +1,18 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+#[cfg(test)]
+use insta as _;
+
 use std::hash::BuildHasher;
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use acvm::AcirField;
+use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType, AbiValue};
+use noirc_abi::{AbiErrorType, AbiParameter, AbiType, AbiValue};
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -590,7 +595,7 @@ pub fn compile_main(
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("{}", display_compiled_program(&compiled_program));
     }
 
     Ok((compiled_program, warnings))
@@ -1058,5 +1063,35 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
             let diagnostic = CustomDiagnostic::simple_bug(message, secondary_message, location);
             diagnostic.with_call_stack(call_stack)
         }
+    }
+}
+
+pub fn display_compiled_program(program: &CompiledProgram) -> String {
+    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types }.to_string()
+}
+
+/// Formats an ACIR [Program] together with its ABI error types so that any static
+/// assertion payloads embedded in the program are rendered as a `// message` comment
+/// next to the relevant ACIR/Brillig opcode. This is the same display used by
+/// `nargo compile --print-acir`.
+struct ProgramDisplay<'a, F: AcirField> {
+    program: &'a Program<F>,
+    error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_types = self
+            .error_types
+            .iter()
+            .filter_map(|(selector, abi_error_type)| {
+                if let AbiErrorType::String { string } = abi_error_type {
+                    Some((*selector, string.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+        display_program(self.program, Some(&error_types), f)
     }
 }
