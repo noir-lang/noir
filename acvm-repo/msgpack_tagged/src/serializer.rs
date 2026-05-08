@@ -10,18 +10,19 @@
 //! wrapper. The wrapper in turn writes to a `Vec<u8>` we hand back to the
 //! caller.
 //!
-//! Currently intercepts the named-struct shape end-to-end (with nested
-//! recursion through the wrapper). Every other shape — sequences, maps,
-//! tuples, tuple structs, the four variant kinds — still forwards to the
-//! inner `rmp_serde` serializer and is marked with a `TODO:` comment at the
-//! method body explaining what each one needs.
+//! Every aggregate shape is intercepted: named structs, multi-element tuple
+//! structs, sequences, fixed-length tuples, free-form maps, and all four
+//! variant kinds (unit / newtype / tuple / struct). Primitives, top-level
+//! newtype structs, and `Option` forward through to inner — recursing into
+//! nested values via this same wrapper so any tagged value reachable from
+//! the root keeps the int-keyed-map treatment.
 
 use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
 use serde::ser::{
-    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeTuple,
-    SerializeTupleStruct, Serializer,
+    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
+    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
 
 use crate::{MsgpackTagged, TagRegistry};
@@ -85,11 +86,10 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     type SerializeSeq = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeTuple = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeTupleStruct = TaggedSerializeProduct<'ser, 'a, W>;
-    type SerializeTupleVariant = <&'ser mut RmpSerializer<W> as Serializer>::SerializeTupleVariant;
+    type SerializeTupleVariant = TaggedSerializeProduct<'ser, 'a, W>;
     type SerializeMap = TaggedSerializeViaParent<'ser, 'a, W>;
     type SerializeStruct = TaggedSerializeProduct<'ser, 'a, W>;
-    type SerializeStructVariant =
-        <&'ser mut RmpSerializer<W> as Serializer>::SerializeStructVariant;
+    type SerializeStructVariant = TaggedSerializeProduct<'ser, 'a, W>;
 
     // -------- primitive scalars: forward verbatim ---------------------------
 
@@ -215,8 +215,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         Ok(TaggedSerializeViaParent { parent: self })
     }
 
-    // -------- tuple struct / variant / unit variant / newtype variant:
-    //          forwarded for now; subsequent commits intercept these.
+    // -------- product shapes (named struct + multi-element tuple struct) ---
 
     fn serialize_tuple_struct(
         self,
@@ -233,64 +232,64 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
     }
 
-    // TODO: tuple variants (`VariantKind::Tuple`) — emit
-    // `{<variant_tag>: {0: ..., 1: ...}}`. Look up the type's `Sum`, resolve
-    // the variant by name, write an outer 1-entry map header, then a payload
-    // map driven by the variant's `payload` `Product` (positional names).
-    // Needs a new adapter that routes each element through `&mut self`.
-    fn serialize_tuple_variant(
-        self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        self.inner.serialize_tuple_variant(name, variant_index, variant, len)
-    }
+    // -------- sum shapes: every variant becomes `{<variant_tag>: <payload>}`,
+    // with the payload shape determined by `VariantKind`. Each branch looks
+    // up the `Sum`, resolves the variant by name, writes a 1-entry outer map
+    // header (variant tag → payload), then emits the payload appropriate to
+    // the kind: `nil` for unit, the inner value pass-through for newtype, an
+    // int-keyed payload map for tuple/struct.
 
-    // TODO: unit variants (`VariantKind::Unit`) — emit `{<variant_tag>: nil}`.
-    // rmp_serde's default encodes a unit variant as the variant *name string*,
-    // which is the wrong shape for us. Look up the type's `Sum`, resolve the
-    // variant by name, and write a 1-entry map `tag → nil`.
     fn serialize_unit_variant(
         self,
         name: &'static str,
-        variant_index: u32,
+        _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        self.inner.serialize_unit_variant(name, variant_index, variant)
+        self.write_variant_header(name, variant)?;
+        Serializer::serialize_unit(&mut *self)
     }
 
-    // TODO: newtype variants (`VariantKind::Newtype`) — emit
-    // `{<variant_tag>: <inner bytes>}` with no field-level tag. Look up the
-    // `Sum`, write a 1-entry map header, then route the inner value through
-    // `&mut self` so any nested tagged types in the payload keep recursing.
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
-        variant_index: u32,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        self.inner.serialize_newtype_variant(name, variant_index, variant, value)
+        self.write_variant_header(name, variant)?;
+        // Pass-through: inner bytes go directly under the variant tag, with no
+        // payload field-tag wrapping. Routing through `&mut *self` keeps any
+        // nested tagged types inside `value` recursing through this wrapper.
+        value.serialize(&mut *self)
     }
 
-    // TODO: struct variants (`VariantKind::Struct`) — emit
-    // `{<variant_tag>: {<field_tag>: ..., ...}}`. Look up the `Sum`, resolve
-    // the variant by name, write an outer 1-entry map header, then a payload
-    // map driven by the variant's `payload` `Product` (named fields).
-    // Needs a new adapter that routes each value through `&mut self`.
+    fn serialize_tuple_variant(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        let v = self.write_variant_header(name, variant)?;
+        let _ = len;
+        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
+        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
+    }
+
     fn serialize_struct_variant(
         self,
         name: &'static str,
-        variant_index: u32,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        self.inner.serialize_struct_variant(name, variant_index, variant, len)
+        let v = self.write_variant_header(name, variant)?;
+        let _ = len;
+        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
+        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
     }
 
     // -------- product shapes (named struct + multi-element tuple struct) ---
@@ -343,6 +342,49 @@ impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
             panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
         })
     }
+
+    /// Resolve a registered `Variant` by enum-type name + variant name. Used
+    /// by all four `serialize_*_variant` methods. A registry miss, a
+    /// product-shaped entry, or an unknown variant name signals a real bug —
+    /// the macro and serde-derive should agree on which name lives where.
+    fn variant_for(&self, name: &'static str, variant_name: &'static str) -> crate::Variant {
+        let entry = self.registry.get(name).unwrap_or_else(|| {
+            panic!(
+                "MsgpackTagged registry miss for enum {name:?} — the top-level \
+                 `register_into` walk should have registered every reachable type"
+            )
+        });
+        let sum = entry.tagged().as_sum().unwrap_or_else(|| {
+            panic!(
+                "registry entry for {name:?} is product-shaped but a sum shape was expected \
+                 (a `serialize_*_variant` call landed here)"
+            )
+        });
+        sum.variant_for(variant_name).unwrap_or_else(|| {
+            panic!(
+                "MsgpackTagged: variant {variant_name:?} of enum {name:?} not found in \
+                 registered Sum — `#[derive(MsgpackTagged)]` and `serde::Serialize` disagree \
+                 on variant names"
+            )
+        })
+    }
+
+    /// Write the outer `{variant_tag: <payload>}` map header common to all
+    /// four variant shapes — looks up the variant, writes a 1-entry msgpack
+    /// map header, and writes the variant tag as the map key. Returns the
+    /// resolved variant so callers can use its `payload` for the rest of the
+    /// shape (a payload map for tuple/struct, the inner value for newtype,
+    /// `nil` for unit).
+    fn write_variant_header(
+        &mut self,
+        name: &'static str,
+        variant_name: &'static str,
+    ) -> Result<crate::Variant, RmpError> {
+        let v = self.variant_for(name, variant_name);
+        write_map_header(self.inner.get_mut(), 1)?;
+        Serializer::serialize_u8(&mut *self, v.tag)?;
+        Ok(v)
+    }
 }
 
 /// Write a msgpack array header (`fixarray` / `array16` / `array32` depending
@@ -385,6 +427,22 @@ pub(crate) struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     next_position: usize,
 }
 
+impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
+    /// Emit one `(tag, value)` map entry through the parent serializer. The
+    /// outer map header was written upfront in the corresponding
+    /// `serialize_*` method, so each entry is just two more values appended
+    /// back-to-back: the integer tag (the map key) followed by the field
+    /// value. Routing the value through `&mut *self.parent` keeps any
+    /// nested tagged types in `value` recursing through the wrapper.
+    fn serialize_tagged<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
+    where
+        T: ?Sized + Serialize,
+    {
+        Serializer::serialize_u8(&mut *self.parent, tag)?;
+        value.serialize(&mut *self.parent)
+    }
+}
+
 /// Named-field struct (`struct Foo { a: u32, b: bool }`). Each
 /// `serialize_field(name, value)` call resolves `name` against the
 /// registered `Product` (honoring `#[serde(rename)]`) to derive the wire
@@ -404,8 +462,7 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W>
                  disagree on field names (check `#[serde(rename = ...)]`)",
             ))
         })?;
-        Serializer::serialize_u8(&mut *self.parent, tag)?;
-        value.serialize(&mut *self.parent)
+        self.serialize_tagged(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
@@ -453,8 +510,63 @@ impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, '
                  trying to serialize"
             ))
         })?;
-        Serializer::serialize_u8(&mut *self.parent, tag)?;
-        value.serialize(&mut *self.parent)
+        self.serialize_tagged(tag, value)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(())
+    }
+}
+
+/// Tuple variant payload (`enum E { ... Pair(u32, bool) }`). Same payload
+/// shape and tag-resolution rule as a top-level tuple struct — the variant's
+/// `payload` `Product` uses positional names (`"0"`, `"1"`, …) and the inner
+/// payload map header was written upfront in `serialize_tuple_variant`. The
+/// outer `{variant_tag: ...}` map's only entry is the payload, so end() just
+/// finishes the inner map; nothing else needs writing.
+impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        let position = self.next_position;
+        self.next_position += 1;
+        let position_name = position.to_string();
+        let tag = self.product.tag_for(&position_name).ok_or_else(|| {
+            RmpError::custom(format!(
+                "MsgpackTagged: tuple-variant position {position} not found in registered \
+                 Variant payload"
+            ))
+        })?;
+        self.serialize_tagged(tag, value)
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        Ok(())
+    }
+}
+
+/// Struct variant payload (`enum E { ... Named { a: u32, b: bool } }`). Same
+/// payload shape and tag-resolution rule as a top-level named struct.
+impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser, 'a, W> {
+    type Ok = ();
+    type Error = RmpError;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        let tag = self.product.tag_for(key).ok_or_else(|| {
+            RmpError::custom(format!(
+                "MsgpackTagged: field {key:?} not found in registered Variant payload — \
+                 `#[derive(MsgpackTagged)]` and `serde::Serialize` disagree on variant \
+                 field names (check `#[serde(rename = ...)]`)"
+            ))
+        })?;
+        self.serialize_tagged(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
@@ -805,5 +917,175 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Mixed-shape enum exercising every `VariantKind`: `Empty` is unit,
+    /// `Wrap` is a newtype carrying a primitive, `Pair` is a tuple variant
+    /// with two payload fields, `Named` is a struct variant with named
+    /// fields. Each variant's wire tag is non-zero so we don't accidentally
+    /// pass a "tag matches default" coincidence.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    enum Mixed {
+        #[tag(1)]
+        Empty,
+        #[tag(2)]
+        Wrap(u32),
+        #[tag(3)]
+        Pair(u32, bool),
+        #[tag(4)]
+        Named {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    fn single_entry_map(value: &Value) -> (u64, &Value) {
+        let Value::Map(entries) = value else {
+            panic!("expected single-entry map, got {value:?}");
+        };
+        assert_eq!(entries.len(), 1, "expected exactly one entry, got {entries:?}");
+        let (k, v) = &entries[0];
+        (k.as_u64().expect("variant tag should be an integer"), v)
+    }
+
+    /// Unit variants encode as `{<variant_tag>: nil}` — *not* the variant
+    /// name string that rmp_serde's default would produce.
+    #[test]
+    fn unit_variant_encodes_as_variant_tag_with_nil_payload() {
+        let bytes = msgpack_tagged_serialize(&Mixed::Empty).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (tag, payload) = single_entry_map(&decoded);
+        assert_eq!(tag, 1);
+        assert_eq!(*payload, Value::Nil, "unit-variant payload should be nil, got {payload:?}");
+    }
+
+    /// Newtype variants pass the inner value through directly under the
+    /// variant tag — no field-tag wrapping. For a primitive inner type the
+    /// payload is just that primitive.
+    #[test]
+    fn newtype_variant_passes_inner_value_through() {
+        let bytes = msgpack_tagged_serialize(&Mixed::Wrap(42)).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (tag, payload) = single_entry_map(&decoded);
+        assert_eq!(tag, 2);
+        assert_eq!(payload.as_u64(), Some(42), "newtype payload should be the bare inner u32");
+    }
+
+    /// Newtype variant carrying a tagged inner type — the inner tagged
+    /// struct still recurses through the wrapper, so the payload is the
+    /// inner type's int-keyed map directly under the variant tag.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    enum NewtypeWithTagged {
+        #[tag(7)]
+        Wrap(Pair),
+    }
+
+    #[test]
+    fn newtype_variant_with_tagged_inner_recurses_through_wrapper() {
+        let value = NewtypeWithTagged::Wrap(Pair { first: 11, second: true });
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (tag, payload) = single_entry_map(&decoded);
+        assert_eq!(tag, 7);
+        let Value::Map(inner) = payload else {
+            panic!("newtype payload should be Pair's int-keyed map, got {payload:?}");
+        };
+        assert_eq!(inner.len(), 2);
+        for (k, _) in inner {
+            assert!(matches!(k, Value::Integer(_)), "inner key {k:?} should be an integer");
+        }
+    }
+
+    /// Tuple variants encode as `{<variant_tag>: {0: ..., 1: ...}}` — the
+    /// outer 1-entry map carries the variant tag, the inner map is the
+    /// payload's positional `Product`.
+    #[test]
+    fn tuple_variant_encodes_as_int_keyed_payload_under_variant_tag() {
+        let bytes = msgpack_tagged_serialize(&Mixed::Pair(7, true)).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (tag, payload) = single_entry_map(&decoded);
+        assert_eq!(tag, 3);
+        let Value::Map(inner) = payload else {
+            panic!("tuple-variant payload should be an int-keyed map, got {payload:?}");
+        };
+        assert_eq!(inner.len(), 2);
+        assert_eq!(inner[0].0.as_u64(), Some(0));
+        assert_eq!(inner[0].1.as_u64(), Some(7));
+        assert_eq!(inner[1].0.as_u64(), Some(1));
+        assert_eq!(inner[1].1.as_bool(), Some(true));
+    }
+
+    /// Struct variants encode as `{<variant_tag>: {<field_tag>: ..., ...}}`
+    /// — the inner payload is driven by the variant's named-field `Product`.
+    #[test]
+    fn struct_variant_encodes_as_int_keyed_payload_under_variant_tag() {
+        let value = Mixed::Named { a: 99, b: false };
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (tag, payload) = single_entry_map(&decoded);
+        assert_eq!(tag, 4);
+        let Value::Map(inner) = payload else {
+            panic!("struct-variant payload should be an int-keyed map, got {payload:?}");
+        };
+        assert_eq!(inner.len(), 2);
+        assert_eq!(inner[0].0.as_u64(), Some(0));
+        assert_eq!(inner[0].1.as_u64(), Some(99));
+        assert_eq!(inner[1].0.as_u64(), Some(1));
+        assert_eq!(inner[1].1.as_bool(), Some(false));
+    }
+
+    /// Tagged values nested inside a tuple-variant payload still recurse
+    /// through the wrapper.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    enum TupleVariantWithNested {
+        #[tag(0)]
+        Carry(Pair, u32),
+    }
+
+    #[test]
+    fn tuple_variant_payload_recurses_through_wrapper() {
+        let value = TupleVariantWithNested::Carry(Pair { first: 1, second: false }, 5);
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (_, payload) = single_entry_map(&decoded);
+        let Value::Map(inner) = payload else {
+            panic!("tuple-variant payload should be a map, got {payload:?}");
+        };
+        // Element 0 is `Pair` — must be an int-keyed map, not an array.
+        let Value::Map(nested) = &inner[0].1 else {
+            panic!("nested Pair should be int-keyed map, got {:?}", inner[0].1);
+        };
+        assert!(nested.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+    }
+
+    /// Tagged values nested inside a struct-variant payload still recurse
+    /// through the wrapper.
+    #[derive(serde::Serialize, MsgpackTagged)]
+    enum StructVariantWithNested {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            inner: Pair,
+            #[tag(1)]
+            count: u8,
+        },
+    }
+
+    #[test]
+    fn struct_variant_payload_recurses_through_wrapper() {
+        let value =
+            StructVariantWithNested::Carry { inner: Pair { first: 8, second: true }, count: 3 };
+        let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+        let decoded = decode_msgpack(&bytes);
+        let (_, payload) = single_entry_map(&decoded);
+        let Value::Map(inner) = payload else {
+            panic!("struct-variant payload should be a map, got {payload:?}");
+        };
+        let Value::Map(nested) = &inner[0].1 else {
+            panic!("nested Pair should be int-keyed map, got {:?}", inner[0].1);
+        };
+        assert!(nested.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
     }
 }
