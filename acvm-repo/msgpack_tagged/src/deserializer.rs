@@ -19,7 +19,7 @@ use rmp_serde::decode::ReadReader;
 // `de::Deserializer` would clash with our own `Deserializer` struct below if
 // pulled in via `use`; importing the `de` module instead lets us write
 // `de::Deserializer` for the trait at the few sites that need it.
-use serde::de::{self, Deserialize, Error as _, Visitor};
+use serde::de::{self, Deserialize, DeserializeSeed, Error as _, SeqAccess, Visitor};
 
 use crate::{MsgpackTagged, TagRegistry};
 
@@ -220,13 +220,17 @@ where
     // -------- collection / aggregate shapes: forwarded for now; subsequent
     //          commits intercept these.
 
-    // TODO: needs a sequence adapter — each element should be deserialized
-    // through `&mut self` so any tagged element inside a `Vec<Tagged>` /
-    // `&[Tagged]` recurses through this wrapper instead of falling through
-    // to rmp_serde's defaults. Mirror of the serializer's
-    // `TaggedSerializeViaParent` for the `SerializeSeq` case.
     fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_seq(visitor)
+        // Read the msgpack array header (length-prefixed; `read_array_len`
+        // consumes the marker and returns the element count). Unlike the
+        // option case, the marker is metadata — the elements come AFTER
+        // it — so consuming it is correct and we don't need to restore.
+        // The adapter then yields each element via `&mut *self.parent`
+        // so any tagged element inside the sequence recurses through
+        // this wrapper.
+        let len = rmp::decode::read_array_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))?;
+        visitor.visit_seq(TaggedSeqAccess { parent: self, remaining: len as usize })
     }
 
     // TODO: same fix as `deserialize_seq` for fixed-length Rust tuples —
@@ -312,6 +316,41 @@ where
     }
 }
 
+/// `SeqAccess` adapter for sequences (`Vec<T>`, `&[T]`, …) and — once
+/// `deserialize_tuple` lands — fixed-length tuples too. Yields `remaining`
+/// elements, decrementing on each `next_element_seed` call. The msgpack
+/// array header was already consumed in `deserialize_seq`, so each element
+/// just reads its own value bytes through the parent. Routing each call
+/// through `&mut *self.parent` keeps any nested tagged types recursing
+/// through the wrapper. Mirror of the serializer's
+/// `TaggedSerializeViaParent` on the `SerializeSeq` case.
+pub(crate) struct TaggedSeqAccess<'der, 'a, R: Read> {
+    parent: &'der mut Deserializer<'a, R>,
+    remaining: usize,
+}
+
+impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedSeqAccess<'der, 'a, R>
+where
+    R: Read + Clone,
+{
+    type Error = RmpError;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if self.remaining == 0 {
+            return Ok(None);
+        }
+        self.remaining -= 1;
+        seed.deserialize(&mut *self.parent).map(Some)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.remaining)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -329,19 +368,40 @@ mod tests {
         assert_eq!(decoded, value);
     }
 
-    /// Skeleton smoke test: a value that doesn't go through any
-    /// shape-specific interception path roundtrips correctly. `Vec<u32>`
-    /// uses `serialize_seq` / `deserialize_seq`, both of which currently
-    /// forward to inner unchanged — so end-to-end this exercises only the
-    /// wiring (registry build + wrapper construction + `T::deserialize`
-    /// dispatch), not any interception.
-    ///
-    /// This locks in the wiring before the interception work lands, and
-    /// gives us a regression target if a future change breaks the basic
-    /// path.
+    /// Sequence of primitives — basic round-trip through both
+    /// `serialize_seq` and `deserialize_seq`'s adapter.
     #[test]
-    fn roundtrip_through_skeleton_for_a_shape_that_does_not_need_interception() {
+    fn vec_of_primitives_roundtrips() {
         let value: Vec<u32> = vec![1, 2, 3, 4, 5];
+        assert_roundtrip(value);
+    }
+
+    /// Empty sequence — exercises the zero-length array shape: the array
+    /// header is read, `next_element_seed` returns `Ok(None)` immediately,
+    /// no element bytes are read.
+    #[test]
+    fn empty_vec_roundtrips() {
+        let value: Vec<u32> = vec![];
+        assert_roundtrip(value);
+    }
+
+    /// Nested sequences — `Vec<Vec<u32>>` exercises `deserialize_seq`'s
+    /// adapter routing each element through `&mut *self.parent`, which
+    /// itself recurses into `deserialize_seq` for the inner Vec.
+    #[test]
+    fn nested_vec_roundtrips() {
+        let value: Vec<Vec<u32>> = vec![vec![1, 2], vec![], vec![3, 4, 5]];
+        assert_roundtrip(value);
+    }
+
+    /// `Vec<Option<T>>` exercises composition of `deserialize_seq` and
+    /// `deserialize_option`: each element calls our `deserialize_option`,
+    /// which peeks the marker and either visits None or restores +
+    /// recurses for Some. Mixed Some/None elements verify the per-element
+    /// state isolation.
+    #[test]
+    fn vec_of_options_roundtrips() {
+        let value: Vec<Option<u32>> = vec![Some(1), None, Some(2), None, None, Some(3)];
         assert_roundtrip(value);
     }
 
