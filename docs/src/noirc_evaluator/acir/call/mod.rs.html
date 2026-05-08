@@ -143,13 +143,13 @@
 <a href=#143 id=143 data-nosnippet>143</a>            <span class="self">self</span>.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
 <a href=#144 id=144 data-nosnippet>144</a>        {
 <a href=#145 id=145 data-nosnippet>145</a>            <span class="kw">let </span>code = <span class="self">self</span>.shared_context.generated_brillig(generated_pointer.as_usize());
-<a href=#146 id=146 data-nosnippet>146</a>            <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
+<a href=#146 id=146 data-nosnippet>146</a>            <span class="kw">let </span>skip_output_range_checks = <span class="bool-val">false</span>;
 <a href=#147 id=147 data-nosnippet>147</a>            <span class="self">self</span>.acir_context.brillig_call(
 <a href=#148 id=148 data-nosnippet>148</a>                <span class="self">self</span>.current_side_effects_enabled_var,
 <a href=#149 id=149 data-nosnippet>149</a>                code,
 <a href=#150 id=150 data-nosnippet>150</a>                inputs,
 <a href=#151 id=151 data-nosnippet>151</a>                outputs,
-<a href=#152 id=152 data-nosnippet>152</a>                safe_return_values,
+<a href=#152 id=152 data-nosnippet>152</a>                skip_output_range_checks,
 <a href=#153 id=153 data-nosnippet>153</a>                <span class="kw-2">*</span>generated_pointer,
 <a href=#154 id=154 data-nosnippet>154</a>                <span class="prelude-val">None</span>,
 <a href=#155 id=155 data-nosnippet>155</a>            )<span class="question-mark">?
@@ -157,13 +157,13 @@
 <a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">let </span>code =
 <a href=#158 id=158 data-nosnippet>158</a>                gen_brillig_for(func, arguments.clone(), <span class="self">self</span>.brillig, <span class="self">self</span>.brillig_options)<span class="question-mark">?</span>;
 <a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let </span>generated_pointer = <span class="self">self</span>.shared_context.new_generated_pointer();
-<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
+<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw">let </span>skip_output_range_checks = <span class="bool-val">false</span>;
 <a href=#161 id=161 data-nosnippet>161</a>            <span class="kw">let </span>output_values = <span class="self">self</span>.acir_context.brillig_call(
 <a href=#162 id=162 data-nosnippet>162</a>                <span class="self">self</span>.current_side_effects_enabled_var,
 <a href=#163 id=163 data-nosnippet>163</a>                <span class="kw-2">&amp;</span>code,
 <a href=#164 id=164 data-nosnippet>164</a>                inputs,
 <a href=#165 id=165 data-nosnippet>165</a>                outputs,
-<a href=#166 id=166 data-nosnippet>166</a>                safe_return_values,
+<a href=#166 id=166 data-nosnippet>166</a>                skip_output_range_checks,
 <a href=#167 id=167 data-nosnippet>167</a>                generated_pointer,
 <a href=#168 id=168 data-nosnippet>168</a>                <span class="prelude-val">None</span>,
 <a href=#169 id=169 data-nosnippet>169</a>            )<span class="question-mark">?</span>;

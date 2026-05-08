@@ -46,534 +46,536 @@
 <a href=#46 id=46 data-nosnippet>46</a><span class="kw">use </span>csat::CSatTransformer;
 <a href=#47 id=47 data-nosnippet>47</a><span class="kw">use </span>merge_expressions::MergeExpressionsOptimizer;
 <a href=#48 id=48 data-nosnippet>48</a>
-<a href=#49 id=49 data-nosnippet>49</a><span class="kw">use </span>std::hash::BuildHasher;
-<a href=#50 id=50 data-nosnippet>50</a><span class="kw">use </span>tracing::info;
-<a href=#51 id=51 data-nosnippet>51</a>
-<a href=#52 id=52 data-nosnippet>52</a><span class="kw">use </span><span class="kw">super</span>::RangeOptimizer;
-<a href=#53 id=53 data-nosnippet>53</a>
-<a href=#54 id=54 data-nosnippet>54</a><span class="doccomment">/// We use multiple passes to stabilize the output in many cases
-<a href=#55 id=55 data-nosnippet>55</a></span><span class="kw">const </span>DEFAULT_MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
-<a href=#56 id=56 data-nosnippet>56</a>
-<a href=#57 id=57 data-nosnippet>57</a><span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
-<a href=#58 id=58 data-nosnippet>58</a>///
-<a href=#59 id=59 data-nosnippet>59</a>/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
-<a href=#60 id=60 data-nosnippet>60</a>///
-<a href=#61 id=61 data-nosnippet>61</a>/// Does multiple passes until the output stabilizes.
-<a href=#62 id=62 data-nosnippet>62</a>///
-<a href=#63 id=63 data-nosnippet>63</a>/// Pre-Conditions:
-<a href=#64 id=64 data-nosnippet>64</a>/// - General Optimizer must run before this pass,
-<a href=#65 id=65 data-nosnippet>65</a>///   when `max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES)` is greater than 0
-<a href=#66 id=66 data-nosnippet>66</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"transform_acir"</span>, skip(acir, acir_opcode_positions))]
-<a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transform_internal&lt;F: AcirField&gt;(
-<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw-2">mut </span>acir_opcode_positions: Vec&lt;usize&gt;,
-<a href=#70 id=70 data-nosnippet>70</a>    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
-<a href=#71 id=71 data-nosnippet>71</a>    max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
-<a href=#72 id=72 data-nosnippet>72</a>) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;, bool) {
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">if </span>acir.opcodes.len() == <span class="number">1 </span>&amp;&amp; <span class="macro">matches!</span>(acir.opcodes[<span class="number">0</span>], Opcode::BrilligCall { .. }) {
-<a href=#74 id=74 data-nosnippet>74</a>        <span class="macro">info!</span>(<span class="string">"Program is fully unconstrained, skipping transformation pass"</span>);
-<a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">return </span>(acir, acir_opcode_positions, <span class="bool-val">true</span>);
-<a href=#76 id=76 data-nosnippet>76</a>    }
-<a href=#77 id=77 data-nosnippet>77</a>
-<a href=#78 id=78 data-nosnippet>78</a>    <span class="comment">// Allow multiple passes until we have stable output.
-<a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
-<a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="comment">// Checking for stable output after MAX_TRANSFORMER_PASSES
-<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>opcodes_hash_stabilized = <span class="bool-val">false</span>;
+<a href=#49 id=49 data-nosnippet>49</a><span class="kw">use </span>tracing::info;
+<a href=#50 id=50 data-nosnippet>50</a>
+<a href=#51 id=51 data-nosnippet>51</a><span class="kw">use </span><span class="kw">super</span>::RangeOptimizer;
+<a href=#52 id=52 data-nosnippet>52</a>
+<a href=#53 id=53 data-nosnippet>53</a><span class="doccomment">/// We use multiple passes to stabilize the output in many cases
+<a href=#54 id=54 data-nosnippet>54</a></span><span class="kw">const </span>DEFAULT_MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
+<a href=#55 id=55 data-nosnippet>55</a>
+<a href=#56 id=56 data-nosnippet>56</a><span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
+<a href=#57 id=57 data-nosnippet>57</a>///
+<a href=#58 id=58 data-nosnippet>58</a>/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+<a href=#59 id=59 data-nosnippet>59</a>///
+<a href=#60 id=60 data-nosnippet>60</a>/// Does multiple passes until the output stabilizes.
+<a href=#61 id=61 data-nosnippet>61</a>///
+<a href=#62 id=62 data-nosnippet>62</a>/// Pre-Conditions:
+<a href=#63 id=63 data-nosnippet>63</a>/// - General Optimizer must run before this pass,
+<a href=#64 id=64 data-nosnippet>64</a>///   when `max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES)` is greater than 0
+<a href=#65 id=65 data-nosnippet>65</a></span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"transform_acir"</span>, skip(acir, acir_opcode_positions))]
+<a href=#66 id=66 data-nosnippet>66</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>transform_internal&lt;F: AcirField&gt;(
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw-2">mut </span>acir_opcode_positions: Vec&lt;usize&gt;,
+<a href=#69 id=69 data-nosnippet>69</a>    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
+<a href=#70 id=70 data-nosnippet>70</a>    max_transformer_passes_or_default: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+<a href=#71 id=71 data-nosnippet>71</a>) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;, bool) {
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">if </span>acir.opcodes.len() == <span class="number">1 </span>&amp;&amp; <span class="macro">matches!</span>(acir.opcodes[<span class="number">0</span>], Opcode::BrilligCall { .. }) {
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="macro">info!</span>(<span class="string">"Program is fully unconstrained, skipping transformation pass"</span>);
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw">return </span>(acir, acir_opcode_positions, <span class="bool-val">true</span>);
+<a href=#75 id=75 data-nosnippet>75</a>    }
+<a href=#76 id=76 data-nosnippet>76</a>
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="comment">// Allow multiple passes until we have stable output.
+<a href=#78 id=78 data-nosnippet>78</a>    // We use opcode count rather than a structural hash as the convergence signal,
+<a href=#79 id=79 data-nosnippet>79</a>    // because intermediate variables are created in step 1. to fits the width and then
+<a href=#80 id=80 data-nosnippet>80</a>    // sometimes are removed in step 2. to benefit from the 'big-add' gates of the proving system.
+<a href=#81 id=81 data-nosnippet>81</a>    // Opcode count tracks the metric we actually care about.
+<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>prev_opcode_count = acir.opcodes.len();
 <a href=#83 id=83 data-nosnippet>83</a>
-<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">let </span>max_transformer_passes =
-<a href=#85 id=85 data-nosnippet>85</a>        max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
-<a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="comment">// For most test programs it would be enough to loop here, but some of them
-<a href=#88 id=88 data-nosnippet>88</a>    // don't stabilize unless we also repeat the backend agnostic optimizations.
-<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">for _ in </span><span class="number">0</span>..max_transformer_passes {
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="macro">info!</span>(<span class="string">"Number of opcodes {}"</span>, acir.opcodes.len());
-<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) =
-<a href=#92 id=92 data-nosnippet>92</a>            transform_internal_once(acir, acir_opcode_positions, brillig_side_effects);
-<a href=#93 id=93 data-nosnippet>93</a>
-<a href=#94 id=94 data-nosnippet>94</a>        acir = new_acir;
-<a href=#95 id=95 data-nosnippet>95</a>        acir_opcode_positions = new_acir_opcode_positions;
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">let </span>new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
+<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">let </span><span class="kw-2">mut </span>opcode_count_stabilized = <span class="bool-val">false</span>;
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">let </span>max_transformer_passes =
+<a href=#87 id=87 data-nosnippet>87</a>        max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="comment">// For most test programs it would be enough to loop here, but some of them
+<a href=#90 id=90 data-nosnippet>90</a>    // don't stabilize unless we also repeat the backend agnostic optimizations.
+<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">for _ in </span><span class="number">0</span>..max_transformer_passes {
+<a href=#92 id=92 data-nosnippet>92</a>        <span class="macro">info!</span>(<span class="string">"Number of opcodes {}"</span>, acir.opcodes.len());
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) =
+<a href=#94 id=94 data-nosnippet>94</a>            transform_internal_once(acir, acir_opcode_positions, brillig_side_effects);
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>        acir = new_acir;
+<a href=#97 id=97 data-nosnippet>97</a>        acir_opcode_positions = new_acir_opcode_positions;
 <a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">if </span>new_opcodes_hash == prev_opcodes_hash {
-<a href=#100 id=100 data-nosnippet>100</a>            opcodes_hash_stabilized = <span class="bool-val">true</span>;
-<a href=#101 id=101 data-nosnippet>101</a>            <span class="kw">break</span>;
-<a href=#102 id=102 data-nosnippet>102</a>        }
-<a href=#103 id=103 data-nosnippet>103</a>        prev_opcodes_hash = new_opcodes_hash;
-<a href=#104 id=104 data-nosnippet>104</a>    }
-<a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>    (acir, acir_opcode_positions, opcodes_hash_stabilized)
-<a href=#107 id=107 data-nosnippet>107</a>}
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
-<a href=#110 id=110 data-nosnippet>110</a>///
-<a href=#111 id=111 data-nosnippet>111</a>/// If the width is unbounded, it does nothing.
-<a href=#112 id=112 data-nosnippet>112</a>/// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
-<a href=#113 id=113 data-nosnippet>113</a>/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
-<a href=#114 id=114 data-nosnippet>114</a>/// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
-<a href=#115 id=115 data-nosnippet>115</a>///
-<a href=#116 id=116 data-nosnippet>116</a>/// Pre-Conditions:
-<a href=#117 id=117 data-nosnippet>117</a>/// - General Optimizer must run before this pass
-<a href=#118 id=118 data-nosnippet>118</a></span><span class="attr">#[tracing::instrument(
-<a href=#119 id=119 data-nosnippet>119</a>    level = <span class="string">"trace"</span>,
-<a href=#120 id=120 data-nosnippet>120</a>    name = <span class="string">"transform_acir_once"</span>,
-<a href=#121 id=121 data-nosnippet>121</a>    skip(acir, acir_opcode_positions)
-<a href=#122 id=122 data-nosnippet>122</a>)]
-<a href=#123 id=123 data-nosnippet>123</a></span><span class="kw">fn </span>transform_internal_once&lt;F: AcirField&gt;(
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
-<a href=#125 id=125 data-nosnippet>125</a>    acir_opcode_positions: Vec&lt;usize&gt;,
-<a href=#126 id=126 data-nosnippet>126</a>    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
-<a href=#127 id=127 data-nosnippet>127</a>) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="comment">// 1. CSAT transformation
-<a href=#129 id=129 data-nosnippet>129</a>    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
-<a href=#130 id=130 data-nosnippet>130</a>    // to the required width by creating intermediate variables.
-<a href=#131 id=131 data-nosnippet>131</a>    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = CSatTransformer::new(<span class="number">4</span>);
-<a href=#133 id=133 data-nosnippet>133</a>    <span class="kw">for </span>value <span class="kw">in </span>acir.circuit_arguments() {
-<a href=#134 id=134 data-nosnippet>134</a>        transformer.mark_solvable(value);
-<a href=#135 id=135 data-nosnippet>135</a>    }
-<a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
-<a href=#138 id=138 data-nosnippet>138</a>    <span class="comment">// Optimize the assert-zero gates by reducing them into the correct width and
-<a href=#139 id=139 data-nosnippet>139</a>    // creating intermediate variables when necessary
-<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>transformed_opcodes = Vec::new();
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="kw">let </span><span class="kw-2">mut </span>next_witness_index = max_witness(<span class="kw-2">&amp;</span>acir).witness_index() + <span class="number">1</span>;
-<a href=#143 id=143 data-nosnippet>143</a>    <span class="comment">// maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
-<a href=#144 id=144 data-nosnippet>144</a>    // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
-<a href=#145 id=145 data-nosnippet>145</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;Expression&lt;F&gt;, (F, Witness)&gt; = IndexMap::new();
-<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">for </span>(index, opcode) <span class="kw">in </span>acir.opcodes.into_iter().enumerate() {
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="kw">match </span>opcode {
-<a href=#148 id=148 data-nosnippet>148</a>            Opcode::AssertZero(arith_expr) =&gt; {
-<a href=#149 id=149 data-nosnippet>149</a>                <span class="kw">let </span>len = intermediate_variables.len();
-<a href=#150 id=150 data-nosnippet>150</a>
-<a href=#151 id=151 data-nosnippet>151</a>                <span class="kw">let </span>arith_expr = transformer.transform(
-<a href=#152 id=152 data-nosnippet>152</a>                    arith_expr,
-<a href=#153 id=153 data-nosnippet>153</a>                    <span class="kw-2">&amp;mut </span>intermediate_variables,
-<a href=#154 id=154 data-nosnippet>154</a>                    <span class="kw-2">&amp;mut </span>next_witness_index,
-<a href=#155 id=155 data-nosnippet>155</a>                );
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>                <span class="kw">let </span><span class="kw-2">mut </span>new_opcodes = Vec::new();
-<a href=#158 id=158 data-nosnippet>158</a>                <span class="kw">for </span>(g, (norm, w)) <span class="kw">in </span>intermediate_variables.iter().skip(len) {
-<a href=#159 id=159 data-nosnippet>159</a>                    <span class="comment">// de-normalize
-<a href=#160 id=160 data-nosnippet>160</a>                    </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_opcode = g * <span class="kw-2">*</span>norm;
-<a href=#161 id=161 data-nosnippet>161</a>                    <span class="comment">// constrain the intermediate opcode to the intermediate variable
-<a href=#162 id=162 data-nosnippet>162</a>                    </span>intermediate_opcode.linear_combinations.push((-F::one(), <span class="kw-2">*</span>w));
-<a href=#163 id=163 data-nosnippet>163</a>                    intermediate_opcode.sort();
-<a href=#164 id=164 data-nosnippet>164</a>                    new_opcodes.push(intermediate_opcode);
-<a href=#165 id=165 data-nosnippet>165</a>                }
-<a href=#166 id=166 data-nosnippet>166</a>                new_opcodes.push(arith_expr);
-<a href=#167 id=167 data-nosnippet>167</a>                <span class="kw">for </span>opcode <span class="kw">in </span>new_opcodes {
-<a href=#168 id=168 data-nosnippet>168</a>                    new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#169 id=169 data-nosnippet>169</a>                    transformed_opcodes.push(Opcode::AssertZero(opcode));
-<a href=#170 id=170 data-nosnippet>170</a>                }
-<a href=#171 id=171 data-nosnippet>171</a>            }
-<a href=#172 id=172 data-nosnippet>172</a>            Opcode::BlackBoxFuncCall(<span class="kw-2">ref </span>func) =&gt; {
-<a href=#173 id=173 data-nosnippet>173</a>                <span class="kw">for </span>witness <span class="kw">in </span>func.get_outputs_vec() {
-<a href=#174 id=174 data-nosnippet>174</a>                    transformer.mark_solvable(witness);
-<a href=#175 id=175 data-nosnippet>175</a>                }
-<a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#178 id=178 data-nosnippet>178</a>                transformed_opcodes.push(opcode);
-<a href=#179 id=179 data-nosnippet>179</a>            }
-<a href=#180 id=180 data-nosnippet>180</a>            Opcode::MemoryInit { .. } =&gt; {
-<a href=#181 id=181 data-nosnippet>181</a>                <span class="comment">// `MemoryInit` does not write values to the `WitnessMap`
-<a href=#182 id=182 data-nosnippet>182</a>                </span>new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#183 id=183 data-nosnippet>183</a>                transformed_opcodes.push(opcode);
-<a href=#184 id=184 data-nosnippet>184</a>            }
-<a href=#185 id=185 data-nosnippet>185</a>            Opcode::MemoryOp { <span class="kw-2">ref </span>op, .. } =&gt; {
-<a href=#186 id=186 data-nosnippet>186</a>                transformer.mark_solvable(op.value);
-<a href=#187 id=187 data-nosnippet>187</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#188 id=188 data-nosnippet>188</a>                transformed_opcodes.push(opcode);
-<a href=#189 id=189 data-nosnippet>189</a>            }
-<a href=#190 id=190 data-nosnippet>190</a>            Opcode::BrilligCall { <span class="kw-2">ref </span>outputs, .. } =&gt; {
-<a href=#191 id=191 data-nosnippet>191</a>                <span class="kw">for </span>output <span class="kw">in </span>outputs {
-<a href=#192 id=192 data-nosnippet>192</a>                    <span class="kw">match </span>output {
-<a href=#193 id=193 data-nosnippet>193</a>                        BrilligOutputs::Simple(witness) =&gt; transformer.mark_solvable(<span class="kw-2">*</span>witness),
-<a href=#194 id=194 data-nosnippet>194</a>                        BrilligOutputs::Array(witnesses) =&gt; {
-<a href=#195 id=195 data-nosnippet>195</a>                            <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
-<a href=#196 id=196 data-nosnippet>196</a>                                transformer.mark_solvable(<span class="kw-2">*</span>witness);
-<a href=#197 id=197 data-nosnippet>197</a>                            }
-<a href=#198 id=198 data-nosnippet>198</a>                        }
-<a href=#199 id=199 data-nosnippet>199</a>                    }
-<a href=#200 id=200 data-nosnippet>200</a>                }
-<a href=#201 id=201 data-nosnippet>201</a>
-<a href=#202 id=202 data-nosnippet>202</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#203 id=203 data-nosnippet>203</a>                transformed_opcodes.push(opcode);
-<a href=#204 id=204 data-nosnippet>204</a>            }
-<a href=#205 id=205 data-nosnippet>205</a>            Opcode::Call { <span class="kw-2">ref </span>outputs, .. } =&gt; {
-<a href=#206 id=206 data-nosnippet>206</a>                <span class="kw">for </span>witness <span class="kw">in </span>outputs {
-<a href=#207 id=207 data-nosnippet>207</a>                    transformer.mark_solvable(<span class="kw-2">*</span>witness);
-<a href=#208 id=208 data-nosnippet>208</a>                }
-<a href=#209 id=209 data-nosnippet>209</a>
-<a href=#210 id=210 data-nosnippet>210</a>                <span class="comment">// `Call` does not write values to the `WitnessMap`
-<a href=#211 id=211 data-nosnippet>211</a>                // A separate ACIR function should have its own respective `WitnessMap`
-<a href=#212 id=212 data-nosnippet>212</a>                </span>new_acir_opcode_positions.push(acir_opcode_positions[index]);
-<a href=#213 id=213 data-nosnippet>213</a>                transformed_opcodes.push(opcode);
-<a href=#214 id=214 data-nosnippet>214</a>            }
-<a href=#215 id=215 data-nosnippet>215</a>        }
-<a href=#216 id=216 data-nosnippet>216</a>    }
-<a href=#217 id=217 data-nosnippet>217</a>
-<a href=#218 id=218 data-nosnippet>218</a>    acir = Circuit {
-<a href=#219 id=219 data-nosnippet>219</a>        opcodes: transformed_opcodes,
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="comment">// The transformer does not add new public inputs
-<a href=#221 id=221 data-nosnippet>221</a>        </span>..acir
-<a href=#222 id=222 data-nosnippet>222</a>    };
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="comment">// 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
-<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
-<a href=#226 id=226 data-nosnippet>226</a>
-<a href=#227 id=227 data-nosnippet>227</a>    <span class="kw">let </span>(opcodes, new_acir_opcode_positions) =
-<a href=#228 id=228 data-nosnippet>228</a>        merge_optimizer.eliminate_intermediate_variable(<span class="kw-2">&amp;</span>acir, new_acir_opcode_positions);
-<a href=#229 id=229 data-nosnippet>229</a>
-<a href=#230 id=230 data-nosnippet>230</a>    acir = Circuit {
-<a href=#231 id=231 data-nosnippet>231</a>        opcodes,
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="comment">// The optimizer does not add new public inputs
-<a href=#233 id=233 data-nosnippet>233</a>        </span>..acir
-<a href=#234 id=234 data-nosnippet>234</a>    };
-<a href=#235 id=235 data-nosnippet>235</a>
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="comment">// 3. Remove redundant range constraints.
-<a href=#237 id=237 data-nosnippet>237</a>    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
-<a href=#238 id=238 data-nosnippet>238</a>    // so we run the `RangeOptimizer` afterwards to clear these up.
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
-<a href=#240 id=240 data-nosnippet>240</a>    <span class="kw">let </span>(acir, new_acir_opcode_positions) =
-<a href=#241 id=241 data-nosnippet>241</a>        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
-<a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a>    (acir, new_acir_opcode_positions)
-<a href=#244 id=244 data-nosnippet>244</a>}
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a><span class="doccomment">/// Find the witness with the highest ID in the circuit.
-<a href=#247 id=247 data-nosnippet>247</a></span><span class="kw">fn </span>max_witness&lt;F: AcirField&gt;(circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; Witness {
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="kw">let </span><span class="kw-2">mut </span>witnesses = WitnessFolder::new(Witness::default(), |state, witness| {
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw-2">*</span>state = witness.max(<span class="kw-2">*</span>state);
-<a href=#250 id=250 data-nosnippet>250</a>    });
-<a href=#251 id=251 data-nosnippet>251</a>    witnesses.fold_circuit(circuit);
-<a href=#252 id=252 data-nosnippet>252</a>    witnesses.into_state()
-<a href=#253 id=253 data-nosnippet>253</a>}
-<a href=#254 id=254 data-nosnippet>254</a>
-<a href=#255 id=255 data-nosnippet>255</a><span class="doccomment">/// Fold all witnesses in a circuit.
-<a href=#256 id=256 data-nosnippet>256</a></span><span class="kw">struct </span>WitnessFolder&lt;S, A&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>    state: S,
-<a href=#258 id=258 data-nosnippet>258</a>    accumulate: A,
-<a href=#259 id=259 data-nosnippet>259</a>}
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a><span class="kw">impl</span>&lt;S, A&gt; WitnessFolder&lt;S, A&gt;
-<a href=#262 id=262 data-nosnippet>262</a><span class="kw">where
-<a href=#263 id=263 data-nosnippet>263</a>    </span>A: Fn(<span class="kw-2">&amp;mut </span>S, Witness),
-<a href=#264 id=264 data-nosnippet>264</a>{
-<a href=#265 id=265 data-nosnippet>265</a>    <span class="doccomment">/// Create the folder with some initial state and an accumulator function.
-<a href=#266 id=266 data-nosnippet>266</a>    </span><span class="kw">fn </span>new(init: S, accumulate: A) -&gt; <span class="self">Self </span>{
-<a href=#267 id=267 data-nosnippet>267</a>        <span class="self">Self </span>{ state: init, accumulate }
-<a href=#268 id=268 data-nosnippet>268</a>    }
-<a href=#269 id=269 data-nosnippet>269</a>
-<a href=#270 id=270 data-nosnippet>270</a>    <span class="doccomment">/// Take the accumulated state.
-<a href=#271 id=271 data-nosnippet>271</a>    </span><span class="kw">fn </span>into_state(<span class="self">self</span>) -&gt; S {
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="self">self</span>.state
-<a href=#273 id=273 data-nosnippet>273</a>    }
-<a href=#274 id=274 data-nosnippet>274</a>
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="doccomment">/// Add all witnesses from the circuit.
-<a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">fn </span>fold_circuit&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) {
-<a href=#277 id=277 data-nosnippet>277</a>        <span class="self">self</span>.fold_many(circuit.private_parameters.iter());
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="self">self</span>.fold_many(circuit.public_parameters.<span class="number">0</span>.iter());
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="self">self</span>.fold_many(circuit.return_values.<span class="number">0</span>.iter());
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
-<a href=#281 id=281 data-nosnippet>281</a>            <span class="self">self</span>.fold_opcode(opcode);
-<a href=#282 id=282 data-nosnippet>282</a>        }
-<a href=#283 id=283 data-nosnippet>283</a>    }
-<a href=#284 id=284 data-nosnippet>284</a>
-<a href=#285 id=285 data-nosnippet>285</a>    <span class="doccomment">/// Fold a witness into the state.
-<a href=#286 id=286 data-nosnippet>286</a>    </span><span class="kw">fn </span>fold(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Witness) {
-<a href=#287 id=287 data-nosnippet>287</a>        (<span class="self">self</span>.accumulate)(<span class="kw-2">&amp;mut </span><span class="self">self</span>.state, witness);
-<a href=#288 id=288 data-nosnippet>288</a>    }
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="doccomment">/// Fold many witnesses into the state.
-<a href=#291 id=291 data-nosnippet>291</a>    </span><span class="kw">fn </span>fold_many&lt;<span class="lifetime">'w</span>, I: Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'w </span>Witness&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witnesses: I) {
-<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
-<a href=#294 id=294 data-nosnippet>294</a>        }
-<a href=#295 id=295 data-nosnippet>295</a>    }
-<a href=#296 id=296 data-nosnippet>296</a>
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="doccomment">/// Add witnesses from the opcode.
-<a href=#298 id=298 data-nosnippet>298</a>    </span><span class="kw">fn </span>fold_opcode&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, opcode: <span class="kw-2">&amp;</span>Opcode&lt;F&gt;) {
-<a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">match </span>opcode {
-<a href=#300 id=300 data-nosnippet>300</a>            Opcode::AssertZero(expr) =&gt; {
-<a href=#301 id=301 data-nosnippet>301</a>                <span class="self">self</span>.fold_expr(expr);
-<a href=#302 id=302 data-nosnippet>302</a>            }
-<a href=#303 id=303 data-nosnippet>303</a>            Opcode::BlackBoxFuncCall(call) =&gt; <span class="self">self</span>.fold_blackbox(call),
-<a href=#304 id=304 data-nosnippet>304</a>            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
-<a href=#305 id=305 data-nosnippet>305</a>                <span class="self">self</span>.fold(op.index);
-<a href=#306 id=306 data-nosnippet>306</a>                <span class="self">self</span>.fold(op.value);
-<a href=#307 id=307 data-nosnippet>307</a>            }
-<a href=#308 id=308 data-nosnippet>308</a>            Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
-<a href=#309 id=309 data-nosnippet>309</a>                <span class="kw">for </span>witness <span class="kw">in </span>init {
-<a href=#310 id=310 data-nosnippet>310</a>                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
-<a href=#311 id=311 data-nosnippet>311</a>                }
-<a href=#312 id=312 data-nosnippet>312</a>            }
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
-<a href=#314 id=314 data-nosnippet>314</a>            // are distinct in their functionality and we should maintain this separation for debugging.
-<a href=#315 id=315 data-nosnippet>315</a>            </span>Opcode::BrilligCall { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
-<a href=#316 id=316 data-nosnippet>316</a>                <span class="self">self</span>.fold_expr(predicate);
-<a href=#317 id=317 data-nosnippet>317</a>                <span class="self">self</span>.fold_brillig_inputs(inputs);
-<a href=#318 id=318 data-nosnippet>318</a>                <span class="self">self</span>.fold_brillig_outputs(outputs);
-<a href=#319 id=319 data-nosnippet>319</a>            }
-<a href=#320 id=320 data-nosnippet>320</a>            Opcode::Call { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
-<a href=#321 id=321 data-nosnippet>321</a>                <span class="self">self</span>.fold_expr(predicate);
-<a href=#322 id=322 data-nosnippet>322</a>                <span class="self">self</span>.fold_many(inputs.iter());
-<a href=#323 id=323 data-nosnippet>323</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#324 id=324 data-nosnippet>324</a>            }
-<a href=#325 id=325 data-nosnippet>325</a>        }
-<a href=#326 id=326 data-nosnippet>326</a>    }
-<a href=#327 id=327 data-nosnippet>327</a>
-<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">fn </span>fold_expr&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) {
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>expr.mul_terms {
-<a href=#330 id=330 data-nosnippet>330</a>            <span class="self">self</span>.fold(i.<span class="number">1</span>);
-<a href=#331 id=331 data-nosnippet>331</a>            <span class="self">self</span>.fold(i.<span class="number">2</span>);
-<a href=#332 id=332 data-nosnippet>332</a>        }
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>expr.linear_combinations {
-<a href=#334 id=334 data-nosnippet>334</a>            <span class="self">self</span>.fold(i.<span class="number">1</span>);
-<a href=#335 id=335 data-nosnippet>335</a>        }
-<a href=#336 id=336 data-nosnippet>336</a>    }
-<a href=#337 id=337 data-nosnippet>337</a>
-<a href=#338 id=338 data-nosnippet>338</a>    <span class="kw">fn </span>fold_brillig_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[BrilligInputs&lt;F&gt;]) {
-<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">for </span>input <span class="kw">in </span>inputs {
-<a href=#340 id=340 data-nosnippet>340</a>            <span class="kw">match </span>input {
-<a href=#341 id=341 data-nosnippet>341</a>                BrilligInputs::Single(expr) =&gt; {
-<a href=#342 id=342 data-nosnippet>342</a>                    <span class="self">self</span>.fold_expr(expr);
-<a href=#343 id=343 data-nosnippet>343</a>                }
-<a href=#344 id=344 data-nosnippet>344</a>                BrilligInputs::Array(exprs) =&gt; {
-<a href=#345 id=345 data-nosnippet>345</a>                    <span class="kw">for </span>expr <span class="kw">in </span>exprs {
-<a href=#346 id=346 data-nosnippet>346</a>                        <span class="self">self</span>.fold_expr(expr);
-<a href=#347 id=347 data-nosnippet>347</a>                    }
-<a href=#348 id=348 data-nosnippet>348</a>                }
-<a href=#349 id=349 data-nosnippet>349</a>                BrilligInputs::MemoryArray(<span class="kw">_</span>) =&gt; {}
-<a href=#350 id=350 data-nosnippet>350</a>            }
-<a href=#351 id=351 data-nosnippet>351</a>        }
-<a href=#352 id=352 data-nosnippet>352</a>    }
-<a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">fn </span>fold_brillig_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, outputs: <span class="kw-2">&amp;</span>[BrilligOutputs]) {
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">for </span>output <span class="kw">in </span>outputs {
-<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">match </span>output {
-<a href=#357 id=357 data-nosnippet>357</a>                BrilligOutputs::Simple(witness) =&gt; {
-<a href=#358 id=358 data-nosnippet>358</a>                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
-<a href=#359 id=359 data-nosnippet>359</a>                }
-<a href=#360 id=360 data-nosnippet>360</a>                BrilligOutputs::Array(witnesses) =&gt; <span class="self">self</span>.fold_many(witnesses.iter()),
-<a href=#361 id=361 data-nosnippet>361</a>            }
-<a href=#362 id=362 data-nosnippet>362</a>        }
-<a href=#363 id=363 data-nosnippet>363</a>    }
-<a href=#364 id=364 data-nosnippet>364</a>
-<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">fn </span>fold_blackbox&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: <span class="kw-2">&amp;</span>BlackBoxFuncCall&lt;F&gt;) {
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">match </span>call {
-<a href=#367 id=367 data-nosnippet>367</a>            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#369 id=369 data-nosnippet>369</a>                <span class="self">self</span>.fold_inputs(iv.as_slice());
-<a href=#370 id=370 data-nosnippet>370</a>                <span class="self">self</span>.fold_inputs(key.as_slice());
-<a href=#371 id=371 data-nosnippet>371</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#372 id=372 data-nosnippet>372</a>            }
-<a href=#373 id=373 data-nosnippet>373</a>            BlackBoxFuncCall::AND { lhs, rhs, output, .. } =&gt; {
-<a href=#374 id=374 data-nosnippet>374</a>                <span class="self">self</span>.fold_input(lhs);
-<a href=#375 id=375 data-nosnippet>375</a>                <span class="self">self</span>.fold_input(rhs);
-<a href=#376 id=376 data-nosnippet>376</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
-<a href=#377 id=377 data-nosnippet>377</a>            }
-<a href=#378 id=378 data-nosnippet>378</a>            BlackBoxFuncCall::XOR { lhs, rhs, output, .. } =&gt; {
-<a href=#379 id=379 data-nosnippet>379</a>                <span class="self">self</span>.fold_input(lhs);
-<a href=#380 id=380 data-nosnippet>380</a>                <span class="self">self</span>.fold_input(rhs);
-<a href=#381 id=381 data-nosnippet>381</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
-<a href=#382 id=382 data-nosnippet>382</a>            }
-<a href=#383 id=383 data-nosnippet>383</a>            BlackBoxFuncCall::RANGE { input, .. } =&gt; {
-<a href=#384 id=384 data-nosnippet>384</a>                <span class="self">self</span>.fold_input(input);
-<a href=#385 id=385 data-nosnippet>385</a>            }
-<a href=#386 id=386 data-nosnippet>386</a>            BlackBoxFuncCall::Blake2s { inputs, outputs } =&gt; {
-<a href=#387 id=387 data-nosnippet>387</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#388 id=388 data-nosnippet>388</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#389 id=389 data-nosnippet>389</a>            }
-<a href=#390 id=390 data-nosnippet>390</a>            BlackBoxFuncCall::Blake3 { inputs, outputs } =&gt; {
-<a href=#391 id=391 data-nosnippet>391</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#392 id=392 data-nosnippet>392</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#393 id=393 data-nosnippet>393</a>            }
-<a href=#394 id=394 data-nosnippet>394</a>            BlackBoxFuncCall::EcdsaSecp256k1 {
-<a href=#395 id=395 data-nosnippet>395</a>                public_key_x,
-<a href=#396 id=396 data-nosnippet>396</a>                public_key_y,
-<a href=#397 id=397 data-nosnippet>397</a>                signature,
-<a href=#398 id=398 data-nosnippet>398</a>                hashed_message,
-<a href=#399 id=399 data-nosnippet>399</a>                output,
-<a href=#400 id=400 data-nosnippet>400</a>                predicate,
-<a href=#401 id=401 data-nosnippet>401</a>            } =&gt; {
-<a href=#402 id=402 data-nosnippet>402</a>                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
-<a href=#403 id=403 data-nosnippet>403</a>                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
-<a href=#404 id=404 data-nosnippet>404</a>                <span class="self">self</span>.fold_inputs(signature.as_slice());
-<a href=#405 id=405 data-nosnippet>405</a>                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
-<a href=#406 id=406 data-nosnippet>406</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
-<a href=#407 id=407 data-nosnippet>407</a>                <span class="self">self</span>.fold_input(predicate);
-<a href=#408 id=408 data-nosnippet>408</a>            }
-<a href=#409 id=409 data-nosnippet>409</a>            BlackBoxFuncCall::EcdsaSecp256r1 {
-<a href=#410 id=410 data-nosnippet>410</a>                public_key_x,
-<a href=#411 id=411 data-nosnippet>411</a>                public_key_y,
-<a href=#412 id=412 data-nosnippet>412</a>                signature,
-<a href=#413 id=413 data-nosnippet>413</a>                hashed_message,
-<a href=#414 id=414 data-nosnippet>414</a>                output,
-<a href=#415 id=415 data-nosnippet>415</a>                predicate,
-<a href=#416 id=416 data-nosnippet>416</a>            } =&gt; {
-<a href=#417 id=417 data-nosnippet>417</a>                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
-<a href=#418 id=418 data-nosnippet>418</a>                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
-<a href=#419 id=419 data-nosnippet>419</a>                <span class="self">self</span>.fold_inputs(signature.as_slice());
-<a href=#420 id=420 data-nosnippet>420</a>                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
-<a href=#421 id=421 data-nosnippet>421</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
-<a href=#422 id=422 data-nosnippet>422</a>                <span class="self">self</span>.fold_input(predicate);
-<a href=#423 id=423 data-nosnippet>423</a>            }
-<a href=#424 id=424 data-nosnippet>424</a>            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } =&gt; {
-<a href=#425 id=425 data-nosnippet>425</a>                <span class="self">self</span>.fold_inputs(points.as_slice());
-<a href=#426 id=426 data-nosnippet>426</a>                <span class="self">self</span>.fold_inputs(scalars.as_slice());
-<a href=#427 id=427 data-nosnippet>427</a>                <span class="self">self</span>.fold_input(predicate);
-<a href=#428 id=428 data-nosnippet>428</a>                <span class="kw">let </span>(x, y, i) = outputs;
-<a href=#429 id=429 data-nosnippet>429</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
-<a href=#430 id=430 data-nosnippet>430</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
-<a href=#431 id=431 data-nosnippet>431</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
-<a href=#432 id=432 data-nosnippet>432</a>            }
-<a href=#433 id=433 data-nosnippet>433</a>            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } =&gt; {
-<a href=#434 id=434 data-nosnippet>434</a>                <span class="self">self</span>.fold_inputs(input1.as_slice());
-<a href=#435 id=435 data-nosnippet>435</a>                <span class="self">self</span>.fold_inputs(input2.as_slice());
-<a href=#436 id=436 data-nosnippet>436</a>                <span class="self">self</span>.fold_input(predicate);
-<a href=#437 id=437 data-nosnippet>437</a>                <span class="kw">let </span>(x, y, i) = outputs;
-<a href=#438 id=438 data-nosnippet>438</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
-<a href=#439 id=439 data-nosnippet>439</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
-<a href=#440 id=440 data-nosnippet>440</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
-<a href=#441 id=441 data-nosnippet>441</a>            }
-<a href=#442 id=442 data-nosnippet>442</a>            BlackBoxFuncCall::Keccakf1600 { inputs, outputs } =&gt; {
-<a href=#443 id=443 data-nosnippet>443</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#444 id=444 data-nosnippet>444</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#445 id=445 data-nosnippet>445</a>            }
-<a href=#446 id=446 data-nosnippet>446</a>            BlackBoxFuncCall::RecursiveAggregation {
-<a href=#447 id=447 data-nosnippet>447</a>                verification_key,
-<a href=#448 id=448 data-nosnippet>448</a>                proof,
-<a href=#449 id=449 data-nosnippet>449</a>                public_inputs,
-<a href=#450 id=450 data-nosnippet>450</a>                key_hash,
-<a href=#451 id=451 data-nosnippet>451</a>                proof_type: <span class="kw">_</span>,
-<a href=#452 id=452 data-nosnippet>452</a>                predicate,
-<a href=#453 id=453 data-nosnippet>453</a>            } =&gt; {
-<a href=#454 id=454 data-nosnippet>454</a>                <span class="self">self</span>.fold_inputs(verification_key.as_slice());
-<a href=#455 id=455 data-nosnippet>455</a>                <span class="self">self</span>.fold_inputs(proof.as_slice());
-<a href=#456 id=456 data-nosnippet>456</a>                <span class="self">self</span>.fold_inputs(public_inputs.as_slice());
-<a href=#457 id=457 data-nosnippet>457</a>                <span class="self">self</span>.fold_input(key_hash);
-<a href=#458 id=458 data-nosnippet>458</a>                <span class="self">self</span>.fold_input(predicate);
-<a href=#459 id=459 data-nosnippet>459</a>            }
-<a href=#460 id=460 data-nosnippet>460</a>            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } =&gt; {
-<a href=#461 id=461 data-nosnippet>461</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#462 id=462 data-nosnippet>462</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#463 id=463 data-nosnippet>463</a>            }
-<a href=#464 id=464 data-nosnippet>464</a>            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } =&gt; {
-<a href=#465 id=465 data-nosnippet>465</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
-<a href=#466 id=466 data-nosnippet>466</a>                <span class="self">self</span>.fold_inputs(hash_values.as_slice());
-<a href=#467 id=467 data-nosnippet>467</a>                <span class="self">self</span>.fold_many(outputs.iter());
-<a href=#468 id=468 data-nosnippet>468</a>            }
-<a href=#469 id=469 data-nosnippet>469</a>        }
-<a href=#470 id=470 data-nosnippet>470</a>    }
-<a href=#471 id=471 data-nosnippet>471</a>
-<a href=#472 id=472 data-nosnippet>472</a>    <span class="kw">fn </span>fold_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;]) {
-<a href=#473 id=473 data-nosnippet>473</a>        <span class="kw">for </span>input <span class="kw">in </span>inputs {
-<a href=#474 id=474 data-nosnippet>474</a>            <span class="self">self</span>.fold_input(input);
-<a href=#475 id=475 data-nosnippet>475</a>        }
-<a href=#476 id=476 data-nosnippet>476</a>    }
-<a href=#477 id=477 data-nosnippet>477</a>
-<a href=#478 id=478 data-nosnippet>478</a>    <span class="kw">fn </span>fold_input&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;) {
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">if let </span>FunctionInput::Witness(witness) = input {
-<a href=#480 id=480 data-nosnippet>480</a>            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
-<a href=#481 id=481 data-nosnippet>481</a>        }
-<a href=#482 id=482 data-nosnippet>482</a>    }
-<a href=#483 id=483 data-nosnippet>483</a>}
-<a href=#484 id=484 data-nosnippet>484</a>
-<a href=#485 id=485 data-nosnippet>485</a><span class="attr">#[cfg(test)]
-<a href=#486 id=486 data-nosnippet>486</a></span><span class="kw">mod </span>tests {
-<a href=#487 id=487 data-nosnippet>487</a>    <span class="kw">use </span><span class="kw">super</span>::transform_internal;
-<a href=#488 id=488 data-nosnippet>488</a>    <span class="kw">use </span><span class="kw">crate</span>::compiler::CircuitSimulator;
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">use </span>acir::circuit::{Circuit, brillig::BrilligFunctionId};
-<a href=#490 id=490 data-nosnippet>490</a>    <span class="kw">use </span>std::collections::BTreeMap;
-<a href=#491 id=491 data-nosnippet>491</a>
-<a href=#492 id=492 data-nosnippet>492</a>    <span class="attr">#[test]
-<a href=#493 id=493 data-nosnippet>493</a>    </span><span class="kw">fn </span>test_max_transformer_passes() {
-<a href=#494 id=494 data-nosnippet>494</a>        <span class="kw">let </span>formatted_acir = <span class="string">r#"private parameters: [w0]
-<a href=#495 id=495 data-nosnippet>495</a>        public parameters: []
-<a href=#496 id=496 data-nosnippet>496</a>        return values: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31]
-<a href=#497 id=497 data-nosnippet>497</a>        BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 31, 256], outputs: [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62]
-<a href=#498 id=498 data-nosnippet>498</a>        BLACKBOX::RANGE input: w35, bits: 8
-<a href=#499 id=499 data-nosnippet>499</a>        BLACKBOX::RANGE input: w36, bits: 8
-<a href=#500 id=500 data-nosnippet>500</a>        BLACKBOX::RANGE input: w37, bits: 8
-<a href=#501 id=501 data-nosnippet>501</a>        BLACKBOX::RANGE input: w38, bits: 8
-<a href=#502 id=502 data-nosnippet>502</a>        BLACKBOX::RANGE input: w39, bits: 8
-<a href=#503 id=503 data-nosnippet>503</a>        BLACKBOX::RANGE input: w40, bits: 8
-<a href=#504 id=504 data-nosnippet>504</a>        BLACKBOX::RANGE input: w41, bits: 8
-<a href=#505 id=505 data-nosnippet>505</a>        BLACKBOX::RANGE input: w42, bits: 8
-<a href=#506 id=506 data-nosnippet>506</a>        BLACKBOX::RANGE input: w43, bits: 8
-<a href=#507 id=507 data-nosnippet>507</a>        BLACKBOX::RANGE input: w44, bits: 8
-<a href=#508 id=508 data-nosnippet>508</a>        BLACKBOX::RANGE input: w45, bits: 8
-<a href=#509 id=509 data-nosnippet>509</a>        BLACKBOX::RANGE input: w46, bits: 8
-<a href=#510 id=510 data-nosnippet>510</a>        BLACKBOX::RANGE input: w47, bits: 8
-<a href=#511 id=511 data-nosnippet>511</a>        BLACKBOX::RANGE input: w48, bits: 8
-<a href=#512 id=512 data-nosnippet>512</a>        BLACKBOX::RANGE input: w49, bits: 8
-<a href=#513 id=513 data-nosnippet>513</a>        BLACKBOX::RANGE input: w50, bits: 8
-<a href=#514 id=514 data-nosnippet>514</a>        BLACKBOX::RANGE input: w51, bits: 8
-<a href=#515 id=515 data-nosnippet>515</a>        BLACKBOX::RANGE input: w52, bits: 8
-<a href=#516 id=516 data-nosnippet>516</a>        BLACKBOX::RANGE input: w53, bits: 8
-<a href=#517 id=517 data-nosnippet>517</a>        BLACKBOX::RANGE input: w54, bits: 8
-<a href=#518 id=518 data-nosnippet>518</a>        BLACKBOX::RANGE input: w55, bits: 8
-<a href=#519 id=519 data-nosnippet>519</a>        BLACKBOX::RANGE input: w56, bits: 8
-<a href=#520 id=520 data-nosnippet>520</a>        BLACKBOX::RANGE input: w57, bits: 8
-<a href=#521 id=521 data-nosnippet>521</a>        BLACKBOX::RANGE input: w58, bits: 8
-<a href=#522 id=522 data-nosnippet>522</a>        BLACKBOX::RANGE input: w59, bits: 8
-<a href=#523 id=523 data-nosnippet>523</a>        BLACKBOX::RANGE input: w60, bits: 8
-<a href=#524 id=524 data-nosnippet>524</a>        BLACKBOX::RANGE input: w61, bits: 8
-<a href=#525 id=525 data-nosnippet>525</a>        BLACKBOX::RANGE input: w62, bits: 8
-<a href=#526 id=526 data-nosnippet>526</a>        ASSERT w32 = w0 - 256*w33 - 65536*w34 - 16777216*w35 - 4294967296*w36 - 1099511627776*w37 - 281474976710656*w38 - 72057594037927936*w39 - 18446744073709551616*w40 - 4722366482869645213696*w41 - 1208925819614629174706176*w42 - 309485009821345068724781056*w43 - 79228162514264337593543950336*w44 - 20282409603651670423947251286016*w45 - 5192296858534827628530496329220096*w46 - 1329227995784915872903807060280344576*w47 - 340282366920938463463374607431768211456*w48 - 87112285931760246646623899502532662132736*w49 - 22300745198530623141535718272648361505980416*w50 - 5708990770823839524233143877797980545530986496*w51 - 1461501637330902918203684832716283019655932542976*w52 - 374144419156711147060143317175368453031918731001856*w53 - 95780971304118053647396689196894323976171195136475136*w54 - 24519928653854221733733552434404946937899825954937634816*w55 - 6277101735386680763835789423207666416102355444464034512896*w56 - 1606938044258990275541962092341162602522202993782792835301376*w57 - 411376139330301510538742295639337626245683966408394965837152256*w58 - 105312291668557186697918027683670432318895095400549111254310977536*w59 - 26959946667150639794667015087019630673637144422540572481103610249216*w60 - 6901746346790563787434755862277025452451108972170386555162524223799296*w61 - 1766847064778384329583297500742918515827483896875618958121606201292619776*w62
-<a href=#527 id=527 data-nosnippet>527</a>        ASSERT w32 = 60
-<a href=#528 id=528 data-nosnippet>528</a>        ASSERT w33 = 33
-<a href=#529 id=529 data-nosnippet>529</a>        ASSERT w34 = 31
-<a href=#530 id=530 data-nosnippet>530</a>        ASSERT w0 = 16777216*w35 + 4294967296*w36 + 1099511627776*w37 + 281474976710656*w38 + 72057594037927936*w39 + 18446744073709551616*w40 + 4722366482869645213696*w41 + 1208925819614629174706176*w42 + 309485009821345068724781056*w43 + 79228162514264337593543950336*w44 + 20282409603651670423947251286016*w45 + 5192296858534827628530496329220096*w46 + 1329227995784915872903807060280344576*w47 + 340282366920938463463374607431768211456*w48 + 87112285931760246646623899502532662132736*w49 + 22300745198530623141535718272648361505980416*w50 + 5708990770823839524233143877797980545530986496*w51 + 1461501637330902918203684832716283019655932542976*w52 + 374144419156711147060143317175368453031918731001856*w53 + 95780971304118053647396689196894323976171195136475136*w54 + 24519928653854221733733552434404946937899825954937634816*w55 + 6277101735386680763835789423207666416102355444464034512896*w56 + 1606938044258990275541962092341162602522202993782792835301376*w57 + 411376139330301510538742295639337626245683966408394965837152256*w58 + 105312291668557186697918027683670432318895095400549111254310977536*w59 + 26959946667150639794667015087019630673637144422540572481103610249216*w60 + 6901746346790563787434755862277025452451108972170386555162524223799296*w61 + 1766847064778384329583297500742918515827483896875618958121606201292619776*w62 + 2040124
-<a href=#531 id=531 data-nosnippet>531</a>        ASSERT w62 = w1
-<a href=#532 id=532 data-nosnippet>532</a>        ASSERT w61 = w2
-<a href=#533 id=533 data-nosnippet>533</a>        ASSERT w60 = w3
-<a href=#534 id=534 data-nosnippet>534</a>        ASSERT w59 = w4
-<a href=#535 id=535 data-nosnippet>535</a>        ASSERT w58 = w5
-<a href=#536 id=536 data-nosnippet>536</a>        ASSERT w57 = w6
-<a href=#537 id=537 data-nosnippet>537</a>        ASSERT w56 = w7
-<a href=#538 id=538 data-nosnippet>538</a>        ASSERT w55 = w8
-<a href=#539 id=539 data-nosnippet>539</a>        ASSERT w54 = w9
-<a href=#540 id=540 data-nosnippet>540</a>        ASSERT w53 = w10
-<a href=#541 id=541 data-nosnippet>541</a>        ASSERT w52 = w11
-<a href=#542 id=542 data-nosnippet>542</a>        ASSERT w51 = w12
-<a href=#543 id=543 data-nosnippet>543</a>        ASSERT w50 = w13
-<a href=#544 id=544 data-nosnippet>544</a>        ASSERT w49 = w14
-<a href=#545 id=545 data-nosnippet>545</a>        ASSERT w48 = w15
-<a href=#546 id=546 data-nosnippet>546</a>        ASSERT w47 = w16
-<a href=#547 id=547 data-nosnippet>547</a>        ASSERT w46 = w17
-<a href=#548 id=548 data-nosnippet>548</a>        ASSERT w45 = w18
-<a href=#549 id=549 data-nosnippet>549</a>        ASSERT w44 = w19
-<a href=#550 id=550 data-nosnippet>550</a>        ASSERT w43 = w20
-<a href=#551 id=551 data-nosnippet>551</a>        ASSERT w42 = w21
-<a href=#552 id=552 data-nosnippet>552</a>        ASSERT w41 = w22
-<a href=#553 id=553 data-nosnippet>553</a>        ASSERT w40 = w23
-<a href=#554 id=554 data-nosnippet>554</a>        ASSERT w39 = w24
-<a href=#555 id=555 data-nosnippet>555</a>        ASSERT w38 = w25
-<a href=#556 id=556 data-nosnippet>556</a>        ASSERT w37 = w26
-<a href=#557 id=557 data-nosnippet>557</a>        ASSERT w36 = w27
-<a href=#558 id=558 data-nosnippet>558</a>        ASSERT w35 = w28
-<a href=#559 id=559 data-nosnippet>559</a>        ASSERT w29 = 31
-<a href=#560 id=560 data-nosnippet>560</a>        ASSERT w30 = 33
-<a href=#561 id=561 data-nosnippet>561</a>        ASSERT w31 = 60
-<a href=#562 id=562 data-nosnippet>562</a>        "#</span>;
-<a href=#563 id=563 data-nosnippet>563</a>
-<a href=#564 id=564 data-nosnippet>564</a>        <span class="kw">let </span>acir = Circuit::from_str(formatted_acir).unwrap();
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>acir).is_none());
-<a href=#566 id=566 data-nosnippet>566</a>
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[
-<a href=#568 id=568 data-nosnippet>568</a>            <span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">14</span>, <span class="number">15</span>, <span class="number">16</span>, <span class="number">17</span>, <span class="number">18</span>, <span class="number">19</span>, <span class="number">20</span>, <span class="number">21</span>, <span class="number">22</span>, <span class="number">23</span>,
-<a href=#569 id=569 data-nosnippet>569</a>            <span class="number">24</span>, <span class="number">25</span>, <span class="number">26</span>, <span class="number">27</span>, <span class="number">28</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">30</span>, <span class="number">31</span>, <span class="number">32</span>, <span class="number">33</span>, <span class="number">34</span>, <span class="number">35</span>, <span class="number">36</span>, <span class="number">37</span>, <span class="number">38</span>, <span class="number">39</span>, <span class="number">40</span>, <span class="number">41</span>, <span class="number">42</span>, <span class="number">43</span>,
-<a href=#570 id=570 data-nosnippet>570</a>            <span class="number">44</span>, <span class="number">45</span>, <span class="number">46</span>, <span class="number">47</span>, <span class="number">48</span>, <span class="number">49</span>, <span class="number">50</span>, <span class="number">51</span>, <span class="number">52</span>, <span class="number">53</span>, <span class="number">54</span>, <span class="number">55</span>, <span class="number">56</span>, <span class="number">57</span>, <span class="number">58</span>, <span class="number">59</span>, <span class="number">60</span>, <span class="number">61</span>, <span class="number">62</span>, <span class="number">63</span>, <span class="number">64</span>,
-<a href=#571 id=571 data-nosnippet>571</a>        ];
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="kw">let </span><span class="kw-2">mut </span>brillig_side_effects = BTreeMap::new();
-<a href=#573 id=573 data-nosnippet>573</a>        brillig_side_effects.insert(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">false</span>);
-<a href=#574 id=574 data-nosnippet>574</a>
-<a href=#575 id=575 data-nosnippet>575</a>        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcodes_hash_stabilized) =
-<a href=#576 id=576 data-nosnippet>576</a>            transform_internal(acir, acir_opcode_positions, <span class="kw-2">&amp;</span>brillig_side_effects, <span class="prelude-val">None</span>);
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="macro">assert!</span>(!opcodes_hash_stabilized);
-<a href=#578 id=578 data-nosnippet>578</a>    }
-<a href=#579 id=579 data-nosnippet>579</a>}</code></pre></div></section></main></body></html>
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">let </span>new_opcode_count = acir.opcodes.len();
+<a href=#100 id=100 data-nosnippet>100</a>
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">if </span>new_opcode_count == prev_opcode_count {
+<a href=#102 id=102 data-nosnippet>102</a>            opcode_count_stabilized = <span class="bool-val">true</span>;
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="kw">break</span>;
+<a href=#104 id=104 data-nosnippet>104</a>        }
+<a href=#105 id=105 data-nosnippet>105</a>        prev_opcode_count = new_opcode_count;
+<a href=#106 id=106 data-nosnippet>106</a>    }
+<a href=#107 id=107 data-nosnippet>107</a>
+<a href=#108 id=108 data-nosnippet>108</a>    (acir, acir_opcode_positions, opcode_count_stabilized)
+<a href=#109 id=109 data-nosnippet>109</a>}
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a><span class="doccomment">/// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
+<a href=#112 id=112 data-nosnippet>112</a>///
+<a href=#113 id=113 data-nosnippet>113</a>/// If the width is unbounded, it does nothing.
+<a href=#114 id=114 data-nosnippet>114</a>/// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
+<a href=#115 id=115 data-nosnippet>115</a>/// Then it performs `eliminate_intermediate_variable()` which (re-)combine intermediate variables used only once.
+<a href=#116 id=116 data-nosnippet>116</a>/// It concludes with a round of `replace_redundant_ranges()` which removes range checks made redundant by the previous pass.
+<a href=#117 id=117 data-nosnippet>117</a>///
+<a href=#118 id=118 data-nosnippet>118</a>/// Pre-Conditions:
+<a href=#119 id=119 data-nosnippet>119</a>/// - General Optimizer must run before this pass
+<a href=#120 id=120 data-nosnippet>120</a></span><span class="attr">#[tracing::instrument(
+<a href=#121 id=121 data-nosnippet>121</a>    level = <span class="string">"trace"</span>,
+<a href=#122 id=122 data-nosnippet>122</a>    name = <span class="string">"transform_acir_once"</span>,
+<a href=#123 id=123 data-nosnippet>123</a>    skip(acir, acir_opcode_positions)
+<a href=#124 id=124 data-nosnippet>124</a>)]
+<a href=#125 id=125 data-nosnippet>125</a></span><span class="kw">fn </span>transform_internal_once&lt;F: AcirField&gt;(
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
+<a href=#127 id=127 data-nosnippet>127</a>    acir_opcode_positions: Vec&lt;usize&gt;,
+<a href=#128 id=128 data-nosnippet>128</a>    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
+<a href=#129 id=129 data-nosnippet>129</a>) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="comment">// 1. CSAT transformation
+<a href=#131 id=131 data-nosnippet>131</a>    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+<a href=#132 id=132 data-nosnippet>132</a>    // to the required width by creating intermediate variables.
+<a href=#133 id=133 data-nosnippet>133</a>    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
+<a href=#134 id=134 data-nosnippet>134</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = CSatTransformer::new(<span class="number">4</span>);
+<a href=#135 id=135 data-nosnippet>135</a>    <span class="kw">for </span>value <span class="kw">in </span>acir.circuit_arguments() {
+<a href=#136 id=136 data-nosnippet>136</a>        transformer.mark_solvable(value);
+<a href=#137 id=137 data-nosnippet>137</a>    }
+<a href=#138 id=138 data-nosnippet>138</a>
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">let </span><span class="kw-2">mut </span>new_acir_opcode_positions: Vec&lt;usize&gt; = Vec::with_capacity(acir_opcode_positions.len());
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="comment">// Optimize the assert-zero gates by reducing them into the correct width and
+<a href=#141 id=141 data-nosnippet>141</a>    // creating intermediate variables when necessary
+<a href=#142 id=142 data-nosnippet>142</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>transformed_opcodes = Vec::new();
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a>    <span class="kw">let </span><span class="kw-2">mut </span>next_witness_index = max_witness(<span class="kw-2">&amp;</span>acir).witness_index() + <span class="number">1</span>;
+<a href=#145 id=145 data-nosnippet>145</a>    <span class="comment">// maps a normalized expression to the intermediate variable which represents the expression, along with its 'norm'
+<a href=#146 id=146 data-nosnippet>146</a>    // the 'norm' is simply the value of the first non-zero coefficient in the expression, taken from the linear terms, or quadratic terms if there is none.
+<a href=#147 id=147 data-nosnippet>147</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_variables: IndexMap&lt;Expression&lt;F&gt;, (F, Witness)&gt; = IndexMap::new();
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="kw">for </span>(index, opcode) <span class="kw">in </span>acir.opcodes.into_iter().enumerate() {
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">match </span>opcode {
+<a href=#150 id=150 data-nosnippet>150</a>            Opcode::AssertZero(arith_expr) =&gt; {
+<a href=#151 id=151 data-nosnippet>151</a>                <span class="kw">let </span>len = intermediate_variables.len();
+<a href=#152 id=152 data-nosnippet>152</a>
+<a href=#153 id=153 data-nosnippet>153</a>                <span class="kw">let </span>arith_expr = transformer.transform(
+<a href=#154 id=154 data-nosnippet>154</a>                    arith_expr,
+<a href=#155 id=155 data-nosnippet>155</a>                    <span class="kw-2">&amp;mut </span>intermediate_variables,
+<a href=#156 id=156 data-nosnippet>156</a>                    <span class="kw-2">&amp;mut </span>next_witness_index,
+<a href=#157 id=157 data-nosnippet>157</a>                );
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>                <span class="kw">let </span><span class="kw-2">mut </span>new_opcodes = Vec::new();
+<a href=#160 id=160 data-nosnippet>160</a>                <span class="kw">for </span>(g, (norm, w)) <span class="kw">in </span>intermediate_variables.iter().skip(len) {
+<a href=#161 id=161 data-nosnippet>161</a>                    <span class="comment">// de-normalize
+<a href=#162 id=162 data-nosnippet>162</a>                    </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_opcode = g * <span class="kw-2">*</span>norm;
+<a href=#163 id=163 data-nosnippet>163</a>                    <span class="comment">// constrain the intermediate opcode to the intermediate variable
+<a href=#164 id=164 data-nosnippet>164</a>                    </span>intermediate_opcode.linear_combinations.push((-F::one(), <span class="kw-2">*</span>w));
+<a href=#165 id=165 data-nosnippet>165</a>                    intermediate_opcode.sort();
+<a href=#166 id=166 data-nosnippet>166</a>                    new_opcodes.push(intermediate_opcode);
+<a href=#167 id=167 data-nosnippet>167</a>                }
+<a href=#168 id=168 data-nosnippet>168</a>                new_opcodes.push(arith_expr);
+<a href=#169 id=169 data-nosnippet>169</a>                <span class="kw">for </span>opcode <span class="kw">in </span>new_opcodes {
+<a href=#170 id=170 data-nosnippet>170</a>                    new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#171 id=171 data-nosnippet>171</a>                    transformed_opcodes.push(Opcode::AssertZero(opcode));
+<a href=#172 id=172 data-nosnippet>172</a>                }
+<a href=#173 id=173 data-nosnippet>173</a>            }
+<a href=#174 id=174 data-nosnippet>174</a>            Opcode::BlackBoxFuncCall(<span class="kw-2">ref </span>func) =&gt; {
+<a href=#175 id=175 data-nosnippet>175</a>                <span class="kw">for </span>witness <span class="kw">in </span>func.get_outputs_vec() {
+<a href=#176 id=176 data-nosnippet>176</a>                    transformer.mark_solvable(witness);
+<a href=#177 id=177 data-nosnippet>177</a>                }
+<a href=#178 id=178 data-nosnippet>178</a>
+<a href=#179 id=179 data-nosnippet>179</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#180 id=180 data-nosnippet>180</a>                transformed_opcodes.push(opcode);
+<a href=#181 id=181 data-nosnippet>181</a>            }
+<a href=#182 id=182 data-nosnippet>182</a>            Opcode::MemoryInit { .. } =&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>                <span class="comment">// `MemoryInit` does not write values to the `WitnessMap`
+<a href=#184 id=184 data-nosnippet>184</a>                </span>new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#185 id=185 data-nosnippet>185</a>                transformed_opcodes.push(opcode);
+<a href=#186 id=186 data-nosnippet>186</a>            }
+<a href=#187 id=187 data-nosnippet>187</a>            Opcode::MemoryOp { <span class="kw-2">ref </span>op, .. } =&gt; {
+<a href=#188 id=188 data-nosnippet>188</a>                transformer.mark_solvable(op.value);
+<a href=#189 id=189 data-nosnippet>189</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#190 id=190 data-nosnippet>190</a>                transformed_opcodes.push(opcode);
+<a href=#191 id=191 data-nosnippet>191</a>            }
+<a href=#192 id=192 data-nosnippet>192</a>            Opcode::BrilligCall { <span class="kw-2">ref </span>outputs, .. } =&gt; {
+<a href=#193 id=193 data-nosnippet>193</a>                <span class="kw">for </span>output <span class="kw">in </span>outputs {
+<a href=#194 id=194 data-nosnippet>194</a>                    <span class="kw">match </span>output {
+<a href=#195 id=195 data-nosnippet>195</a>                        BrilligOutputs::Simple(witness) =&gt; transformer.mark_solvable(<span class="kw-2">*</span>witness),
+<a href=#196 id=196 data-nosnippet>196</a>                        BrilligOutputs::Array(witnesses) =&gt; {
+<a href=#197 id=197 data-nosnippet>197</a>                            <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
+<a href=#198 id=198 data-nosnippet>198</a>                                transformer.mark_solvable(<span class="kw-2">*</span>witness);
+<a href=#199 id=199 data-nosnippet>199</a>                            }
+<a href=#200 id=200 data-nosnippet>200</a>                        }
+<a href=#201 id=201 data-nosnippet>201</a>                    }
+<a href=#202 id=202 data-nosnippet>202</a>                }
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>                new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#205 id=205 data-nosnippet>205</a>                transformed_opcodes.push(opcode);
+<a href=#206 id=206 data-nosnippet>206</a>            }
+<a href=#207 id=207 data-nosnippet>207</a>            Opcode::Call { <span class="kw-2">ref </span>outputs, .. } =&gt; {
+<a href=#208 id=208 data-nosnippet>208</a>                <span class="kw">for </span>witness <span class="kw">in </span>outputs {
+<a href=#209 id=209 data-nosnippet>209</a>                    transformer.mark_solvable(<span class="kw-2">*</span>witness);
+<a href=#210 id=210 data-nosnippet>210</a>                }
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>                <span class="comment">// `Call` does not write values to the `WitnessMap`
+<a href=#213 id=213 data-nosnippet>213</a>                // A separate ACIR function should have its own respective `WitnessMap`
+<a href=#214 id=214 data-nosnippet>214</a>                </span>new_acir_opcode_positions.push(acir_opcode_positions[index]);
+<a href=#215 id=215 data-nosnippet>215</a>                transformed_opcodes.push(opcode);
+<a href=#216 id=216 data-nosnippet>216</a>            }
+<a href=#217 id=217 data-nosnippet>217</a>        }
+<a href=#218 id=218 data-nosnippet>218</a>    }
+<a href=#219 id=219 data-nosnippet>219</a>
+<a href=#220 id=220 data-nosnippet>220</a>    acir = Circuit {
+<a href=#221 id=221 data-nosnippet>221</a>        opcodes: transformed_opcodes,
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="comment">// The transformer does not add new public inputs
+<a href=#223 id=223 data-nosnippet>223</a>        </span>..acir
+<a href=#224 id=224 data-nosnippet>224</a>    };
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a>    <span class="comment">// 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
+<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="kw">let </span>(opcodes, new_acir_opcode_positions) =
+<a href=#230 id=230 data-nosnippet>230</a>        merge_optimizer.eliminate_intermediate_variable(<span class="kw-2">&amp;</span>acir, new_acir_opcode_positions);
+<a href=#231 id=231 data-nosnippet>231</a>
+<a href=#232 id=232 data-nosnippet>232</a>    acir = Circuit {
+<a href=#233 id=233 data-nosnippet>233</a>        opcodes,
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="comment">// The optimizer does not add new public inputs
+<a href=#235 id=235 data-nosnippet>235</a>        </span>..acir
+<a href=#236 id=236 data-nosnippet>236</a>    };
+<a href=#237 id=237 data-nosnippet>237</a>
+<a href=#238 id=238 data-nosnippet>238</a>    <span class="comment">// 3. Remove redundant range constraints.
+<a href=#239 id=239 data-nosnippet>239</a>    // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
+<a href=#240 id=240 data-nosnippet>240</a>    // so we run the `RangeOptimizer` afterwards to clear these up.
+<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
+<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">let </span>(acir, new_acir_opcode_positions) =
+<a href=#243 id=243 data-nosnippet>243</a>        range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>    (acir, new_acir_opcode_positions)
+<a href=#246 id=246 data-nosnippet>246</a>}
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a><span class="doccomment">/// Find the witness with the highest ID in the circuit.
+<a href=#249 id=249 data-nosnippet>249</a></span><span class="kw">fn </span>max_witness&lt;F: AcirField&gt;(circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; Witness {
+<a href=#250 id=250 data-nosnippet>250</a>    <span class="kw">let </span><span class="kw-2">mut </span>witnesses = WitnessFolder::new(Witness::default(), |state, witness| {
+<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw-2">*</span>state = witness.max(<span class="kw-2">*</span>state);
+<a href=#252 id=252 data-nosnippet>252</a>    });
+<a href=#253 id=253 data-nosnippet>253</a>    witnesses.fold_circuit(circuit);
+<a href=#254 id=254 data-nosnippet>254</a>    witnesses.into_state()
+<a href=#255 id=255 data-nosnippet>255</a>}
+<a href=#256 id=256 data-nosnippet>256</a>
+<a href=#257 id=257 data-nosnippet>257</a><span class="doccomment">/// Fold all witnesses in a circuit.
+<a href=#258 id=258 data-nosnippet>258</a></span><span class="kw">struct </span>WitnessFolder&lt;S, A&gt; {
+<a href=#259 id=259 data-nosnippet>259</a>    state: S,
+<a href=#260 id=260 data-nosnippet>260</a>    accumulate: A,
+<a href=#261 id=261 data-nosnippet>261</a>}
+<a href=#262 id=262 data-nosnippet>262</a>
+<a href=#263 id=263 data-nosnippet>263</a><span class="kw">impl</span>&lt;S, A&gt; WitnessFolder&lt;S, A&gt;
+<a href=#264 id=264 data-nosnippet>264</a><span class="kw">where
+<a href=#265 id=265 data-nosnippet>265</a>    </span>A: Fn(<span class="kw-2">&amp;mut </span>S, Witness),
+<a href=#266 id=266 data-nosnippet>266</a>{
+<a href=#267 id=267 data-nosnippet>267</a>    <span class="doccomment">/// Create the folder with some initial state and an accumulator function.
+<a href=#268 id=268 data-nosnippet>268</a>    </span><span class="kw">fn </span>new(init: S, accumulate: A) -&gt; <span class="self">Self </span>{
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="self">Self </span>{ state: init, accumulate }
+<a href=#270 id=270 data-nosnippet>270</a>    }
+<a href=#271 id=271 data-nosnippet>271</a>
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="doccomment">/// Take the accumulated state.
+<a href=#273 id=273 data-nosnippet>273</a>    </span><span class="kw">fn </span>into_state(<span class="self">self</span>) -&gt; S {
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="self">self</span>.state
+<a href=#275 id=275 data-nosnippet>275</a>    }
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a>    <span class="doccomment">/// Add all witnesses from the circuit.
+<a href=#278 id=278 data-nosnippet>278</a>    </span><span class="kw">fn </span>fold_circuit&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) {
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="self">self</span>.fold_many(circuit.private_parameters.iter());
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="self">self</span>.fold_many(circuit.public_parameters.<span class="number">0</span>.iter());
+<a href=#281 id=281 data-nosnippet>281</a>        <span class="self">self</span>.fold_many(circuit.return_values.<span class="number">0</span>.iter());
+<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
+<a href=#283 id=283 data-nosnippet>283</a>            <span class="self">self</span>.fold_opcode(opcode);
+<a href=#284 id=284 data-nosnippet>284</a>        }
+<a href=#285 id=285 data-nosnippet>285</a>    }
+<a href=#286 id=286 data-nosnippet>286</a>
+<a href=#287 id=287 data-nosnippet>287</a>    <span class="doccomment">/// Fold a witness into the state.
+<a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">fn </span>fold(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witness: Witness) {
+<a href=#289 id=289 data-nosnippet>289</a>        (<span class="self">self</span>.accumulate)(<span class="kw-2">&amp;mut </span><span class="self">self</span>.state, witness);
+<a href=#290 id=290 data-nosnippet>290</a>    }
+<a href=#291 id=291 data-nosnippet>291</a>
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="doccomment">/// Fold many witnesses into the state.
+<a href=#293 id=293 data-nosnippet>293</a>    </span><span class="kw">fn </span>fold_many&lt;<span class="lifetime">'w</span>, I: Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'w </span>Witness&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, witnesses: I) {
+<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
+<a href=#296 id=296 data-nosnippet>296</a>        }
+<a href=#297 id=297 data-nosnippet>297</a>    }
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="doccomment">/// Add witnesses from the opcode.
+<a href=#300 id=300 data-nosnippet>300</a>    </span><span class="kw">fn </span>fold_opcode&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, opcode: <span class="kw-2">&amp;</span>Opcode&lt;F&gt;) {
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">match </span>opcode {
+<a href=#302 id=302 data-nosnippet>302</a>            Opcode::AssertZero(expr) =&gt; {
+<a href=#303 id=303 data-nosnippet>303</a>                <span class="self">self</span>.fold_expr(expr);
+<a href=#304 id=304 data-nosnippet>304</a>            }
+<a href=#305 id=305 data-nosnippet>305</a>            Opcode::BlackBoxFuncCall(call) =&gt; <span class="self">self</span>.fold_blackbox(call),
+<a href=#306 id=306 data-nosnippet>306</a>            Opcode::MemoryOp { block_id: <span class="kw">_</span>, op } =&gt; {
+<a href=#307 id=307 data-nosnippet>307</a>                <span class="self">self</span>.fold(op.index);
+<a href=#308 id=308 data-nosnippet>308</a>                <span class="self">self</span>.fold(op.value);
+<a href=#309 id=309 data-nosnippet>309</a>            }
+<a href=#310 id=310 data-nosnippet>310</a>            Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
+<a href=#311 id=311 data-nosnippet>311</a>                <span class="kw">for </span>witness <span class="kw">in </span>init {
+<a href=#312 id=312 data-nosnippet>312</a>                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
+<a href=#313 id=313 data-nosnippet>313</a>                }
+<a href=#314 id=314 data-nosnippet>314</a>            }
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
+<a href=#316 id=316 data-nosnippet>316</a>            // are distinct in their functionality and we should maintain this separation for debugging.
+<a href=#317 id=317 data-nosnippet>317</a>            </span>Opcode::BrilligCall { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
+<a href=#318 id=318 data-nosnippet>318</a>                <span class="self">self</span>.fold_expr(predicate);
+<a href=#319 id=319 data-nosnippet>319</a>                <span class="self">self</span>.fold_brillig_inputs(inputs);
+<a href=#320 id=320 data-nosnippet>320</a>                <span class="self">self</span>.fold_brillig_outputs(outputs);
+<a href=#321 id=321 data-nosnippet>321</a>            }
+<a href=#322 id=322 data-nosnippet>322</a>            Opcode::Call { id: <span class="kw">_</span>, inputs, outputs, predicate } =&gt; {
+<a href=#323 id=323 data-nosnippet>323</a>                <span class="self">self</span>.fold_expr(predicate);
+<a href=#324 id=324 data-nosnippet>324</a>                <span class="self">self</span>.fold_many(inputs.iter());
+<a href=#325 id=325 data-nosnippet>325</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#326 id=326 data-nosnippet>326</a>            }
+<a href=#327 id=327 data-nosnippet>327</a>        }
+<a href=#328 id=328 data-nosnippet>328</a>    }
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">fn </span>fold_expr&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) {
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>expr.mul_terms {
+<a href=#332 id=332 data-nosnippet>332</a>            <span class="self">self</span>.fold(i.<span class="number">1</span>);
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="self">self</span>.fold(i.<span class="number">2</span>);
+<a href=#334 id=334 data-nosnippet>334</a>        }
+<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>expr.linear_combinations {
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="self">self</span>.fold(i.<span class="number">1</span>);
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>    }
+<a href=#339 id=339 data-nosnippet>339</a>
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">fn </span>fold_brillig_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[BrilligInputs&lt;F&gt;]) {
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">for </span>input <span class="kw">in </span>inputs {
+<a href=#342 id=342 data-nosnippet>342</a>            <span class="kw">match </span>input {
+<a href=#343 id=343 data-nosnippet>343</a>                BrilligInputs::Single(expr) =&gt; {
+<a href=#344 id=344 data-nosnippet>344</a>                    <span class="self">self</span>.fold_expr(expr);
+<a href=#345 id=345 data-nosnippet>345</a>                }
+<a href=#346 id=346 data-nosnippet>346</a>                BrilligInputs::Array(exprs) =&gt; {
+<a href=#347 id=347 data-nosnippet>347</a>                    <span class="kw">for </span>expr <span class="kw">in </span>exprs {
+<a href=#348 id=348 data-nosnippet>348</a>                        <span class="self">self</span>.fold_expr(expr);
+<a href=#349 id=349 data-nosnippet>349</a>                    }
+<a href=#350 id=350 data-nosnippet>350</a>                }
+<a href=#351 id=351 data-nosnippet>351</a>                BrilligInputs::MemoryArray(<span class="kw">_</span>) =&gt; {}
+<a href=#352 id=352 data-nosnippet>352</a>            }
+<a href=#353 id=353 data-nosnippet>353</a>        }
+<a href=#354 id=354 data-nosnippet>354</a>    }
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">fn </span>fold_brillig_outputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>, outputs: <span class="kw-2">&amp;</span>[BrilligOutputs]) {
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">for </span>output <span class="kw">in </span>outputs {
+<a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">match </span>output {
+<a href=#359 id=359 data-nosnippet>359</a>                BrilligOutputs::Simple(witness) =&gt; {
+<a href=#360 id=360 data-nosnippet>360</a>                    <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
+<a href=#361 id=361 data-nosnippet>361</a>                }
+<a href=#362 id=362 data-nosnippet>362</a>                BrilligOutputs::Array(witnesses) =&gt; <span class="self">self</span>.fold_many(witnesses.iter()),
+<a href=#363 id=363 data-nosnippet>363</a>            }
+<a href=#364 id=364 data-nosnippet>364</a>        }
+<a href=#365 id=365 data-nosnippet>365</a>    }
+<a href=#366 id=366 data-nosnippet>366</a>
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">fn </span>fold_blackbox&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: <span class="kw-2">&amp;</span>BlackBoxFuncCall&lt;F&gt;) {
+<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">match </span>call {
+<a href=#369 id=369 data-nosnippet>369</a>            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
+<a href=#370 id=370 data-nosnippet>370</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#371 id=371 data-nosnippet>371</a>                <span class="self">self</span>.fold_inputs(iv.as_slice());
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="self">self</span>.fold_inputs(key.as_slice());
+<a href=#373 id=373 data-nosnippet>373</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#374 id=374 data-nosnippet>374</a>            }
+<a href=#375 id=375 data-nosnippet>375</a>            BlackBoxFuncCall::AND { lhs, rhs, output, .. } =&gt; {
+<a href=#376 id=376 data-nosnippet>376</a>                <span class="self">self</span>.fold_input(lhs);
+<a href=#377 id=377 data-nosnippet>377</a>                <span class="self">self</span>.fold_input(rhs);
+<a href=#378 id=378 data-nosnippet>378</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+<a href=#379 id=379 data-nosnippet>379</a>            }
+<a href=#380 id=380 data-nosnippet>380</a>            BlackBoxFuncCall::XOR { lhs, rhs, output, .. } =&gt; {
+<a href=#381 id=381 data-nosnippet>381</a>                <span class="self">self</span>.fold_input(lhs);
+<a href=#382 id=382 data-nosnippet>382</a>                <span class="self">self</span>.fold_input(rhs);
+<a href=#383 id=383 data-nosnippet>383</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+<a href=#384 id=384 data-nosnippet>384</a>            }
+<a href=#385 id=385 data-nosnippet>385</a>            BlackBoxFuncCall::RANGE { input, .. } =&gt; {
+<a href=#386 id=386 data-nosnippet>386</a>                <span class="self">self</span>.fold_input(input);
+<a href=#387 id=387 data-nosnippet>387</a>            }
+<a href=#388 id=388 data-nosnippet>388</a>            BlackBoxFuncCall::Blake2s { inputs, outputs } =&gt; {
+<a href=#389 id=389 data-nosnippet>389</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#390 id=390 data-nosnippet>390</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#391 id=391 data-nosnippet>391</a>            }
+<a href=#392 id=392 data-nosnippet>392</a>            BlackBoxFuncCall::Blake3 { inputs, outputs } =&gt; {
+<a href=#393 id=393 data-nosnippet>393</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#394 id=394 data-nosnippet>394</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#395 id=395 data-nosnippet>395</a>            }
+<a href=#396 id=396 data-nosnippet>396</a>            BlackBoxFuncCall::EcdsaSecp256k1 {
+<a href=#397 id=397 data-nosnippet>397</a>                public_key_x,
+<a href=#398 id=398 data-nosnippet>398</a>                public_key_y,
+<a href=#399 id=399 data-nosnippet>399</a>                signature,
+<a href=#400 id=400 data-nosnippet>400</a>                hashed_message,
+<a href=#401 id=401 data-nosnippet>401</a>                output,
+<a href=#402 id=402 data-nosnippet>402</a>                predicate,
+<a href=#403 id=403 data-nosnippet>403</a>            } =&gt; {
+<a href=#404 id=404 data-nosnippet>404</a>                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
+<a href=#405 id=405 data-nosnippet>405</a>                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
+<a href=#406 id=406 data-nosnippet>406</a>                <span class="self">self</span>.fold_inputs(signature.as_slice());
+<a href=#407 id=407 data-nosnippet>407</a>                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
+<a href=#408 id=408 data-nosnippet>408</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+<a href=#409 id=409 data-nosnippet>409</a>                <span class="self">self</span>.fold_input(predicate);
+<a href=#410 id=410 data-nosnippet>410</a>            }
+<a href=#411 id=411 data-nosnippet>411</a>            BlackBoxFuncCall::EcdsaSecp256r1 {
+<a href=#412 id=412 data-nosnippet>412</a>                public_key_x,
+<a href=#413 id=413 data-nosnippet>413</a>                public_key_y,
+<a href=#414 id=414 data-nosnippet>414</a>                signature,
+<a href=#415 id=415 data-nosnippet>415</a>                hashed_message,
+<a href=#416 id=416 data-nosnippet>416</a>                output,
+<a href=#417 id=417 data-nosnippet>417</a>                predicate,
+<a href=#418 id=418 data-nosnippet>418</a>            } =&gt; {
+<a href=#419 id=419 data-nosnippet>419</a>                <span class="self">self</span>.fold_inputs(public_key_x.as_slice());
+<a href=#420 id=420 data-nosnippet>420</a>                <span class="self">self</span>.fold_inputs(public_key_y.as_slice());
+<a href=#421 id=421 data-nosnippet>421</a>                <span class="self">self</span>.fold_inputs(signature.as_slice());
+<a href=#422 id=422 data-nosnippet>422</a>                <span class="self">self</span>.fold_inputs(hashed_message.as_slice());
+<a href=#423 id=423 data-nosnippet>423</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>output);
+<a href=#424 id=424 data-nosnippet>424</a>                <span class="self">self</span>.fold_input(predicate);
+<a href=#425 id=425 data-nosnippet>425</a>            }
+<a href=#426 id=426 data-nosnippet>426</a>            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } =&gt; {
+<a href=#427 id=427 data-nosnippet>427</a>                <span class="self">self</span>.fold_inputs(points.as_slice());
+<a href=#428 id=428 data-nosnippet>428</a>                <span class="self">self</span>.fold_inputs(scalars.as_slice());
+<a href=#429 id=429 data-nosnippet>429</a>                <span class="self">self</span>.fold_input(predicate);
+<a href=#430 id=430 data-nosnippet>430</a>                <span class="kw">let </span>(x, y, i) = outputs;
+<a href=#431 id=431 data-nosnippet>431</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
+<a href=#432 id=432 data-nosnippet>432</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
+<a href=#433 id=433 data-nosnippet>433</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
+<a href=#434 id=434 data-nosnippet>434</a>            }
+<a href=#435 id=435 data-nosnippet>435</a>            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } =&gt; {
+<a href=#436 id=436 data-nosnippet>436</a>                <span class="self">self</span>.fold_inputs(input1.as_slice());
+<a href=#437 id=437 data-nosnippet>437</a>                <span class="self">self</span>.fold_inputs(input2.as_slice());
+<a href=#438 id=438 data-nosnippet>438</a>                <span class="self">self</span>.fold_input(predicate);
+<a href=#439 id=439 data-nosnippet>439</a>                <span class="kw">let </span>(x, y, i) = outputs;
+<a href=#440 id=440 data-nosnippet>440</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>x);
+<a href=#441 id=441 data-nosnippet>441</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>y);
+<a href=#442 id=442 data-nosnippet>442</a>                <span class="self">self</span>.fold(<span class="kw-2">*</span>i);
+<a href=#443 id=443 data-nosnippet>443</a>            }
+<a href=#444 id=444 data-nosnippet>444</a>            BlackBoxFuncCall::Keccakf1600 { inputs, outputs } =&gt; {
+<a href=#445 id=445 data-nosnippet>445</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#447 id=447 data-nosnippet>447</a>            }
+<a href=#448 id=448 data-nosnippet>448</a>            BlackBoxFuncCall::RecursiveAggregation {
+<a href=#449 id=449 data-nosnippet>449</a>                verification_key,
+<a href=#450 id=450 data-nosnippet>450</a>                proof,
+<a href=#451 id=451 data-nosnippet>451</a>                public_inputs,
+<a href=#452 id=452 data-nosnippet>452</a>                key_hash,
+<a href=#453 id=453 data-nosnippet>453</a>                proof_type: <span class="kw">_</span>,
+<a href=#454 id=454 data-nosnippet>454</a>                predicate,
+<a href=#455 id=455 data-nosnippet>455</a>            } =&gt; {
+<a href=#456 id=456 data-nosnippet>456</a>                <span class="self">self</span>.fold_inputs(verification_key.as_slice());
+<a href=#457 id=457 data-nosnippet>457</a>                <span class="self">self</span>.fold_inputs(proof.as_slice());
+<a href=#458 id=458 data-nosnippet>458</a>                <span class="self">self</span>.fold_inputs(public_inputs.as_slice());
+<a href=#459 id=459 data-nosnippet>459</a>                <span class="self">self</span>.fold_input(key_hash);
+<a href=#460 id=460 data-nosnippet>460</a>                <span class="self">self</span>.fold_input(predicate);
+<a href=#461 id=461 data-nosnippet>461</a>            }
+<a href=#462 id=462 data-nosnippet>462</a>            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } =&gt; {
+<a href=#463 id=463 data-nosnippet>463</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#464 id=464 data-nosnippet>464</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#465 id=465 data-nosnippet>465</a>            }
+<a href=#466 id=466 data-nosnippet>466</a>            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } =&gt; {
+<a href=#467 id=467 data-nosnippet>467</a>                <span class="self">self</span>.fold_inputs(inputs.as_slice());
+<a href=#468 id=468 data-nosnippet>468</a>                <span class="self">self</span>.fold_inputs(hash_values.as_slice());
+<a href=#469 id=469 data-nosnippet>469</a>                <span class="self">self</span>.fold_many(outputs.iter());
+<a href=#470 id=470 data-nosnippet>470</a>            }
+<a href=#471 id=471 data-nosnippet>471</a>        }
+<a href=#472 id=472 data-nosnippet>472</a>    }
+<a href=#473 id=473 data-nosnippet>473</a>
+<a href=#474 id=474 data-nosnippet>474</a>    <span class="kw">fn </span>fold_inputs&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inputs: <span class="kw-2">&amp;</span>[FunctionInput&lt;F&gt;]) {
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">for </span>input <span class="kw">in </span>inputs {
+<a href=#476 id=476 data-nosnippet>476</a>            <span class="self">self</span>.fold_input(input);
+<a href=#477 id=477 data-nosnippet>477</a>        }
+<a href=#478 id=478 data-nosnippet>478</a>    }
+<a href=#479 id=479 data-nosnippet>479</a>
+<a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">fn </span>fold_input&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>FunctionInput&lt;F&gt;) {
+<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">if let </span>FunctionInput::Witness(witness) = input {
+<a href=#482 id=482 data-nosnippet>482</a>            <span class="self">self</span>.fold(<span class="kw-2">*</span>witness);
+<a href=#483 id=483 data-nosnippet>483</a>        }
+<a href=#484 id=484 data-nosnippet>484</a>    }
+<a href=#485 id=485 data-nosnippet>485</a>}
+<a href=#486 id=486 data-nosnippet>486</a>
+<a href=#487 id=487 data-nosnippet>487</a><span class="attr">#[cfg(test)]
+<a href=#488 id=488 data-nosnippet>488</a></span><span class="kw">mod </span>tests {
+<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">use </span><span class="kw">super</span>::transform_internal;
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="kw">use </span><span class="kw">crate</span>::compiler::CircuitSimulator;
+<a href=#491 id=491 data-nosnippet>491</a>    <span class="kw">use </span>acir::circuit::{Circuit, brillig::BrilligFunctionId};
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="kw">use </span>std::collections::BTreeMap;
+<a href=#493 id=493 data-nosnippet>493</a>
+<a href=#494 id=494 data-nosnippet>494</a>    <span class="attr">#[test]
+<a href=#495 id=495 data-nosnippet>495</a>    </span><span class="kw">fn </span>test_max_transformer_passes() {
+<a href=#496 id=496 data-nosnippet>496</a>        <span class="kw">let </span>formatted_acir = <span class="string">r#"private parameters: [w0]
+<a href=#497 id=497 data-nosnippet>497</a>        public parameters: []
+<a href=#498 id=498 data-nosnippet>498</a>        return values: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31]
+<a href=#499 id=499 data-nosnippet>499</a>        BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 31, 256], outputs: [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62]
+<a href=#500 id=500 data-nosnippet>500</a>        BLACKBOX::RANGE input: w35, bits: 8
+<a href=#501 id=501 data-nosnippet>501</a>        BLACKBOX::RANGE input: w36, bits: 8
+<a href=#502 id=502 data-nosnippet>502</a>        BLACKBOX::RANGE input: w37, bits: 8
+<a href=#503 id=503 data-nosnippet>503</a>        BLACKBOX::RANGE input: w38, bits: 8
+<a href=#504 id=504 data-nosnippet>504</a>        BLACKBOX::RANGE input: w39, bits: 8
+<a href=#505 id=505 data-nosnippet>505</a>        BLACKBOX::RANGE input: w40, bits: 8
+<a href=#506 id=506 data-nosnippet>506</a>        BLACKBOX::RANGE input: w41, bits: 8
+<a href=#507 id=507 data-nosnippet>507</a>        BLACKBOX::RANGE input: w42, bits: 8
+<a href=#508 id=508 data-nosnippet>508</a>        BLACKBOX::RANGE input: w43, bits: 8
+<a href=#509 id=509 data-nosnippet>509</a>        BLACKBOX::RANGE input: w44, bits: 8
+<a href=#510 id=510 data-nosnippet>510</a>        BLACKBOX::RANGE input: w45, bits: 8
+<a href=#511 id=511 data-nosnippet>511</a>        BLACKBOX::RANGE input: w46, bits: 8
+<a href=#512 id=512 data-nosnippet>512</a>        BLACKBOX::RANGE input: w47, bits: 8
+<a href=#513 id=513 data-nosnippet>513</a>        BLACKBOX::RANGE input: w48, bits: 8
+<a href=#514 id=514 data-nosnippet>514</a>        BLACKBOX::RANGE input: w49, bits: 8
+<a href=#515 id=515 data-nosnippet>515</a>        BLACKBOX::RANGE input: w50, bits: 8
+<a href=#516 id=516 data-nosnippet>516</a>        BLACKBOX::RANGE input: w51, bits: 8
+<a href=#517 id=517 data-nosnippet>517</a>        BLACKBOX::RANGE input: w52, bits: 8
+<a href=#518 id=518 data-nosnippet>518</a>        BLACKBOX::RANGE input: w53, bits: 8
+<a href=#519 id=519 data-nosnippet>519</a>        BLACKBOX::RANGE input: w54, bits: 8
+<a href=#520 id=520 data-nosnippet>520</a>        BLACKBOX::RANGE input: w55, bits: 8
+<a href=#521 id=521 data-nosnippet>521</a>        BLACKBOX::RANGE input: w56, bits: 8
+<a href=#522 id=522 data-nosnippet>522</a>        BLACKBOX::RANGE input: w57, bits: 8
+<a href=#523 id=523 data-nosnippet>523</a>        BLACKBOX::RANGE input: w58, bits: 8
+<a href=#524 id=524 data-nosnippet>524</a>        BLACKBOX::RANGE input: w59, bits: 8
+<a href=#525 id=525 data-nosnippet>525</a>        BLACKBOX::RANGE input: w60, bits: 8
+<a href=#526 id=526 data-nosnippet>526</a>        BLACKBOX::RANGE input: w61, bits: 8
+<a href=#527 id=527 data-nosnippet>527</a>        BLACKBOX::RANGE input: w62, bits: 8
+<a href=#528 id=528 data-nosnippet>528</a>        ASSERT w32 = w0 - 256*w33 - 65536*w34 - 16777216*w35 - 4294967296*w36 - 1099511627776*w37 - 281474976710656*w38 - 72057594037927936*w39 - 18446744073709551616*w40 - 4722366482869645213696*w41 - 1208925819614629174706176*w42 - 309485009821345068724781056*w43 - 79228162514264337593543950336*w44 - 20282409603651670423947251286016*w45 - 5192296858534827628530496329220096*w46 - 1329227995784915872903807060280344576*w47 - 340282366920938463463374607431768211456*w48 - 87112285931760246646623899502532662132736*w49 - 22300745198530623141535718272648361505980416*w50 - 5708990770823839524233143877797980545530986496*w51 - 1461501637330902918203684832716283019655932542976*w52 - 374144419156711147060143317175368453031918731001856*w53 - 95780971304118053647396689196894323976171195136475136*w54 - 24519928653854221733733552434404946937899825954937634816*w55 - 6277101735386680763835789423207666416102355444464034512896*w56 - 1606938044258990275541962092341162602522202993782792835301376*w57 - 411376139330301510538742295639337626245683966408394965837152256*w58 - 105312291668557186697918027683670432318895095400549111254310977536*w59 - 26959946667150639794667015087019630673637144422540572481103610249216*w60 - 6901746346790563787434755862277025452451108972170386555162524223799296*w61 - 1766847064778384329583297500742918515827483896875618958121606201292619776*w62
+<a href=#529 id=529 data-nosnippet>529</a>        ASSERT w32 = 60
+<a href=#530 id=530 data-nosnippet>530</a>        ASSERT w33 = 33
+<a href=#531 id=531 data-nosnippet>531</a>        ASSERT w34 = 31
+<a href=#532 id=532 data-nosnippet>532</a>        ASSERT w0 = 16777216*w35 + 4294967296*w36 + 1099511627776*w37 + 281474976710656*w38 + 72057594037927936*w39 + 18446744073709551616*w40 + 4722366482869645213696*w41 + 1208925819614629174706176*w42 + 309485009821345068724781056*w43 + 79228162514264337593543950336*w44 + 20282409603651670423947251286016*w45 + 5192296858534827628530496329220096*w46 + 1329227995784915872903807060280344576*w47 + 340282366920938463463374607431768211456*w48 + 87112285931760246646623899502532662132736*w49 + 22300745198530623141535718272648361505980416*w50 + 5708990770823839524233143877797980545530986496*w51 + 1461501637330902918203684832716283019655932542976*w52 + 374144419156711147060143317175368453031918731001856*w53 + 95780971304118053647396689196894323976171195136475136*w54 + 24519928653854221733733552434404946937899825954937634816*w55 + 6277101735386680763835789423207666416102355444464034512896*w56 + 1606938044258990275541962092341162602522202993782792835301376*w57 + 411376139330301510538742295639337626245683966408394965837152256*w58 + 105312291668557186697918027683670432318895095400549111254310977536*w59 + 26959946667150639794667015087019630673637144422540572481103610249216*w60 + 6901746346790563787434755862277025452451108972170386555162524223799296*w61 + 1766847064778384329583297500742918515827483896875618958121606201292619776*w62 + 2040124
+<a href=#533 id=533 data-nosnippet>533</a>        ASSERT w62 = w1
+<a href=#534 id=534 data-nosnippet>534</a>        ASSERT w61 = w2
+<a href=#535 id=535 data-nosnippet>535</a>        ASSERT w60 = w3
+<a href=#536 id=536 data-nosnippet>536</a>        ASSERT w59 = w4
+<a href=#537 id=537 data-nosnippet>537</a>        ASSERT w58 = w5
+<a href=#538 id=538 data-nosnippet>538</a>        ASSERT w57 = w6
+<a href=#539 id=539 data-nosnippet>539</a>        ASSERT w56 = w7
+<a href=#540 id=540 data-nosnippet>540</a>        ASSERT w55 = w8
+<a href=#541 id=541 data-nosnippet>541</a>        ASSERT w54 = w9
+<a href=#542 id=542 data-nosnippet>542</a>        ASSERT w53 = w10
+<a href=#543 id=543 data-nosnippet>543</a>        ASSERT w52 = w11
+<a href=#544 id=544 data-nosnippet>544</a>        ASSERT w51 = w12
+<a href=#545 id=545 data-nosnippet>545</a>        ASSERT w50 = w13
+<a href=#546 id=546 data-nosnippet>546</a>        ASSERT w49 = w14
+<a href=#547 id=547 data-nosnippet>547</a>        ASSERT w48 = w15
+<a href=#548 id=548 data-nosnippet>548</a>        ASSERT w47 = w16
+<a href=#549 id=549 data-nosnippet>549</a>        ASSERT w46 = w17
+<a href=#550 id=550 data-nosnippet>550</a>        ASSERT w45 = w18
+<a href=#551 id=551 data-nosnippet>551</a>        ASSERT w44 = w19
+<a href=#552 id=552 data-nosnippet>552</a>        ASSERT w43 = w20
+<a href=#553 id=553 data-nosnippet>553</a>        ASSERT w42 = w21
+<a href=#554 id=554 data-nosnippet>554</a>        ASSERT w41 = w22
+<a href=#555 id=555 data-nosnippet>555</a>        ASSERT w40 = w23
+<a href=#556 id=556 data-nosnippet>556</a>        ASSERT w39 = w24
+<a href=#557 id=557 data-nosnippet>557</a>        ASSERT w38 = w25
+<a href=#558 id=558 data-nosnippet>558</a>        ASSERT w37 = w26
+<a href=#559 id=559 data-nosnippet>559</a>        ASSERT w36 = w27
+<a href=#560 id=560 data-nosnippet>560</a>        ASSERT w35 = w28
+<a href=#561 id=561 data-nosnippet>561</a>        ASSERT w29 = 31
+<a href=#562 id=562 data-nosnippet>562</a>        ASSERT w30 = 33
+<a href=#563 id=563 data-nosnippet>563</a>        ASSERT w31 = 60
+<a href=#564 id=564 data-nosnippet>564</a>        "#</span>;
+<a href=#565 id=565 data-nosnippet>565</a>
+<a href=#566 id=566 data-nosnippet>566</a>        <span class="kw">let </span>acir = Circuit::from_str(formatted_acir).unwrap();
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="macro">assert!</span>(CircuitSimulator::check_circuit(<span class="kw-2">&amp;</span>acir).is_none());
+<a href=#568 id=568 data-nosnippet>568</a>
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[
+<a href=#570 id=570 data-nosnippet>570</a>            <span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>, <span class="number">12</span>, <span class="number">13</span>, <span class="number">14</span>, <span class="number">15</span>, <span class="number">16</span>, <span class="number">17</span>, <span class="number">18</span>, <span class="number">19</span>, <span class="number">20</span>, <span class="number">21</span>, <span class="number">22</span>, <span class="number">23</span>,
+<a href=#571 id=571 data-nosnippet>571</a>            <span class="number">24</span>, <span class="number">25</span>, <span class="number">26</span>, <span class="number">27</span>, <span class="number">28</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">29</span>, <span class="number">30</span>, <span class="number">31</span>, <span class="number">32</span>, <span class="number">33</span>, <span class="number">34</span>, <span class="number">35</span>, <span class="number">36</span>, <span class="number">37</span>, <span class="number">38</span>, <span class="number">39</span>, <span class="number">40</span>, <span class="number">41</span>, <span class="number">42</span>, <span class="number">43</span>,
+<a href=#572 id=572 data-nosnippet>572</a>            <span class="number">44</span>, <span class="number">45</span>, <span class="number">46</span>, <span class="number">47</span>, <span class="number">48</span>, <span class="number">49</span>, <span class="number">50</span>, <span class="number">51</span>, <span class="number">52</span>, <span class="number">53</span>, <span class="number">54</span>, <span class="number">55</span>, <span class="number">56</span>, <span class="number">57</span>, <span class="number">58</span>, <span class="number">59</span>, <span class="number">60</span>, <span class="number">61</span>, <span class="number">62</span>, <span class="number">63</span>, <span class="number">64</span>,
+<a href=#573 id=573 data-nosnippet>573</a>        ];
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">let </span><span class="kw-2">mut </span>brillig_side_effects = BTreeMap::new();
+<a href=#575 id=575 data-nosnippet>575</a>        brillig_side_effects.insert(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">false</span>);
+<a href=#576 id=576 data-nosnippet>576</a>
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcode_count_stabilized) =
+<a href=#578 id=578 data-nosnippet>578</a>            transform_internal(acir, acir_opcode_positions, <span class="kw-2">&amp;</span>brillig_side_effects, <span class="prelude-val">None</span>);
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="macro">assert!</span>(!opcode_count_stabilized);
+<a href=#580 id=580 data-nosnippet>580</a>    }
+<a href=#581 id=581 data-nosnippet>581</a>}</code></pre></div></section></main></body></html>

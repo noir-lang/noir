@@ -22,13 +22,13 @@
 <a href=#22 id=22 data-nosnippet>22</a>        outputs: Vec&lt;AcirType&gt;,
 <a href=#23 id=23 data-nosnippet>23</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirValue&gt;, RuntimeError&gt; {
 <a href=#24 id=24 data-nosnippet>24</a>        <span class="kw">let </span>stdlib_func_bytecode = <span class="kw-2">&amp;</span><span class="self">self</span>.brillig_stdlib.get_code(brillig_stdlib_func).clone();
-<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">let </span>safe_return_values = <span class="bool-val">false</span>;
+<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">let </span>skip_output_range_checks = <span class="bool-val">false</span>;
 <a href=#26 id=26 data-nosnippet>26</a>        <span class="self">self</span>.brillig_call(
 <a href=#27 id=27 data-nosnippet>27</a>            predicate,
 <a href=#28 id=28 data-nosnippet>28</a>            stdlib_func_bytecode,
 <a href=#29 id=29 data-nosnippet>29</a>            inputs,
 <a href=#30 id=30 data-nosnippet>30</a>            outputs,
-<a href=#31 id=31 data-nosnippet>31</a>            safe_return_values,
+<a href=#31 id=31 data-nosnippet>31</a>            skip_output_range_checks,
 <a href=#32 id=32 data-nosnippet>32</a>            PLACEHOLDER_BRILLIG_INDEX,
 <a href=#33 id=33 data-nosnippet>33</a>            <span class="prelude-val">Some</span>(brillig_stdlib_func),
 <a href=#34 id=34 data-nosnippet>34</a>        )
@@ -41,7 +41,7 @@
 <a href=#41 id=41 data-nosnippet>41</a>        generated_brillig: <span class="kw-2">&amp;</span>GeneratedBrillig&lt;F&gt;,
 <a href=#42 id=42 data-nosnippet>42</a>        inputs: Vec&lt;AcirValue&gt;,
 <a href=#43 id=43 data-nosnippet>43</a>        outputs: Vec&lt;AcirType&gt;,
-<a href=#44 id=44 data-nosnippet>44</a>        unsafe_return_values: bool,
+<a href=#44 id=44 data-nosnippet>44</a>        skip_output_range_checks: bool,
 <a href=#45 id=45 data-nosnippet>45</a>        brillig_function_index: BrilligFunctionId,
 <a href=#46 id=46 data-nosnippet>46</a>        brillig_stdlib_func: <span class="prelude-ty">Option</span>&lt;BrilligStdlibFunc&gt;,
 <a href=#47 id=47 data-nosnippet>47</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirValue&gt;, RuntimeError&gt; {
@@ -139,7 +139,7 @@
 <a href=#139 id=139 data-nosnippet>139</a>
 <a href=#140 id=140 data-nosnippet>140</a>        <span class="comment">// This is a hack to ensure that if we're compiling a brillig entrypoint function then
 <a href=#141 id=141 data-nosnippet>141</a>        // we don't also add a number of range constraints.
-<a href=#142 id=142 data-nosnippet>142</a>        </span><span class="kw">if </span>!unsafe_return_values {
+<a href=#142 id=142 data-nosnippet>142</a>        </span><span class="kw">if </span>!skip_output_range_checks {
 <a href=#143 id=143 data-nosnippet>143</a>            <span class="kw">for </span>output_var <span class="kw">in </span><span class="kw-2">&amp;</span>outputs_var {
 <a href=#144 id=144 data-nosnippet>144</a>                range_constraint_value(<span class="self">self</span>, output_var)<span class="question-mark">?</span>;
 <a href=#145 id=145 data-nosnippet>145</a>            }

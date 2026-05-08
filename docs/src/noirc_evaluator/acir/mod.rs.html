@@ -318,13 +318,13 @@
 <a href=#318 id=318 data-nosnippet>318</a>
 <a href=#319 id=319 data-nosnippet>319</a>        <span class="comment">// We specifically do not attempt execution of the brillig code being generated as this can result in it being
 <a href=#320 id=320 data-nosnippet>320</a>        // replaced with constraints on witnesses to the program outputs.
-<a href=#321 id=321 data-nosnippet>321</a>        </span><span class="kw">let </span>unsafe_return_values = <span class="bool-val">true</span>;
+<a href=#321 id=321 data-nosnippet>321</a>        </span><span class="kw">let </span>skip_output_range_checks = <span class="bool-val">true</span>;
 <a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>output_values = <span class="self">self</span>.acir_context.brillig_call(
 <a href=#323 id=323 data-nosnippet>323</a>            <span class="self">self</span>.current_side_effects_enabled_var,
 <a href=#324 id=324 data-nosnippet>324</a>            <span class="kw-2">&amp;</span>code,
 <a href=#325 id=325 data-nosnippet>325</a>            inputs,
 <a href=#326 id=326 data-nosnippet>326</a>            outputs,
-<a href=#327 id=327 data-nosnippet>327</a>            unsafe_return_values,
+<a href=#327 id=327 data-nosnippet>327</a>            skip_output_range_checks,
 <a href=#328 id=328 data-nosnippet>328</a>            <span class="comment">// We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
 <a href=#329 id=329 data-nosnippet>329</a>            </span>BrilligFunctionId(<span class="number">0</span>),
 <a href=#330 id=330 data-nosnippet>330</a>            <span class="prelude-val">None</span>,
