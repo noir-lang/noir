@@ -381,6 +381,34 @@ pub struct Elaborator<'context> {
     /// constants don't depend on source order. Any entries left after lazy resolution
     /// has played out are drained at the end of [Self::elaborate_items].
     unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
+
+    /// Trait method declarations registered with deferred meta resolution. These need
+    /// their `TraitFunction` records (in `the_trait.methods`) populated after the
+    /// post-attribute drain, since the records are filled with stub types up-front so
+    /// `collect_trait_impl` can do name-based matching while the real signatures are
+    /// still pending. Each entry is `(trait_id, func_id, name)`.
+    pending_trait_method_records: Vec<(TraitId, FuncId, crate::ast::Ident)>,
+
+    /// Trait method declarations without a body whose signature still needs the
+    /// `elaborate_function` step run after their meta is defined. We can't run it at
+    /// registration time because the meta is deferred.
+    pending_trait_method_no_body_func_ids: Vec<FuncId>,
+
+    /// Pending where-clause-against-trait checks deferred from `collect_trait_impl_methods`
+    /// so they run after the post-attribute drain (when both the trait method's and the
+    /// impl method's metas are fully resolved). The tuple is
+    /// `(impl_method_func_id, trait_id, impl_id, trait_method_name, trait_impl_where_clause, ordered_generics)`.
+    pending_where_clause_checks: Vec<PendingWhereClauseCheck>,
+}
+
+#[derive(Clone)]
+struct PendingWhereClauseCheck {
+    impl_method_func_id: FuncId,
+    trait_id: TraitId,
+    impl_id: TraitImplId,
+    trait_method_name: String,
+    trait_impl_where_clause: Vec<TraitConstraint>,
+    ordered_generics: Vec<Type>,
 }
 
 #[derive(Copy, Clone)]
@@ -458,6 +486,9 @@ impl<'context> Elaborator<'context> {
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
+            pending_trait_method_records: Vec::new(),
+            pending_trait_method_no_body_func_ids: Vec::new(),
+            pending_where_clause_checks: Vec::new(),
         }
     }
 
@@ -530,6 +561,15 @@ impl<'context> Elaborator<'context> {
         let outer_pending: HashSet<FuncId> =
             self.unresolved_function_metas.keys().copied().collect();
 
+        // Scope the pending trait-method bookkeeping lists to this call so that
+        // a recursive `elaborate_items` (from a comptime attribute that
+        // generated new items) doesn't consume the outer call's entries. We
+        // restore the outer state on exit so the outer call can process them
+        // when its own post-attribute drain runs.
+        let outer_pending_trait_records = std::mem::take(&mut self.pending_trait_method_records);
+        let outer_pending_no_body = std::mem::take(&mut self.pending_trait_method_no_body_func_ids);
+        let outer_pending_where_checks = std::mem::take(&mut self.pending_where_clause_checks);
+
         // Compute the set of function metas to defer past `run_attributes`.
         // This must happen before `items` is partially consumed below.
         let deferable_function_ids = Self::deferable_function_ids(&items);
@@ -601,6 +641,14 @@ impl<'context> Elaborator<'context> {
         // still skipped — only this call's metas are drained.
         self.drain_unresolved_function_metas_skipping(&outer_pending);
 
+        // Now that trait method metas are defined, fill in the stub
+        // `TraitFunction` records on each trait, and run the empty-body /
+        // signature checks for trait methods declared without a body. Then run
+        // any deferred where-clause-against-trait checks for trait impls.
+        self.populate_resolved_trait_method_records();
+        self.elaborate_pending_no_body_trait_methods();
+        self.run_pending_where_clause_checks();
+
         // Check for dependency cycles before elaborating function bodies.
         // This breaks cyclic type aliases (replacing them with Type::Error) so that
         // later phases like path resolution don't infinite-loop following alias chains.
@@ -619,6 +667,12 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
+
+        // Restore the outer call's pending bookkeeping so it can be processed
+        // when the outer `elaborate_items` runs its own post-drain phases.
+        self.pending_trait_method_records.extend(outer_pending_trait_records);
+        self.pending_trait_method_no_body_func_ids.extend(outer_pending_no_body);
+        self.pending_where_clause_checks.extend(outer_pending_where_checks);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

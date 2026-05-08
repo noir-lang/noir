@@ -1805,3 +1805,27 @@ fn reference_generated_struct_in_impl() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn reference_generated_struct_in_trait_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+    pub trait Trait {
+        fn bar(_: MyStruct);
+    }
+
+    impl Trait for Bar {
+        fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}

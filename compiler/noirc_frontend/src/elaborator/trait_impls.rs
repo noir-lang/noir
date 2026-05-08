@@ -347,8 +347,11 @@ impl Elaborator<'_> {
                 let ordered_generics =
                     self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
                 for (_, func_id, _) in &overrides {
-                    self.check_where_clause_against_trait(
-                        func_id,
+                    // Defer the where-clause check until after the post-attribute
+                    // drain so that the impl method's meta and the trait method's
+                    // `TraitFunction` record are both fully resolved.
+                    self.queue_pending_where_clause_check(
+                        *func_id,
                         method,
                         trait_impl_where_clause,
                         &ordered_generics,
@@ -409,6 +412,67 @@ impl Elaborator<'_> {
     ///     fn foo<B>() where B: MyTrait {}
     /// }
     /// ```
+    /// Records a pending where-clause-against-trait check to run after the
+    /// post-attribute drain. Until then, neither the impl method's meta nor
+    /// the trait method's [`TraitFunction`] record is guaranteed to be
+    /// populated, so we capture only the data needed to look them up later.
+    fn queue_pending_where_clause_check(
+        &mut self,
+        impl_method_func_id: FuncId,
+        trait_method: &TraitFunction,
+        trait_impl_where_clause: &[TraitConstraint],
+        ordered_generics: &[Type],
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+    ) {
+        self.pending_where_clause_checks.push(super::PendingWhereClauseCheck {
+            impl_method_func_id,
+            trait_id,
+            impl_id,
+            trait_method_name: trait_method.name.as_str().to_string(),
+            trait_impl_where_clause: trait_impl_where_clause.to_vec(),
+            ordered_generics: ordered_generics.to_vec(),
+        });
+    }
+
+    /// Runs every pending where-clause check queued by
+    /// [Self::queue_pending_where_clause_check]. Must be called after the
+    /// post-attribute drain has resolved every involved meta and after
+    /// [Elaborator::populate_resolved_trait_method_records] has updated the
+    /// trait's `TraitFunction` records.
+    pub(super) fn run_pending_where_clause_checks(&mut self) {
+        let pending = std::mem::take(&mut self.pending_where_clause_checks);
+        for check in pending {
+            // Re-fetch the trait method's TraitFunction record (now populated)
+            // by name, mirroring how `collect_trait_impl_methods` matched it.
+            let the_trait = self.interner.get_trait(check.trait_id);
+            let Some(trait_method) =
+                the_trait.methods.iter().find(|m| m.name.as_str() == check.trait_method_name)
+            else {
+                continue;
+            };
+            let trait_method = trait_method.clone();
+
+            // `check_where_clause_against_trait` reads `self.self_type`. At
+            // queue time we were inside the trait impl's context; restore that
+            // here from the impl record.
+            let impl_self_type =
+                self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
+            let prev_self_type = std::mem::replace(&mut self.self_type, Some(impl_self_type));
+
+            self.check_where_clause_against_trait(
+                &check.impl_method_func_id,
+                &trait_method,
+                &check.trait_impl_where_clause,
+                &check.ordered_generics,
+                check.trait_id,
+                check.impl_id,
+            );
+
+            self.self_type = prev_self_type;
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_where_clause_against_trait(
         &mut self,

@@ -197,7 +197,7 @@ use crate::{
     node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
-use super::{Elaborator, generics::GenericsState};
+use super::{Elaborator, function::UnresolvedFunctionMeta, generics::GenericsState};
 
 /// State saved when entering a trait scope, used to restore state on exit.
 struct TraitScopeState {
@@ -332,13 +332,10 @@ impl Elaborator<'_> {
 
             self.exit_trait_scope(state);
 
-            // This check needs to be after the trait's methods are set since
-            // the interner may set `interner.ordering_type` based on the result type
-            // of the Cmp trait, if this is it.
-            if self.crate_id.is_stdlib() {
-                self.interner.try_add_infix_operator_trait(*trait_id);
-                self.interner.try_add_prefix_operator_trait(*trait_id);
-            }
+            // Operator-trait registration is deferred to
+            // [Self::populate_resolved_trait_method_records] because it inspects
+            // the trait method's resolved `typ`, which is only filled in after
+            // the post-attribute drain.
         }
     }
 
@@ -818,8 +815,13 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolves a trait's methods, but does not elaborate their bodies.
-    /// Sets the FuncMeta for each trait method.
+    /// Registers each trait method's metadata for *deferred* resolution and
+    /// returns stub `TraitFunction` records to populate `the_trait.methods`. The
+    /// stubs carry real `name`, `location`, and `default_impl` info so that
+    /// `collect_trait_impl` can do name-based matching, but `typ`,
+    /// `trait_constraints`, and `direct_generics` are placeholders. Those are
+    /// filled in later by [Self::populate_resolved_trait_method_records] after
+    /// the post-attribute drain has resolved each method's meta.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_methods(
         &mut self,
@@ -888,19 +890,18 @@ impl Elaborator<'_> {
                     // Trait functions always have the same visibility as the trait they are in
                     def.visibility = unresolved_trait.trait_def.visibility;
 
-                    this.resolve_trait_function(trait_id, func_id, def, body.is_some());
+                    this.register_trait_function(
+                        trait_id,
+                        func_id,
+                        name.clone(),
+                        def,
+                        body.is_some(),
+                    );
 
                     if !item.doc_comments.is_empty() {
                         let id = ReferenceId::Function(func_id);
                         this.interner.set_doc_comments(id, item.doc_comments.clone());
                     }
-
-                    let func_meta = this.interner.function_meta(&func_id);
-
-                    let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
-                    let return_type = func_meta.return_type().clone();
-
-                    let generics = vecmap(&this.generics, |generic| generic.type_var.clone());
 
                     let default_impl = unresolved_trait
                         .fns_with_default_impl
@@ -911,22 +912,17 @@ impl Elaborator<'_> {
                         .fold(None, |opt, item| opt.xor(Some(item)))
                         .map(|(_, _, q)| Box::new(q.clone()));
 
-                    let no_environment = Box::new(Type::Unit);
-                    let function_type = Type::Function(
-                        arguments,
-                        Box::new(return_type),
-                        no_environment,
-                        *is_unconstrained,
-                    );
-
+                    // Stub TraitFunction. `typ`, `trait_constraints`, and
+                    // `direct_generics` are populated post-drain once the meta
+                    // is resolved. See [Self::populate_resolved_trait_method_records].
                     functions.push(TraitFunction {
                         name: name.clone(),
-                        typ: Type::Forall(generics, Box::new(function_type)),
+                        typ: Type::Error,
                         location: Location::new(name.span(), unresolved_trait.file_id),
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
-                        trait_constraints: func_meta.trait_constraints.clone(),
-                        direct_generics: func_meta.direct_generics.clone(),
+                        trait_constraints: Vec::new(),
+                        direct_generics: Vec::new(),
                     });
                 });
             }
@@ -934,41 +930,144 @@ impl Elaborator<'_> {
         functions
     }
 
-    /// Defines the FuncMeta for this trait function.
-    ///
-    /// The bodies of each function (if they exist) are not elaborated.
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_function(
+    /// Registers a trait method's meta in the deferred map. The meta is resolved
+    /// later (lazily, or as part of the post-attribute drain in
+    /// `elaborate_items`). This mirrors what `register_function_metas` does for
+    /// regular functions but pulls the trait context (`Self` typevar, parent
+    /// trait bounds) from the trait via `current_trait`.
+    fn register_trait_function(
         &mut self,
         trait_id: TraitId,
         func_id: FuncId,
+        name: Ident,
         def: FunctionDefinition,
         has_body: bool,
     ) {
-        let old_generic_count = self.generics.len();
-
-        self.scopes.start_function();
-
         let kind =
             if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
-        let mut function = NoirFunction { kind, def };
-        let no_extra_trait_constraints = &[];
-        self.define_function_meta(
-            &mut function,
+        let function = NoirFunction { kind, def };
+
+        let local_module =
+            self.local_module.expect("local_module must be set when registering a trait method");
+        // Trait methods see `Self` as the trait's self-type variable. Capture
+        // it now so that meta resolution (run later, after attributes) finds
+        // `self.self_type` set when it processes `where` clauses and trait
+        // constraints (`add_trait_constraints_to_scope` requires it).
+        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let self_type = Some(Type::TypeVariable(self_typevar));
+
+        self.unresolved_function_metas.insert(
             func_id,
-            Some(trait_id),
-            no_extra_trait_constraints,
+            UnresolvedFunctionMeta {
+                func: function,
+                local_module,
+                self_type,
+                outer_generics: self.generics.clone(),
+                current_trait: Some(trait_id),
+                current_trait_impl: None,
+                extra_trait_constraints: Vec::new(),
+            },
         );
 
-        // Here we elaborate functions without a body, mainly to check the arguments and return types.
-        // Later on we'll elaborate functions with a body by fully type-checking them.
+        self.pending_trait_method_records.push((trait_id, func_id, name));
+
         if !has_body {
-            self.elaborate_function(func_id);
+            self.pending_trait_method_no_body_func_ids.push(func_id);
+        }
+    }
+
+    /// After the post-attribute drain has resolved trait method metas, fill in
+    /// the real `typ`, `trait_constraints`, and `direct_generics` of each
+    /// `TraitFunction` record on the trait. Until this runs, those fields hold
+    /// the stub values written by [Self::resolve_trait_methods].
+    pub(super) fn populate_resolved_trait_method_records(&mut self) {
+        let pending = std::mem::take(&mut self.pending_trait_method_records);
+        // Track the set of trait_ids touched here so we can re-run operator
+        // trait registration after their methods are populated.
+        let mut traits_touched: BTreeSet<TraitId> = BTreeSet::new();
+        for (trait_id, _func_id, _name) in &pending {
+            traits_touched.insert(*trait_id);
+        }
+        for (trait_id, func_id, name) in pending {
+            let func_meta = self.interner.function_meta(&func_id);
+            let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
+            let return_type = func_meta.return_type().clone();
+            let generics = vecmap(&func_meta.all_generics, |generic| generic.type_var.clone());
+            let trait_constraints = func_meta.trait_constraints.clone();
+            let direct_generics = func_meta.direct_generics.clone();
+            // Extract the unconstrained flag from the resolved meta. The meta's
+            // typ is `Type::Function(.., is_unconstrained)` for non-generic
+            // signatures and `Type::Forall(_, Box<Type::Function(..)>)` when the
+            // signature has generics.
+            let is_unconstrained = match &func_meta.typ {
+                Type::Function(_, _, _, b) => *b,
+                Type::Forall(_, inner) => matches!(inner.as_ref(), Type::Function(_, _, _, true)),
+                _ => false,
+            };
+
+            let no_environment = Box::new(Type::Unit);
+            let function_type =
+                Type::Function(arguments, Box::new(return_type), no_environment, is_unconstrained);
+            let typ = Type::Forall(generics, Box::new(function_type));
+
+            self.interner.update_trait(trait_id, |trait_def| {
+                if let Some(method) =
+                    trait_def.methods.iter_mut().find(|m| m.name.as_str() == name.as_str())
+                {
+                    method.typ = typ;
+                    method.trait_constraints = trait_constraints;
+                    method.direct_generics = direct_generics;
+                }
+            });
         }
 
-        let _ = self.scopes.end_function();
-        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.generics.truncate(old_generic_count);
+        // Operator trait registration must happen after the trait's methods'
+        // types are filled in (it reads `the_trait.methods[0].typ`).
+        if self.crate_id.is_stdlib() {
+            for trait_id in traits_touched {
+                self.interner.try_add_infix_operator_trait(trait_id);
+                self.interner.try_add_prefix_operator_trait(trait_id);
+            }
+        }
+    }
+
+    /// Lazily resolves the metas of every method (declaration and impl) of the
+    /// given trait. Used by paths that read `function_meta` directly on these
+    /// methods — e.g. monomorphization's `bind_trait_impl_func_generics_*` —
+    /// before that read happens, so deferred metas don't ICE.
+    pub(crate) fn resolve_trait_method_metas_for(&mut self, trait_id: TraitId) {
+        // Resolve the trait method declarations.
+        let trait_method_func_ids: Vec<FuncId> =
+            self.interner.get_trait(trait_id).method_ids.values().copied().collect();
+        for func_id in trait_method_func_ids {
+            self.define_function_meta_if_undefined(func_id);
+        }
+
+        // Resolve every trait impl method belonging to this trait.
+        let impl_func_ids: Vec<FuncId> = self
+            .interner
+            .trait_implementations()
+            .values()
+            .filter_map(|trait_impl| {
+                let trait_impl = trait_impl.borrow();
+                (trait_impl.trait_id == trait_id).then(|| trait_impl.methods.clone())
+            })
+            .flatten()
+            .collect();
+        for func_id in impl_func_ids {
+            self.define_function_meta_if_undefined(func_id);
+        }
+    }
+
+    /// Run `elaborate_function` for trait method declarations without a body
+    /// (`fn foo(self);`) so they perform the empty-body / signature checks that
+    /// would normally happen synchronously inside `resolve_trait_function`. We
+    /// can't run this during registration since the meta is deferred.
+    pub(super) fn elaborate_pending_no_body_trait_methods(&mut self) {
+        let pending = std::mem::take(&mut self.pending_trait_method_no_body_func_ids);
+        for func_id in pending {
+            self.elaborate_function(func_id);
+        }
     }
 }
 
@@ -993,10 +1092,23 @@ impl Elaborator<'_> {
 ///
 /// This does not type check the body of the impl function.
 pub(crate) fn check_trait_impl_method_matches_declaration(
-    elaborator: &Elaborator,
+    elaborator: &mut Elaborator,
     function: FuncId,
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
+    let trait_id = elaborator
+        .interner
+        .try_function_meta(&function)
+        .and_then(|m| m.trait_impl)
+        .and_then(|impl_id| elaborator.interner.try_get_trait_implementation(impl_id))
+        .map(|impl_| impl_.borrow().trait_id);
+    if let Some(trait_id) = trait_id {
+        // The trait method declarations may still be deferred. Resolve them now
+        // so the direct `function_meta` reads below (and inside the helpers we
+        // call) don't ICE.
+        elaborator.resolve_trait_method_metas_for(trait_id);
+    }
+
     let interner = &elaborator.interner;
     let meta = interner.function_meta(&function);
     let method_name = interner.function_name(&function);

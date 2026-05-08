@@ -814,6 +814,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
+
+        // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
+        // it calls) reads `function_meta` directly on both the trait method and
+        // the matching trait impl method. With deferred metas, those reads can
+        // ICE if we don't pre-resolve them. Resolve every candidate of the
+        // trait now via the lazy path.
+        self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
+
         match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
