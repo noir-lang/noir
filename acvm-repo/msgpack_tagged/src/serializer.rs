@@ -10,9 +10,11 @@
 //! wrapper. The wrapper in turn writes to a `Vec<u8>` we hand back to the
 //! caller.
 //!
-//! This module currently implements only the named-struct shape; tuple
-//! structs, tuple variants, struct variants, unit variants, and newtype
-//! variants land in subsequent commits.
+//! Currently intercepts the named-struct shape end-to-end (with nested
+//! recursion through the wrapper). Every other shape — sequences, maps,
+//! tuples, tuple structs, the four variant kinds — still forwards to the
+//! inner `rmp_serde` serializer and is marked with a `TODO:` comment at the
+//! method body explaining what each one needs.
 
 use std::io::Write;
 
@@ -185,14 +187,26 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     // `BTreeMap<K, V>` recurse into their elements through us via the
     // `Serializer` trait, so nested tagged types still get int-keyed.
 
+    // TODO: needs a `TaggedSerializeSeq` adapter — rmp_serde's
+    // `SerializeSeq::serialize_element` routes values through its inner
+    // serializer, so any tagged element inside a `Vec<Tagged>` / `&[Tagged]`
+    // currently falls through to rmp's default struct encoding instead of
+    // recursing via this wrapper. Write the array header via
+    // `rmp::encode::write_array_len` and route each element through `&mut self`.
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         self.inner.serialize_seq(len)
     }
 
+    // TODO: same fix as `serialize_seq` for fixed-length tuples — `(Tagged, ...)`
+    // elements need to recurse through this wrapper.
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
         self.inner.serialize_tuple(len)
     }
 
+    // TODO: needs a `TaggedSerializeMap` adapter — rmp_serde's `SerializeMap`
+    // routes both keys and values through its inner serializer, so values
+    // inside a `BTreeMap<_, Tagged>` skip our wrapper. Write the map header
+    // via `rmp::encode::write_map_len` and route each key/value through `&mut self`.
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
         self.inner.serialize_map(len)
     }
@@ -200,6 +214,10 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     // -------- tuple struct / variant / unit variant / newtype variant:
     //          forwarded for now; subsequent commits intercept these.
 
+    // TODO: top-level tuple struct (e.g. `struct Pair(u32, bool)`) — the macro
+    // emits a `Product` with positional names ("0", "1", …). Reuse the
+    // struct-style adapter: look up the `Product`, write the map header, and
+    // route each element through `&mut self` under the matching positional tag.
     fn serialize_tuple_struct(
         self,
         name: &'static str,
@@ -208,6 +226,11 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         self.inner.serialize_tuple_struct(name, len)
     }
 
+    // TODO: tuple variants (`VariantKind::Tuple`) — emit
+    // `{<variant_tag>: {0: ..., 1: ...}}`. Look up the type's `Sum`, resolve
+    // the variant by name, write an outer 1-entry map header, then a payload
+    // map driven by the variant's `payload` `Product` (positional names).
+    // Needs a new adapter that routes each element through `&mut self`.
     fn serialize_tuple_variant(
         self,
         name: &'static str,
@@ -218,6 +241,10 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         self.inner.serialize_tuple_variant(name, variant_index, variant, len)
     }
 
+    // TODO: unit variants (`VariantKind::Unit`) — emit `{<variant_tag>: nil}`.
+    // rmp_serde's default encodes a unit variant as the variant *name string*,
+    // which is the wrong shape for us. Look up the type's `Sum`, resolve the
+    // variant by name, and write a 1-entry map `tag → nil`.
     fn serialize_unit_variant(
         self,
         name: &'static str,
@@ -227,6 +254,10 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         self.inner.serialize_unit_variant(name, variant_index, variant)
     }
 
+    // TODO: newtype variants (`VariantKind::Newtype`) — emit
+    // `{<variant_tag>: <inner bytes>}` with no field-level tag. Look up the
+    // `Sum`, write a 1-entry map header, then route the inner value through
+    // `&mut self` so any nested tagged types in the payload keep recursing.
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
@@ -240,6 +271,11 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         self.inner.serialize_newtype_variant(name, variant_index, variant, value)
     }
 
+    // TODO: struct variants (`VariantKind::Struct`) — emit
+    // `{<variant_tag>: {<field_tag>: ..., ...}}`. Look up the `Sum`, resolve
+    // the variant by name, write an outer 1-entry map header, then a payload
+    // map driven by the variant's `payload` `Product` (named fields).
+    // Needs a new adapter that routes each value through `&mut self`.
     fn serialize_struct_variant(
         self,
         name: &'static str,
@@ -274,12 +310,12 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         let product = entry.tagged().as_product().unwrap_or_else(|| {
             panic!("registry entry for {name:?} is sum-shaped but `serialize_struct` was called")
         });
-        // serde's `len` counts the struct's tagged fields too — auto-skipped
-        // ones (PhantomData / `#[tag(skip)]`) are absent from both `len` and
-        // `product.fields`, so the two should agree. The `_` swallow is
-        // intentional: we trust serde's count here and could `assert_eq!` it
-        // against `product.fields.len()` once we're confident the macro and
-        // serde-derive stay in sync.
+        // TODO: tighten to `assert_eq!(len, product.fields.len(), ...)`
+        // once the variant/tuple paths are wrapped and we've stress-tested
+        // the invariant against `#[tag(skip)]` / `PhantomData` fixtures.
+        // Auto-skipped fields are absent from both `len` and `product.fields`,
+        // so they should always agree — the assert would catch any future
+        // macro/serde-derive divergence.
         let _ = len;
 
         // Write the msgpack map header directly to the underlying writer via
