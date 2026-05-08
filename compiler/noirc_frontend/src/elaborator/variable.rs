@@ -84,16 +84,18 @@ impl Elaborator<'_> {
                 // but it is not a real variable so it does not resolve to a valid Identifier.
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
                 let type_alias = self.interner.get_type_alias(type_alias_id);
-                if let Some(expr) = &type_alias.borrow().numeric_expr {
+                if let Some(type_alias_expr) = &type_alias.borrow().numeric_expr {
                     // Extract the declared numeric type from the type alias's kind.
                     let declared_type = match type_alias.borrow().typ.kind() {
                         Kind::Numeric(declared_type) => declared_type,
                         _ => Box::new(Type::Error),
                     };
                     let declared_type = *declared_type;
-                    let expr_location = type_alias.borrow().location;
-                    let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                    let expr = Expression::new(expr, expr_location);
+                    let var_expr = UnresolvedTypeExpression::to_expression_kind(type_alias_expr);
+
+                    // The expression we create for this particular instantiation of the numeric type alias
+                    // must have the same location as the path that refers to it.
+                    let var_expr = Expression::new(var_expr, location);
 
                     // Resolve turbofish generics for the type alias.
                     // `resolved_turbofish` contains already-resolved types from
@@ -147,13 +149,13 @@ impl Elaborator<'_> {
                     // literals queued for the function-context fit check during
                     // re-elaboration so the same overflow is not reported twice.
                     let literals_before = self.integer_literal_expr_ids_len();
-                    let (id, typ) = self.elaborate_expression(expr);
+                    let (id, typ) = self.elaborate_expression(var_expr);
                     self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
                     // Unify the expression's type with the declared type from the type alias
                     // to ensure proper type checking.
-                    self.unify_or_type_mismatch(&typ, &declared_type, expr_location);
+                    self.unify_or_type_mismatch(&typ, &declared_type, type_alias_expr.location());
 
                     return (id, declared_type, false, location);
                 }
