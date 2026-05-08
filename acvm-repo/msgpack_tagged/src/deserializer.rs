@@ -11,12 +11,15 @@
 //! the registry up front via `T::register_into` and runs the bytes through
 //! the wrapper.
 
+use std::io::Read;
+
+use rmp::Marker;
 use rmp_serde::Deserializer as RmpDeserializer;
-use rmp_serde::decode::ReadSlice;
+use rmp_serde::decode::ReadReader;
 // `de::Deserializer` would clash with our own `Deserializer` struct below if
 // pulled in via `use`; importing the `de` module instead lets us write
 // `de::Deserializer` for the trait at the few sites that need it.
-use serde::de::{self, Deserialize, Visitor};
+use serde::de::{self, Deserialize, Error as _, Visitor};
 
 use crate::{MsgpackTagged, TagRegistry};
 
@@ -29,8 +32,15 @@ type RmpError = rmp_serde::decode::Error;
 /// Constructed internally by [`msgpack_tagged_deserialize`]; not part of the
 /// public API yet — once strategy customization lands the builder will
 /// expose it (mirroring the serializer's plan).
-pub(crate) struct Deserializer<'a, R> {
-    inner: RmpDeserializer<R>,
+/// `R` is the underlying byte source — typically `&'de [u8]`. We hold the
+/// inner deserializer as `RmpDeserializer<ReadReader<R>>` (the shape that
+/// `RmpDeserializer::new` constructs) rather than as a generic
+/// `RmpDeserializer<R>` so we can reach the underlying reader via
+/// `inner.get_mut()`. That accessor is only defined on the
+/// `Deserializer<ReadReader<_>, _>` flavor, and we need it for `Option`'s
+/// peek-via-rewind dance.
+pub(crate) struct Deserializer<'a, R: Read> {
+    inner: RmpDeserializer<ReadReader<R>>,
     #[allow(dead_code)] // wired up as each shape's interception lands.
     registry: &'a TagRegistry,
 }
@@ -62,7 +72,11 @@ where
 
 impl<'de, 'a, 'der, R> de::Deserializer<'de> for &'der mut Deserializer<'a, R>
 where
-    R: ReadSlice<'de>,
+    // `R: Read` gives us `ReadReader<R>: ReadSlice<'de>` (rmp_serde's blanket
+    // impl), which is what the inner `RmpDeserializer<ReadReader<R>>: Deserializer<'de>`
+    // bound resolves to. `R: Clone` is the cost of admission for
+    // `deserialize_option`'s peek-via-rewind dance.
+    R: Read + Clone,
 {
     type Error = RmpError;
 
@@ -137,15 +151,38 @@ where
         (&mut self.inner).deserialize_byte_buf(visitor)
     }
 
-    // TODO: `Option`'s `Deserialize` impl drives the inner value via
-    // `Visitor::visit_some(deserializer)`. rmp_serde passes its own inner
-    // deserializer to the visitor, so any tagged value inside `Some(_)`
-    // bypasses this wrapper. Peek at the next msgpack token (nil → None,
-    // otherwise → Some), and call `visitor.visit_some(&mut *self)` so the
-    // inner value recurses through this wrapper. Mirror of the serializer's
-    // `serialize_some`, which already routes through `&mut self`.
     fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_option(visitor)
+        // We need to peek at the next msgpack marker to decide nil → None
+        // vs. anything else → Some. rmp_serde keeps an internal marker
+        // buffer for this dance, but it's private — so we read the marker
+        // via `rmp::decode::read_marker` directly against the underlying
+        // reader, and on a non-nil marker we restore the reader's state so
+        // the inner deserializer re-reads the marker as part of the value.
+        //
+        // `R: Clone` is the cost of admission for that restore. For the
+        // `&[u8]`-shaped readers that the public entry function constructs
+        // it's a trivial slice-handle copy.
+        let reader_state_before = self.inner.get_mut().clone();
+        let marker = rmp::decode::read_marker(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack marker: {e:?}")))?;
+        if matches!(marker, Marker::Null) {
+            visitor.visit_none()
+        } else {
+            // Restoring is load-bearing, not just hygiene: a msgpack
+            // value's marker byte IS the first byte of the value
+            // (`Some(42u32)` → `0x2a` alone; `Some(255u32)` → `0xcc 0xff`).
+            // Leaving the reader past the marker would have the inner
+            // deserializer's `read_marker` either misinterpret the
+            // payload as a new marker or hit EOF, depending on the
+            // value's shape. rmp_serde's own buffered-marker trick (its
+            // private `marker: Option<Marker>` field) is unreachable from
+            // here, so restore-then-recurse is the cleanest available
+            // option. After the restore, `visit_some(&mut *self)`
+            // recurses through this wrapper so nested tagged types inside
+            // the inner value still get our interception.
+            *self.inner.get_mut() = reader_state_before;
+            visitor.visit_some(&mut *self)
+        }
     }
 
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -299,6 +336,32 @@ mod tests {
     #[test]
     fn roundtrip_through_skeleton_for_a_shape_that_does_not_need_interception() {
         let value: Vec<u32> = vec![1, 2, 3, 4, 5];
+        assert_roundtrip(value);
+    }
+
+    /// `None` round-trips: nil on the wire, `visit_none` on decode.
+    #[test]
+    fn option_none_roundtrips() {
+        let value: Option<u32> = None;
+        assert_roundtrip(value);
+    }
+
+    /// `Some(<primitive>)` round-trips. Our `deserialize_option` peeks the
+    /// marker, restores the reader's position, and routes the inner value
+    /// through `&mut *self`.
+    #[test]
+    fn option_some_with_primitive_roundtrips() {
+        let value: Option<u32> = Some(42);
+        assert_roundtrip(value);
+    }
+
+    /// `Some(Some(<primitive>))` exercises the recursive case — our
+    /// `deserialize_option` calls `visit_some(&mut *self)`, and the inner
+    /// `Option<u32>::deserialize` then calls our `deserialize_option`
+    /// again. Peek + restore must compose correctly.
+    #[test]
+    fn nested_option_roundtrips() {
+        let value: Option<Option<u32>> = Some(Some(7));
         assert_roundtrip(value);
     }
 }
