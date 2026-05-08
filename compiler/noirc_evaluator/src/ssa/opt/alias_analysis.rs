@@ -447,7 +447,8 @@ impl AliasAnalysisContext {
         let pass1_functions: Vec<&Function> = match &scope {
             Scope::Single(f) => vec![*f],
             Scope::Ssa(ssa) => {
-                let call_graph = CallGraph::from_ssa(ssa);
+                // The analysis tolerates incomplete call-graphs, via `unresolved_call` handling
+                let call_graph = CallGraph::from_ssa_partial(ssa);
                 let (sccs, recursive) = call_graph.sccs();
                 analysis.untrusted_site_functions = recursive;
                 sccs.into_iter().rev().flatten().filter_map(|fid| ssa.functions.get(&fid)).collect()
@@ -781,16 +782,13 @@ impl AliasAnalysisContext {
                         }
                         // Fallthrough for unresolved functions whose function body
                         // is not available, via a conservative type-based analysis.
-                        //
-                        // Conservatively assume that any function called in Single Scope
-                        // may put us in indirect recursive calls
                         _ => {
                             self.unresolved_call(function, arguments, results);
-                            if matches!(scope, Scope::Single(_)) {
-                                self.untrusted_site_functions.insert(function.id());
-                                // no need to continue collecting the in-loop allocations
-                                ignore_allocations_in_block = true;
-                            }
+                            // Conservatively assume that any function called
+                            // may put us in indirect recursive calls
+                            self.untrusted_site_functions.insert(function.id());
+                            // no need to continue collecting the in-loop allocations
+                            ignore_allocations_in_block = true;
                         }
                     }
                 }
