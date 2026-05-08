@@ -1189,6 +1189,7 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
 /// of those passes regresses we want this to panic at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
+#[cfg(debug_assertions)]
 pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
