@@ -11,6 +11,7 @@ use crate::{
     serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -26,17 +27,21 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct Program<F: AcirField> {
+    #[tag(0)]
     pub functions: Vec<Circuit<F>>,
+    #[tag(1)]
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(via(CircuitWire<F>))]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     pub function_name: String,
@@ -67,16 +72,24 @@ pub struct Circuit<F: AcirField> {
 /// Wire format for `Circuit` — preserves backwards-compatible serialization that includes
 /// `current_witness_index`. The `serde(rename)` ensures this type registers under the same
 /// name ("Circuit") as the public type so that `serde_reflection` traces it correctly.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[serde(rename = "Circuit")]
+#[tagged(allow_unknown_tags)] // To make it forward compatible with future extensions.
 struct CircuitWire<F: AcirField> {
     #[serde(default)]
+    #[tag(0)]
     function_name: String,
+    #[tag(1)]
     current_witness_index: u32,
+    #[tag(2)]
     opcodes: Vec<Opcode<F>>,
+    #[tag(3)]
     private_parameters: BTreeSet<Witness>,
+    #[tag(4)]
     public_parameters: PublicInputs,
+    #[tag(5)]
     return_values: PublicInputs,
+    #[tag(6)]
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
@@ -456,7 +469,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
@@ -566,6 +579,20 @@ mod tests {
         BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
+    }
+
+    /// This test is a reminder that when we slap `#[derive(MsgpackTagged)]` on type,
+    /// we only get immediate compilation errors for non-generic fields that
+    /// don't implement `MsgpackTagged`; for generic types like `Circuit<F>`
+    /// in `Program<F>`, we may or may not have an implementation, depending on `F`.
+    ///
+    /// A test like this brings out all the concrete missing implementations by
+    /// choosing a particular `F`.
+    #[test]
+    fn ensure_program_is_msgpack_tagged() {
+        // fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
+        // assert_impl::<Program<FieldElement>>();
+        todo!("add MsgpackTagged on all inner types")
     }
 
     /// Property based testing for serialization
