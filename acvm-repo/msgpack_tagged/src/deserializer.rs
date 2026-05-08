@@ -233,14 +233,25 @@ where
         visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len as usize })
     }
 
-    // TODO: same fix as `deserialize_seq` for fixed-length Rust tuples —
-    // `(Tagged, ...)` elements need to recurse through this wrapper.
     fn deserialize_tuple<V: Visitor<'de>>(
         self,
         len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_tuple(len, visitor)
+        // Same wire shape as `deserialize_seq` — a length-prefixed msgpack
+        // array — so we share the access adapter. The added eager check
+        // is that the wire length matches the tuple arity: serde's tuple
+        // visitor reads exactly `len` elements and stops, so a wire that
+        // claims more would silently leave trailing bytes in the stream
+        // and corrupt subsequent reads.
+        let actual = rmp::decode::read_array_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))?;
+        if actual as usize != len {
+            return Err(RmpError::custom(format!(
+                "tuple length mismatch: type expects {len} elements, wire has {actual}",
+            )));
+        }
+        visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len })
     }
 
     // TODO: top-level tuple struct (e.g. `struct Pair(u32, bool)`) is an
@@ -442,6 +453,24 @@ mod tests {
     #[test]
     fn vec_of_options_roundtrips() {
         let value: Vec<Option<u32>> = vec![Some(1), None, Some(2), None, None, Some(3)];
+        assert_roundtrip(value);
+    }
+
+    /// Fixed-length Rust tuple — same wire shape as a sequence (msgpack
+    /// array). `deserialize_tuple` shares the access adapter with
+    /// `deserialize_seq`, plus an eager length-mismatch check.
+    #[test]
+    fn tuple_roundtrips() {
+        let value: (u32, bool, u8) = (7, true, 9);
+        assert_roundtrip(value);
+    }
+
+    /// Tuple containing an option element exercises the recursion through
+    /// the wrapper — without it, `deserialize_option` would never see the
+    /// inner `Some(_)` value.
+    #[test]
+    fn tuple_with_option_roundtrips() {
+        let value: (u32, Option<u32>, Option<u32>) = (1, Some(2), None);
         assert_roundtrip(value);
     }
 
