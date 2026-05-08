@@ -220,19 +220,13 @@ impl Elaborator<'_> {
         self.resolve_unresolved_function_meta(func_id, info);
     }
 
-    /// Lazy-aware accessor for a function's [FuncMeta]. Resolves the meta first
-    /// if it's still deferred, then borrows it from the interner. This is the
-    /// preferred way to read a function meta during elaboration — equivalent to
-    /// `define_function_meta_if_undefined(id)` followed by
-    /// `interner.function_meta(&id)`, but in one call.
+    /// Lazily resolves a function's [FuncMeta] if needed, then returns it.
     pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta(&func_id)
     }
 
-    /// Mutable counterpart of [Self::function_meta]. Resolves the meta first if
-    /// deferred, then returns a mutable reference for callers that mutate the
-    /// stored meta (e.g. `function_def_disable`).
+    /// Mutable counterpart of [Self::function_meta].
     pub(crate) fn function_meta_mut(&mut self, func_id: FuncId) -> &mut FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta_mut(&func_id)
