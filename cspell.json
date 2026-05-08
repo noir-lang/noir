@@ -278,6 +278,7 @@
         "RMVD",
         "rmpv",
         "rngs",
+        "roundtrips",
         "runtimes",
         "rustc",
         "rustfmt",
