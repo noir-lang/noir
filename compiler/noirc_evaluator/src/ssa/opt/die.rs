@@ -581,24 +581,9 @@ fn die_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use acvm::acir::brillig::lengths::SemanticLength;
-    use im::vector;
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            function_builder::FunctionBuilder,
-            ir::{
-                function::RuntimeType,
-                map::Id,
-                types::{NumericType, Type},
-            },
-            opt::assert_ssa_does_not_change,
-        },
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
     use test_case::test_case;
 
@@ -703,55 +688,25 @@ mod tests {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // brillig(inline) fn main f0 {
-        //     b0():
-        //       v1 = make_array [u32 0, u32 0]
-        //       v2 = allocate
-        //       inc_rc v1
-        //       store v1 at v2
-        //       inc_rc v1
-        //       jmp b1()
-        //     b1():
-        //       v3 = load v2
-        //       v5 = array_set v3, index u32 0, value u32 1
-        //       return v5
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
-        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
-        let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(v1);
-        builder.insert_store(v2, v1);
-        builder.increment_array_reference_count(v1);
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-
-        let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        let mutable = false;
-        let v5 = builder.insert_array_set(v3, zero, one, mutable);
-        builder.terminate_with_return(vec![v5]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
-
-        // We expect the output to be unchanged
-        let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
+        // The two `inc_rc v1` instructions flank a `store v1 at v2` and so are not a
+        // removable paired pair: the store gives `v2` a borrow of `v1`, and the second
+        // `inc_rc` covers that borrow being read in the next block.
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 0, u32 0] : [u32; 2]
+                v2 = allocate -> &mut [u32; 2]
+                inc_rc v1
+                store v1 at v2
+                inc_rc v1
+                jmp b1()
+              b1():
+                v3 = load v2 -> [u32; 2]
+                v5 = array_set v3, index u32 0, value u32 1
+                return v5
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
