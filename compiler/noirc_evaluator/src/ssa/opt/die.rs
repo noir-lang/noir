@@ -829,9 +829,8 @@ mod tests {
         let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         // The call to f1 in f0 is removed because f1 is pure. The body of f1 is
-        // unchanged: DIE no longer removes stores in any runtime — that cleanup is
-        // mem2reg's responsibility, since deciding when a store is dead requires
-        // alias-aware reasoning that DIE cannot soundly perform on its own.
+        // left untouched: removing stores requires alias-aware reasoning that DIE does
+        // not perform — that cleanup is mem2reg's responsibility.
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -1302,11 +1301,10 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
-    /// The trivial pattern (`allocate; store; return` with no other uses of the address)
-    /// is mem2reg's responsibility. DIE must leave it untouched even when invoked in
-    /// isolation: gating store removal on "no recorded uses" at this point in the reverse
-    /// walk is unsound in general because aliases can be established by earlier
-    /// instructions whose effect on the address has not yet been observed.
+    /// DIE leaves an `allocate; store; return` triple alone even though no other
+    /// instruction references the address: deciding when a store is dead requires
+    /// alias-aware reasoning that DIE does not perform, and dead-store removal is
+    /// mem2reg's responsibility.
     #[test_case("acir"; "acir")]
     #[test_case("brillig"; "brillig")]
     fn trivial_dead_stores_not_removed(runtime: &str) {
@@ -1323,9 +1321,8 @@ mod tests {
         assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
 
-    /// Passing the address to a call counts as a use, so DIE has the information it needs
-    /// in either runtime: ACIR's `used_values.contains(address)` check trips, and Brillig
-    /// never removes stores in the first place. The store must stay regardless.
+    /// A store must stay when its address is passed to a call: the callee can read or
+    /// retain a reference that aliases the local allocation.
     #[test_case("acir"; "acir")]
     #[test_case("brillig"; "brillig")]
     fn does_not_remove_store_if_address_escapes(runtime: &str) {
@@ -1345,8 +1342,7 @@ mod tests {
 
     /// Stores to a reference handed in as a function parameter must always be kept:
     /// the address was not produced by a local `allocate`, so the caller can observe
-    /// the write even when the callee never loads from it. This holds for both runtimes
-    /// because the ACIR `Store` arm gates removal on `is_local_allocate(address)`.
+    /// the write even when the callee never loads from it.
     #[test_case("acir"; "acir")]
     #[test_case("brillig"; "brillig")]
     fn does_not_remove_store_to_param_reference(runtime: &str) {
@@ -1362,15 +1358,13 @@ mod tests {
         assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
 
-    /// `IfElse` on references is the canonical Brillig-only alias-creator and the shape
-    /// that originally surfaced the underlying bug: `v6 = if cond then v0 else v1` makes
-    /// `v6` alias `v0` (or `v1`), so a later `load v6` is effectively a load of `v0`.
-    /// The reverse walk visits the load before the IfElse, so the address has no
-    /// recorded uses when DIE inspects the intervening `store at v0` — and yet removing
-    /// the store leaves the load reading uninitialized memory.
-    ///
-    /// Constrained code is unaffected because the Noir frontend forbids reference values
-    /// being returned from `if`-expressions, so this shape never reaches ACIR DIE.
+    /// A store must stay when its address is aliased by a later read through an
+    /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
+    /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
+    /// stored to; removing the intervening `store at v0` would leave the load reading
+    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+    /// has not been visited when DIE inspects the store, which is the core reason DIE
+    /// cannot soundly remove stores in general.
     #[test]
     fn store_to_address_aliased_by_if_else_not_removed() {
         let src = "
