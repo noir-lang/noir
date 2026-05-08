@@ -123,20 +123,25 @@ impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for Circuit<F> {
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
+    #[tag(0)]
     Expression(Expression<F>),
+    #[tag(1)]
     Memory(BlockId),
 }
 
 /// Payload tied to an assertion failure.
 /// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
     /// Selector that maps a hash of either a constant string or an internal compiler error type
     /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
+    #[tag(0)]
     pub error_selector: u64,
     /// The dynamic payload data.
     ///
@@ -144,6 +149,7 @@ pub struct AssertionPayload<F> {
     /// in this payload can be decoded into the given ABI type.
     /// The payload is expected to be empty in the case of a constant string
     /// as the string can be contained entirely within the error type and ABI type.
+    #[tag(1)]
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
@@ -181,15 +187,23 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
+    #[tag(0)]
     Acir(usize),
     // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
     // used for resolving assert messages which is a breaking serialization change.
-    Brillig { acir_index: usize, brillig_index: usize },
+    #[tag(1)]
+    Brillig {
+        #[tag(0)]
+        acir_index: usize,
+        #[tag(1)]
+        brillig_index: usize,
+    },
 }
 
 /// Opcodes are locatable so that callers can

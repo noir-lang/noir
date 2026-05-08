@@ -2,10 +2,12 @@ use std::marker::PhantomData;
 
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Identifier for a block of memory
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, Default)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BlockId(pub u32);
 
