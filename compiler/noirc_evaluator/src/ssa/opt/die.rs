@@ -24,13 +24,20 @@
 //!     As the SSA flattens all tuples, unused accesses on composite arrays can lead to potentially
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
-//!   - In single-block ACIR functions, all [Store][Instruction::Store] instructions to unused addresses are removed.
+//!   - In single-block ACIR functions, [Store][Instruction::Store] instructions whose address is a
+//!     local [Allocate][Instruction::Allocate] with no remaining uses are removed. This is sound
+//!     because the Noir frontend forbids reference values being returned from `if`-expressions in
+//!     constrained code, so no later instruction can introduce an alias of the address that the
+//!     reverse traversal has not yet observed.
 //!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
-//!   - [Store][Instruction::Store] instructions are removed only when the address is a
-//!     locally-allocated reference (from [Allocate][Instruction::Allocate]) with no remaining uses.
+//!   - [Store][Instruction::Store] instructions are never removed: unconstrained code can build
+//!     aliases of a reference via [IfElse][Instruction::IfElse], [MakeArray][Instruction::MakeArray]/
+//!     [ArrayGet][Instruction::ArrayGet], or calls returning a reference argument, and the reverse
+//!     traversal cannot soundly account for those (the alias-establishing instruction is visited
+//!     *after* the store). Dead stores in Brillig are mem2reg's responsibility.
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
@@ -211,7 +218,8 @@ struct Context {
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 
-    /// Whether the function has exactly one reachable block.
+    /// Whether the function has exactly one reachable block. Cached because `reachable_blocks()`
+    /// recomputes the post-order each call and is consulted on every Store during DIE.
     is_single_block: bool,
 
     /// A per-block list indicating which block parameters are still considered alive.
@@ -334,11 +342,10 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block)
-            && {
-                let results = function.dfg.instruction_results(instruction_id);
-                results.iter().all(|result| !self.used_values.contains(result))
-            }
+        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block) && {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
+        }
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -489,12 +496,20 @@ fn can_be_eliminated_if_unused(
         | MakeArray { .. } => true,
 
         Store { address, .. } => {
-            // A store is dead when:
-            // - The function is single-block (so reverse traversal guarantees
-            //   `used_values` is complete — no back-edge ordering issues).
-            // - The address is a local allocation (so no caller can observe it).
-            // - The address has no remaining uses (no loads, no escapes).
-            is_single_block
+            // Stores can only be removed in single-block ACIR functions. There the Noir frontend
+            // forbids references being returned from if-expressions
+            // (see `remove_if_else.rs` "Reference or function values are not handled..."),
+            // so no later instruction can introduce an alias of `address` that DIE has not yet
+            // observed at this point in the reverse traversal. Removing the store is then safe
+            // when `address` is a local allocation with no remaining uses.
+            //
+            // We deliberately do NOT do this for Brillig: unconstrained code can build aliases of
+            // a reference via `IfElse`, `MakeArray`/`ArrayGet`, or calls returning a reference
+            // argument, and the reverse traversal cannot soundly account for those (the
+            // alias-establishing instruction is visited *after* the store). Dead stores in
+            // Brillig are mem2reg's responsibility.
+            function.runtime().is_acir()
+                && is_single_block
                 && is_local_allocate(&function.dfg, *address)
                 && !used_values.contains(address)
         }
@@ -542,7 +557,8 @@ fn must_remove_all_stores(func: &Function) -> bool {
 
 /// Returns true if `address` is the result of an `Allocate` instruction in this function.
 /// A store to a local allocation whose address has no remaining uses (loads, calls, arrays,
-/// returns) is provably dead and safe to remove even in Brillig.
+/// returns) is provably dead and safe to remove in single-block ACIR functions, where the
+/// frontend rules out reference-typed `IfElse` results.
 fn is_local_allocate(dfg: &DataFlowGraph, address: ValueId) -> bool {
     if let Value::Instruction { instruction, .. } = &dfg[address] {
         matches!(&dfg[*instruction], Instruction::Allocate)
@@ -886,7 +902,7 @@ mod tests {
         let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
         // We expect the call to f1 in f0 to be removed, and the dead
-        // allocate+store in f1 to be removed (local alloc with no loads).
+        // allocate+store in f1 to be removed (single-block ACIR, local alloc, no uses).
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -1355,59 +1371,116 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
-    /// Regression test for #12010.
-    /// A store to a locally-allocated reference with no remaining loads
-    /// should be removed as dead, even in Brillig.
-    #[test]
-    fn dead_brillig_stores_removed_when_no_loads_remain() {
-        let src = "
-            brillig(inline) fn main f0 {
+    /// Passing the address to a call counts as a use, so DIE has the information it needs
+    /// in either runtime: ACIR's `used_values.contains(address)` check trips, and Brillig
+    /// never removes stores in the first place. The store must stay regardless.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_if_address_escapes(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
               b0():
                 v0 = allocate -> &mut Field
-                store Field 0 at v0
+                store Field 42 at v0
+                v2 = call black_box(v0) -> &mut Field
                 return
-            }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-
-        assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn main f0 {
-              b0():
-                return
-            }
-        ");
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
 
-    /// Stores to locally-allocated references must be kept if the address
-    /// escapes (e.g. passed to a call).
-    #[test]
-    fn does_not_remove_brillig_store_if_address_escapes() {
-        let src = r#"
-        brillig(inline) impure fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 42 at v0
-            v2 = call black_box(v0) -> &mut Field
-            return
-        }
-        "#;
-
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    /// Stores to a reference handed in as a function parameter must always be kept:
+    /// the address was not produced by a local `allocate`, so the caller can observe
+    /// the write even when the callee never loads from it. This holds for both runtimes
+    /// because the ACIR `Store` arm gates removal on `is_local_allocate(address)`.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_to_param_reference(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
+              b0(v0: &mut Field):
+                store Field 42 at v0
+                return
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
     }
 
-    /// Stores to non-local references (e.g. function parameters) must not
-    /// be removed, even when there are no loads in this function.
-    #[test]
-    fn does_not_remove_brillig_store_to_param_reference() {
-        let src = r#"
-        brillig(inline) impure fn main f0 {
-          b0(v0: &mut Field):
-            store Field 42 at v0
-            return
-        }
-        "#;
+    /// DIE does not remove [Store][Instruction::Store] instructions in Brillig functions.
+    ///
+    /// The reverse traversal that drives DIE assumes that, by the time it visits an
+    /// instruction, every later use of that instruction's results has already been
+    /// observed. That invariant holds for value flow but breaks for *reference aliasing*:
+    /// an instruction sitting earlier in source order can produce a value that aliases an
+    /// allocated address (e.g. `v_alias = if cond then v_addr else other_addr`), and
+    /// reads of that alias performed *later* in source order cannot be attributed back to
+    /// the address by a single reverse pass — the alias-establishing instruction has not
+    /// been visited yet when DIE inspects the store.
+    ///
+    /// In constrained code the frontend forbids reference values being returned from
+    /// `if`-expressions and similar alias-creating constructs, so ACIR DIE is safe
+    /// (see the `Store` arm of [`super::can_be_eliminated_if_unused`]). Brillig has no such
+    /// restriction: aliases can be built via [IfElse][Instruction::IfElse],
+    /// [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or calls
+    /// returning a reference argument. The only sound option for DIE is therefore to leave
+    /// every Brillig store alone and rely on mem2reg — which has a proper alias-tracking
+    /// model — to remove dead stores.
+    ///
+    /// The tests below pin Brillig-specific shapes of this hazard. Cases that are
+    /// runtime-agnostic (escape via call, store to a parameter reference) live above
+    /// and are exercised against both runtimes.
+    mod brillig_store_handling {
+        use super::*;
 
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+        /// The trivial pattern (`allocate; store; return` with no other uses of the
+        /// address) is mem2reg's responsibility. DIE must still leave it untouched even
+        /// when invoked in isolation, because gating store removal on "no recorded uses"
+        /// at this point in the reverse walk is unsound for Brillig in general.
+        #[test]
+        fn trivial_dead_stores_not_removed() {
+            let src = "
+                brillig(inline) fn main f0 {
+                  b0():
+                    v0 = allocate -> &mut Field
+                    store Field 0 at v0
+                    return
+                }
+            ";
+            assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+        }
+
+        /// `IfElse` on references is the canonical Brillig-only alias-creator and the
+        /// shape that originally surfaced this bug: `v6 = if cond then v0 else v1` makes
+        /// `v6` alias `v0` (or `v1`), so a later `load v6` is effectively a load of
+        /// `v0`. The reverse walk visits the load before the IfElse, so the address has
+        /// no recorded uses when DIE inspects the intervening `store at v0` — and yet
+        /// removing it leaves the load reading uninitialized memory.
+        #[test]
+        fn store_to_address_aliased_by_if_else_not_removed() {
+            let src = "
+                brillig(inline) predicate_pure fn main f0 {
+                  b0():
+                    v0 = allocate -> &mut u1
+                    v1 = allocate -> &mut u1
+                    store u1 0 at v1
+                    v4 = call f1() -> u1
+                    v5 = not v4
+                    v6 = if v4 then v0 else (if v5) v1
+                    store u1 1 at v0
+                    v8 = load v6 -> u1
+                    constrain v8 == u1 1
+                    return
+                }
+                brillig(inline_never) predicate_pure fn returns_true f1 {
+                  b0():
+                    return u1 1
+                }
+                ";
+            assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+        }
     }
 }
