@@ -604,9 +604,8 @@ mod tests {
     /// choosing a particular `F`.
     #[test]
     fn ensure_program_is_msgpack_tagged() {
-        // fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
-        // assert_impl::<Program<FieldElement>>();
-        todo!("add MsgpackTagged on all inner types")
+        fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
+        assert_impl::<Program<FieldElement>>();
     }
 
     /// Property based testing for serialization
