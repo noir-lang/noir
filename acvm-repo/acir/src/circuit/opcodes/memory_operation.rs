@@ -28,6 +28,8 @@ pub enum MemOpKind {
 /// Operation on a block of memory
 /// We can either write or read at an index in memory
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(MsgpackTagged)]
+#[tagged(via(MemOpWire<F>))]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct MemOp<F> {
     pub operation: MemOpKind,
@@ -42,11 +44,14 @@ pub struct MemOp<F> {
 /// Wire format for `MemOp` — preserves backwards-compatible serialization where all three
 /// fields are `Expression<F>`. The `serde(rename)` ensures this type registers under the
 /// same name ("MemOp") as the public type so that `serde_reflection` traces it correctly.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[serde(rename = "MemOp")]
 struct MemOpWire<F> {
+    #[tag(0)]
     operation: Expression<F>,
+    #[tag(1)]
     index: Expression<F>,
+    #[tag(2)]
     value: Expression<F>,
 }
 
