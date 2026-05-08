@@ -56,28 +56,11 @@ impl CircuitSimulator {
     fn try_solve<F: AcirField>(&mut self, opcode: &Opcode<F>) -> bool {
         match opcode {
             Opcode::AssertZero(expr) => {
-                let mut unresolved = HashSet::new();
-                let combined_mul_terms = ExpressionSolver::combine_mul_terms(&expr.mul_terms);
-                let combined_linear_terms =
-                    ExpressionSolver::combine_linear_terms(&expr.linear_combinations);
-                for (_, w1, w2) in &combined_mul_terms {
-                    if !self.solvable_witnesses.contains(w1) {
-                        if !self.solvable_witnesses.contains(w2) {
-                            return false;
-                        }
-                        unresolved.insert(*w1);
-                    }
-                    if !self.solvable_witnesses.contains(w2) && w1 != w2 {
-                        unresolved.insert(*w2);
-                    }
-                }
-                for (_, w) in &combined_linear_terms {
-                    if !self.solvable_witnesses.contains(w) {
-                        unresolved.insert(*w);
-                    }
-                }
+                let Some(unresolved) = unresolved_witnesses(expr, &self.solvable_witnesses) else {
+                    return false;
+                };
                 if unresolved.len() == 1 {
-                    self.mark_solvable(*unresolved.iter().next().unwrap());
+                    self.mark_solvable(*unresolved.iter().next().expect("len == 1"));
                     return true;
                 }
                 unresolved.is_empty()
@@ -200,6 +183,42 @@ impl CircuitSimulator {
             .flat_map(|i| [i.1, i.2])
             .chain(expr.linear_combinations.iter().map(|i| i.1))
     }
+}
+
+/// Returns the deduplicated set of unresolved witnesses in an arithmetic expression,
+/// given a set of already-solvable witnesses.
+///
+/// Returns `None` when the expression has a squaring `w*w` that cannot be solved by the linear PWG.
+///
+/// Otherwise returns `Some(set)`. An expression with `set.len() <= 1` is solvable:
+/// zero unresolved means it is already fully solvable; one unresolved means we
+/// can solve for the remaining witness.
+pub(crate) fn unresolved_witnesses<F: AcirField>(
+    expr: &Expression<F>,
+    solvable: &HashSet<Witness>,
+) -> Option<HashSet<Witness>> {
+    let combined_mul_terms = ExpressionSolver::combine_mul_terms(&expr.mul_terms);
+    let combined_linear_terms = ExpressionSolver::combine_linear_terms(&expr.linear_combinations);
+    let mut unresolved = HashSet::new();
+    for (_, w1, w2) in &combined_mul_terms {
+        if !solvable.contains(w1) {
+            unresolved.insert(*w1);
+        }
+        if !solvable.contains(w2) {
+            if w2 == w1 {
+                // This is a squaring term `w2*w2`, leading to a quadratic equation that cannot be
+                // solved by the linear PWG.
+                return None;
+            }
+            unresolved.insert(*w2);
+        }
+    }
+    for (_, w) in &combined_linear_terms {
+        if !solvable.contains(w) {
+            unresolved.insert(*w);
+        }
+    }
+    Some(unresolved)
 }
 
 #[cfg(test)]

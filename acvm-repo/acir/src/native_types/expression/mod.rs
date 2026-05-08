@@ -131,16 +131,23 @@ impl<F> Expression<F> {
         self.is_linear() && self.linear_combinations.len() == 1
     }
 
-    /// Sorts opcode in a deterministic order
+    /// Sorts opcode in a deterministic order.
+    /// Each mul term is canonicalized so that `w_l <= w_r`,
     /// XXX: We can probably make this more efficient by sorting on each phase. We only care if it is deterministic
     pub fn sort(&mut self) {
+        for term in &mut self.mul_terms {
+            if term.1 > term.2 {
+                std::mem::swap(&mut term.1, &mut term.2);
+            }
+        }
         self.mul_terms.sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
         self.linear_combinations.sort_by(|a, b| a.1.cmp(&b.1));
     }
 
     #[cfg(test)]
     pub(crate) fn is_sorted(&self) -> bool {
-        self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
+        self.mul_terms.iter().all(|term| term.1 <= term.2)
+            && self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
             && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
     }
 }
@@ -299,7 +306,15 @@ impl<F: AcirField> Expression<F> {
 
     /// Determine the width of this expression.
     /// The width meaning the number of unique witnesses needed for this expression.
+    ///
+    /// Preconditions (the function returns an over-approximation otherwise):
+    /// - at most one mul term (asserted)
+    /// - linear terms are deduplicated (e.g. by `GeneralOptimizer::simplify_linear_terms`)
     pub fn width(&self) -> usize {
+        if self.mul_terms.len() > 1 {
+            unimplemented!("ICE - width() does not support expressions with multiple mul terms");
+        }
+
         let mut width = 0;
 
         for mul_term in &self.mul_terms {
