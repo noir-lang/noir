@@ -177,17 +177,21 @@ impl InputValue {
                         min: "0".into(),
                     });
                 }
-                assert!(
-                    *width <= 64,
-                    "u{width} values larger than u64 must be provided as strings"
-                );
-                let max: i128 = (1i128 << width) - 1;
-                if integer > max {
-                    return Err(InputParserError::InputOverflowsMaximum {
-                        arg_name: arg_name.into(),
-                        value: integer.to_string(),
-                        max: max.to_string(),
-                    });
+                if *width <= 64 {
+                    let max: i128 = (1i128 << width) - 1;
+                    if integer > max {
+                        return Err(InputParserError::InputOverflowsMaximum {
+                            arg_name: arg_name.into(),
+                            value: integer.to_string(),
+                            max: max.to_string(),
+                        });
+                    }
+                } else {
+                    let int_bit_size = i128::BITS - integer.leading_zeros();
+                    assert!(
+                        int_bit_size <= 64,
+                        "u{width} values larger than u64 must be provided as strings"
+                    );
                 }
                 InputValue::Field(FieldElement::from(integer))
             }
