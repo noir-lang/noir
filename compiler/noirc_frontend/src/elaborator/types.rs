@@ -1477,6 +1477,53 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a path of the form `Type::method` or `Type::<turbofish>::method`.
+    /// Lazy-aware wrapper around [NodeInterner::lookup_direct_method]. Resolves
+    /// each candidate's meta first so that the type-aware lookup (which reads
+    /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
+    /// still-deferred meta.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_direct_method(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> Option<FuncId> {
+        self.resolve_method_candidate_metas(typ, method_name);
+        self.interner.lookup_direct_method(typ, method_name, check_self_param)
+    }
+
+    /// Lazy-aware wrapper around [NodeInterner::lookup_trait_methods].
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_trait_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId)> {
+        self.resolve_method_candidate_metas(typ, method_name);
+        self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
+    }
+
+    /// Lazy-aware wrapper around [NodeInterner::lookup_generic_methods].
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn lookup_generic_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId)> {
+        for func_id in self.interner.generic_method_candidate_ids(method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
+    }
+
+    fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
+        for func_id in self.interner.method_candidate_ids(typ, method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+    }
+
     ///
     /// When turbofish generics are present, uses type-directed lookup to select the correct impl
     /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
@@ -1548,7 +1595,7 @@ impl Elaborator<'_> {
         let mut trait_methods = None;
 
         let check_self_param = false;
-        let direct_method = self.interner.lookup_direct_method(&typ, method_name, check_self_param);
+        let direct_method = self.lookup_direct_method(&typ, method_name, check_self_param);
 
         // When turbofish generics are provided, use type-directed method lookup to pick the
         // correct impl. Without turbofish, fall through to module-based lookup, which handles
@@ -1585,8 +1632,7 @@ impl Elaborator<'_> {
             }
 
             let has_self_arg = false;
-            let type_trait_methods =
-                self.interner.lookup_trait_methods(&typ, method_name, has_self_arg);
+            let type_trait_methods = self.lookup_trait_methods(&typ, method_name, has_self_arg);
 
             // If no method matches the turbofish type but the name is a known method for this
             // type (just incompatible), report an error. If the name isn't a method at all
@@ -1623,7 +1669,7 @@ impl Elaborator<'_> {
 
         let has_self_arg = false;
         let trait_methods = trait_methods
-            .unwrap_or_else(|| self.interner.lookup_trait_methods(&typ, method_name, has_self_arg));
+            .unwrap_or_else(|| self.lookup_trait_methods(&typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -2646,14 +2692,13 @@ impl Elaborator<'_> {
     ) -> Option<HirMethodReference> {
         // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, method_name, check_self_param)
+            self.lookup_direct_method(object_type, method_name, check_self_param)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods =
-            self.interner.lookup_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
@@ -2663,7 +2708,7 @@ impl Elaborator<'_> {
         // If we couldn't find any trait methods, search in
         // impls for all types `T`, e.g. `impl<T> Foo for T`
         let generic_methods =
-            self.interner.lookup_generic_methods(object_type, method_name, check_self_param);
+            self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
         }

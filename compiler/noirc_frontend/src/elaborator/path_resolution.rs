@@ -1036,13 +1036,13 @@ impl Elaborator<'_> {
         let method_name = method_name_ident.as_str();
 
         // First check for a direct (inherent) method
-        if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
+        if let Some(func_id) = self.lookup_direct_method(&typ, method_name, false) {
             return Ok(func_id);
         }
 
         // Otherwise look through trait methods
+        let trait_methods = self.lookup_trait_methods(&typ, method_name, false);
         let starting_module = self.get_module(importing_module_id);
-        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
 
         let mut results = Vec::new();
         for (func_id, trait_id) in &trait_methods {

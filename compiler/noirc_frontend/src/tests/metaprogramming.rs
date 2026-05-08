@@ -1784,3 +1784,24 @@ fn reference_two_generated_structs_should_work() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn reference_generated_struct_in_impl() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {}
+
+    impl Bar {
+        pub fn bar(_: MyStruct) {}
+    }
+    "#;
+    assert_no_errors(src);
+}

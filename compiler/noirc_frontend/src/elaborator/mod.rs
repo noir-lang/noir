@@ -530,6 +530,10 @@ impl<'context> Elaborator<'context> {
         let outer_pending: HashSet<FuncId> =
             self.unresolved_function_metas.keys().copied().collect();
 
+        // Compute the set of function metas to defer past `run_attributes`.
+        // This must happen before `items` is partially consumed below.
+        let deferable_function_ids = Self::deferable_function_ids(&items);
+
         self.set_unresolved_globals_ordering(items.globals);
 
         for (alias_id, alias) in items.type_aliases {
@@ -574,7 +578,7 @@ impl<'context> Elaborator<'context> {
         //   * an attribute's `FunctionDefinition` argument has its parameters
         //     and return type set up by the time the attribute body runs,
         //   * meta resolution sees fully-bound trait associated constants.
-        let mut skip = Self::deferable_top_level_function_ids(&items.functions);
+        let mut skip = deferable_function_ids;
         skip.extend(&outer_pending);
         self.drain_unresolved_function_metas_skipping(&skip);
 
