@@ -419,11 +419,11 @@ fn errors_if_global_is_needed_in_initialize_and_function_signature() {
     global FOO: u32 = init([0; 10]);
            ^^^ Dependency cycle found
            ~~~ 'FOO' recursively depends on itself: FOO -> init -> FOO
-                      ^^^^ Dependency cycle found
-                      ~~~~ 'init' recursively depends on itself: the function signature hasn't been resolved yet
-                      ^^^^^^^^^^^^^ Global failed to evaluate
+                      ^^^^^^^^^^^^^ Expected type u32, found type ()
 
     fn init(_array: [Field; FOO]) {}
+                            ^^^ Cannot find a global or generic type parameter named `FOO`
+                            ~~~ Only globals or generic type parameters are allowed to be used as an array type's length
                             ^^^ expected type, found global `FOO`
 
     fn main() {}
