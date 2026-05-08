@@ -267,12 +267,6 @@ impl Elaborator<'_> {
         let prev_generics = std::mem::replace(&mut self.generics, outer_generics);
         let prev_current_trait = self.current_trait.take();
         let prev_current_trait_impl = self.current_trait_impl.take();
-        // `define_function_meta` unconditionally clears `current_item` on the way
-        // out. When meta resolution is triggered lazily from inside another
-        // elaboration (e.g. while elaborating a comptime function's body), the
-        // caller's `current_item` would be lost, which then breaks
-        // [Self::in_comptime_context] for the rest of that elaboration.
-        let prev_current_item = self.current_item;
 
         self.local_module = Some(local_module);
         self.self_type = self_type;
@@ -294,7 +288,6 @@ impl Elaborator<'_> {
         self.generics = prev_generics;
         self.current_trait = prev_current_trait;
         self.current_trait_impl = prev_current_trait_impl;
-        self.current_item = prev_current_item;
     }
 
     /// Extracts and stores metadata from a function definition.
@@ -314,7 +307,8 @@ impl Elaborator<'_> {
         extra_trait_constraints: &[(TraitConstraint, Location)],
     ) {
         self.scopes.start_function();
-        self.current_item = Some(DependencyId::Function(func_id));
+
+        let previous_current_item = self.current_item.replace(DependencyId::Function(func_id));
         let old_comptime_value =
             std::mem::replace(&mut self.in_comptime_context, func.def.is_comptime);
 
@@ -433,7 +427,7 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
-        self.current_item = None;
+        self.current_item = previous_current_item;
         self.in_comptime_context = old_comptime_value;
     }
 
