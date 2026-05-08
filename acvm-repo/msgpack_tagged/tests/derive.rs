@@ -8,7 +8,7 @@
 // Test fixtures only exist to feed the derive; unused fields are expected.
 #![allow(dead_code)]
 
-use msgpack_tagged::{Entry, MsgpackTagged, Product, Sum, TagRegistry};
+use msgpack_tagged::{Entry, MsgpackTagged, Product, Sum, TagRegistry, VariantKind};
 
 #[derive(MsgpackTagged)]
 struct Unit;
@@ -133,7 +133,7 @@ enum VariantPayloadConfigs {
     },
     #[tag(2)]
     #[tagged(reserved(9))]
-    Brief(#[tag(0)] u32),
+    Brief(#[tag(0)] u32, #[tag(2)] bool),
 }
 
 /// Generic enum exercising the per-payload-type `where` bound on enums.
@@ -775,25 +775,31 @@ fn named_variant_payload_has_field_tags() {
     assert_eq!(multi.payload.fields, &[(0, "a"), (1, "b")]);
 }
 
-/// Unit variants and single-element tuple ("newtype-style") variants flow
-/// through the same `parse_tuple_fields` helper as multi-element tuples,
-/// using implicit positional tags when the user doesn't supply explicit
-/// `#[tag(N)]` annotations on the payload field.
+/// Each variant shape lands on the right `VariantKind` discriminator with
+/// the matching payload — unit and newtype variants both have empty
+/// `payload.fields`, distinguished only by the `kind`. Struct (named-field)
+/// variants populate `payload.fields` from `#[tag(N)]` annotations.
 #[test]
 fn variant_payload_shapes_pick_the_right_field_layout() {
     let s = sum_of::<WithInnerPayload>();
 
     let empty = s.variant_for("Empty").unwrap();
+    assert_eq!(empty.kind, VariantKind::Unit);
     assert!(empty.payload.fields.is_empty(), "unit variant has no fields");
 
     let one_inner = s.variant_for("OneInner").unwrap();
     assert_eq!(
-        one_inner.payload.fields,
-        &[(0, "0")],
-        "single-element tuple variant gets implicit positional tag 0",
+        one_inner.kind,
+        VariantKind::Newtype,
+        "single-element tuple variant is a newtype variant",
+    );
+    assert!(
+        one_inner.payload.fields.is_empty(),
+        "newtype variants pass through to the inner type — no field tag map of their own",
     );
 
     let pair = s.variant_for("Pair").unwrap();
+    assert_eq!(pair.kind, VariantKind::Struct);
     assert_eq!(
         pair.payload.fields,
         &[(0, "left"), (1, "right")],
@@ -809,12 +815,84 @@ fn variant_payload_shapes_pick_the_right_field_layout() {
 fn explicit_tuple_variant_payload_sorts_and_carries_defaults() {
     let s = sum_of::<ExplicitTupleVariants>();
     let triple = s.variant_for("Triple").unwrap();
+    assert_eq!(triple.kind, VariantKind::Tuple);
     assert_eq!(triple.payload.fields, &[(0, "1"), (1, "2"), (2, "0")]);
     assert_eq!(triple.payload.defaults, &[1]);
 
     let pair = s.variant_for("ImplicitPair").unwrap();
+    assert_eq!(pair.kind, VariantKind::Tuple);
     assert_eq!(pair.payload.fields, &[(0, "0"), (1, "1")]);
     assert!(pair.payload.defaults.is_empty());
+}
+
+/// Each variant ends up with the right `VariantKind` discriminator: unit
+/// variants get `Unit`, single-element tuple variants get `Newtype`,
+/// multi-element tuple variants get `Tuple`, and named-field variants get
+/// `Struct`. `Choice` is the canonical mixed-shape fixture covering three of
+/// these in a single enum.
+#[test]
+fn variant_kinds_match_each_variant_shape() {
+    let s = sum_of::<Choice>();
+    assert_eq!(s.variant_for("Nothing").unwrap().kind, VariantKind::Unit);
+    assert_eq!(s.variant_for("Single").unwrap().kind, VariantKind::Newtype);
+    assert_eq!(s.variant_for("Multi").unwrap().kind, VariantKind::Struct);
+
+    let s = sum_of::<ExplicitTupleVariants>();
+    assert_eq!(
+        s.variant_for("Triple").unwrap().kind,
+        VariantKind::Tuple,
+        "three-element tuple variant is a Tuple, not a Newtype",
+    );
+}
+
+/// Newtype variants carry no payload field tags of their own — the inner
+/// type's bytes go directly under the variant tag on the wire. `payload` is
+/// the empty `Product` (same shape a unit variant gets); the only thing
+/// distinguishing them at the metadata level is `kind`. This is the
+/// invariant the wrapper relies on to skip field-table lookup for newtype
+/// variants and pass through the inner value unwrapped.
+#[test]
+#[allow(clippy::const_is_empty)]
+fn newtype_variant_metadata_is_empty_payload_with_newtype_kind() {
+    let s = sum_of::<WithInnerPayload>();
+    let one_inner = s.variant_for("OneInner").unwrap();
+    assert_eq!(one_inner.kind, VariantKind::Newtype);
+    assert!(one_inner.payload.fields.is_empty());
+    assert!(one_inner.payload.defaults.is_empty());
+    assert!(one_inner.payload.reserved.is_empty());
+    assert!(!one_inner.payload.allow_unknown_tags);
+}
+
+/// Unit variants carry no payload at all — same empty `Product` as newtype
+/// variants, distinguished only by `kind == Unit`.
+#[test]
+#[allow(clippy::const_is_empty)]
+fn unit_variant_metadata_is_empty_payload_with_unit_kind() {
+    let s = sum_of::<WithInnerPayload>();
+    let empty = s.variant_for("Empty").unwrap();
+    assert_eq!(empty.kind, VariantKind::Unit);
+    assert!(empty.payload.fields.is_empty());
+    assert!(empty.payload.defaults.is_empty());
+    assert!(empty.payload.reserved.is_empty());
+    assert!(!empty.payload.allow_unknown_tags);
+}
+
+/// Newtype variants reach their inner type via the impl's where clause and
+/// `register_into` recursion, even though they don't appear in `payload`.
+/// `Choice::Single(u32)` is a newtype variant of `u32` — the registry walk
+/// for `Choice` therefore must transitively touch `u32`'s (no-op) `register_into`
+/// without errors. We verify the recursion compiles and runs by walking
+/// `WithInnerPayload`, whose `OneInner(Inner)` newtype variant should reach
+/// the registry-recording `Inner` type.
+#[test]
+fn newtype_variant_recursion_reaches_inner_type() {
+    let mut reg = TagRegistry::new();
+    WithInnerPayload::register_into(&mut reg);
+    assert!(
+        reg.get("Inner").is_some(),
+        "newtype variant's inner type is reached via the bound chain even though \
+         payload.fields is empty",
+    );
 }
 
 /// Inside a named variant payload, `#[tag(skip)]` and `PhantomData<_>`

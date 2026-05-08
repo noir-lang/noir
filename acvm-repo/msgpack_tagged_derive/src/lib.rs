@@ -93,6 +93,43 @@ fn product_literal(
     quote! { ::msgpack_tagged::Tagged::Product(#inner) }
 }
 
+/// Render a `VariantKind` discriminator as the matching `::msgpack_tagged`
+/// path expression — used inside generated `Variant` literals.
+fn variant_kind_token(kind: VariantKind) -> TokenStream2 {
+    match kind {
+        VariantKind::Unit => quote! { ::msgpack_tagged::VariantKind::Unit },
+        VariantKind::Newtype => quote! { ::msgpack_tagged::VariantKind::Newtype },
+        VariantKind::Tuple => quote! { ::msgpack_tagged::VariantKind::Tuple },
+        VariantKind::Struct => quote! { ::msgpack_tagged::VariantKind::Struct },
+    }
+}
+
+/// Reject the variant-level payload-shape modifiers (`reserved(...)` and
+/// `allow_unknown_tags`) on a variant that has no payload field tag space —
+/// unit and newtype variants — since neither flag has anything to govern
+/// there. Surfaces the mistake at derive time rather than silently dropping
+/// the flag.
+fn reject_payload_only_attrs_on_empty_variant(
+    variant: &Variant,
+    variant_attrs: &VariantAttrs,
+) -> syn::Result<()> {
+    if !variant_attrs.reserved.is_empty() {
+        return Err(syn::Error::new_spanned(
+            variant,
+            "`#[tagged(reserved(...))]` on a unit or newtype variant has no effect — \
+             the payload has no field tag space to reserve into",
+        ));
+    }
+    if variant_attrs.allow_unknown_tags {
+        return Err(syn::Error::new_spanned(
+            variant,
+            "`#[tagged(allow_unknown_tags)]` on a unit or newtype variant has no effect — \
+             the payload has no field tag space to skip unknown tags from",
+        ));
+    }
+    Ok(())
+}
+
 /// Empty `Tagged::Product` literal — used by newtypes, `via`-delegating
 /// types, the stub expansion, and any other shape that contributes no wire
 /// metadata of its own.
@@ -121,12 +158,14 @@ fn sum_literal(
     let variant_entries = variants.iter().map(|v| {
         let tag = v.tag;
         let name = &v.name;
+        let kind = variant_kind_token(v.kind);
         let payload =
             product_struct_literal(&v.payload, &v.payload_reserved, v.payload_allow_unknown_tags);
         quote! {
             ::msgpack_tagged::Variant {
                 tag: #tag,
                 name: #name,
+                kind: #kind,
                 payload: #payload,
             }
         }
@@ -284,13 +323,30 @@ fn expand_tuple_struct(
     })
 }
 
+/// Variant shape on the wire. Mirrors `msgpack_tagged::VariantKind` and
+/// drives both the kind discriminator the macro emits and the payload-shape
+/// dispatch above.
+#[derive(Clone, Copy)]
+enum VariantKind {
+    Unit,
+    Newtype,
+    Tuple,
+    Struct,
+}
+
 /// Per-tagged-variant info collected during enum macro expansion. `name` is
 /// the variant's wire-name (its Rust ident, as a string). `payload` holds
-/// the parsed payload-field entries — empty for unit variants, populated by
-/// [`parse_named_fields`] for struct-shaped variants and [`parse_tuple_fields`]
-/// for tuple-shaped variants. The entries drive both the variant's emitted
-/// payload `Product` and the per-field bounds (`MsgpackTagged`, `Default`)
-/// in the impl's where clause.
+/// the parsed payload-field entries — empty for unit and newtype variants,
+/// populated by [`parse_named_fields`] for struct-shaped variants and
+/// [`parse_tuple_fields`] for tuple-shaped variants (with two-or-more
+/// fields). The entries drive both the variant's emitted payload `Product`
+/// and the per-field bounds (`MsgpackTagged`, `Default`) in the impl's where
+/// clause.
+///
+/// `kind` is the [`VariantKind`] discriminator. For [`VariantKind::Newtype`],
+/// `newtype_inner` carries the inner field's type — its `MsgpackTagged` bound
+/// and `register_into` recursion are emitted separately from the (empty)
+/// payload.
 ///
 /// `payload_reserved` and `payload_allow_unknown_tags` are the variant-level
 /// `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]` flags,
@@ -299,7 +355,9 @@ fn expand_tuple_struct(
 struct TaggedVariant<'a> {
     tag: u8,
     name: String,
+    kind: VariantKind,
     payload: Vec<TaggedField<'a>>,
+    newtype_inner: Option<&'a Type>,
     payload_reserved: Vec<u8>,
     payload_allow_unknown_tags: bool,
 }
@@ -358,17 +416,48 @@ fn expand_enum(
         // tag itself), and `allow_unknown_tags` governs unknown payload
         // field tags on decode.
         let variant_attrs = parse_tagged_variant_attrs(variant)?;
-        let payload = match &variant.fields {
-            Fields::Unit => Vec::new(),
-            Fields::Named(named) => parse_named_fields(&named.named, &variant_attrs.reserved)?,
+        let (kind, payload, newtype_inner) = match &variant.fields {
+            Fields::Unit => {
+                reject_payload_only_attrs_on_empty_variant(variant, &variant_attrs)?;
+                (VariantKind::Unit, Vec::new(), None)
+            }
+            Fields::Named(named) => {
+                let payload = parse_named_fields(&named.named, &variant_attrs.reserved)?;
+                (VariantKind::Struct, payload, None)
+            }
+            Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
+                // Single-element tuple variant is a *newtype variant*: its wire
+                // bytes are exactly the inner type's bytes under the variant
+                // tag — there is no field-level tag map. Reject `#[tag(...)]`
+                // on the inner field (it would imply field-level tagging that
+                // the wire shape can't express) and reject the variant-level
+                // payload-shape attrs that have nothing to govern (no field
+                // tag space exists).
+                let inner = unnamed.unnamed.first().expect("len == 1");
+                for attr in &inner.attrs {
+                    if attr.path().is_ident("tag") {
+                        return Err(syn::Error::new_spanned(
+                            attr,
+                            "newtype variants (single-element tuple variants) pass through to \
+                             the inner type — `#[tag(...)]` on the inner field is not allowed",
+                        ));
+                    }
+                }
+                reject_payload_only_attrs_on_empty_variant(variant, &variant_attrs)?;
+                (VariantKind::Newtype, Vec::new(), Some(&inner.ty))
+            }
             Fields::Unnamed(unnamed) => {
-                parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved)?
+                let payload =
+                    parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved)?;
+                (VariantKind::Tuple, payload, None)
             }
         };
         variants.push(TaggedVariant {
             tag,
             name: variant.ident.to_string(),
+            kind,
             payload,
+            newtype_inner,
             payload_reserved: variant_attrs.reserved,
             payload_allow_unknown_tags: variant_attrs.allow_unknown_tags,
         });
@@ -376,10 +465,17 @@ fn expand_enum(
     variants.sort_by_key(|v| v.tag);
 
     let recursion_calls = variants.iter().flat_map(|v| {
-        v.payload.iter().map(|entry| {
+        // Payload fields (Struct + Tuple variants) and the newtype-variant
+        // inner type both need to be reached so any nested `MsgpackTagged`
+        // types end up in the registry.
+        let payload_calls = v.payload.iter().map(|entry| {
             let ty = entry.ty;
             quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
-        })
+        });
+        let newtype_call = v.newtype_inner.map(|ty| {
+            quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
+        });
+        payload_calls.chain(newtype_call)
     });
 
     let default_on_reserved = type_attrs.default_on_reserved;
@@ -461,8 +557,9 @@ fn build_enum_where_clause(
     needs_default_bound: bool,
 ) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
-    let any_payload = variants.iter().any(|v| !v.payload.is_empty());
-    if !any_payload && !has_type_params && !needs_default_bound {
+    let any_bound_source =
+        variants.iter().any(|v| !v.payload.is_empty() || v.newtype_inner.is_some());
+    if !any_bound_source && !has_type_params && !needs_default_bound {
         return input.generics.where_clause.clone();
     }
 
@@ -489,6 +586,16 @@ fn build_enum_where_clause(
             }
             if entry.has_default && seen_default.insert(key) {
                 where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
+            }
+        }
+        // Newtype variants don't go through the payload entries (their
+        // payload is empty), but their inner type still needs the
+        // `MsgpackTagged` bound so the recursive `register_into` call
+        // type-checks.
+        if let Some(ty) = v.newtype_inner {
+            let key = quote!(#ty).to_string();
+            if seen_msgpack.insert(key) {
+                where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
             }
         }
     }

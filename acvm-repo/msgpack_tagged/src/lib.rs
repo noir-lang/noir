@@ -14,7 +14,7 @@ mod primitives;
 mod registry;
 
 pub use msgpack_tagged_derive::MsgpackTagged;
-pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant};
+pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};
 
 /// The integer tag used as a wire-level identifier for struct fields and enum
 /// variants. `u8` keeps tags inside msgpack's `fixint` range (0–127) at the

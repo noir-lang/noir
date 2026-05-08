@@ -1,0 +1,5 @@
+error: newtype variants (single-element tuple variants) pass through to the inner type — `#[tag(...)]` on the inner field is not allowed
+  --> tests/compile_fail/enum_newtype_variant_with_field_tag.rs:10:10
+   |
+10 |     Wrap(#[tag(0)] u32),
+   |          ^^^^^^^^^

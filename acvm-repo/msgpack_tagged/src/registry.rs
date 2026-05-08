@@ -101,12 +101,37 @@ impl Product {
     }
 }
 
+/// The shape of an enum variant's payload, used by the wrapper to decide how
+/// to encode/decode the value carried under the variant tag.
+///
+/// `Unit` and `Newtype` both have an empty `payload` `Product` — the
+/// distinction lives in this discriminator. A unit variant carries no value
+/// at all (the wire emits the variant tag with no payload), while a newtype
+/// variant passes the inner value through directly under the variant tag
+/// (zero-cost wrapper, no field-level tag/key allocated for the inner value).
+///
+/// `Tuple` and `Struct` variants both carry their fields in the variant's
+/// `payload` `Product`, but differ in addressing on the wire: tuple variants
+/// use positional names ("0", "1", …) and struct variants use field idents.
+/// Tuple variants with a single explicitly tagged field still count as
+/// `Tuple`, not `Newtype` — the explicit `#[tag(N)]` is what asks for a
+/// field-level tag wrapping.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VariantKind {
+    Unit,
+    Newtype,
+    Tuple,
+    Struct,
+}
+
 /// One variant of a sum type. Its payload is a single [`Product`] (possibly
-/// with no fields for unit variants).
+/// with no fields for unit and newtype variants — see [`VariantKind`] for the
+/// discriminator that distinguishes them).
 #[derive(Clone, Copy, Debug)]
 pub struct Variant {
     pub tag: Tag,
     pub name: &'static str,
+    pub kind: VariantKind,
     pub payload: Product,
 }
 
@@ -269,6 +294,7 @@ mod tests {
                 Variant {
                     tag: 0,
                     name: "Empty",
+                    kind: VariantKind::Unit,
                     payload: Product {
                         fields: &[],
                         reserved: &[],
@@ -279,6 +305,7 @@ mod tests {
                 Variant {
                     tag: 1,
                     name: "Pair",
+                    kind: VariantKind::Struct,
                     payload: Product {
                         fields: &[(0, "a"), (2, "b")],
                         reserved: &[],
@@ -304,6 +331,7 @@ mod tests {
                 Variant {
                     tag: 0,
                     name: "A",
+                    kind: VariantKind::Unit,
                     payload: Product {
                         fields: &[],
                         reserved: &[],
@@ -314,6 +342,7 @@ mod tests {
                 Variant {
                     tag: 1,
                     name: "B",
+                    kind: VariantKind::Unit,
                     payload: Product {
                         fields: &[],
                         reserved: &[],

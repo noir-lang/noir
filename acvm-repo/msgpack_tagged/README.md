@@ -12,7 +12,7 @@ umbrella tracker [#7934](https://github.com/noir-lang/noir/issues/7934).
 - The `MsgpackTagged` trait — a single associated `const TAGGED: Tagged`
   that captures a type's wire shape, plus a `register_into(&mut TagRegistry)`
   hook that walks the type graph.
-- The wire-shape data model: `Tagged` / `Product` / `Sum` / `Variant`.
+- The wire-shape data model: `Tagged` / `Product` / `Sum` / `Variant` / `VariantKind`.
 - A `TagRegistry` keyed by serde name, with `TypeId`-based collision
   detection for shadow-DTO patterns.
 - Blanket `MsgpackTagged` impls for primitives, the deterministic stdlib
@@ -29,7 +29,12 @@ The intent is **int-keyed msgpack maps with protobuf-style field numbers**:
 
 ```text
 struct Foo { a: u32, b: bool }   ⇒   {0: <u32>, 1: <bool>}
-enum Bar { Quux(u32), Wibble }   ⇒   {<variant_tag>: <payload>}
+enum Bar {
+    Wibble,                      ⇒   {<variant_tag>: nil}
+    Quux(u32),                   ⇒   {<variant_tag>: <u32>}                    // newtype: pass-through
+    Quuux(u32, bool),            ⇒   {<variant_tag>: {0: <u32>, 1: <bool>}}    // tuple: positional field map
+    Wobble { a: u32, b: bool },  ⇒   {<variant_tag>: {0: <u32>, 1: <bool>}}    // struct: field map
+}
 ```
 
 Tags are `u8` (so they stay in msgpack's `fixint` range at the 1-byte
@@ -68,10 +73,18 @@ pub struct Product {
     pub allow_unknown_tags: bool,
 }
 
+pub enum VariantKind {
+    Unit,     // no payload at all
+    Newtype,  // single-element tuple variant — inner value passes through under the variant tag
+    Tuple,    // multi-element tuple variant — fields go into a positional map
+    Struct,   // named-field variant — fields go into a field map
+}
+
 pub struct Variant {
     pub tag: Tag,
     pub name: &'static str,
-    pub payload: Product,
+    pub kind: VariantKind,
+    pub payload: Product,  // empty for Unit and Newtype
 }
 
 pub struct Sum {
@@ -138,6 +151,31 @@ struct Reordered(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8);  // all-explicit:
 
 Mixing implicit and explicit (`#[tag(0)] u32, bool`) is rejected — the
 wire layout would be ambiguous.
+
+### Newtype variants
+
+A single-element tuple variant is a *newtype variant* — its wire bytes are
+the inner type's bytes, written directly under the variant tag with no
+field-level tag map of its own:
+
+```rust
+enum E {
+    #[tag(0)] Wrap(InnerType),     // ⇒  {0: <InnerType bytes>}
+}
+```
+
+Newtype variants are pass-through and zero-cost on the wire. Consequently:
+
+- `#[tag(N)]` on the inner field is rejected — there's no field tag space
+  to put it in. If you want field-level tagging, use a multi-element tuple
+  variant or a struct variant instead.
+- Variant-level `#[tagged(reserved(...))]` and `#[tagged(allow_unknown_tags)]`
+  are also rejected on newtype (and unit) variants — those flags govern a
+  payload field tag space that doesn't exist here.
+
+The metadata distinction lives in `VariantKind` (`Newtype` vs. `Tuple` vs.
+`Struct` vs. `Unit`). Both `Unit` and `Newtype` carry an empty `payload`
+`Product`; the kind discriminator is what tells the wrapper how to encode.
 
 ### Type-level `#[tagged(...)]`
 
