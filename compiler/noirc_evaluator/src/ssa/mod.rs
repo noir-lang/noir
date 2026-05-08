@@ -357,6 +357,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // DIE never removes Brillig stores (alias-aware reasoning is mem2reg's job), so when DIE
+        // here strips the last first-class user of a local allocate (e.g. a `make_array` whose
+        // result becomes unused), the now-orphan `allocate`+`store` pair survives until a
+        // mem2reg pass runs again to drop it.
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
