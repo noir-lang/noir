@@ -9,9 +9,18 @@
 //!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
 //!   wrapper Serializer/Deserializer (added in a follow-up step).
 
+// `msgpack_tagged_derive`'s `MsgpackTagged` proc-macro emits
+// `::msgpack_tagged::...` paths to remain hygienic at every call site. From
+// inside this crate that absolute path doesn't resolve unless we tell rustc
+// the current crate also goes by that name.
+extern crate self as msgpack_tagged;
+
 mod containers;
 mod primitives;
 mod registry;
+mod serializer;
+
+pub use serializer::msgpack_tagged_serialize;
 
 pub use msgpack_tagged_derive::MsgpackTagged;
 pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};
