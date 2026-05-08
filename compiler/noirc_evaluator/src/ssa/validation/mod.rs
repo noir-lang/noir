@@ -1183,6 +1183,36 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
+/// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
+/// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
+/// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
+/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
+/// which `unreachable!`s on `Store`).
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+    for func in ssa.functions.values() {
+        if !func.runtime().is_acir() {
+            continue;
+        }
+        for block_id in func.reachable_blocks() {
+            for instruction_id in func.dfg[block_id].instructions() {
+                let instruction = &func.dfg[*instruction_id];
+                assert!(
+                    !matches!(
+                        instruction,
+                        Instruction::Load { .. }
+                            | Instruction::Store { .. }
+                            | Instruction::Allocate
+                    ),
+                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                     pipeline; mem2reg + flatten_cfg should have removed it",
+                    func.name()
+                );
+            }
+        }
+    }
+}
+
 /// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
 /// A mutable reference is compatible with an immutable reference parameter.
 fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {

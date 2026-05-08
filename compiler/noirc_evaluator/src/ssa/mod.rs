@@ -382,9 +382,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
             .and_then(|ssa| {
-                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-                // that we don't know how to attribute to a concrete error with the Noir code.
-                ssa.dead_instruction_elimination_post_check();
+                // Sanity check at the end of the pipeline: ACIR should be free of memory ops
+                // (Load/Store/Allocate). Mem2reg + flatten_cfg own that; this asserts the
+                // invariant so a regression upstream surfaces here, not as a panic in a
+                // later pass that assumes the invariant.
+                #[cfg(debug_assertions)]
+                validation::validate_no_acir_memory_ops(&ssa);
                 ssa
             }),
     ]
