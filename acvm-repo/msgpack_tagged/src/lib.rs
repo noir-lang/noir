@@ -20,7 +20,7 @@ mod primitives;
 mod registry;
 mod serializer;
 
-pub use serializer::msgpack_tagged_serialize;
+pub use serializer::{Serializer, msgpack_tagged_serialize};
 
 pub use msgpack_tagged_derive::MsgpackTagged;
 pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};

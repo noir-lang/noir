@@ -20,9 +20,12 @@
 use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
+// `ser::Serializer` would clash with our own `Serializer` struct below if
+// pulled in via `use`; importing the `ser` module instead lets us write
+// `ser::Serializer` for the trait at the few sites that need it.
 use serde::ser::{
-    Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
-    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer,
+    self, Error as _, Serialize, SerializeMap, SerializeSeq, SerializeStruct,
+    SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 
 use crate::{MsgpackTagged, TagRegistry};
@@ -32,12 +35,12 @@ use crate::{MsgpackTagged, TagRegistry};
 /// Constructed internally by [`msgpack_tagged_serialize`]; not part of the
 /// public API yet — once strategy customization lands the builder will
 /// expose it.
-pub(crate) struct TaggedMsgpackSerializer<'a, W: Write> {
+pub(crate) struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
 }
 
-impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
+impl<'a, W: Write> Serializer<'a, W> {
     fn new(writer: W, registry: &'a TagRegistry) -> Self {
         // We intentionally use rmp_serde's default config (no
         // `with_struct_map`): every tagged type's `serialize_struct` /
@@ -52,7 +55,7 @@ impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
 }
 
 /// Build the tag registry from `T::register_into`, then serialize `value`
-/// through a [`TaggedMsgpackSerializer`] into a freshly-allocated `Vec<u8>`.
+/// through a [`Serializer`] into a freshly-allocated `Vec<u8>`.
 ///
 /// All tagged types currently encode in **Tagged** strategy (int-keyed maps);
 /// per-type strategy customization will land as a follow-up. Untagged types
@@ -65,7 +68,7 @@ where
     let registry = TagRegistry::from_type::<T>();
 
     let mut buf = Vec::new();
-    let mut serializer = TaggedMsgpackSerializer::new(&mut buf, &registry);
+    let mut serializer = Serializer::new(&mut buf, &registry);
     value.serialize(&mut serializer).map_err(std::io::Error::other)?;
     Ok(buf)
 }
@@ -79,7 +82,7 @@ type RmpError = rmp_serde::encode::Error;
 // shapes) are intercepted to emit int-keyed maps via the registry.
 // ============================================================================
 
-impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W> {
+impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -246,7 +249,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
         self.write_variant_header(name, variant)?;
-        Serializer::serialize_unit(&mut *self)
+        ser::Serializer::serialize_unit(&mut *self)
     }
 
     fn serialize_newtype_variant<T>(
@@ -315,7 +318,7 @@ impl<'a, 'ser, W: Write> Serializer for &'ser mut TaggedMsgpackSerializer<'a, W>
     }
 }
 
-impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
+impl<'a, W: Write> Serializer<'a, W> {
     /// Resolve a registered `Product` by serde name. Used by both
     /// `serialize_struct` and `serialize_tuple_struct`. A registry miss or a
     /// sum-shaped entry signals a real bug — `register_into` should have
@@ -376,7 +379,7 @@ impl<'a, W: Write> TaggedMsgpackSerializer<'a, W> {
     ) -> Result<crate::Variant, RmpError> {
         let v = self.variant_for(name, variant_name);
         write_map_header(self.inner.get_mut(), 1)?;
-        Serializer::serialize_u8(&mut *self, v.tag)?;
+        ser::Serializer::serialize_u8(&mut *self, v.tag)?;
         Ok(v)
     }
 }
@@ -426,7 +429,7 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 /// The map header is already written in the corresponding `serialize_*`
 /// method before this adapter is constructed; from there each
 /// `serialize_field` call appends a `(tag, value)` pair to the writer
-/// through the parent [`TaggedMsgpackSerializer`], so any nested tagged
+/// through the parent [`Serializer`], so any nested tagged
 /// value in `value` recurses through the wrapper instead of falling through
 /// to `rmp_serde`'s default positional-array struct encoding.
 ///
@@ -434,7 +437,7 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 /// the [`SerializeStruct`] impl ignores it.
 pub(crate) struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
-    parent: &'ser mut TaggedMsgpackSerializer<'a, W>,
+    parent: &'ser mut Serializer<'a, W>,
     next_position: usize,
 }
 
@@ -449,7 +452,7 @@ impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
     where
         T: ?Sized + Serialize,
     {
-        Serializer::serialize_u8(&mut *self.parent, tag)?;
+        ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
         value.serialize(&mut *self.parent)
     }
 }
@@ -587,7 +590,7 @@ impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser,
 
 /// Stateless pass-through adapter shared by every shape whose only job is
 /// to route element/key/value calls back through the parent
-/// [`TaggedMsgpackSerializer`]. The msgpack header (array length or map
+/// [`Serializer`]. The msgpack header (array length or map
 /// length) is written upfront in the corresponding `serialize_*` method
 /// before the adapter is constructed; from there each entry is just one or
 /// two more values appended to the writer through the wrapper, so any
@@ -599,7 +602,7 @@ impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser,
 /// the [`Product`](crate::Product) needed to translate field names into
 /// integer tags.
 pub(crate) struct TaggedSerializeViaParent<'ser, 'a, W: Write> {
-    parent: &'ser mut TaggedMsgpackSerializer<'a, W>,
+    parent: &'ser mut Serializer<'a, W>,
 }
 
 /// Variable-length sequences (`Vec<T>`, `&[T]`, …). Each element recurses
