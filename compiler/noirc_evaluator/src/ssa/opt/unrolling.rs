@@ -37,7 +37,7 @@
 //!
 //! Conditions:
 //!   - Pre-condition: The first block parameter of each loop header is the induction variable.
-//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg_simple).
+//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
 //!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
@@ -205,10 +205,12 @@ impl Function {
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
     /// Returns a flag indicating whether any blocks have been modified.
     ///
-    /// Loop unrolling in brillig can lead to a code explosion currently.
-    /// This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
-    /// Brillig also generally prefers smaller code rather than faster code,
-    /// so we only attempt to unroll small loops, which we decide on a case-by-case basis.
+    /// For both ACIR and Brillig, we prefer InsideOut ordering: inner loops are unrolled
+    /// first, producing simpler outer loop bodies and reducing the total amount of
+    /// duplicated code. For ACIR, if InsideOut makes no progress (because inner loop
+    /// bounds depend on outer induction variables), we fall back to OutsideIn ordering
+    /// which unrolls the outer loop first, duplicating the inner loops with now-constant
+    /// bounds that can be resolved in subsequent passes.
     fn try_unroll_loops(
         &mut self,
         max_unroll_iterations: usize,
@@ -218,105 +220,164 @@ impl Function {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
-        // The reasons why loops in the above set failed to unroll.
-        let mut unroll_errors = vec![];
         let mut has_unrolled = false;
+        // Errors are accumulated across passes because a loop that fails on one pass is
+        // recorded in `failed_to_unroll` and reported as `Skipped` (no error) on later
+        // passes. Without this accumulation the caller's retry-and-simplify loop in
+        // `unroll_loops_iteratively` would never see the error and would silently leave
+        // an un-unrolled loop in ACIR SSA, panicking in a later pass.
+        let mut accumulated_errors: Vec<RuntimeError> = Vec::new();
 
         // Repeatedly find all loops as we unroll outer loops and go towards nested ones.
         loop {
-            let order = if self.runtime().is_brillig() {
-                LoopOrder::InsideOut
-            } else {
-                LoopOrder::OutsideIn
-            };
-            let mut loops = Loops::find_all(self, order);
+            let mut loops = Loops::find_all(self, LoopOrder::InsideOut);
             loops.callee_costs = callee_costs.clone();
 
-            // Blocks which were part of loops we unrolled. Nested loops are included in the
-            // outer loops, so if an outer loop is unrolled, we have to restart looking for
-            // the nested ones.
-            let mut modified_blocks = HashSet::new();
-            // Blocks from loops that were skipped or failed to unroll. In InsideOut
-            // ordering, if an inner loop can't be unrolled, any enclosing loop that
-            // contains those blocks must also be skipped: unrolling visits each
-            // block once and cannot traverse the inner loop's cycle.
-            let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
-            let mut needs_refresh = false;
-            // Accumulated header-param→final-value mappings from all unrolled loops
-            // in this iteration. Applied in bulk after the loop processing is done,
-            // avoiding O(loops * blocks) per-loop exit-block walks.
-            let mut accumulated_mapping = ValueMapping::default();
+            let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
+                loops,
+                LoopOrder::InsideOut,
+                &mut failed_to_unroll,
+                max_unroll_iterations,
+                force_unroll_threshold,
+            );
 
-            while let Some(next_loop) = loops.yet_to_unroll.pop() {
-                // If we've previously modified a block in this loop we need to refresh.
-                // This happens any time we have nested loops.
-                if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
-                    needs_refresh = true;
+            has_unrolled |= unrolled;
+            let had_errors = !errors.is_empty();
+            accumulated_errors.extend(errors);
+
+            // For ACIR: if InsideOut made no progress but there are failed loops
+            // (inner loops whose bounds depend on outer induction variables),
+            // fall back to OutsideIn to unroll the outer loops first.
+            // We use a fresh failed set so the OutsideIn pass can try outer loops
+            // that were skipped due to failed_blocks poisoning in InsideOut.
+            if !unrolled && had_errors && self.runtime().is_acir() {
+                // TODO: we can save the `Loops` calculated above and reorder it instead of recomputing it.
+                let mut loops = Loops::find_all(self, LoopOrder::OutsideIn);
+                loops.callee_costs = callee_costs.clone();
+
+                let mut fallback_failed = HashSet::new();
+                let (fallback_unrolled, _, _fallback_errors) = self.try_unroll_loops_with_order(
+                    loops,
+                    LoopOrder::OutsideIn,
+                    &mut fallback_failed,
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                );
+                has_unrolled |= fallback_unrolled;
+                failed_to_unroll.extend(fallback_failed);
+
+                if fallback_unrolled {
+                    // OutsideIn made progress (unrolled outer loops, duplicating inner loops).
+                    // The InsideOut errors referenced loop headers that were either inlined
+                    // away by the outer-loop unroll or whose duplicates have constant bounds;
+                    // either way they are stale. Clear them so the next InsideOut pass starts
+                    // fresh and only reports loops that still genuinely fail.
+                    accumulated_errors.clear();
                     continue;
                 }
-
-                // InsideOut: skip if this loop contains blocks from an inner loop
-                // that couldn't be unrolled. Unrolling visits each block once and
-                // can't traverse an inner loop's cycle, so attempting to unroll an
-                // outer loop with a non-unrolled inner loop would corrupt the SSA.
-                // OutsideIn (ACIR) does not need this: outer loops are processed
-                // first, and if they fail, inner loops are tried independently.
-                if order == LoopOrder::InsideOut
-                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
-                {
-                    continue;
-                }
-
-                // Don't try to unroll the loop again if it is known to fail.
-                // Save loop blocks before `try_unroll_loop` takes ownership.
-                let loop_blocks = next_loop.blocks.clone();
-                let result = if failed_to_unroll.contains(&next_loop.header) {
-                    LoopUnrollResult::Skipped
-                } else {
-                    self.try_unroll_loop(
-                        next_loop,
-                        &loops,
-                        max_unroll_iterations,
-                        force_unroll_threshold,
-                    )
-                };
-                match result {
-                    LoopUnrollResult::Skipped => {}
-                    LoopUnrollResult::Failed(header, error) => {
-                        failed_to_unroll.insert(header);
-                        unroll_errors.push(error);
-                        failed_blocks.extend(loop_blocks);
-                    }
-                    LoopUnrollResult::Unrolled(blocks, mapping) => {
-                        has_unrolled = true;
-                        modified_blocks.extend(blocks);
-                        accumulated_mapping.extend(mapping);
-                    }
-                }
+                // OutsideIn also made no progress — leave the InsideOut errors accumulated
+                // so the caller's retry-and-simplify loop can react to them.
             }
 
-            // Apply all header param->final value replacements in a single pass over
-            // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
-            if !accumulated_mapping.is_empty() {
-                for block_id in self.reachable_blocks() {
-                    self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
-                }
-            }
-
-            // If we didn't need to refresh, we're done
-            if !needs_refresh {
+            if !refresh {
                 break;
             }
 
-            // In Brillig, simplify between inner and outer loop evaluations.
-            // After unrolling inner loops, the expanded instructions need to be
-            // constant-folded before the outer loop's cost model is evaluated,
-            // otherwise useless_cost is inflated by un-simplified instructions.
-            if self.runtime().is_brillig() {
-                simplify_between_unrolls(self);
+            // After unrolling inner loops, simplify before evaluating outer loops.
+            // For Brillig this is needed for accurate cost estimates; for ACIR this
+            // helps resolve bounds that become constant after inner loop unrolling.
+            simplify_between_unrolls(self);
+        }
+
+        (has_unrolled, accumulated_errors)
+    }
+
+    /// Run a single pass of loop unrolling with the given ordering.
+    ///
+    /// Returns `(has_unrolled, needs_refresh, unroll_errors)`.
+    fn try_unroll_loops_with_order(
+        &mut self,
+        mut loops: Loops,
+        order: LoopOrder,
+        failed_to_unroll: &mut HashSet<BasicBlockId>,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+    ) -> (bool, bool, Vec<RuntimeError>) {
+        let mut has_unrolled = false;
+        let mut unroll_errors = vec![];
+
+        // Blocks which were part of loops we unrolled. Nested loops are included in the
+        // outer loops, so if an outer loop is unrolled, we have to restart looking for
+        // the nested ones.
+        let mut modified_blocks = HashSet::new();
+        // Blocks from loops that were skipped or failed to unroll. In InsideOut
+        // ordering, if an inner loop can't be unrolled, any enclosing loop that
+        // contains those blocks must also be skipped: unrolling visits each
+        // block once and cannot traverse the inner loop's cycle.
+        let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
+        let mut needs_refresh = false;
+        // Accumulated header-param→final-value mappings from all unrolled loops
+        // in this iteration. Applied in bulk after the loop processing is done,
+        // avoiding O(loops * blocks) per-loop exit-block walks.
+        let mut accumulated_mapping = ValueMapping::default();
+
+        while let Some(next_loop) = loops.yet_to_unroll.pop() {
+            // If we've previously modified a block in this loop we need to refresh.
+            // This happens any time we have nested loops.
+            if next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
+                needs_refresh = true;
+                continue;
+            }
+
+            // InsideOut: skip if this loop contains blocks from an inner loop
+            // that couldn't be unrolled. Unrolling visits each block once and
+            // can't traverse an inner loop's cycle, so attempting to unroll an
+            // outer loop with a non-unrolled inner loop would corrupt the SSA.
+            // OutsideIn (ACIR) does not need this: outer loops are processed
+            // first, and if they fail, inner loops are tried independently.
+            if order == LoopOrder::InsideOut
+                && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+            {
+                continue;
+            }
+
+            // Don't try to unroll the loop again if it is known to fail.
+            // Save loop blocks before `try_unroll_loop` takes ownership.
+            let loop_blocks = next_loop.blocks.clone();
+            let result = if failed_to_unroll.contains(&next_loop.header) {
+                LoopUnrollResult::Skipped
+            } else {
+                self.try_unroll_loop(
+                    next_loop,
+                    &loops,
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                )
+            };
+            match result {
+                LoopUnrollResult::Skipped => {}
+                LoopUnrollResult::Failed(header, error) => {
+                    failed_to_unroll.insert(header);
+                    unroll_errors.push(error);
+                    failed_blocks.extend(loop_blocks);
+                }
+                LoopUnrollResult::Unrolled(blocks, mapping) => {
+                    has_unrolled = true;
+                    modified_blocks.extend(blocks);
+                    accumulated_mapping.extend(mapping);
+                }
             }
         }
-        (has_unrolled, unroll_errors)
+
+        // Apply all header param->final value replacements in a single pass over
+        // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
+        if !accumulated_mapping.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
+            }
+        }
+
+        (has_unrolled, needs_refresh, unroll_errors)
     }
 
     /// Try to unroll a single loop.
@@ -348,7 +409,7 @@ impl Function {
             if self.runtime().is_acir() {
                 return LoopUnrollResult::Failed(
                     loop_.header,
-                    RuntimeError::UnknownLoopBound { call_stack: CallStack::new() },
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::empty() },
                 );
             }
             return LoopUnrollResult::Skipped;
@@ -395,11 +456,12 @@ pub(crate) struct Loop {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LoopOrder {
     /// Process inner (smaller) loops first, then outer loops.
-    /// Used for Brillig which can tolerate inner loops that reference outer induction variables.
+    /// Preferred for both ACIR and Brillig: unrolling inner loops first produces
+    /// simpler outer loop bodies and avoids duplicating inner loop code N times.
     InsideOut,
     /// Process outer (larger) loops first, then inner loops.
-    /// Used for ACIR which cannot tolerate inner loops that reference outer induction variables,
-    /// so outer loops must be unrolled first.
+    /// Used as a fallback for ACIR when inner loop bounds depend on outer induction
+    /// variables and cannot be resolved until the outer loop is unrolled.
     OutsideIn,
 }
 
@@ -452,7 +514,7 @@ impl Loops {
     /// which we can use to check whether we were able to unroll all blocks.
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut loops = vec![];
@@ -471,16 +533,16 @@ impl Loops {
         match order {
             LoopOrder::InsideOut => {
                 // Sort by block size descending so we pop and unroll smaller, inner loops first.
-                // This is safe for Brillig because if inner loop bounds depend on an outer
-                // induction variable, `get_const_bounds` returns None, `is_small_loop` returns
-                // false, and we skip it. After unrolling inner loops, outer loops have simpler
-                // bodies and more accurate cost estimates for the `is_small_loop` heuristic.
+                // Inner loops with constant bounds are unrolled first, producing simpler outer
+                // loop bodies and reducing code duplication. If inner loop bounds depend on an
+                // outer induction variable, the unroll will fail and the failed_blocks mechanism
+                // prevents corrupting the outer loop. For ACIR, try_unroll_loops then falls
+                // back to OutsideIn for those cases. For Brillig, the loop is simply skipped.
                 loops.sort_by_key(|loop_| std::cmp::Reverse(loop_.blocks.len()));
             }
             LoopOrder::OutsideIn => {
                 // Sort by block size ascending so we unroll larger, outer loops of nested loops first.
-                // This is needed because inner loops may use the induction variable from their
-                // outer loops in their loop range.
+                // Used as a fallback when inner loops depend on outer induction variables.
                 loops.sort_by_key(|loop_| loop_.blocks.len());
             }
         }
@@ -707,7 +769,7 @@ impl Loop {
                 // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
                 // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
+                if then_branch_is_body { const_rhs.inc() } else { Some(const_rhs) }
             }
             Instruction::Not(operand) => {
                 if *operand != induction_var {
@@ -737,8 +799,8 @@ impl Loop {
             _ => {
                 // Certain patterns can cause other instructions to be hoisted into the loop
                 // header, or at least what looks to be the loop header.
-                // `func_1` in `regression_mem2reg_unknown_array_aliases` is one such example
-                // if `mem2reg_simple` is performed on it before unrolling.
+                // `func_1` in `regression_mem2regunknown_array_aliases` is one such example
+                // if `mem2reg` is performed on it before unrolling.
                 None
             }
         }
@@ -865,7 +927,7 @@ impl Loop {
             Ok(pre_header.remove(0))
         } else {
             // We can come back into the header from multiple blocks, so we can't unroll this.
-            Err(CallStack::new())
+            Err(CallStack::empty())
         }
     }
 
@@ -888,7 +950,7 @@ impl Loop {
 
         // Collect all header parameters before mutably borrowing context.
         // The first parameter is the induction variable; additional parameters are
-        // promoted mutable variables (e.g. from mem2reg_simple).
+        // promoted mutable variables (e.g. from mem2reg).
         let header_params: Vec<ValueId> = context.dfg()[loop_header_id].parameters().to_vec();
 
         // Map each header parameter to the corresponding argument value from the previous iteration
@@ -1192,7 +1254,19 @@ impl Loop {
                 let within_iteration_limit = s.iterations <= max_unroll_iterations;
                 let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
                 let is_fully = self.is_fully_executed(&loops.cfg);
-                (force_unroll || s.is_small()) && within_iteration_limit && is_fully
+
+                // When useful_cost is 0, unrolled_cost is also 0, which would allow
+                // force_unroll for arbitrarily large loops. Guard against this by
+                // checking the per-iteration total cost: if the loop body is small,
+                // the transient code expansion from unrolling is bounded even if the
+                // folding prediction is wrong. Large loop bodies (e.g. a 754-iteration
+                // scalar-mul loop where inc_rc removal drops useful_cost to 0) must not
+                // be force-unrolled because the transient expansion is catastrophic.
+                let safe_to_force = s.useful_cost() > 0 || s.total_cost <= force_unroll_threshold;
+
+                ((force_unroll && safe_to_force) || s.is_small())
+                    && within_iteration_limit
+                    && is_fully
             },
         )
     }
@@ -1610,14 +1684,14 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
             }
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
-        None => Err(CallStack::new()),
+        None => Err(CallStack::empty()),
     }
 }
 
 /// Get all arguments of the jump into the loop header from the pre-header block.
 ///
 /// The first argument is the induction variable (must be a numeric constant).
-/// Additional arguments are promoted mutable variables (e.g. from mem2reg_simple).
+/// Additional arguments are promoted mutable variables (e.g. from mem2reg).
 /// Returns `Err` if the block does not end with a `Jmp`, has no arguments, or the
 /// first argument is not a numeric constant.
 fn get_header_arguments(
@@ -1636,7 +1710,7 @@ fn get_header_arguments(
             Ok(arguments.clone())
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
-        None => Err(CallStack::new()),
+        None => Err(CallStack::empty()),
     }
 }
 
@@ -1662,7 +1736,7 @@ struct LoopIteration<'f> {
 
     /// All back-edge arguments (and the block they were found in) for the next loop iteration.
     /// The first element is the new induction variable; additional elements are promoted
-    /// mutable variables (e.g. from mem2reg_simple).
+    /// mutable variables (e.g. from mem2reg).
     /// This is None until we visit the block which jumps back to the start of the
     /// loop, at which point we record the arguments and the block they were found in.
     induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
@@ -1912,7 +1986,12 @@ impl<'f> LoopIteration<'f> {
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
     function.mem2reg();
+    // Resolves constants, but merge blocks still have 2 predecessors
+    function.simplify_instructions();
+    // Eliminates dead jmpif branches, collapses merge blocks
     function.simplify_function();
+    // Re-simplify after branch elimination
+    function.simplify_instructions();
     // Do another mem2reg after simplify_cfg to aid the next unroll
     function.mem2reg();
 }
@@ -1957,7 +2036,6 @@ mod tests {
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
-    use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
@@ -2021,11 +2099,9 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        // The final block count is not 1 because unrolling creates some unnecessary jmps.
-        // If a simplify cfg pass is ran afterward, the expected block count will be 1.
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
-        assert_eq!(ssa.main().reachable_blocks().len(), 5);
+        assert_eq!(ssa.main().reachable_blocks().len(), 2);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -2034,23 +2110,17 @@ mod tests {
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
             constrain u1 0 == u1 1
-            jmp b2()
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            jmp b1()
           b1():
             return u32 0
-          b2():
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            jmp b3()
-          b3():
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            constrain u1 0 == u1 1
-            jmp b4()
-          b4():
-            jmp b1()
         }
         ");
     }
@@ -2538,10 +2608,31 @@ mod tests {
             "loop should be within default force-unroll threshold"
         );
 
-        assert_ssa_does_not_change(&brillig_unroll_test_case_6470(6), |ssa| {
-            // With threshold=0, the loop should NOT be unrolled
-            ssa.unroll_loops_iteratively(None, 0, 0).unwrap()
-        });
+        let src = brillig_unroll_test_case_6470(6);
+        let ssa = Ssa::from_str(&src).unwrap().unroll_loops_iteratively(None, 0, 0).unwrap();
+
+        // The loop should not be unrolled, but the program is still changed due to
+        // mem2reg running in-between loop unrollings.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [u64; 6]):
+            inc_rc v0
+            v4 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v4
+            jmp b1(u32 0, v4)
+          b1(v1: u32, v2: [u64; 6]):
+            v7 = lt v1, u32 6
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v8 = array_get v0, index v1 -> u64
+            v10 = add v8, u64 1
+            v11 = array_set v2, index v1, value v10
+            v13 = unchecked_add v1, u32 1
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14, v11)
+          b3():
+            return v2
+        }");
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
@@ -2638,6 +2729,50 @@ mod tests {
             store v9 at v2
             v11 = add v1, {idx_type} 1
             jmp b1(v11)
+          b2():
+            v6 = load v2 -> u32
+            v7 = eq v6, v0
+            constrain v6 == v0
+            return
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
+    }
+
+    /// Generate a loop with a large body containing `num_adds` chained add instructions.
+    /// All instructions are constant-foldable after unrolling (useful_cost = 0),
+    /// but total_cost is high due to the many instructions.
+    fn brillig_unroll_large_body_test_case(num_adds: usize, iterations: usize) -> Ssa {
+        assert!(num_adds >= 1, "need at least one add");
+        let mut body_instructions = String::new();
+        // v8 = load result, v9 = first add
+        let mut next_v = 9;
+        // First add uses the loaded value (v8) and induction variable (v1)
+        body_instructions += &format!("            v{next_v} = add v8, v1\n");
+        next_v += 1;
+        // Chain more adds, each using the previous result + induction variable
+        for _ in 1..num_adds {
+            body_instructions += &format!("            v{next_v} = add v{}, v1\n", next_v - 1);
+            next_v += 1;
+        }
+        let store_val = next_v - 1;
+        let inc_v = next_v;
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: u32):
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 {iterations}
+            jmpif v5 then: b3(), else: b2()
+          b3():
+            v8 = load v2 -> u32
+{body_instructions}            store v{store_val} at v2
+            v{inc_v} = unchecked_add v1, u32 1
+            jmp b1(v{inc_v})
           b2():
             v6 = load v2 -> u32
             v7 = eq v6, v0
@@ -2751,6 +2886,66 @@ mod tests {
     #[test_case(1000, 250, -1250, false; "demanding more than minus 100 is handled")]
     fn test_is_new_size_ok(old: usize, new: usize, max: i32, ok: bool) {
         assert_eq!(is_new_size_ok(old, new, max), ok);
+    }
+
+    /// Regression test: when `useful_cost` is zero and the loop body is small,
+    /// force_unroll correctly allows the unroll (the folding prediction is trusted
+    /// because even if wrong, the transient expansion is bounded).
+    #[test]
+    fn force_unroll_allows_small_body_zero_useful_cost() {
+        let ssa = brillig_unroll_test_case_with_params("u32", "0", "500");
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, 500);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost is small (fits within force_unroll_threshold), so safe_to_force = true.
+        assert!(
+            stats.total_cost <= FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should be within force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop IS force-unrolled because the body is small.
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        // After unrolling + simplification, no loops remain.
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
+        assert!(loops.yet_to_unroll.is_empty(), "loop should have been unrolled");
+    }
+
+    /// Regression test: when `useful_cost` is zero but the loop body is large
+    /// (total_cost > force_unroll_threshold), force_unroll is blocked. This prevents
+    /// the catastrophic blowup seen in `noir_bigcurve` where a 754-iteration
+    /// scalar-multiplication loop was fully unrolled into ~300k lines after
+    /// `inc_rc` removal dropped `useful_cost` from 3 to 0.
+    #[test]
+    fn force_unroll_blocks_large_body_zero_useful_cost() {
+        // Generate a loop with a large body: 50 chained add instructions.
+        // Each checked u32 add costs 3, so body cost ≈ 50*3 + overhead > 128.
+        let num_adds = 50;
+        let iterations = 500;
+        let ssa = brillig_unroll_large_body_test_case(num_adds, iterations);
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, iterations);
+        assert_eq!(stats.useful_cost(), 0, "all loop instructions fold after unrolling");
+        assert_eq!(stats.unrolled_cost(), 0, "useful_cost * iterations = 0");
+        // total_cost exceeds force_unroll_threshold due to the large body.
+        assert!(
+            stats.total_cost > FORCE_UNROLL_THRESHOLD,
+            "total_cost ({}) should exceed force-unroll threshold ({})",
+            stats.total_cost,
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        // The loop is NOT force-unrolled because the body is too large.
+        let parse_ssa = || brillig_unroll_large_body_test_case(num_adds, iterations);
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0);
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]
@@ -3053,13 +3248,13 @@ mod tests {
         );
     }
 
-    /// Regression test: after mem2reg_simple, loop headers can have multiple parameters
+    /// Regression test: after mem2reg, loop headers can have multiple parameters
     /// (induction variable + promoted mutable variables). Blocks outside the loop (like
     /// the exit block b3) reference these header params directly. After unrolling, these
     /// references must remain valid.
     #[test]
     fn unroll_loop_with_multi_param_header() {
-        // Simplified main from vector_loop after mem2reg_simple.
+        // Simplified main from vector_loop after mem2reg.
         // b1 has 3 params: v1 (induction), v2 (promoted u32), v3 (promoted [Field]).
         // b3 (exit) references v2 and v3 from b1 directly.
         let src = "
@@ -3118,7 +3313,7 @@ mod tests {
     /// the loop should still be identified as small enough to unroll.
     /// This is the SSA for the `brillig_cow_assign` integration test post mem2reg.
     #[test]
-    fn test_brillig_unroll_after_mem2reg_simple() {
+    fn test_brillig_unroll_after_mem2reg() {
         let src = "
             brillig(inline) predicate_pure fn main f0 {
                 b0():
@@ -3150,7 +3345,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.interpret(vec![]).unwrap();
 
-        // After mem2reg_simple, no loads/stores remain — the cost model must recognize
+        // After mem2reg, no loads/stores remain — the cost model must recognize
         // the loop-internal terminator costs as boilerplate.
         let stats = loop0_stats(&ssa);
         assert_eq!(
@@ -3220,7 +3415,7 @@ mod tests {
         ");
     }
 
-    /// Regression test: after mem2reg_simple promotes loads/stores to block parameters,
+    /// Regression test: after mem2reg promotes loads/stores to block parameters,
     /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
     /// block parameters. Without this, nested loops over constant 2D arrays won't see
     /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
@@ -3627,5 +3822,275 @@ mod tests {
         // This panics because v4 (a header instruction result) was not mapped
         // to its final-iteration value, leaving a dangling reference.
         let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+    }
+}
+
+#[cfg(test)]
+mod upper_loop_bound_resolution {
+    use crate::ssa::Ssa;
+
+    use super::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS};
+
+    /// Regression test for vector_loop: after mem2reg promotes the vector length
+    /// allocation to a block parameter, the iterative unrolling must still resolve the
+    /// sum loop's bound to a constant through the vector_push_back simplification chain.
+    ///
+    /// This is the SSA input to unrolling from the
+    /// `test_programs/execution_success/vector_loop` test program.
+    #[test]
+    fn acir_vector_loop_unrolling() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(Field, Field); 3]):
+            v14 = make_array [] : [Field]
+            jmp b1(u32 0, u32 0, v14)
+          b1(v1: u32, v2: u32, v3: [Field]):
+            v17 = lt v1, u32 3
+            jmpif v17 then: b2(), else: b3()
+          b2():
+            v37 = unchecked_mul v1, u32 2
+            v38 = array_get v0, index v37 -> Field
+            v39 = unchecked_add v37, u32 1
+            v40 = array_get v0, index v39 -> Field
+            v41 = make_array [v38, v40] : [Field]
+            jmp b4(u32 0, v2, v3)
+          b4(v4: u32, v5: u32, v6: [Field]):
+            v42 = lt v4, u32 2
+            jmpif v42 then: b7(), else: b8()
+          b7():
+            v44 = array_get v41, index v4 -> Field
+            v45, v46 = call vector_push_back(v5, v6, v44) -> (u32, [Field])
+            v47 = unchecked_add v4, u32 1
+            jmp b4(v47, v45, v46)
+          b8():
+            v43 = unchecked_add v1, u32 1
+            jmp b1(v43, v5, v6)
+          b3():
+            v19 = lt u32 5, v2
+            jmpif v19 then: b5(), else: b6(v2, v3)
+          b5():
+            v21 = make_array [Field 0, Field 0] : [Field]
+            jmp b9(u32 0, v2, v3)
+          b9(v9: u32, v10: u32, v11: [Field]):
+            v23 = lt v9, u32 2
+            jmpif v23 then: b11(), else: b12()
+          b11():
+            v32 = array_get v21, index v9 -> Field
+            v34, v35 = call vector_push_back(v10, v11, v32) -> (u32, [Field])
+            v36 = unchecked_add v9, u32 1
+            jmp b9(v36, v34, v35)
+          b12():
+            jmp b6(v10, v11)
+          b6(v7: u32, v8: [Field]):
+            jmp b10(u32 0, Field 0)
+          b10(v12: u32, v13: Field):
+            v24 = lt v12, v7
+            jmpif v24 then: b13(), else: b14()
+          b13():
+            v26 = lt v12, v7
+            constrain v26 == u1 1, \"Index out of bounds\"
+            v28 = array_get v8, index v12 -> Field
+            v29 = add v13, v28
+            v31 = unchecked_add v12, u32 1
+            jmp b10(v31, v29)
+          b14():
+            constrain v13 == Field 21
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // let ssa = ssa.mem2reg().load_store_forwarding().simplify_cfg().mem2reg();
+        // println!("{}", ssa.print_with(None));
+        // This should successfully unroll all loops, including the sum loop whose bound
+        // depends on the vector length accumulated through vector_push_back calls.
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(result.is_ok(), "All loops should be unrollable, got error: {:?}", result.err());
+    }
+
+    /// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
+    /// incrementing `len`), a second loop that loads that counter as its bound requires
+    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+    /// after the first loop is unrolled.
+    ///
+    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+    ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
+    ///   2. After the loop, the counter is loaded as the bound of a second loop
+    ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
+    ///
+    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+    /// constant, leaving the second loop's bound non-constant and unrolling fails.
+    #[test]
+    fn acir_unroll_with_store_load_loop_bound() {
+        // Loop 1 (b1): constant bound 3, stores incremented counter to v0 (allocation)
+        // Loop 2 (b4): bound loaded from v0 — should be 3 after Loop 1 completes
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v0 -> u32
+            v7 = add v6, u32 1
+            store v7 at v0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> u32
+            jmp b4(u32 0, Field 0)
+          b4(v2: u32, v3: Field):
+            v10 = lt v2, v9
+            jmpif v10 then: b5(), else: b6()
+          b5():
+            v11 = add v3, Field 1
+            v12 = unchecked_add v2, u32 1
+            jmp b4(v12, v11)
+          b6():
+            constrain v3 == Field 3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Both loops should be unrollable after store/load forwarding, got error: {:?}",
+            result.err()
+        );
+    }
+
+    /// Regression test: a BoundedVec's length is stored in an allocation.
+    /// Two sequential loops use the same length as their bound.
+    /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
+    /// because `simplify_function` cannot merge the blocks (a conditional branch in
+    /// between prevents it).
+    ///
+    /// Without mem2reg promoting the allocation to a block parameter (skipped for large
+    /// functions), `simplify_between_unrolls` must resolve the cross-block store->load
+    /// so the unroller can determine Loop 2's constant bound.
+    ///
+    /// Pattern from `for _i in 0..copy.len() { requests.pop(); }; for _i in 0..copy.len() { ... }`.
+    #[test]
+    fn acir_unroll_cross_block_load_bound() {
+        // v0 = allocation for `copy.len` (stored once as u32 3, never modified)
+        // v1 = allocation for `requests.len` (modified in Loop 1's body)
+        // Loop 1 (b1→b2→b1): bound is u32 3 (constant), body modifies v1
+        // b3: conditional branch that prevents simplify_function from merging
+        //     the entry block with Loop 2's pre-header
+        // After Loop 1 unrolls, Loop 2's bound comes from `load v0` in a
+        // different block that can't be merged with the store block.
+        // Loop 2 (b6→b7→b6): bound loaded from v0 (should resolve to u32 3)
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v100: Field):
+            v0 = allocate -> &mut u32
+            store u32 3 at v0
+            v1 = allocate -> &mut u32
+            store u32 3 at v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v1 -> u32
+            v7 = sub v6, u32 1
+            store v7 at v1
+            v8 = unchecked_add v2, u32 1
+            jmp b1(v8)
+          b3():
+            v13 = eq v100, Field 0
+            jmpif v13 then: b4(), else: b5()
+          b4():
+            jmp b9(Field 100)
+          b5():
+            jmp b9(Field 200)
+          b9(v14: Field):
+            v9 = load v0 -> u32
+            jmp b6(u32 0, v14)
+          b6(v3: u32, v4: Field):
+            v10 = lt v3, v9
+            jmpif v10 then: b7(), else: b8()
+          b7():
+            v11 = add v4, Field 1
+            v12 = unchecked_add v3, u32 1
+            jmp b6(v12, v11)
+          b8():
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Cross-block store->load bound should be resolved, got error: {:?}",
+            result.err()
+        );
+    }
+
+    /// Regression test for `vector_join` and `vector::test::chain_operations`:
+    /// A filter loop conditionally pushes elements via `vector_push_back`,
+    /// then a second loop uses the accumulated length as its bound
+    /// (e.g. `assert_eq` calling `<[T]>::eq` with `for i in 0..self.len()`).
+    ///
+    /// After the filter loop unrolls, `simplify_between_unrolls` must resolve
+    /// the conditional `vector_push_back` chain to a constant length so the
+    /// second loop can unroll.
+    #[test]
+    fn acir_unroll_conditional_push_back_then_length_bounded_loop() {
+        // Loop 1 (b1): iterates 0..3, conditionally pushes odd elements
+        //   Elements: [1, 2, 3]. Odd check: truncate to 1 bit, eq 1.
+        //   Pushes 1, 3 → length becomes 2.
+        // Loop 2 (b6): iterates 0..v1, needs v1=2 to be resolved as constant
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v100 = make_array [u32 1, u32 2, u32 3] : [u32]
+            v101 = make_array [] : [u32]
+            jmp b1(u32 0, u32 0, v101)
+          b1(v0: u32, v1: u32, v2: [u32]):
+            v10 = lt v0, u32 3
+            jmpif v10 then: b2(), else: b3()
+          b2():
+            v11 = array_get v100, index v0 -> u32
+            v12 = truncate v11 to 1 bits, max_bit_size: 32
+            v13 = eq v12, u32 1
+            jmpif v13 then: b4(), else: b5(v1, v2)
+          b4():
+            v14, v15 = call vector_push_back(v1, v2, v11) -> (u32, [u32])
+            jmp b5(v14, v15)
+          b5(v3: u32, v4: [u32]):
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16, v3, v4)
+          b3():
+            jmp b6(u32 0, Field 0)
+          b6(v5: u32, v6: Field):
+            v17 = lt v5, v1
+            jmpif v17 then: b7(), else: b8()
+          b7():
+            v18 = add v6, Field 1
+            v19 = unchecked_add v5, u32 1
+            jmp b6(v19, v18)
+          b8():
+            constrain v6 == Field 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Conditional vector_push_back chain should resolve to constant loop bound, got error: {:?}",
+            result.err()
+        );
     }
 }

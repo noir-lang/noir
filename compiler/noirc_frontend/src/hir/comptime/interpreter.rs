@@ -84,6 +84,8 @@ mod builtin;
 mod cast;
 mod foreign;
 mod infix;
+mod tracker;
+pub use tracker::EvaluationTracker;
 mod unquote;
 
 pub(crate) use builtin::builtin_helpers;
@@ -165,6 +167,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
+
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_function_call(function, location);
+        }
 
         let result = self.call_function_inner(function, arguments, location);
 
@@ -496,15 +502,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         argument: Value,
         location: Location,
     ) -> IResult<()> {
+        self.define_pattern_inner(pattern, typ, argument, location, false)
+    }
+
+    /// `mutable` is `true` when this pattern is nested inside a `HirPattern::Mutable`,
+    /// in which case each leaf identifier is wrapped in a mutable `Value::Pointer`.
+    /// The wrapping must happen at each leaf rather than at the composite root: wrapping
+    /// the whole tuple/struct value would cause subsequent destructuring to see a
+    /// `Value::Pointer` instead of the expected `Value::Tuple`/`Value::Struct`.
+    fn define_pattern_inner(
+        &mut self,
+        pattern: &HirPattern,
+        typ: &Type,
+        argument: Value,
+        location: Location,
+        mutable: bool,
+    ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
+                let argument = if mutable {
+                    Value::Pointer(Shared::new(argument), true, true)
+                } else {
+                    argument
+                };
                 self.define(identifier.id, argument);
                 Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
-                // Create a mutable reference to store to
-                let argument = Value::Pointer(Shared::new(argument), true, true);
-                self.define_pattern(pattern, typ, argument, location)
+                self.define_pattern_inner(pattern, typ, argument, location, true)
             }
             HirPattern::Tuple(pattern_fields, _) => {
                 let typ = &typ.follow_bindings();
@@ -517,7 +542,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             pattern_fields.iter().zip_eq(type_fields).zip_eq(fields)
                         {
                             let argument = argument.borrow().clone();
-                            self.define_pattern(pattern, typ, argument, location)?;
+                            self.define_pattern_inner(pattern, typ, argument, location, mutable)?;
                         }
                         Ok(())
                     }
@@ -544,7 +569,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                         let field = field.borrow();
                         let field_type = field.get_type().into_owned();
-                        self.define_pattern(field_pattern, &field_type, field.clone(), location)?;
+                        self.define_pattern_inner(
+                            field_pattern,
+                            &field_type,
+                            field.clone(),
+                            location,
+                            mutable,
+                        )?;
                     }
                     Ok(())
                 }
@@ -632,7 +663,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
         self.evaluation_depth += 1;
-        let result = match self.elaborator.interner.expression(&id) {
+
+        let expr = self.elaborator.interner.expression(&id);
+        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+            tracker.track_expression(&expr, self.elaborator.interner.expr_location(&id));
+        }
+        let result = match expr {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -697,6 +733,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
                     GlobalValue::Resolved(value) => {
+                        // Track the number of times a global was accessed during execution.
+                        // Globals are initialized during compilation; to track their initialization we have to add a tracker
+                        // before we try to interpret a specific call already. During interpretation the body is not revisited.
+                        if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
+                            tracker.track_location(global_info.location);
+                        }
+
                         // Enum variant globals with generics are instantiated with a Type::Forall
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {
@@ -787,7 +830,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
+            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }
@@ -1304,7 +1347,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
             }
-            HirStatement::Error => {
+            HirStatement::Error | HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
@@ -1533,7 +1576,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::Integer(Integer::U1(_)) => |i| Value::Integer(Integer::U1(i == 1)),
                 Value::Integer(Integer::U8(_)) => |i| Value::Integer(Integer::U8(i as u8)),
                 Value::Integer(Integer::U16(_)) => |i| Value::Integer(Integer::U16(i as u16)),
                 Value::Integer(Integer::U32(_)) => |i| Value::Integer(Integer::U32(i as u32)),
@@ -1793,9 +1835,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::i64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::Integer(Integer::U1(_)) => {
-                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" })
-            }
             Value::Integer(Integer::U8(_)) => {
                 Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" })
             }
@@ -1823,7 +1862,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::Integer(Integer::I16(value)) => Ok(Value::i16(!value)),
             Value::Integer(Integer::I32(value)) => Ok(Value::i32(!value)),
             Value::Integer(Integer::I64(value)) => Ok(Value::i64(!value)),
-            Value::Integer(Integer::U1(value)) => Ok(Value::u1(!value)),
             Value::Integer(Integer::U8(value)) => Ok(Value::u8(!value)),
             Value::Integer(Integer::U16(value)) => Ok(Value::u16(!value)),
             Value::Integer(Integer::U32(value)) => Ok(Value::u32(!value)),
@@ -1855,7 +1893,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::Integer(Integer::U1(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U8(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U16(value)) => Some(u128::from(value)),
         Value::Integer(Integer::U32(value)) => Some(u128::from(value)),
@@ -1887,7 +1924,8 @@ impl Context<'_, '_> {
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
         let location = func_meta.location;
-        let enabled_unstable_features = &self.required_unstable_features[&crate_id].clone();
+        let enabled_unstable_features =
+            &self.required_unstable_features.get(&crate_id).cloned().unwrap_or_default();
         let cli_options = ElaboratorOptions {
             debug_comptime_in_file: None,
 

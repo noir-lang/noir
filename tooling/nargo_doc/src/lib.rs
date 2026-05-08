@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
+use noirc_errors::call_stack::CallStack;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
 use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
@@ -110,7 +111,7 @@ impl From<&BrokenLink> for CustomDiagnostic {
             kind: DiagnosticKind::Warning,
             deprecated: false,
             unnecessary: false,
-            call_stack: vec![],
+            call_stack: CallStack::empty(),
         }
     }
 }
@@ -253,7 +254,8 @@ impl DocItemBuilder<'_> {
                 let trait_impls = vecmap(item_trait.trait_impls, |trait_impl| {
                     self.convert_trait_impl(trait_impl)
                 });
-                let parents = vecmap(&trait_.trait_bounds, |bound| self.convert_trait_bound(bound));
+                let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+                let parents = vecmap(&parent_bounds, |bound| self.convert_trait_bound(bound));
 
                 let mut associated_types = Vec::new();
                 let mut associated_constants = Vec::new();
@@ -459,7 +461,6 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Bool => Type::Primitive(PrimitiveTypeKind::Bool),
             noirc_frontend::Type::Integer(signedness, bit_size) => match signedness {
                 Signedness::Unsigned => match bit_size {
-                    IntegerBitSize::One => Type::Primitive(PrimitiveTypeKind::U1),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::U8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::U16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::U32),
@@ -467,7 +468,6 @@ impl DocItemBuilder<'_> {
                     IntegerBitSize::HundredTwentyEight => Type::Primitive(PrimitiveTypeKind::U128),
                 },
                 Signedness::Signed => match bit_size {
-                    IntegerBitSize::One => panic!("There is no signed 1-bit integer"),
                     IntegerBitSize::Eight => Type::Primitive(PrimitiveTypeKind::I8),
                     IntegerBitSize::Sixteen => Type::Primitive(PrimitiveTypeKind::I16),
                     IntegerBitSize::ThirtyTwo => Type::Primitive(PrimitiveTypeKind::I32),
@@ -507,7 +507,7 @@ impl DocItemBuilder<'_> {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
             },
-            noirc_frontend::Type::Array(length, element) => Type::Array {
+            noirc_frontend::Type::Array(element, length) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
@@ -883,7 +883,6 @@ pub(crate) fn convert_primitive_type(
     match primitive_type {
         noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
         noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
-        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
         noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
         noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
         noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,

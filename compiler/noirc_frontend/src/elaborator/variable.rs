@@ -23,7 +23,7 @@ use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
-use crate::{Kind, Type, TypeBindings, TypeVariable};
+use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
@@ -50,7 +50,8 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let from_macro_call = false;
+                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
@@ -140,7 +141,14 @@ impl Elaborator<'_> {
                         }
                     }
 
+                    // The alias's numeric expression has already been kind-checked at
+                    // alias-definition time (see `convert_expression_type`), which is
+                    // where any "value does not fit" diagnostic is emitted. Drop any
+                    // literals queued for the function-context fit check during
+                    // re-elaboration so the same overflow is not reported twice.
+                    let literals_before = self.integer_literal_expr_ids_len();
                     let (id, typ) = self.elaborate_expression(expr);
+                    self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
                     // Unify the expression's type with the declared type from the type alias
@@ -170,6 +178,8 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+            self.usage_tracker.mark_impl_function_as_used(func_id);
+
             // If there's a self type, bind it to the self type generic
             if let Some(self_generic) = self_generic {
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
@@ -190,14 +200,18 @@ impl Elaborator<'_> {
                 let func_meta = self.interner.function_meta(func_id);
                 let impl_generic_count =
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
-                let impl_generics = &func_meta.all_generics[..impl_generic_count];
+                let impl_generics =
+                    vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
+                let self_type = func_meta.self_type.clone();
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
                 // impl generics differs from the number of struct generics. The turbofish
                 // `S::<u32, bool>` provides type_generics aligned with the struct's params
-                // [A, B], not the impl's generics [B]. Use the impl's self_type to find
-                // the correct positional mapping from struct params to impl generics.
-                if let Some(Type::DataType(_, self_type_args)) = &func_meta.self_type {
+                // [A, B], not the impl's generics [B]. Replace each impl generic in
+                // `self_type`'s args with a fresh type variable and unify those with the
+                // turbofish-provided type generics. The fresh type variables get bound by
+                // unification, and we record those bindings for the impl generics.
+                if let Some(Type::DataType(_, self_type_args)) = self_type {
                     assert_eq!(
                         type_generics.len(),
                         self_type_args.len(),
@@ -205,41 +219,29 @@ impl Elaborator<'_> {
                         type_generics.len(),
                         self_type_args.len(),
                     );
-                    let mut concrete_mismatches = Vec::new();
+                    let impl_replacements: TypeBindings = impl_generics
+                        .iter()
+                        .map(|type_var| {
+                            let kind = type_var.kind();
+                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                            (type_var.id(), (type_var.clone(), kind, fresh))
+                        })
+                        .collect();
                     for (type_generic, self_type_arg) in
                         type_generics.into_iter().zip_eq(self_type_args)
                     {
-                        let type_var = match self_type_arg {
-                            Type::NamedGeneric(named) => Some(&named.type_var),
-                            Type::TypeVariable(tv) => Some(tv),
-                            _ => None,
-                        };
-                        if let Some(type_var) = type_var {
-                            if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
-                                bindings.insert(
-                                    type_var.id(),
-                                    (type_var.clone(), type_var.kind(), type_generic),
-                                );
-                            }
-                        } else {
-                            // Concrete position: collect for verification after releasing borrow
-                            concrete_mismatches.push((type_generic, self_type_arg.clone()));
-                        }
+                        let substituted = self_type_arg.substitute(&impl_replacements);
+                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
                     }
-                    // Verify turbofish types match the impl's concrete types
-                    for (turbofish_type, concrete_type) in concrete_mismatches {
-                        self.unify_or_type_mismatch(&turbofish_type, &concrete_type, location);
-                    }
+                    bindings.extend(impl_replacements);
                 } else if type_generics.len() <= impl_generics.len() {
                     // For trait function paths, impl_generics may include Self and associated
                     // type generics after the trait's declared generics. The turbofish only
                     // provides types for the declared generics, which are always the first
                     // elements. Slice to match.
                     let impl_generics = &impl_generics[..type_generics.len()];
-                    for (type_generic, func_generic) in
-                        type_generics.into_iter().zip_eq(impl_generics)
+                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
                     {
-                        let type_var = &func_generic.type_var;
                         bindings.insert(
                             type_var.id(),
                             (type_var.clone(), type_var.kind(), type_generic),
@@ -809,6 +811,26 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
+        // If the variable is a function whose meta hasn't been resolved yet, resolve
+        // it now. This handles forward references — a global's RHS may name a
+        // function whose meta would otherwise only be drained at end-of-elaboration.
+        if let DefinitionKind::Function(func_id) = definition.kind {
+            let item_name = definition.name.clone();
+            self.define_function_meta_if_undefined(func_id);
+
+            // If lazy resolution leaves the meta still unset, the function is currently
+            // mid-resolution and we have a dependency cycle (e.g. `global F = f();`
+            // combined with `fn f(_: [u8; F]) {}`).
+            if self.interner.try_function_meta(&func_id).is_none() {
+                self.push_err(ResolverError::DependencyCycle {
+                    location: ident.location,
+                    item: item_name,
+                    cycle: "the function signature hasn't been resolved yet".to_string(),
+                });
+                return Type::Error;
+            }
+        }
+
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type
@@ -816,11 +838,13 @@ impl Elaborator<'_> {
         let t = self.type_substitute_trait_as_type(&ident);
 
         let definition = self.interner.definition(ident.id);
-        let function_generic_count = match definition.kind {
+        let direct_generic_ids = match definition.kind {
             DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(&function).generic_count
+                vecmap(&self.interner.function_meta(&function).direct_generics, |generic| {
+                    generic.type_var.id()
+                })
             }
-            _ => 0,
+            _ => Vec::new(),
         };
 
         let location = self.interner.expr_location(expr_id);
@@ -829,7 +853,7 @@ impl Elaborator<'_> {
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, location);
+            self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
@@ -949,11 +973,12 @@ impl Elaborator<'_> {
         typ: Type,
         bindings: TypeBindings,
         turbofish_generics: Option<Vec<Type>>,
-        function_generic_count: usize,
+        direct_generic_ids: &[TypeVariableId],
         location: Location,
     ) -> (Type, TypeBindings) {
         match turbofish_generics {
             Some(turbofish_generics) => {
+                let function_generic_count = direct_generic_ids.len();
                 let forall_generic_count =
                     if let Type::Forall(generics, _) = &typ { generics.len() } else { 0 };
 
@@ -966,28 +991,22 @@ impl Elaborator<'_> {
                     self.push_err(CompilationError::TypeError(type_check_err));
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else if forall_generic_count < function_generic_count {
-                    // In the next branch, calling instantiate_with_bindings_and_turbofish asserts that
-                    // turbofish_generics.len() + implicit_generic_count == forall_generic_count,
-                    // but if we have less generics in forall than the the turbo fish than this will never hold.
-                    // This is the case when the function generics have duplicates, which are filtered out.
-                    // This means some duplicate error has already been reported, so there is no point trying.
+                    // The next branch asserts that the number of turbofish-bound typevars matches
+                    // `direct_generic_ids`, but if the forall has fewer generics than the function
+                    // (e.g. when the function's generics have duplicates that were filtered out)
+                    // this can never hold. A duplicate error has already been reported elsewhere,
+                    // so bail out silently.
                     self.push_err(TypeCheckError::expecting_other_error(
                         "forall has fewer generics than function",
                         location,
                     ));
                     (Type::Error, bindings)
                 } else {
-                    // Fetch the count of any implicit generics on the function, such as
-                    // for a method within a generic impl.
-                    let implicit_generic_count = forall_generic_count
-                        .checked_sub(function_generic_count)
-                        .expect("forall should have at least as many generics as the function");
-
                     typ.instantiate_with_bindings_and_turbofish(
                         bindings,
                         turbofish_generics,
                         self.interner,
-                        implicit_generic_count,
+                        direct_generic_ids,
                     )
                 }
             }

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(i: u32, cond: bool) -> pub u32 {
+    let arr: [u32; 3] = [10_u32, 20_u32, 30_u32];
+    let mut s: [u32] = arr.as_vector();
+    if cond {
+        let (s2, _): ([u32], u32) = s.remove(i);
+        s = s2;
+    };
+    s.len() as u32
+}

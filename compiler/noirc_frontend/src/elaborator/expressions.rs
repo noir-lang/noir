@@ -25,7 +25,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
-        resolution::errors::ResolverError,
+        resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -370,7 +370,7 @@ impl Elaborator<'_> {
                     "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
                 );
                 let len = Type::constant_u32(len);
-                (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
+                (Lit(HirLiteral::Str(str.into_bytes())), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
@@ -390,7 +390,6 @@ impl Elaborator<'_> {
             Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
             Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
-            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
             Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
             Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
@@ -465,7 +464,7 @@ impl Elaborator<'_> {
         let constructor = if is_array { HirLiteral::Array } else { HirLiteral::Vector };
         let elem_type = Box::new(elem_type);
         let typ = if is_array {
-            Type::Array(Box::new(length), elem_type)
+            Type::Array(elem_type, Box::new(length))
         } else {
             Type::Vector(elem_type)
         };
@@ -704,7 +703,7 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            Type::Array(ref size, ref base_type) => {
+            Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
             }
@@ -909,6 +908,8 @@ impl Elaborator<'_> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
+        self.usage_tracker.mark_impl_function_as_used(&func_id);
+
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
@@ -1067,7 +1068,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location, msg)), Type::Unit)
     }
 
     /// Elaborate a struct constructor.
@@ -1360,24 +1361,6 @@ impl Elaborator<'_> {
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
 
-        // `Field as u1` is not supported directly by the backend. Insert an intermediate
-        // cast to u8 to transform it into: `(Field as u8) as u1`.
-        let lhs_could_be_field = match lhs_type.follow_bindings() {
-            Type::FieldElement => true,
-            Type::TypeVariable(ref var) => var.is_integer_or_field(),
-            _ => false,
-        };
-        let lhs = if lhs_could_be_field
-            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
-        {
-            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            let cast_to_u8 =
-                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
-            self.interner.push_expr_full(cast_to_u8, location, u8_type)
-        } else {
-            lhs
-        };
-
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -1386,12 +1369,29 @@ impl Elaborator<'_> {
     fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
-        let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
-        let is_ord =
-            infix.operator.contents.is_comparator() && !infix.operator.contents.is_equality();
         let operator = HirBinaryOp::new(infix.operator, file);
+        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+    }
+
+    /// Complete infix elaboration given pre-elaborated operands.
+    ///
+    /// This is the shared core of [`Self::elaborate_infix`] and the op-assign desugaring in
+    /// [`Self::elaborate_assign_op`], which needs to supply an already-elaborated lhs to avoid
+    /// evaluating index sub-expressions twice.
+    pub(super) fn finish_infix(
+        &mut self,
+        lhs: ExprId,
+        lhs_type: Type,
+        operator: HirBinaryOp,
+        rhs: ExprId,
+        rhs_type: Type,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
+        let is_ord = operator.kind.is_comparator() && !operator.kind.is_equality();
+
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
@@ -1725,7 +1725,8 @@ impl Elaborator<'_> {
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
 
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let from_macro_call = false;
+        let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
@@ -1740,6 +1741,7 @@ impl Elaborator<'_> {
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
+        from_macro_call: bool,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
@@ -1756,14 +1758,19 @@ impl Elaborator<'_> {
 
         match value.into_expression(self, location) {
             Ok(new_expr) => {
-                // At this point the Expression was already elaborated and we got a Value.
+                // Unless the value to inline comes from a macro call (quoted content that is being unquoted),
+                // at this point the Expression was already elaborated and we got a Value.
                 // We'll elaborate this value turned into Expression to inline it and get
                 // an ExprId and Type, but we don't want any visibility errors to happen
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
-                self.silence_field_visibility_errors += 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors += 1;
+                }
                 let value = self.elaborate_expression(new_expr);
-                self.silence_field_visibility_errors -= 1;
+                if !from_macro_call {
+                    self.silence_field_visibility_errors -= 1;
+                }
                 value
             }
             Err(error) => make_error(self, error),
@@ -1849,7 +1856,8 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let from_macro_call = true;
+        let (expr_id, typ) = self.inline_comptime_value(result, location, from_macro_call);
         Some((self.interner.expression(&expr_id), typ))
     }
 
@@ -1899,7 +1907,23 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.intern_expr(HirExpression::Ident(ident.clone(), None), location);
+        let generics = if let Some(turbofish) = path.turbofish {
+            let definition_kind = self.interner.definition(definition).kind.clone();
+            if let DefinitionKind::Function(func_id) = definition_kind {
+                let ident_location = path.impl_item.location();
+                Some(self.use_type_args(turbofish, func_id, ident_location).0)
+            } else {
+                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("associated item `{}`", path.impl_item),
+                    location: path.impl_item.location(),
+                });
+                None
+            }
+        } else {
+            None
+        };
+
+        let id = self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), location);
 
         let mut bindings = TypeBindings::default();
 
@@ -1912,7 +1936,7 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(
             ident,
             &id,
-            None,
+            generics,
             bindings,
             push_required_type_variables,
         );

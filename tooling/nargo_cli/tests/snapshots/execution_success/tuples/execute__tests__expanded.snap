@@ -29,4 +29,8 @@ fn main(x: Field, y: Field) {
     assert(mutable.1 == 1_Field);
     assert(mutable.2 == 7_Field);
     assert(mutable.3 == 3_Field);
+    let mut (a, b): (Field, Field) = (1_Field, 2_Field);
+    b = b * 2_Field;
+    a = a + b;
+    assert(a == 5_Field);
 }

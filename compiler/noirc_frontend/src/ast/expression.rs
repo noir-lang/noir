@@ -99,7 +99,7 @@ impl IdentOrQuotedType {
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 #[error(
-    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers and fields"
 )]
 pub struct UnsupportedNumericGenericType {
     pub name: Option<String>,
@@ -828,7 +828,11 @@ impl Display for Lambda {
 
 impl Display for AsTraitPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)
+        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{turbofish}")?;
+        }
+        Ok(())
     }
 }
 

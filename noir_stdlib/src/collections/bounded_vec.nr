@@ -246,7 +246,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(57);
     /// assert(v.storage() == [57, 0, 0, 0, 0]);
     /// ```
-    pub fn storage(&self) -> [T; MaxLen] {
+    pub fn storage(self) -> [T; MaxLen] {
         self.storage
     }
 
@@ -324,9 +324,40 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[self.len + i] = vec.get_unchecked(i);
             }
         } else {
-            for i in 0..Len {
-                if i < append_len {
-                    self.storage[self.len + i] = vec.get_unchecked(i);
+            // The source vector can be longer than the destination, or vice versa;
+            // regardless we will only ever be able to read or write whichever is
+            // the shorter max length of the two. We asserted that the actual content fits,
+            // but the capacity of the source vector could be higher.
+            let max = crate::cmp::min(Len, MaxLen);
+
+            // Save the last item in case we have to do a fixup on an already full array.
+            let last = if MaxLen > 0 {
+                self.storage[MaxLen - 1]
+            } else {
+                crate::mem::zeroed()
+            };
+
+            for src in 0..max {
+                // Since we are iterating to the static capacity of the arrays,
+                // the destination could be out of bounds. If that's the case,
+                // overwrite the last item, which we'll fixup in the end.
+                // NB using cmp::min resulted in more opcodes here.
+                let mut dst = self.len + src;
+                if dst >= MaxLen { dst = MaxLen - 1; };
+                // Assigning the source or zeroed to avoid having to merge arrays in SSA.
+                self.storage[dst] = if src < append_len {
+                    vec.get_unchecked(src)
+                } else {
+                    last
+                }
+            }
+
+            // Fixup the last item if we have to.
+            if MaxLen > 0 {
+                self.storage[MaxLen - 1] = if (self.len + append_len == MaxLen) & (append_len > 0) {
+                    vec.get_unchecked(append_len - 1)
+                } else {
+                    last
                 }
             }
         }
@@ -429,8 +460,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                if i < self.len() {
-                    ret.storage[i] = f(self.get_unchecked(i));
+                ret.storage[i] = if i < self.len() {
+                    f(self.get_unchecked(i))
+                } else {
+                    crate::mem::zeroed()
                 }
             }
         }
@@ -460,8 +493,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                if i < self.len() {
-                    ret.storage[i] = f(i, self.get_unchecked(i));
+                ret.storage[i] = if i < self.len() {
+                    f(i, self.get_unchecked(i))
+                } else {
+                    crate::mem::zeroed()
                 }
             }
         }
@@ -1238,8 +1273,10 @@ mod bounded_vec_tests {
 
         #[test]
         fn extend_from_bounded_vec() {
+            // The source deliberately has a higher capacity,
+            // to make sure we are not trying to assign out-of-bounds.
             let mut vec1: BoundedVec<u32, 5> = BoundedVec::new();
-            let mut vec2: BoundedVec<u32, 3> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 9> = BoundedVec::new();
 
             vec1.push(1);
             vec2.push(2);
@@ -1251,6 +1288,94 @@ mod bounded_vec_tests {
             assert_eq(vec1.get(0), 1);
             assert_eq(vec1.get(1), 2);
             assert_eq(vec1.get(2), 3);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_limit() {
+            // Capacity and contents chosen so the last item must be assigned to.
+            let mut vec1: BoundedVec<u32, 2> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 5> = BoundedVec::new();
+
+            vec1.push(1);
+            vec2.push(2);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 2);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_full_and_empty() {
+            // Capacity and contents chosen so the last item must be assigned to.
+            let mut vec1: BoundedVec<u32, 2> = BoundedVec::new();
+            let vec2: BoundedVec<u32, 5> = BoundedVec::new();
+
+            vec1.push(1);
+            vec1.push(2);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 2);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_zero_len() {
+            let mut vec1: BoundedVec<u32, 0> = BoundedVec::new();
+            let vec2: BoundedVec<u32, 0> = BoundedVec::new();
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 0);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_last_zeroed() {
+            let mut vec1: BoundedVec<u32, 4> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 4> = BoundedVec::new();
+
+            vec1.push(1);
+            vec1.push(2);
+            vec2.push(3);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 3);
+            assert_eq(vec1.get_unchecked(3), 0);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_empty_self() {
+            // self.len == 0 with Len > MaxLen: the loop doesn't reach
+            // the last storage slot, so the fixup must write it.
+            let mut vec1: BoundedVec<u32, 3> = BoundedVec::new();
+            let vec2: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 3);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+            assert_eq(vec1.get(2), 3);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec_equal_capacity() {
+            // Len == MaxLen, fills to capacity.
+            let mut vec1: BoundedVec<u32, 4> = BoundedVec::new();
+            vec1.push(1);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_array([2, 3, 4]);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 4);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+            assert_eq(vec1.get(2), 3);
+            assert_eq(vec1.get(3), 4);
         }
 
         #[test(should_fail_with = "extend_from_array out of bounds")]

@@ -127,6 +127,16 @@ impl Monomorphizer<'_> {
         }
     }
 
+    fn modulus_bool_vector_literal(&self, bits: Vec<u8>, _location: Location) -> ast::Expression {
+        use ast::*;
+
+        let bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != 0)));
+
+        let typ = Type::Vector(Rc::new(Type::Bool));
+        let arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
+        Expression::Literal(Literal::Vector(arr_literal))
+    }
+
     fn modulus_vector_literal(
         &self,
         bytes: Vec<u8>,
@@ -136,6 +146,11 @@ impl Monomorphizer<'_> {
         use ast::*;
 
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
+        assert!(
+            arr_elem_bits.bit_size() >= 8,
+            "modulus_vector_literal: arr_elem_bits ({}) is too small to hold a u8 byte",
+            arr_elem_bits.bit_size()
+        );
 
         let bytes_as_expr = vecmap(bytes, |byte| {
             Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
@@ -172,7 +187,7 @@ impl Monomorphizer<'_> {
                 })
             }
             ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+                ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))
             }
             ast::Type::FmtString(length, fields) => {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);
@@ -319,7 +334,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_be_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_be(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_be_bytes(&self, location: Location) -> ast::Expression {
@@ -329,7 +344,7 @@ impl Monomorphizer<'_> {
 
     fn modulus_le_bits(&self, location: Location) -> ast::Expression {
         let bits = FieldElement::modulus().to_radix_le(2);
-        self.modulus_vector_literal(bits, IntegerBitSize::One, location)
+        self.modulus_bool_vector_literal(bits, location)
     }
 
     fn modulus_le_bytes(&self, location: Location) -> ast::Expression {

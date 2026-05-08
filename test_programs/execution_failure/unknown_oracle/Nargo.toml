@@ -1,0 +1,6 @@
+[package]
+name = "unknown_oracle"
+type = "bin"
+authors = [""]
+
+[dependencies]

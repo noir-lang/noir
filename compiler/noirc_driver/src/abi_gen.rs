@@ -75,7 +75,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)
@@ -234,7 +234,16 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 }
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
-            HirLiteral::Str(value) => AbiValue::String { value },
+            HirLiteral::Str(value) => match String::from_utf8(value) {
+                Ok(value) => AbiValue::String { value },
+                Err(error) => {
+                    let value = vecmap(error.into_bytes(), |byte| AbiValue::Integer {
+                        sign: false,
+                        value: format!("{byte:x}"),
+                    });
+                    AbiValue::Array { value }
+                }
+            },
             HirLiteral::Integer(value) => AbiValue::Integer { value: value.to_hex(), sign: false },
             _ => unreachable!("Literal cannot be used in the abi"),
         },

@@ -311,20 +311,20 @@ impl<'a> Context<'a> {
         }
 
         let outputs: Vec<AcirType> =
-            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
-        let unsafe_return_values = true;
+        let skip_output_range_checks = true;
         let output_values = self.acir_context.brillig_call(
             self.current_side_effects_enabled_var,
             &code,
             inputs,
             outputs,
-            unsafe_return_values,
+            skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
             None,
@@ -371,12 +371,12 @@ impl<'a> Context<'a> {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
-                    let len = if matches!(typ, Type::Array(_, _)) {
+                    let len = if matches!(*typ, Type::Array(_, _)) {
                         typ.flattened_size()
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {typ:?}"),
+                            found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
@@ -552,7 +552,7 @@ impl<'a> Context<'a> {
             Instruction::Noop => (),
         }
 
-        self.acir_context.set_call_stack(CallStack::new());
+        self.acir_context.set_call_stack(CallStack::empty());
         Ok(warnings)
     }
 
@@ -668,7 +668,7 @@ impl<'a> Context<'a> {
     /// `ssa_value_to_array_address` instead.
     fn convert_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> AcirValue {
         assert!(
-            !matches!(dfg.type_of_value(value_id), Type::Reference(_)),
+            !matches!(*dfg.type_of_value(value_id), Type::Reference(..)),
             "convert_value: did not expect a Reference type"
         );
 
@@ -813,13 +813,13 @@ impl<'a> Context<'a> {
         let lhs_type = dfg.type_of_value(binary.lhs);
         let rhs_type = dfg.type_of_value(binary.rhs);
 
-        match (lhs_type, rhs_type) {
+        match (&*lhs_type, &*rhs_type) {
             // Function type should not be possible, since all functions
             // have been inlined.
             (_, Type::Function) | (Type::Function, _) => {
                 unreachable!("all functions should be inlined")
             }
-            (_, Type::Reference(_)) | (Type::Reference(_), _) => {
+            (_, Type::Reference(..)) | (Type::Reference(..), _) => {
                 unreachable!("References are invalid in binary operations")
             }
             (_, Type::Array(..)) | (Type::Array(..), _) => {
@@ -832,7 +832,7 @@ impl<'a> Context<'a> {
             // the same.
             (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
                 assert_eq!(lhs_type, rhs_type, "lhs and rhs types in {binary:?} are not the same");
-                Type::Numeric(lhs_type)
+                Type::Numeric(*lhs_type)
             }
         }
     }
@@ -859,7 +859,7 @@ impl<'a> Context<'a> {
                     operator: BinaryOp::Sub { unchecked: true },
                     ..
                 }) = &dfg[*instruction]
-                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
                     unreachable!("Truncation of unchecked signed subtraction");
                 }
@@ -914,6 +914,7 @@ impl<'a> Context<'a> {
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -923,7 +924,7 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                 );
             }
             Opcode::MemoryOp { block_id, op } => {
-                if op.operation.is_one() {
+                if op.operation == MemOpKind::Write {
                     // Check that we have no writes to the type size arrays
                     let is_type_sizes_array =
                         context.element_type_sizes_blocks.values().any(|id| id == block_id);

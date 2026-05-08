@@ -33,6 +33,7 @@ fm.workspace = true
 itertools.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
+lcov = "0.8.2"
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole
 # workspace. A crate could opt out using `path` dependency,
@@ -72,19 +73,18 @@ const_format.workspace = true
 similar-asserts.workspace = true
 termcolor = "1.1.2"
 color-eyre.workspace = true
-tokio = { version = "1.0", features = ["io-std", "rt"] }
+tokio = { version = "1.52", features = ["io-std", "rt"] }
 dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
 
-notify = "6.1.1"
-notify-debouncer-full = "0.3.1"
+notify-debouncer-full = "0.7.0"
 termion = "4"
 
 # Logs
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tracing-appender = "0.2.3"
-clap_complete = "4.5.36"
+tracing-appender = "0.2.5"
+clap_complete = "4.6.3"
 fs2 = "0.4.3"
 
 [target.'cfg(not(unix))'.dependencies]

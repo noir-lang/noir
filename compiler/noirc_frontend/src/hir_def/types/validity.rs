@@ -145,7 +145,7 @@ impl Type {
                     }
                 }
 
-                Type::Array(length, element) => {
+                Type::Array(element, length) => {
                     if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
                         Some(InvalidType::Primitive(this.clone()))
                     } else {
@@ -287,7 +287,7 @@ impl Type {
             }
             }
 
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 length.non_inlined_function_input_validity_helper(type_recursion_context.clone().recur()).or_else(|| element.non_inlined_function_input_validity_helper(type_recursion_context.recur()))
             }
             Type::String(length) => length.non_inlined_function_input_validity_helper(type_recursion_context.recur()),
@@ -397,7 +397,7 @@ impl Type {
                 }
             }
 
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 length.is_valid_for_unconstrained_boundary_helper(
                     type_recursion_context.clone().recur(),
                 ) && element

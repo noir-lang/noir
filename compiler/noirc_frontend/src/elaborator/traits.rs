@@ -292,10 +292,17 @@ impl Elaborator<'_> {
                 self.interner.add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
             }
 
-            // TODO (https://github.com/noir-lang/noir/issues/10642):
-            // combine `where_clause` and `resolved_trait_bounds`
+            // Lower super-trait bounds (`trait Foo: Bar`) into where-clause constraints
+            // keyed on `Self`, so that parent bounds and explicit where-clause entries
+            // share a single representation on `Trait`.
+            let self_type =
+                self.self_type.clone().expect("Expected Self type to be set inside collect_traits");
+            let mut where_clause = where_clause;
+            for trait_bound in resolved_trait_bounds {
+                where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
+            }
+
             self.interner.update_trait(*trait_id, |trait_def| {
-                trait_def.set_trait_bounds(resolved_trait_bounds);
                 trait_def.set_where_clause(where_clause);
                 trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 trait_def.set_associated_type_bounds(associated_type_bounds);
@@ -600,7 +607,7 @@ impl Elaborator<'_> {
     /// associated types. This creates fresh type variables for the parent associated types
     /// so that `M::Key` syntax can be resolved via `self.trait_bounds`.
     ///
-    /// The parent trait bounds are obtained from `Trait.trait_bounds` (already resolved
+    /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
     /// during `collect_traits` with associated type variables) and instantiated via
     /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
     /// named (associated) types are then replaced with fresh per-function type variables
@@ -651,7 +658,7 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = self
             .interner
             .try_get_trait(trait_id)
-            .map(|t| t.trait_bounds.clone())
+            .map(|t| t.parent_bounds().cloned().collect())
             .unwrap_or_default();
 
         for parent_bound in &parent_bounds {
@@ -793,8 +800,10 @@ impl Elaborator<'_> {
         }
 
         // Also add assumed implementations for the parent traits, if any
-        if let Some(trait_bounds) =
-            self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
+        if let Some(trait_bounds) = self
+            .interner
+            .try_get_trait(trait_id)
+            .map(|the_trait| the_trait.parent_bounds().cloned().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
