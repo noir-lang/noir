@@ -72,9 +72,7 @@ impl Elaborator<'_> {
     /// impls are also prepared here so that `<Object as Trait>::Type` references
     /// inside any signature can be looked up during meta resolution.
     ///
-    /// The metas are not actually resolved here — they are resolved on demand
-    /// (the first time something reads the meta) or drained at the end of
-    /// elaboration via [Self::drain_unresolved_function_metas].
+    /// The metas are not actually resolved here — they are resolved on demand.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn register_function_metas(
         &mut self,

@@ -1477,8 +1477,8 @@ impl Elaborator<'_> {
     }
 
     /// Resolves a path of the form `Type::method` or `Type::<turbofish>::method`.
-    /// Lazy-aware wrapper around [NodeInterner::lookup_direct_method]. Resolves
-    /// each candidate's meta first so that the type-aware lookup (which reads
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_direct_method].
+    /// Resolves each candidate's meta first so that the type-aware lookup (which reads
     /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
     /// still-deferred meta.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1492,7 +1492,7 @@ impl Elaborator<'_> {
         self.interner.lookup_direct_method(typ, method_name, check_self_param)
     }
 
-    /// Lazy-aware wrapper around [NodeInterner::lookup_trait_methods].
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_trait_methods].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_trait_methods(
         &mut self,
@@ -1504,7 +1504,7 @@ impl Elaborator<'_> {
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
     }
 
-    /// Lazy-aware wrapper around [NodeInterner::lookup_generic_methods].
+    /// Lazy-aware wrapper around [crate::node_interner::NodeInterner::lookup_generic_methods].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_generic_methods(
         &mut self,
