@@ -30,6 +30,7 @@ use super::opcodes::BlockId;
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
 use brillig::Opcode as BrilligOpcode;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Inputs for the Brillig VM. These are the initial inputs
@@ -80,11 +81,15 @@ impl std::fmt::Display for BrilligOutputs {
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligFunctionId].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Debug, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct BrilligBytecode<F> {
     #[serde(default)] // For backwards compatibility
+    #[tag(0, default)]
     pub function_name: String,
+    #[tag(1)]
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 
