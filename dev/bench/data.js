@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778253700879,
+  "lastUpdate": 1778253862494,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23121,48 +23121,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d52888d57c7ce960d81b4ba1f996234211f1ba24",
-          "message": "fix: assert location is the entire assert (#12520)",
-          "timestamp": "2026-05-04T20:33:44Z",
-          "tree_id": "67a78a5f85657b624afd0be444f5b4ab6d9c2c95",
-          "url": "https://github.com/noir-lang/noir/commit/d52888d57c7ce960d81b4ba1f996234211f1ba24"
-        },
-        "date": 1777928283463,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169006,
-            "range": "± 626",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136493,
-            "range": "± 5654",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642192,
-            "range": "± 4228",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359941,
             "range": "± 4943",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd7093fe447d8d405a8b1fcb9fa684f83c105c0a",
+          "message": "fix(ssa): do not remove Brillig stores in DIE (#12594)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-05-08T14:52:38Z",
+          "tree_id": "fecd2a8d309ad88e015250fcc8767666a66d18ca",
+          "url": "https://github.com/noir-lang/noir/commit/fd7093fe447d8d405a8b1fcb9fa684f83c105c0a"
+        },
+        "date": 1778253792503,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 165943,
+            "range": "± 527",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137923,
+            "range": "± 1796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2122146,
+            "range": "± 2408",
             "unit": "ns/iter"
           }
         ]
