@@ -357,7 +357,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -382,9 +382,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
             .and_then(|ssa| {
-                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-                // that we don't know how to attribute to a concrete error with the Noir code.
-                ssa.dead_instruction_elimination_post_check();
+                // Sanity check at the end of the pipeline: ACIR should be free of memory ops
+                // (Load/Store/Allocate). Mem2reg + flatten_cfg own that; this asserts the
+                // invariant so a regression upstream surfaces here, not as a panic in a
+                // later pass that assumes the invariant.
+                #[cfg(debug_assertions)]
+                validation::validate_no_acir_memory_ops(&ssa);
                 ssa
             }),
     ]
