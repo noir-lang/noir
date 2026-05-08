@@ -230,7 +230,7 @@ where
         // this wrapper.
         let len = rmp::decode::read_array_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))?;
-        visitor.visit_seq(TaggedSeqAccess { parent: self, remaining: len as usize })
+        visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len as usize })
     }
 
     // TODO: same fix as `deserialize_seq` for fixed-length Rust tuples —
@@ -263,7 +263,7 @@ where
         // header, then yield each entry's key+value through the parent.
         let len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        visitor.visit_map(TaggedMapAccess { parent: self, remaining: len as usize })
+        visitor.visit_map(TaggedAccessViaParent { parent: self, remaining: len as usize })
     }
 
     // TODO: the load-bearing one. Read an int-keyed msgpack map, translate
@@ -317,20 +317,27 @@ where
     }
 }
 
-/// `SeqAccess` adapter for sequences (`Vec<T>`, `&[T]`, …) and — once
-/// `deserialize_tuple` lands — fixed-length tuples too. Yields `remaining`
-/// elements, decrementing on each `next_element_seed` call. The msgpack
-/// array header was already consumed in `deserialize_seq`, so each element
-/// just reads its own value bytes through the parent. Routing each call
-/// through `&mut *self.parent` keeps any nested tagged types recursing
-/// through the wrapper. Mirror of the serializer's
-/// `TaggedSerializeViaParent` on the `SerializeSeq` case.
-pub(crate) struct TaggedSeqAccess<'der, 'a, R: Read> {
+/// Shared access adapter routing each yielded value through the parent
+/// [`Deserializer`]. The msgpack length-prefixed header (array length for
+/// sequences, map length for maps) is consumed up front in the
+/// corresponding `deserialize_*` method before this adapter is built; from
+/// there each element/key/value just reads its own bytes through the
+/// parent, so any nested tagged values still see this wrapper's
+/// interception.
+///
+/// Used as `SeqAccess` (e.g. `Vec<T>`, `&[T]`) and `MapAccess` (e.g.
+/// `BTreeMap<K, V>`). Once `deserialize_tuple` lands, fixed-length Rust
+/// tuples will share the `SeqAccess` impl too. Mirror of the serializer's
+/// `TaggedSerializeViaParent`.
+pub(crate) struct TaggedAccessViaParent<'der, 'a, R: Read> {
     parent: &'der mut Deserializer<'a, R>,
     remaining: usize,
 }
 
-impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedSeqAccess<'der, 'a, R>
+/// Variable-length sequences and fixed-length tuples — both wire-encoded
+/// as msgpack arrays. `next_element_seed` decrements `remaining` and
+/// deserializes one element through the parent.
+impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedAccessViaParent<'der, 'a, R>
 where
     R: Read + Clone,
 {
@@ -352,19 +359,10 @@ where
     }
 }
 
-/// `MapAccess` adapter for free-form maps (`BTreeMap<K, V>` and friends).
-/// The msgpack map header was already consumed in `deserialize_map`. Each
-/// entry is a key+value pair: `next_key_seed` decrements `remaining` and
-/// deserializes the key through the parent; `next_value_seed` deserializes
-/// the value through the parent without decrementing (it's paired with
-/// the key that was just yielded). Routing through `&mut *self.parent`
-/// keeps any tagged keys/values recursing through the wrapper.
-pub(crate) struct TaggedMapAccess<'der, 'a, R: Read> {
-    parent: &'der mut Deserializer<'a, R>,
-    remaining: usize,
-}
-
-impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedMapAccess<'der, 'a, R>
+/// Free-form maps. `next_key_seed` decrements `remaining` and deserializes
+/// the key; `next_value_seed` deserializes the value without
+/// decrementing (it pairs with the just-yielded key).
+impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedAccessViaParent<'der, 'a, R>
 where
     R: Read + Clone,
 {
