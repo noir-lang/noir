@@ -44,10 +44,8 @@ pub(super) fn verify_signature(
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
-            "Signature provided for ECDSA verification is zero".to_string(),
-        ));
+        log::warn!("Signature provided for ECDSA verification is zero");
+        return Ok(false);
     };
 
     let point = Sec1Point::<k256::Secp256k1>::from_affine_coordinates(
@@ -59,10 +57,8 @@ pub(super) fn verify_signature(
     let pubkey = PublicKey::from_sec1_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
-            "Invalid public key provided for ECDSA verification".to_string(),
-        ));
+        log::warn!("Invalid public key provided for ECDSA verification");
+        return Ok(false);
     }
     let pubkey = pubkey.unwrap();
 
