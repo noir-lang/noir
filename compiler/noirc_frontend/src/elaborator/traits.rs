@@ -1151,9 +1151,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let trait_id = elaborator
-        .interner
-        .try_function_meta(&function)
-        .and_then(|m| m.trait_impl)
+        .function_meta(function)
+        .trait_impl
         .and_then(|impl_id| elaborator.interner.try_get_trait_implementation(impl_id))
         .map(|impl_| impl_.borrow().trait_id);
     if let Some(trait_id) = trait_id {
