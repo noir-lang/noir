@@ -405,6 +405,7 @@ struct PendingWhereClauseCheck {
     impl_method_func_id: FuncId,
     trait_id: TraitId,
     impl_id: TraitImplId,
+    module_id: LocalModuleId,
     trait_method_name: String,
     trait_impl_where_clause: Vec<TraitConstraint>,
     ordered_generics: Vec<Type>,

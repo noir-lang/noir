@@ -425,10 +425,12 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         impl_id: TraitImplId,
     ) {
+        let module_id = self.local_module.expect("local_module is set inside collect_trait_impl");
         self.pending_where_clause_checks.push(super::PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
             impl_id,
+            module_id,
             trait_method_name: trait_method.name.as_str().to_string(),
             trait_impl_where_clause: trait_impl_where_clause.to_vec(),
             ordered_generics: ordered_generics.to_vec(),
@@ -453,11 +455,13 @@ impl Elaborator<'_> {
             };
             let trait_method = trait_method.clone();
 
-            // `check_where_clause_against_trait` reads `self.self_type`. At
-            // queue time we were inside the trait impl's context; restore that
-            // here from the impl record.
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
+            let prev_local_module = self.local_module.replace(check.module_id);
+            let prev_current_trait_impl =
+                std::mem::replace(&mut self.current_trait_impl, Some(check.impl_id));
+            let prev_current_trait =
+                std::mem::replace(&mut self.current_trait, Some(check.trait_id));
             let prev_self_type = self.self_type.replace(impl_self_type);
 
             self.check_where_clause_against_trait(
@@ -469,6 +473,9 @@ impl Elaborator<'_> {
                 check.impl_id,
             );
 
+            self.local_module = prev_local_module;
+            self.current_trait_impl = prev_current_trait_impl;
+            self.current_trait = prev_current_trait;
             self.self_type = prev_self_type;
         }
     }
