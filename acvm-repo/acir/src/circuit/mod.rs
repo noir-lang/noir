@@ -675,11 +675,15 @@ mod tests {
             result.unwrap();
         }
 
+        /// Round-trip a `Program` through each `Format` variant chosen
+        /// arbitrarily. Uses `serialize_with_format` + `deserialize_any_format`
+        /// so the framing-byte dispatch is exercised too — picks the right
+        /// encoder/decoder pair per format under one test name.
         #[test]
-        fn prop_program_msgpack_roundtrip() {
-            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
-                let bz = msgpack_serialize(&program, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_program_arb_roundtrip() {
+            run_with_max_size_range(100, |(program, format): (Program<TestField>, Format)| {
+                let bz = serialize_with_format(&program, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -696,10 +700,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_stack_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessStack<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -716,10 +720,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_map_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_map_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessMap<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

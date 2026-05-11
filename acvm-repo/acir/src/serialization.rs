@@ -10,6 +10,7 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
 #[derive(Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub enum Format {
