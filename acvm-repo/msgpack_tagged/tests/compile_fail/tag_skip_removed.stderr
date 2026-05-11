@@ -1,5 +1,0 @@
-error: `#[tag(skip)]` was removed — use `#[serde(skip)]` on the field instead. serde-derive's `#[serde(skip)]` drops the field from the wire on both sides and is auto-recognized by this macro.
-  --> tests/compile_fail/tag_skip_removed.rs:11:11
-   |
-11 |     #[tag(skip)]
-   |           ^^^^

@@ -928,62 +928,20 @@ enum FieldKind {
     Skipped,
 }
 
-/// Inner-args grammar for `#[tag(...)]`:
-/// * `#[tag(N)]` — an integer tag literal.
-///
-/// Earlier forms `#[tag(skip)]` and `#[tag(N, default)]` were removed:
-/// both were redundant with serde-derive's `#[serde(skip)]` /
-/// `#[serde(default)]`, and `#[tag(skip)]` alone was actively unsafe —
-/// without a paired `#[serde(skip)]` the wrapper hits a runtime panic
-/// when serde-derive's `Serialize` calls `serialize_field` on the
-/// supposedly-skipped name. The parser surfaces both stale forms with a
-/// targeted redirect to the serde attribute.
+/// Inner-args grammar for `#[tag(...)]`: a single integer tag literal
+/// (`#[tag(N)]`). Wire-tolerance for missing tags and field-skipping are
+/// expressed via serde-derive's `#[serde(default)]` / `#[serde(skip)]`
+/// (the latter is auto-recognized as the canonical skip signal).
 struct TagArgs(u8);
 
 impl Parse for TagArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(LitInt) {
-            let lit: LitInt = input.parse()?;
-            let tag: u8 = lit.base10_parse()?;
-            // Nothing is recognized after the tag integer. The historical
-            // form `#[tag(N, default)]` gets a targeted redirect.
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>()?;
-                let trailing: Ident = input.parse()?;
-                if trailing == "default" {
-                    return Err(syn::Error::new(
-                        trailing.span(),
-                        "`#[tag(N, default)]` was removed — use `#[serde(default)]` \
-                         (or `#[serde(default = \"...\")]`) on the field instead. \
-                         serde-derive handles the missing-tag fallback at decode \
-                         time; this macro only records wire identity.",
-                    ));
-                }
-                return Err(syn::Error::new(
-                    trailing.span(),
-                    format!(
-                        "unexpected modifier `{trailing}` — `#[tag(...)]` accepts \
-                         a single integer tag literal",
-                    ),
-                ));
-            }
-            Ok(TagArgs(tag))
-        } else if lookahead.peek(Ident) {
-            let ident: Ident = input.parse()?;
-            if ident == "skip" {
-                Err(syn::Error::new(
-                    ident.span(),
-                    "`#[tag(skip)]` was removed — use `#[serde(skip)]` on the field \
-                     instead. serde-derive's `#[serde(skip)]` drops the field from \
-                     the wire on both sides and is auto-recognized by this macro.",
-                ))
-            } else {
-                Err(syn::Error::new(ident.span(), "expected an integer tag literal"))
-            }
-        } else {
-            Err(lookahead.error())
+        let lit: LitInt = input.parse()?;
+        let tag: u8 = lit.base10_parse()?;
+        if !input.is_empty() {
+            return Err(input.error("`#[tag(...)]` accepts a single integer tag literal"));
         }
+        Ok(TagArgs(tag))
     }
 }
 
