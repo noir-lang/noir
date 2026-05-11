@@ -162,6 +162,9 @@ pub struct NodeInterner {
     // Indexed by TraitImplIds
     pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
 
+    /// For each trait, the list of impls that implement it.
+    pub(crate) trait_implementations_by_trait_id: HashMap<TraitId, Vec<TraitImplId>>,
+
     next_trait_implementation_id: usize,
 
     /// The ordered generics and associated types for each trait impl.
@@ -500,6 +503,7 @@ impl Default for NodeInterner {
             trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
+            trait_implementations_by_trait_id: HashMap::default(),
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::default(),
             selected_trait_implementations: HashMap::default(),

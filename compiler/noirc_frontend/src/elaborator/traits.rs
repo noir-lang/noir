@@ -1097,17 +1097,19 @@ impl Elaborator<'_> {
             self.define_function_meta_if_undefined(func_id);
         }
 
+        let trait_impls = self.interner.trait_implementations_by_trait_id.get(&trait_id);
+        let Some(trait_impls) = trait_impls else {
+            return;
+        };
+
         // Resolve every trait impl method belonging to this trait.
-        let impl_func_ids: Vec<FuncId> = self
-            .interner
-            .trait_implementations()
-            .values()
-            .filter_map(|trait_impl| {
-                let trait_impl = trait_impl.borrow();
-                (trait_impl.trait_id == trait_id).then(|| trait_impl.methods.clone())
-            })
-            .flatten()
-            .collect();
+        let mut impl_func_ids: Vec<FuncId> = Vec::new();
+        for trait_impl_id in trait_impls {
+            let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            impl_func_ids.extend(&trait_impl.methods);
+        }
+
         for func_id in impl_func_ids {
             self.define_function_meta_if_undefined(func_id);
         }
