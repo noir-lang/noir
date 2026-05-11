@@ -1103,10 +1103,6 @@ struct VariantAttrs {
 /// across them.
 fn parse_tagged_variant_attrs(variant: &Variant) -> syn::Result<VariantAttrs> {
     let mut out = VariantAttrs::default();
-    let mut seen_reserved = false;
-    let mut seen_allow_unknown = false;
-    let mut seen_on_reserved = false;
-    let mut seen_on_unknown = false;
 
     for attr in &variant.attrs {
         if !attr.path().is_ident("tagged") {
@@ -1118,19 +1114,11 @@ fn parse_tagged_variant_attrs(variant: &Variant) -> syn::Result<VariantAttrs> {
             if let Meta::List(list) = &item
                 && list.path.is_ident("reserved")
             {
-                if seen_reserved {
-                    return Err(syn::Error::new_spanned(
-                        list,
-                        "duplicate `reserved(...)` modifier in `#[tagged(...)]`",
-                    ));
-                }
-                seen_reserved = true;
                 let lits: Punctuated<LitInt, Token![,]> =
                     list.parse_args_with(Punctuated::parse_terminated)?;
-                let mut seen_dup = std::collections::HashSet::new();
                 for lit in &lits {
                     let n: u8 = lit.base10_parse()?;
-                    if !seen_dup.insert(n) {
+                    if out.reserved.contains(&n) {
                         return Err(syn::Error::new_spanned(
                             lit,
                             format!("tag {n} listed more than once in `reserved(...)`"),
@@ -1143,39 +1131,36 @@ fn parse_tagged_variant_attrs(variant: &Variant) -> syn::Result<VariantAttrs> {
             if let Meta::Path(path) = &item
                 && path.is_ident("allow_unknown_tags")
             {
-                if seen_allow_unknown {
+                if out.allow_unknown_tags {
                     return Err(syn::Error::new_spanned(
                         path,
                         "duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_allow_unknown = true;
                 out.allow_unknown_tags = true;
                 continue;
             }
             if let Meta::Path(path) = &item
                 && path.is_ident("on_reserved")
             {
-                if seen_on_reserved {
+                if out.on_reserved {
                     return Err(syn::Error::new_spanned(
                         path,
                         "duplicate `on_reserved` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_on_reserved = true;
                 out.on_reserved = true;
                 continue;
             }
             if let Meta::Path(path) = &item
                 && path.is_ident("on_unknown")
             {
-                if seen_on_unknown {
+                if out.on_unknown {
                     return Err(syn::Error::new_spanned(
                         path,
                         "duplicate `on_unknown` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_on_unknown = true;
                 out.on_unknown = true;
                 continue;
             }
@@ -1235,9 +1220,6 @@ struct TypeAttrs {
 ///   bound on a self-recursive field like `Vec<(Other, Self)>`.
 fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     let mut out = TypeAttrs::default();
-    let mut seen_reserved = false;
-    let mut seen_allow_unknown_tags = false;
-    let mut seen_via = false;
 
     for attr in &input.attrs {
         if !attr.path().is_ident("tagged") {
@@ -1249,19 +1231,11 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
             if let Meta::List(list) = &item
                 && list.path.is_ident("reserved")
             {
-                if seen_reserved {
-                    return Err(syn::Error::new_spanned(
-                        list,
-                        "duplicate `reserved(...)` modifier in `#[tagged(...)]`",
-                    ));
-                }
-                seen_reserved = true;
                 let lits: Punctuated<LitInt, Token![,]> =
                     list.parse_args_with(Punctuated::parse_terminated)?;
-                let mut seen_dup = std::collections::HashSet::new();
                 for lit in &lits {
                     let n: u8 = lit.base10_parse()?;
-                    if !seen_dup.insert(n) {
+                    if out.reserved.contains(&n) {
                         return Err(syn::Error::new_spanned(
                             lit,
                             format!("tag {n} listed more than once in `reserved(...)`"),
@@ -1274,26 +1248,24 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
             if let Meta::Path(path) = &item
                 && path.is_ident("allow_unknown_tags")
             {
-                if seen_allow_unknown_tags {
+                if out.allow_unknown_tags {
                     return Err(syn::Error::new_spanned(
                         path,
                         "duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_allow_unknown_tags = true;
                 out.allow_unknown_tags = true;
                 continue;
             }
             if let Meta::List(list) = &item
                 && list.path.is_ident("via")
             {
-                if seen_via {
+                if out.via.is_some() {
                     return Err(syn::Error::new_spanned(
                         list,
                         "duplicate `via(...)` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_via = true;
                 out.via = Some(list.parse_args::<Type>()?);
                 continue;
             }
@@ -1338,14 +1310,14 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     // `via` is wire-format-agnostic delegation — the wire DTO carries every
     // wire-format property, the public type carries none.
     if out.via.is_some() {
-        if seen_reserved {
+        if !out.reserved.is_empty() {
             return Err(syn::Error::new_spanned(
                 input,
                 "`#[tagged(via(...))]` is incompatible with `reserved(...)` — \
                  the reserved-tag list belongs on the wire DTO, not on the public type",
             ));
         }
-        if seen_allow_unknown_tags {
+        if out.allow_unknown_tags {
             return Err(syn::Error::new_spanned(
                 input,
                 "`#[tagged(via(...))]` is incompatible with `allow_unknown_tags` — \

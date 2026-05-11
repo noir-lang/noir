@@ -159,6 +159,21 @@ enum WithReservedVariants {
     Fourth,
 }
 
+/// Multiple `#[tagged(reserved(...))]` attributes accumulate. Lets a
+/// developer add a retirement as a fresh line rather than editing an
+/// existing list — friendlier to git history. Duplicate numbers across
+/// any combination of attributes are still rejected (see the
+/// `duplicate_reserved` compile-fail fixture).
+#[derive(MsgpackTagged)]
+#[tagged(reserved(1, 2))]
+#[tagged(reserved(5))]
+enum WithAccumulatedReserved {
+    #[tag(0)]
+    First,
+    #[tag(3)]
+    Fourth,
+}
+
 /// Enum opting into reserved-tag fallback via a `#[tagged(on_reserved)]`
 /// unit variant — encountering a reserved variant tag on decode routes
 /// here instead of erroring. The marker itself is the opt-in; no separate
@@ -802,6 +817,14 @@ fn enum_reserved_tags_appear_in_const_and_registry() {
     assert!(s.is_reserved(2));
     assert!(!s.is_reserved(0));
     assert!(!s.is_reserved(3));
+}
+
+/// Multiple `#[tagged(reserved(...))]` attributes on the same enum merge
+/// into a single deduped list — fits the natural "each retirement is a
+/// fresh line" usage pattern.
+#[test]
+fn reserved_tags_accumulate_across_attributes() {
+    assert_eq!(sum_of::<WithAccumulatedReserved>().reserved, &[1, 2, 5]);
 }
 
 /// Named-variant payloads pick up `#[tag(N)]` annotations on every field —
