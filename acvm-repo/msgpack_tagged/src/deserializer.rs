@@ -35,9 +35,6 @@
 //!   the catch-all exists when either flag is set. Note: the registry
 //!   still carries `Sum.default_on_reserved` / `default_on_unknown` from
 //!   an earlier design — those fields go away when this lands.
-//! - **`#[tagged(allow_unknown_tags)]` on variant payloads.** Mirrors
-//!   the struct case for tuple/struct variant payloads. Currently a
-//!   wire-length overflow on a tuple-variant payload is a hard error.
 //! - **`deserialize_any`.** Niche today (none of our ACIR types are
 //!   decoded via self-describing visitors), but nested tagged values
 //!   reached through `serde_json::Value`-style consumers wouldn't
@@ -763,16 +760,11 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
         let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
-        // TODO: gate this overflow check on the variant payload's
-        // `allow_unknown_tags` once the macro accepts the attribute on
-        // variants (mirrors the struct case in `deserialize_tuple_struct`).
-        // When opted in, extra trailing entries should be buffered alongside
-        // the known ones — `TaggedTupleStructAccess` already discards
-        // entries whose tag isn't in the product.
-        if wire_len > len {
+        if wire_len > len && !self.variant.payload.allow_unknown_tags {
             return Err(RmpError::custom(format!(
                 "tuple variant {:?}: wire has {wire_len} entries but the variant \
-                 expects only {len}",
+                 expects only {len}; opt into `#[tagged(allow_unknown_tags)]` to \
+                 silently skip extras",
                 self.variant.name,
             )));
         }

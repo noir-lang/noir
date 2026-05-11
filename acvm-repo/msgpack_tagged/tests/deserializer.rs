@@ -825,3 +825,34 @@ mod v2_to_v1_tuple_extra_without_allow_unknown {
         assert!(msg.contains("wire has 3 entries") && msg.contains("expects only 2"), "got: {msg}");
     }
 }
+
+/// V2 → V1: V2 extends a tuple *variant*'s payload with a new trailing
+/// element. V1's variant carries `#[tagged(allow_unknown_tags)]`, so the
+/// extra wire entry is buffered and silently discarded — mirror of
+/// `v2_to_v1_tuple_extra_with_allow_unknown` but for the enum-variant path.
+mod v2_to_v1_tuple_variant_extra_with_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        #[tagged(allow_unknown_tags)]
+        Carry(#[tag(0)] u32, #[tag(1)] bool),
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8),
+    }
+
+    #[test]
+    fn extra_payload_position_skipped_when_allowed() {
+        let v2 = FooV2::Carry(7, true, 42);
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
+        assert_eq!(v1, FooV1::Carry(7, true));
+    }
+}
