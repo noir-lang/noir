@@ -1074,13 +1074,15 @@ impl Elaborator<'_> {
             let (typ, trait_constraints, direct_generics) =
                 self.build_trait_function_type_bits(func_id);
             self.interner.update_trait(trait_id, |trait_def| {
-                if let Some(method) =
+                let Some(method) =
                     trait_def.methods.iter_mut().find(|m| m.name.as_str() == name.as_str())
-                {
-                    method.typ = typ;
-                    method.trait_constraints = trait_constraints;
-                    method.direct_generics = direct_generics;
-                }
+                else {
+                    panic!("Trait method {name} should exist no the trait it was registered for");
+                };
+
+                method.typ = typ;
+                method.trait_constraints = trait_constraints;
+                method.direct_generics = direct_generics;
             });
         }
     }
