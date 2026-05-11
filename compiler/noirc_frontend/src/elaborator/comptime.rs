@@ -149,10 +149,6 @@ impl<'context> Elaborator<'context> {
 
         elaborator.local_module = self.local_module;
         elaborator.parent_runtime_variables = parent_runtime_variables;
-        // Hand the parent's deferred function metas to the child so that any
-        // function referenced from comptime code can still be lazily resolved.
-        // Without this, the child's empty map causes those references to look
-        // like dependency cycles. We move the map back at the end.
         elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
 
         setup(&mut elaborator);
