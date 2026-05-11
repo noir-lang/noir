@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::UnresolvedGenerics,
+    ast::{Ident, UnresolvedGenerics},
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -395,7 +395,7 @@ struct PendingTraitWork {
     /// post-attribute drain, since the records are filled with stub types up-front so
     /// `collect_trait_impl` can do name-based matching while the real signatures are
     /// still pending. Each entry is `(trait_id, func_id, name)`.
-    records: Vec<(TraitId, FuncId, crate::ast::Ident)>,
+    records: Vec<(TraitId, FuncId, Ident)>,
 
     /// Trait method declarations without a body whose signature still needs the
     /// `elaborate_function` step run after their meta is defined. We can't run it at
