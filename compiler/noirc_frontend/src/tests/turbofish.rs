@@ -1072,3 +1072,21 @@ fn struct_turbofish_matching_struct_type_alias() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+    let src = r#"
+    struct S<A> {}
+
+    type Alias = S<u32>;
+
+    impl Alias {
+        fn foo() {}
+    }
+
+    fn main() {
+        Alias::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
