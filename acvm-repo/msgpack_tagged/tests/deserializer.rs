@@ -819,7 +819,35 @@ mod v2_to_v1_tuple_extra_without_allow_unknown {
         let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
-        assert!(msg.contains("wire has 3 entries") && msg.contains("expects only 2"), "got: {msg}");
+        assert!(
+            msg.contains("unknown wire tag 2") && msg.contains("`allow_unknown_tags` is false"),
+            "got: {msg}",
+        );
+    }
+}
+
+/// V1 → V2: V2 retires a tuple position by adding its tag to `reserved(...)`
+/// and dropping the field. The wire is longer than V2's arity but the excess
+/// entry's tag is reserved, so V2 silently skips it on decode — parallel
+/// to the named-struct `v1_to_v2_remove_field_with_reserved` case.
+mod v1_to_v2_tuple_remove_field_with_reserved {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8);
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(1))]
+    struct FooV2(#[tag(0)] u32, #[tag(2)] u8);
+
+    #[test]
+    fn skip_retired_tuple_tag_on_decode() {
+        let v1 = FooV1(7, true, 42);
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2(7, 42));
     }
 }
 

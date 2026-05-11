@@ -266,7 +266,11 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
     fn deserialize_tuple_struct<V: Visitor<'de>>(
         self,
         name: &'static str,
-        len: usize,
+        // Unused: per-position dispatch is driven by `TaggedTupleStructAccess`
+        // (which knows the arity via the visitor itself), and the formerly
+        // upfront `wire_len > len` check is gone — see the tag-validity loop
+        // below for the new check.
+        _len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         // Top-level tuple structs (`struct Pair(u32, bool)`) are encoded
@@ -282,26 +286,12 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
-        // Length-mismatch policy:
-        //   * `wire_len < len` is allowed — the missing trailing positions
-        //     are reported to the visitor as `Ok(None)` in `next_element_seed`,
-        //     and serde-derive's `#[serde(default)]` (which it requires on
-        //     all positions past the first defaulted one) fills them in. A
-        //     wire missing a *required* position will still error at the
-        //     visitor with `invalid length`.
-        //   * `wire_len > len` is only accepted when the type opts into
-        //     `#[tagged(allow_unknown_tags)]`; the trailing wire entries
-        //     are simply never queried by the visitor and get discarded.
-        if wire_len > len && !product.allow_unknown_tags {
-            return Err(RmpError::custom(format!(
-                "tuple-struct {name:?}: wire has {wire_len} entries but the type \
-                 expects only {len}; opt into `#[tagged(allow_unknown_tags)]` to \
-                 silently skip extras",
-            )));
-        }
 
-        // Buffer each wire entry's `(tag, value-bytes)`. The slice trick:
-        // snapshot the inner reader's `&[u8]` before and after reading
+        // Buffer each wire entry's `(tag, value-bytes)` first, *then* validate
+        // each tag. We can't reject on `wire_len > len` upfront because the
+        // excess might be retired tags (in `product.reserved`) which we want
+        // to silently skip — parallel to the named-struct path. The slice
+        // trick: snapshot the inner reader's `&[u8]` before and after reading
         // exactly one msgpack value (via `IgnoredAny`, which walks any
         // shape) — the diff is the value's byte range.
         let mut entries: SmallVec<[(u8, &'de [u8]); 4]> = SmallVec::with_capacity(wire_len);
@@ -312,6 +302,26 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
             let after: &'de [u8] = self.inner.get_mut();
             let consumed = before.len() - after.len();
             entries.push((tag, &before[..consumed]));
+        }
+
+        // Tag-validity policy (after buffering):
+        //   * Tag is in `product.fields` (active position) — fine.
+        //   * Tag is in `product.reserved` (retired position) — fine, the
+        //     visitor will simply never query it.
+        //   * Otherwise — only fine if `#[tagged(allow_unknown_tags)]` is
+        //     set.
+        // `wire_len < len` (short wire) is still allowed — missing trailing
+        // positions are reported as `Ok(None)` to the visitor, which
+        // serde-derive's `#[serde(default)]` machinery fills in.
+        if !product.allow_unknown_tags {
+            for (tag, _) in &entries {
+                if product.field_for(*tag).is_none() && !product.is_reserved(*tag) {
+                    return Err(RmpError::custom(format!(
+                        "MsgpackTagged: unknown wire tag {tag} for tuple-struct {name:?} \
+                         and `allow_unknown_tags` is false",
+                    )));
+                }
+            }
         }
 
         visitor.visit_seq(TaggedTupleStructAccess {
