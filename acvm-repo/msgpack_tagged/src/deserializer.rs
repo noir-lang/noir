@@ -11,8 +11,6 @@
 //! the registry up front via `T::register_into` and runs the bytes through
 //! the wrapper.
 
-use std::io::Read;
-
 use rmp::Marker;
 use rmp_serde::Deserializer as RmpDeserializer;
 use rmp_serde::decode::ReadReader;
@@ -20,6 +18,7 @@ use rmp_serde::decode::ReadReader;
 // pulled in via `use`; importing the `de` module instead lets us write
 // `de::Deserializer` for the trait at the few sites that need it.
 use serde::de::{self, Deserialize, DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
+use smallvec::SmallVec;
 
 use crate::{MsgpackTagged, TagRegistry};
 
@@ -32,16 +31,18 @@ type RmpError = rmp_serde::decode::Error;
 /// Constructed internally by [`msgpack_tagged_deserialize`]; not part of the
 /// public API yet — once strategy customization lands the builder will
 /// expose it (mirroring the serializer's plan).
-/// `R` is the underlying byte source — typically `&'de [u8]`. We hold the
-/// inner deserializer as `RmpDeserializer<ReadReader<R>>` (the shape that
-/// `RmpDeserializer::new` constructs) rather than as a generic
-/// `RmpDeserializer<R>` so we can reach the underlying reader via
-/// `inner.get_mut()`. That accessor is only defined on the
-/// `Deserializer<ReadReader<_>, _>` flavor, and we need it for `Option`'s
-/// peek-via-rewind dance.
-pub(crate) struct Deserializer<'a, R: Read> {
-    inner: RmpDeserializer<ReadReader<R>>,
-    #[allow(dead_code)] // wired up as each shape's interception lands.
+///
+/// The inner reader is fixed to `&'de [u8]` (wrapped in rmp_serde's
+/// `ReadReader`, the shape `RmpDeserializer::new` constructs). We don't
+/// keep the reader generic because two interception paths need to grab a
+/// snapshot of the unread byte slice — `deserialize_option`'s peek-via-
+/// rewind dance and `deserialize_tuple_struct`'s buffer-by-tag — and
+/// those slice tricks only work when the reader exposes the underlying
+/// `&[u8]` directly. The public entry function only ever constructs the
+/// `&[u8]` shape, so this isn't a real loss of generality; if/when a
+/// `from_read` variant lands, that's a separate type.
+pub(crate) struct Deserializer<'a, 'de> {
+    inner: RmpDeserializer<ReadReader<&'de [u8]>>,
     registry: &'a TagRegistry,
 }
 
@@ -70,14 +71,7 @@ where
 // `TODO:` comment at its body.
 // ============================================================================
 
-impl<'de, 'a, 'der, R> de::Deserializer<'de> for &'der mut Deserializer<'a, R>
-where
-    // `R: Read` gives us `ReadReader<R>: ReadSlice<'de>` (rmp_serde's blanket
-    // impl), which is what the inner `RmpDeserializer<ReadReader<R>>: Deserializer<'de>`
-    // bound resolves to. `R: Clone` is the cost of admission for
-    // `deserialize_option`'s peek-via-rewind dance.
-    R: Read + Clone,
-{
+impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
     type Error = RmpError;
 
     // TODO: when used with self-describing visitors (e.g. `serde_json::Value`,
@@ -162,7 +156,7 @@ where
         // `R: Clone` is the cost of admission for that restore. For the
         // `&[u8]`-shaped readers that the public entry function constructs
         // it's a trivial slice-handle copy.
-        let reader_state_before = self.inner.get_mut().clone();
+        let reader_state_before: &'de [u8] = self.inner.get_mut();
         let marker = rmp::decode::read_marker(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack marker: {e:?}")))?;
         if matches!(marker, Marker::Null) {
@@ -263,30 +257,44 @@ where
         // Top-level tuple structs (`struct Pair(u32, bool)`) are encoded
         // as int-keyed maps on the wire — same shape as named structs —
         // but the `Deserialize` impl calls `next_element_seed` (positional)
-        // instead of `next_key_seed` (by name). We hand the visitor a
-        // SeqAccess that, per element, reads the wire entry's integer tag
-        // and discards it, then deserializes the value through the parent.
-        //
-        // The tag-discarding here is a *stopgap*, not the intended end
-        // state — see `TaggedTupleStructAccess`'s doc for the design-doc
-        // divergence. It works only because the current `Serializer`
-        // also emits entries in source-declaration order; if either side
-        // is fixed to honor tag-ascending wire order, the other must
-        // follow in lockstep.
-        //
-        // Calling `product_for` for the side effect of asserting that the
-        // type is registered (matches what `serialize_tuple_struct` does):
-        // a registry miss here is a hard bug, not a partial decode.
-        let _product = self.product_for(name);
+        // instead of `next_key_seed` (by name). We buffer every wire entry
+        // as a `(tag, value-bytes)` pair upfront, then dispatch by tag in
+        // `next_element_seed` via `Product.tag_for("0")`,
+        // `tag_for("1")`, … so reconstruction is robust to whatever order
+        // the serializer emits entries in.
+        // See `TaggedTupleStructAccess`'s doc for the why.
+        let product = self.product_for(name);
         let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        if wire_len as usize != len {
+        let wire_len = wire_len as usize;
+        if wire_len != len {
             return Err(RmpError::custom(format!(
                 "tuple-struct {name:?} length mismatch: type expects {len} elements, \
                  wire has {wire_len}",
             )));
         }
-        visitor.visit_seq(TaggedTupleStructAccess { parent: self, remaining: len })
+
+        // Buffer each wire entry's `(tag, value-bytes)`. The slice trick:
+        // snapshot the inner reader's `&[u8]` before and after reading
+        // exactly one msgpack value (via `IgnoredAny`, which walks any
+        // shape) — the diff is the value's byte range.
+        let mut entries: SmallVec<[(u8, &'de [u8]); 4]> = SmallVec::with_capacity(wire_len);
+        for _ in 0..wire_len {
+            let tag: u8 = u8::deserialize(&mut *self)?;
+            let before: &'de [u8] = self.inner.get_mut();
+            de::IgnoredAny::deserialize(&mut *self)?;
+            let after: &'de [u8] = self.inner.get_mut();
+            let consumed = before.len() - after.len();
+            entries.push((tag, &before[..consumed]));
+        }
+
+        visitor.visit_seq(TaggedTupleStructAccess {
+            parent: self,
+            product,
+            type_name: name,
+            entries,
+            next_position: 0,
+        })
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -357,7 +365,7 @@ where
     }
 }
 
-impl<'a, R: Read> Deserializer<'a, R> {
+impl<'a, 'de> Deserializer<'a, 'de> {
     /// Resolve a registered `Product` by serde name. Used by
     /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
     /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -391,18 +399,15 @@ impl<'a, R: Read> Deserializer<'a, R> {
 /// `BTreeMap<K, V>`). Once `deserialize_tuple` lands, fixed-length Rust
 /// tuples will share the `SeqAccess` impl too. Mirror of the serializer's
 /// `TaggedSerializeViaParent`.
-pub(crate) struct TaggedAccessViaParent<'der, 'a, R: Read> {
-    parent: &'der mut Deserializer<'a, R>,
+pub(crate) struct TaggedAccessViaParent<'der, 'a, 'de> {
+    parent: &'der mut Deserializer<'a, 'de>,
     remaining: usize,
 }
 
 /// Variable-length sequences and fixed-length tuples — both wire-encoded
 /// as msgpack arrays. `next_element_seed` decrements `remaining` and
 /// deserializes one element through the parent.
-impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedAccessViaParent<'der, 'a, R>
-where
-    R: Read + Clone,
-{
+impl<'de, 'der, 'a> SeqAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
     type Error = RmpError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -424,10 +429,7 @@ where
 /// Free-form maps. `next_key_seed` decrements `remaining` and deserializes
 /// the key; `next_value_seed` deserializes the value without
 /// decrementing (it pairs with the just-yielded key).
-impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedAccessViaParent<'der, 'a, R>
-where
-    R: Read + Clone,
-{
+impl<'de, 'der, 'a> MapAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
     type Error = RmpError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -463,18 +465,15 @@ where
 /// Mirror of the serializer's `TaggedSerializeProduct` on the
 /// `SerializeStruct` case — same `(int_tag, value)` map shape, just
 /// driving the translation in the other direction.
-pub(crate) struct TaggedProductMapAccess<'der, 'a, R: Read> {
-    parent: &'der mut Deserializer<'a, R>,
+pub(crate) struct TaggedProductMapAccess<'der, 'a, 'de> {
+    parent: &'der mut Deserializer<'a, 'de>,
     product: crate::Product,
     /// Type name; only used for clearer error messages on unknown tags.
     type_name: &'static str,
     remaining: usize,
 }
 
-impl<'de, 'der, 'a, R> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, R>
-where
-    R: Read + Clone,
-{
+impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
     type Error = RmpError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -522,50 +521,90 @@ where
 }
 
 /// `SeqAccess` adapter for top-level tuple structs (multi-element
-/// `struct Pair(u32, bool)` shapes). Each wire entry is an `(int_tag,
-/// value)` pair: we read the tag, discard it, then decode the value
-/// through the parent so any nested tagged types recurse.
+/// `struct Pair(u32, bool)` shapes). Decoded by tag, not by wire order:
+/// every wire entry is buffered as `(tag, value-bytes)` upfront, and on
+/// each `next_element_seed` we look up the tag corresponding to the
+/// current source position via `Product.tag_for("0")`, `tag_for("1")`,
+/// … and re-deserialize the matching entry's bytes through a freshly
+/// constructed sub-wrapper (so any nested tagged types still see this
+/// wrapper's interception).
 ///
-/// **Note — divergence from the design doc.** The wire format is
-/// supposed to emit entries in *tag-ascending* order so that two
-/// semantically-equal values encode to byte-identical output regardless
-/// of how the user laid out the fields in source. The current
-/// `Serializer` instead emits in serde's call-order = source-declaration
-/// order (a known follow-up flagged in `serializer.rs` and the README's
-/// determinism section). This deserializer matches that current
-/// serializer behavior exactly: it reads positionally, treating
-/// wire-position N as source-position N regardless of the tag value.
-/// That is *not* the intended end state — tag-discarding is a stopgap,
-/// not a deliberate "source order is canonical" decision. When the
-/// serializer is fixed to emit tag-ascending, this adapter must be
-/// updated in lockstep to dispatch values by tag (using the registered
-/// `Product`'s `field_for(tag)` to recover the source position) rather
-/// than by wire arrival order.
-pub(crate) struct TaggedTupleStructAccess<'der, 'a, R: Read> {
-    parent: &'der mut Deserializer<'a, R>,
-    remaining: usize,
+/// This is what makes the deserializer robust to wire-order changes on
+/// the serializer side: if the serializer is fixed to emit tag-ascending
+/// (matching the design doc) — or some other order — we don't need to
+/// touch this code, because we route by tag.
+///
+/// **Buffering.** `value-bytes` is captured by snapshotting the inner
+/// reader's `&[u8]` before and after each `IgnoredAny::deserialize` walk
+/// (which advances exactly one msgpack value worth of bytes). Slicing
+/// the diff out of the original buffer gives us the exact byte range
+/// for that one value. The captured slice is `&'de [u8]` — same
+/// underlying buffer, no copy.
+///
+/// **Inline capacity.** `SmallVec<[_; 4]>` covers the typical tuple-
+/// struct arity (current ACIR/Brillig types use exclusively newtypes;
+/// our test fixtures top out at 3-element tuple structs) without a
+/// heap allocation. Anything larger transparently spills.
+pub(crate) struct TaggedTupleStructAccess<'der, 'a, 'de> {
+    parent: &'der mut Deserializer<'a, 'de>,
+    product: crate::Product,
+    /// Type name for clearer errors when a position has no matching tag.
+    type_name: &'static str,
+    /// Buffered `(tag, value-bytes)` pairs in wire arrival order. We look
+    /// these up by tag in `next_element_seed`; insertion order doesn't
+    /// matter.
+    entries: SmallVec<[(u8, &'de [u8]); 4]>,
+    next_position: usize,
 }
 
-impl<'de, 'der, 'a, R> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, R>
-where
-    R: Read + Clone,
-{
+impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
     type Error = RmpError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
         T: DeserializeSeed<'de>,
     {
-        if self.remaining == 0 {
+        if self.next_position >= self.entries.len() {
             return Ok(None);
         }
-        self.remaining -= 1;
-        let _tag: u8 = u8::deserialize(&mut *self.parent)?;
-        seed.deserialize(&mut *self.parent).map(Some)
+        let position = self.next_position;
+        self.next_position += 1;
+
+        // Look up the wire tag for this source position. Wire-name strings
+        // are positional (`"0"`, `"1"`, …) — the macro lifts these into
+        // the registered `Product`'s `fields` slice.
+        let position_name = position.to_string();
+        let expected_tag = self.product.tag_for(&position_name).ok_or_else(|| {
+            RmpError::custom(format!(
+                "tuple-struct {:?} has no field at source position {position} in its \
+                 registered Product — `#[derive(MsgpackTagged)]` and the type's arity disagree",
+                self.type_name,
+            ))
+        })?;
+        let value_bytes = self
+            .entries
+            .iter()
+            .find(|(tag, _)| *tag == expected_tag)
+            .map(|(_, bytes)| *bytes)
+            .ok_or_else(|| {
+                RmpError::custom(format!(
+                    "tuple-struct {:?} field at position {position} expected wire tag \
+                     {expected_tag}, but no entry with that tag was on the wire",
+                    self.type_name,
+                ))
+            })?;
+
+        // Sub-wrapper over the value's bytes. Sharing the parent's
+        // registry keeps nested tagged-type lookups consistent. The
+        // sub-deserializer's reader state starts fresh at the value's
+        // first byte, so its own `marker` buffer is empty as expected.
+        let inner = RmpDeserializer::new(value_bytes);
+        let mut sub_deser = Deserializer { inner, registry: self.parent.registry };
+        seed.deserialize(&mut sub_deser).map(Some)
     }
 
     fn size_hint(&self) -> Option<usize> {
-        Some(self.remaining)
+        Some(self.entries.len() - self.next_position)
     }
 }
 
@@ -835,8 +874,8 @@ mod tests {
 
     /// Multi-element tuple struct with implicit positional tags — the
     /// load-bearing test for `deserialize_tuple_struct`. Wire is an
-    /// int-keyed map; we read each entry's tag, discard it, decode the
-    /// value positionally.
+    /// int-keyed map; for each source position the deserializer looks up
+    /// `Product.tag_for("N")` and finds the matching entry by tag.
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
     struct PositionalTriple(u32, bool, u8);
 
@@ -865,5 +904,31 @@ mod tests {
     #[test]
     fn tuple_struct_with_nested_tagged_element_roundtrips() {
         assert_roundtrip(TupleWithNested(Pair { first: 1, second: false }, 42));
+    }
+
+    /// Manually construct a tuple-struct wire in *tag-ascending* order
+    /// (the design-doc-intended order, which differs from the current
+    /// serializer's source-declaration order) and decode it. Verifies
+    /// that the deserializer reconstructs by tag rather than wire
+    /// position — i.e. it would still work if the serializer is later
+    /// fixed to emit tag-ascending. For `ReorderedTriple` (tags 2, 0, 1
+    /// at source positions 0, 1, 2), tag-ascending wire is
+    /// `{0: bool, 1: u8, 2: u32}`.
+    #[test]
+    fn tuple_struct_decodes_from_tag_ascending_wire_order() {
+        let mut bytes: Vec<u8> = Vec::new();
+        rmp::encode::write_map_len(&mut bytes, 3).expect("map header");
+        // tag 0 → bool true (the source-position-1 field)
+        rmp::encode::write_pfix(&mut bytes, 0).expect("tag 0");
+        rmp::encode::write_bool(&mut bytes, true).expect("bool");
+        // tag 1 → u8 9 (source-position-2 field)
+        rmp::encode::write_pfix(&mut bytes, 1).expect("tag 1");
+        rmp::encode::write_pfix(&mut bytes, 9).expect("u8 9");
+        // tag 2 → u32 7 (source-position-0 field)
+        rmp::encode::write_pfix(&mut bytes, 2).expect("tag 2");
+        rmp::encode::write_pfix(&mut bytes, 7).expect("u32 7");
+
+        let decoded: ReorderedTriple = msgpack_tagged_deserialize(&bytes).expect("decode");
+        assert_eq!(decoded, ReorderedTriple(7, true, 9));
     }
 }
