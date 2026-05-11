@@ -561,6 +561,10 @@ impl<'context> Elaborator<'context> {
         // lazily during the drain.
         self.drain_unresolved_function_metas();
 
+        // Break cyclic type aliases (replacing them with `Type::Error`) here because
+        // global elaboration might hit path lookup which might hit cyclic aliases.
+        self.interner.break_cyclic_type_aliases();
+
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
         self.elaborate_remaining_globals();

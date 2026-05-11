@@ -1174,3 +1174,26 @@ fn unused_expression_result_correct_span() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn does_not_crash_if_alias_cycle_is_detected_in_global_initialization() {
+    let src = r#"
+    type A = B;
+    type B = A;
+         ^ Dependency cycle found
+         ~ 'B' recursively depends on itself: B -> A -> B
+
+    global G: u32 = f();
+           ^ unused global G
+           ~ unused global
+
+    fn f() -> u32 {
+        let _ = A::foo();
+                ^ Could not resolve 'A' in path
+        1
+    }
+
+    fn main() { }
+    "#;
+    check_errors(src);
+}

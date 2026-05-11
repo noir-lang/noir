@@ -82,6 +82,20 @@ impl NodeInterner {
         index
     }
 
+    /// Replace the body of every type alias caught in a dependency cycle with `Type::Error`.
+    pub(crate) fn break_cyclic_type_aliases(&self) {
+        for scc in tarjan_scc(&self.dependency_graph) {
+            if scc.len() <= 1 {
+                continue;
+            }
+            for node_index in &scc {
+                if let DependencyId::Alias(alias_id) = self.dependency_graph[*node_index] {
+                    self.get_type_alias(alias_id).borrow_mut().typ = Type::Error;
+                }
+            }
+        }
+    }
+
     pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
         let mut errors = Vec::new();
 
