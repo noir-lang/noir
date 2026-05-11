@@ -50,20 +50,27 @@ Tags are `u8` (so they stay in msgpack's `fixint` range at the 1-byte
 encoding). Field names never appear on the wire. Adding, removing, or
 reordering fields is safe as long as tag values stay stable.
 
-The `Serializer` will support three encoding strategies, all driven by the
+The `Serializer` will support two encoding strategies, both driven by the
 *same* `Tagged` metadata:
 
-| strategy | wire shape | when |
+| strategy | wire shape (struct) | when |
 |---|---|---|
-| **Tagged** | int-keyed map | top-level types where field churn is expected (`Program`, `Circuit`) |
-| **Array** | positional msgpack array | small leaf types where size matters more than evolvability |
-| **Named** | string-keyed map | falls back to `rmp_serde` defaults |
+| **Tagged** | int-keyed `fixmap` `{0: a, 1: b, …}` | top-level types where field churn is expected (`Program`, `Circuit`) |
+| **Array** | positional `fixarray` `[a, b, …]` | leaf types instantiated at scale where the per-field tag byte adds up |
 
-Strategy is per-type and picked by the serializer, not by the macro — every
-`#[derive(MsgpackTagged)]` type works under all three. Decode is
-shape-agnostic (peek at the next msgpack token, dispatch to the right
-reader), so a single binary can read all three formats without a
-configuration switch.
+Strategy is per-type and picked by the serializer (builder API on
+`Serializer::for_type` + `with_strategy`), not by the macro — every
+`#[derive(MsgpackTagged)]` type works under both. Enum variants are
+always emitted int-keyed regardless of strategy; strategy only affects
+struct shape.
+
+The decoder is **not** shape-agnostic. The outer `Format` byte
+(`Format::MsgpackTagged`) routes to the tagged reader, and that reader
+only handles the two shapes this crate emits — `fixmap` for `Tagged`,
+`fixarray` for `Array`. Legacy formats (`Format::Msgpack`,
+`Format::MsgpackCompact`) have their own format bytes and go through
+`rmp_serde` directly; the tagged decoder never sees them. The C++ side
+*does* probe — see the design doc for why the asymmetry is justified.
 
 ## The data model
 
