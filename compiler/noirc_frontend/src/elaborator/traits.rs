@@ -901,29 +901,6 @@ impl Elaborator<'_> {
                     // Trait functions always have the same visibility as the trait they are in
                     def.visibility = unresolved_trait.trait_def.visibility;
 
-                    let is_stdlib = this.crate_id.is_stdlib();
-                    if is_stdlib {
-                        // Eager flow used for the stdlib: define the meta now
-                        // so `the_trait.methods[i].typ` is the real
-                        // `Type::Forall(...)` by the time
-                        // `try_add_infix_operator_trait` reads it (see
-                        // [Self::collect_trait_methods]).
-                        this.resolve_trait_function(trait_id, func_id, def, body.is_some());
-                    } else {
-                        this.register_trait_function(
-                            trait_id,
-                            func_id,
-                            name.clone(),
-                            def,
-                            body.is_some(),
-                        );
-                    }
-
-                    if !item.doc_comments.is_empty() {
-                        let id = ReferenceId::Function(func_id);
-                        this.interner.set_doc_comments(id, item.doc_comments.clone());
-                    }
-
                     let default_impl = unresolved_trait
                         .fns_with_default_impl
                         .functions
@@ -935,30 +912,98 @@ impl Elaborator<'_> {
 
                     let location = Location::new(name.span(), unresolved_trait.file_id);
                     let default_impl_module_id = unresolved_trait.module_id;
-                    let (typ, trait_constraints, direct_generics) = if is_stdlib {
-                        // Build the real TraitFunction now from the resolved meta.
-                        this.build_trait_function_type_bits(func_id)
+                    let has_body = body.is_some();
+
+                    let trait_function = if this.crate_id.is_stdlib() {
+                        this.resolve_trait_method_eager(
+                            trait_id,
+                            func_id,
+                            name,
+                            def,
+                            has_body,
+                            location,
+                            default_impl,
+                            default_impl_module_id,
+                        )
                     } else {
-                        // Stub TraitFunction. `typ`, `trait_constraints`, and
-                        // `direct_generics` are populated post-drain once the
-                        // meta is resolved. See
-                        // [Self::populate_resolved_trait_method_records].
-                        (Type::Error, Vec::new(), Vec::new())
+                        this.resolve_trait_method_deferred(
+                            trait_id,
+                            func_id,
+                            name,
+                            def,
+                            has_body,
+                            location,
+                            default_impl,
+                            default_impl_module_id,
+                        )
                     };
 
-                    functions.push(TraitFunction {
-                        name: name.clone(),
-                        typ,
-                        location,
-                        default_impl,
-                        default_impl_module_id,
-                        trait_constraints,
-                        direct_generics,
-                    });
+                    if !item.doc_comments.is_empty() {
+                        let id = ReferenceId::Function(func_id);
+                        this.interner.set_doc_comments(id, item.doc_comments.clone());
+                    }
+
+                    functions.push(trait_function);
                 });
             }
         }
         functions
+    }
+
+    /// Eager-flow variant of [Self::resolve_trait_methods]'s per-method body
+    /// (used in the stdlib): resolve the meta now and build a real
+    /// `TraitFunction` from it.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_trait_method_eager(
+        &mut self,
+        trait_id: TraitId,
+        func_id: FuncId,
+        name: &Ident,
+        def: FunctionDefinition,
+        has_body: bool,
+        location: Location,
+        default_impl: Option<Box<NoirFunction>>,
+        default_impl_module_id: crate::hir::def_map::LocalModuleId,
+    ) -> TraitFunction {
+        self.resolve_trait_function(trait_id, func_id, def, has_body);
+        let (typ, trait_constraints, direct_generics) =
+            self.build_trait_function_type_bits(func_id);
+        TraitFunction {
+            name: name.clone(),
+            typ,
+            location,
+            default_impl,
+            default_impl_module_id,
+            trait_constraints,
+            direct_generics,
+        }
+    }
+
+    /// Deferred-flow variant of [Self::resolve_trait_methods]'s per-method body
+    /// (used outside the stdlib): register the meta for later resolution and
+    /// return a stub `TraitFunction`.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_trait_method_deferred(
+        &mut self,
+        trait_id: TraitId,
+        func_id: FuncId,
+        name: &Ident,
+        def: FunctionDefinition,
+        has_body: bool,
+        location: Location,
+        default_impl: Option<Box<NoirFunction>>,
+        default_impl_module_id: crate::hir::def_map::LocalModuleId,
+    ) -> TraitFunction {
+        self.register_trait_function(trait_id, func_id, name.clone(), def, has_body);
+        TraitFunction {
+            name: name.clone(),
+            typ: Type::Error,
+            location,
+            default_impl,
+            default_impl_module_id,
+            trait_constraints: Vec::new(),
+            direct_generics: Vec::new(),
+        }
     }
 
     /// Eagerly defines the [FuncMeta] for a trait method (used in the stdlib).
