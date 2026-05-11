@@ -382,22 +382,30 @@ pub struct Elaborator<'context> {
     /// has played out are drained at the end of [Self::elaborate_items].
     unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
 
+    /// Bookkeeping for trait-related work that has to wait until the
+    /// post-attribute drain has resolved the involved metas. See
+    /// [PendingTraitWork] for what each list is for.
+    pending_trait_work: PendingTraitWork,
+}
+
+#[derive(Default)]
+struct PendingTraitWork {
     /// Trait method declarations registered with deferred meta resolution. These need
     /// their `TraitFunction` records (in `the_trait.methods`) populated after the
     /// post-attribute drain, since the records are filled with stub types up-front so
     /// `collect_trait_impl` can do name-based matching while the real signatures are
     /// still pending. Each entry is `(trait_id, func_id, name)`.
-    pending_trait_method_records: Vec<(TraitId, FuncId, crate::ast::Ident)>,
+    records: Vec<(TraitId, FuncId, crate::ast::Ident)>,
 
     /// Trait method declarations without a body whose signature still needs the
     /// `elaborate_function` step run after their meta is defined. We can't run it at
     /// registration time because the meta is deferred.
-    pending_trait_method_no_body_func_ids: Vec<FuncId>,
+    no_body_func_ids: Vec<FuncId>,
 
     /// Pending where-clause-against-trait checks deferred from `collect_trait_impl_methods`
     /// so they run after the post-attribute drain (when both the trait method's and the
     /// impl method's metas are fully resolved).
-    pending_where_clause_checks: Vec<PendingWhereClauseCheck>,
+    where_clause_checks: Vec<PendingWhereClauseCheck>,
 }
 
 #[derive(Clone)]
@@ -486,9 +494,7 @@ impl<'context> Elaborator<'context> {
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
-            pending_trait_method_records: Vec::new(),
-            pending_trait_method_no_body_func_ids: Vec::new(),
-            pending_where_clause_checks: Vec::new(),
+            pending_trait_work: PendingTraitWork::default(),
         }
     }
 
@@ -561,14 +567,12 @@ impl<'context> Elaborator<'context> {
         let outer_pending: HashSet<FuncId> =
             self.unresolved_function_metas.keys().copied().collect();
 
-        // Scope the pending trait-method bookkeeping lists to this call so that
-        // a recursive `elaborate_items` (from a comptime attribute that
-        // generated new items) doesn't consume the outer call's entries. We
-        // restore the outer state on exit so the outer call can process them
-        // when its own post-attribute drain runs.
-        let outer_pending_trait_records = std::mem::take(&mut self.pending_trait_method_records);
-        let outer_pending_no_body = std::mem::take(&mut self.pending_trait_method_no_body_func_ids);
-        let outer_pending_where_checks = std::mem::take(&mut self.pending_where_clause_checks);
+        // Scope the pending trait-method bookkeeping to this call so that a
+        // recursive `elaborate_items` (from a comptime attribute that generated
+        // new items) doesn't consume the outer call's entries. We restore the
+        // outer state on exit so the outer call can process them when its own
+        // post-attribute drain runs.
+        let outer_pending_trait_work = std::mem::take(&mut self.pending_trait_work);
 
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -661,9 +665,10 @@ impl<'context> Elaborator<'context> {
 
         // Restore the outer call's pending bookkeeping so it can be processed
         // when the outer `elaborate_items` runs its own post-drain phases.
-        self.pending_trait_method_records.extend(outer_pending_trait_records);
-        self.pending_trait_method_no_body_func_ids.extend(outer_pending_no_body);
-        self.pending_where_clause_checks.extend(outer_pending_where_checks);
+        let inner = std::mem::replace(&mut self.pending_trait_work, outer_pending_trait_work);
+        self.pending_trait_work.records.extend(inner.records);
+        self.pending_trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
+        self.pending_trait_work.where_clause_checks.extend(inner.where_clause_checks);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

@@ -1056,10 +1056,10 @@ impl Elaborator<'_> {
             },
         );
 
-        self.pending_trait_method_records.push((trait_id, func_id, name));
+        self.pending_trait_work.records.push((trait_id, func_id, name));
 
         if !has_body {
-            self.pending_trait_method_no_body_func_ids.push(func_id);
+            self.pending_trait_work.no_body_func_ids.push(func_id);
         }
     }
 
@@ -1069,7 +1069,7 @@ impl Elaborator<'_> {
     /// the stub values written by [Self::resolve_trait_methods].
     pub(super) fn populate_resolved_trait_method_records(&mut self) {
         let pending: Vec<(TraitId, FuncId, Ident)> =
-            std::mem::take(&mut self.pending_trait_method_records);
+            std::mem::take(&mut self.pending_trait_work.records);
         for (trait_id, func_id, name) in pending {
             let (typ, trait_constraints, direct_generics) =
                 self.build_trait_function_type_bits(func_id);
@@ -1120,7 +1120,7 @@ impl Elaborator<'_> {
     /// would normally happen synchronously inside `resolve_trait_function`. We
     /// can't run this during registration since the meta is deferred.
     pub(super) fn elaborate_pending_no_body_trait_methods(&mut self) {
-        let pending = std::mem::take(&mut self.pending_trait_method_no_body_func_ids);
+        let pending = std::mem::take(&mut self.pending_trait_work.no_body_func_ids);
         for func_id in pending {
             self.elaborate_function(func_id);
         }

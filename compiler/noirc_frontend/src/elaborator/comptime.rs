@@ -150,12 +150,7 @@ impl<'context> Elaborator<'context> {
         elaborator.local_module = self.local_module;
         elaborator.parent_runtime_variables = parent_runtime_variables;
         elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
-        elaborator.pending_trait_method_no_body_func_ids =
-            std::mem::take(&mut self.pending_trait_method_no_body_func_ids);
-        elaborator.pending_trait_method_records =
-            std::mem::take(&mut self.pending_trait_method_records);
-        elaborator.pending_where_clause_checks =
-            std::mem::take(&mut self.pending_where_clause_checks);
+        elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
 
         setup(&mut elaborator);
 
@@ -165,12 +160,7 @@ impl<'context> Elaborator<'context> {
         elaborator.check_and_pop_function_context();
 
         self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
-        self.pending_trait_method_no_body_func_ids =
-            std::mem::take(&mut elaborator.pending_trait_method_no_body_func_ids);
-        self.pending_trait_method_records =
-            std::mem::take(&mut elaborator.pending_trait_method_records);
-        self.pending_where_clause_checks =
-            std::mem::take(&mut elaborator.pending_where_clause_checks);
+        self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
