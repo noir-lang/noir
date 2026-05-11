@@ -303,10 +303,14 @@ impl Elaborator<'_> {
                         let definition_kind = definition.kind.clone();
                         match definition_kind {
                             DefinitionKind::Function(func_id) => {
-                                let func_meta = self.function_meta(func_id);
-                                let direct_generics_clone = func_meta.direct_generics.clone();
-                                let self_type_clone = func_meta.self_type.clone();
-                                let all_generics_clone = func_meta.all_generics.clone();
+                                let (direct_generics_clone, self_type_clone, all_generics_clone) =
+                                    self.with_function_meta(func_id, |meta| {
+                                        (
+                                            meta.direct_generics.clone(),
+                                            meta.self_type.clone(),
+                                            meta.all_generics.clone(),
+                                        )
+                                    });
 
                                 // Try to find the type variable in the function's generic arguments
                                 let generic = direct_generics_clone

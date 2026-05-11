@@ -85,10 +85,10 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let meta = elaborator.function_meta(function);
-                let source_crate = meta.source_crate;
-                let source_module = meta.source_module;
-                let all_generics = meta.all_generics.clone();
+                let (source_crate, source_module, all_generics) = elaborator
+                    .with_function_meta(function, |meta| {
+                        (meta.source_crate, meta.source_module, meta.all_generics.clone())
+                    });
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = source_crate;
                 elaborator.local_module = Some(source_module);

@@ -232,6 +232,15 @@ impl Elaborator<'_> {
         self.interner.function_meta_mut(&func_id)
     }
 
+    /// Runs `f` with the function's resolved [FuncMeta].
+    pub(crate) fn with_function_meta<R>(
+        &mut self,
+        func_id: FuncId,
+        f: impl FnOnce(&FuncMeta) -> R,
+    ) -> R {
+        f(self.function_meta(func_id))
+    }
+
     /// Resolves all unresolved function metas except those given in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_function_metas_skipping(&mut self, skip: &HashSet<FuncId>) {

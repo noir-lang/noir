@@ -2858,10 +2858,10 @@ impl Elaborator<'_> {
         };
 
         // The function we are elaborating, ie. where we make the method call from.
-        let (func_meta_trait_id, func_trait_constraints) = {
-            let meta = self.function_meta(func_id);
-            (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
-        };
+        let (func_meta_trait_id, func_trait_constraints) = self
+            .with_function_meta(func_id, |meta| {
+                (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
+            });
 
         // If inside a trait method, check if it's a method on `self`
         if let Some(trait_id) = func_meta_trait_id

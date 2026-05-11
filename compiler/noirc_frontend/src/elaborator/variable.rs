@@ -656,14 +656,14 @@ impl Elaborator<'_> {
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
         // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
-        let (self_type_generics_count, function_typ, function_self_type) = {
-            let function_meta = self.function_meta(func_id);
-            (
-                function_meta.all_generics.len() - function_meta.direct_generics.len(),
-                function_meta.typ.clone(),
-                function_meta.self_type.clone(),
-            )
-        };
+        let (self_type_generics_count, function_typ, function_self_type) =
+            self.with_function_meta(func_id, |meta| {
+                (
+                    meta.all_generics.len() - meta.direct_generics.len(),
+                    meta.typ.clone(),
+                    meta.self_type.clone(),
+                )
+            });
         let bindings = if self_type_generics_count > 0 {
             if let Type::Forall(type_vars, _) = &function_typ
                 && let Some(self_type) = &function_self_type

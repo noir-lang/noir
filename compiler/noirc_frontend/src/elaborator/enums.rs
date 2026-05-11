@@ -833,10 +833,9 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
-                let (variant_index, meta_typ) = {
-                    let meta = self.function_meta(*func_id);
+                let (variant_index, meta_typ) = self.with_function_meta(*func_id, |meta| {
                     (meta.enum_variant_index, meta.typ.clone())
-                };
+                });
                 let Some(variant_index) = variant_index else {
                     let item = resolution.description(self.interner);
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
