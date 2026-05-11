@@ -43,6 +43,11 @@ use crate::{MsgpackTagged, TagRegistry};
 /// impl. Matches the encode-side `RmpError` re-export in `serializer.rs`.
 type RmpError = rmp_serde::decode::Error;
 
+/// Buffered `(wire_tag, value-bytes)` pairs from an int-keyed map. Inline
+/// capacity 4 covers the typical tuple-struct / tuple-variant arity without
+/// a heap allocation; anything larger transparently spills.
+type IntKeyedEntries<'de> = SmallVec<[(u8, &'de [u8]); 4]>;
+
 /// Tagged-map msgpack deserializer.
 ///
 /// Constructed internally by [`msgpack_tagged_deserialize`]; not part of the
@@ -267,9 +272,8 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         self,
         name: &'static str,
         // Unused: per-position dispatch is driven by `TaggedTupleStructAccess`
-        // (which knows the arity via the visitor itself), and the formerly
-        // upfront `wire_len > len` check is gone — see the tag-validity loop
-        // below for the new check.
+        // (which knows the arity via the visitor itself). Tag-set validation
+        // is in `buffer_and_validate_int_keyed_map`.
         _len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
@@ -286,44 +290,11 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
-
-        // Buffer each wire entry's `(tag, value-bytes)` first, *then* validate
-        // each tag. We can't reject on `wire_len > len` upfront because the
-        // excess might be retired tags (in `product.reserved`) which we want
-        // to silently skip — parallel to the named-struct path. The slice
-        // trick: snapshot the inner reader's `&[u8]` before and after reading
-        // exactly one msgpack value (via `IgnoredAny`, which walks any
-        // shape) — the diff is the value's byte range.
-        let mut entries: SmallVec<[(u8, &'de [u8]); 4]> = SmallVec::with_capacity(wire_len);
-        for _ in 0..wire_len {
-            let tag: u8 = u8::deserialize(&mut *self)?;
-            let before: &'de [u8] = self.inner.get_mut();
-            de::IgnoredAny::deserialize(&mut *self)?;
-            let after: &'de [u8] = self.inner.get_mut();
-            let consumed = before.len() - after.len();
-            entries.push((tag, &before[..consumed]));
-        }
-
-        // Tag-validity policy (after buffering):
-        //   * Tag is in `product.fields` (active position) — fine.
-        //   * Tag is in `product.reserved` (retired position) — fine, the
-        //     visitor will simply never query it.
-        //   * Otherwise — only fine if `#[tagged(allow_unknown_tags)]` is
-        //     set.
-        // `wire_len < len` (short wire) is still allowed — missing trailing
-        // positions are reported as `Ok(None)` to the visitor, which
-        // serde-derive's `#[serde(default)]` machinery fills in.
-        if !product.allow_unknown_tags {
-            for (tag, _) in &entries {
-                if product.field_for(*tag).is_none() && !product.is_reserved(*tag) {
-                    return Err(RmpError::custom(format!(
-                        "MsgpackTagged: unknown wire tag {tag} for tuple-struct {name:?} \
-                         and `allow_unknown_tags` is false",
-                    )));
-                }
-            }
-        }
-
+        let entries = self.buffer_and_validate_int_keyed_map(
+            wire_len,
+            &product,
+            &format!("tuple-struct {name:?}"),
+        )?;
         visitor.visit_seq(TaggedTupleStructAccess {
             parent: self,
             product,
@@ -493,6 +464,66 @@ impl<'a, 'de> Deserializer<'a, 'de> {
         entry.tagged().as_sum().unwrap_or_else(|| {
             panic!("registry entry for {name:?} is product-shaped but a sum shape was expected")
         })
+    }
+
+    /// Read `wire_len` `(u8 tag, value-bytes)` pairs from the inner reader
+    /// and return them as a `SmallVec` for later tag-driven dispatch. Used
+    /// by both `deserialize_tuple_struct` and `TaggedEnumAccess::tuple_variant`
+    /// — they share the int-keyed-map wire shape for tuple-shaped payloads
+    /// but their visitors call back positionally rather than by name, so we
+    /// can't dispatch entry-by-entry the way `TaggedProductMapAccess` does.
+    ///
+    /// Validates tag membership against the type's registered `Product`:
+    /// * Tag in `product.fields` (active position) — fine.
+    /// * Tag in `product.reserved` (retired position) — fine, the visitor
+    ///   will simply never query it.
+    /// * Otherwise — only fine if `product.allow_unknown_tags` is set.
+    ///
+    /// Performs a cheap upfront cap check (`wire_len > active + reserved`)
+    /// when `allow_unknown_tags` is off, so grossly oversized wires error
+    /// before we walk the bytes. The per-tag scan after buffering catches
+    /// the within-bounds-but-still-unknown case.
+    ///
+    /// `context` is a caller-supplied label (e.g. `"tuple-struct \"Foo\""`
+    /// or `"tuple variant \"Carry\""`) that gets embedded in error messages.
+    fn buffer_and_validate_int_keyed_map<'der>(
+        &'der mut self,
+        wire_len: usize,
+        product: &crate::Product,
+        context: &str,
+    ) -> Result<IntKeyedEntries<'de>, RmpError> {
+        if !product.allow_unknown_tags {
+            let cap = product.fields.len() + product.reserved.len();
+            if wire_len > cap {
+                return Err(RmpError::custom(format!(
+                    "{context}: wire has {wire_len} entries but the type accepts \
+                     at most {cap} ({} active + {} reserved); opt into \
+                     `#[tagged(allow_unknown_tags)]` to silently skip extras",
+                    product.fields.len(),
+                    product.reserved.len(),
+                )));
+            }
+        }
+        let mut entries: IntKeyedEntries<'de> = SmallVec::with_capacity(wire_len);
+        for _ in 0..wire_len {
+            let tag: u8 = u8::deserialize(&mut *self)?;
+            let before: &'de [u8] = self.inner.get_mut();
+            de::IgnoredAny::deserialize(&mut *self)?;
+            let after: &'de [u8] = self.inner.get_mut();
+            let consumed = before.len() - after.len();
+            entries.push((tag, &before[..consumed]));
+        }
+        if !product.allow_unknown_tags {
+            for (tag, _) in &entries {
+                if product.field_for(*tag).is_none() && !product.is_reserved(*tag) {
+                    return Err(RmpError::custom(format!(
+                        "MsgpackTagged: unknown wire tag {tag} for {context} \
+                         and `allow_unknown_tags` is false",
+                    )));
+                }
+            }
+        }
+        Ok(entries)
     }
 }
 
@@ -667,7 +698,7 @@ pub(crate) struct TaggedTupleStructAccess<'der, 'a, 'de> {
     /// Buffered `(tag, value-bytes)` pairs in wire arrival order. We look
     /// these up by tag in `next_element_seed`; insertion order doesn't
     /// matter.
-    entries: SmallVec<[(u8, &'de [u8]); 4]>,
+    entries: IntKeyedEntries<'de>,
     next_position: usize,
 }
 
@@ -778,30 +809,23 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
         seed.deserialize(&mut *self.parent)
     }
 
-    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
+        // Same int-keyed-map wire shape as a top-level tuple struct, just
+        // sitting under a 1-entry outer variant map. Validation policy
+        // (active/reserved/allow_unknown) is shared via the helper —
+        // including the upfront cap check so a grossly oversized payload
+        // errors before we walk its bytes.
         let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
-        if wire_len > len && !self.variant.payload.allow_unknown_tags {
-            return Err(RmpError::custom(format!(
-                "tuple variant {:?}: wire has {wire_len} entries but the variant \
-                 expects only {len}; opt into `#[tagged(allow_unknown_tags)]` to \
-                 silently skip extras",
-                self.variant.name,
-            )));
-        }
-        let mut entries: SmallVec<[(u8, &'de [u8]); 4]> = SmallVec::with_capacity(wire_len);
-        for _ in 0..wire_len {
-            let tag: u8 = u8::deserialize(&mut *self.parent)?;
-            let before: &'de [u8] = self.parent.inner.get_mut();
-            de::IgnoredAny::deserialize(&mut *self.parent)?;
-            let after: &'de [u8] = self.parent.inner.get_mut();
-            let consumed = before.len() - after.len();
-            entries.push((tag, &before[..consumed]));
-        }
+        let entries = self.parent.buffer_and_validate_int_keyed_map(
+            wire_len,
+            &self.variant.payload,
+            &format!("tuple variant {:?}", self.variant.name),
+        )?;
         visitor.visit_seq(TaggedTupleStructAccess {
             parent: self.parent,
             product: self.variant.payload,

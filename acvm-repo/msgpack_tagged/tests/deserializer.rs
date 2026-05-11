@@ -819,10 +819,7 @@ mod v2_to_v1_tuple_extra_without_allow_unknown {
         let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
-        assert!(
-            msg.contains("unknown wire tag 2") && msg.contains("`allow_unknown_tags` is false"),
-            "got: {msg}",
-        );
+        assert!(msg.contains("wire has 3 entries") && msg.contains("at most 2"), "got: {msg}",);
     }
 }
 
@@ -879,6 +876,37 @@ mod v2_to_v1_tuple_variant_extra_with_allow_unknown {
         let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::Carry(7, true));
+    }
+}
+
+/// V1 → V2: V2 retires a tuple-variant payload position by adding its tag
+/// to the variant-level `#[tagged(reserved(...))]`. Same reserved-skip
+/// semantics as the plain tuple-struct case, just reached through an
+/// enum variant.
+mod v1_to_v2_tuple_variant_remove_field_with_reserved {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8),
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        #[tagged(reserved(1))]
+        Carry(#[tag(0)] u32, #[tag(2)] u8),
+    }
+
+    #[test]
+    fn skip_retired_payload_position_on_decode() {
+        let v1 = FooV1::Carry(7, true, 42);
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2::Carry(7, 42));
     }
 }
 
