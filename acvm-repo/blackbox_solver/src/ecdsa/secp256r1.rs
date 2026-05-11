@@ -26,12 +26,10 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function returns an error if the following is not true:
-/// - The signature components `r` and `s` must be non-zero
-/// - The public key point must lie on the Secp256r1 curve
-///
-/// The function do not validate a signature if:
+/// The function do not validate a signature if one of the following is true:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+/// - The signature components `r` and `s` is zero
+/// - The public key point is not on the Secp256r1 curve
 ///
 /// If `hashed_msg >= p256::NistP256::ORDER`, the message hash is reduced modulo the curve
 /// order per ECDSA specification (SEC 1, section 4.1.4).
