@@ -23,19 +23,6 @@
 //!   through to `rmp_serde` which expects a different wire shape than
 //!   the one our serializer produces. Until this lands, tagged enums
 //!   don't round-trip through the wrapper.
-//! - **`#[serde(default)]` on tuple structs.** `deserialize_struct`
-//!   delegates wire-tolerance to serde-derive's standard `default`
-//!   machinery, which composes cleanly. `deserialize_tuple_struct`,
-//!   though, asserts `wire_len == len` eagerly — so a wire that's missing
-//!   a defaulted tag errors instead of falling back. serde-derive's
-//!   tuple-struct default semantics are also positional ("all fields
-//!   past the first default must default"), which clashes with our
-//!   per-tag model. Needs revisiting if/when tuple-struct wire tolerance
-//!   becomes a real ask.
-//! - **`#[tagged(allow_unknown_tags)]` on tuple structs.** Same eager
-//!   length check rejects wires with extra tags. Loosening it requires
-//!   accepting `wire_len >= len` (or `<= len` when defaults exist) and
-//!   handling the unknown entries.
 //! - **`#[tagged(reserved(...))]` on the decode side.** `Product.is_reserved`
 //!   exists in the registry and is checked at compile time by the macro
 //!   to prevent tag reuse, but the decoder never consults it. Retired
@@ -314,15 +301,21 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
-        // TODO: this strict length check rejects wires that exercise
-        // `#[serde(default)]` (fewer entries on the wire than the type
-        // arity) or `#[tagged(allow_unknown_tags)]` (more entries on the
-        // wire than the arity). Relax once the tuple-struct default /
-        // unknown-tags semantics are decided — see the file-level TODO.
-        if wire_len != len {
+        // Length-mismatch policy:
+        //   * `wire_len < len` is allowed — the missing trailing positions
+        //     are reported to the visitor as `Ok(None)` in `next_element_seed`,
+        //     and serde-derive's `#[serde(default)]` (which it requires on
+        //     all positions past the first defaulted one) fills them in. A
+        //     wire missing a *required* position will still error at the
+        //     visitor with `invalid length`.
+        //   * `wire_len > len` is only accepted when the type opts into
+        //     `#[tagged(allow_unknown_tags)]`; the trailing wire entries
+        //     are simply never queried by the visitor and get discarded.
+        if wire_len > len && !product.allow_unknown_tags {
             return Err(RmpError::custom(format!(
-                "tuple-struct {name:?} length mismatch: type expects {len} elements, \
-                 wire has {wire_len}",
+                "tuple-struct {name:?}: wire has {wire_len} entries but the type \
+                 expects only {len}; opt into `#[tagged(allow_unknown_tags)]` to \
+                 silently skip extras",
             )));
         }
 
@@ -343,7 +336,6 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         visitor.visit_seq(TaggedTupleStructAccess {
             parent: self,
             product,
-            type_name: name,
             entries,
             next_position: 0,
         })
@@ -610,8 +602,6 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
 pub(crate) struct TaggedTupleStructAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     product: crate::Product,
-    /// Type name for clearer errors when a position has no matching tag.
-    type_name: &'static str,
     /// Buffered `(tag, value-bytes)` pairs in wire arrival order. We look
     /// these up by tag in `next_element_seed`; insertion order doesn't
     /// matter.
@@ -626,35 +616,27 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        if self.next_position >= self.entries.len() {
-            return Ok(None);
-        }
         let position = self.next_position;
         self.next_position += 1;
 
         // Look up the wire tag for this source position. Wire-name strings
         // are positional (`"0"`, `"1"`, …) — the macro lifts these into
-        // the registered `Product`'s `fields` slice.
+        // the registered `Product`'s `fields` slice. If the position is
+        // beyond the type's arity, the product won't have it and we report
+        // exhaustion to the visitor.
         let position_name = position.to_string();
-        let expected_tag = self.product.tag_for(&position_name).ok_or_else(|| {
-            RmpError::custom(format!(
-                "tuple-struct {:?} has no field at source position {position} in its \
-                 registered Product — `#[derive(MsgpackTagged)]` and the type's arity disagree",
-                self.type_name,
-            ))
-        })?;
-        let value_bytes = self
-            .entries
-            .iter()
-            .find(|(tag, _)| *tag == expected_tag)
-            .map(|(_, bytes)| *bytes)
-            .ok_or_else(|| {
-                RmpError::custom(format!(
-                    "tuple-struct {:?} field at position {position} expected wire tag \
-                     {expected_tag}, but no entry with that tag was on the wire",
-                    self.type_name,
-                ))
-            })?;
+        let Some(expected_tag) = self.product.tag_for(&position_name) else {
+            return Ok(None);
+        };
+
+        // Find the wire entry carrying that tag. If absent, report None —
+        // serde-derive's visitor fills `#[serde(default)]` slots from
+        // `Default` and reports `invalid length` on a missing required
+        // position.
+        let Some(&(_, value_bytes)) = self.entries.iter().find(|(tag, _)| *tag == expected_tag)
+        else {
+            return Ok(None);
+        };
 
         // Sub-wrapper over the value's bytes. Sharing the parent's
         // registry keeps nested tagged-type lookups consistent. The
@@ -665,6 +647,6 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
     }
 
     fn size_hint(&self) -> Option<usize> {
-        Some(self.entries.len() - self.next_position)
+        Some(self.entries.len().saturating_sub(self.next_position))
     }
 }

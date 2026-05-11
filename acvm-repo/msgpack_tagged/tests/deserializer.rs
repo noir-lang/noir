@@ -641,3 +641,92 @@ mod v2_to_v1_reorder_fields {
         assert_eq!(v1, FooV1 { a: 7, b: true });
     }
 }
+
+// ============================================================================
+// Schema-evolution / cross-version tests for tuple structs.
+//
+// Tuple structs decode positionally — the visitor pulls fields by index, not
+// by name — but the wire is still a tag-keyed map. The cases below verify
+// that `deserialize_tuple_struct` tolerates wire-length drift the same way
+// the named-struct path does: short wires fall through to serde-derive's
+// `#[serde(default)]` machinery, long wires only round-trip when the type
+// opts into `#[tagged(allow_unknown_tags)]`.
+// ============================================================================
+
+/// V1 → V2: V2 appends a new trailing element with `#[serde(default)]`. V1's
+/// wire only carries the first position; V2's decode yields `Ok(None)` for
+/// the missing position and serde-derive substitutes the default. Mirror of
+/// the named-struct `v1_to_v2_add_field_with_default` case.
+mod v1_to_v2_tuple_add_trailing_default {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1(#[tag(0)] u32, #[tag(1)] bool);
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV2(
+        #[tag(0)] u32,
+        #[tag(1)] bool,
+        #[tag(2)]
+        #[serde(default)]
+        Vec<u8>,
+    );
+
+    #[test]
+    fn missing_trailing_position_uses_default() {
+        let v1 = FooV1(7, true);
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2(7, true, Vec::default()));
+    }
+}
+
+/// V2 → V1: V2 appends a new tuple position that V1 doesn't know about, and
+/// V1 opts into `#[tagged(allow_unknown_tags)]`. The extra wire entry is
+/// buffered but never queried by the visitor and gets discarded.
+mod v2_to_v1_tuple_extra_with_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(allow_unknown_tags)]
+    struct FooV1(#[tag(0)] u32, #[tag(1)] bool);
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8);
+
+    #[test]
+    fn extra_trailing_position_skipped_when_allowed() {
+        let v2 = FooV2(7, true, 42);
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
+        assert_eq!(v1, FooV1(7, true));
+    }
+}
+
+/// V2 → V1: V2 appends a new tuple position; V1 does *not* opt into
+/// `allow_unknown_tags`. Decode errors because the wire is longer than the
+/// type's arity and the type didn't opt in to skipping extras.
+mod v2_to_v1_tuple_extra_without_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV1(#[tag(0)] u32, #[tag(1)] bool);
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8);
+
+    #[test]
+    fn extra_trailing_position_errors_when_not_allowed() {
+        let v2 = FooV2(7, true, 42);
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("wire has 3 entries") && msg.contains("expects only 2"), "got: {msg}");
+    }
+}
