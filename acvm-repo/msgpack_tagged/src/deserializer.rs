@@ -58,8 +58,7 @@ where
     T: Deserialize<'de> + MsgpackTagged,
 {
     let registry = TagRegistry::from_type::<T>();
-    let inner = RmpDeserializer::new(bytes);
-    let mut deserializer = Deserializer { inner, registry: &registry };
+    let mut deserializer = Deserializer::new(bytes, &registry);
     T::deserialize(&mut deserializer).map_err(std::io::Error::other)
 }
 
@@ -366,6 +365,14 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
 }
 
 impl<'a, 'de> Deserializer<'a, 'de> {
+    /// Create a deserializer over some byte slice with a given registry.
+    ///
+    /// Uses the default configuration for the inner msgpack deserializer.
+    fn new(bytes: &'de [u8], registry: &'a TagRegistry) -> Self {
+        let inner = RmpDeserializer::new(bytes);
+        Self { inner, registry }
+    }
+
     /// Resolve a registered `Product` by serde name. Used by
     /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
     /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -598,8 +605,7 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
         // registry keeps nested tagged-type lookups consistent. The
         // sub-deserializer's reader state starts fresh at the value's
         // first byte, so its own `marker` buffer is empty as expected.
-        let inner = RmpDeserializer::new(value_bytes);
-        let mut sub_deser = Deserializer { inner, registry: self.parent.registry };
+        let mut sub_deser = Deserializer::new(value_bytes, self.parent.registry);
         seed.deserialize(&mut sub_deser).map(Some)
     }
 
