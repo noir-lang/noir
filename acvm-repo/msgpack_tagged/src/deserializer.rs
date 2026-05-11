@@ -50,9 +50,10 @@ type IntKeyedEntries<'de> = SmallVec<[(u8, &'de [u8]); 4]>;
 
 /// Tagged-map msgpack deserializer.
 ///
-/// Constructed internally by [`msgpack_tagged_deserialize`]; not part of the
-/// public API yet — once strategy customization lands the builder will
-/// expose it (mirroring the serializer's plan).
+/// Constructed internally by [`msgpack_tagged_deserialize`]. Exposed as `pub`
+/// so it can be named from rustdoc; the only stable entry point is still the
+/// free function. A builder for strategy customization will land later
+/// (mirroring the serializer's plan).
 ///
 /// The inner reader is fixed to `&'de [u8]` (wrapped in rmp_serde's
 /// `ReadReader`, the shape `RmpDeserializer::new` constructs). We don't
@@ -63,7 +64,7 @@ type IntKeyedEntries<'de> = SmallVec<[(u8, &'de [u8]); 4]>;
 /// `&[u8]` directly. The public entry function only ever constructs the
 /// `&[u8]` shape, so this isn't a real loss of generality; if/when a
 /// `from_read` variant lands, that's a separate type.
-pub(crate) struct Deserializer<'a, 'de> {
+pub struct Deserializer<'a, 'de> {
     inner: RmpDeserializer<ReadReader<&'de [u8]>>,
     registry: &'a TagRegistry,
 }
@@ -539,7 +540,7 @@ impl<'a, 'de> Deserializer<'a, 'de> {
 /// `BTreeMap<K, V>`). Once `deserialize_tuple` lands, fixed-length Rust
 /// tuples will share the `SeqAccess` impl too. Mirror of the serializer's
 /// `TaggedSerializeViaParent`.
-pub(crate) struct TaggedAccessViaParent<'der, 'a, 'de> {
+struct TaggedAccessViaParent<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     remaining: usize,
 }
@@ -605,7 +606,7 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedAccessViaParent<'der, 'a, 'de> {
 /// Mirror of the serializer's `TaggedSerializeProduct` on the
 /// `SerializeStruct` case — same `(int_tag, value)` map shape, just
 /// driving the translation in the other direction.
-pub(crate) struct TaggedProductMapAccess<'der, 'a, 'de> {
+struct TaggedProductMapAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     product: crate::Product,
     /// Type name; only used for clearer error messages on unknown tags.
@@ -692,7 +693,7 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
 /// struct arity (current ACIR/Brillig types use exclusively newtypes;
 /// our test fixtures top out at 3-element tuple structs) without a
 /// heap allocation. Anything larger transparently spills.
-pub(crate) struct TaggedTupleStructAccess<'der, 'a, 'de> {
+struct TaggedTupleStructAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     product: crate::Product,
     /// Buffered `(tag, value-bytes)` pairs in wire arrival order. We look
@@ -766,7 +767,7 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
 ///   - **struct** — read the int-keyed payload map and reuse
 ///     `TaggedProductMapAccess`; the variant's `payload` `Product` carries
 ///     the tag/field-name mapping.
-pub(crate) struct TaggedEnumAccess<'der, 'a, 'de> {
+struct TaggedEnumAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     variant: crate::Variant,
     /// Set when `deserialize_enum` has already drained the wire payload —

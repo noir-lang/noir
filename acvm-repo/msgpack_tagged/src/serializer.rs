@@ -51,10 +51,10 @@ use crate::{MsgpackTagged, TagRegistry};
 
 /// Tagged-map msgpack serializer.
 ///
-/// Constructed internally by [`msgpack_tagged_serialize`]; not part of the
-/// public API yet — once strategy customization lands the builder will
-/// expose it.
-pub(crate) struct Serializer<'a, W: Write> {
+/// Constructed internally by [`msgpack_tagged_serialize`]. Exposed as `pub`
+/// so it can be named from rustdoc; the only stable entry point is still
+/// the free function. A builder for strategy customization will land later.
+pub struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
 }
@@ -454,7 +454,7 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 ///
 /// `next_position` is only consulted by the [`SerializeTupleStruct`] impl;
 /// the [`SerializeStruct`] impl ignores it.
-pub(crate) struct TaggedSerializeProduct<'ser, 'a, W: Write> {
+pub struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
     parent: &'ser mut Serializer<'a, W>,
     next_position: usize,
@@ -622,10 +622,10 @@ impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser,
 ///
 /// Used as `SerializeSeq` (e.g. `Vec<T>`), `SerializeTuple` (fixed-length
 /// Rust tuples), and `SerializeMap` (e.g. `BTreeMap<K, V>`). Struct shapes
-/// have their own adapter ([`TaggedSerializeStruct`]) because they carry
+/// have their own adapter ([`TaggedSerializeProduct`]) because they carry
 /// the [`Product`](crate::Product) needed to translate field names into
 /// integer tags.
-pub(crate) struct TaggedSerializeViaParent<'ser, 'a, W: Write> {
+pub struct TaggedSerializeViaParent<'ser, 'a, W: Write> {
     parent: &'ser mut Serializer<'a, W>,
 }
 
