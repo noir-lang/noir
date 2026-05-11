@@ -399,33 +399,35 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
                 payload_already_consumed: false,
             });
         }
-        // Unknown wire tag. Forward/backward-compat dispatch:
-        //   * tag in `sum.reserved` and `allow_reserved` set → catch-all
-        //   * `allow_unknown` set (regardless of reserved list) → catch-all
+        // Unknown wire tag. Strict per-marker routing:
+        //   * tag in `sum.reserved` → only `on_reserved_tag` catches it
+        //   * tag in neither variants nor reserved → only `on_unknown_tag`
         //   * otherwise → error
-        // The catch-all variant is macro-validated to exist as a
-        // `#[serde(other)]` unit variant whenever either flag is set; its
-        // tag is in `sum.catch_all_tag`. We must drain the payload bytes
-        // first so the outer stream stays positioned after this enum
-        // value, then visit the catch-all — passing
+        // The two cases are intentionally non-overlapping: a user who wants
+        // unified handling puts both `#[tagged(on_reserved)]` and
+        // `#[tagged(on_unknown)]` on a single variant, in which case both
+        // `Sum` fields point at the same tag and either path lands there.
+        // A user who marks only one is making a deliberate "this kind of
+        // drift is tolerable, that kind isn't" choice and we honor it.
+        //
+        // We drain the payload bytes before visiting so the outer stream
+        // stays positioned after this enum value, then visit with
         // `payload_already_consumed: true` so `unit_variant` doesn't try to
-        // re-read a `nil` that isn't there.
-        let allow_via_reserved = sum.allow_reserved && sum.reserved.contains(&tag);
-        if allow_via_reserved || sum.allow_unknown {
-            let catch_all_tag = sum.catch_all_tag.expect(
-                "macro should have validated a `#[serde(other)]` variant exists when \
-                 `allow_unknown` or `allow_reserved` is set",
-            );
-            let catch_all = sum
+        // re-read a `nil` that isn't there. The fallback is macro-validated
+        // to be a unit variant.
+        let fallback_tag =
+            if sum.reserved.contains(&tag) { sum.on_reserved_tag } else { sum.on_unknown_tag };
+        if let Some(fallback_tag) = fallback_tag {
+            let fallback = sum
                 .variants
                 .iter()
-                .find(|v| v.tag == catch_all_tag)
+                .find(|v| v.tag == fallback_tag)
                 .copied()
-                .expect("catch_all_tag must refer to a registered variant");
+                .expect("fallback tag must refer to a registered variant");
             de::IgnoredAny::deserialize(&mut *self)?;
             return visitor.visit_enum(TaggedEnumAccess {
                 parent: self,
-                variant: catch_all,
+                variant: fallback,
                 payload_already_consumed: true,
             });
         }

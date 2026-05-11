@@ -143,41 +143,37 @@ pub struct Variant {
 ///
 /// `reserved` lists retired *variant* tags. Like `Product::reserved`, this is
 /// always a compile-time tag-reuse guard; whether the runtime decoder routes
-/// such tags to a fallback variant is controlled independently by
-/// `allow_reserved`.
+/// such tags to a fallback variant is controlled by `on_reserved_tag`.
 ///
-/// `allow_reserved` and `allow_unknown` opt into runtime-lenient decode of
+/// `on_reserved_tag` and `on_unknown_tag` opt into runtime-lenient decode of
 /// variant tags. Unlike products' `allow_unknown_tags` (which just skips an
 /// entry), sums can't skip a discriminator — the value is the discriminator —
-/// so the tolerance is expressed as "route to the type's `#[serde(other)]`
-/// catch-all variant, discarding the payload":
+/// so the tolerance is expressed as "route to a designated fallback variant,
+/// discarding the payload":
 ///
-/// * `allow_reserved` — when the encoded variant tag is in `reserved`,
-///   discard the payload and visit the catch-all variant. Backward-compat
-///   tool: legacy data carrying a now-retired tag still decodes (to a known
-///   placeholder) instead of killing the whole structure.
-/// * `allow_unknown` — same routing when the encoded tag is in neither
-///   `variants` nor `reserved`. Forward-compat: legacy readers can still
-///   parse data produced by a newer schema. **More dangerous**: silently
-///   swallows real corruption alongside future-version tags, so opt in only
-///   when "catch-all" is a safe semantic substitute for "anything I don't
-///   recognize" (e.g. metadata-bearing `InlineType`-shaped types —
-///   definitely not `BrilligOpcode`-shaped ones, where an unknown
-///   discriminator means we can't execute the program).
+/// * `on_reserved_tag` — when set, the wire tag of the unit variant that
+///   acts as the backward-compat fallback. The macro fills it in iff a
+///   variant in the source carries `#[tagged(on_reserved)]`. On decode,
+///   any wire tag in `reserved` is routed here (payload discarded).
+/// * `on_unknown_tag` — same shape, but for forward-compat: a variant
+///   marked `#[tagged(on_unknown)]` catches any wire tag that's neither in
+///   `variants` nor in `reserved`. **More dangerous** than `on_reserved`:
+///   silently swallows real corruption alongside future-version tags, so
+///   opt in only when the fallback variant is a safe semantic substitute
+///   for "anything I don't recognize" (e.g. metadata-bearing
+///   `InlineType`-shaped types — definitely not `BrilligOpcode`-shaped
+///   ones, where an unknown discriminator means we can't execute the
+///   program).
 ///
-/// `catch_all_tag` carries the wire tag of the variant marked
-/// `#[serde(other)]`. The macro fills it in (and validates the variant is
-/// a unit variant) whenever either `allow_*` flag is set; otherwise it
-/// stays `None` — the wrapper has no fallback target to route to. With the
-/// flag set and the catch-all present, decode of an unknown/reserved tag
-/// produces a value of the catch-all variant.
+/// A single variant may carry both `#[tagged(on_reserved)]` and
+/// `#[tagged(on_unknown)]` when the user wants the unified-catch-all
+/// behavior; in that case both fields point at the same tag.
 #[derive(Clone, Copy, Debug)]
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
-    pub allow_reserved: bool,
-    pub allow_unknown: bool,
-    pub catch_all_tag: Option<Tag>,
+    pub on_reserved_tag: Option<Tag>,
+    pub on_unknown_tag: Option<Tag>,
 }
 
 impl Sum {
@@ -330,17 +326,15 @@ mod tests {
                 },
             ],
             reserved: &[5],
-            allow_reserved: false,
-            allow_unknown: false,
-            catch_all_tag: None,
+            on_reserved_tag: None,
+            on_unknown_tag: None,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
-    /// Hand-written sum exercising both decode-policy flags together. Mirrors
+    /// Hand-written sum exercising both fallback markers together. Mirrors
     /// the derive-macro emission for an enum like
-    /// `#[tagged(reserved(7), allow_reserved, allow_unknown)] enum Lenient { #[tag(0)] A, #[tag(1)] B, #[tag(2)] Other }`
-    /// with `#[serde(other)]` on `Other`.
+    /// `#[tagged(reserved(7))] enum Lenient { #[tag(0)] A, #[tag(1)] B, #[tag(2)] #[tagged(on_reserved, on_unknown)] Other }`.
     struct Lenient;
     impl MsgpackTagged for Lenient {
         const TAGGED: Tagged = Tagged::Sum(Sum {
@@ -355,9 +349,8 @@ mod tests {
                 },
             ],
             reserved: &[7],
-            allow_reserved: true,
-            allow_unknown: true,
-            catch_all_tag: Some(2),
+            on_reserved_tag: Some(2),
+            on_unknown_tag: Some(2),
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -527,22 +520,20 @@ mod tests {
         assert!(!s.is_reserved(99));
     }
 
-    /// Both decode-policy flags default to `false` — strict decode unless
-    /// the type opts in.
+    /// Both fallback-tag slots default to `None` — strict decode unless
+    /// the type opts in via a variant-level marker.
     #[test]
     #[allow(clippy::assertions_on_constants)]
     fn sum_default_decode_policy_is_strict() {
         let s = sum_of::<Choice>();
-        assert!(!s.allow_reserved);
-        assert!(!s.allow_unknown);
-        assert!(s.catch_all_tag.is_none());
+        assert!(s.on_reserved_tag.is_none());
+        assert!(s.on_unknown_tag.is_none());
     }
 
     #[test]
     fn sum_decode_policy_flags_propagate_when_set() {
         let s = sum_of::<Lenient>();
-        assert!(s.allow_reserved);
-        assert!(s.allow_unknown);
-        assert_eq!(s.catch_all_tag, Some(2));
+        assert_eq!(s.on_reserved_tag, Some(2));
+        assert_eq!(s.on_unknown_tag, Some(2));
     }
 }

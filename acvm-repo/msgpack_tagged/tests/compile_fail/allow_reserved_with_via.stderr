@@ -1,6 +1,0 @@
-error: `#[tagged(via(...))]` is incompatible with `allow_reserved` — decode-policy flags belong on the wire DTO, not on the public type
-  --> tests/compile_fail/allow_reserved_with_via.rs:18:1
-   |
-18 | / #[tagged(via(WireDto), allow_reserved)]
-19 | | struct Public;
-   | |______________^

@@ -98,9 +98,8 @@ pub struct Variant {
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
-    pub allow_reserved: bool,
-    pub allow_unknown: bool,
-    pub catch_all_tag: Option<Tag>,
+    pub on_reserved_tag: Option<Tag>,
+    pub on_unknown_tag: Option<Tag>,
 }
 
 pub trait MsgpackTagged: 'static {
@@ -192,14 +191,19 @@ The metadata distinction lives in `VariantKind` (`Newtype` vs. `Tuple` vs.
 | `reserved(N, M, ...)` | structs and enums | retire tags so they can't be reused. Compile-time guard, not runtime — see migration guide for runtime behavior |
 | `allow_unknown_tags` | structs only | decoder silently skips unknown field tags. Use sparingly: silently swallows real corruption |
 | `via(WireType)` | any | shadow-DTO delegation — see below |
-| `allow_reserved` | enums only | route retired variant tags to the type's `#[serde(other)]` catch-all variant on decode (backward-compat). Requires the catch-all to exist and be a unit variant |
-| `allow_unknown` | enums only | route any variant tag not in `variants` or `reserved` to the catch-all (forward-compat). Same catch-all requirement |
-
 ### Variant-level `#[tagged(...)]`
 
-`reserved(...)` and `allow_unknown_tags` apply per-variant payload, with
-the same semantics as their type-level counterparts. Sum-level modifiers
-(`allow_reserved`, `allow_unknown`, `via`) are rejected at the variant level.
+Two grammar groups apply to variants:
+
+* **Payload-shape modifiers** — `reserved(...)` and `allow_unknown_tags`
+  configure the variant's payload, same semantics as their type-level
+  counterparts.
+* **Fallback-routing markers** — `on_reserved` and `on_unknown` mark a
+  unit variant as the routing target on the enclosing enum for retired
+  / unknown wire tags respectively. See the "Retiring a variant" section
+  for the runtime semantics.
+
+`via(...)` is type-level only and rejected on variants.
 
 ```rust
 #[derive(MsgpackTagged)]
@@ -274,23 +278,39 @@ semantics.
 `reserved` on a sum type works the same way for *variant* tags, but the
 runtime story is different: a sum can't "skip" an unknown variant tag —
 the value's discriminator itself becomes unrepresentable. The recovery
-hook is a `#[serde(other)]` catch-all unit variant, and two opt-in
-flags decide when the wrapper routes to it instead of erroring:
+hook is a unit variant marked as a fallback routing target. The marker
+itself is the opt-in — no separate type-level flag:
 
-- `#[tagged(allow_reserved)]` — when decoding hits a retired variant
-  tag (one listed in `reserved(...)`), route to the catch-all variant.
-  Backward-compat for legacy data carrying retired discriminators.
-- `#[tagged(allow_unknown)]` — same routing for *any* unknown variant
-  tag (whether retired or just newer than the local schema knows about).
-  Forward-compat. Riskier — silently swallows real corruption — so use
-  it only where the catch-all is a sound substitute for "I don't
-  recognize this discriminator" (e.g. metadata-bearing types like
-  `InlineType`, **not** execution-critical types like `BrilligOpcode`).
+- `#[tagged(on_reserved)]` — when decoding hits a retired variant tag
+  (one listed in `reserved(...)`), route to this variant. Backward-compat
+  for legacy data carrying retired discriminators.
+- `#[tagged(on_unknown)]` — same routing for any variant tag that's in
+  neither `variants` nor `reserved`. Forward-compat. Riskier — silently
+  swallows real corruption — so use it only where this fallback is a
+  sound substitute for "I don't recognize this discriminator" (e.g.
+  metadata-bearing types like `InlineType`, **not** execution-critical
+  types like `BrilligOpcode`).
 
-Both flags require a `#[serde(other)]` unit variant on the enum — the
-macro errors at compile time if it's missing. The catch-all variant has
-its own wire tag and round-trips like any other unit variant; the
-payload bytes of a redirected tag are discarded.
+The two markers are independent axes: marking only `on_reserved`
+accepts retired tags but errors on truly unknown ones; marking only
+`on_unknown` does the reverse. For unified "any unknown tag goes here"
+behavior, put both attrs on a single variant:
+
+```rust
+#[derive(MsgpackTagged)]
+#[tagged(reserved(2))]
+enum Op {
+    #[tag(0)] Real,
+    #[tag(9)]
+    #[tagged(on_reserved, on_unknown)]
+    Unrecognized,
+}
+```
+
+Both markers require a unit variant (the wire payload is discarded on
+routing, so the variant can't carry one of its own). At most one variant
+per marker kind. The fallback variant has its own wire tag and
+round-trips like any other unit variant.
 
 ### Renaming a field
 

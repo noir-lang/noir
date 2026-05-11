@@ -159,47 +159,50 @@ enum WithReservedVariants {
     Fourth,
 }
 
-/// Enum opting into `allow_reserved` — encountering a reserved variant tag
-/// on decode routes to the `#[serde(other)]` catch-all (`Unknown` here)
-/// instead of erroring. The macro validates the catch-all exists when the
-/// flag is set.
+/// Enum opting into reserved-tag fallback via a `#[tagged(on_reserved)]`
+/// unit variant — encountering a reserved variant tag on decode routes
+/// here instead of erroring. The marker itself is the opt-in; no separate
+/// type-level flag is needed.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
-#[tagged(reserved(2), allow_reserved)]
+#[tagged(reserved(2))]
 enum BackwardsCompat {
     #[tag(0)]
     First,
     #[tag(1)]
     Second,
     #[tag(9)]
-    #[serde(other)]
-    Unknown,
+    #[tagged(on_reserved)]
+    Retired,
 }
 
-/// Enum opting into `allow_unknown` — forward-compat for types where any
-/// unrecognized tag can safely collapse to the catch-all variant.
+/// Enum opting into unknown-tag fallback via a `#[tagged(on_unknown)]`
+/// unit variant — forward-compat for types where any unrecognized tag can
+/// safely collapse to the marked variant.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
-#[tagged(allow_unknown)]
 enum ForwardCompat {
     #[tag(0)]
     Empty,
     #[tag(1)]
     Some(u32),
     #[tag(9)]
-    #[serde(other)]
+    #[tagged(on_unknown)]
     Unknown,
 }
 
-/// Both flags at once — `InlineType`-shaped fully-lenient policy.
+/// Both markers at once — `InlineType`-shaped fully-lenient policy.
+/// Putting both attrs on a single variant gives the unified-catch-all
+/// behavior; splitting them across two variants would distinguish the
+/// two cases at the value level.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
-#[tagged(reserved(7), allow_reserved, allow_unknown)]
+#[tagged(reserved(7))]
 enum FullyLenient {
     #[tag(0)]
     A,
     #[tag(1)]
     B,
     #[tag(9)]
-    #[serde(other)]
-    Unknown,
+    #[tagged(on_reserved, on_unknown)]
+    Other,
 }
 
 /// Self-recursive enum: `Branch` carries `Vec<Tree>` (self-typed). The macro
@@ -980,57 +983,54 @@ fn variant_level_tagged_attrs_propagate_per_variant() {
 
 /// Default decode policy for any enum that doesn't opt in is strict on both
 /// ends — encountering a reserved or unknown variant tag is an error, and
-/// no catch-all variant is recorded.
+/// neither fallback-tag slot is recorded.
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn default_decode_policy_is_strict_for_plain_enums() {
     let s = sum_of::<Choice>();
-    assert!(!s.allow_reserved);
-    assert!(!s.allow_unknown);
-    assert!(s.catch_all_tag.is_none());
+    assert!(s.on_reserved_tag.is_none());
+    assert!(s.on_unknown_tag.is_none());
     let s = sum_of::<WithReservedVariants>();
-    assert!(!s.allow_reserved, "reserved alone doesn't imply catch-all routing");
-    assert!(!s.allow_unknown);
-    assert!(s.catch_all_tag.is_none());
+    assert!(
+        s.on_reserved_tag.is_none(),
+        "reserved alone doesn't imply fallback routing — a marker is required",
+    );
+    assert!(s.on_unknown_tag.is_none());
 }
 
 #[test]
-fn allow_reserved_flag_propagates_into_sum() {
+fn on_reserved_marker_propagates_into_sum() {
     let s = sum_of::<BackwardsCompat>();
-    assert!(s.allow_reserved);
-    assert!(!s.allow_unknown);
+    assert_eq!(s.on_reserved_tag, Some(9));
+    assert!(s.on_unknown_tag.is_none());
     assert_eq!(s.reserved, &[2]);
-    assert_eq!(s.catch_all_tag, Some(9));
 }
 
 #[test]
-fn allow_unknown_flag_propagates_into_sum() {
+fn on_unknown_marker_propagates_into_sum() {
     let s = sum_of::<ForwardCompat>();
-    assert!(!s.allow_reserved);
-    assert!(s.allow_unknown);
-    assert_eq!(s.catch_all_tag, Some(9));
+    assert!(s.on_reserved_tag.is_none());
+    assert_eq!(s.on_unknown_tag, Some(9));
 }
 
 #[test]
-fn both_decode_policy_flags_can_combine() {
+fn both_markers_can_combine_on_one_variant() {
     let s = sum_of::<FullyLenient>();
-    assert!(s.allow_reserved);
-    assert!(s.allow_unknown);
+    assert_eq!(s.on_reserved_tag, Some(9));
+    assert_eq!(s.on_unknown_tag, Some(9));
     assert_eq!(s.reserved, &[7]);
-    assert_eq!(s.catch_all_tag, Some(9));
 }
 
-/// The decode-policy flags also reach the registry entry — the wrapper
-/// will read them off the `Sum` shape on the entry, not off the trait const.
+/// The fallback tags also reach the registry entry — the wrapper will
+/// read them off the `Sum` shape on the entry, not off the trait const.
 #[test]
-fn decode_policy_flags_show_up_on_the_registry_entry() {
+fn fallback_tags_show_up_on_the_registry_entry() {
     let mut reg = TagRegistry::new();
     FullyLenient::register_into(&mut reg);
     let entry = reg.get("FullyLenient").expect("FullyLenient should register itself");
     let s = entry_sum(entry);
-    assert!(s.allow_reserved);
-    assert!(s.allow_unknown);
-    assert_eq!(s.catch_all_tag, Some(9));
+    assert_eq!(s.on_reserved_tag, Some(9));
+    assert_eq!(s.on_unknown_tag, Some(9));
 }
 
 /// Field-level `#[serde(rename = "X")]` rewrites the wire name in

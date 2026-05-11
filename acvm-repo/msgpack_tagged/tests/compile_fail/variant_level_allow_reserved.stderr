@@ -1,5 +1,0 @@
-error: expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` on an enum variant — `allow_reserved`, `allow_unknown`, and `via(...)` are type-level modifiers, not variant-level
-  --> tests/compile_fail/variant_level_allow_reserved.rs:11:14
-   |
-11 |     #[tagged(allow_reserved)]
-   |              ^^^^^^^^^^^^^^

@@ -1092,27 +1092,26 @@ mod v2_to_v1_struct_variant_extra_field_without_allow_unknown {
 }
 
 // ============================================================================
-// Schema-evolution / cross-version tests for enum *variant tags* — the case
-// that triggered the `allow_unknown` / `allow_reserved` design. Each test
+// Schema-evolution / cross-version tests for enum *variant tags*. Each test
 // pair encodes one version's value and decodes through the other version's
-// type; the catch-all variant (`#[serde(other)]`) is where unknown / retired
-// tags land when the right flag is set.
+// type; a `#[tagged(on_reserved)]` or `#[tagged(on_unknown)]` unit variant
+// is where retired / unknown tags land. The marker itself is the opt-in —
+// no separate type-level flag is needed.
 // ============================================================================
 
-/// V2 → V1: V2 adds a new variant. V1 opts into `allow_unknown` and has a
-/// `#[serde(other)]` catch-all variant — V1 decodes V2's new variant as
-/// the catch-all, discarding the payload bytes.
-mod v2_to_v1_enum_add_variant_with_allow_unknown {
+/// V2 → V1: V2 adds a new variant. V1 has a `#[tagged(on_unknown)]` unit
+/// variant — V1 decodes V2's new variant as that fallback, discarding the
+/// payload bytes.
+mod v2_to_v1_enum_add_variant_with_on_unknown {
     use super::*;
 
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
     #[serde(rename = "Foo")]
-    #[tagged(allow_unknown)]
     enum FooV1 {
         #[tag(0)]
         A,
         #[tag(9)]
-        #[serde(other)]
+        #[tagged(on_unknown)]
         Unknown,
     }
 
@@ -1126,14 +1125,14 @@ mod v2_to_v1_enum_add_variant_with_allow_unknown {
     }
 
     #[test]
-    fn new_variant_decoded_as_catch_all() {
+    fn new_variant_decoded_as_fallback() {
         let v2 = FooV2::B(7, true);
         let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::Unknown);
     }
 
-    /// And the known variants still decode as themselves — the catch-all
+    /// And the known variants still decode as themselves — the fallback
     /// only fires for unknown tags.
     #[test]
     fn known_variant_still_round_trips() {
@@ -1144,10 +1143,10 @@ mod v2_to_v1_enum_add_variant_with_allow_unknown {
     }
 }
 
-/// V2 → V1: V2 adds a new variant; V1 does *not* opt into `allow_unknown`.
-/// V1 errors on the unknown variant tag — the existence of a `#[serde(other)]`
-/// variant alone doesn't enable routing.
-mod v2_to_v1_enum_add_variant_without_allow_unknown {
+/// V2 → V1: V2 adds a new variant; V1 has no `#[tagged(on_unknown)]` marker.
+/// V1 errors on the unknown variant tag — declaring a fallback variant is
+/// the opt-in; without the marker there's no routing target.
+mod v2_to_v1_enum_add_variant_without_on_unknown {
     use super::*;
 
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
@@ -1155,9 +1154,6 @@ mod v2_to_v1_enum_add_variant_without_allow_unknown {
     enum FooV1 {
         #[tag(0)]
         A,
-        #[tag(9)]
-        #[serde(other)]
-        Unknown,
     }
 
     #[derive(serde::Serialize, MsgpackTagged)]
@@ -1170,7 +1166,7 @@ mod v2_to_v1_enum_add_variant_without_allow_unknown {
     }
 
     #[test]
-    fn unknown_variant_errors_when_allow_unknown_off() {
+    fn unknown_variant_errors_when_no_marker() {
         let v2 = FooV2::B;
         let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
@@ -1180,9 +1176,9 @@ mod v2_to_v1_enum_add_variant_without_allow_unknown {
 }
 
 /// V1 → V2: V2 retires a variant by adding its tag to `reserved(...)` and
-/// dropping the declaration. V2 opts into `allow_reserved` with a catch-all,
-/// so legacy data carrying the retired tag still decodes (to the catch-all).
-mod v1_to_v2_enum_retire_variant_with_allow_reserved {
+/// dropping the declaration. V2 marks a unit variant with `#[tagged(on_reserved)]`,
+/// so legacy data carrying the retired tag still decodes there.
+mod v1_to_v2_enum_retire_variant_with_on_reserved {
     use super::*;
 
     #[derive(serde::Serialize, MsgpackTagged)]
@@ -1196,17 +1192,17 @@ mod v1_to_v2_enum_retire_variant_with_allow_reserved {
 
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
     #[serde(rename = "Foo")]
-    #[tagged(reserved(1), allow_reserved)]
+    #[tagged(reserved(1))]
     enum FooV2 {
         #[tag(0)]
         A,
         #[tag(9)]
-        #[serde(other)]
+        #[tagged(on_reserved)]
         Retired,
     }
 
     #[test]
-    fn retired_variant_decoded_as_catch_all() {
+    fn retired_variant_decoded_as_fallback() {
         let v1 = FooV1::B;
         let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
@@ -1214,10 +1210,10 @@ mod v1_to_v2_enum_retire_variant_with_allow_reserved {
     }
 }
 
-/// V1 → V2: V2 retires a variant but only opts into `allow_reserved` (not
-/// `allow_unknown`). A *truly unknown* tag (not in `reserved`) still errors —
-/// this verifies the two flags are independent axes, not redundant ones.
-mod v1_to_v2_enum_unknown_not_in_reserved_still_errors_with_allow_reserved {
+/// V1 → V2: V2 only marks `#[tagged(on_reserved)]` (not `on_unknown`).
+/// A *truly unknown* tag (not in `reserved`) still errors — this verifies
+/// the two markers are independent axes, not redundant ones.
+mod v1_to_v2_enum_unknown_not_in_reserved_still_errors_with_on_reserved_only {
     use super::*;
 
     #[derive(serde::Serialize, MsgpackTagged)]
@@ -1231,12 +1227,12 @@ mod v1_to_v2_enum_unknown_not_in_reserved_still_errors_with_allow_reserved {
 
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
     #[serde(rename = "Foo")]
-    #[tagged(reserved(1), allow_reserved)]
+    #[tagged(reserved(1))]
     enum FooV2 {
         #[tag(0)]
         A,
         #[tag(9)]
-        #[serde(other)]
+        #[tagged(on_reserved)]
         Retired,
     }
 
@@ -1250,28 +1246,113 @@ mod v1_to_v2_enum_unknown_not_in_reserved_still_errors_with_allow_reserved {
     }
 }
 
-/// The catch-all variant itself round-trips like any other unit variant —
-/// no special encoding, just a 1-entry map `{catch_all_tag: nil}`.
-mod catch_all_variant_round_trip {
+/// And the symmetric case: V2 marks only `#[tagged(on_unknown)]` (not
+/// `on_reserved`). A tag listed in `reserved` is *not* routed to the
+/// `on_unknown` variant — the markers are strictly separate.
+mod v1_to_v2_enum_reserved_tag_not_routed_to_on_unknown {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        A,
+        #[tag(1)]
+        B,
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(1))]
+    enum FooV2 {
+        #[tag(0)]
+        A,
+        #[tag(9)]
+        #[tagged(on_unknown)]
+        Unknown,
+    }
+
+    #[test]
+    fn reserved_tag_errors_when_only_on_unknown_is_marked() {
+        let v1 = FooV1::B;
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let err = msgpack_tagged_deserialize::<FooV2>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("unknown variant tag 1"), "got: {msg}");
+    }
+}
+
+/// Unified fallback: both markers on a single variant — that variant
+/// catches both retired and unknown tags. The simple "I don't care about
+/// the distinction" shape.
+mod unified_fallback_with_both_markers {
     use super::*;
 
     #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
-    #[tagged(allow_unknown)]
-    enum WithCatchAll {
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(1))]
+    enum FooV2 {
+        #[tag(0)]
+        A,
+        #[tag(9)]
+        #[tagged(on_reserved, on_unknown)]
+        Other,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1Retired {
+        #[tag(0)]
+        A,
+        #[tag(1)]
+        Retired,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV3New {
+        #[tag(0)]
+        A,
+        #[tag(5)]
+        Future,
+    }
+
+    #[test]
+    fn retired_tag_lands_on_unified_fallback() {
+        let bytes = msgpack_tagged_serialize(&FooV1Retired::Retired).expect("encode");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
+        assert_eq!(v2, FooV2::Other);
+    }
+
+    #[test]
+    fn unknown_tag_lands_on_unified_fallback() {
+        let bytes = msgpack_tagged_serialize(&FooV3New::Future).expect("encode");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
+        assert_eq!(v2, FooV2::Other);
+    }
+}
+
+/// The fallback variant itself round-trips like any other unit variant —
+/// the markers don't change its on-wire encoding.
+mod fallback_variant_round_trip {
+    use super::*;
+
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    enum WithFallback {
         #[tag(0)]
         Known,
         #[tag(9)]
-        #[serde(other)]
+        #[tagged(on_unknown)]
         Other,
     }
 
     #[test]
-    fn catch_all_round_trips() {
-        assert_roundtrip(WithCatchAll::Other);
+    fn fallback_round_trips() {
+        assert_roundtrip(WithFallback::Other);
     }
 
     #[test]
     fn other_known_variant_still_round_trips() {
-        assert_roundtrip(WithCatchAll::Known);
+        assert_roundtrip(WithFallback::Known);
     }
 }
