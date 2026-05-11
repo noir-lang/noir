@@ -1009,16 +1009,7 @@ impl Elaborator<'_> {
         let generics = vecmap(&func_meta.all_generics, |generic| generic.type_var.clone());
         let trait_constraints = func_meta.trait_constraints.clone();
         let direct_generics = func_meta.direct_generics.clone();
-        // Extract the unconstrained flag from the resolved meta. The meta's
-        // typ is `Type::Function(.., is_unconstrained)` for non-generic
-        // signatures and `Type::Forall(_, Box<Type::Function(..)>)` when the
-        // signature has generics.
-        let is_unconstrained = match &func_meta.typ {
-            Type::Function(_, _, _, b) => *b,
-            Type::Forall(_, inner) => matches!(inner.as_ref(), Type::Function(_, _, _, true)),
-            _ => false,
-        };
-
+        let is_unconstrained = func_meta.is_unconstrained();
         let no_environment = Box::new(Type::Unit);
         let function_type =
             Type::Function(arguments, Box::new(return_type), no_environment, is_unconstrained);
