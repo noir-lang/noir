@@ -1161,3 +1161,16 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
+    "#;
+    check_errors(src);
+}
