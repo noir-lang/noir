@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778516092308,
+  "lastUpdate": 1778517138301,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7e0d9a77f386a36b8039d7edb9e09bb04345f256",
-          "message": "chore: disable build scripts on yarn dependencies (#12534)",
-          "timestamp": "2026-05-05T12:24:27Z",
-          "tree_id": "06aca93f279748dbaebcca319f2d2350b67f6bfa",
-          "url": "https://github.com/noir-lang/noir/commit/7e0d9a77f386a36b8039d7edb9e09bb04345f256"
-        },
-        "date": 1777985238163,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167307,
-            "range": "± 278",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136221,
-            "range": "± 267",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2640951,
-            "range": "± 1740",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041466,
             "range": "± 26095",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5123dc0601b6c9aea9d42dad5ee19806c68fc7db",
+          "message": "fix: follow self_type bindings when matching turbofish on type (#12613)",
+          "timestamp": "2026-05-11T16:02:30Z",
+          "tree_id": "5cfce27368bb0d7ba2d7980ea7e2cf429698119b",
+          "url": "https://github.com/noir-lang/noir/commit/5123dc0601b6c9aea9d42dad5ee19806c68fc7db"
+        },
+        "date": 1778517074805,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127842,
+            "range": "± 1846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 116624,
+            "range": "± 3320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3045888,
+            "range": "± 10627",
             "unit": "ns/iter"
           }
         ]
