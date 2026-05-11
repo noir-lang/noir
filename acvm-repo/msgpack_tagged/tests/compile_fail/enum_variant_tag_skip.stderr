@@ -1,0 +1,5 @@
+error: `#[tag(skip)]` is not allowed on enum variants
+  --> tests/compile_fail/enum_variant_tag_skip.rs:11:5
+   |
+11 |     #[tag(skip)]
+   |     ^^^^^^^^^^^^

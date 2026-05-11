@@ -1,0 +1,5 @@
+error: `default` modifier is not allowed on enum variants
+ --> tests/compile_fail/enum_variant_tag_default.rs:9:5
+  |
+9 |     #[tag(0, default)]
+  |     ^^^^^^^^^^^^^^^^^^

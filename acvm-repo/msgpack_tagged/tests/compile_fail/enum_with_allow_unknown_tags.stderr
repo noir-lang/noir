@@ -1,0 +1,9 @@
+error: `#[tagged(allow_unknown_tags)]` doesn't apply to enums — there's no meaningful skip semantics for an unknown variant tag (the value's discriminator itself becomes unrepresentable). Use it on a struct field whose unknown tags can be silently dropped instead
+  --> tests/compile_fail/enum_with_allow_unknown_tags.rs:10:1
+   |
+10 | / #[tagged(allow_unknown_tags)]
+11 | | enum Choice {
+12 | |     #[tag(0)]
+13 | |     First,
+14 | | }
+   | |_^
