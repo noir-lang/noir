@@ -1,15 +1,52 @@
 //! Tagged-map msgpack deserializer that wraps [`rmp_serde::Deserializer`].
 //!
-//! Mirrors [`crate::serializer::Serializer`]: every aggregate shape will
-//! eventually be intercepted so an integer wire tag is translated back into
-//! the serde field/variant name the [`Visitor`] expects, via the
-//! [`TagRegistry`]. Currently a skeleton — every method forwards to the
-//! inner `rmp_serde` deserializer, and the shapes that still need
-//! interception are marked with a `TODO:` comment at the method body.
+//! Mirrors [`crate::serializer::Serializer`]: each aggregate shape that the
+//! macro emits — named struct, multi-element tuple struct, sequence, tuple,
+//! map, option, newtype struct — is intercepted to translate integer wire
+//! tags back to the serde field/variant names the [`Visitor`] expects, via
+//! the [`TagRegistry`]. The shapes that still forward to `rmp_serde` carry
+//! an inline `// TODO:` at the method body.
 //!
 //! The public entry point is [`msgpack_tagged_deserialize`], which builds
 //! the registry up front via `T::register_into` and runs the bytes through
 //! the wrapper.
+//!
+//! ## Known gaps vs. the design doc / macro syntax
+//!
+//! The wrapper isn't final — the bits below are accepted by
+//! `#[derive(MsgpackTagged)]` today but the deserializer doesn't model
+//! them yet. Each is also flagged with an inline `// TODO:` at the
+//! relevant call site.
+//!
+//! - **`deserialize_enum` not intercepted.** Variant tag → variant name
+//!   translation + `VariantKind` dispatch isn't implemented; we fall
+//!   through to `rmp_serde` which expects a different wire shape than
+//!   the one our serializer produces. Until this lands, tagged enums
+//!   don't round-trip through the wrapper.
+//! - **`#[tag(N, default)]` on tuple structs.** `deserialize_struct`
+//!   delegates wire-tolerance to the user pairing the field with
+//!   `#[serde(default)]`, which composes cleanly. `deserialize_tuple_struct`,
+//!   though, asserts `wire_len == len` eagerly — so a wire that's missing
+//!   a defaulted tag errors instead of filling from `Default`. Needs
+//!   relaxation once we've thought through the tuple-struct semantics.
+//! - **`#[tagged(allow_unknown_tags)]` on tuple structs.** Same eager
+//!   length check rejects wires with extra tags. Loosening it requires
+//!   accepting `wire_len >= len` (or `<= len` when defaults exist) and
+//!   handling the unknown entries.
+//! - **`#[tagged(allow_unknown_tags)]` on variant payloads.** Mirrors
+//!   the struct case but lives behind the missing `deserialize_enum`
+//!   interception.
+//! - **`#[tagged(default_on_reserved)]` / `default_on_unknown`** (enum-
+//!   only). Substitute `T::default()` for retired or unknown variant
+//!   tags on decode. Same dependency — `deserialize_enum` first.
+//! - **`deserialize_any`.** Niche today (none of our ACIR types are
+//!   decoded via self-describing visitors), but nested tagged values
+//!   reached through `serde_json::Value`-style consumers wouldn't
+//!   recurse through this wrapper.
+//! - **Encoding strategies.** Only the **Tagged** strategy is decoded.
+//!   When the serializer gains **Array** / **Named** overrides, the
+//!   deserializer needs the matching shape-agnostic dispatch (peek
+//!   marker, route to the right reader).
 
 use rmp::Marker;
 use rmp_serde::Deserializer as RmpDeserializer;
@@ -266,6 +303,11 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
+        // TODO: this strict length check rejects wires that exercise
+        // `#[tag(N, default)]` (fewer entries on the wire than the type
+        // arity) or `#[tagged(allow_unknown_tags)]` (more entries on the
+        // wire than the arity). Relax once the tuple-struct default /
+        // unknown-tags semantics are decided — see the file-level TODO.
         if wire_len != len {
             return Err(RmpError::custom(format!(
                 "tuple-struct {name:?} length mismatch: type expects {len} elements, \
@@ -605,8 +647,8 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
         // registry keeps nested tagged-type lookups consistent. The
         // sub-deserializer's reader state starts fresh at the value's
         // first byte, so its own `marker` buffer is empty as expected.
-        let mut sub_deser = Deserializer::new(value_bytes, self.parent.registry);
-        seed.deserialize(&mut sub_deser).map(Some)
+        let mut sub_deserializer = Deserializer::new(value_bytes, self.parent.registry);
+        seed.deserialize(&mut sub_deserializer).map(Some)
     }
 
     fn size_hint(&self) -> Option<usize> {

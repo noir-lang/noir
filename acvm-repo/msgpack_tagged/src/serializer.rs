@@ -16,6 +16,26 @@
 //! newtype structs, and `Option` forward through to inner — recursing into
 //! nested values via this same wrapper so any tagged value reachable from
 //! the root keeps the int-keyed-map treatment.
+//!
+//! ## Known gaps vs. the design doc / macro syntax
+//!
+//! The wrapper isn't final — the bits below are accepted by
+//! `#[derive(MsgpackTagged)]` today but aren't reflected in the wire bytes
+//! we produce yet. Each is also flagged with an inline `// TODO:` at the
+//! relevant call site.
+//!
+//! - **Tag-ascending wire order.** The design promises field/element
+//!   entries on the wire in tag-ascending order so two semantically-equal
+//!   values encode byte-identically regardless of source-declaration
+//!   order. We currently emit in serde's call-order = source-declaration
+//!   order. Tightening this requires buffering field bytes before writing.
+//! - **Encoding strategies.** Only the **Tagged** strategy (int-keyed
+//!   map) is implemented. Per-type strategy overrides — **Array**
+//!   (positional msgpack array, smallest wire) and **Named** (rmp_serde
+//!   default, string-keyed map) — are deferred follow-ups.
+//! - **`assert_eq!` on `len` vs `product.fields.len()`** — already
+//!   tightened, but only inside the four product-shaped methods. New
+//!   shapes that join the family should add the same assert.
 
 use std::io::Write;
 
@@ -452,6 +472,9 @@ impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
     where
         T: ?Sized + Serialize,
     {
+        // TODO: emit entries in tag-ascending order per the design doc;
+        // currently each call writes immediately, so on-wire ordering is
+        // serde's call-order = source-declaration order.
         ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
         value.serialize(&mut *self.parent)
     }
