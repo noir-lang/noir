@@ -32,3 +32,13 @@ You would be presented with a form when creating a security advisory:
     | **Likelihood: High** | Critical | High | Medium |
     | **Likelihood: Medium** | High | Medium | Low |
     | **Likelihood: Low** | Medium | Low | Low |
+
+## Disclosure Process
+
+1. Minimum 7 days before a new Noir version with ≥High security patches is released, a pre-announcement specifying i) CVE numbers of advisories that will be patched, and ii) the target release time, will be posted in [noir-security](https://groups.google.com/g/noir-security)
+2. When the new Noir version is released, a separate announcement will be posted in the same channel
+3. When the new Noir version is released, all advisories patched in the release will also be published on GitHub
+
+### Receiving Security Updates
+
+If you operate a Noir project in production, you are recommended to join [noir-security](https://groups.google.com/g/noir-security) with a Google account in order to receive email alerts of pre-announcements and plan for timely project patches at Noir releases.
