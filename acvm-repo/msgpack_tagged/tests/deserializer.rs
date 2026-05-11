@@ -444,12 +444,10 @@ fn struct_variant_with_nested_tagged_element_roundtrips() {
 
 /// V1 → V2: V2 retires a field by adding its tag to `reserved(...)` and
 /// dropping the field declaration. V1 emits both fields on the wire; V2
-/// should silently skip the retired tag and decode the rest.
-///
-/// **Currently fails** — the decoder doesn't consult `Product.is_reserved`
-/// yet, so retired tags follow the same path as wholly unknown tags
-/// (error unless `allow_unknown_tags`). Flagged in the deserializer's
-/// file-level TODO list. When that lands, drop the `#[should_panic]`.
+/// silently skips the retired tag and decodes the rest. Mirror of the
+/// enum `on_reserved` behavior but for products — the `reserved(...)`
+/// list itself is the opt-in (no extra flag needed), since the only
+/// retire-and-decode interpretation is "skip past the retired entry."
 mod v1_to_v2_remove_field_with_reserved {
     use super::*;
 
@@ -471,7 +469,6 @@ mod v1_to_v2_remove_field_with_reserved {
     }
 
     #[test]
-    #[should_panic(expected = "unknown wire tag")]
     fn skip_retired_tag_on_decode() {
         let v1 = FooV1 { a: 7, b: true };
         let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
@@ -861,10 +858,7 @@ mod v2_to_v1_tuple_variant_extra_with_allow_unknown {
 // Schema-evolution / cross-version tests for *struct* variants. Most of the
 // payload-side plumbing is shared with plain named structs
 // (`TaggedProductMapAccess`, `Product.field_for`), so these primarily verify
-// that wrapping in an enum doesn't break the schema-evolution semantics. The
-// `reserved`-on-decode case is omitted because it shares the same gap as the
-// plain-struct equivalent (`v1_to_v2_remove_field_with_reserved`) — covering
-// it here would just duplicate the existing `#[should_panic]`.
+// that wrapping in an enum doesn't break the schema-evolution semantics.
 // ============================================================================
 
 /// V1 → V2: V2 adds a new field on a struct-variant payload marked
@@ -1088,6 +1082,46 @@ mod v2_to_v1_struct_variant_extra_field_without_allow_unknown {
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("unknown wire tag"), "got: {msg}");
+    }
+}
+
+/// V1 → V2: V2 retires a payload field by adding its tag to
+/// `#[tagged(reserved(...))]` on the variant. V1's wire carries the
+/// retired tag; V2 silently skips it — same `TaggedProductMapAccess`
+/// reserved-skip path as plain named structs, just reached through a
+/// struct-variant payload.
+mod v1_to_v2_struct_variant_remove_field_with_reserved {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        #[tagged(reserved(1))]
+        Carry {
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[test]
+    fn skip_retired_payload_tag_on_decode() {
+        let v1 = FooV1::Carry { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2::Carry { a: 7 });
     }
 }
 

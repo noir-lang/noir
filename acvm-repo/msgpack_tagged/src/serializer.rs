@@ -21,8 +21,7 @@
 //!
 //! The wrapper isn't final — the bits below are accepted by
 //! `#[derive(MsgpackTagged)]` today but aren't reflected in the wire bytes
-//! we produce yet. Each is also flagged with an inline `// TODO:` at the
-//! relevant call site.
+//! we produce yet.
 //!
 //! - **Tag-ascending wire order.** The design promises field/element
 //!   entries on the wire in tag-ascending order so two semantically-equal
@@ -475,6 +474,8 @@ impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
         // TODO: emit entries in tag-ascending order per the design doc;
         // currently each call writes immediately, so on-wire ordering is
         // serde's call-order = source-declaration order.
+        // This is most relevant when paired with the ARRAY encoding strategy:
+        // it would allow us to reorder the fields without breaking.
         ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
         value.serialize(&mut *self.parent)
     }

@@ -4,8 +4,7 @@
 //! macro emits — named struct, multi-element tuple struct, sequence, tuple,
 //! map, option, newtype struct — is intercepted to translate integer wire
 //! tags back to the serde field/variant names the [`Visitor`] expects, via
-//! the [`TagRegistry`]. The shapes that still forward to `rmp_serde` carry
-//! an inline `// TODO:` at the method body.
+//! the [`TagRegistry`].
 //!
 //! The public entry point is [`msgpack_tagged_deserialize`], which builds
 //! the registry up front via `T::register_into` and runs the bytes through
@@ -15,17 +14,8 @@
 //!
 //! The wrapper isn't final — the bits below are accepted by
 //! `#[derive(MsgpackTagged)]` today but the deserializer doesn't model
-//! them yet. Each is also flagged with an inline `// TODO:` at the
-//! relevant call site.
+//! them yet.
 //!
-//! - **`#[tagged(reserved(...))]` on the decode side.** `Product.is_reserved`
-//!   exists in the registry and is checked at compile time by the macro
-//!   to prevent tag reuse, but the decoder never consults it. Retired
-//!   tags on the wire currently follow the same code path as wholly
-//!   unknown tags — silently skipped only when `allow_unknown_tags` is
-//!   set, error otherwise. The likely-intended semantic is that
-//!   `reserved` tags auto-skip on decode regardless of
-//!   `allow_unknown_tags`, since they're explicitly opted-in retirements.
 //! - **`deserialize_any`.** Niche today (none of our ACIR types are
 //!   decoded via self-describing visitors), but nested tagged values
 //!   reached through `serde_json::Value`-style consumers wouldn't
@@ -93,8 +83,7 @@ where
 // `serde::Deserializer` impl — every method currently forwards to the inner
 // rmp_serde deserializer. The structurally-significant ones (struct, enum,
 // tuple shapes, sequences, maps) need interception so integer wire tags are
-// translated back to serde field/variant names; each is marked with a
-// `TODO:` comment at its body.
+// translated back to serde field/variant names.
 // ============================================================================
 
 impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
@@ -606,10 +595,14 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
                     de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
                 return seed.deserialize(key_deserializer).map(Some);
             }
-            // TODO: also auto-skip `self.product.is_reserved(tag)` here
-            // — retired tags should decode silently regardless of
-            // `allow_unknown_tags`. See the file-level TODO.
-            if self.product.allow_unknown_tags {
+            // Tag isn't an active field. Two ways to tolerate it:
+            //   * `product.is_reserved(tag)` → the type explicitly retired
+            //     this tag, so the user has opted into silent-skip for it
+            //     (parallel to enums' `on_reserved` marker). Always silent.
+            //   * `product.allow_unknown_tags` → the type opted into blanket
+            //     forward-compat for *any* tag it doesn't recognize.
+            // Either branch consumes the value and loops to the next entry.
+            if self.product.is_reserved(tag) || self.product.allow_unknown_tags {
                 de::IgnoredAny::deserialize(&mut *self.parent)?;
                 continue;
             }
