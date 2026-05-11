@@ -608,11 +608,9 @@ trait OpcodeAddressVisitor {
                 self.read_heap_array(hash_values, location);
                 self.write_heap_array(output, location);
             }
-            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs: _, output_bits: _ } => {
                 self.read(input, location);
                 self.read(radix, location);
-                self.read(num_limbs, location);
-                self.read(output_bits, location);
                 self.read(output_pointer, location); // indirect
             }
         }

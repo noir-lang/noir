@@ -136,19 +136,18 @@ fn brillig_to_bits() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: sp[4] = const u32 2
-     1: sp[5] = const bool 1
-     2: sp[3] = @1
-     3: sp[6] = const u32 9
-     4: @1 = u32 add @1, sp[6]
-     5: sp[3] = indirect const u32 1
-     6: sp[6] = u32 add sp[3], @2
-     7: sp[7] = const u32 8
-     8: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
-     9: @3 = sp[6]
-    10: @4 = sp[7]
-    11: call 0 // -> ArrayReverse
-    12: sp[2] = sp[3]
-    13: return
+     1: sp[3] = @1
+     2: sp[5] = const u32 9
+     3: @1 = u32 add @1, sp[5]
+     4: sp[3] = indirect const u32 1
+     5: sp[5] = u32 add sp[3], @2
+     6: sp[6] = const u32 8
+     7: to_radix(input: sp[2], radix: sp[4], num_limbs: 8, output_pointer: sp[5], output_bits: true)
+     8: @3 = sp[5]
+     9: @4 = sp[6]
+    10: call 0 // -> ArrayReverse
+    11: sp[2] = sp[3]
+    12: return
     ");
 }
 
@@ -167,19 +166,18 @@ fn brillig_to_radix() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: sp[5] = const bool 0
-     1: sp[4] = @1
-     2: sp[6] = const u32 9
-     3: @1 = u32 add @1, sp[6]
-     4: sp[4] = indirect const u32 1
-     5: sp[6] = u32 add sp[4], @2
-     6: sp[7] = const u32 8
-     7: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
-     8: @3 = sp[6]
-     9: @4 = sp[7]
-    10: call 0 // -> ArrayReverse
-    11: sp[2] = sp[4]
-    12: return
+     0: sp[4] = @1
+     1: sp[5] = const u32 9
+     2: @1 = u32 add @1, sp[5]
+     3: sp[4] = indirect const u32 1
+     4: sp[5] = u32 add sp[4], @2
+     5: sp[6] = const u32 8
+     6: to_radix(input: sp[2], radix: sp[3], num_limbs: 8, output_pointer: sp[5], output_bits: false)
+     7: @3 = sp[5]
+     8: @4 = sp[6]
+     9: call 0 // -> ArrayReverse
+    10: sp[2] = sp[4]
+    11: return
     ");
 }
 
