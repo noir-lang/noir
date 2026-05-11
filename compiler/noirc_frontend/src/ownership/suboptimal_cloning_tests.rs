@@ -11,12 +11,10 @@ use crate::test_utils::get_monomorphized;
 /// Two disjoint indexes into a nested array. Each index accesses a different
 /// element, so they don't alias.
 ///
-/// Suboptimal: both `arr[0]` and `arr[1]` get `.clone()`. The ownership pass
-/// always clones an indexed element whose type contains an array — a dynamic
-/// index cannot be proved disjoint from other uses of the same collection, so
-/// moving the outer array doesn't guarantee the inner slot is not aliased. If
-/// the analysis tracked that the constant indexes 0 and 1 are disjoint and
-/// that `arr` has no further uses, both clones could be avoided.
+/// Suboptimal: `arr[0]` gets `.clone()` because top-level Index expressions
+/// don't record ConstIndex path steps (doing so would create prefix conflicts
+/// when the same variable is also accessed at a shallower field path elsewhere).
+/// The second access `arr[1]` is correctly moved as the last use.
 #[test]
 fn nested_array_two_disjoint_indexes() {
     let src = "
@@ -27,6 +25,7 @@ fn nested_array_two_disjoint_indexes() {
     }
     ";
 
+    // arr$l0[0].clone() is suboptimal — arr[0] and arr[1] are disjoint constant indices
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
