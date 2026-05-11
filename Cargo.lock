@@ -3330,6 +3330,7 @@ dependencies = [
  "rmp-serde",
  "rmpv",
  "serde",
+ "smallvec",
  "trybuild",
 ]
 
