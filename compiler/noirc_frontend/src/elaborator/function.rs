@@ -232,7 +232,7 @@ impl Elaborator<'_> {
         self.interner.function_meta_mut(&func_id)
     }
 
-    /// Resolves all unresolves function metas except those given in `skip`.
+    /// Resolves all unresolved function metas except those given in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_function_metas_skipping(&mut self, skip: &HashSet<FuncId>) {
         let to_resolve: Vec<FuncId> = self
