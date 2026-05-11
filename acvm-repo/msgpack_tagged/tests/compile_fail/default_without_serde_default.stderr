@@ -1,0 +1,6 @@
+error: field marked `#[tag(N, default)]` needs `#[serde(default)]` or `#[serde(default = "...")]` so serde-derive's decoder fills `T::default()` when the tag is missing on the wire. `#[tag(N, default)]` only governs our compile-time metadata (`Product.defaults` + the `T: Default` bound); the actual default-substitution at decode time is serde-derive's machinery and only fires when one of those serde attributes is present on the field (or `#[serde(default)]` is on the surrounding struct).
+  --> tests/compile_fail/default_without_serde_default.rs:13:5
+   |
+13 | /     #[tag(1, default)]
+14 | |     b: Vec<u8>,
+   | |______________^

@@ -96,16 +96,24 @@ enum ExplicitTupleVariants {
 /// added by the macro to the impl's where clause. `_phantom: PhantomData<T>`
 /// auto-skips and `hidden: Opaque` opts out via `#[tag(skip)]` — neither
 /// contributes a `MsgpackTagged` bound, which is why `T = Opaque` works.
-#[derive(MsgpackTagged)]
+#[derive(MsgpackTagged, serde::Deserialize)]
+#[serde(bound = "")] // see comment on `_phantom` below for why we suppress serde-derive's inferred bounds.
 enum WithVariantFieldExtras<T> {
     #[tag(0)]
     Plain {
         #[tag(0)]
         required: u32,
         #[tag(1, default)]
+        #[serde(default)]
         annotation: Vec<u8>,
         #[tag(skip)]
+        #[serde(skip)]
         hidden: Opaque,
+        // serde-derive needs `#[serde(skip)]` here to keep the field out
+        // of the deserialize flow (it doesn't auto-recognize PhantomData
+        // the way our macro does). Combined with `#[serde(bound = "")]`
+        // on the enum, this keeps `T` free of any inferred serde bounds.
+        #[serde(skip)]
         _phantom: std::marker::PhantomData<T>,
     },
 }
@@ -321,7 +329,10 @@ struct OutOfOrder {
 
 /// Type that intentionally does *not* implement `MsgpackTagged`, used to
 /// verify that `#[tag(skip)]` and `PhantomData<_>` exempt their field type
-/// from the bound chain.
+/// from the bound chain. We do derive `Default` so it can sit behind
+/// `#[serde(skip)]` in fixtures that also derive `serde::Deserialize` —
+/// serde-derive needs a way to construct the skipped field on decode.
+#[derive(Default)]
 struct Opaque {
     payload: Vec<u8>,
 }
@@ -348,13 +359,15 @@ struct WithPhantom<T> {
 /// `#[tag(N, default)]` fields: tag 1 (`extra`) is wire-tolerant — appears in
 /// `Product.fields` and `Product.defaults`, decoder will fill `Vec::default()`
 /// if missing.
-#[derive(MsgpackTagged)]
+#[derive(MsgpackTagged, serde::Deserialize)]
 struct WithDefaults {
     #[tag(0)]
     required: u32,
     #[tag(1, default)]
+    #[serde(default)]
     extra: Vec<u8>,
     #[tag(2, default)]
+    #[serde(default)]
     annotation: String,
 }
 

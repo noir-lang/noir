@@ -4,8 +4,9 @@
 
 use msgpack_tagged::MsgpackTagged;
 
-/// Has `MsgpackTagged` impl (via derive) but intentionally NOT `Default`.
-#[derive(MsgpackTagged)]
+/// Has `MsgpackTagged` and `serde::Serialize` impls (via derive) but
+/// intentionally NOT `Default`.
+#[derive(MsgpackTagged, serde::Serialize)]
 struct NotDefault {
     #[tag(0)]
     x: u32,
@@ -13,9 +14,14 @@ struct NotDefault {
 
 /// `inner` is marked `default`, but `NotDefault: Default` doesn't hold —
 /// should fail with "the trait bound `NotDefault: Default` is not satisfied".
-#[derive(MsgpackTagged)]
+/// `serde::Serialize` is derived purely to register the `serde` attribute
+/// namespace so `#[serde(default)]` is accepted by rustc — without that
+/// pairing, the macro's own validation would fire first (covered by the
+/// separate `default_without_serde_default` fixture).
+#[derive(MsgpackTagged, serde::Serialize)]
 struct Container {
     #[tag(0, default)]
+    #[serde(default)]
     inner: NotDefault,
 }
 
