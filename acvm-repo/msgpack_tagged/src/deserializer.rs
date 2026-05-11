@@ -33,6 +33,14 @@
 //!   length check rejects wires with extra tags. Loosening it requires
 //!   accepting `wire_len >= len` (or `<= len` when defaults exist) and
 //!   handling the unknown entries.
+//! - **`#[tagged(reserved(...))]` on the decode side.** `Product.is_reserved`
+//!   exists in the registry and is checked at compile time by the macro
+//!   to prevent tag reuse, but the decoder never consults it. Retired
+//!   tags on the wire currently follow the same code path as wholly
+//!   unknown tags — silently skipped only when `allow_unknown_tags` is
+//!   set, error otherwise. The likely-intended semantic is that
+//!   `reserved` tags auto-skip on decode regardless of
+//!   `allow_unknown_tags`, since they're explicitly opted-in retirements.
 //! - **`#[tagged(allow_unknown_tags)]` on variant payloads.** Mirrors
 //!   the struct case but lives behind the missing `deserialize_enum`
 //!   interception.
@@ -545,6 +553,9 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
                     de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
                 return seed.deserialize(key_deserializer).map(Some);
             }
+            // TODO: also auto-skip `self.product.is_reserved(tag)` here
+            // — retired tags should decode silently regardless of
+            // `allow_unknown_tags`. See the file-level TODO.
             if self.product.allow_unknown_tags {
                 de::IgnoredAny::deserialize(&mut *self.parent)?;
                 continue;
