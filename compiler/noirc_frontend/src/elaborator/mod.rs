@@ -984,14 +984,14 @@ impl<'context> Elaborator<'context> {
 
     /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
-    fn in_constrained_function(&mut self) -> bool {
+    fn in_constrained_function(&self) -> bool {
         if self.in_comptime_context() {
             return false;
         }
 
         let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
-                self.function_meta(id).is_unconstrained()
+                self.interner.function_meta(&id).is_unconstrained()
             } else {
                 false
             }
