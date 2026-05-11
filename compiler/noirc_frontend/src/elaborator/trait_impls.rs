@@ -458,10 +458,8 @@ impl Elaborator<'_> {
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
             let prev_local_module = self.local_module.replace(check.module_id);
-            let prev_current_trait_impl =
-                std::mem::replace(&mut self.current_trait_impl, Some(check.impl_id));
-            let prev_current_trait =
-                std::mem::replace(&mut self.current_trait, Some(check.trait_id));
+            let prev_current_trait_impl = self.current_trait_impl.replace(check.impl_id);
+            let prev_current_trait = self.current_trait.replace(check.trait_id);
             let prev_self_type = self.self_type.replace(impl_self_type);
 
             self.check_where_clause_against_trait(
