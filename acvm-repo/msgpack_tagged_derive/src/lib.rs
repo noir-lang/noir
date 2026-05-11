@@ -67,16 +67,11 @@ fn product_struct_literal(
         let name = &e.name;
         quote! { (#tag, #name) }
     });
-    let default_entries = entries.iter().filter(|e| e.has_default).map(|e| {
-        let tag = e.tag;
-        quote! { #tag }
-    });
     let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
     quote! {
         ::msgpack_tagged::Product {
             fields: &[#(#field_entries),*],
             reserved: &[#(#reserved_entries),*],
-            defaults: &[#(#default_entries),*],
             allow_unknown_tags: #allow_unknown_tags,
         }
     }
@@ -294,11 +289,7 @@ fn expand_tuple_struct(
     let reserved = &type_attrs.reserved;
     let allow_unknown_tags = type_attrs.allow_unknown_tags;
 
-    // A struct-level `#[serde(default)]` covers all of the tuple struct's
-    // fields, so `#[tag(N, default)]` fields don't each need their own
-    // `#[serde(default)]` in that case.
-    let struct_has_serde_default = has_serde_default_in_attrs(&input.attrs)?;
-    let entries = parse_tuple_fields(input, fields, reserved, struct_has_serde_default)?;
+    let entries = parse_tuple_fields(input, fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
@@ -421,12 +412,7 @@ fn expand_enum(
                 (VariantKind::Unit, Vec::new(), None)
             }
             Fields::Named(named) => {
-                // Enum-level `#[serde(default)]` has a different meaning
-                // than struct-level (it picks the default *variant* when
-                // a variant tag is unknown, not a missing field), so it
-                // doesn't satisfy a variant field's `#[tag(N, default)]`.
-                // Variant fields must carry the serde attribute themselves.
-                let payload = parse_named_fields(&named.named, &variant_attrs.reserved, false)?;
+                let payload = parse_named_fields(&named.named, &variant_attrs.reserved)?;
                 (VariantKind::Struct, payload, None)
             }
             Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
@@ -451,12 +437,8 @@ fn expand_enum(
                 (VariantKind::Newtype, Vec::new(), Some(&inner.ty))
             }
             Fields::Unnamed(unnamed) => {
-                // See the named-variant branch above: enum-level
-                // `#[serde(default)]` doesn't satisfy variant fields'
-                // `#[tag(N, default)]` pairings; they must declare the
-                // serde attribute themselves.
                 let payload =
-                    parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved, false)?;
+                    parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved)?;
                 (VariantKind::Tuple, payload, None)
             }
         };
@@ -528,13 +510,7 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
         ));
     };
     match args {
-        TagArgs::Tag { tag, default } => {
-            if default {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "`default` modifier is not allowed on enum variants",
-                ));
-            }
+        TagArgs::Tag(tag) => {
             if reserved.contains(&tag) {
                 return Err(syn::Error::new_spanned(
                     attr,
@@ -554,9 +530,8 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
 /// Where clause for an enum impl. Same shape as `build_where_clause` for
 /// structs — `T: 'static` per type parameter, plus a deduped
 /// `<PayloadFieldType>: MsgpackTagged` bound for every tagged field type
-/// appearing in any variant's payload, plus `<PayloadFieldType>: Default`
-/// for any field marked `#[tag(N, default)]`. When `needs_default_bound`
-/// is set (because the type opts into `default_on_reserved` or
+/// appearing in any variant's payload. When `needs_default_bound` is set
+/// (because the type opts into `default_on_reserved` or
 /// `default_on_unknown`), we additionally add `Self: Default` so a missing
 /// `derive(Default)` surfaces as a clear "Self: Default is not satisfied"
 /// error at the impl site.
@@ -588,21 +563,16 @@ fn build_enum_where_clause(
 
     let self_ident = &input.ident;
     let mut seen_msgpack = std::collections::HashSet::new();
-    let mut seen_default = std::collections::HashSet::new();
     for v in variants {
         for entry in &v.payload {
             let ty = entry.ty;
             let key = quote!(#ty).to_string();
-            // Same self-recursion handling as `build_where_clause`: skip the
-            // `MsgpackTagged` bound for fields whose type contains the
-            // self-ident, but keep the `Default` bound and let the recursion
-            // call resolve co-inductively at the call site.
+            // Self-recursion handling: skip the `MsgpackTagged` bound for
+            // fields whose type contains the self-ident, and let the
+            // recursion call resolve co-inductively at the call site.
             let self_typed = type_contains_ident(ty, self_ident);
-            if !self_typed && seen_msgpack.insert(key.clone()) {
+            if !self_typed && seen_msgpack.insert(key) {
                 where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
-            }
-            if entry.has_default && seen_default.insert(key) {
-                where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
             }
         }
         // Newtype variants don't go through the payload entries (their
@@ -737,7 +707,6 @@ struct TaggedField<'a> {
     tag: u8,
     name: String,
     ty: &'a Type,
-    has_default: bool,
 }
 
 /// Parse a list of named fields (struct fields or named-variant payload
@@ -748,22 +717,18 @@ struct TaggedField<'a> {
 fn parse_named_fields<'a>(
     fields: &'a Punctuated<Field, Token![,]>,
     reserved: &[u8],
-    container_has_serde_default: bool,
 ) -> syn::Result<Vec<TaggedField<'a>>> {
     let mut entries = Vec::with_capacity(fields.len());
     let mut seen_tags = std::collections::HashSet::new();
     for field in fields {
         let ident = field.ident.as_ref().expect("named field has an ident");
         match classify_field(field, reserved)? {
-            FieldKind::Tagged { tag, has_default } => {
+            FieldKind::Tagged(tag) => {
                 if !seen_tags.insert(tag) {
                     return Err(syn::Error::new_spanned(
                         field,
                         format!("tag {tag} is used more than once"),
                     ));
-                }
-                if has_default {
-                    validate_serde_default_pairing(field, container_has_serde_default)?;
                 }
                 // Field-level `#[serde(rename = "X")]` overrides the wire
                 // name. This is what makes the shadow-DTO pattern work when
@@ -771,7 +736,7 @@ fn parse_named_fields<'a>(
                 // type — `serialize_field("X", ...)` matches our `tag_for("X")`.
                 let wire_name =
                     parse_serde_field_rename(field)?.unwrap_or_else(|| ident.to_string());
-                entries.push(TaggedField { tag, name: wire_name, ty: &field.ty, has_default });
+                entries.push(TaggedField { tag, name: wire_name, ty: &field.ty });
             }
             FieldKind::Skipped => {}
         }
@@ -794,7 +759,6 @@ fn parse_tuple_fields<'a>(
     mixing_error_span: &dyn ToTokens,
     fields: &'a Punctuated<Field, Token![,]>,
     reserved: &[u8],
-    container_has_serde_default: bool,
 ) -> syn::Result<Vec<TaggedField<'a>>> {
     let explicit_count =
         fields.iter().filter(|f| f.attrs.iter().any(|a| a.path().is_ident("tag"))).count();
@@ -816,9 +780,9 @@ fn parse_tuple_fields<'a>(
                 format!("tuple position {position} is out of range for u8 tags"),
             )
         })?;
-        let (tag, has_default) = if all_explicit {
+        let tag = if all_explicit {
             match classify_field(field, reserved)? {
-                FieldKind::Tagged { tag, has_default } => (tag, has_default),
+                FieldKind::Tagged(tag) => tag,
                 FieldKind::Skipped => {
                     return Err(syn::Error::new_spanned(
                         field,
@@ -846,7 +810,7 @@ fn parse_tuple_fields<'a>(
                     ),
                 ));
             }
-            (position_u8, false)
+            position_u8
         };
         if !seen_tags.insert(tag) {
             return Err(syn::Error::new_spanned(
@@ -854,19 +818,7 @@ fn parse_tuple_fields<'a>(
                 format!("tag {tag} is used more than once"),
             ));
         }
-        // Note: we deliberately do *not* call `validate_serde_default_pairing`
-        // here. serde-derive's tuple-struct/tuple-variant decode is
-        // positional and requires "all-or-nothing past a default" — once a
-        // field uses `#[serde(default)]`, every subsequent positional
-        // field must too. That's incompatible with our per-tag default
-        // model (any subset of tags can be wire-tolerant), so
-        // `#[tag(N, default)]` on tuple-style fields can't pair cleanly
-        // with `#[serde(default)]` in the general case. We leave it as a
-        // declared compile-time signal + `T: Default` bound but the
-        // pairing isn't enforced. `container_has_serde_default` is held
-        // for future use if we adopt a different decode strategy.
-        let _ = container_has_serde_default;
-        entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty, has_default });
+        entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty });
     }
     entries.sort_by_key(|e| e.tag);
     Ok(entries)
@@ -898,11 +850,8 @@ fn expand_named_struct(
     // Parse each field. Tagged fields contribute to TAGS, the recursion list,
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
     // are silently dropped — they don't go on the wire and don't constrain
-    // their type. A struct-level `#[serde(default)]` covers all of the
-    // struct's fields, so `#[tag(N, default)]` fields don't each need
-    // their own `#[serde(default)]` in that case.
-    let struct_has_serde_default = has_serde_default_in_attrs(&input.attrs)?;
-    let entries = parse_named_fields(fields, reserved, struct_has_serde_default)?;
+    // their type.
+    let entries = parse_named_fields(fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
@@ -977,10 +926,8 @@ fn build_via_where_clause(input: &DeriveInput, wire_type: &Type) -> Option<Where
 
 /// What the macro should do with a given field on the wire.
 enum FieldKind {
-    /// Field appears on the wire under integer tag `tag`. `has_default = true`
-    /// when the user wrote `#[tag(N, default)]`: encoder always emits, decoder
-    /// fills `T::default()` if the tag is missing.
-    Tagged { tag: u8, has_default: bool },
+    /// Field appears on the wire under integer tag `tag`.
+    Tagged(u8),
     /// Field is omitted from the wire (via explicit `#[tag(skip)]` or because
     /// its type is `PhantomData<_>`). Skipped fields contribute no entry to
     /// `TAGS`, no recursion into `register_into`, and no where-clause bound.
@@ -990,12 +937,14 @@ enum FieldKind {
 /// Inner-args grammar for `#[tag(...)]`:
 /// * `#[tag(skip)]` — the bare ident `skip`.
 /// * `#[tag(N)]` — an integer tag literal.
-/// * `#[tag(N, default)]` — integer tag plus the wire-tolerance modifier.
 ///
-/// More modifiers can be added later by extending the comma-separated list
-/// after the integer tag.
+/// The earlier `#[tag(N, default)]` form (decoder fills `T::default()`
+/// when the tag is missing) was removed: it was redundant with serde-
+/// derive's `#[serde(default)]`, which is what actually does the
+/// substitution at decode time. Anything trailing the tag integer is
+/// rejected with a pointer at the serde attribute.
 enum TagArgs {
-    Tag { tag: u8, default: bool },
+    Tag(u8),
     Skip,
 }
 
@@ -1005,26 +954,31 @@ impl Parse for TagArgs {
         if lookahead.peek(LitInt) {
             let lit: LitInt = input.parse()?;
             let tag: u8 = lit.base10_parse()?;
-            let mut default = false;
-            while input.peek(Token![,]) {
+            // No modifiers are recognized after the tag integer anymore.
+            // The most common stale form is `#[tag(N, default)]`; surface
+            // that case with a targeted message and reject everything else
+            // as syntactically invalid.
+            if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
-                let modifier: Ident = input.parse()?;
-                if modifier == "default" {
-                    if default {
-                        return Err(syn::Error::new(
-                            modifier.span(),
-                            "duplicate `default` modifier",
-                        ));
-                    }
-                    default = true;
-                } else {
+                let trailing: Ident = input.parse()?;
+                if trailing == "default" {
                     return Err(syn::Error::new(
-                        modifier.span(),
-                        format!("unknown modifier `{modifier}` (expected `default`)"),
+                        trailing.span(),
+                        "`#[tag(N, default)]` was removed — use `#[serde(default)]` \
+                         (or `#[serde(default = \"...\")]`) on the field instead. \
+                         serde-derive handles the missing-tag fallback at decode \
+                         time; this macro only records wire identity.",
                     ));
                 }
+                return Err(syn::Error::new(
+                    trailing.span(),
+                    format!(
+                        "unexpected modifier `{trailing}` — `#[tag(...)]` accepts \
+                         either a single integer tag or the keyword `skip`",
+                    ),
+                ));
             }
-            Ok(TagArgs::Tag { tag, default })
+            Ok(TagArgs::Tag(tag))
         } else if lookahead.peek(Ident) {
             let ident: Ident = input.parse()?;
             if ident == "skip" {
@@ -1062,7 +1016,7 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     // PhantomData field with `#[tag(N)]`, we honor that (unusual but valid).
     if let Some((attr, args)) = found {
         return match args {
-            TagArgs::Tag { tag, default } => {
+            TagArgs::Tag(tag) => {
                 if serde_skip {
                     return Err(syn::Error::new_spanned(
                         attr,
@@ -1079,7 +1033,7 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
                         ),
                     ));
                 }
-                Ok(FieldKind::Tagged { tag, has_default: default })
+                Ok(FieldKind::Tagged(tag))
             }
             TagArgs::Skip => Ok(FieldKind::Skipped),
         };
@@ -1147,62 +1101,6 @@ fn parse_serde_rename(input: &DeriveInput) -> syn::Result<Option<String>> {
 /// individual fields (e.g., `index` → `i`).
 fn parse_serde_field_rename(field: &Field) -> syn::Result<Option<String>> {
     parse_serde_rename_in_attrs(&field.attrs)
-}
-
-/// Whether the given attribute list carries `#[serde(default)]` (bare) or
-/// `#[serde(default = "...")]` (custom function). Used to validate that a
-/// field marked `#[tag(N, default)]` is paired with serde-derive's
-/// default-filling machinery — our macro only records the wire-tolerance
-/// metadata (`Product.defaults` + `T: Default` bound); the actual default-
-/// substitution at decode time is serde-derive's job, and it only fires
-/// when the field has `#[serde(default)]` in some form. Both the bare-ident
-/// and `key = "value"` shapes count.
-fn has_serde_default_in_attrs(attrs: &[Attribute]) -> syn::Result<bool> {
-    for attr in attrs {
-        if !attr.path().is_ident("serde") {
-            continue;
-        }
-        let items: Punctuated<Meta, Token![,]> =
-            attr.parse_args_with(Punctuated::parse_terminated)?;
-        for item in items {
-            match &item {
-                Meta::Path(path) if path.is_ident("default") => return Ok(true),
-                Meta::NameValue(nv) if nv.path.is_ident("default") => return Ok(true),
-                _ => {}
-            }
-        }
-    }
-    Ok(false)
-}
-
-/// Validate that a field marked `#[tag(N, default)]` is paired with
-/// `#[serde(default)]` somewhere — either on the field itself, or on the
-/// surrounding container if the caller passes `container_has_serde_default`.
-/// Without that pairing, the `default` modifier is silent dead weight: the
-/// wrapper hands the visitor a wire that's missing the tag, serde-derive's
-/// visitor errors with `missing field`, and the user's expectation that
-/// `T::default()` would fill the gap goes unmet.
-fn validate_serde_default_pairing(
-    field: &Field,
-    container_has_serde_default: bool,
-) -> syn::Result<()> {
-    if container_has_serde_default {
-        return Ok(());
-    }
-    if has_serde_default_in_attrs(&field.attrs)? {
-        return Ok(());
-    }
-    Err(syn::Error::new_spanned(
-        field,
-        "field marked `#[tag(N, default)]` needs `#[serde(default)]` or \
-         `#[serde(default = \"...\")]` so serde-derive's decoder fills \
-         `T::default()` when the tag is missing on the wire. `#[tag(N, default)]` \
-         only governs our compile-time metadata (`Product.defaults` + the \
-         `T: Default` bound); the actual default-substitution at decode time \
-         is serde-derive's machinery and only fires when one of those serde \
-         attributes is present on the field (or `#[serde(default)]` is on the \
-         surrounding struct).",
-    ))
 }
 
 /// Whether a field carries `#[serde(skip)]` — recognized by the macro as an
@@ -1615,12 +1513,6 @@ fn type_contains_ident(ty: &Type, target: &Ident) -> bool {
 ///    our `where MyType<A, B>: MsgpackTagged` propagates that requirement to
 ///    the caller transparently. Field types appearing more than once are only
 ///    emitted as a bound once.
-/// 3. **`<TaggedFieldType>: Default` for each `#[tag(N, default)]` field.**
-///    The `default` modifier promises the decoder can fill `T::default()` if
-///    the tag is missing on the wire — that's only sound when `T: Default`.
-///    Enforcing it via a where bound surfaces a clear "X: Default is not
-///    satisfied" error at the impl site if a user marks a field `default`
-///    whose type isn't `Default`.
 ///
 /// Returns `None` only if the input has no generic params, no tagged fields,
 /// and no pre-existing where clause — that lets the caller avoid emitting a
@@ -1649,7 +1541,6 @@ fn build_where_clause(
 
     let self_ident = &input.ident;
     let mut seen_tagged = std::collections::HashSet::new();
-    let mut seen_default = std::collections::HashSet::new();
     for entry in entries {
         let ty = entry.ty;
         // Dedup by stringified token-stream of the type. Not semantic equality
@@ -1660,15 +1551,10 @@ fn build_where_clause(
         // Self-typed field types (e.g. `Vec<Self>` in a recursive enum) skip
         // the `MsgpackTagged` bound to dodge the trait-solver cycle. The
         // recursion call inside `register_into` is still emitted; Rust's
-        // call-site resolution accepts the co-inductive cycle, and `Default`
-        // bounds for `#[tag(N, default)]` stay since they're independent of
-        // the `MsgpackTagged` chain.
+        // call-site resolution accepts the co-inductive cycle.
         let self_typed = type_contains_ident(ty, self_ident);
-        if !self_typed && seen_tagged.insert(key.clone()) {
+        if !self_typed && seen_tagged.insert(key) {
             where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
-        }
-        if entry.has_default && seen_default.insert(key) {
-            where_clause.predicates.push(parse_quote!(#ty: ::std::default::Default));
         }
     }
     for predicate in extra_bounds {

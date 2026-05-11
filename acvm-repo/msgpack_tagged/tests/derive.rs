@@ -21,7 +21,7 @@ struct Tuple(u32, bool);
 /// positions are reordered relative to tag order — proves the macro sorts
 /// fields by tag value, not source position.
 #[derive(MsgpackTagged)]
-struct ExplicitTuple(#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8);
+struct ExplicitTuple(#[tag(3)] u32, #[tag(0)] bool, #[tag(1)] u8);
 
 /// Newtype (single-element tuple struct). Wire bytes are the inner u32's
 /// bytes; the newtype itself doesn't appear in the registry.
@@ -86,34 +86,26 @@ enum WithInnerPayload {
 #[derive(MsgpackTagged)]
 enum ExplicitTupleVariants {
     #[tag(0)]
-    Triple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1, default)] u8),
+    Triple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8),
     #[tag(1)]
     ImplicitPair(u32, bool),
 }
 
-/// Named variant exercising the field-level `default` modifier inside a
-/// variant payload. The variant-payload field bound is `Vec<u8>: Default`,
-/// added by the macro to the impl's where clause. `_phantom: PhantomData<T>`
-/// auto-skips and `hidden: Opaque` opts out via `#[tag(skip)]` — neither
-/// contributes a `MsgpackTagged` bound, which is why `T = Opaque` works.
-#[derive(MsgpackTagged, serde::Deserialize)]
-#[serde(bound = "")] // see comment on `_phantom` below for why we suppress serde-derive's inferred bounds.
+/// Named variant exercising the variant-payload field extras: a regular
+/// tagged field, an `#[serde(default)]` field (wire-tolerance), a
+/// `#[tag(skip)]` field whose type isn't `MsgpackTagged`, and a
+/// `PhantomData<T>` carrier so `T = Opaque` (a non-`MsgpackTagged` type)
+/// still satisfies the variant's bounds.
+#[derive(MsgpackTagged)]
 enum WithVariantFieldExtras<T> {
     #[tag(0)]
     Plain {
         #[tag(0)]
         required: u32,
-        #[tag(1, default)]
-        #[serde(default)]
+        #[tag(1)]
         annotation: Vec<u8>,
         #[tag(skip)]
-        #[serde(skip)]
         hidden: Opaque,
-        // serde-derive needs `#[serde(skip)]` here to keep the field out
-        // of the deserialize flow (it doesn't auto-recognize PhantomData
-        // the way our macro does). Combined with `#[serde(bound = "")]`
-        // on the enum, this keeps `T` free of any inferred serde bounds.
-        #[serde(skip)]
         _phantom: std::marker::PhantomData<T>,
     },
 }
@@ -356,21 +348,6 @@ struct WithPhantom<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-/// `#[tag(N, default)]` fields: tag 1 (`extra`) is wire-tolerant — appears in
-/// `Product.fields` and `Product.defaults`, decoder will fill `Vec::default()`
-/// if missing.
-#[derive(MsgpackTagged, serde::Deserialize)]
-struct WithDefaults {
-    #[tag(0)]
-    required: u32,
-    #[tag(1, default)]
-    #[serde(default)]
-    extra: Vec<u8>,
-    #[tag(2, default)]
-    #[serde(default)]
-    annotation: String,
-}
-
 /// Type-level `#[tagged(reserved(...))]`: tags 1 and 4 have been retired and must
 /// never be reused. The macro emits these into the product's `reserved`, and a
 /// `#[tag(1)]` or `#[tag(4)]` on any field would now be a compile error.
@@ -544,7 +521,6 @@ fn derive_compiles_for_basic_shapes() {
     // T = Opaque (no MsgpackTagged impl) still satisfies WithPhantom<T>'s bound,
     // because PhantomData<T> is auto-skipped — the bound chain doesn't reach T.
     assert_impl::<WithPhantom<Opaque>>();
-    assert_impl::<WithDefaults>();
     assert_impl::<WithReserved>();
     assert_impl::<LenientType>();
     assert_impl::<WireDto>();
@@ -567,11 +543,10 @@ fn implicit_tuple_struct_uses_positional_tags() {
 
 #[test]
 fn explicit_tuple_struct_tags_match_annotations_and_sort_by_tag() {
-    // Source: (#[tag(3, default)] u32, #[tag(0)] bool, #[tag(1)] u8)
+    // Source: (#[tag(3)] u32, #[tag(0)] bool, #[tag(1)] u8)
     // After tag-ascending sort: position-string names follow the tags.
     let p = product_of::<ExplicitTuple>();
     assert_eq!(p.fields, &[(0, "1"), (1, "2"), (3, "0")]);
-    assert_eq!(p.defaults, &[3]);
 }
 
 #[test]
@@ -594,7 +569,6 @@ fn newtype_constants_are_empty() {
     let p = product_of::<Witness>();
     assert!(p.fields.is_empty());
     assert!(p.reserved.is_empty());
-    assert!(p.defaults.is_empty());
 }
 
 #[test]
@@ -669,28 +643,6 @@ fn phantom_data_field_is_absent_from_fields() {
 }
 
 #[test]
-fn default_fields_appear_in_both_fields_and_defaults() {
-    let p = product_of::<WithDefaults>();
-    assert_eq!(
-        p.fields,
-        &[(0, "required"), (1, "extra"), (2, "annotation")],
-        "default fields still appear on the wire — they're encoded normally, only the decoder is tolerant",
-    );
-    assert_eq!(p.defaults, &[1, 2], "defaults lists exactly the tags marked `#[tag(N, default)]`",);
-}
-
-#[test]
-fn defaults_show_up_on_the_registry_entry() {
-    let mut reg = TagRegistry::new();
-    WithDefaults::register_into(&mut reg);
-    let entry = reg.get("WithDefaults").expect("WithDefaults should register itself");
-    let p = entry_product(entry);
-    assert!(!p.is_default(0), "tag 0 (`required`) is not defaulted");
-    assert!(p.is_default(1), "tag 1 (`extra`) is defaulted");
-    assert!(p.is_default(2), "tag 2 (`annotation`) is defaulted");
-}
-
-#[test]
 fn reserved_tags_appear_in_the_const_and_registry() {
     assert_eq!(product_of::<WithReserved>().reserved, &[1, 4]);
 
@@ -750,7 +702,6 @@ fn via_public_type_constants_are_empty() {
     let p = product_of::<Public>();
     assert!(p.fields.is_empty());
     assert!(p.reserved.is_empty());
-    assert!(p.defaults.is_empty());
     // The wire DTO's fields, by contrast, are populated from its own #[tag(N)].
     assert_eq!(product_of::<WireDto>().fields, &[(0, "payload")]);
 }
@@ -884,21 +835,19 @@ fn variant_payload_shapes_pick_the_right_field_layout() {
 }
 
 /// Tuple variants follow the all-or-nothing rule: explicit `#[tag(N)]` on
-/// every field allows reordering and `default`, just like top-level tuple
-/// structs. `Triple` declares tags out of source order to verify
-/// tag-ascending sorting on the wire.
+/// every field allows reordering, just like top-level tuple structs.
+/// `Triple` declares tags out of source order to verify tag-ascending
+/// sorting on the wire.
 #[test]
-fn explicit_tuple_variant_payload_sorts_and_carries_defaults() {
+fn explicit_tuple_variant_payload_sorts_fields_by_tag() {
     let s = sum_of::<ExplicitTupleVariants>();
     let triple = s.variant_for("Triple").unwrap();
     assert_eq!(triple.kind, VariantKind::Tuple);
     assert_eq!(triple.payload.fields, &[(0, "1"), (1, "2"), (2, "0")]);
-    assert_eq!(triple.payload.defaults, &[1]);
 
     let pair = s.variant_for("ImplicitPair").unwrap();
     assert_eq!(pair.kind, VariantKind::Tuple);
     assert_eq!(pair.payload.fields, &[(0, "0"), (1, "1")]);
-    assert!(pair.payload.defaults.is_empty());
 }
 
 /// Each variant ends up with the right `VariantKind` discriminator: unit
@@ -934,7 +883,6 @@ fn newtype_variant_metadata_is_empty_payload_with_newtype_kind() {
     let one_inner = s.variant_for("OneInner").unwrap();
     assert_eq!(one_inner.kind, VariantKind::Newtype);
     assert!(one_inner.payload.fields.is_empty());
-    assert!(one_inner.payload.defaults.is_empty());
     assert!(one_inner.payload.reserved.is_empty());
     assert!(!one_inner.payload.allow_unknown_tags);
 }
@@ -948,7 +896,6 @@ fn unit_variant_metadata_is_empty_payload_with_unit_kind() {
     let empty = s.variant_for("Empty").unwrap();
     assert_eq!(empty.kind, VariantKind::Unit);
     assert!(empty.payload.fields.is_empty());
-    assert!(empty.payload.defaults.is_empty());
     assert!(empty.payload.reserved.is_empty());
     assert!(!empty.payload.allow_unknown_tags);
 }
@@ -983,7 +930,6 @@ fn variant_payload_supports_skip_and_phantom() {
         &[(0, "required"), (1, "annotation")],
         "skipped and phantom-data fields don't appear in the variant payload",
     );
-    assert_eq!(plain.payload.defaults, &[1]);
 }
 
 /// Variants without a `#[tagged(...)]` annotation default to a strict

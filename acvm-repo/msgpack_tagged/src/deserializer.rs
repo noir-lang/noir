@@ -23,12 +23,15 @@
 //!   through to `rmp_serde` which expects a different wire shape than
 //!   the one our serializer produces. Until this lands, tagged enums
 //!   don't round-trip through the wrapper.
-//! - **`#[tag(N, default)]` on tuple structs.** `deserialize_struct`
-//!   delegates wire-tolerance to the user pairing the field with
-//!   `#[serde(default)]`, which composes cleanly. `deserialize_tuple_struct`,
+//! - **`#[serde(default)]` on tuple structs.** `deserialize_struct`
+//!   delegates wire-tolerance to serde-derive's standard `default`
+//!   machinery, which composes cleanly. `deserialize_tuple_struct`,
 //!   though, asserts `wire_len == len` eagerly — so a wire that's missing
-//!   a defaulted tag errors instead of filling from `Default`. Needs
-//!   relaxation once we've thought through the tuple-struct semantics.
+//!   a defaulted tag errors instead of falling back. serde-derive's
+//!   tuple-struct default semantics are also positional ("all fields
+//!   past the first default must default"), which clashes with our
+//!   per-tag model. Needs revisiting if/when tuple-struct wire tolerance
+//!   becomes a real ask.
 //! - **`#[tagged(allow_unknown_tags)]` on tuple structs.** Same eager
 //!   length check rejects wires with extra tags. Loosening it requires
 //!   accepting `wire_len >= len` (or `<= len` when defaults exist) and
@@ -312,7 +315,7 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
         let wire_len = wire_len as usize;
         // TODO: this strict length check rejects wires that exercise
-        // `#[tag(N, default)]` (fewer entries on the wire than the type
+        // `#[serde(default)]` (fewer entries on the wire than the type
         // arity) or `#[tagged(allow_unknown_tags)]` (more entries on the
         // wire than the arity). Relax once the tuple-struct default /
         // unknown-tags semantics are decided — see the file-level TODO.
@@ -365,10 +368,9 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         // msgpack map length, then hand off to `TaggedProductMapAccess`
         // which yields each entry's key as the registered field name
         // (translated from the integer wire tag) and routes each value
-        // through `&mut *self.parent`. Defaults (for `#[tag(N, default)]`
-        // fields) are honored via the user pairing it with
-        // `#[serde(default)]` on the same field — the standard serde-
-        // derive idiom — so this layer stays focused on tag translation.
+        // through `&mut *self.parent`. Wire-tolerance for missing tags is
+        // serde-derive's job via `#[serde(default)]` — this layer stays
+        // focused on tag↔name translation.
         let product = self.product_for(name);
         let len = rmp::decode::read_map_len(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;

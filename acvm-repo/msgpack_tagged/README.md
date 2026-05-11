@@ -78,7 +78,6 @@ pub enum Tagged {
 pub struct Product {
     pub fields: &'static [(Tag, &'static str)],
     pub reserved: &'static [Tag],
-    pub defaults: &'static [Tag],
     pub allow_unknown_tags: bool,
 }
 
@@ -140,9 +139,9 @@ enum BinaryFieldOp {
 | attribute | meaning |
 |---|---|
 | `#[tag(N)]` | required — `N` is the wire tag |
-| `#[tag(N, default)]` | wire-tolerant: decoder fills `T::default()` when the tag is missing. Macro emits `where T: Default` |
 | `#[tag(skip)]` | drop the field from the wire |
 | `#[serde(skip)]` | alias for `#[tag(skip)]` |
+| `#[serde(default)]` | wire-tolerant: decoder fills `T::default()` (or a custom function via `#[serde(default = "..."]`) when the tag is missing. Pure serde-derive feature — nothing the macro emits — but the most common companion when retiring tags or adding new ones |
 | `#[serde(rename = "X")]` | overrides the wire name in `Product.fields` (load-bearing for shadow-DTOs whose wire DTO renames individual fields) |
 | `PhantomData<_>` | auto-skipped — no `#[tag]` annotation needed |
 
@@ -154,8 +153,8 @@ macro never silently ignores a field.
 Two modes, all-or-nothing:
 
 ```rust
-struct Pair(u32, bool);                                    // implicit positional: (0, "0"), (1, "1")
-struct Reordered(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8);  // all-explicit: allows reordering / `default`
+struct Pair(u32, bool);                                  // implicit positional: (0, "0"), (1, "1")
+struct Reordered(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8);  // all-explicit: allows reordering
 ```
 
 Mixing implicit and explicit (`#[tag(0)] u32, bool`) is rejected — the
@@ -248,10 +247,12 @@ struct CircuitWire<F> {
 ### Adding a new field
 
 1. Pick the next unused tag (and not in any `reserved(...)` list).
-2. If older readers must accept the new wire, mark the new field
-   `#[tag(N, default)]`. Older clients (predating the field) ignore it
-   on decode; newer clients always emit it.
-3. If older readers should *reject* the new wire, use plain `#[tag(N)]`.
+2. If newer readers must tolerate the *older* wire (which doesn't carry
+   this tag), pair `#[tag(N)]` with `#[serde(default)]` — serde-derive's
+   standard default-filling kicks in when the tag is missing on decode.
+   Older clients (predating the field) silently ignore the value if
+   they opt in via `#[tagged(allow_unknown_tags)]`.
+3. If newer readers should *reject* the older wire, use plain `#[tag(N)]`.
    The macro will accept the type either way — the choice is purely a
    compatibility decision.
 

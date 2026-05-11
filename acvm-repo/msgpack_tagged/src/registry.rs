@@ -67,15 +67,15 @@ impl Tagged {
 /// `fields` is in tag-ascending order (the canonical wire order). `reserved`
 /// lists tags previously used by this product and now retired — purely
 /// compile-time metadata that prevents reuse, never affects decode behavior.
-/// `defaults` lists the subset of tags whose decoder is allowed to fall back
-/// to `T::default()` when missing on the wire (i.e., `#[tag(N, default)]`).
 /// `allow_unknown_tags` opts the decoder into silently skipping fields whose
-/// tag isn't in `fields` or `reserved`.
+/// tag isn't in `fields` or `reserved`. Per-field wire-tolerance (i.e. "fill
+/// `T::default()` when this tag is missing") is **not** modeled here — it's
+/// expressed on the user side via serde-derive's `#[serde(default)]`, which
+/// is what actually performs the substitution at decode time.
 #[derive(Clone, Copy, Debug)]
 pub struct Product {
     pub fields: &'static [(Tag, &'static str)],
     pub reserved: &'static [Tag],
-    pub defaults: &'static [Tag],
     pub allow_unknown_tags: bool,
 }
 
@@ -99,15 +99,9 @@ impl Product {
         self.reserved.contains(&tag)
     }
 
-    /// Whether the field at `tag` is marked `#[tag(N, default)]` —
-    /// wire-tolerant: the decoder fills `T::default()` when it's missing.
-    pub fn is_default(self, tag: Tag) -> bool {
-        self.defaults.contains(&tag)
-    }
-
     /// Empty [Product] used for primitives and _newtypes_.
     pub const fn empty() -> Self {
-        Self { fields: &[], reserved: &[], defaults: &[], allow_unknown_tags: false }
+        Self { fields: &[], reserved: &[], allow_unknown_tags: false }
     }
 }
 
@@ -292,7 +286,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
-            defaults: &[1],
             allow_unknown_tags: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
@@ -304,14 +297,13 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "x")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
     /// Hand-written sum-shaped impl: stand-in for what the derive macro will
-    /// emit for `enum Choice { #[tag(0)] Empty, #[tag(1)] Pair { #[tag(0)] a, #[tag(2, default)] b } }`.
+    /// emit for `enum Choice { #[tag(0)] Empty, #[tag(1)] Pair { #[tag(0)] a, #[tag(2)] b } }`.
     struct Choice;
     impl MsgpackTagged for Choice {
         const TAGGED: Tagged = Tagged::Sum(Sum {
@@ -320,12 +312,7 @@ mod tests {
                     tag: 0,
                     name: "Empty",
                     kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
+                    payload: Product::empty(),
                 },
                 Variant {
                     tag: 1,
@@ -334,7 +321,6 @@ mod tests {
                     payload: Product {
                         fields: &[(0, "a"), (2, "b")],
                         reserved: &[],
-                        defaults: &[2],
                         allow_unknown_tags: false,
                     },
                 },
@@ -353,28 +339,8 @@ mod tests {
     impl MsgpackTagged for Lenient {
         const TAGGED: Tagged = Tagged::Sum(Sum {
             variants: &[
-                Variant {
-                    tag: 0,
-                    name: "A",
-                    kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
-                },
-                Variant {
-                    tag: 1,
-                    name: "B",
-                    kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
-                },
+                Variant { tag: 0, name: "A", kind: VariantKind::Unit, payload: Product::empty() },
+                Variant { tag: 1, name: "B", kind: VariantKind::Unit, payload: Product::empty() },
             ],
             reserved: &[7],
             default_on_reserved: true,
@@ -396,12 +362,7 @@ mod tests {
     /// `TagRegistry::of::<T>` helper end-to-end.
     struct SelfRegistering;
     impl MsgpackTagged for SelfRegistering {
-        const TAGGED: Tagged = Tagged::Product(Product {
-            fields: &[],
-            reserved: &[],
-            defaults: &[],
-            allow_unknown_tags: false,
-        });
+        const TAGGED: Tagged = Tagged::empty_product();
         fn register_into(reg: &mut TagRegistry) {
             reg.try_insert::<Self>("SelfRegistering");
         }
@@ -455,7 +416,6 @@ mod tests {
         let p = entry.tagged().as_product().unwrap();
         assert_eq!(p.fields, &[(0, "a"), (1, "b")]);
         assert_eq!(p.reserved, &[3]);
-        assert_eq!(p.defaults, &[1]);
         assert!(p.allow_unknown_tags);
     }
 
@@ -487,14 +447,6 @@ mod tests {
         assert!(p.is_reserved(3));
         assert!(!p.is_reserved(0));
         assert!(!p.is_reserved(99));
-    }
-
-    #[test]
-    fn product_is_default_only_for_listed_tags() {
-        let p = product_of::<Foo>();
-        assert!(p.is_default(1), "Foo's tag 1 (`b`) is in defaults");
-        assert!(!p.is_default(0), "tag 0 (`a`) is not defaulted");
-        assert!(!p.is_default(99), "unknown tags are not defaulted");
     }
 
     #[test]
@@ -545,22 +497,13 @@ mod tests {
         assert_eq!(pair.payload.field_for(99), None);
     }
 
-    #[test]
-    fn variant_payload_is_default_uses_per_variant_defaults_list() {
-        let pair = sum_of::<Choice>().variant_for("Pair").unwrap();
-        assert!(pair.payload.is_default(2), "tag 2 (`b`) is `#[tag(2, default)]`");
-        assert!(!pair.payload.is_default(0), "tag 0 (`a`) is not defaulted");
-        assert!(!pair.payload.is_default(99), "unknown tags are not defaulted");
-    }
-
-    /// Unit variants have empty `fields` and `defaults` slices — the wrapper
-    /// can rely on this to short-circuit field-table lookups.
+    /// Unit variants have an empty `fields` slice — the wrapper can rely
+    /// on this to short-circuit field-table lookups.
     #[test]
     #[allow(clippy::const_is_empty)]
-    fn unit_variants_have_empty_field_and_default_tables() {
+    fn unit_variants_have_empty_field_table() {
         let empty = sum_of::<Choice>().variant_for("Empty").unwrap();
         assert!(empty.payload.fields.is_empty());
-        assert!(empty.payload.defaults.is_empty());
     }
 
     #[test]

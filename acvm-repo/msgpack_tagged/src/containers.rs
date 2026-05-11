@@ -15,14 +15,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{MsgpackTagged, Product, TagRegistry, Tagged};
+use crate::{MsgpackTagged, TagRegistry, Tagged};
 
-const LEAF: Tagged = Tagged::Product(Product {
-    fields: &[],
-    reserved: &[],
-    defaults: &[],
-    allow_unknown_tags: false,
-});
+const LEAF: Tagged = Tagged::empty_product();
 
 impl<T: MsgpackTagged> MsgpackTagged for Vec<T> {
     const TAGGED: Tagged = LEAF;
@@ -102,7 +97,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "x")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(reg: &mut TagRegistry) {
@@ -116,7 +110,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "y")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(reg: &mut TagRegistry) {

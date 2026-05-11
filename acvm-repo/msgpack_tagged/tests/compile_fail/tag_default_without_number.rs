@@ -1,6 +1,7 @@
-//! `default` is a *modifier* on a numbered tag, not a tag form on its own.
-//! `#[tag(default)]` should produce a parse error pointing at the `default`
-//! ident — only `skip` is valid as a bare keyword inside `#[tag(...)]`.
+//! `#[tag(default)]` was never a valid tag form. After the removal of the
+//! `#[tag(N, default)]` modifier, only an integer tag literal or the
+//! `skip` keyword is accepted inside `#[tag(...)]` — this fixture pins
+//! the rejection of the bare `default` ident as a tag.
 
 use msgpack_tagged::MsgpackTagged;
 

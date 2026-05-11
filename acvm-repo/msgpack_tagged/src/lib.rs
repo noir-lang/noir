@@ -72,22 +72,16 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
-            defaults: &[],
             allow_unknown_tags: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
-    /// Minimal impl supplying a `TAGGED` with all `Product` extras blank —
-    /// proves the empty-defaults shape compiles and reads back as expected.
+    /// Minimal impl supplying a `TAGGED` with `Product` extras blank —
+    /// proves the empty shape compiles and reads back as expected.
     struct Bar;
     impl MsgpackTagged for Bar {
-        const TAGGED: Tagged = Tagged::Product(Product {
-            fields: &[],
-            reserved: &[],
-            defaults: &[],
-            allow_unknown_tags: false,
-        });
+        const TAGGED: Tagged = Tagged::empty_product();
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
@@ -100,10 +94,9 @@ mod tests {
 
     #[test]
     #[allow(clippy::const_is_empty)]
-    fn bar_has_nothing_reserved_or_defaulted() {
+    fn bar_has_nothing_reserved() {
         let p = <Bar as MsgpackTagged>::TAGGED.as_product().unwrap();
         assert!(p.reserved.is_empty());
-        assert!(p.defaults.is_empty());
     }
 
     #[test]

@@ -252,16 +252,16 @@ fn struct_with_vec_of_tagged_field_roundtrips() {
     assert_roundtrip(value);
 }
 
-/// `#[tag(N, default)]` paired with `#[serde(default)]` — wire
-/// tolerance is delegated to serde-derive's standard `default`
-/// machinery. Encode the full value (so the wire has all tags), then
-/// round-trip — verifies the basic shape compiles and works without
-/// the user needing to construct partial wire bytes.
+/// `#[serde(default)]` field — wire tolerance is delegated to
+/// serde-derive's standard `default` machinery (see
+/// `v1_to_v2_add_field_with_default` for the missing-tag case). Encode
+/// the full value (so the wire has all tags), then round-trip —
+/// verifies the basic shape compiles and round-trips.
 #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug, Default)]
 struct WithDefaults {
     #[tag(0)]
     required: u32,
-    #[tag(1, default)]
+    #[tag(1)]
     #[serde(default)]
     annotation: Vec<u8>,
 }
@@ -385,8 +385,10 @@ mod v1_to_v2_remove_field_with_reserved {
     }
 }
 
-/// V1 → V2: V2 adds a new field marked `#[tag(N, default)] #[serde(default)]`.
-/// V1's wire doesn't carry that tag; V2 fills the field from `Default`.
+/// V1 → V2: V2 adds a new field marked `#[serde(default)]`. V1's wire
+/// doesn't carry that tag; V2 fills the field from `Default` thanks to
+/// serde-derive's standard `default` handling — no extra signaling from
+/// our macro is required (the macro is purely about wire identity).
 mod v1_to_v2_add_field_with_default {
     use super::*;
 
@@ -402,7 +404,7 @@ mod v1_to_v2_add_field_with_default {
     struct FooV2 {
         #[tag(0)]
         a: u32,
-        #[tag(1, default)]
+        #[tag(1)]
         #[serde(default)]
         b: Vec<u8>,
     }
