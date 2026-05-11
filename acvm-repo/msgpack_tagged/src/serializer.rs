@@ -308,22 +308,28 @@ impl<'ser, 'a, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        // Same shape as a named struct on the wire — the registered `Product`
-        // just uses positional wire-names ("0", "1", …) instead of field
-        // idents. The adapter handles both via different trait impls on the
-        // same struct.
-        let product = self.product_for(name);
-        assert_field_count_matches(name, len, product.fields.len());
-        write_map_header(self.inner.get_mut(), product.fields.len())?;
-        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
+        // Same on-wire shape as a named struct — the registered `Product`
+        // uses positional wire-names ("0", "1", …) instead of field idents.
+        // Both shapes share the same adapter; the trait impl that fires is
+        // chosen by serde based on which `serialize_*` call landed.
+        self.begin_product(name, len)
+    }
+
+    fn serialize_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        self.begin_product(name, len)
     }
 
     // -------- sum shapes: every variant becomes `{<variant_tag>: <payload>}`,
     // with the payload shape determined by `VariantKind`. Each branch looks
     // up the `Sum`, resolves the variant by name, writes a 1-entry outer map
     // header (variant tag → payload), then emits the payload appropriate to
-    // the kind: `nil` for unit, the inner value pass-through for newtype, an
-    // int-keyed payload map for tuple/struct.
+    // the kind: `nil` for unit, the inner value pass-through for newtype, or
+    // a `Product`-shaped payload for tuple/struct (whose shape follows the
+    // enclosing enum's strategy).
 
     fn serialize_unit_variant(
         self,
@@ -359,10 +365,7 @@ impl<'ser, 'a, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        let v = self.write_variant_header(name, variant)?;
-        assert_field_count_matches(variant, len, v.payload.fields.len());
-        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
-        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
+        self.begin_variant_payload(name, variant, len)
     }
 
     fn serialize_struct_variant(
@@ -372,36 +375,46 @@ impl<'ser, 'a, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        let v = self.write_variant_header(name, variant)?;
-        assert_field_count_matches(variant, len, v.payload.fields.len());
-        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
-        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
-    }
-
-    // -------- product shapes (named struct + multi-element tuple struct) ---
-
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        let product = self.product_for(name);
-        assert_field_count_matches(name, len, product.fields.len());
-
-        // Write the msgpack map header directly to the underlying writer via
-        // `rmp::encode`. We deliberately bypass `inner.serialize_map(...)` —
-        // that returns a `SerializeMap` that owns the inner serializer for
-        // its lifetime, which would prevent us from re-routing each value
-        // back through *this* wrapper. Routing field *values* (not just the
-        // top-level struct) through the wrapper is what makes nested tagged
-        // types decode the same way as top-level ones.
-        write_map_header(self.inner.get_mut(), product.fields.len())?;
-
-        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
+        self.begin_variant_payload(name, variant, len)
     }
 }
 
 impl<'a, W: Write> Serializer<'a, W> {
+    /// Shared body of `serialize_struct` / `serialize_tuple_struct`.
+    /// Resolves the product + strategy, writes the strategy-appropriate
+    /// header, returns a configured `TaggedSerializeProduct`. The two
+    /// trait methods are identical at this level — only the trait impl
+    /// fired on the returned adapter differs (which serde picks based on
+    /// the caller's `serialize_*` choice).
+    fn begin_product<'ser>(
+        &'ser mut self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+        let (product, strategy) = self.product_and_strategy_for(name);
+        assert_field_count_matches(name, len, product.fields.len());
+        write_strategy_header(self.inner.get_mut(), product.fields.len(), strategy)?;
+        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0, strategy })
+    }
+
+    /// Shared body of `serialize_tuple_variant` / `serialize_struct_variant`.
+    /// Writes the outer 1-entry `{variant_tag: ...}` discriminator map
+    /// (always Tagged — variant identification is by integer tag under
+    /// `MsgpackTagged`), then writes the payload's header using the
+    /// enclosing enum's strategy.
+    fn begin_variant_payload<'ser>(
+        &'ser mut self,
+        name: &'static str,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+        let v = self.write_variant_header(name, variant)?;
+        assert_field_count_matches(variant, len, v.payload.fields.len());
+        let strategy = self.strategy_for_name(name);
+        write_strategy_header(self.inner.get_mut(), v.payload.fields.len(), strategy)?;
+        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0, strategy })
+    }
+
     /// Resolve a registered `Product` by serde name. Used by both
     /// `serialize_struct` and `serialize_tuple_struct`. A registry miss or a
     /// sum-shaped entry signals a real bug — `register_into` should have
@@ -421,6 +434,30 @@ impl<'a, W: Write> Serializer<'a, W> {
         entry.tagged().as_product().unwrap_or_else(|| {
             panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
         })
+    }
+
+    /// Resolve a registered `Product` *and* the effective encoding strategy
+    /// for the type registered under `name`. Used only on the top-level
+    /// struct paths — variant payloads are forced Tagged at their
+    /// construction sites.
+    fn product_and_strategy_for(&self, name: &'static str) -> (crate::Product, EncodingStrategy) {
+        (self.product_for(name), self.strategy_for_name(name))
+    }
+
+    /// Resolve the effective encoding strategy for the type registered
+    /// under `name`. Bridges serde's `&str` name (received at
+    /// `serialize_struct` time) to the `TypeId`-keyed overrides map:
+    /// registry lookup yields the entry's `TypeId`, which is matched
+    /// against the overrides; absent any override the per-serializer
+    /// `default_strategy` applies. A registry miss returns the default —
+    /// not a panic, because the caller (`product_and_strategy_for`) calls
+    /// `product_for` separately and that's where a miss surfaces with the
+    /// full diagnostic.
+    fn strategy_for_name(&self, name: &str) -> EncodingStrategy {
+        self.registry
+            .get(name)
+            .and_then(|entry| self.overrides.get(&entry.type_id()).copied())
+            .unwrap_or(self.default_strategy)
     }
 
     /// Resolve a registered `Variant` by enum-type name + variant name. Used
@@ -477,6 +514,20 @@ fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpErr
     Ok(())
 }
 
+/// Write the outer Product header in the shape required by `strategy`:
+/// `Tagged` → int-keyed `fixmap`, `Array` → positional `fixarray`. Used
+/// by both top-level struct paths and variant-payload paths.
+fn write_strategy_header<W: Write>(
+    writer: &mut W,
+    len: usize,
+    strategy: EncodingStrategy,
+) -> Result<(), RmpError> {
+    match strategy {
+        EncodingStrategy::Tagged => write_map_header(writer, len),
+        EncodingStrategy::Array => write_array_header(writer, len),
+    }
+}
+
 /// Assert that serde's reported field count matches the registered
 /// `Product`'s — both should drop the same skipped fields, so they should
 /// always agree. A mismatch is a real misconfiguration: the most common
@@ -518,20 +569,28 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 ///
 /// `next_position` is only consulted by the [`SerializeTupleStruct`] impl;
 /// the [`SerializeStruct`] impl ignores it.
+///
+/// `strategy` drives the per-field emission: under `Tagged` each entry is
+/// `(tag, value)`, under `Array` each entry is just `value`. The outer
+/// header (`fixmap` vs. `fixarray`) is written by the calling
+/// `serialize_*` method before the adapter is constructed. Variant
+/// payloads always use `Tagged` regardless of any caller-configured
+/// strategy.
 pub struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
     parent: &'ser mut Serializer<'a, W>,
     next_position: usize,
+    strategy: EncodingStrategy,
 }
 
 impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
-    /// Emit one `(tag, value)` map entry through the parent serializer. The
-    /// outer map header was written upfront in the corresponding
-    /// `serialize_*` method, so each entry is just two more values appended
-    /// back-to-back: the integer tag (the map key) followed by the field
-    /// value. Routing the value through `&mut *self.parent` keeps any
-    /// nested tagged types in `value` recursing through the wrapper.
-    fn serialize_tagged<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
+    /// Emit one field's wire contribution through the parent serializer.
+    /// The outer header was written upfront in the corresponding
+    /// `serialize_*` method, so each call is just the per-field bytes:
+    /// `(tag, value)` under `Tagged`, bare `value` under `Array`. Routing
+    /// the value through `&mut *self.parent` keeps any nested tagged
+    /// types in `value` recursing through the wrapper.
+    fn serialize_tag_and_value<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
     where
         T: ?Sized + Serialize,
     {
@@ -540,7 +599,9 @@ impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
         // serde's call-order = source-declaration order.
         // This is most relevant when paired with the ARRAY encoding strategy:
         // it would allow us to reorder the fields without breaking.
-        ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
+        if matches!(self.strategy, EncodingStrategy::Tagged) {
+            ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
+        }
         value.serialize(&mut *self.parent)
     }
 }
@@ -564,7 +625,7 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W>
                  disagree on field names (check `#[serde(rename = ...)]`)",
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
@@ -612,7 +673,7 @@ impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, '
                  trying to serialize"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
@@ -643,7 +704,7 @@ impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 
                  Variant payload"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
@@ -668,7 +729,7 @@ impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser,
                  field names (check `#[serde(rename = ...)]`)"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {

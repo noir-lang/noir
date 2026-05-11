@@ -482,3 +482,187 @@ fn struct_variant_payload_recurses_through_wrapper() {
     };
     assert!(nested.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
 }
+
+// ============================================================================
+// `EncodingStrategy::Array` — top-level struct/tuple-struct shape flips to
+// `fixarray`; variant payloads stay int-keyed regardless.
+// ============================================================================
+
+use msgpack_tagged::{EncodingStrategy, Serializer, TagRegistry};
+use serde::Serialize as _;
+
+/// Serialize `value` through a `Serializer` configured with the given
+/// default strategy. Helper to keep the encoding-strategy tests concise.
+fn encode_with_default_strategy<T>(value: &T, strategy: EncodingStrategy) -> Vec<u8>
+where
+    T: ?Sized + serde::Serialize + MsgpackTagged,
+{
+    let registry = TagRegistry::from_type::<T>();
+    let mut buf = Vec::new();
+    let mut s = Serializer::new(&mut buf, &registry).with_default_strategy(strategy);
+    value.serialize(&mut s).expect("serialize succeeds");
+    buf
+}
+
+/// Under `Array` strategy a named struct emits as a positional `fixarray`,
+/// fields in registered (tag-ascending) order, with no per-field tag byte.
+#[test]
+fn named_struct_under_array_strategy_emits_fixarray() {
+    let value = Pair { first: 7, second: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array under Array strategy, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+}
+
+/// Under `Array`, a tuple struct also emits as a positional `fixarray`.
+/// Same shape as a named struct — the strategy is about wire shape, not
+/// about which serde call lands.
+#[derive(serde::Serialize, MsgpackTagged)]
+struct ArrayStrategyTriple(u32, bool, u8);
+
+#[test]
+fn tuple_struct_under_array_strategy_emits_fixarray() {
+    let value = ArrayStrategyTriple(7, true, 9);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array under Array strategy, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 3);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+    assert_eq!(elements[2].as_u64(), Some(9));
+}
+
+/// Array bytes are strictly smaller than Tagged bytes for the same value —
+/// no per-field tag prefix. Locks in the size-saving property the strategy
+/// is meant to deliver.
+#[test]
+fn array_strategy_is_smaller_than_tagged_for_the_same_value() {
+    let value = ArrayStrategyTriple(7, true, 9);
+    let tagged = encode_with_default_strategy(&value, EncodingStrategy::Tagged);
+    let array = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    assert!(
+        array.len() < tagged.len(),
+        "Array ({}) should be smaller than Tagged ({})",
+        array.len(),
+        tagged.len(),
+    );
+}
+
+/// Per-type overrides win over the default — a top-level type can be
+/// `Array` while every nested type stays `Tagged`. Verifies the
+/// override scoping.
+#[test]
+fn per_type_override_beats_default_strategy() {
+    let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+
+    // Default = Tagged, override Outer to Array. Outer's outer shape should
+    // be an array; its inner Pair field stays Tagged (no override).
+    let registry = TagRegistry::from_type::<Outer>();
+    let mut buf = Vec::new();
+    let mut s =
+        Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+    value.serialize(&mut s).expect("serialize succeeds");
+    drop(s);
+
+    let decoded = decode_msgpack(&buf);
+    let Value::Array(elements) = decoded else {
+        panic!("Outer should be array under override, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    // First element is the nested Pair, still Tagged → int-keyed map.
+    let Value::Map(inner) = &elements[0] else {
+        panic!("nested Pair should remain int-keyed under default Tagged, got {:?}", elements[0]);
+    };
+    assert!(inner.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+    // Second element is the bare flag.
+    assert_eq!(elements[1].as_u64(), Some(9));
+}
+
+/// Variant payloads follow the enclosing enum's strategy — under `Array`
+/// the payload becomes a positional array. The *outer*
+/// `{variant_tag: payload}` 1-entry map stays int-keyed regardless,
+/// because variant identification is always by integer tag.
+#[derive(serde::Serialize, MsgpackTagged)]
+enum MixedForArray {
+    #[tag(3)]
+    Pair(u32, bool),
+    #[tag(4)]
+    Named {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    },
+}
+
+#[test]
+fn tuple_variant_payload_follows_array_default() {
+    let value = MixedForArray::Pair(7, true);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    // Outer: 1-entry int-keyed map {variant_tag → payload} (discriminator).
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    assert_eq!(outer[0].0.as_u64(), Some(3));
+    // Payload: positional array under Array strategy.
+    let Value::Array(inner) = &outer[0].1 else {
+        panic!(
+            "tuple-variant payload should be a fixarray under Array default, got {:?}",
+            outer[0].1
+        );
+    };
+    assert_eq!(inner.len(), 2);
+    assert_eq!(inner[0].as_u64(), Some(7));
+    assert_eq!(inner[1].as_bool(), Some(true));
+}
+
+#[test]
+fn struct_variant_payload_follows_array_default() {
+    let value = MixedForArray::Named { a: 99, b: false };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Array(inner) = &outer[0].1 else {
+        panic!(
+            "struct-variant payload should be a fixarray under Array default, got {:?}",
+            outer[0].1
+        );
+    };
+    assert_eq!(inner.len(), 2);
+    assert_eq!(inner[0].as_u64(), Some(99));
+    assert_eq!(inner[1].as_bool(), Some(false));
+}
+
+/// And the default Tagged path keeps variant payloads as int-keyed maps —
+/// nothing changed for the default-strategy case.
+#[test]
+fn tuple_variant_payload_stays_int_keyed_under_tagged_default() {
+    let value = MixedForArray::Pair(7, true);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Tagged);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Map(inner) = &outer[0].1 else {
+        panic!("tuple-variant payload should be a map under Tagged default, got {:?}", outer[0].1);
+    };
+    assert!(inner.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+}

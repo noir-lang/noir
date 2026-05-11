@@ -202,6 +202,13 @@ impl Entry {
     pub fn tagged(&self) -> Tagged {
         self.tagged
     }
+
+    /// The registered Rust type's [`TypeId`]. Used by the serializer to
+    /// bridge serde's `&str` name (received at `serialize_struct` time)
+    /// to the `TypeId`-keyed per-type strategy overrides.
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
 }
 
 /// A registry of types participating in tagged-map serialization.
