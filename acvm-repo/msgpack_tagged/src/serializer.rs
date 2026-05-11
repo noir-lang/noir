@@ -36,6 +36,8 @@
 //!   tightened, but only inside the four product-shaped methods. New
 //!   shapes that join the family should add the same assert.
 
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
@@ -47,20 +49,44 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 
-use crate::{MsgpackTagged, TagRegistry};
+use crate::{EncodingStrategy, MsgpackTagged, TagRegistry};
 
 /// Tagged-map msgpack serializer.
 ///
-/// Constructed internally by [`msgpack_tagged_serialize`]. Exposed as `pub`
-/// so it can be named from rustdoc; the only stable entry point is still
-/// the free function. A builder for strategy customization will land later.
+/// Borrows a caller-owned [`TagRegistry`] and carries per-encode-session
+/// policy (default strategy + per-type overrides). The registry stays pure
+/// type metadata — strategy state lives only on the serializer. Typical
+/// usage:
+///
+/// ```ignore
+/// let registry = TagRegistry::from_type::<Program<F>>();
+/// let mut buf = Vec::new();
+/// let mut s = msgpack_tagged::Serializer::new(&mut buf, &registry)
+///     .with_default_strategy(EncodingStrategy::Array)
+///     .with_strategy::<Program<F>>(EncodingStrategy::Tagged)
+///     .with_strategy::<Circuit<F>>(EncodingStrategy::Tagged);
+/// program.serialize(&mut s)?;
+/// ```
+///
+/// `new` defaults the strategy to [`EncodingStrategy::Tagged`] (the most
+/// evolution-friendly shape); `with_default_strategy` swaps it, and
+/// `with_strategy::<U>` overrides for individual types.
 pub struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
+    default_strategy: EncodingStrategy,
+    overrides: HashMap<TypeId, EncodingStrategy>,
 }
 
 impl<'a, W: Write> Serializer<'a, W> {
-    fn new(writer: W, registry: &'a TagRegistry) -> Self {
+    /// Construct a serializer over `writer` borrowing the caller-built
+    /// `registry`. The default per-type strategy is
+    /// [`EncodingStrategy::Tagged`].
+    ///
+    /// Build the registry up front via `TagRegistry::from_type::<T>()` for
+    /// the top-level type being serialized — the registration walk seeds
+    /// every nested tagged type.
+    pub fn new(writer: W, registry: &'a TagRegistry) -> Self {
         // We intentionally use rmp_serde's default config (no
         // `with_struct_map`): every tagged type's `serialize_struct` /
         // variant call routes through our interception layer below, which
@@ -69,23 +95,61 @@ impl<'a, W: Write> Serializer<'a, W> {
         // the registry's bound chain — primitives and containers don't go
         // through `serialize_struct`, and any type that does is expected to
         // be in the registry.
-        Self { inner: RmpSerializer::new(writer), registry }
+        Self {
+            inner: RmpSerializer::new(writer),
+            registry,
+            default_strategy: EncodingStrategy::Tagged,
+            overrides: HashMap::new(),
+        }
+    }
+
+    /// Change the default strategy applied to types without a per-type
+    /// override.
+    pub fn with_default_strategy(mut self, strategy: EncodingStrategy) -> Self {
+        self.default_strategy = strategy;
+        self
+    }
+
+    /// Set the encoding strategy for a specific type `T`. Overrides the
+    /// default for this type only; later calls for the same `T` win.
+    ///
+    /// **Panics** if `T` is not registered in the borrowed registry —
+    /// setting a strategy for an unreachable type is almost always a bug
+    /// (the override would silently never fire). The usual cause is a
+    /// type-graph miss: the top-level type's `register_into` walk didn't
+    /// reach `T`.
+    pub fn with_strategy<T: MsgpackTagged>(mut self, strategy: EncodingStrategy) -> Self {
+        assert!(
+            self.registry.contains::<T>(),
+            "Serializer::with_strategy: type {} is not in the registry — the \
+             top-level type's `register_into` walk didn't reach it. Build the \
+             registry from a type that transitively visits T, or remove the \
+             override.",
+            std::any::type_name::<T>(),
+        );
+        self.overrides.insert(TypeId::of::<T>(), strategy);
+        self
+    }
+
+    /// Look up the effective encoding strategy for the registered type
+    /// `T`. Returns the per-type override if one was set; otherwise the
+    /// default strategy. Not currently consulted on the encode side — wired
+    /// up in a follow-up. Exposed for tests and future dispatch use.
+    pub fn strategy_for<T: MsgpackTagged>(&self) -> EncodingStrategy {
+        self.overrides.get(&TypeId::of::<T>()).copied().unwrap_or(self.default_strategy)
     }
 }
 
 /// Build the tag registry from `T::register_into`, then serialize `value`
-/// through a [`Serializer`] into a freshly-allocated `Vec<u8>`.
-///
-/// All tagged types currently encode in **Tagged** strategy (int-keyed maps);
-/// per-type strategy customization will land as a follow-up. Untagged types
-/// are forwarded to `rmp_serde`'s default encoding (with `with_struct_map`
-/// applied for consistency).
+/// through a [`Serializer`] into a freshly-allocated `Vec<u8>`. Uses the
+/// default [`EncodingStrategy::Tagged`] for all types. For strategy
+/// customization, build the registry and serializer directly and use the
+/// builder methods.
 pub fn msgpack_tagged_serialize<T>(value: &T) -> std::io::Result<Vec<u8>>
 where
     T: ?Sized + Serialize + MsgpackTagged,
 {
     let registry = TagRegistry::from_type::<T>();
-
     let mut buf = Vec::new();
     let mut serializer = Serializer::new(&mut buf, &registry);
     value.serialize(&mut serializer).map_err(std::io::Error::other)?;
@@ -101,7 +165,7 @@ type RmpError = rmp_serde::encode::Error;
 // shapes) are intercepted to emit int-keyed maps via the registry.
 // ============================================================================
 
-impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
+impl<'ser, 'a, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -692,5 +756,101 @@ impl<'ser, 'a, W: Write> SerializeMap for TaggedSerializeViaParent<'ser, 'a, W> 
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod builder_tests {
+    //! Tests for `Serializer::new` + `with_default_strategy` +
+    //! `with_strategy`. Phase 1 — the strategy state is configured but the
+    //! encoder doesn't yet branch on it; these tests verify the *state* is
+    //! recorded correctly via `Serializer::strategy_for`. Phase 2 will add
+    //! encode-side dispatch and tests for the actual wire shape.
+
+    use super::*;
+    use crate::Tagged;
+
+    struct Foo;
+    impl MsgpackTagged for Foo {
+        const TAGGED: Tagged = Tagged::empty_product();
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("Foo");
+        }
+    }
+
+    struct Bar;
+    impl MsgpackTagged for Bar {
+        const TAGGED: Tagged = Tagged::empty_product();
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("Bar");
+        }
+    }
+
+    /// Build a registry that contains every type passed in. Test-local
+    /// helper — production registries are built via
+    /// `TagRegistry::from_type::<T>()` which seeds the walk from one
+    /// top-level type.
+    fn registry_of<F: FnOnce(&mut TagRegistry)>(f: F) -> TagRegistry {
+        let mut reg = TagRegistry::new();
+        f(&mut reg);
+        reg
+    }
+
+    #[test]
+    fn default_strategy_is_tagged() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    #[test]
+    fn with_default_strategy_changes_default() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Array);
+    }
+
+    #[test]
+    fn per_type_override_beats_default() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    #[test]
+    fn per_type_overrides_are_independent() {
+        let registry = registry_of(|r| {
+            Foo::register_into(r);
+            Bar::register_into(r);
+        });
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        // Bar has no override; falls back to the (changed) default.
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Bar>(), EncodingStrategy::Array);
+    }
+
+    #[test]
+    fn last_with_strategy_wins() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_strategy::<Foo>(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    /// Setting a strategy for a type the registry never saw is almost
+    /// always a type-graph miss bug — the override would silently never
+    /// fire. `with_strategy` panics so the misuse surfaces at config time.
+    #[test]
+    #[should_panic(expected = "is not in the registry")]
+    fn with_strategy_panics_on_unregistered_type() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let _ = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_strategy::<Bar>(EncodingStrategy::Array);
     }
 }

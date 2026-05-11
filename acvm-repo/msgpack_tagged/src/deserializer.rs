@@ -69,13 +69,22 @@ pub struct Deserializer<'a, 'de> {
     registry: &'a TagRegistry,
 }
 
+impl<'a, 'de> Deserializer<'a, 'de> {
+    /// Construct a deserializer over `bytes` borrowing the caller-built
+    /// `registry`. Symmetric with [`crate::Serializer::new`].
+    pub fn new(bytes: &'de [u8], registry: &'a TagRegistry) -> Self {
+        Self { inner: RmpDeserializer::new(bytes), registry }
+    }
+}
+
 /// Build the tag registry from `T::register_into`, then deserialize a value
 /// of type `T` from `bytes` through a [`Deserializer`].
 ///
-/// All tagged types are expected to be encoded in the **Tagged** strategy
-/// (int-keyed maps) produced by
-/// [`crate::serializer::msgpack_tagged_serialize`]. Strategy decoding (Array,
-/// Named) and per-type strategy selection are follow-ups.
+/// All tagged types are expected to be encoded under `Format::MsgpackTagged`
+/// (int-keyed maps for [`crate::EncodingStrategy::Tagged`], positional
+/// arrays for [`crate::EncodingStrategy::Array`] — the decoder probes the
+/// wire shape per struct). Other formats route through their own decoders
+/// upstream via the `Format` byte (defined in the `acir` crate).
 pub fn msgpack_tagged_deserialize<'de, T>(bytes: &'de [u8]) -> std::io::Result<T>
 where
     T: Deserialize<'de> + MsgpackTagged,
@@ -92,7 +101,7 @@ where
 // translated back to serde field/variant names.
 // ============================================================================
 
-impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
+impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
     type Error = RmpError;
 
     // TODO: when used with self-describing visitors (e.g. `serde_json::Value`,
@@ -425,14 +434,6 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
 }
 
 impl<'a, 'de> Deserializer<'a, 'de> {
-    /// Create a deserializer over some byte slice with a given registry.
-    ///
-    /// Uses the default configuration for the inner msgpack deserializer.
-    fn new(bytes: &'de [u8], registry: &'a TagRegistry) -> Self {
-        let inner = RmpDeserializer::new(bytes);
-        Self { inner, registry }
-    }
-
     /// Resolve a registered `Product` by serde name. Used by
     /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
     /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -733,9 +734,10 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
         };
 
         // Sub-wrapper over the value's bytes. Sharing the parent's
-        // registry keeps nested tagged-type lookups consistent. The
-        // sub-deserializer's reader state starts fresh at the value's
-        // first byte, so its own `marker` buffer is empty as expected.
+        // registry (via `Arc::clone`) keeps nested tagged-type lookups
+        // consistent. The sub-deserializer's reader state starts fresh at
+        // the value's first byte, so its own `marker` buffer is empty as
+        // expected.
         let mut sub_deserializer = Deserializer::new(value_bytes, self.parent.registry);
         seed.deserialize(&mut sub_deserializer).map(Some)
     }

@@ -231,6 +231,15 @@ impl TagRegistry {
         reg
     }
 
+    /// Whether the type `T` is registered. Used by
+    /// [`crate::Serializer::with_strategy`] to fail fast when a strategy
+    /// override targets a type the registry never saw — almost always a
+    /// type-graph miss bug.
+    pub fn contains<T: MsgpackTagged>(&self) -> bool {
+        let target = TypeId::of::<T>();
+        self.entries.values().any(|entry| entry.type_id == target)
+    }
+
     /// Register a type under its serde name.
     ///
     /// Returns `true` if this type was newly inserted — the caller (typically a
