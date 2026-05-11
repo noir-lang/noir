@@ -93,7 +93,7 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
-impl<F: AcirField + Serialize> WitnessMap<F> {
+impl<F: AcirField + Serialize + MsgpackTagged> WitnessMap<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
         let format = SerializationFormat::from_env()
@@ -119,7 +119,7 @@ impl<F: AcirField + Serialize> WitnessMap<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
+impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> WitnessMap<F> {
     /// Decompress and deserialize.
     pub fn deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
         let mut deflater = GzDecoder::new(buf);

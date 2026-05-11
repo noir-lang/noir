@@ -313,7 +313,7 @@ impl<F: AcirField> Circuit<F> {
     }
 }
 
-impl<F: Serialize + AcirField> Program<F> {
+impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     /// Compress a serialized [Program].
     fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
         let mut compressed: Vec<u8> = Vec::new();
@@ -348,7 +348,7 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> Program<F> {
     /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
@@ -503,6 +503,7 @@ mod tests {
     use super::{Circuit, Compression};
     use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
+    use msgpack_tagged::MsgpackTagged;
     use serde::{Deserialize, Serialize};
 
     #[test]
@@ -517,7 +518,7 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
+        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField + MsgpackTagged>(
             program: Program<F>,
         ) -> (Program<F>, Program<F>) {
             let bytes = Program::serialize_program(&program);
@@ -604,13 +605,14 @@ mod tests {
     /// choosing a particular `F`.
     #[test]
     fn ensure_program_is_msgpack_tagged() {
-        fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
+        fn assert_impl<T: MsgpackTagged>() {}
         assert_impl::<Program<FieldElement>>();
     }
 
     /// Property based testing for serialization
     mod props {
         use acir_field::FieldElement;
+        use msgpack_tagged::MsgpackTagged;
         use proptest::prelude::*;
         use proptest::test_runner::{TestCaseResult, TestRunner};
 
@@ -640,6 +642,11 @@ mod tests {
             fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
                 any::<u128>().prop_map(|v| Self(FieldElement::from(v))).boxed()
             }
+        }
+
+        impl MsgpackTagged for TestField {
+            const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::empty_product();
+            fn register_into(_reg: &mut msgpack_tagged::TagRegistry) {}
         }
 
         /// Override the maximum size of collections created by `proptest`.
