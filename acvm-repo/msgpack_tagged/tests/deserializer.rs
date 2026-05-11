@@ -856,3 +856,237 @@ mod v2_to_v1_tuple_variant_extra_with_allow_unknown {
         assert_eq!(v1, FooV1::Carry(7, true));
     }
 }
+
+// ============================================================================
+// Schema-evolution / cross-version tests for *struct* variants. Most of the
+// payload-side plumbing is shared with plain named structs
+// (`TaggedProductMapAccess`, `Product.field_for`), so these primarily verify
+// that wrapping in an enum doesn't break the schema-evolution semantics. The
+// `reserved`-on-decode case is omitted because it shares the same gap as the
+// plain-struct equivalent (`v1_to_v2_remove_field_with_reserved`) — covering
+// it here would just duplicate the existing `#[should_panic]`.
+// ============================================================================
+
+/// V1 → V2: V2 adds a new field on a struct-variant payload marked
+/// `#[serde(default)]`. V1's wire doesn't carry that field's tag; V2's
+/// decode yields `Ok(None)` for the missing key and serde-derive's standard
+/// default machinery fills it in.
+mod v1_to_v2_struct_variant_add_field_with_default {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            #[serde(default)]
+            b: Vec<u8>,
+        },
+    }
+
+    #[test]
+    fn missing_payload_field_uses_default() {
+        let v1 = FooV1::Carry { a: 7 };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2::Carry { a: 7, b: Vec::default() });
+    }
+}
+
+/// V1 → V2: V2 declares the same payload fields in a different source order.
+/// The wire is tag-keyed, not source-position-keyed, so reordering is
+/// invisible.
+mod v1_to_v2_struct_variant_reorder_fields {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(1)]
+            b: bool,
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[test]
+    fn reorder_only_roundtrips() {
+        let v1 = FooV1::Carry { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2::Carry { a: 7, b: true });
+    }
+}
+
+/// V1 → V2: V2 renames a payload field's Rust ident while keeping the same
+/// tag. Field names never reach the wire — only tags — so the rename is
+/// invisible.
+mod v1_to_v2_struct_variant_rename_field {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            field_a: u32,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            renamed_a: u32,
+        },
+    }
+
+    #[test]
+    fn rename_keeping_same_tag_roundtrips() {
+        let v1 = FooV1::Carry { field_a: 7 };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2::Carry { renamed_a: 7 });
+    }
+}
+
+/// V2 → V1: V2 drops a payload field that V1 still requires. V1's decode
+/// surfaces a `missing field` error from serde-derive.
+mod v2_to_v1_struct_variant_required_field_missing {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[test]
+    fn required_payload_field_missing_errors() {
+        let v2 = FooV2::Carry { a: 7 };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
+    }
+}
+
+/// V2 → V1: V2 adds a new payload field. V1's variant carries
+/// `#[tagged(allow_unknown_tags)]`, so the extra entry is silently skipped.
+mod v2_to_v1_struct_variant_extra_field_with_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        #[tagged(allow_unknown_tags)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    #[test]
+    fn unknown_payload_field_skipped_when_allowed() {
+        let v2 = FooV2::Carry { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
+        assert_eq!(v1, FooV1::Carry { a: 7 });
+    }
+}
+
+/// V2 → V1: V2 adds a new payload field; V1's variant does *not* opt into
+/// `allow_unknown_tags`. V1 errors on the unknown payload tag.
+mod v2_to_v1_struct_variant_extra_field_without_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV1 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+        },
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        },
+    }
+
+    #[test]
+    fn unknown_payload_field_errors_when_not_allowed() {
+        let v2 = FooV2::Carry { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("unknown wire tag"), "got: {msg}");
+    }
+}
