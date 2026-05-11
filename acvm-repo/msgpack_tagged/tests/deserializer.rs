@@ -330,3 +330,312 @@ fn tuple_struct_decodes_from_tag_ascending_wire_order() {
     let decoded: ReorderedTriple = msgpack_tagged_deserialize(&bytes).expect("decode");
     assert_eq!(decoded, ReorderedTriple(7, true, 9));
 }
+
+// ============================================================================
+// Schema-evolution / cross-version tests for named structs.
+//
+// Each scenario lives in its own module so the V1/V2 fixtures can share
+// the `Foo` family name (and `#[serde(rename = "Foo")]` to register under
+// a stable key). Naming convention:
+//   * V1 = the older snapshot
+//   * V2 = the newer snapshot
+//   * V1 → V2 = backward compat (write with old, read with new format)
+//   * V2 → V1 = forward compat (with with new, read with old format)
+// Tests use `#[should_panic(expected = "...")]` to capture *current*
+// behavior when the design-doc-intended outcome is success but the
+// implementation hasn't caught up yet — the panic substring locks in the
+// failure mode that needs to flip once the relevant TODO is resolved.
+// ============================================================================
+
+/// V1 → V2: V2 retires a field by adding its tag to `reserved(...)` and
+/// dropping the field declaration. V1 emits both fields on the wire; V2
+/// should silently skip the retired tag and decode the rest.
+///
+/// **Currently fails** — the decoder doesn't consult `Product.is_reserved`
+/// yet, so retired tags follow the same path as wholly unknown tags
+/// (error unless `allow_unknown_tags`). Flagged in the deserializer's
+/// file-level TODO list. When that lands, drop the `#[should_panic]`.
+mod v1_to_v2_remove_field_with_reserved {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(1))]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[test]
+    #[should_panic(expected = "unknown wire tag")]
+    fn skip_retired_tag_on_decode() {
+        let v1 = FooV1 { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2 { a: 7 });
+    }
+}
+
+/// V1 → V2: V2 adds a new field marked `#[tag(N, default)] #[serde(default)]`.
+/// V1's wire doesn't carry that tag; V2 fills the field from `Default`.
+mod v1_to_v2_add_field_with_default {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug, Default)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1, default)]
+        #[serde(default)]
+        b: Vec<u8>,
+    }
+
+    #[test]
+    fn missing_tag_uses_default() {
+        let v1 = FooV1 { a: 7 };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2 { a: 7, b: Vec::default() });
+    }
+}
+
+/// V1 → V2: V2 adds a new field with *no* default. V1's wire is missing
+/// that tag; V2 decoding errors with `missing field …`.
+mod v1_to_v2_add_new_required_field {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[test]
+    fn missing_required_tag_errors() {
+        let v1 = FooV1 { a: 7 };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let err = msgpack_tagged_deserialize::<FooV2>(&bytes).expect_err("decode should fail");
+        // serde-derive emits `missing field` for the absent required field;
+        // accept any error mentioning the missing field name to stay
+        // robust to wording changes.
+        let msg = err.to_string();
+        assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
+    }
+}
+
+/// V1 → V2: V2 has the same fields and tags as V1, just declared in a
+/// different source order. Since the wire-tag↔field-name mapping comes
+/// from the registry (not source position), round-tripping just works.
+mod v1_to_v2_reorder_fields {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(1)]
+        b: bool,
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[test]
+    fn reorder_only_roundtrips() {
+        let v1 = FooV1 { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2 { a: 7, b: true });
+    }
+}
+
+/// V2 → V1: V2 has dropped a field that V1 still requires. V2's wire is
+/// missing the field; V1 decoding errors with `missing field …`.
+mod v2_to_v1_required_field_missing {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[test]
+    fn v1_required_field_missing_errors() {
+        let v2 = FooV2 { a: 7 };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
+    }
+}
+
+/// V2 → V1: V2 adds a new field that V1 doesn't know about, and V1 opts
+/// into `allow_unknown_tags`. V1 silently skips the new entry.
+mod v2_to_v1_extra_field_with_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(allow_unknown_tags)]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[test]
+    fn unknown_tag_skipped_when_allowed() {
+        let v2 = FooV2 { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
+        assert_eq!(v1, FooV1 { a: 7 });
+    }
+}
+
+/// V2 → V1: V2 adds a new field; V1 does *not* opt into `allow_unknown_tags`.
+/// V1 errors on the unknown tag.
+mod v2_to_v1_extra_field_without_allow_unknown {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[test]
+    fn unknown_tag_errors_when_not_allowed() {
+        let v2 = FooV2 { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("unknown wire tag"), "got: {msg}");
+    }
+}
+
+/// V1 → V2: V2 renames a field's Rust ident while keeping the same tag.
+/// Wire encoding never carries field names — only tags — so a rename is
+/// invisible on the wire and round-trips freely. Useful when a developer
+/// realizes the original name was misleading and wants to fix it without
+/// breaking the wire format.
+mod v1_to_v2_rename_field {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        field_a: u32,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(0)]
+        renamed_a: u32,
+    }
+
+    #[test]
+    fn rename_keeping_same_tag_roundtrips() {
+        let v1 = FooV1 { field_a: 7 };
+        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
+        assert_eq!(v2, FooV2 { renamed_a: 7 });
+    }
+}
+
+/// V2 → V1: same field set as V1, just reordered in source. Round-trips
+/// because the wire carries tags, not field names — same as case
+/// `v1_to_v2_reorder_fields` from the other direction.
+mod v2_to_v1_reorder_fields {
+    use super::*;
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooV2 {
+        #[tag(1)]
+        b: bool,
+        #[tag(0)]
+        a: u32,
+    }
+
+    #[test]
+    fn reorder_only_roundtrips() {
+        let v2 = FooV2 { a: 7, b: true };
+        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
+        assert_eq!(v1, FooV1 { a: 7, b: true });
+    }
+}
