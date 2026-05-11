@@ -18,11 +18,6 @@
 //! them yet. Each is also flagged with an inline `// TODO:` at the
 //! relevant call site.
 //!
-//! - **`deserialize_enum` not intercepted.** Variant tag → variant name
-//!   translation + `VariantKind` dispatch isn't implemented; we fall
-//!   through to `rmp_serde` which expects a different wire shape than
-//!   the one our serializer produces. Until this lands, tagged enums
-//!   don't round-trip through the wrapper.
 //! - **`#[tagged(reserved(...))]` on the decode side.** `Product.is_reserved`
 //!   exists in the registry and is checked at compile time by the macro
 //!   to prevent tag reuse, but the decoder never consults it. Retired
@@ -31,12 +26,18 @@
 //!   set, error otherwise. The likely-intended semantic is that
 //!   `reserved` tags auto-skip on decode regardless of
 //!   `allow_unknown_tags`, since they're explicitly opted-in retirements.
+//! - **Lenient variant-tag handling on enums.** `deserialize_enum` rejects
+//!   any wire tag not in the registered `Sum`. Forward-/backward-compat
+//!   opt-ins (`allow_unknown` for newly added variants, `allow_reserved`
+//!   for retired ones) aren't wired up yet — both will route unknown/
+//!   reserved tags to the type's `#[serde(other)]` catch-all variant,
+//!   keeping the two compat axes distinct. The macro will validate that
+//!   the catch-all exists when either flag is set. Note: the registry
+//!   still carries `Sum.default_on_reserved` / `default_on_unknown` from
+//!   an earlier design — those fields go away when this lands.
 //! - **`#[tagged(allow_unknown_tags)]` on variant payloads.** Mirrors
-//!   the struct case but lives behind the missing `deserialize_enum`
-//!   interception.
-//! - **`#[tagged(default_on_reserved)]` / `default_on_unknown`** (enum-
-//!   only). Substitute `T::default()` for retired or unknown variant
-//!   tags on decode. Same dependency — `deserialize_enum` first.
+//!   the struct case for tuple/struct variant payloads. Currently a
+//!   wire-length overflow on a tuple-variant payload is a hard error.
 //! - **`deserialize_any`.** Niche today (none of our ACIR types are
 //!   decoded via self-describing visitors), but nested tagged values
 //!   reached through `serde_json::Value`-style consumers wouldn't
@@ -52,7 +53,10 @@ use rmp_serde::decode::ReadReader;
 // `de::Deserializer` would clash with our own `Deserializer` struct below if
 // pulled in via `use`; importing the `de` module instead lets us write
 // `de::Deserializer` for the trait at the few sites that need it.
-use serde::de::{self, Deserialize, DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
+use serde::de::{
+    self, Deserialize, DeserializeSeed, EnumAccess, Error as _, MapAccess, SeqAccess,
+    VariantAccess, Visitor,
+};
 use smallvec::SmallVec;
 
 use crate::{MsgpackTagged, TagRegistry};
@@ -374,21 +378,52 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         })
     }
 
-    // TODO: read a 1-entry msgpack map (variant tag → payload). Look up the
-    // variant by tag in the registered `Sum`, dispatch on its `VariantKind`
-    // (unit / newtype / tuple / struct), and decode the payload accordingly:
-    // `nil` for unit, the inner value pass-through for newtype, an
-    // int-keyed payload map for tuple/struct (driven by the variant's
-    // `payload` `Product`). Honor `Sum.default_on_reserved` and
-    // `Sum.default_on_unknown` for lenient decode. Route payload values
-    // through `&mut self` so nested tagged types recurse.
+    // Outer wire shape: a 1-entry msgpack map `{u8 variant_tag: payload}`,
+    // mirroring `Serializer::write_variant_header`. We read the map header
+    // and the variant tag here, then hand off to `TaggedEnumAccess` which
+    // (a) yields the variant *name* to the visitor via
+    // `BorrowedStrDeserializer` and (b) implements `VariantAccess` by
+    // dispatching on the registered variant's `VariantKind`. Payload
+    // values route back through `&mut self.parent` so nested tagged types
+    // recurse through this wrapper.
+    //
+    // Lenient handling of unknown / reserved variant tags is not modeled
+    // yet — see the file-level note about `allow_unknown` / `allow_reserved`.
     fn deserialize_enum<V: Visitor<'de>>(
         self,
         name: &'static str,
-        variants: &'static [&'static str],
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_enum(name, variants, visitor)
+        let sum = self.sum_for(name);
+        let outer_len = rmp::decode::read_map_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        if outer_len != 1 {
+            return Err(RmpError::custom(format!(
+                "MsgpackTagged: enum {name:?} expects a 1-entry outer map, got {outer_len}",
+            )));
+        }
+        let tag: u8 = u8::deserialize(&mut *self)?;
+        // TODO: forward/backward-compat dispatch hook. When the macro grows
+        // `#[tagged(allow_unknown)]` and `#[tagged(allow_reserved)]`, the
+        // miss arm below splits into three:
+        //   * tag in `sum.variants`           → use it (current happy path)
+        //   * tag in `sum.reserved` and `allow_reserved` set
+        //                                     → route to the `#[serde(other)]`
+        //                                       catch-all variant, then
+        //                                       consume + discard the payload
+        //   * tag in neither, `allow_unknown` set
+        //                                     → same catch-all route, then
+        //                                       consume + discard the payload
+        //   * otherwise                       → current error
+        // The catch-all resolution should look up the variant tagged
+        // `#[serde(other)]` (macro-validated to be a unit variant), but
+        // before visiting it we still need to walk past the payload bytes
+        // so the outer stream is positioned correctly.
+        let variant = sum.variants.iter().find(|v| v.tag == tag).copied().ok_or_else(|| {
+            RmpError::custom(format!("MsgpackTagged: unknown variant tag {tag} for enum {name:?}",))
+        })?;
+        visitor.visit_enum(TaggedEnumAccess { parent: self, variant })
     }
 
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -434,6 +469,20 @@ impl<'a, 'de> Deserializer<'a, 'de> {
         });
         entry.tagged().as_product().unwrap_or_else(|| {
             panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
+        })
+    }
+
+    /// Resolve a registered `Sum` by enum-type name. Mirror of `product_for`
+    /// on the enum side, used by `deserialize_enum`.
+    fn sum_for(&self, name: &'static str) -> crate::Sum {
+        let entry = self.registry.get(name).unwrap_or_else(|| {
+            panic!(
+                "MsgpackTagged registry miss for enum {name:?} — the top-level \
+                 `register_into` walk should have registered every reachable type"
+            )
+        });
+        entry.tagged().as_sum().unwrap_or_else(|| {
+            panic!("registry entry for {name:?} is product-shaped but a sum shape was expected")
         })
     }
 }
@@ -648,5 +697,117 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
 
     fn size_hint(&self) -> Option<usize> {
         Some(self.entries.len().saturating_sub(self.next_position))
+    }
+}
+
+/// `EnumAccess` + `VariantAccess` adapter for tagged enums.
+///
+/// `deserialize_enum` already consumed the outer `{u8 variant_tag: payload}`
+/// map header and the variant tag, resolved the matching `Variant` from the
+/// `Sum`, and handed both off to us. From here:
+///
+/// * `EnumAccess::variant_seed` yields the variant's serde *name* (as a
+///   borrowed string) to the visitor — serde-derive's `__Field` visitor for
+///   enums accepts identifiers as strings just like struct-field visitors do.
+/// * The four `VariantAccess` methods dispatch on the kind the visitor
+///   asks for (which is driven by the Rust declaration, not the wire), and
+///   each reads the matching payload shape directly from `parent`:
+///   - **unit** — consume the trailing `nil` written by the encode-side
+///     `serialize_unit`.
+///   - **newtype** — pass the bare inner value through `&mut *parent` so
+///     any nested tagged types still recurse through the wrapper.
+///   - **tuple** — read the int-keyed payload map and reuse the
+///     `TaggedTupleStructAccess` buffering machinery; the variant's
+///     `payload` `Product` carries the tag/position mapping.
+///   - **struct** — read the int-keyed payload map and reuse
+///     `TaggedProductMapAccess`; the variant's `payload` `Product` carries
+///     the tag/field-name mapping.
+pub(crate) struct TaggedEnumAccess<'der, 'a, 'de> {
+    parent: &'der mut Deserializer<'a, 'de>,
+    variant: crate::Variant,
+}
+
+impl<'de, 'der, 'a> EnumAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
+    type Error = RmpError;
+    type Variant = Self;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let key_deserializer =
+            de::value::BorrowedStrDeserializer::<RmpError>::new(self.variant.name);
+        let value = seed.deserialize(key_deserializer)?;
+        Ok((value, self))
+    }
+}
+
+impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
+    type Error = RmpError;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        <()>::deserialize(&mut *self.parent)
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut *self.parent)
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        let wire_len = wire_len as usize;
+        // TODO: gate this overflow check on the variant payload's
+        // `allow_unknown_tags` once the macro accepts the attribute on
+        // variants (mirrors the struct case in `deserialize_tuple_struct`).
+        // When opted in, extra trailing entries should be buffered alongside
+        // the known ones — `TaggedTupleStructAccess` already discards
+        // entries whose tag isn't in the product.
+        if wire_len > len {
+            return Err(RmpError::custom(format!(
+                "tuple variant {:?}: wire has {wire_len} entries but the variant \
+                 expects only {len}",
+                self.variant.name,
+            )));
+        }
+        let mut entries: SmallVec<[(u8, &'de [u8]); 4]> = SmallVec::with_capacity(wire_len);
+        for _ in 0..wire_len {
+            let tag: u8 = u8::deserialize(&mut *self.parent)?;
+            let before: &'de [u8] = self.parent.inner.get_mut();
+            de::IgnoredAny::deserialize(&mut *self.parent)?;
+            let after: &'de [u8] = self.parent.inner.get_mut();
+            let consumed = before.len() - after.len();
+            entries.push((tag, &before[..consumed]));
+        }
+        visitor.visit_seq(TaggedTupleStructAccess {
+            parent: self.parent,
+            product: self.variant.payload,
+            entries,
+            next_position: 0,
+        })
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        visitor.visit_map(TaggedProductMapAccess {
+            parent: self.parent,
+            product: self.variant.payload,
+            type_name: self.variant.name,
+            remaining: wire_len as usize,
+        })
     }
 }

@@ -332,6 +332,101 @@ fn tuple_struct_decodes_from_tag_ascending_wire_order() {
 }
 
 // ============================================================================
+// Enum round-trip tests — one per `VariantKind` (unit / newtype / tuple /
+// struct), plus a nested-tagged-payload case. Mirrors the
+// `serializer::unit_variant_encodes_as_variant_tag_with_nil_payload`-style
+// shape tests on the encode side, but here we just round-trip and assert
+// equality — the bytes-shape locks are the serializer's job.
+// ============================================================================
+
+/// Mixed-shape enum exercising every `VariantKind`: same shape as the
+/// serializer's `Mixed` fixture, plus the matching `Deserialize` derive.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+enum Mixed {
+    #[tag(1)]
+    Empty,
+    #[tag(2)]
+    Wrap(u32),
+    #[tag(3)]
+    Pair(u32, bool),
+    #[tag(4)]
+    Named {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    },
+}
+
+#[test]
+fn unit_variant_roundtrips() {
+    assert_roundtrip(Mixed::Empty);
+}
+
+#[test]
+fn newtype_variant_roundtrips() {
+    assert_roundtrip(Mixed::Wrap(42));
+}
+
+#[test]
+fn tuple_variant_roundtrips() {
+    assert_roundtrip(Mixed::Pair(7, true));
+}
+
+#[test]
+fn struct_variant_roundtrips() {
+    assert_roundtrip(Mixed::Named { a: 99, b: false });
+}
+
+/// Newtype variant carrying a tagged inner type — verifies the payload
+/// recurses through the wrapper instead of falling back to rmp_serde for
+/// the inner struct.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+enum NewtypeWithTagged {
+    #[tag(7)]
+    Wrap(Pair),
+}
+
+#[test]
+fn newtype_variant_with_tagged_inner_roundtrips() {
+    assert_roundtrip(NewtypeWithTagged::Wrap(Pair { first: 11, second: true }));
+}
+
+/// Tuple variant whose payload contains a tagged inner type — verifies
+/// each payload position routes through the wrapper.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+enum TupleVariantWithNested {
+    #[tag(0)]
+    Carry(Pair, u32),
+}
+
+#[test]
+fn tuple_variant_with_nested_tagged_element_roundtrips() {
+    assert_roundtrip(TupleVariantWithNested::Carry(Pair { first: 1, second: false }, 5));
+}
+
+/// Struct variant whose payload contains a tagged inner type — same
+/// recursion check from the struct-variant side.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+enum StructVariantWithNested {
+    #[tag(0)]
+    Carry {
+        #[tag(0)]
+        inner: Pair,
+        #[tag(1)]
+        count: u32,
+    },
+}
+
+#[test]
+fn struct_variant_with_nested_tagged_element_roundtrips() {
+    assert_roundtrip(StructVariantWithNested::Carry {
+        inner: Pair { first: 2, second: true },
+        count: 9,
+    });
+}
+
+// ============================================================================
 // Schema-evolution / cross-version tests for named structs.
 //
 // Each scenario lives in its own module so the V1/V2 fixtures can share
