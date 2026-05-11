@@ -190,9 +190,8 @@ impl NodeInterner {
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
-        let name = self.function_name(func_id).to_owned();
-        let location = self.function_meta(func_id).name.location;
-        crate::ast::Ident::new(name, location)
+        let modifiers = &self.function_modifiers[func_id];
+        crate::ast::Ident::new(modifiers.name.clone(), modifiers.name_location)
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {

@@ -1,0 +1,6 @@
+[package]
+name = "type_def_fields_kind_mismatch"
+type = "bin"
+authors = [""]
+
+[dependencies]

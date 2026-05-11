@@ -46,7 +46,6 @@ mod merge_expressions;
 use csat::CSatTransformer;
 use merge_expressions::MergeExpressionsOptimizer;
 
-use std::hash::BuildHasher;
 use tracing::info;
 
 use super::RangeOptimizer;
@@ -76,10 +75,13 @@ pub(super) fn transform_internal<F: AcirField>(
     }
 
     // Allow multiple passes until we have stable output.
-    let mut prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
+    // We use opcode count rather than a structural hash as the convergence signal,
+    // because intermediate variables are created in step 1. to fits the width and then
+    // sometimes are removed in step 2. to benefit from the 'big-add' gates of the proving system.
+    // Opcode count tracks the metric we actually care about.
+    let mut prev_opcode_count = acir.opcodes.len();
 
-    // Checking for stable output after MAX_TRANSFORMER_PASSES
-    let mut opcodes_hash_stabilized = false;
+    let mut opcode_count_stabilized = false;
 
     let max_transformer_passes =
         max_transformer_passes_or_default.unwrap_or(DEFAULT_MAX_TRANSFORMER_PASSES);
@@ -94,16 +96,16 @@ pub(super) fn transform_internal<F: AcirField>(
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
 
-        let new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
+        let new_opcode_count = acir.opcodes.len();
 
-        if new_opcodes_hash == prev_opcodes_hash {
-            opcodes_hash_stabilized = true;
+        if new_opcode_count == prev_opcode_count {
+            opcode_count_stabilized = true;
             break;
         }
-        prev_opcodes_hash = new_opcodes_hash;
+        prev_opcode_count = new_opcode_count;
     }
 
-    (acir, acir_opcode_positions, opcodes_hash_stabilized)
+    (acir, acir_opcode_positions, opcode_count_stabilized)
 }
 
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
@@ -572,8 +574,8 @@ mod tests {
         let mut brillig_side_effects = BTreeMap::new();
         brillig_side_effects.insert(BrilligFunctionId(0), false);
 
-        let (_, _, opcodes_hash_stabilized) =
+        let (_, _, opcode_count_stabilized) =
             transform_internal(acir, acir_opcode_positions, &brillig_side_effects, None);
-        assert!(!opcodes_hash_stabilized);
+        assert!(!opcode_count_stabilized);
     }
 }

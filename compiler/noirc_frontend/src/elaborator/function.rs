@@ -24,6 +24,7 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::{ImplMap, UnresolvedFunctions, UnresolvedTraitImpl},
+        def_map::LocalModuleId,
         resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
@@ -33,7 +34,9 @@ use crate::{
         stmt::HirPattern,
         traits::TraitConstraint,
     },
-    node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
+    node_interner::{
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId, TraitImplId,
+    },
     shared::Visibility,
 };
 
@@ -41,12 +44,37 @@ use super::Elaborator;
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
 
+/// Captures everything needed to lazily resolve a function's metadata.
+///
+/// Function metas are registered with this elaborator-side context up-front, then
+/// resolved lazily when a meta is first read (or eagerly drained at the end of
+/// elaboration). This lets meta resolution happen *after* trait impls are bound
+/// and globals can elaborate, and lets forward references between metas, globals,
+/// and other functions resolve in any order.
+pub(super) struct UnresolvedFunctionMeta {
+    pub(super) func: NoirFunction,
+    pub(super) local_module: LocalModuleId,
+    pub(super) self_type: Option<Type>,
+    /// Generics in scope from an enclosing `impl<...>` or trait impl, already
+    /// resolved. The function's own generics are added during meta resolution.
+    pub(super) outer_generics: Vec<ResolvedGeneric>,
+    pub(super) current_trait: Option<TraitId>,
+    pub(super) current_trait_impl: Option<TraitImplId>,
+    pub(super) extra_trait_constraints: Vec<(TraitConstraint, Location)>,
+}
+
 impl Elaborator<'_> {
-    /// Defines function metadata for all functions, impl methods, and trait impl methods.
-    /// This is the first pass of function elaboration that extracts type signatures and
-    /// resolves generics before the function bodies are elaborated.
+    /// Registers all functions, impl methods, and trait impl methods for *lazy*
+    /// metadata resolution. Each entry captures the elaborator context (self_type,
+    /// outer generics, trait/impl ids) needed to resolve the meta later. Trait
+    /// impls are also prepared here so that `<Object as Trait>::Type` references
+    /// inside any signature can be looked up during meta resolution.
+    ///
+    /// The metas are not actually resolved here — they are resolved on demand
+    /// (the first time something reads the meta) or drained at the end of
+    /// elaboration via [Self::drain_unresolved_function_metas].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn define_function_metas(
+    pub(super) fn register_function_metas(
         &mut self,
         functions: &mut [UnresolvedFunctions],
         impls: &mut ImplMap,
@@ -57,95 +85,184 @@ impl Elaborator<'_> {
             self.prepare_trait_impl_for_function_meta_definition(trait_impl)
         });
 
-        // Define metas for regular functions
+        // Register metas for regular functions
         for function_set in functions {
-            self.define_function_metas_for_functions(function_set, &[]);
+            self.register_function_metas_for_functions(function_set, &[]);
         }
 
-        // Define metas for impl functions
+        // Register metas for impl functions
         for ((self_type, local_module), function_sets) in impls {
-            self.define_function_metas_for_impl(self_type, *local_module, function_sets);
+            self.register_function_metas_for_impl(self_type, *local_module, function_sets);
         }
 
-        // Define metas for trait impl functions
+        // Register metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
             trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
         {
-            self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
+            self.register_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
     }
 
-    /// Defines function metadata for a set of functions with optional extra trait constraints.
-    /// This is used for both standalone functions and methods within impls/trait impls.
+    /// Registers each function in the set as an unresolved meta. The functions are
+    /// not iterated by `define_function_meta` here — they are resolved lazily.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn define_function_metas_for_functions(
+    fn register_function_metas_for_functions(
         &mut self,
-        function_set: &mut UnresolvedFunctions,
+        function_set: &UnresolvedFunctions,
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
-        for (local_module, id, func) in &mut function_set.functions {
-            self.local_module = Some(*local_module);
-            self.recover_generics(|this| {
-                this.define_function_meta(func, *id, None, extra_constraints);
-            });
+        for (local_module, id, func) in &function_set.functions {
+            self.unresolved_function_metas.insert(
+                *id,
+                UnresolvedFunctionMeta {
+                    func: func.clone(),
+                    local_module: *local_module,
+                    self_type: None,
+                    outer_generics: Vec::new(),
+                    current_trait: None,
+                    current_trait_impl: None,
+                    extra_trait_constraints: extra_constraints.to_vec(),
+                },
+            );
         }
     }
 
-    /// Defines function metadata for all methods within an impl block.
-    /// Resolves the self type and adds it to scope for method resolution.
+    /// Registers each impl method as an unresolved meta, resolving the impl's
+    /// self type and generics so that they're captured for later meta resolution.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn define_function_metas_for_impl(
+    fn register_function_metas_for_impl(
         &mut self,
         self_type: &UnresolvedType,
-        local_module: crate::hir::def_map::LocalModuleId,
+        local_module: LocalModuleId,
         function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
     ) {
         self.local_module = Some(local_module);
 
         for (generics, _, function_set) in function_sets {
-            // Prepare the impl
-            // Adds the impl generics to the generics state and resolve the impl's self type
+            // Prepare the impl: adds the impl generics to scope so the self type can
+            // reference them, then resolve the self type.
             self.add_generics(generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
             let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
             function_set.self_type = Some(self_type.clone());
-            self.self_type = Some(self_type);
 
-            self.define_function_metas_for_functions(function_set, &[]);
+            let outer_generics = self.generics.clone();
+            for (method_module, id, func) in &function_set.functions {
+                self.unresolved_function_metas.insert(
+                    *id,
+                    UnresolvedFunctionMeta {
+                        func: func.clone(),
+                        local_module: *method_module,
+                        self_type: Some(self_type.clone()),
+                        outer_generics: outer_generics.clone(),
+                        current_trait: None,
+                        current_trait_impl: None,
+                        extra_trait_constraints: Vec::new(),
+                    },
+                );
+            }
 
-            // Cleanup
-            self.self_type = None;
             self.generics.clear();
         }
     }
 
-    /// Defines function metadata for all methods within a trait impl.
-    /// This handles trait resolution, generics, associated types, and constraint checking.
+    /// Registers each trait impl method as an unresolved meta, capturing the trait
+    /// impl's self type, generics, and trait/impl ids for later resolution.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn define_function_metas_for_trait_impl(
+    fn register_function_metas_for_trait_impl(
         &mut self,
-        trait_impl: &mut UnresolvedTraitImpl,
+        trait_impl: &UnresolvedTraitImpl,
         new_generics_trait_constraints: Vec<(TraitConstraint, Location)>,
         generics: Vec<ResolvedGeneric>,
     ) {
-        // Set up trait impl state
-        self.current_trait_impl = trait_impl.impl_id;
-        self.current_trait = trait_impl.trait_id;
-        self.self_type = trait_impl.methods.self_type.clone();
-        self.generics = generics;
+        let self_type = trait_impl.methods.self_type.clone();
+        for (method_module, id, func) in &trait_impl.methods.functions {
+            self.unresolved_function_metas.insert(
+                *id,
+                UnresolvedFunctionMeta {
+                    func: func.clone(),
+                    local_module: *method_module,
+                    self_type: self_type.clone(),
+                    outer_generics: generics.clone(),
+                    current_trait: trait_impl.trait_id,
+                    current_trait_impl: trait_impl.impl_id,
+                    extra_trait_constraints: new_generics_trait_constraints.clone(),
+                },
+            );
+        }
+    }
 
-        // Now define the function metas with the constraints from where clause desugaring
-        self.define_function_metas_for_functions(
-            &mut trait_impl.methods,
-            &new_generics_trait_constraints,
-        );
+    /// Returns whether `func_id` is a method on a trait impl, looking through both
+    /// resolved and yet-to-be-resolved metas. Useful when callers only need to
+    /// distinguish trait-impl methods without forcing full meta resolution (which
+    /// may not be possible if other borrows are live).
+    pub(crate) fn function_is_trait_impl_method(&self, func_id: FuncId) -> bool {
+        if let Some(info) = self.unresolved_function_metas.get(&func_id) {
+            return info.current_trait_impl.is_some();
+        }
+        self.interner.try_function_meta(&func_id).is_some_and(|meta| meta.trait_impl.is_some())
+    }
 
-        // Cleanup
-        self.self_type = None;
-        self.current_trait_impl = None;
-        self.current_trait = None;
-        self.generics.clear();
+    /// If `func_id` was registered but its meta hasn't been resolved yet, resolve
+    /// it now under the registered context. This is the lazy entry point used by
+    /// callers that need a function's meta before the end-of-elaboration drain.
+    ///
+    /// A no-op for: functions already resolved, functions that aren't in the side
+    /// map (e.g. trait method definitions and default impl methods, which are
+    /// resolved eagerly elsewhere), and re-entrant calls for a function currently
+    /// being resolved (the `remove` returns `None`, breaking cycles — the cycle
+    /// will surface as an error from later phases like dependency-cycle detection).
+    pub(crate) fn define_function_meta_if_undefined(&mut self, func_id: FuncId) {
+        let Some(info) = self.unresolved_function_metas.remove(&func_id) else {
+            return;
+        };
+        self.resolve_unresolved_function_meta(func_id, info);
+    }
+
+    /// Drains every remaining unresolved meta. Called at the end of elaboration so
+    /// that any functions not pulled in by a forward reference still get resolved.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn drain_unresolved_function_metas(&mut self) {
+        while let Some((func_id, info)) = self.unresolved_function_metas.pop_first() {
+            self.resolve_unresolved_function_meta(func_id, info);
+        }
+    }
+
+    /// Sets up the elaborator context that was captured at registration time, then
+    /// runs `define_function_meta`. Restores the prior context on the way out so
+    /// callers (which may themselves be mid-resolution) aren't disturbed.
+    fn resolve_unresolved_function_meta(&mut self, func_id: FuncId, info: UnresolvedFunctionMeta) {
+        let UnresolvedFunctionMeta {
+            mut func,
+            local_module,
+            self_type,
+            outer_generics,
+            current_trait,
+            current_trait_impl,
+            extra_trait_constraints,
+        } = info;
+
+        let prev_local_module = self.local_module;
+        let prev_self_type = self.self_type.take();
+        let prev_generics = std::mem::replace(&mut self.generics, outer_generics);
+        let prev_current_trait = self.current_trait.take();
+        let prev_current_trait_impl = self.current_trait_impl.take();
+
+        self.local_module = Some(local_module);
+        self.self_type = self_type;
+        self.current_trait = current_trait;
+        self.current_trait_impl = current_trait_impl;
+
+        self.recover_generics(|this| {
+            this.define_function_meta(&mut func, func_id, None, &extra_trait_constraints);
+        });
+
+        self.local_module = prev_local_module;
+        self.self_type = prev_self_type;
+        self.generics = prev_generics;
+        self.current_trait = prev_current_trait;
+        self.current_trait_impl = prev_current_trait_impl;
     }
 
     /// Extracts and stores metadata from a function definition.
