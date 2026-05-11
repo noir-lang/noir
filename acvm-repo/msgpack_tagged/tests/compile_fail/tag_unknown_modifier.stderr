@@ -1,4 +1,4 @@
-error: unexpected modifier `foo` — `#[tag(...)]` accepts either a single integer tag or the keyword `skip`
+error: unexpected modifier `foo` — `#[tag(...)]` accepts a single integer tag literal
  --> tests/compile_fail/tag_unknown_modifier.rs:9:14
   |
 9 |     #[tag(0, foo)]

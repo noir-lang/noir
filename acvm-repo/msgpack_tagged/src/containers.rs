@@ -88,6 +88,8 @@ impl_msgpack_tagged_for_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
 
 #[cfg(test)]
 mod tests {
+    use crate::Product;
+
     use super::*;
 
     /// A `MsgpackTagged` type that *does* register itself, used to prove

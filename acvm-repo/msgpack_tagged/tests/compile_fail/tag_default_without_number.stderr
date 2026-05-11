@@ -1,4 +1,4 @@
-error: expected an integer tag or the keyword `skip`
+error: expected an integer tag literal
   --> tests/compile_fail/tag_default_without_number.rs:10:11
    |
 10 |     #[tag(default)]

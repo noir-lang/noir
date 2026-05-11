@@ -139,8 +139,7 @@ enum BinaryFieldOp {
 | attribute | meaning |
 |---|---|
 | `#[tag(N)]` | required — `N` is the wire tag |
-| `#[tag(skip)]` | drop the field from the wire |
-| `#[serde(skip)]` | alias for `#[tag(skip)]` |
+| `#[serde(skip)]` | drop the field from the wire (auto-recognized — the macro reads it directly rather than inventing a duplicate signal) |
 | `#[serde(default)]` | wire-tolerant: decoder fills `T::default()` (or a custom function via `#[serde(default = "..."]`) when the tag is missing. Pure serde-derive feature — nothing the macro emits — but the most common companion when retiring tags or adding new ones |
 | `#[serde(rename = "X")]` | overrides the wire name in `Product.fields` (load-bearing for shadow-DTOs whose wire DTO renames individual fields) |
 | `PhantomData<_>` | auto-skipped — no `#[tag]` annotation needed |

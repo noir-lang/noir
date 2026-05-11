@@ -92,11 +92,12 @@ enum ExplicitTupleVariants {
 }
 
 /// Named variant exercising the variant-payload field extras: a regular
-/// tagged field, an `#[serde(default)]` field (wire-tolerance), a
-/// `#[tag(skip)]` field whose type isn't `MsgpackTagged`, and a
-/// `PhantomData<T>` carrier so `T = Opaque` (a non-`MsgpackTagged` type)
-/// still satisfies the variant's bounds.
-#[derive(MsgpackTagged)]
+/// tagged field, a wire-visible payload field, a `#[serde(skip)]` field
+/// whose type isn't `MsgpackTagged`, and a `PhantomData<T>` carrier so
+/// `T = Opaque` (a non-`MsgpackTagged` type) still satisfies the
+/// variant's bounds. `serde::Serialize` is derived alongside so the
+/// `#[serde(skip)]` attribute is recognized.
+#[derive(MsgpackTagged, serde::Serialize)]
 enum WithVariantFieldExtras<T> {
     #[tag(0)]
     Plain {
@@ -104,7 +105,7 @@ enum WithVariantFieldExtras<T> {
         required: u32,
         #[tag(1)]
         annotation: Vec<u8>,
-        #[tag(skip)]
+        #[serde(skip)]
         hidden: Opaque,
         _phantom: std::marker::PhantomData<T>,
     },
@@ -320,22 +321,25 @@ struct OutOfOrder {
 }
 
 /// Type that intentionally does *not* implement `MsgpackTagged`, used to
-/// verify that `#[tag(skip)]` and `PhantomData<_>` exempt their field type
-/// from the bound chain. We do derive `Default` so it can sit behind
-/// `#[serde(skip)]` in fixtures that also derive `serde::Deserialize` —
-/// serde-derive needs a way to construct the skipped field on decode.
+/// verify that `#[serde(skip)]` and `PhantomData<_>` exempt their field
+/// type from the bound chain. We do derive `Default` so it can sit
+/// behind `#[serde(skip)]` in fixtures that also derive
+/// `serde::Deserialize` — serde-derive needs a way to construct the
+/// skipped field on decode.
 #[derive(Default)]
 struct Opaque {
     payload: Vec<u8>,
 }
 
-/// `#[tag(skip)]` on a field whose type isn't `MsgpackTagged`. The container
-/// still derives because the skipped field doesn't contribute a where bound.
-#[derive(MsgpackTagged)]
+/// `#[serde(skip)]` on a field whose type isn't `MsgpackTagged`. The
+/// container still derives because the skipped field doesn't contribute
+/// a where bound. `serde::Serialize` is derived alongside so rustc
+/// accepts the `serde` attribute namespace.
+#[derive(MsgpackTagged, serde::Serialize)]
 struct WithExplicitSkip {
     #[tag(0)]
     visible: u32,
-    #[tag(skip)]
+    #[serde(skip)]
     hidden: Opaque,
 }
 
@@ -416,10 +420,10 @@ impl serde::Serialize for Opaque {
     }
 }
 
-/// `#[serde(skip)]` is recognized as an alias for `#[tag(skip)]` — the
-/// field is dropped from the wire and contributes no bound. `Opaque`
-/// doesn't implement `MsgpackTagged`; the impl still compiles because
-/// the field is skipped.
+/// `#[serde(skip)]` drops the field from the wire and contributes no
+/// `MsgpackTagged` bound to the impl. `Opaque` doesn't implement
+/// `MsgpackTagged`; the impl still compiles because the field is
+/// skipped.
 #[derive(MsgpackTagged, serde::Serialize)]
 struct WithSerdeSkip {
     #[tag(0)]
@@ -486,7 +490,7 @@ fn derive_compiles_for_basic_shapes() {
     assert_impl::<WithInnerPayload>();
     assert_impl::<ExplicitTupleVariants>();
     // T = Opaque (no MsgpackTagged impl) still satisfies the bounds because
-    // the `Opaque` field is `#[tag(skip)]` and the `PhantomData<T>` field
+    // the `Opaque` field is `#[serde(skip)]` and the `PhantomData<T>` field
     // auto-skips — neither contributes a `MsgpackTagged: Opaque` bound.
     assert_impl::<WithVariantFieldExtras<Opaque>>();
     assert_impl::<VariantPayloadConfigs>();
@@ -918,7 +922,7 @@ fn newtype_variant_recursion_reaches_inner_type() {
     );
 }
 
-/// Inside a named variant payload, `#[tag(skip)]` and `PhantomData<_>`
+/// Inside a named variant payload, `#[serde(skip)]` and `PhantomData<_>`
 /// behave the same as in a top-level named struct — neither shows up on
 /// the wire and neither contributes to the type's bound chain.
 #[test]
@@ -1031,11 +1035,11 @@ fn serde_field_rename_drives_wire_field_name() {
     assert_eq!(p.tag_for("index"), None, "Rust ident must NOT be used after a rename");
 }
 
-/// `#[serde(skip)]` is honored as an alias for `#[tag(skip)]` — the field
-/// is absent from `Product.fields` and the type compiles even when the
+/// `#[serde(skip)]` drops the field from `Product.fields` (auto-
+/// recognized by the macro), and the type compiles even when the
 /// skipped field's type doesn't implement `MsgpackTagged`.
 #[test]
-fn serde_skip_is_an_alias_for_tag_skip() {
+fn serde_skip_drops_field_from_product() {
     let p = product_of::<WithSerdeSkip>();
     assert_eq!(p.fields, &[(0, "visible")], "`#[serde(skip)]` field is absent from fields");
 }

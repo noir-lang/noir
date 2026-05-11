@@ -417,17 +417,17 @@ fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpErr
 /// Assert that serde's reported field count matches the registered
 /// `Product`'s — both should drop the same skipped fields, so they should
 /// always agree. A mismatch is a real misconfiguration: the most common
-/// cause is a `PhantomData<T>` or `#[tag(skip)]` field that's missing a
-/// paired `#[serde(skip)]`, which would otherwise fail later with a
-/// confusing "field not found in registered Product" error from a tag
-/// lookup. The assert surfaces it earlier, with a more actionable message.
+/// cause is a `PhantomData<T>` field that's missing `#[serde(skip)]`,
+/// which would otherwise fail later with a confusing "field not found in
+/// registered Product" error from a tag lookup. The assert surfaces it
+/// earlier, with a more actionable message.
 fn assert_field_count_matches(name: &str, serde_len: usize, product_len: usize) {
     assert_eq!(
         serde_len, product_len,
         "MsgpackTagged: serde reports {serde_len} fields for {name:?} but the registered \
          Product carries {product_len}. The macro and `serde::Serialize` disagree on \
-         which fields are on the wire — typically because a `PhantomData<T>` or \
-         `#[tag(skip)]` field is missing a paired `#[serde(skip)]`",
+         which fields are on the wire — typically because a `PhantomData<T>` field \
+         is missing `#[serde(skip)]`",
     );
 }
 

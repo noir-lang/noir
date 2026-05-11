@@ -509,22 +509,16 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
             "missing `#[tag(N)]` attribute on enum variant — every variant needs an explicit tag",
         ));
     };
-    match args {
-        TagArgs::Tag(tag) => {
-            if reserved.contains(&tag) {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    format!(
-                        "tag {tag} is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
-                    ),
-                ));
-            }
-            Ok(tag)
-        }
-        TagArgs::Skip => {
-            Err(syn::Error::new_spanned(attr, "`#[tag(skip)]` is not allowed on enum variants"))
-        }
+    let TagArgs(tag) = args;
+    if reserved.contains(&tag) {
+        return Err(syn::Error::new_spanned(
+            attr,
+            format!(
+                "tag {tag} is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
+            ),
+        ));
     }
+    Ok(tag)
 }
 
 /// Where clause for an enum impl. Same shape as `build_where_clause` for
@@ -786,14 +780,14 @@ fn parse_tuple_fields<'a>(
                 FieldKind::Skipped => {
                     return Err(syn::Error::new_spanned(
                         field,
-                        "`#[tag(skip)]` on tuple-style fields is not supported",
+                        "`#[serde(skip)]` on tuple-style fields is not supported — \
+                         it would shift positional indices",
                     ));
                 }
             }
         } else {
             // Implicit positional: `#[serde(skip)]` would shift positional
-            // indices, same brittleness rationale as `#[tag(skip)]` in the
-            // all-explicit branch. Reject it instead of silently honoring it.
+            // indices, so reject it instead of silently honoring it.
             if has_serde_skip(field)? {
                 return Err(syn::Error::new_spanned(
                     field,
@@ -935,18 +929,16 @@ enum FieldKind {
 }
 
 /// Inner-args grammar for `#[tag(...)]`:
-/// * `#[tag(skip)]` — the bare ident `skip`.
 /// * `#[tag(N)]` — an integer tag literal.
 ///
-/// The earlier `#[tag(N, default)]` form (decoder fills `T::default()`
-/// when the tag is missing) was removed: it was redundant with serde-
-/// derive's `#[serde(default)]`, which is what actually does the
-/// substitution at decode time. Anything trailing the tag integer is
-/// rejected with a pointer at the serde attribute.
-enum TagArgs {
-    Tag(u8),
-    Skip,
-}
+/// Earlier forms `#[tag(skip)]` and `#[tag(N, default)]` were removed:
+/// both were redundant with serde-derive's `#[serde(skip)]` /
+/// `#[serde(default)]`, and `#[tag(skip)]` alone was actively unsafe —
+/// without a paired `#[serde(skip)]` the wrapper hits a runtime panic
+/// when serde-derive's `Serialize` calls `serialize_field` on the
+/// supposedly-skipped name. The parser surfaces both stale forms with a
+/// targeted redirect to the serde attribute.
+struct TagArgs(u8);
 
 impl Parse for TagArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -954,10 +946,8 @@ impl Parse for TagArgs {
         if lookahead.peek(LitInt) {
             let lit: LitInt = input.parse()?;
             let tag: u8 = lit.base10_parse()?;
-            // No modifiers are recognized after the tag integer anymore.
-            // The most common stale form is `#[tag(N, default)]`; surface
-            // that case with a targeted message and reject everything else
-            // as syntactically invalid.
+            // Nothing is recognized after the tag integer. The historical
+            // form `#[tag(N, default)]` gets a targeted redirect.
             if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
                 let trailing: Ident = input.parse()?;
@@ -974,17 +964,22 @@ impl Parse for TagArgs {
                     trailing.span(),
                     format!(
                         "unexpected modifier `{trailing}` — `#[tag(...)]` accepts \
-                         either a single integer tag or the keyword `skip`",
+                         a single integer tag literal",
                     ),
                 ));
             }
-            Ok(TagArgs::Tag(tag))
+            Ok(TagArgs(tag))
         } else if lookahead.peek(Ident) {
             let ident: Ident = input.parse()?;
             if ident == "skip" {
-                Ok(TagArgs::Skip)
+                Err(syn::Error::new(
+                    ident.span(),
+                    "`#[tag(skip)]` was removed — use `#[serde(skip)]` on the field \
+                     instead. serde-derive's `#[serde(skip)]` drops the field from \
+                     the wire on both sides and is auto-recognized by this macro.",
+                ))
             } else {
-                Err(syn::Error::new(ident.span(), "expected an integer tag or the keyword `skip`"))
+                Err(syn::Error::new(ident.span(), "expected an integer tag literal"))
             }
         } else {
             Err(lookahead.error())
@@ -1014,35 +1009,30 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
 
     // Explicit annotation wins over auto-skip — if the user explicitly tags a
     // PhantomData field with `#[tag(N)]`, we honor that (unusual but valid).
-    if let Some((attr, args)) = found {
-        return match args {
-            TagArgs::Tag(tag) => {
-                if serde_skip {
-                    return Err(syn::Error::new_spanned(
-                        attr,
-                        "field has both `#[tag(N)]` and `#[serde(skip)]` — these are \
-                         contradictory; pick one (use `#[tag(skip)]` for our skip semantics, \
-                         or `#[tag(N)]` to put the field on the wire under tag N)",
-                    ));
-                }
-                if reserved.contains(&tag) {
-                    return Err(syn::Error::new_spanned(
-                        attr,
-                        format!(
-                            "tag {tag} is in the surrounding `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
-                        ),
-                    ));
-                }
-                Ok(FieldKind::Tagged(tag))
-            }
-            TagArgs::Skip => Ok(FieldKind::Skipped),
-        };
+    if let Some((attr, TagArgs(tag))) = found {
+        if serde_skip {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "field has both `#[tag(N)]` and `#[serde(skip)]` — these are \
+                 contradictory; pick one (`#[serde(skip)]` to drop the field, \
+                 or `#[tag(N)]` to put the field on the wire under tag N)",
+            ));
+        }
+        if reserved.contains(&tag) {
+            return Err(syn::Error::new_spanned(
+                attr,
+                format!(
+                    "tag {tag} is in the surrounding `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list"
+                ),
+            ));
+        }
+        return Ok(FieldKind::Tagged(tag));
     }
 
-    // No `#[tag(...)]` at all — `#[serde(skip)]` is recognized as an
-    // alias for `#[tag(skip)]`; otherwise auto-skip for `PhantomData<_>`
-    // (the conventional zero-sized "use a type parameter without storing
-    // anything" pattern). Any other untagged field is an error.
+    // No `#[tag(...)]` at all — `#[serde(skip)]` drops the field from the
+    // wire; `PhantomData<_>` is auto-skipped (the conventional zero-sized
+    // "use a type parameter without storing anything" pattern). Any other
+    // untagged field is an error.
     if serde_skip {
         return Ok(FieldKind::Skipped);
     }
@@ -1053,7 +1043,7 @@ fn classify_field(field: &Field, reserved: &[u8]) -> syn::Result<FieldKind> {
     Err(syn::Error::new_spanned(
         field,
         "missing `#[tag(N)]` attribute — every field needs an explicit tag, \
-         `#[tag(skip)]`, `#[serde(skip)]`, or be `PhantomData<_>`",
+         `#[serde(skip)]`, or be `PhantomData<_>`",
     ))
 }
 
