@@ -142,38 +142,42 @@ pub struct Variant {
 /// A sum type — a discriminated union of [`Variant`]s.
 ///
 /// `reserved` lists retired *variant* tags. Like `Product::reserved`, this is
-/// always a compile-time tag-reuse guard; whether the runtime decoder
-/// substitutes a default value when it encounters one is controlled
-/// independently by `default_on_reserved`.
+/// always a compile-time tag-reuse guard; whether the runtime decoder routes
+/// such tags to a fallback variant is controlled independently by
+/// `allow_reserved`.
 ///
-/// `default_on_reserved` and `default_on_unknown` opt into runtime-lenient
-/// decode of variant tags. Unlike for products there's no `allow_unknown_tags`
-/// "skip" — sums can't skip a fragment, since the value's discriminator is
-/// the value — so the tolerance is expressed as "fall back to `T::default()`
-/// instead of erroring":
+/// `allow_reserved` and `allow_unknown` opt into runtime-lenient decode of
+/// variant tags. Unlike products' `allow_unknown_tags` (which just skips an
+/// entry), sums can't skip a discriminator — the value is the discriminator —
+/// so the tolerance is expressed as "route to the type's `#[serde(other)]`
+/// catch-all variant, discarding the payload":
 ///
-/// * `default_on_reserved` — substitute `T::default()` when the encoded
-///   variant tag is in `reserved`. Useful for backwards-compat: legacy data
-///   carrying a now-retired tag still decodes (to a safe default) instead of
-///   killing the whole structure. Use only when `T::default()` is a sound
-///   stand-in for "this used to be something we no longer support."
-/// * `default_on_unknown` — substitute `T::default()` when the encoded tag
-///   is in neither `variants` nor `reserved`. Useful for forward-compat:
-///   legacy readers can still parse data produced by a newer schema.
-///   **More dangerous**: silently swallows real corruption and unknown
-///   discriminators, so opt in only when "default" is a safe semantic
-///   substitute for "anything I don't recognize" (e.g. metadata-bearing
-///   `InlineType`-shaped types — definitely not `BrilligOpcode`-shaped ones,
-///   where an unknown discriminator means we can't execute the program).
+/// * `allow_reserved` — when the encoded variant tag is in `reserved`,
+///   discard the payload and visit the catch-all variant. Backward-compat
+///   tool: legacy data carrying a now-retired tag still decodes (to a known
+///   placeholder) instead of killing the whole structure.
+/// * `allow_unknown` — same routing when the encoded tag is in neither
+///   `variants` nor `reserved`. Forward-compat: legacy readers can still
+///   parse data produced by a newer schema. **More dangerous**: silently
+///   swallows real corruption alongside future-version tags, so opt in only
+///   when "catch-all" is a safe semantic substitute for "anything I don't
+///   recognize" (e.g. metadata-bearing `InlineType`-shaped types —
+///   definitely not `BrilligOpcode`-shaped ones, where an unknown
+///   discriminator means we can't execute the program).
 ///
-/// The macro emits `where Self: Default` on the generated impl whenever
-/// either flag is set, so misuse (no `Default` impl) is a compile error.
+/// `catch_all_tag` carries the wire tag of the variant marked
+/// `#[serde(other)]`. The macro fills it in (and validates the variant is
+/// a unit variant) whenever either `allow_*` flag is set; otherwise it
+/// stays `None` — the wrapper has no fallback target to route to. With the
+/// flag set and the catch-all present, decode of an unknown/reserved tag
+/// produces a value of the catch-all variant.
 #[derive(Clone, Copy, Debug)]
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
-    pub default_on_reserved: bool,
-    pub default_on_unknown: bool,
+    pub allow_reserved: bool,
+    pub allow_unknown: bool,
+    pub catch_all_tag: Option<Tag>,
 }
 
 impl Sum {
@@ -326,25 +330,34 @@ mod tests {
                 },
             ],
             reserved: &[5],
-            default_on_reserved: false,
-            default_on_unknown: false,
+            allow_reserved: false,
+            allow_unknown: false,
+            catch_all_tag: None,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
     /// Hand-written sum exercising both decode-policy flags together. Mirrors
     /// the derive-macro emission for an enum like
-    /// `#[tagged(reserved(7), default_on_reserved, default_on_unknown)] enum Lenient { #[tag(0)] A, #[tag(1)] B }`.
+    /// `#[tagged(reserved(7), allow_reserved, allow_unknown)] enum Lenient { #[tag(0)] A, #[tag(1)] B, #[tag(2)] Other }`
+    /// with `#[serde(other)]` on `Other`.
     struct Lenient;
     impl MsgpackTagged for Lenient {
         const TAGGED: Tagged = Tagged::Sum(Sum {
             variants: &[
                 Variant { tag: 0, name: "A", kind: VariantKind::Unit, payload: Product::empty() },
                 Variant { tag: 1, name: "B", kind: VariantKind::Unit, payload: Product::empty() },
+                Variant {
+                    tag: 2,
+                    name: "Other",
+                    kind: VariantKind::Unit,
+                    payload: Product::empty(),
+                },
             ],
             reserved: &[7],
-            default_on_reserved: true,
-            default_on_unknown: true,
+            allow_reserved: true,
+            allow_unknown: true,
+            catch_all_tag: Some(2),
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -520,14 +533,16 @@ mod tests {
     #[allow(clippy::assertions_on_constants)]
     fn sum_default_decode_policy_is_strict() {
         let s = sum_of::<Choice>();
-        assert!(!s.default_on_reserved);
-        assert!(!s.default_on_unknown);
+        assert!(!s.allow_reserved);
+        assert!(!s.allow_unknown);
+        assert!(s.catch_all_tag.is_none());
     }
 
     #[test]
     fn sum_decode_policy_flags_propagate_when_set() {
         let s = sum_of::<Lenient>();
-        assert!(s.default_on_reserved);
-        assert!(s.default_on_unknown);
+        assert!(s.allow_reserved);
+        assert!(s.allow_unknown);
+        assert_eq!(s.catch_all_tag, Some(2));
     }
 }

@@ -159,41 +159,47 @@ enum WithReservedVariants {
     Fourth,
 }
 
-/// Enum opting into `default_on_reserved` — encountering a reserved variant
-/// tag on decode should produce `Self::default()` instead of erroring. The
-/// macro's `where Self: Default` bound is what forces `#[derive(Default)]`
-/// here: drop the derive and the impl stops compiling.
-#[derive(MsgpackTagged, Default)]
-#[tagged(reserved(2), default_on_reserved)]
+/// Enum opting into `allow_reserved` — encountering a reserved variant tag
+/// on decode routes to the `#[serde(other)]` catch-all (`Unknown` here)
+/// instead of erroring. The macro validates the catch-all exists when the
+/// flag is set.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
+#[tagged(reserved(2), allow_reserved)]
 enum BackwardsCompat {
-    #[default]
     #[tag(0)]
     First,
     #[tag(1)]
     Second,
+    #[tag(9)]
+    #[serde(other)]
+    Unknown,
 }
 
-/// Enum opting into `default_on_unknown` — forward-compat for types where
-/// "I don't recognize this tag" is safely interpretable as `default()`.
-#[derive(MsgpackTagged, Default)]
-#[tagged(default_on_unknown)]
+/// Enum opting into `allow_unknown` — forward-compat for types where any
+/// unrecognized tag can safely collapse to the catch-all variant.
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
+#[tagged(allow_unknown)]
 enum ForwardCompat {
-    #[default]
     #[tag(0)]
     Empty,
     #[tag(1)]
     Some(u32),
+    #[tag(9)]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Both flags at once — `InlineType`-shaped fully-lenient policy.
-#[derive(MsgpackTagged, Default)]
-#[tagged(reserved(7), default_on_reserved, default_on_unknown)]
+#[derive(serde::Serialize, serde::Deserialize, MsgpackTagged)]
+#[tagged(reserved(7), allow_reserved, allow_unknown)]
 enum FullyLenient {
-    #[default]
     #[tag(0)]
     A,
     #[tag(1)]
     B,
+    #[tag(9)]
+    #[serde(other)]
+    Unknown,
 }
 
 /// Self-recursive enum: `Branch` carries `Vec<Tree>` (self-typed). The macro
@@ -973,39 +979,45 @@ fn variant_level_tagged_attrs_propagate_per_variant() {
 }
 
 /// Default decode policy for any enum that doesn't opt in is strict on both
-/// ends — encountering a reserved or unknown variant tag is an error.
+/// ends — encountering a reserved or unknown variant tag is an error, and
+/// no catch-all variant is recorded.
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn default_decode_policy_is_strict_for_plain_enums() {
     let s = sum_of::<Choice>();
-    assert!(!s.default_on_reserved);
-    assert!(!s.default_on_unknown);
+    assert!(!s.allow_reserved);
+    assert!(!s.allow_unknown);
+    assert!(s.catch_all_tag.is_none());
     let s = sum_of::<WithReservedVariants>();
-    assert!(!s.default_on_reserved, "reserved alone doesn't imply default-fallback");
-    assert!(!s.default_on_unknown);
+    assert!(!s.allow_reserved, "reserved alone doesn't imply catch-all routing");
+    assert!(!s.allow_unknown);
+    assert!(s.catch_all_tag.is_none());
 }
 
 #[test]
-fn default_on_reserved_flag_propagates_into_sum() {
+fn allow_reserved_flag_propagates_into_sum() {
     let s = sum_of::<BackwardsCompat>();
-    assert!(s.default_on_reserved);
-    assert!(!s.default_on_unknown);
+    assert!(s.allow_reserved);
+    assert!(!s.allow_unknown);
     assert_eq!(s.reserved, &[2]);
+    assert_eq!(s.catch_all_tag, Some(9));
 }
 
 #[test]
-fn default_on_unknown_flag_propagates_into_sum() {
+fn allow_unknown_flag_propagates_into_sum() {
     let s = sum_of::<ForwardCompat>();
-    assert!(!s.default_on_reserved);
-    assert!(s.default_on_unknown);
+    assert!(!s.allow_reserved);
+    assert!(s.allow_unknown);
+    assert_eq!(s.catch_all_tag, Some(9));
 }
 
 #[test]
 fn both_decode_policy_flags_can_combine() {
     let s = sum_of::<FullyLenient>();
-    assert!(s.default_on_reserved);
-    assert!(s.default_on_unknown);
+    assert!(s.allow_reserved);
+    assert!(s.allow_unknown);
     assert_eq!(s.reserved, &[7]);
+    assert_eq!(s.catch_all_tag, Some(9));
 }
 
 /// The decode-policy flags also reach the registry entry — the wrapper
@@ -1016,8 +1028,9 @@ fn decode_policy_flags_show_up_on_the_registry_entry() {
     FullyLenient::register_into(&mut reg);
     let entry = reg.get("FullyLenient").expect("FullyLenient should register itself");
     let s = entry_sum(entry);
-    assert!(s.default_on_reserved);
-    assert!(s.default_on_unknown);
+    assert!(s.allow_reserved);
+    assert!(s.allow_unknown);
+    assert_eq!(s.catch_all_tag, Some(9));
 }
 
 /// Field-level `#[serde(rename = "X")]` rewrites the wire name in

@@ -30,23 +30,23 @@ pub fn derive_msgpack_tagged(input: TokenStream) -> TokenStream {
     expand(&input).unwrap_or_else(syn::Error::into_compile_error).into()
 }
 
-/// `default_on_reserved` and `default_on_unknown` are sum-only decode
-/// policies — a product has nothing to substitute (its fields are independent
-/// and an unknown one is just skipped or errored, depending on
-/// `allow_unknown_tags`). Reject them eagerly with a clear message rather
-/// than silently dropping the flag.
+/// `allow_reserved` and `allow_unknown` are sum-only decode policies — a
+/// product has nothing to route to (no catch-all variant exists; unknown
+/// fields are just skipped or errored depending on `allow_unknown_tags`).
+/// Reject them eagerly with a clear message rather than silently dropping
+/// the flag.
 fn reject_sum_only_decode_flags(input: &DeriveInput, type_attrs: &TypeAttrs) -> syn::Result<()> {
-    if type_attrs.default_on_reserved {
+    if type_attrs.allow_reserved {
         return Err(syn::Error::new_spanned(
             input,
-            "`#[tagged(default_on_reserved)]` only applies to enums — products skip or \
+            "`#[tagged(allow_reserved)]` only applies to enums — products skip or \
              error on unknown field tags via `allow_unknown_tags` instead",
         ));
     }
-    if type_attrs.default_on_unknown {
+    if type_attrs.allow_unknown {
         return Err(syn::Error::new_spanned(
             input,
-            "`#[tagged(default_on_unknown)]` only applies to enums — products skip or \
+            "`#[tagged(allow_unknown)]` only applies to enums — products skip or \
              error on unknown field tags via `allow_unknown_tags` instead",
         ));
     }
@@ -142,8 +142,9 @@ fn empty_product_literal() -> TokenStream2 {
 fn sum_literal(
     variants: &[TaggedVariant<'_>],
     reserved: &[u8],
-    default_on_reserved: bool,
-    default_on_unknown: bool,
+    allow_reserved: bool,
+    allow_unknown: bool,
+    catch_all_tag: Option<u8>,
 ) -> TokenStream2 {
     let variant_entries = variants.iter().map(|v| {
         let tag = v.tag;
@@ -161,12 +162,17 @@ fn sum_literal(
         }
     });
     let reserved_entries = reserved.iter().map(|tag| quote! { #tag });
+    let catch_all_tag = match catch_all_tag {
+        Some(t) => quote! { ::core::option::Option::Some(#t) },
+        None => quote! { ::core::option::Option::None },
+    };
     quote! {
         ::msgpack_tagged::Tagged::Sum(::msgpack_tagged::Sum {
             variants: &[#(#variant_entries),*],
             reserved: &[#(#reserved_entries),*],
-            default_on_reserved: #default_on_reserved,
-            default_on_unknown: #default_on_unknown,
+            allow_reserved: #allow_reserved,
+            allow_unknown: #allow_unknown,
+            catch_all_tag: #catch_all_tag,
         })
     }
 }
@@ -370,8 +376,8 @@ struct TaggedVariant<'a> {
 /// `#[tagged(allow_unknown_tags)]` is rejected on enums: an unknown variant
 /// tag has no skip semantics — there's no fragment to skip, since the
 /// value's discriminator itself is unknown — so the flag would have nowhere
-/// to land in the wire shape. Use `#[tagged(default_on_unknown)]` instead
-/// for sums where `T::default()` is a sound stand-in.
+/// to land in the wire shape. Use `#[tagged(allow_unknown)]` (which routes
+/// to a `#[serde(other)]` catch-all variant) for the sum-level equivalent.
 fn expand_enum(
     input: &DeriveInput,
     data: &DataEnum,
@@ -393,6 +399,7 @@ fn expand_enum(
 
     let mut variants: Vec<TaggedVariant<'_>> = Vec::with_capacity(data.variants.len());
     let mut seen_tags = std::collections::HashSet::new();
+    let mut catch_all: Option<(u8, &Variant)> = None;
     for variant in &data.variants {
         let tag = parse_variant_tag(variant, reserved)?;
         if !seen_tags.insert(tag) {
@@ -400,6 +407,19 @@ fn expand_enum(
                 variant,
                 format!("variant tag {tag} is used more than once"),
             ));
+        }
+        if has_serde_other(variant)? {
+            if let Some((_, prev)) = catch_all {
+                return Err(syn::Error::new_spanned(
+                    variant,
+                    format!(
+                        "multiple `#[serde(other)]` variants on the same enum — only one \
+                         catch-all is allowed (previous: {:?})",
+                        prev.ident.to_string(),
+                    ),
+                ));
+            }
+            catch_all = Some((tag, variant));
         }
         // Variant-level `#[tagged(...)]` configures the variant's payload —
         // its `reserved` list governs payload field tags (not the variant
@@ -468,12 +488,36 @@ fn expand_enum(
         payload_calls.chain(newtype_call)
     });
 
-    let default_on_reserved = type_attrs.default_on_reserved;
-    let default_on_unknown = type_attrs.default_on_unknown;
-    let needs_default_bound = default_on_reserved || default_on_unknown;
-    let tagged = sum_literal(&variants, reserved, default_on_reserved, default_on_unknown);
-    let where_clause =
-        build_enum_where_clause(input, &variants, needs_default_bound, &type_attrs.extra_bounds);
+    let allow_reserved = type_attrs.allow_reserved;
+    let allow_unknown = type_attrs.allow_unknown;
+    // When either lenient flag is set the type *must* have a `#[serde(other)]`
+    // catch-all variant for the wrapper to route to, and it must be a unit
+    // variant — serde-derive enforces the unit-variant rule too, but our
+    // error is clearer because it names the specific flag that demanded it.
+    if (allow_reserved || allow_unknown) && catch_all.is_none() {
+        let flag = if allow_unknown { "allow_unknown" } else { "allow_reserved" };
+        return Err(syn::Error::new_spanned(
+            input,
+            format!(
+                "`#[tagged({flag})]` requires a `#[serde(other)]` unit variant on the \
+                 enum — that's where the wrapper routes unknown/reserved variant tags \
+                 on decode",
+            ),
+        ));
+    }
+    if let Some((_, variant)) = catch_all
+        && !matches!(variant.fields, Fields::Unit)
+    {
+        return Err(syn::Error::new_spanned(
+            variant,
+            "`#[serde(other)]` must be on a unit variant — serde-derive only routes \
+             unknown identifiers to unit variants, and our wrapper inherits that \
+             constraint",
+        ));
+    }
+    let catch_all_tag = catch_all.map(|(tag, _)| tag);
+    let tagged = sum_literal(&variants, reserved, allow_reserved, allow_unknown, catch_all_tag);
+    let where_clause = build_enum_where_clause(input, &variants, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
     Ok(quote! {
@@ -524,22 +568,17 @@ fn parse_variant_tag(variant: &Variant, reserved: &[u8]) -> syn::Result<u8> {
 /// Where clause for an enum impl. Same shape as `build_where_clause` for
 /// structs — `T: 'static` per type parameter, plus a deduped
 /// `<PayloadFieldType>: MsgpackTagged` bound for every tagged field type
-/// appearing in any variant's payload. When `needs_default_bound` is set
-/// (because the type opts into `default_on_reserved` or
-/// `default_on_unknown`), we additionally add `Self: Default` so a missing
-/// `derive(Default)` surfaces as a clear "Self: Default is not satisfied"
-/// error at the impl site.
+/// appearing in any variant's payload.
 fn build_enum_where_clause(
     input: &DeriveInput,
     variants: &[TaggedVariant<'_>],
-    needs_default_bound: bool,
     extra_bounds: &[WherePredicate],
 ) -> Option<WhereClause> {
     let has_type_params = input.generics.params.iter().any(|p| matches!(p, GenericParam::Type(_)));
     let any_bound_source =
         variants.iter().any(|v| !v.payload.is_empty() || v.newtype_inner.is_some());
 
-    if !any_bound_source && !has_type_params && !needs_default_bound && extra_bounds.is_empty() {
+    if !any_bound_source && !has_type_params && extra_bounds.is_empty() {
         return input.generics.where_clause.clone();
     }
 
@@ -582,10 +621,6 @@ fn build_enum_where_clause(
                 where_clause.predicates.push(parse_quote!(#ty: ::msgpack_tagged::MsgpackTagged));
             }
         }
-    }
-
-    if needs_default_bound {
-        where_clause.predicates.push(parse_quote!(Self: ::std::default::Default));
     }
 
     for predicate in extra_bounds {
@@ -1051,6 +1086,28 @@ fn parse_serde_field_rename(field: &Field) -> syn::Result<Option<String>> {
     parse_serde_rename_in_attrs(&field.attrs)
 }
 
+/// Whether an enum variant carries `#[serde(other)]`. Used at the enum-level
+/// expansion site to identify the catch-all variant — the wrapper routes
+/// unknown/reserved variant tags to it when `#[tagged(allow_unknown)]` or
+/// `#[tagged(allow_reserved)]` is set.
+fn has_serde_other(variant: &Variant) -> syn::Result<bool> {
+    for attr in &variant.attrs {
+        if !attr.path().is_ident("serde") {
+            continue;
+        }
+        let items: Punctuated<Meta, Token![,]> =
+            attr.parse_args_with(Punctuated::parse_terminated)?;
+        for item in items {
+            if let Meta::Path(path) = &item
+                && path.is_ident("other")
+            {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// Whether a field carries `#[serde(skip)]` — recognized by the macro as an
 /// alias for `#[tag(skip)]`. Only the bare-ident form is honored;
 /// asymmetric `skip_serializing` / `skip_deserializing` and conditional
@@ -1078,8 +1135,8 @@ fn has_serde_skip(field: &Field) -> syn::Result<bool> {
 /// attributes on an enum variant. The grammar is a strict subset of the
 /// type-level grammar — only `reserved(...)` and `allow_unknown_tags`
 /// apply to a variant payload (which is shape-equivalent to a struct).
-/// `default_on_reserved`, `default_on_unknown`, and `via(...)` are
-/// sum-level decisions that have no place on individual variants.
+/// `allow_reserved`, `allow_unknown`, and `via(...)` are sum-level
+/// decisions that have no place on individual variants.
 #[derive(Default)]
 struct VariantAttrs {
     reserved: Vec<u8>,
@@ -1143,7 +1200,7 @@ fn parse_tagged_variant_attrs(variant: &Variant) -> syn::Result<VariantAttrs> {
             return Err(syn::Error::new_spanned(
                 &item,
                 "expected `reserved(...)` or `allow_unknown_tags` inside `#[tagged(...)]` \
-                 on an enum variant — `default_on_reserved`, `default_on_unknown`, and \
+                 on an enum variant — `allow_reserved`, `allow_unknown`, and \
                  `via(...)` are type-level modifiers, not variant-level",
             ));
         }
@@ -1162,14 +1219,14 @@ struct TypeAttrs {
     /// to product (struct) shapes only — sums reject it (no skip semantics
     /// for an unknown variant tag).
     allow_unknown_tags: bool,
-    /// `true` iff `#[tagged(default_on_reserved)]` appears anywhere. Sum-only
-    /// runtime decode policy: substitute `T::default()` when the encoded
-    /// variant tag is in `reserved`.
-    default_on_reserved: bool,
-    /// `true` iff `#[tagged(default_on_unknown)]` appears anywhere. Sum-only
-    /// runtime decode policy: substitute `T::default()` when the encoded
-    /// variant tag is in neither `variants` nor `reserved`.
-    default_on_unknown: bool,
+    /// `true` iff `#[tagged(allow_reserved)]` appears anywhere. Sum-only
+    /// runtime decode policy: route variant tags in `reserved` to the
+    /// type's `#[serde(other)]` catch-all variant on decode.
+    allow_reserved: bool,
+    /// `true` iff `#[tagged(allow_unknown)]` appears anywhere. Sum-only
+    /// runtime decode policy: route any variant tag not in `variants` or
+    /// `reserved` to the type's `#[serde(other)]` catch-all variant.
+    allow_unknown: bool,
     /// The wire DTO from `#[tagged(via(WireType))]`, if present. When set,
     /// the public type delegates `register_into` to this type and contributes
     /// no entry of its own to the registry. Mutually exclusive with every
@@ -1194,8 +1251,8 @@ struct TypeAttrs {
 /// Inner grammar — comma-separated items, each one of:
 /// * `reserved(N, M, ...)` — list-form, integer literals, no duplicates.
 /// * `allow_unknown_tags` — bare ident, presence-only. Product-shapes only.
-/// * `default_on_reserved` — bare ident, presence-only. Sum-shapes only.
-/// * `default_on_unknown` — bare ident, presence-only. Sum-shapes only.
+/// * `allow_reserved` — bare ident, presence-only. Sum-shapes only.
+/// * `allow_unknown` — bare ident, presence-only. Sum-shapes only.
 /// * `via(WireType)` — list-form, single Rust type (the wire DTO to delegate
 ///   `register_into` to). Mutually exclusive with every other modifier —
 ///   those properties belong on the wire DTO.
@@ -1207,9 +1264,9 @@ struct TypeAttrs {
 fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
     let mut out = TypeAttrs::default();
     let mut seen_reserved = false;
+    let mut seen_allow_unknown_tags = false;
+    let mut seen_allow_reserved = false;
     let mut seen_allow_unknown = false;
-    let mut seen_default_on_reserved = false;
-    let mut seen_default_on_unknown = false;
     let mut seen_via = false;
 
     for attr in &input.attrs {
@@ -1247,40 +1304,40 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
             if let Meta::Path(path) = &item
                 && path.is_ident("allow_unknown_tags")
             {
-                if seen_allow_unknown {
+                if seen_allow_unknown_tags {
                     return Err(syn::Error::new_spanned(
                         path,
                         "duplicate `allow_unknown_tags` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_allow_unknown = true;
+                seen_allow_unknown_tags = true;
                 out.allow_unknown_tags = true;
                 continue;
             }
             if let Meta::Path(path) = &item
-                && path.is_ident("default_on_reserved")
+                && path.is_ident("allow_reserved")
             {
-                if seen_default_on_reserved {
+                if seen_allow_reserved {
                     return Err(syn::Error::new_spanned(
                         path,
-                        "duplicate `default_on_reserved` modifier in `#[tagged(...)]`",
+                        "duplicate `allow_reserved` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_default_on_reserved = true;
-                out.default_on_reserved = true;
+                seen_allow_reserved = true;
+                out.allow_reserved = true;
                 continue;
             }
             if let Meta::Path(path) = &item
-                && path.is_ident("default_on_unknown")
+                && path.is_ident("allow_unknown")
             {
-                if seen_default_on_unknown {
+                if seen_allow_unknown {
                     return Err(syn::Error::new_spanned(
                         path,
-                        "duplicate `default_on_unknown` modifier in `#[tagged(...)]`",
+                        "duplicate `allow_unknown` modifier in `#[tagged(...)]`",
                     ));
                 }
-                seen_default_on_unknown = true;
-                out.default_on_unknown = true;
+                seen_allow_unknown = true;
+                out.allow_unknown = true;
                 continue;
             }
             if let Meta::List(list) = &item
@@ -1328,8 +1385,8 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
             }
             return Err(syn::Error::new_spanned(
                 &item,
-                "expected `reserved(...)`, `allow_unknown_tags`, `default_on_reserved`, \
-                 `default_on_unknown`, `via(...)`, or `extra_bound = \"...\"` inside \
+                "expected `reserved(...)`, `allow_unknown_tags`, `allow_reserved`, \
+                 `allow_unknown`, `via(...)`, or `extra_bound = \"...\"` inside \
                  `#[tagged(...)]` on a type",
             ));
         }
@@ -1345,24 +1402,24 @@ fn parse_tagged_type_attrs(input: &DeriveInput) -> syn::Result<TypeAttrs> {
                  the reserved-tag list belongs on the wire DTO, not on the public type",
             ));
         }
-        if seen_allow_unknown {
+        if seen_allow_unknown_tags {
             return Err(syn::Error::new_spanned(
                 input,
                 "`#[tagged(via(...))]` is incompatible with `allow_unknown_tags` — \
                  that flag belongs on the wire DTO, not on the public type",
             ));
         }
-        if seen_default_on_reserved {
+        if seen_allow_reserved {
             return Err(syn::Error::new_spanned(
                 input,
-                "`#[tagged(via(...))]` is incompatible with `default_on_reserved` — \
+                "`#[tagged(via(...))]` is incompatible with `allow_reserved` — \
                  decode-policy flags belong on the wire DTO, not on the public type",
             ));
         }
-        if seen_default_on_unknown {
+        if seen_allow_unknown {
             return Err(syn::Error::new_spanned(
                 input,
-                "`#[tagged(via(...))]` is incompatible with `default_on_unknown` — \
+                "`#[tagged(via(...))]` is incompatible with `allow_unknown` — \
                  decode-policy flags belong on the wire DTO, not on the public type",
             ));
         }

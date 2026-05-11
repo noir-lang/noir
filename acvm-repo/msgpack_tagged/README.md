@@ -98,8 +98,9 @@ pub struct Variant {
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
-    pub default_on_reserved: bool,
-    pub default_on_unknown: bool,
+    pub allow_reserved: bool,
+    pub allow_unknown: bool,
+    pub catch_all_tag: Option<Tag>,
 }
 
 pub trait MsgpackTagged: 'static {
@@ -191,14 +192,14 @@ The metadata distinction lives in `VariantKind` (`Newtype` vs. `Tuple` vs.
 | `reserved(N, M, ...)` | structs and enums | retire tags so they can't be reused. Compile-time guard, not runtime — see migration guide for runtime behavior |
 | `allow_unknown_tags` | structs only | decoder silently skips unknown field tags. Use sparingly: silently swallows real corruption |
 | `via(WireType)` | any | shadow-DTO delegation — see below |
-| `default_on_reserved` | enums only | substitute `T::default()` for retired variant tags on decode (backwards-compat). Macro emits `where Self: Default` |
-| `default_on_unknown` | enums only | substitute `T::default()` for *any* unknown variant tag on decode (forward-compat). Same `Self: Default` bound |
+| `allow_reserved` | enums only | route retired variant tags to the type's `#[serde(other)]` catch-all variant on decode (backward-compat). Requires the catch-all to exist and be a unit variant |
+| `allow_unknown` | enums only | route any variant tag not in `variants` or `reserved` to the catch-all (forward-compat). Same catch-all requirement |
 
 ### Variant-level `#[tagged(...)]`
 
 `reserved(...)` and `allow_unknown_tags` apply per-variant payload, with
 the same semantics as their type-level counterparts. Sum-level modifiers
-(`default_on_*`, `via`) are rejected at the variant level.
+(`allow_reserved`, `allow_unknown`, `via`) are rejected at the variant level.
 
 ```rust
 #[derive(MsgpackTagged)]
@@ -272,22 +273,24 @@ semantics.
 
 `reserved` on a sum type works the same way for *variant* tags, but the
 runtime story is different: a sum can't "skip" an unknown variant tag —
-the value's discriminator itself becomes unrepresentable. Two opt-in
-recovery flags:
+the value's discriminator itself becomes unrepresentable. The recovery
+hook is a `#[serde(other)]` catch-all unit variant, and two opt-in
+flags decide when the wrapper routes to it instead of erroring:
 
-- `#[tagged(default_on_reserved)]` — when decoding hits a retired
-  variant tag, produce `T::default()` instead of erroring. Backwards-
-  compat for legacy data carrying retired discriminators.
-- `#[tagged(default_on_unknown)]` — same fallback for *any* unknown
-  variant tag (whether retired or just newer than the local schema
-  knows about). Forward-compat. Riskier — silently swallows real
-  corruption — so use it only where `T::default()` is a sound
-  substitute for "I don't recognize this discriminator" (e.g. metadata-
-  bearing types like `InlineType`, **not** execution-critical types
-  like `BrilligOpcode`).
+- `#[tagged(allow_reserved)]` — when decoding hits a retired variant
+  tag (one listed in `reserved(...)`), route to the catch-all variant.
+  Backward-compat for legacy data carrying retired discriminators.
+- `#[tagged(allow_unknown)]` — same routing for *any* unknown variant
+  tag (whether retired or just newer than the local schema knows about).
+  Forward-compat. Riskier — silently swallows real corruption — so use
+  it only where the catch-all is a sound substitute for "I don't
+  recognize this discriminator" (e.g. metadata-bearing types like
+  `InlineType`, **not** execution-critical types like `BrilligOpcode`).
 
-Both flags require `Self: Default`. The macro adds the bound
-automatically; a missing `derive(Default)` is a compile error.
+Both flags require a `#[serde(other)]` unit variant on the enum — the
+macro errors at compile time if it's missing. The catch-all variant has
+its own wire tag and round-trips like any other unit variant; the
+payload bytes of a redirected tag are discarded.
 
 ### Renaming a field
 

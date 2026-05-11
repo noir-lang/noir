@@ -1,0 +1,11 @@
+error: `#[tagged(allow_unknown)]` requires a `#[serde(other)]` unit variant on the enum — that's where the wrapper routes unknown/reserved variant tags on decode
+  --> tests/compile_fail/allow_unknown_without_catch_all.rs:8:1
+   |
+8  | / #[tagged(allow_unknown)]
+9  | | enum Choice {
+10 | |     #[tag(0)]
+11 | |     First,
+12 | |     #[tag(1)]
+13 | |     Second,
+14 | | }
+   | |_^

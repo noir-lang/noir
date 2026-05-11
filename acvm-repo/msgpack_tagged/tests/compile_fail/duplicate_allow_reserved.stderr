@@ -1,0 +1,5 @@
+error: duplicate `allow_reserved` modifier in `#[tagged(...)]`
+ --> tests/compile_fail/duplicate_allow_reserved.rs:8:10
+  |
+8 | #[tagged(allow_reserved)]
+  |          ^^^^^^^^^^^^^^

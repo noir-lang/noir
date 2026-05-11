@@ -26,15 +26,6 @@
 //!   set, error otherwise. The likely-intended semantic is that
 //!   `reserved` tags auto-skip on decode regardless of
 //!   `allow_unknown_tags`, since they're explicitly opted-in retirements.
-//! - **Lenient variant-tag handling on enums.** `deserialize_enum` rejects
-//!   any wire tag not in the registered `Sum`. Forward-/backward-compat
-//!   opt-ins (`allow_unknown` for newly added variants, `allow_reserved`
-//!   for retired ones) aren't wired up yet — both will route unknown/
-//!   reserved tags to the type's `#[serde(other)]` catch-all variant,
-//!   keeping the two compat axes distinct. The macro will validate that
-//!   the catch-all exists when either flag is set. Note: the registry
-//!   still carries `Sum.default_on_reserved` / `default_on_unknown` from
-//!   an earlier design — those fields go away when this lands.
 //! - **`deserialize_any`.** Niche today (none of our ACIR types are
 //!   decoded via self-describing visitors), but nested tagged values
 //!   reached through `serde_json::Value`-style consumers wouldn't
@@ -401,26 +392,46 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
             )));
         }
         let tag: u8 = u8::deserialize(&mut *self)?;
-        // TODO: forward/backward-compat dispatch hook. When the macro grows
-        // `#[tagged(allow_unknown)]` and `#[tagged(allow_reserved)]`, the
-        // miss arm below splits into three:
-        //   * tag in `sum.variants`           → use it (current happy path)
-        //   * tag in `sum.reserved` and `allow_reserved` set
-        //                                     → route to the `#[serde(other)]`
-        //                                       catch-all variant, then
-        //                                       consume + discard the payload
-        //   * tag in neither, `allow_unknown` set
-        //                                     → same catch-all route, then
-        //                                       consume + discard the payload
-        //   * otherwise                       → current error
-        // The catch-all resolution should look up the variant tagged
-        // `#[serde(other)]` (macro-validated to be a unit variant), but
-        // before visiting it we still need to walk past the payload bytes
-        // so the outer stream is positioned correctly.
-        let variant = sum.variants.iter().find(|v| v.tag == tag).copied().ok_or_else(|| {
-            RmpError::custom(format!("MsgpackTagged: unknown variant tag {tag} for enum {name:?}",))
-        })?;
-        visitor.visit_enum(TaggedEnumAccess { parent: self, variant })
+        if let Some(variant) = sum.variants.iter().find(|v| v.tag == tag).copied() {
+            return visitor.visit_enum(TaggedEnumAccess {
+                parent: self,
+                variant,
+                payload_already_consumed: false,
+            });
+        }
+        // Unknown wire tag. Forward/backward-compat dispatch:
+        //   * tag in `sum.reserved` and `allow_reserved` set → catch-all
+        //   * `allow_unknown` set (regardless of reserved list) → catch-all
+        //   * otherwise → error
+        // The catch-all variant is macro-validated to exist as a
+        // `#[serde(other)]` unit variant whenever either flag is set; its
+        // tag is in `sum.catch_all_tag`. We must drain the payload bytes
+        // first so the outer stream stays positioned after this enum
+        // value, then visit the catch-all — passing
+        // `payload_already_consumed: true` so `unit_variant` doesn't try to
+        // re-read a `nil` that isn't there.
+        let allow_via_reserved = sum.allow_reserved && sum.reserved.contains(&tag);
+        if allow_via_reserved || sum.allow_unknown {
+            let catch_all_tag = sum.catch_all_tag.expect(
+                "macro should have validated a `#[serde(other)]` variant exists when \
+                 `allow_unknown` or `allow_reserved` is set",
+            );
+            let catch_all = sum
+                .variants
+                .iter()
+                .find(|v| v.tag == catch_all_tag)
+                .copied()
+                .expect("catch_all_tag must refer to a registered variant");
+            de::IgnoredAny::deserialize(&mut *self)?;
+            return visitor.visit_enum(TaggedEnumAccess {
+                parent: self,
+                variant: catch_all,
+                payload_already_consumed: true,
+            });
+        }
+        Err(RmpError::custom(
+            format!("MsgpackTagged: unknown variant tag {tag} for enum {name:?}",),
+        ))
     }
 
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -722,6 +733,12 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
 pub(crate) struct TaggedEnumAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     variant: crate::Variant,
+    /// Set when `deserialize_enum` has already drained the wire payload —
+    /// the only way to land here is the catch-all route, where the
+    /// payload was discarded with `IgnoredAny` before `visit_enum`. The
+    /// catch-all is always a unit variant per macro validation, so only
+    /// `unit_variant` needs to consult this flag.
+    payload_already_consumed: bool,
 }
 
 impl<'de, 'der, 'a> EnumAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
@@ -743,6 +760,9 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
     type Error = RmpError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
+        if self.payload_already_consumed {
+            return Ok(());
+        }
         <()>::deserialize(&mut *self.parent)
     }
 
