@@ -10,7 +10,7 @@ fn main(is_active: bool) {
         y: 2726875754519434671146873023426441956600113087238248464305840046775215989920_Field,
     };
     if is_active {
-        let bad: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 0_Field, y: 5_Field };
+        let bad: EmbeddedCurvePoint = EmbeddedCurvePoint::new(0_Field, 5_Field);
         let d: EmbeddedCurvePoint = bad.double();
         let e: EmbeddedCurvePoint = std::embedded_curve_ops::multi_scalar_mul(
             [a, bad],

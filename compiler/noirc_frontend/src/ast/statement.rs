@@ -431,6 +431,10 @@ pub struct AsTraitPath {
     pub trait_generics: GenericTypeArgs,
     /// The `ident` in the path.
     pub impl_item: Ident,
+    /// Any turbofish generics applied to `impl_item`, e.g. `::<T>` in
+    /// `<Ty as Trait>::method::<T>()`. Only meaningful when `impl_item` refers
+    /// to a generic function; always `None` when this path is used as a type.
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 /// A special kind of path in the form `Type::ident::<turbofish>`

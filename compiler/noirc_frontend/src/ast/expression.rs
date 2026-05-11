@@ -828,7 +828,11 @@ impl Display for Lambda {
 
 impl Display for AsTraitPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)
+        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{turbofish}")?;
+        }
+        Ok(())
     }
 }
 

@@ -649,6 +649,9 @@ impl ItemPrinter<'_, '_> {
             }
             HirStatement::Comptime(_) => unreachable!("comptime should not happen"),
             HirStatement::Error => unreachable!("error should not happen"),
+            HirStatement::TraitAssociatedConstant => {
+                unreachable!("trait associated constant placeholder should not appear in printer")
+            }
         }
     }
 
@@ -673,7 +676,8 @@ impl ItemPrinter<'_, '_> {
                 self.push_str("_");
                 self.push_str(&typ.to_string());
             }
-            HirLiteral::Str(string) => {
+            HirLiteral::Str(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
                 self.push_str(&format!("{string:?}"));
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
@@ -972,6 +976,7 @@ impl ItemPrinter<'_, '_> {
             HirStatement::Semi(expr_id) => self.expression_id_has_unsafe(*expr_id),
             HirStatement::Comptime(stmt_id) => self.statement_id_has_unsafe(*stmt_id),
             HirStatement::Error => false,
+            HirStatement::TraitAssociatedConstant => false,
         }
     }
 

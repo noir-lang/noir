@@ -8,7 +8,7 @@ fn main(is_active: bool) {
     };
 
     if is_active {
-        let bad = EmbeddedCurvePoint { x: 0, y: 5 };
+        let bad = EmbeddedCurvePoint::new(0, 5);
         let d = bad.double();
         let e = std::embedded_curve_ops::multi_scalar_mul(
             [a, bad],

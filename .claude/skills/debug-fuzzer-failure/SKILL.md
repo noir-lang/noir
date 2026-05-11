@@ -1,7 +1,6 @@
 ---
 name: debug-fuzzer-failure
 description: End-to-end workflow for debugging SSA fuzzer failures from CI. Extracts a reproduction case from GitHub Actions logs, then bisects SSA passes to identify the bug. Use when a `pass_vs_prev` or similar fuzzer test fails in CI.
-allowed-tools: Bash, Read, Grep, Glob, Write, WebFetch
 ---
 
 # Debugging SSA Fuzzer Failures

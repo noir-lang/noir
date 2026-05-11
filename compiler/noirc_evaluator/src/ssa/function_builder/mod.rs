@@ -331,6 +331,11 @@ impl FunctionBuilder {
         rhs: ValueId,
         assert_message: Option<ConstrainError>,
     ) {
+        let lhs_type = self.type_of_value(lhs);
+        assert!(
+            matches!(lhs_type, Type::Numeric(_)),
+            "Constrain operands must be numeric, got {lhs_type}"
+        );
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 

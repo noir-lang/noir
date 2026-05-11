@@ -388,12 +388,21 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&trait_.name.to_string());
         self.show_generics(&trait_.generics);
 
-        if !trait_.trait_bounds.is_empty() {
+        let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+        if !parent_bounds.is_empty() {
             self.push_str(": ");
-            self.show_trait_bounds(&trait_.trait_bounds);
+            self.show_trait_bounds(&parent_bounds);
         }
 
-        self.show_where_clause(&trait_.where_clause);
+        // Filter out the parent bounds we already printed with colon syntax.
+        let self_id = trait_.self_type_typevar.id();
+        let where_only: Vec<_> = trait_
+            .where_clause
+            .iter()
+            .filter(|c| !matches!(&c.typ, Type::TypeVariable(v) if v.id() == self_id))
+            .cloned()
+            .collect();
+        self.show_where_clause(&where_only);
         self.push_str(" {\n");
         self.increase_indent();
 

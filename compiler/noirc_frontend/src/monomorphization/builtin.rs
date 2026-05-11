@@ -146,6 +146,11 @@ impl Monomorphizer<'_> {
         use ast::*;
 
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
+        assert!(
+            arr_elem_bits.bit_size() >= 8,
+            "modulus_vector_literal: arr_elem_bits ({}) is too small to hold a u8 byte",
+            arr_elem_bits.bit_size()
+        );
 
         let bytes_as_expr = vecmap(bytes, |byte| {
             Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
@@ -182,7 +187,7 @@ impl Monomorphizer<'_> {
                 })
             }
             ast::Type::String(length) => {
-                ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+                ast::Expression::Literal(ast::Literal::Str(vec![0; *length as usize]))
             }
             ast::Type::FmtString(length, fields) => {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);

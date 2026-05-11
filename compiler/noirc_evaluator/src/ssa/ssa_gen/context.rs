@@ -697,6 +697,25 @@ impl<'a> FunctionContext<'a> {
                 self.index_lvalue(array, index, location)?.2
             }
             ast::LValue::MemberAccess { object, field_index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and store directly to it.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                {
+                    let field_ref = Self::get_field(variable, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // store directly to it instead of loading/storing all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(_) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *field_index);
+                    return Ok(LValue::Dereference { reference: field_ref });
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
@@ -787,6 +806,30 @@ impl<'a> FunctionContext<'a> {
                 Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
+                // Optimization: for MemberAccess { Ident(mutable), N }, extract only the
+                // Nth allocation and dereference just that field.
+                if let ast::LValue::Ident(ident) = object.as_ref()
+                    && let (variable, true) = self.ident_lvalue(ident)
+                    && let Tree::Branch(_) = &variable
+                    && let ast::Type::Tuple(field_types) = &*ident.typ
+                {
+                    let field_ref = Self::get_field(variable, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
+                // Optimization: for MemberAccess { Dereference { ref, element_type }, N }
+                // where element_type is a tuple, extract only the field's reference and
+                // dereference just that field instead of all fields.
+                if let ast::LValue::Dereference { reference, element_type } = object.as_ref()
+                    && let ast::Type::Tuple(field_types) = element_type
+                {
+                    let (ref_values, _) = self.extract_current_value_recursive(reference)?;
+                    let field_ref = Self::get_field(ref_values, *index);
+                    let field_type = &field_types[*index];
+                    let dereferenced = self.dereference_lvalue(&field_ref, field_type);
+                    return Ok((dereferenced, LValue::Dereference { reference: field_ref }));
+                }
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();

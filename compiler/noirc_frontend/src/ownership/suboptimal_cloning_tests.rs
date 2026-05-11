@@ -112,10 +112,12 @@ fn nested_tuple_extraction_disjoint_subfields() {
 /// Two disjoint indexes into a nested array. Each index accesses a different
 /// element, so they don't alias.
 ///
-/// Suboptimal: `arr[0]` gets `.clone()` because the last-use analysis treats
-/// both `arr[0]` and `arr[1]` as uses of the whole variable `arr`. If the
-/// analysis tracked that the constant indexes 0 and 1 are disjoint, the clone
-/// could be avoided.
+/// Suboptimal: both `arr[0]` and `arr[1]` get `.clone()`. The ownership pass
+/// always clones an indexed element whose type contains an array — a dynamic
+/// index cannot be proved disjoint from other uses of the same collection, so
+/// moving the outer array doesn't guarantee the inner slot is not aliased. If
+/// the analysis tracked that the constant indexes 0 and 1 are disjoint and
+/// that `arr` has no further uses, both clones could be avoided.
 #[test]
 fn nested_array_two_disjoint_indexes() {
     let src = "
@@ -127,14 +129,37 @@ fn nested_array_two_disjoint_indexes() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // arr$l0[0].clone() is arguably necessary since arr is used again,
-    // but could be avoided if we knew the indexes don't alias (different constants).
-    // arr$l0[1] is now correctly moved — this is the last use of arr.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[1, 2], [3, 4]];
         let _a$l1 = arr$l0[0].clone();
-        let _b$l2 = arr$l0[1]
+        let _b$l2 = arr$l0[1].clone()
+    }
+    ");
+}
+
+/// Nested array index: `arr[0][1]` on a 3D array. Even when the base variable
+/// has no further uses, each dynamic index step extracts an inner array whose
+/// reference count is not bumped by moving the outer array. The ownership
+/// pass conservatively clones.
+///
+/// Suboptimal: when the indexes are constants and `arr` has no further uses,
+/// the compiler could in principle prove that no aliasing occurs and drop
+/// the clone.
+#[test]
+fn nested_array_double_index_is_cloned() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+        let _val = arr[0][1];
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+        let _val$l1 = arr$l0[0][1].clone()
     }
     ");
 }

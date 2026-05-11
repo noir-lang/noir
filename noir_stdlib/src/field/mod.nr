@@ -768,4 +768,11 @@ mod tests {
             assert_eq(p_bits, [false; 254]);
         }
     }
+
+    #[test(should_fail_with = "call to assert_max_bit_size")]
+    fn max_bit_size_too_large() {
+        let x: Field = 0x010000;
+        x.assert_max_bit_size::<16>();
+    }
+
 }

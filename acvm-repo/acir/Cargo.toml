@@ -2,7 +2,7 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "1.0.0-beta.19"
+version = "1.0.0-beta.21"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -18,7 +18,6 @@ workspace = true
 [dependencies]
 acir_field.workspace = true
 brillig.workspace = true
-noirc_span.workspace = true
 
 serde.workspace = true
 thiserror.workspace = true
@@ -37,8 +36,8 @@ proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"
-serde-reflection = "0.3.6"
-serde-generate = "0.25.1"
+serde-reflection = "0.5.2"
+serde-generate = "0.33.0"
 rustc-hash.workspace = true
 criterion.workspace = true
 pprof.workspace = true

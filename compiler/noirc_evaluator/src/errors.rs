@@ -8,7 +8,6 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::FieldElement;
-use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
 use thiserror::Error;
@@ -157,7 +156,7 @@ impl RuntimeError {
 
 impl From<RuntimeError> for CustomDiagnostic {
     fn from(error: RuntimeError) -> CustomDiagnostic {
-        let call_stack = vecmap(error.call_stack(), |location| *location);
+        let call_stack = error.call_stack().clone();
         let diagnostic = error.into_diagnostic();
         diagnostic.with_call_stack(call_stack)
     }
@@ -175,23 +174,16 @@ impl RuntimeError {
                 )
             }
             RuntimeError::SsaValidationError { message, call_stack} => {
-                // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
                 let location =
-                    call_stack.last().copied().unwrap_or_else(Location::dummy);
+                    call_stack.last_or_dummy();
 
-                let mut diagnostic = CustomDiagnostic::simple_error(
-                    format!("SSA validation error: {message}"),
-                    String::new(),
-                    location,
+                let mut diagnostic = CustomDiagnostic::from_message(
+                    &format!("SSA validation error: {message}"),
+                    location.file
                 );
 
                 if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
                     diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
-                }
-
-                if call_stack.is_empty() {
-                    // Clear it otherwise it points to the top of the file.
-                    diagnostic.secondaries.clear();
                 }
 
                 diagnostic
@@ -200,7 +192,7 @@ impl RuntimeError {
                 let primary_message = self.to_string();
                 // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().copied().unwrap_or_else(Location::dummy);
+                    self.call_stack().last_or_dummy();
 
                 CustomDiagnostic::simple_error(
                     primary_message,
@@ -210,10 +202,9 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let location =
-                    self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
+                let location = self.call_stack().last_or_dummy();
 
-                CustomDiagnostic::simple_error(message, String::new(), *location)
+                CustomDiagnostic::simple_error(message, String::new(), location)
             }
         }
     }

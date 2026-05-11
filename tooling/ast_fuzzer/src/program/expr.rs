@@ -70,13 +70,9 @@ pub fn gen_literal(
             ))
         }
         Type::String(len) => {
-            let mut s = String::new();
-            for _ in 0..*len {
-                // ASCII range would be 0x20..=0x7e
-                let ascii_char = u.int_in_range(65..=90).map(char::from)?;
-                s.push(ascii_char);
-            }
-            Expression::Literal(Literal::Str(s))
+            // ASCII range would be 0x20..=0x7e
+            let bytes = (0..*len).map(|_| u.int_in_range(65..=90)).collect::<Result<_, _>>()?;
+            Expression::Literal(Literal::Str(bytes))
         }
         Type::Array(len, item_type) => {
             // Randomly choose between Array and Repeated literal

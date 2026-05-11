@@ -373,13 +373,13 @@ impl DebugInfo {
         }
     }
 
-    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<Vec<Location>> {
+    pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<CallStack> {
         self.acir_locations
             .get(loc)
             .map(|call_stack_id| self.location_tree.get_call_stack(*call_stack_id))
     }
 
-    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<Vec<Location>> {
+    pub fn opcode_location(&self, loc: &OpcodeLocation) -> Option<CallStack> {
         match loc {
             OpcodeLocation::Brillig { .. } => None, //TODO: need brillig function id in order to look into brillig_locations
             OpcodeLocation::Acir(loc) => self.acir_opcode_location(&AcirOpcodeLocation::new(*loc)),
@@ -393,13 +393,17 @@ pub struct LocationNodeDebugInfo {
     pub value: Location,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub struct LocationTree {
-    pub locations: Vec<LocationNodeDebugInfo>,
+    locations: Vec<LocationNodeDebugInfo>,
 }
 
 impl LocationTree {
-    /// Construct a CallStack from a CallStackId
+    pub fn locations(&self) -> &[LocationNodeDebugInfo] {
+        &self.locations
+    }
+
+    /// Construct a [CallStack] from a [CallStackId]
     pub fn get_call_stack(&self, mut call_stack: CallStackId) -> CallStack {
         let mut result = Vec::new();
         while let Some(parent) = self.locations[call_stack.index()].parent {
@@ -407,7 +411,7 @@ impl LocationTree {
             call_stack = parent;
         }
         result.reverse();
-        result
+        CallStack::new(result)
     }
 }
 
@@ -416,7 +420,7 @@ impl From<&CallStackHelper> for LocationTree {
         // Clone the locations into a LocationTree
         LocationTree {
             locations: helper
-                .locations
+                .locations()
                 .iter()
                 .map(|node| LocationNodeDebugInfo { value: node.value, parent: node.parent })
                 .collect(),

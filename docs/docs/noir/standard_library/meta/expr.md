@@ -83,10 +83,11 @@ the expression and the for loop body.
 
 ### as_for_range
 
-#include_code as_for noir_stdlib/src/meta/expr.nr rust
+#include_code as_for_range noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a for statement over a range, return the identifier,
-the range start, the range end and the for loop body.
+the range start, the range end, whether the range is inclusive, and the
+for loop body.
 
 ### as_function_call
 

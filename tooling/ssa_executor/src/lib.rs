@@ -172,4 +172,36 @@ mod tests {
         let result = execute_ssa(src.to_string(), witness_map, CompileOptions::default());
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn mem2reg_without_dead_instruction_elimination() {
+        let ssa_without_runtime = "
+        (inline) fn main f0 {
+          b0(v0: u1, v1: i32, v2: i32, v3: u1, v4: u1, v5: u1, v6: u1):
+            jmp b1()
+          b1():
+            v7 = allocate -> &mut u1
+            store v0 at v7
+            v8 = cast v0 as Field
+            return v8
+        }
+        ";
+        let acir_ssa = "acir".to_string() + ssa_without_runtime;
+        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let mut witness_map = WitnessMap::new();
+        for i in 0..7 {
+            witness_map.insert(Witness(i), FieldElement::from(0_u32));
+        }
+        let compile_options = CompileOptions {
+            skip_ssa_pass: vec!["Dead Instruction Elimination".to_string()],
+            ..CompileOptions::default()
+        };
+        let acir_result = execute_ssa(acir_ssa, witness_map.clone(), compile_options.clone());
+        let brillig_result = execute_ssa(brillig_ssa, witness_map, compile_options);
+        match (acir_result, brillig_result) {
+            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
+            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
+            _ => {}
+        }
+    }
 }

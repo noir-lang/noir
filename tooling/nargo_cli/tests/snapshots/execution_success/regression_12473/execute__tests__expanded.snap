@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Phantom {}
+
+fn main(c: bool) {
+    let a: [Phantom] = @[Phantom {}, Phantom {}, Phantom {}];
+    let b: [Phantom] = @[Phantom {}, Phantom {}];
+    let s: [Phantom] = if c { a } else { b };
+    let r: ([Phantom], Phantom) = s.pop_back();
+    assert(r.0.len() < 5_u32);
+}

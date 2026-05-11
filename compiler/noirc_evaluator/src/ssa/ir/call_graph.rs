@@ -39,6 +39,8 @@ pub(crate) struct CallGraph {
 impl CallGraph {
     /// Construct a [CallGraph] from the [Ssa]
     /// The edges in this graph are unweighted. Thus, it is a pure dependency map.
+    /// Panics if the SSA contains indirect calls.
+    /// Use [`Self::from_ssa_partial`] from contexts that tolerate an incomplete graph.
     pub(crate) fn from_ssa(ssa: &Ssa) -> Self {
         let function_deps = ssa
             .functions
@@ -53,8 +55,26 @@ impl CallGraph {
 
     /// Construct a [CallGraph] from the [Ssa] with its edges weighted.
     /// An edges weight refers to the numbers of times a descendant node was called by its ancestor.
+    ///
+    /// Panics if the SSA contains indirect calls.
+    /// Use [`Self::from_ssa_weighted_partial`] from contexts that tolerate an incomplete graph.
     pub(crate) fn from_ssa_weighted(ssa: &Ssa) -> Self {
-        let dependencies = compute_callees(ssa);
+        let dependencies = compute_callees(ssa, false);
+        Self::from_deps_weighted(dependencies)
+    }
+
+    /// Like [`Self::from_ssa`], but silently skips indirect calls instead of panicking.
+    /// For consumers (e.g. inliner unit tests, purity analysis) that work on possibly
+    /// pre-defunctionalize SSA and tolerate an incomplete call graph.
+    pub(crate) fn from_ssa_partial(ssa: &Ssa) -> Self {
+        let function_deps =
+            ssa.functions.iter().map(|(id, func)| (*id, called_functions_partial(func))).collect();
+        Self::from_deps(function_deps)
+    }
+
+    /// Like [`Self::from_ssa_weighted`], but silently skips indirect calls instead of panicking.
+    pub(crate) fn from_ssa_weighted_partial(ssa: &Ssa) -> Self {
+        let dependencies = compute_callees(ssa, true);
         Self::from_deps_weighted(dependencies)
     }
 
@@ -345,7 +365,27 @@ impl CallGraph {
 /// Utility function to find out the direct calls of a function.
 ///
 /// Returns the function IDs from all `Call` instructions without deduplication.
+///
+/// # Panics
+/// Panics if any `Call` instruction targets a value that is not statically known
+/// (i.e. an indirect/higher-order call). The call graph is only complete after
+/// defunctionalize has lowered such calls; building it earlier would silently
+/// miss edges and yield wrong results for callers, callees, SCCs, etc.
+///
+/// Callers that are designed to tolerate indirect calls (e.g. the inliner and
+/// purity analysis, which work on direct call sites and conservatively handle
+/// the rest) should use [`called_functions_vec_partial`] instead.
 pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
+    collect_called_functions(func, /* allow_indirect = */ false)
+}
+
+/// Like [`called_functions_vec`], but silently skips indirect calls instead of
+/// panicking. Use only from contexts that explicitly tolerate an incomplete graph.
+pub(crate) fn called_functions_vec_partial(func: &Function) -> Vec<FunctionId> {
+    collect_called_functions(func, /* allow_indirect = */ true)
+}
+
+fn collect_called_functions(func: &Function, allow_indirect: bool) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
@@ -353,8 +393,15 @@ pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
                 continue;
             };
 
-            if let Value::Function(function_id) = func.dfg[*called_value_id] {
-                called_function_ids.push(function_id);
+            match func.dfg[*called_value_id] {
+                Value::Function(function_id) => called_function_ids.push(function_id),
+                Value::Intrinsic(_) | Value::ForeignFunction(_) => {}
+                _ if allow_indirect => {}
+                _ => panic!(
+                    "called_functions_vec: indirect call detected in {} — \
+                     CallGraph must be built post-defunctionalize",
+                    func.id()
+                ),
             }
         }
     }
@@ -367,12 +414,20 @@ pub(crate) fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
 
+/// Partial counterpart to [`called_functions`] — see [`called_functions_vec_partial`].
+pub(crate) fn called_functions_partial(func: &Function) -> BTreeSet<FunctionId> {
+    called_functions_vec_partial(func).into_iter().collect()
+}
+
 /// Compute for each function the set of functions called by it, and how many times it does so.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
+fn compute_callees(
+    ssa: &Ssa,
+    allow_indirect: bool,
+) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
         .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
+            let called_functions = collect_called_functions(function, allow_indirect);
             called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
         })
         .fold(

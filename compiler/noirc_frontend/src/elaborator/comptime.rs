@@ -124,6 +124,7 @@ impl<'context> Elaborator<'context> {
             self.usage_tracker,
             self.crate_graph,
             self.interpreter_output,
+            self.evaluation_tracker.as_deref_mut(),
             self.required_unstable_features,
             self.unresolved_globals,
             self.crate_id,
@@ -585,14 +586,14 @@ impl<'context> Elaborator<'context> {
         let local_module = self.local_module();
 
         match item.kind {
-            ItemKind::Function(function) => {
+            ItemKind::Function(mut function) => {
                 let module_id = self.module_id();
 
                 if let Some(id) = dc_mod::collect_function(
                     self.interner,
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
-                    &function,
+                    &mut function,
                     module_id,
                     item.doc_comments,
                     &mut self.errors,

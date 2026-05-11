@@ -29,6 +29,12 @@ fn main(x : Field, y : Field)  {
 
 If proving efficiency is of priority, fields should be used as a default for solving problems. Smaller integer types (e.g. `u64`) incur extra range constraints.
 
+## Security Considerations for Field Arithmetic
+
+Field arithmetic wraps around the field modulus without any overflow checks. This means operations like addition and multiplication can silently produce unexpected results if the values exceed the field modulus. For example, adding `1` to the maximum field value wraps back to `0` with no error.
+
+Many use cases require standard integer arithmetic (e.g., enforcing that balance does not go negative). In these programs using explicitly sized integer types is necessary to catch overflows when proving a Noir program.
+
 ## Methods
 
 After declaring a Field, you can use these common methods on it:
@@ -110,10 +116,10 @@ fn main() {
 
 ### sgn0
 
-Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ \{0, ..., p-1\} is even, otherwise sgn0(x mod p) = 1.
+Parity of (prime) Field element, i.e. sgn0(x mod p) = false if x ∈ \{0, ..., p-1\} is even, otherwise sgn0(x mod p) = true.
 
 ```rust
-fn sgn0(self) -> u1
+fn sgn0(self) -> bool
 ```
 
 

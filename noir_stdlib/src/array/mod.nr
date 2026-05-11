@@ -278,21 +278,25 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(&self, ordering: fn[Env](T, T) -> bool) -> Self {
-        // Safety: `sorted` array is checked to be:
-        // a. a permutation of `input`'s elements
-        // b. satisfying the predicate `ordering`
-        let sorted = unsafe { quicksort::quicksort(self, ordering) };
+        if N != 0 {
+            // Safety: `sorted` array is checked to be:
+            // a. a permutation of `input`'s elements
+            // b. satisfying the predicate `ordering`
+            let sorted = unsafe { quicksort::quicksort(self, ordering) };
 
-        if !is_unconstrained() {
-            for i in 0..N - 1 {
-                assert(
-                    ordering(sorted[i], sorted[i + 1]),
-                    "Array has not been sorted correctly according to `ordering`.",
-                );
+            if !is_unconstrained() {
+                for i in 0..N - 1 {
+                    assert(
+                        ordering(sorted[i], sorted[i + 1]),
+                        "Array has not been sorted correctly according to `ordering`.",
+                    );
+                }
+                check_shuffle::check_shuffle(self, &sorted);
             }
-            check_shuffle::check_shuffle(self, &sorted);
+            sorted
+        } else {
+            *self
         }
-        sorted
     }
 }
 
@@ -351,6 +355,20 @@ mod test {
 
         let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
         assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_empty() {
+        let arr: [u32; 0] = [];
+        let sorted = arr.sort();
+        assert(sorted == arr);
+    }
+
+    #[test]
+    fn test_sort_via_empty() {
+        let arr: [u32; 0] = [];
+        let sorted = arr.sort_via(sort_u32);
+        assert(sorted == arr);
     }
 
     #[test]
