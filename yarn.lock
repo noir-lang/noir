@@ -1880,7 +1880,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     mocha: "npm:^11.7.5"
     prettier: "npm:3.8.3"
@@ -1900,7 +1900,7 @@ __metadata:
     "@types/node": "npm:^22.19.17"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     glob: "npm:^13.0.6"
     mocha: "npm:^11.7.5"
@@ -1926,7 +1926,7 @@ __metadata:
     "@types/pako": "npm:^2"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     mocha: "npm:^11.7.5"
     pako: "npm:^2.1.0"
@@ -1963,7 +1963,7 @@ __metadata:
     chai: "npm:^6.2.2"
     copy-webpack-plugin: "npm:^14.0.0"
     esbuild-register: "npm:^3.6.0"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     html-webpack-plugin: "npm:^5.6.7"
     memfs: "npm:^4.57.2"
@@ -1995,7 +1995,7 @@ __metadata:
     "@web/dev-server-esbuild": "npm:^1.0.5"
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     mocha: "npm:^11.7.5"
     tsx: "npm:^4.21.0"
   languageName: unknown
@@ -2010,7 +2010,7 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.58.0"
     chai: "npm:^6.2.2"
     cspell: "npm:^10.0.0"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     globals: "npm:^17.6.0"
     mocha: "npm:^11.7.5"
@@ -2025,7 +2025,7 @@ __metadata:
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
     "@types/prettier": "npm:^3.0.0"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     prettier: "npm:3.8.3"
     typescript: "npm:^6.0.3"
@@ -6628,9 +6628,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.2.1":
-  version: 10.2.1
-  resolution: "eslint@npm:10.2.1"
+"eslint@npm:^10.3.0":
+  version: 10.3.0
+  resolution: "eslint@npm:10.3.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
@@ -6669,7 +6669,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10/954658c846696dc501a2b8e5fb268713e231dd81375dc25d76cd2fb4a1c73094ea73c64197634ece6fca8a54536e89eb44548a11be672544522e7a50eb8aae95
+  checksum: 10/7d8131e5ef65754f61afd807d875377403f1c89b5f5529f23506776c2df504ba0d53d378b8aeec1996c66c6d428ea3e2ea5c04b226474ce89b6e28443fd3b7b6
   languageName: node
   linkType: hard
 
@@ -7940,7 +7940,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     buffer-esm: "npm:^1.2.0"
-    eslint: "npm:^10.2.1"
+    eslint: "npm:^10.3.0"
     eslint-plugin-prettier: "npm:^5.5.5"
     ethers: "npm:^6.16.0"
     hardhat: "npm:^3.3.0"

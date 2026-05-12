@@ -240,9 +240,12 @@ fn sanitize_test_name(test_name: &str) -> String {
 
 /// Returns a fully-qualified name for `func_id` to use in the coverage report.
 ///
-/// Methods inside a trait impl get a `<Type as Trait>::method` qualification so distinct
-/// impls of the same trait method don't collapse onto a single display name (which would
-/// cause duplicate `FN`/`FNDA` entries to merge into one in `lcov.info`).
+/// Impl methods get an explicit type qualification so distinct impls of the same method
+/// name don't collapse onto a single display name (which would cause duplicate `FN`/`FNDA`
+/// entries to merge into one in `lcov.info`):
+///
+/// - A trait impl method becomes `<Type as Trait>::method`.
+/// - An inherent impl method becomes `Type::method`.
 ///
 /// Trait functions defined inside `trait { ... }` need no extra label work: the trait
 /// itself is a module, so the module path already qualifies them as `<module>::<Trait>::<fn>`.
@@ -263,6 +266,13 @@ fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &F
         let trait_impl = trait_impl.borrow();
         let trait_def = interner.get_trait(trait_impl.trait_id);
         format!("<{} as {}>::{}", trait_impl.typ, trait_def.name, name)
+    } else if meta.trait_id.is_some() {
+        // Trait function (inside `trait { ... }`): `self_type` here is `Self`, an
+        // unbound type variable that would render as `_`. Skip the type prefix — the
+        // module path already includes the trait name.
+        name.to_string()
+    } else if let Some(self_type) = &meta.self_type {
+        format!("{self_type}::{name}")
     } else {
         name.to_string()
     };
