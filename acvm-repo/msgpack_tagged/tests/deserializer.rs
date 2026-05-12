@@ -1505,17 +1505,16 @@ mod array_strategy {
         assert_array_roundtrip(PositionalTriple(7, true, 9));
     }
 
-    // Note: a `tuple_struct_with_reordered_tags_array_roundtrips` test
-    // would require the encoder to emit fields in tag-ascending order
-    // under Array, but `TaggedSerializeProduct::serialize_tagged`
-    // currently writes in serde's call-order = source order. The
-    // decoder (this side) already reads positionally with tags
-    // synthesized from `product.fields` in tag-ascending order, so
-    // round-trip would only succeed when source order *is* tag order —
-    // which `ReorderedTriple` deliberately breaks. Tracked by the
-    // existing `TODO: emit entries in tag-ascending order per the design
-    // doc` in the serializer; the round-trip test will land alongside
-    // that fix.
+    /// Tuple struct with explicit out-of-source-order tags. Under Array
+    /// the wire is in tag-ascending order: wire[0] is the source
+    /// position whose tag is 0 (the bool), wire[1] is tag 1 (the u8),
+    /// wire[2] is tag 2 (the u32). The encoder's buffer-and-sort flush
+    /// in `TaggedSerializeProduct::finish` is what makes round-trip
+    /// work regardless of serde's source-order call sequence.
+    #[test]
+    fn tuple_struct_with_reordered_tags_array_roundtrips() {
+        assert_array_roundtrip(ReorderedTriple(7, true, 9));
+    }
 
     /// Tuple variant payload: outer `{variant_tag: payload}` stays a
     /// 1-entry int-keyed map (the discriminator), but the *payload*

@@ -557,6 +557,48 @@ fn array_strategy_is_smaller_than_tagged_for_the_same_value() {
     );
 }
 
+/// `ReorderedTriple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8)` —
+/// source order ≠ tag order. Under Array the wire must be in
+/// *tag-ascending* order regardless of serde's source-order calls:
+/// `[bool, u8, u32]`. The encoder buffers per-field bytes and flushes
+/// sorted by tag in `TaggedSerializeProduct::finish` to make this hold.
+#[test]
+fn array_strategy_emits_in_tag_ascending_order_not_source_order() {
+    let value = ReorderedTriple(7, true, 9);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 3);
+    // Tag 0 (bool true) emitted first — *not* the source-position-0 u32.
+    assert_eq!(elements[0].as_bool(), Some(true));
+    // Tag 1 (u8 9) emitted next.
+    assert_eq!(elements[1].as_u64(), Some(9));
+    // Tag 2 (u32 7) emitted last.
+    assert_eq!(elements[2].as_u64(), Some(7));
+}
+
+/// Same property for Tagged: byte-determinism per the design doc. Even
+/// though the wire carries explicit tags (so the decoder doesn't care
+/// about order), the encoder still flushes in tag-ascending order so two
+/// semantically-equal values encode byte-identically.
+#[test]
+fn tagged_strategy_emits_in_tag_ascending_order_not_source_order() {
+    let value = ReorderedTriple(7, true, 9);
+    let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(entries) = decoded else {
+        panic!("expected msgpack map, got {decoded:?}");
+    };
+    assert_eq!(entries.len(), 3);
+    // Entries should be in tag-ascending order: 0, 1, 2.
+    let tags: Vec<u64> = entries.iter().map(|(k, _)| k.as_u64().expect("integer tag")).collect();
+    assert_eq!(tags, vec![0, 1, 2], "tags should be flushed in ascending order");
+}
+
 /// Per-type overrides win over the default — a top-level type can be
 /// `Array` while every nested type stays `Tagged`. Verifies the
 /// override scoping.
