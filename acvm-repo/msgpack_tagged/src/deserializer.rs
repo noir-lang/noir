@@ -372,20 +372,26 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
             }
             WireShape::Array => {
                 let wire_len = self.read_array_len()?;
-                // Cap check: extras past the product's arity only allowed
-                // when `allow_unknown_tags` is set. Inside
-                // `ArrayProductMapAccess` the extras are drained silently.
-                if !product.allow_unknown_tags && wire_len > product.fields.len() {
+                let layout = merged_wire_layout(&product);
+                // Cap check: extras past the merged (active + reserved)
+                // layout are only allowed when `allow_unknown_tags` is set.
+                // Reserved slots inside the cap are drained silently inside
+                // `ArrayProductMapAccess`.
+                if !product.allow_unknown_tags && wire_len > layout.len() {
                     return Err(RmpError::custom(format!(
                         "struct {name:?}: wire has {wire_len} positional entries but the \
-                         type accepts at most {} under Array strategy; opt into \
-                         `#[tagged(allow_unknown_tags)]` to silently skip extras",
+                         type accepts at most {} under Array strategy ({} active + {} \
+                         reserved); opt into `#[tagged(allow_unknown_tags)]` to \
+                         silently skip extras",
+                        layout.len(),
                         product.fields.len(),
+                        product.reserved.len(),
                     )));
                 }
                 visitor.visit_map(ArrayProductMapAccess {
                     parent: self,
                     product,
+                    layout,
                     wire_remaining: wire_len,
                     next_position: 0,
                 })
@@ -581,16 +587,22 @@ impl<'a, 'de> Deserializer<'a, 'de> {
     /// Read `wire_len` positional `value-bytes` entries from the inner
     /// reader (the `Array`-strategy wire shape — `fixarray` of values, no
     /// per-entry tag) and return them as an `IntKeyedEntries` with the tag
-    /// for each entry *synthesized* from `product.fields[wire_pos]`. This
-    /// lets the downstream `TaggedTupleStructAccess` dispatch by tag
-    /// uniformly across both wire strategies — for tuple structs / tuple
-    /// variants the access reuses the same tag-driven path.
+    /// for each entry *synthesized* from the merged-sorted (active +
+    /// reserved) tag layout. This lets the downstream
+    /// `TaggedTupleStructAccess` dispatch by tag uniformly across both
+    /// wire strategies; for tuple structs / tuple variants the access
+    /// reuses the same tag-driven path.
     ///
-    /// Cap check: under `Array`, `wire_len > product.fields.len()` is only
-    /// accepted when `allow_unknown_tags` is set (there's no reserved
-    /// concept for positional wires — retired positions don't have a wire
-    /// slot to skip). Extra entries beyond the product's arity are
-    /// consumed-and-discarded so the outer stream stays aligned, but
+    /// **Reserved-tag handling under Array.** When a V2 schema retires a
+    /// field with `#[tagged(reserved(N))]`, the V1 wire (produced before
+    /// the retirement) still carries a value at the slot that used to
+    /// hold tag `N`. The merged layout tells us which wire positions
+    /// correspond to retired tags so we can drain them silently without
+    /// confusing them with the active slots that come after.
+    ///
+    /// Cap check: `wire_len > active_count + reserved_count` is only
+    /// accepted under `allow_unknown_tags`. Entries beyond that arity
+    /// get consumed-and-discarded so the outer stream stays aligned, but
     /// they're not pushed to the returned buffer.
     fn buffer_positional_array<'der>(
         &'der mut self,
@@ -598,13 +610,16 @@ impl<'a, 'de> Deserializer<'a, 'de> {
         product: &crate::Product,
         context: impl FnOnce() -> String,
     ) -> Result<IntKeyedEntries<'de>, RmpError> {
-        if !product.allow_unknown_tags && wire_len > product.fields.len() {
+        let layout = merged_wire_layout(product);
+        if !product.allow_unknown_tags && wire_len > layout.len() {
             return Err(RmpError::custom(format!(
                 "{}: wire has {wire_len} positional entries but the type accepts \
-                 at most {} under Array strategy; opt into `#[tagged(allow_unknown_tags)]` \
-                 to silently skip extras",
+                 at most {} under Array strategy ({} active + {} reserved); opt \
+                 into `#[tagged(allow_unknown_tags)]` to silently skip extras",
                 context(),
+                layout.len(),
                 product.fields.len(),
+                product.reserved.len(),
             )));
         }
         let mut entries: IntKeyedEntries<'de> =
@@ -614,12 +629,19 @@ impl<'a, 'de> Deserializer<'a, 'de> {
             de::IgnoredAny::deserialize(&mut *self)?;
             let after: &'de [u8] = self.inner.get_mut();
             let consumed = before.len() - after.len();
-            if let Some(&(tag, _)) = product.fields.get(wire_pos) {
-                entries.push((tag, &before[..consumed]));
+            match layout.get(wire_pos) {
+                // Active slot: push the value-bytes under the corresponding
+                // tag so the downstream tag-driven access can find it.
+                Some(&(tag, true)) => entries.push((tag, &before[..consumed])),
+                // Reserved slot: V2 doesn't have an active field here; the
+                // wire entry was V1's value at the retired position. Drain
+                // silently — the value bytes are already consumed by
+                // `IgnoredAny` above, and we don't push to the buffer.
+                Some(&(_, false)) => {}
+                // Trailing entry past `active + reserved`; cap check above
+                // only lets us reach here under `allow_unknown_tags`.
+                None => {}
             }
-            // else: trailing entry past the product's arity; consumed-and-
-            // discarded above. The cap check ensures we only reach here when
-            // `allow_unknown_tags` is set.
         }
         Ok(entries)
     }
@@ -661,6 +683,32 @@ enum WireShape {
     Map,
     /// `fixarray` / `array16` / `array32` — Array: positional.
     Array,
+}
+
+/// Merge `product.fields` and `product.reserved` into a single
+/// tag-ascending list of `(tag, is_active)` pairs.
+///
+/// The Array-strategy encoder emits wire positions in tag-ascending order
+/// across both active and reserved tags (a V1 writer that still carries a
+/// value at a now-retired tag sorts that tag in alongside the live ones).
+/// So decoding by wire position requires the same merged ordering: position
+/// `i` on the wire corresponds to the i-th tag in the merged list, and the
+/// `is_active` flag tells the decoder whether to push the value bytes into
+/// the buffered entries (active) or drain them silently (reserved).
+///
+/// Inline capacity 8 fits the typical ACIR product without spilling; larger
+/// products transparently fall back to the heap.
+fn merged_wire_layout(product: &crate::Product) -> SmallVec<[(u8, bool); 8]> {
+    let mut layout: SmallVec<[(u8, bool); 8]> =
+        SmallVec::with_capacity(product.fields.len() + product.reserved.len());
+    for &(tag, _) in product.fields {
+        layout.push((tag, true));
+    }
+    for &tag in product.reserved {
+        layout.push((tag, false));
+    }
+    layout.sort_by_key(|(tag, _)| *tag);
+    layout
 }
 
 /// Shared access adapter routing each yielded value through the parent
@@ -806,26 +854,34 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
 /// `MapAccess` adapter for named structs decoded from the **Array**
 /// strategy wire shape (positional `fixarray` of values). Unlike
 /// `TaggedProductMapAccess` the wire carries no tags; we synthesize the
-/// keys yielded to the visitor by walking `product.fields` in registered
-/// (tag-ascending) order. The visitor still receives `(field_name, value)`
-/// pairs — that's how serde-derive's `Deserialize` for named structs is
-/// driven — but the field-name source is the registry, not the wire.
+/// keys yielded to the visitor by walking the merged (active + reserved)
+/// wire layout — see [`merged_wire_layout`] for why the merge is needed.
+/// The visitor still receives `(field_name, value)` pairs — that's how
+/// serde-derive's `Deserialize` for named structs is driven — but the
+/// field-name source is the registry, not the wire.
 ///
-/// Short wires (`wire_remaining < product.fields.len()`) yield `Ok(None)`
-/// once exhausted; serde-derive's `#[serde(default)]` machinery fills in
-/// any missing trailing positions, same fallback as the Tagged path.
+/// Reserved slots inside the layout are drained transparently: the wire
+/// position is consumed (so the outer stream stays aligned), but no
+/// `(field_name, value)` pair is yielded to the visitor.
 ///
-/// Long wires (`wire_remaining > product.fields.len()`) only reach this
-/// adapter when `allow_unknown_tags` is set — the cap check at the call
-/// site bails on the strict default. Extras past the product's arity get
-/// consumed-and-discarded inside `next_key_seed`'s loop before reporting
-/// exhaustion, so the outer stream stays aligned.
+/// Short wires (`wire_remaining < active count`) yield `Ok(None)` once
+/// exhausted; serde-derive's `#[serde(default)]` machinery fills in any
+/// missing trailing positions, same fallback as the Tagged path.
+///
+/// Long wires (`wire_remaining > layout.len()`) only reach this adapter
+/// when `allow_unknown_tags` is set — the cap check at the call site
+/// bails on the strict default. Extras past the layout get consumed-and-
+/// discarded inside `next_key_seed`'s loop before reporting exhaustion.
 struct ArrayProductMapAccess<'der, 'a, 'de> {
     parent: &'der mut Deserializer<'a, 'de>,
     product: crate::Product,
+    /// Merged (active + reserved) wire layout, tag-ascending. Drives the
+    /// per-position dispatch between "yield to visitor" (active) and
+    /// "drain silently" (reserved).
+    layout: SmallVec<[(u8, bool); 8]>,
     /// Wire entries left to consume.
     wire_remaining: usize,
-    /// Next position in `product.fields` to yield.
+    /// Next position in the merged layout to consider.
     next_position: usize,
 }
 
@@ -836,25 +892,41 @@ impl<'de, 'der, 'a> MapAccess<'de> for ArrayProductMapAccess<'der, 'a, 'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        // Drain any trailing wire entries past the product's arity (only
-        // reachable under `allow_unknown_tags`). Discard each value through
-        // `IgnoredAny` to keep the outer stream aligned, then report
-        // exhaustion.
-        while self.next_position >= self.product.fields.len() {
+        loop {
+            // Wire exhausted: serde-derive's `#[serde(default)]` covers
+            // any trailing active positions the type still expects.
             if self.wire_remaining == 0 {
                 return Ok(None);
             }
-            de::IgnoredAny::deserialize(&mut *self.parent)?;
-            self.wire_remaining -= 1;
+            match self.layout.get(self.next_position) {
+                // Reserved slot: discard the value bytes and advance both
+                // counters, then look at the next position.
+                Some(&(_, false)) => {
+                    de::IgnoredAny::deserialize(&mut *self.parent)?;
+                    self.wire_remaining -= 1;
+                    self.next_position += 1;
+                }
+                // Active slot: synthesize the field-name key and hand it
+                // to the visitor. The matching `next_value_seed` call
+                // below advances the counters.
+                Some(&(tag, true)) => {
+                    let field_name = self
+                        .product
+                        .field_for(tag)
+                        .expect("active layout entry must resolve to a field name");
+                    let key_deserializer =
+                        de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
+                    return seed.deserialize(key_deserializer).map(Some);
+                }
+                // Past the merged layout (only reachable under
+                // `allow_unknown_tags`). Drain remaining wire entries
+                // silently — never yield to the visitor.
+                None => {
+                    de::IgnoredAny::deserialize(&mut *self.parent)?;
+                    self.wire_remaining -= 1;
+                }
+            }
         }
-        // Wire exhausted but the product still has positions — serde-
-        // derive's `#[serde(default)]` covers the rest.
-        if self.wire_remaining == 0 {
-            return Ok(None);
-        }
-        let (_, field_name) = self.product.fields[self.next_position];
-        let key_deserializer = de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
-        seed.deserialize(key_deserializer).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
@@ -868,7 +940,13 @@ impl<'de, 'der, 'a> MapAccess<'de> for ArrayProductMapAccess<'der, 'a, 'de> {
     }
 
     fn size_hint(&self) -> Option<usize> {
-        Some(self.wire_remaining.min(self.product.fields.len().saturating_sub(self.next_position)))
+        // Upper bound: active positions still pending in the layout, capped
+        // by how many wire entries remain.
+        let active_remaining = self.layout[self.next_position.min(self.layout.len())..]
+            .iter()
+            .filter(|(_, active)| *active)
+            .count();
+        Some(active_remaining.min(self.wire_remaining))
     }
 }
 
@@ -1070,20 +1148,23 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
             }
             WireShape::Array => {
                 let wire_len = self.parent.read_array_len()?;
-                if !self.variant.payload.allow_unknown_tags
-                    && wire_len > self.variant.payload.fields.len()
-                {
+                let layout = merged_wire_layout(&self.variant.payload);
+                if !self.variant.payload.allow_unknown_tags && wire_len > layout.len() {
                     return Err(RmpError::custom(format!(
                         "struct variant {:?}: wire has {wire_len} positional entries but the \
-                         payload accepts at most {} under Array strategy; opt into \
-                         `#[tagged(allow_unknown_tags)]` to silently skip extras",
+                         payload accepts at most {} under Array strategy ({} active + {} \
+                         reserved); opt into `#[tagged(allow_unknown_tags)]` to silently \
+                         skip extras",
                         self.variant.name,
+                        layout.len(),
                         self.variant.payload.fields.len(),
+                        self.variant.payload.reserved.len(),
                     )));
                 }
                 visitor.visit_map(ArrayProductMapAccess {
                     parent: self.parent,
                     product: self.variant.payload,
+                    layout,
                     wire_remaining: wire_len,
                     next_position: 0,
                 })

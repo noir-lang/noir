@@ -713,3 +713,104 @@ fn tuple_variant_payload_stays_int_keyed_under_tagged_default() {
     };
     assert!(inner.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
 }
+
+// ============================================================================
+// Auto-downgrade: `Array` → `Tagged` when a product has a non-trailing
+// reserved tag. Under Array the wire only carries active values
+// positionally; a reserved tag with an active tag after it in tag order
+// would leave the decoder misaligned on its own V2-on-V2 round-trip. The
+// encoder detects this and silently flips to Tagged for the affected
+// product, leaving every other type in the same serializer on its
+// configured strategy.
+// ============================================================================
+
+/// Non-trailing reserved tag (1 is between active 0 and 2). Requesting
+/// `Array` for this type must auto-downgrade to `Tagged` — otherwise a
+/// V2-encoded buffer would not round-trip through V2's own decoder.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "AutoDowngrade")]
+#[tagged(reserved(1))]
+struct NonTrailingReservedForDowngrade {
+    #[tag(0)]
+    a: u32,
+    #[tag(2)]
+    c: bool,
+}
+
+#[test]
+fn array_strategy_downgrades_when_reserved_is_not_trailing() {
+    let value = NonTrailingReservedForDowngrade { a: 7, c: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(entries) = decoded else {
+        panic!("expected fixmap from auto-downgrade, got {decoded:?}");
+    };
+    // Both active values present, keyed by their integer tags.
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].0.as_u64(), Some(0));
+    assert_eq!(entries[0].1.as_u64(), Some(7));
+    assert_eq!(entries[1].0.as_u64(), Some(2));
+    assert_eq!(entries[1].1.as_bool(), Some(true));
+}
+
+/// Strictly-trailing reserved (reserved tag is greater than every active
+/// tag) keeps the requested `Array` strategy. The merged-layout decoder
+/// stops at `wire_remaining == 0` before reaching the trailing reserved
+/// slot, so positional alignment isn't at risk.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "TrailingReservedKeepsArray")]
+#[tagged(reserved(9))]
+struct TrailingReservedKeepsArray {
+    #[tag(0)]
+    a: u32,
+    #[tag(1)]
+    b: bool,
+}
+
+#[test]
+fn array_strategy_preserved_when_reserved_is_strictly_trailing() {
+    let value = TrailingReservedKeepsArray { a: 7, b: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected fixarray (Array preserved), got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+}
+
+/// The downgrade applies inside variant payloads too — the variant's
+/// `payload` `Product` is consulted at `begin_variant_payload`.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "AutoDowngradeEnum")]
+enum AutoDowngradeEnum {
+    #[tag(0)]
+    #[tagged(reserved(1))]
+    Carry {
+        #[tag(0)]
+        a: u32,
+        #[tag(2)]
+        c: bool,
+    },
+}
+
+#[test]
+fn array_strategy_downgrades_variant_payload_with_non_trailing_reserved() {
+    let value = AutoDowngradeEnum::Carry { a: 7, c: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Map(payload) = &outer[0].1 else {
+        panic!("variant payload should be a fixmap (downgrade kicked in), got {:?}", outer[0].1,);
+    };
+    assert_eq!(payload.len(), 2);
+    assert_eq!(payload[0].0.as_u64(), Some(0));
+    assert_eq!(payload[1].0.as_u64(), Some(2));
+}

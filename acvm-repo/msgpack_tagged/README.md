@@ -280,6 +280,32 @@ Decoders processing legacy wire bytes will hit the retired tag. Without
 Pick based on whether dropping the field could change application
 semantics.
 
+**Interaction with `Array` strategy.** Under `Array` the wire is
+positional and only carries active fields, but the decoder walks a
+merged-sorted `(active + reserved)` layout so legacy `Array` data (V1,
+written before the retirement) still decodes — the reserved slot drains
+the now-orphaned V1 value silently. That alignment is fragile in one
+direction: if a reserved tag has any active tag *after* it in tag
+order, a V2-on-V2 round-trip under `Array` would drain the wire byte the
+encoder wrote for the next active field. To keep this safe the encoder
+**auto-downgrades** the product to `Tagged` whenever it detects a
+non-strictly-trailing reserved tag — the int-keyed-map shape is
+self-describing per entry, so alignment isn't at risk. The downgrade is
+silent and local to that product; other types in the same serializer
+keep their configured strategy.
+
+```text
+fields: [(0, "a"), (2, "c")]   reserved: [1]    →  reserved is interleaved → Array auto-downgrades to Tagged
+fields: [(0, "a"), (1, "b")]   reserved: [9]    →  reserved is strictly trailing → Array preserved
+```
+
+In the trailing case the wire stays compact (a `fixarray` of the active
+values) and a later V3 that adds a new field at a tag higher than the
+reserved one — paired with `#[serde(default)]` — picks up the missing
+value via serde-derive's standard short-wire fill. If you need a
+middle-of-shape retirement and still want compact wire bytes, the
+practical move is to keep the type on `Tagged` going forward.
+
 ### Retiring a variant (enum)
 
 `reserved` on a sum type works the same way for *variant* tags, but the

@@ -421,6 +421,7 @@ impl<'a, W: Write> Serializer<'a, W> {
     ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
         let (product, strategy) = self.product_and_strategy_for(name);
         assert_field_count_matches(name, len, product.fields.len());
+        let strategy = downgrade_array_if_unsafe(&product, strategy);
         begin_product_payload(self, product, strategy)
     }
 
@@ -438,6 +439,7 @@ impl<'a, W: Write> Serializer<'a, W> {
         let v = self.write_variant_header(name, variant)?;
         assert_field_count_matches(variant, len, v.payload.fields.len());
         let strategy = self.strategy_for_name(name);
+        let strategy = downgrade_array_if_unsafe(&v.payload, strategy);
         begin_product_payload(self, v.payload, strategy)
     }
 
@@ -557,6 +559,53 @@ fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpErr
     rmp::encode::write_array_len(writer, len_u32)
         .map_err(|e| RmpError::custom(format!("failed to write msgpack array header: {e}")))?;
     Ok(())
+}
+
+/// Auto-downgrade `Array` → `Tagged` for products where the positional
+/// shape can't safely round-trip the type's own writes.
+///
+/// **The hazard.** Under `Array` the encoder only writes active fields
+/// (in tag-ascending order); the decoder walks a merged-sorted layout of
+/// `(active + reserved)` tags so it can drain reserved slots from
+/// *legacy* wires (V1 wrote a value at a tag that V2 has since retired).
+/// That works fine when reserved tags are all *strictly greater* than
+/// every active tag: the merged layout puts them at the tail, and the
+/// decoder hits `wire_remaining == 0` before visiting them. But if any
+/// reserved tag has an active tag *after* it in tag order, the merged
+/// layout interleaves a reserved slot in the middle. A round-trip of the
+/// type's own write would then drain a wire byte the encoder intended
+/// for the next active field, corrupting the decode.
+///
+/// **The fix.** When that interleaving is possible, the strategy
+/// silently flips to `Tagged` for this product — the int-keyed-map shape
+/// is self-describing on the wire (each entry carries its own tag) so
+/// the decoder doesn't need positional alignment. The wire is slightly
+/// larger but the type is now round-trip-safe.
+///
+/// **Why a silent downgrade rather than an error.** A bulk
+/// `with_default_strategy(Array)` is the common config — flipping it to
+/// an error per type would force callers to add a `with_strategy::<T>(Tagged)`
+/// override for every schema-evolved leaf, which is noise. The downgrade
+/// is local to the call and doesn't affect other types in the same
+/// serializer. Documented in the crate README under the migration guide.
+fn downgrade_array_if_unsafe(
+    product: &crate::Product,
+    strategy: EncodingStrategy,
+) -> EncodingStrategy {
+    if strategy != EncodingStrategy::Array || product.reserved.is_empty() {
+        return strategy;
+    }
+    let max_active = product.fields.iter().map(|(t, _)| *t).max();
+    let min_reserved = product.reserved.iter().copied().min();
+    match (max_active, min_reserved) {
+        // Some reserved tag falls at or before some active tag — the
+        // unsafe interleaving case. Downgrade.
+        (Some(active), Some(reserved)) if reserved <= active => EncodingStrategy::Tagged,
+        // Either no active fields (the product is empty so nothing
+        // round-trips through Array anyway) or reserved is strictly
+        // trailing — Array is safe.
+        _ => strategy,
+    }
 }
 
 /// Write the outer Product header in the shape required by `strategy`:
