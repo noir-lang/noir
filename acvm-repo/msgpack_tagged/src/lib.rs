@@ -110,6 +110,7 @@ mod tests {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
             allow_unknown_tags: true,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }

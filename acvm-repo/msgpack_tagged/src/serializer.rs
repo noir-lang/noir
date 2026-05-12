@@ -388,10 +388,18 @@ impl<'a, W: Write> Serializer<'a, W> {
     /// differs (which serde picks based on the caller's `serialize_*`
     /// choice).
     ///
-    /// The outer header (`fixmap`/`fixarray`) is *not* written here —
-    /// `TaggedSerializeProduct::finish` writes it at flush time after
-    /// every field has been buffered, so the on-wire entry order can be
-    /// the canonical tag-ascending one regardless of serde's call order.
+    /// **Buffering policy.** Per-field bytes are buffered into the
+    /// adapter and flushed in tag-ascending order at `end()` only when
+    /// the strategy is `Array` *and* the type's source-declaration order
+    /// is *not* already tag-ascending (i.e.
+    /// `!product.tag_order_matches_source`) — the case where the wire
+    /// shape we'd get from streaming serde's call order directly is
+    /// wrong. In every other case — `Tagged` with any order, or `Array`
+    /// with already-monotonic tags — we write the outer header upfront
+    /// and stream values directly to the parent, saving the per-field
+    /// `Vec<u8>` allocation. Under `Tagged` this gives up canonical
+    /// byte-order across reorderings, which the design doc currently
+    /// doesn't promise.
     fn begin_product<'ser>(
         &'ser mut self,
         name: &'static str,
@@ -399,20 +407,14 @@ impl<'a, W: Write> Serializer<'a, W> {
     ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
         let (product, strategy) = self.product_and_strategy_for(name);
         assert_field_count_matches(name, len, product.fields.len());
-        Ok(TaggedSerializeProduct {
-            entries: Vec::with_capacity(product.fields.len()),
-            product,
-            parent: self,
-            next_position: 0,
-            strategy,
-        })
+        begin_product_payload(self, product, strategy)
     }
 
     /// Shared body of `serialize_tuple_variant` / `serialize_struct_variant`.
     /// Writes the outer 1-entry `{variant_tag: ...}` discriminator map
     /// (always Tagged — variant identification is by integer tag under
-    /// `MsgpackTagged`); the payload's own header is deferred to
-    /// `TaggedSerializeProduct::finish` along with every other product's.
+    /// `MsgpackTagged`); same buffering policy as `begin_product` for the
+    /// payload itself.
     fn begin_variant_payload<'ser>(
         &'ser mut self,
         name: &'static str,
@@ -422,13 +424,7 @@ impl<'a, W: Write> Serializer<'a, W> {
         let v = self.write_variant_header(name, variant)?;
         assert_field_count_matches(variant, len, v.payload.fields.len());
         let strategy = self.strategy_for_name(name);
-        Ok(TaggedSerializeProduct {
-            entries: Vec::with_capacity(v.payload.fields.len()),
-            product: v.payload,
-            parent: self,
-            next_position: 0,
-            strategy,
-        })
+        begin_product_payload(self, v.payload, strategy)
     }
 
     /// Spawn a sub-serializer over a fresh `Vec<u8>` buffer, inheriting
@@ -606,55 +602,101 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 /// the [`SerializeStruct`] impl ignores it.
 ///
 /// `strategy` drives the per-field emission: under `Tagged` each entry is
-/// `(tag, value)`, under `Array` each entry is just `value`. The outer
-/// header (`fixmap` vs. `fixarray`) is *deferred* — written by the
-/// `finish` flush after all fields have been buffered, so the on-wire
-/// order can be the canonical tag-ascending one regardless of serde's
-/// call order. Variant payloads inherit the enclosing enum's strategy
-/// the same way top-level structs do.
+/// `(tag, value)` on the wire, under `Array` each entry is just `value`.
 ///
-/// `entries` is the per-field buffer: each `serialize_field` call encodes
-/// the value into a fresh `Vec<u8>` through a sub-serializer that shares
-/// the parent's registry + strategy config (so nested tagged types still
-/// recurse through the wrapper), pushes `(tag, bytes)`, and returns. The
-/// flush at `end()` sorts by tag and dumps to the parent.
+/// Behavior splits on the `buffer` flag, decided at `begin_product` time:
+///
+/// * `buffer = false` (the common path): the outer header is written
+///   upfront and each `serialize_field` writes through the parent stream
+///   immediately. Used when reordering can't change the wire (`Tagged`
+///   with any source order, or `Array` whose source order is already
+///   tag-ascending). The `entries` field stays empty.
+/// * `buffer = true`: the outer header is *deferred* and `serialize_field`
+///   encodes the value into a fresh `Vec<u8>` through a sub-serializer
+///   that shares the parent's registry + strategy, then pushes
+///   `(tag, bytes)` to `entries`. The `finish` flush at `end()` sorts by
+///   tag and dumps in canonical order to the parent. Only reached for
+///   `Array`-strategy types whose source-declaration order doesn't match
+///   tag-ascending order.
 pub struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
     parent: &'ser mut Serializer<'a, W>,
     next_position: usize,
     strategy: EncodingStrategy,
+    buffer: bool,
     entries: Vec<(u8, Vec<u8>)>,
 }
 
+/// Decide whether to buffer + flush in tag-ascending order, write the
+/// outer header upfront in the direct case, and return the configured
+/// adapter. Shared by [`Serializer::begin_product`] (top-level) and
+/// [`Serializer::begin_variant_payload`] (enum payload).
+fn begin_product_payload<'ser, 'a, W: Write>(
+    parent: &'ser mut Serializer<'a, W>,
+    product: crate::Product,
+    strategy: EncodingStrategy,
+) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+    // Only Array with a non-monotonic source order needs the reorder
+    // buffer. Tagged carries explicit tags on the wire so reordering is
+    // decoder-safe; Array with monotonic tags emits in serde's call
+    // order, which already matches tag order.
+    let buffer = matches!(strategy, EncodingStrategy::Array) && !product.tag_order_matches_source;
+    if !buffer {
+        write_strategy_header(parent.inner.get_mut(), product.fields.len(), strategy)?;
+    }
+    Ok(TaggedSerializeProduct {
+        // Capacity matters only on the buffered path; on the direct path
+        // entries stays empty and the heap allocation is skipped.
+        entries: if buffer { Vec::with_capacity(product.fields.len()) } else { Vec::new() },
+        product,
+        parent,
+        next_position: 0,
+        strategy,
+        buffer,
+    })
+}
+
 impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
-    /// Encode `value` into a temp `Vec<u8>` through a sub-serializer that
-    /// shares the parent's registry + strategy state, then buffer the
-    /// `(tag, bytes)` pair for later flushing. The sub-serializer makes
-    /// any nested tagged types in `value` recurse through the wrapper the
-    /// same way they would if written directly to the parent stream.
+    /// Emit one field's wire contribution. Direct path (the common case):
+    /// write `(tag, value)` under Tagged or just `value` under Array,
+    /// straight to the parent stream. Buffered path (Array with
+    /// non-monotonic source order): encode the value into a temp
+    /// `Vec<u8>` through a sub-serializer that shares the parent's
+    /// registry + strategy and push `(tag, bytes)` to `entries` for
+    /// later flushing in `finish`. Either path keeps nested tagged
+    /// types recursing through the wrapper.
     fn serialize_tag_and_value<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
     where
         T: ?Sized + Serialize,
     {
-        let mut buf = Vec::new();
-        {
-            let mut sub = self.parent.sub_serializer_into(&mut buf);
-            value.serialize(&mut sub)?;
+        if self.buffer {
+            let mut buf = Vec::new();
+            {
+                let mut sub = self.parent.sub_serializer_into(&mut buf);
+                value.serialize(&mut sub)?;
+            }
+            self.entries.push((tag, buf));
+        } else {
+            if matches!(self.strategy, EncodingStrategy::Tagged) {
+                ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
+            }
+            value.serialize(&mut *self.parent)?;
         }
-        self.entries.push((tag, buf));
         Ok(())
     }
 
-    /// Flush the buffered entries to the parent in canonical
-    /// (tag-ascending) order: write the strategy-appropriate outer header
-    /// first (deferred from `begin_product` / `begin_variant_payload`),
-    /// then each entry. Under `Tagged` the entry is `(u8 tag, value)`;
-    /// under `Array` it's just the value bytes.
+    /// Flush the deferred state: under the direct path the header and
+    /// every value have already been written, so this is a no-op. Under
+    /// the buffered path, sort entries by tag, write the strategy-
+    /// appropriate header, then emit each `(tag-prefix?, value-bytes)`
+    /// pair to the parent.
     fn finish(mut self) -> Result<(), RmpError> {
+        if !self.buffer {
+            return Ok(());
+        }
         // Stable sort because tags are unique within a Product (macro
-        // guarantees no duplicate tags) so the sort is total — any
-        // stability quirk would be a registry bug, not a serialization
-        // bug.
+        // guarantees no duplicate tags), so any stability quirk would be
+        // a registry bug, not a serialization bug.
         self.entries.sort_by_key(|(tag, _)| *tag);
         write_strategy_header(self.parent.inner.get_mut(), self.entries.len(), self.strategy)?;
         for (tag, bytes) in &self.entries {

@@ -72,11 +72,21 @@ impl Tagged {
 /// `T::default()` when this tag is missing") is **not** modeled here — it's
 /// expressed on the user side via serde-derive's `#[serde(default)]`, which
 /// is what actually performs the substitution at decode time.
+///
+/// `tag_order_matches_source` says the user's source-declaration order is
+/// already tag-ascending — i.e. the order serde-derive will call
+/// `serialize_field` in matches the canonical wire order. Set by the macro
+/// at derive time. The encoder uses it to skip the buffer-and-sort flush
+/// under the `Array` strategy when source order is already correct, saving
+/// a per-field `Vec<u8>` allocation. Under `Tagged` the encoder always
+/// writes direct (no canonical-byte-order promise), so this flag is
+/// unused there.
 #[derive(Clone, Copy, Debug)]
 pub struct Product {
     pub fields: &'static [(Tag, &'static str)],
     pub reserved: &'static [Tag],
     pub allow_unknown_tags: bool,
+    pub tag_order_matches_source: bool,
 }
 
 impl Product {
@@ -101,7 +111,13 @@ impl Product {
 
     /// Empty [Product] used for primitives and _newtypes_.
     pub const fn empty() -> Self {
-        Self { fields: &[], reserved: &[], allow_unknown_tags: false }
+        // No fields ⇒ trivially monotonic (no order to violate).
+        Self {
+            fields: &[],
+            reserved: &[],
+            allow_unknown_tags: false,
+            tag_order_matches_source: true,
+        }
     }
 }
 
@@ -303,6 +319,7 @@ mod tests {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
             allow_unknown_tags: true,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -314,6 +331,7 @@ mod tests {
             fields: &[(0, "x")],
             reserved: &[],
             allow_unknown_tags: false,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -338,6 +356,7 @@ mod tests {
                         fields: &[(0, "a"), (2, "b")],
                         reserved: &[],
                         allow_unknown_tags: false,
+                        tag_order_matches_source: true,
                     },
                 },
             ],

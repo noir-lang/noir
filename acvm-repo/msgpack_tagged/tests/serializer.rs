@@ -580,12 +580,16 @@ fn array_strategy_emits_in_tag_ascending_order_not_source_order() {
     assert_eq!(elements[2].as_u64(), Some(7));
 }
 
-/// Same property for Tagged: byte-determinism per the design doc. Even
-/// though the wire carries explicit tags (so the decoder doesn't care
-/// about order), the encoder still flushes in tag-ascending order so two
-/// semantically-equal values encode byte-identically.
+/// Under Tagged the encoder writes in serde's call order (= source
+/// order) directly to the parent — no buffer-and-sort. The decoder is
+/// order-agnostic because every wire entry carries its explicit tag, so
+/// reordering is safe end-to-end. Skipping the buffer saves a per-field
+/// `Vec<u8>` allocation in the common case (most types use Tagged for
+/// evolvability). The design doc doesn't promise canonical byte order
+/// under Tagged today; if it ever needs to (cryptographic commitments,
+/// etc.) the encoder can flip to the Array path's buffer-and-flush.
 #[test]
-fn tagged_strategy_emits_in_tag_ascending_order_not_source_order() {
+fn tagged_strategy_emits_in_source_order_not_tag_ascending() {
     let value = ReorderedTriple(7, true, 9);
     let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
     let decoded = decode_msgpack(&bytes);
@@ -594,9 +598,9 @@ fn tagged_strategy_emits_in_tag_ascending_order_not_source_order() {
         panic!("expected msgpack map, got {decoded:?}");
     };
     assert_eq!(entries.len(), 3);
-    // Entries should be in tag-ascending order: 0, 1, 2.
+    // Source order: u32 (tag 2), bool (tag 0), u8 (tag 1).
     let tags: Vec<u64> = entries.iter().map(|(k, _)| k.as_u64().expect("integer tag")).collect();
-    assert_eq!(tags, vec![0, 1, 2], "tags should be flushed in ascending order");
+    assert_eq!(tags, vec![2, 0, 1], "tags appear on the wire in source-declaration order");
 }
 
 /// Per-type overrides win over the default — a top-level type can be

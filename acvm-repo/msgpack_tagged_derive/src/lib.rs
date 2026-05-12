@@ -38,6 +38,7 @@ fn product_struct_literal(
     entries: &[TaggedField<'_>],
     reserved: &[u8],
     allow_unknown_tags: bool,
+    tag_order_matches_source: bool,
 ) -> TokenStream2 {
     let field_entries = entries.iter().map(|e| {
         let tag = e.tag;
@@ -50,6 +51,7 @@ fn product_struct_literal(
             fields: &[#(#field_entries),*],
             reserved: &[#(#reserved_entries),*],
             allow_unknown_tags: #allow_unknown_tags,
+            tag_order_matches_source: #tag_order_matches_source,
         }
     }
 }
@@ -60,8 +62,10 @@ fn product_literal(
     entries: &[TaggedField<'_>],
     reserved: &[u8],
     allow_unknown_tags: bool,
+    tag_order_matches_source: bool,
 ) -> TokenStream2 {
-    let inner = product_struct_literal(entries, reserved, allow_unknown_tags);
+    let inner =
+        product_struct_literal(entries, reserved, allow_unknown_tags, tag_order_matches_source);
     quote! { ::msgpack_tagged::Tagged::Product(#inner) }
 }
 
@@ -126,8 +130,12 @@ fn sum_literal(
         let tag = v.tag;
         let name = &v.name;
         let kind = variant_kind_token(v.kind);
-        let payload =
-            product_struct_literal(&v.payload, &v.payload_reserved, v.payload_allow_unknown_tags);
+        let payload = product_struct_literal(
+            &v.payload,
+            &v.payload_reserved,
+            v.payload_allow_unknown_tags,
+            v.payload_tag_order_matches_source,
+        );
         quote! {
             ::msgpack_tagged::Variant {
                 tag: #tag,
@@ -270,14 +278,14 @@ fn expand_tuple_struct(
     let reserved = &type_attrs.reserved;
     let allow_unknown_tags = type_attrs.allow_unknown_tags;
 
-    let entries = parse_tuple_fields(input, fields, reserved)?;
+    let (entries, tag_order_matches_source) = parse_tuple_fields(input, fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
         quote! { <#ty as ::msgpack_tagged::MsgpackTagged>::register_into(_reg); }
     });
 
-    let tagged = product_literal(&entries, reserved, allow_unknown_tags);
+    let tagged = product_literal(&entries, reserved, allow_unknown_tags, tag_order_matches_source);
     let where_clause = build_where_clause(input, &entries, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
@@ -331,6 +339,12 @@ struct TaggedVariant<'a> {
     newtype_inner: Option<&'a Type>,
     payload_reserved: Vec<u8>,
     payload_allow_unknown_tags: bool,
+    /// Whether the variant payload's source-declaration order is already
+    /// tag-ascending. Computed pre-sort in `parse_named_fields` /
+    /// `parse_tuple_fields` and propagated into the emitted payload
+    /// `Product` so the encoder can skip the buffer-and-sort flush under
+    /// the `Array` strategy.
+    payload_tag_order_matches_source: bool,
 }
 
 /// Enum (`enum E { A, B(...), C { ... } }`). Each variant carries an
@@ -425,14 +439,17 @@ fn expand_enum(
             }
             on_unknown_marker = Some((tag, variant.ident.to_string()));
         }
-        let (kind, payload, newtype_inner) = match &variant.fields {
+        let (kind, payload, payload_tag_order_matches_source, newtype_inner) = match &variant.fields
+        {
             Fields::Unit => {
                 reject_payload_only_attrs_on_empty_variant(variant, &variant_attrs)?;
-                (VariantKind::Unit, Vec::new(), None)
+                // No payload ⇒ trivially monotonic.
+                (VariantKind::Unit, Vec::new(), true, None)
             }
             Fields::Named(named) => {
-                let payload = parse_named_fields(&named.named, &variant_attrs.reserved)?;
-                (VariantKind::Struct, payload, None)
+                let (payload, monotonic) =
+                    parse_named_fields(&named.named, &variant_attrs.reserved)?;
+                (VariantKind::Struct, payload, monotonic, None)
             }
             Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                 // Single-element tuple variant is a *newtype variant*: its wire
@@ -453,12 +470,12 @@ fn expand_enum(
                     }
                 }
                 reject_payload_only_attrs_on_empty_variant(variant, &variant_attrs)?;
-                (VariantKind::Newtype, Vec::new(), Some(&inner.ty))
+                (VariantKind::Newtype, Vec::new(), true, Some(&inner.ty))
             }
             Fields::Unnamed(unnamed) => {
-                let payload =
+                let (payload, monotonic) =
                     parse_tuple_fields(variant, &unnamed.unnamed, &variant_attrs.reserved)?;
-                (VariantKind::Tuple, payload, None)
+                (VariantKind::Tuple, payload, monotonic, None)
             }
         };
         variants.push(TaggedVariant {
@@ -469,6 +486,7 @@ fn expand_enum(
             newtype_inner,
             payload_reserved: variant_attrs.reserved,
             payload_allow_unknown_tags: variant_attrs.allow_unknown_tags,
+            payload_tag_order_matches_source,
         });
     }
     variants.sort_by_key(|v| v.tag);
@@ -719,7 +737,7 @@ struct TaggedField<'a> {
 fn parse_named_fields<'a>(
     fields: &'a Punctuated<Field, Token![,]>,
     reserved: &[u8],
-) -> syn::Result<Vec<TaggedField<'a>>> {
+) -> syn::Result<(Vec<TaggedField<'a>>, bool)> {
     let mut entries = Vec::with_capacity(fields.len());
     let mut seen_tags = std::collections::HashSet::new();
     for field in fields {
@@ -743,8 +761,18 @@ fn parse_named_fields<'a>(
             FieldKind::Skipped => {}
         }
     }
+    // Compute the "source order is already tag-ascending" flag *before* the
+    // sort below — `entries` is currently in source-declaration order.
+    let tag_order_matches_source = is_tag_ascending(&entries);
     entries.sort_by_key(|e| e.tag);
-    Ok(entries)
+    Ok((entries, tag_order_matches_source))
+}
+
+/// Whether `entries` (in source-declaration order) are already in
+/// tag-ascending order. Tags are unique within a Product (validated
+/// elsewhere) so this is equivalent to strict monotonicity.
+fn is_tag_ascending(entries: &[TaggedField<'_>]) -> bool {
+    entries.windows(2).all(|w| w[0].tag < w[1].tag)
 }
 
 /// Parse a list of unnamed (positional) fields — top-level tuple-struct
@@ -761,7 +789,7 @@ fn parse_tuple_fields<'a>(
     mixing_error_span: &dyn ToTokens,
     fields: &'a Punctuated<Field, Token![,]>,
     reserved: &[u8],
-) -> syn::Result<Vec<TaggedField<'a>>> {
+) -> syn::Result<(Vec<TaggedField<'a>>, bool)> {
     let explicit_count =
         fields.iter().filter(|f| f.attrs.iter().any(|a| a.path().is_ident("tag"))).count();
     if explicit_count != 0 && explicit_count != fields.len() {
@@ -822,8 +850,9 @@ fn parse_tuple_fields<'a>(
         }
         entries.push(TaggedField { tag, name: position.to_string(), ty: &field.ty });
     }
+    let tag_order_matches_source = is_tag_ascending(&entries);
     entries.sort_by_key(|e| e.tag);
-    Ok(entries)
+    Ok((entries, tag_order_matches_source))
 }
 
 fn expand_named_struct(
@@ -852,7 +881,7 @@ fn expand_named_struct(
     // and the where clause. Skipped fields (`#[tag(skip)]` or `PhantomData<_>`)
     // are silently dropped — they don't go on the wire and don't constrain
     // their type.
-    let entries = parse_named_fields(fields, reserved)?;
+    let (entries, tag_order_matches_source) = parse_named_fields(fields, reserved)?;
 
     let recursion_calls = entries.iter().map(|e| {
         let ty = e.ty;
@@ -866,7 +895,7 @@ fn expand_named_struct(
     // that requirement through to the caller without us having to know about
     // it. Naive per-type-param bounds (`A: MsgpackTagged, B: MsgpackTagged`)
     // would be both too restrictive and insufficient in that case.
-    let tagged = product_literal(&entries, reserved, allow_unknown_tags);
+    let tagged = product_literal(&entries, reserved, allow_unknown_tags, tag_order_matches_source);
     let where_clause = build_where_clause(input, &entries, &type_attrs.extra_bounds);
     let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
 
