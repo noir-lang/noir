@@ -1723,8 +1723,8 @@ mod array_strategy {
         let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
         let registry = TagRegistry::from_type::<Outer>();
         let mut buf = Vec::new();
-        let mut s =
-            Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+        let mut s = Serializer::new(&mut buf, &registry)
+            .with_strategy::<Outer>(EncodingStrategy::Array, true);
         value.serialize(&mut s).expect("encode succeeds");
         drop(s);
         let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");
@@ -1739,8 +1739,8 @@ mod array_strategy {
         let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
         let registry = TagRegistry::from_type::<Outer>();
         let mut buf = Vec::new();
-        let mut s =
-            Serializer::new(&mut buf, &registry).with_strategy::<Pair>(EncodingStrategy::Array);
+        let mut s = Serializer::new(&mut buf, &registry)
+            .with_strategy::<Pair>(EncodingStrategy::Array, true);
         value.serialize(&mut s).expect("encode succeeds");
         drop(s);
         let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");

@@ -125,10 +125,10 @@ where
 /// `EncodingStrategy::Array` (the compact positional shape), and the
 /// top-level container types (`Program`, `Circuit`, `BrilligBytecode`)
 /// flip to `EncodingStrategy::Tagged` so they stay schema-evolvable. The
-/// overrides are wired through `with_strategy_if_registered` so the same
-/// call works when `value` doesn't reach any of those containers (e.g. a
-/// `WitnessMap` or a bare leaf type) — the unreachable overrides are
-/// simply skipped.
+/// overrides are passed with `must_exist = false`, so the same call
+/// works when `value` doesn't reach any of those containers (e.g. a
+/// `WitnessMap` or a bare leaf type) — unreachable names get a stray
+/// override entry that's never looked up at encode time.
 ///
 /// The strategy override is keyed by the type's **serde name**, not its
 /// `TypeId`, so it doesn't matter which field flavor (`FieldElement`,
@@ -156,9 +156,9 @@ where
     let mut buf = Vec::new();
     let mut serializer = TaggedSerializer::new(&mut buf, &registry)
         .with_default_strategy(EncodingStrategy::Array)
-        .with_strategy_if_registered::<Program<AcirF>>(EncodingStrategy::Tagged)
-        .with_strategy_if_registered::<Circuit<AcirF>>(EncodingStrategy::Tagged)
-        .with_strategy_if_registered::<BrilligBytecode<AcirF>>(EncodingStrategy::Tagged);
+        .with_strategy::<Program<AcirF>>(EncodingStrategy::Tagged, false)
+        .with_strategy::<Circuit<AcirF>>(EncodingStrategy::Tagged, false)
+        .with_strategy::<BrilligBytecode<AcirF>>(EncodingStrategy::Tagged, false);
     value.serialize(&mut serializer).map_err(std::io::Error::other)?;
     Ok(buf)
 }

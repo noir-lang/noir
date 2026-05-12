@@ -616,7 +616,7 @@ fn per_type_override_beats_default_strategy() {
     let registry = TagRegistry::from_type::<Outer>();
     let mut buf = Vec::new();
     let mut s =
-        Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+        Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array, true);
     value.serialize(&mut s).expect("serialize succeeds");
     drop(s);
 

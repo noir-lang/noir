@@ -59,10 +59,10 @@ The `Serializer` will support two encoding strategies, both driven by the
 | **Array** | positional `fixarray` `[a, b, …]` | leaf types instantiated at scale where the per-field tag byte adds up |
 
 Strategy is per-type and picked by the serializer (builder API on
-`Serializer::for_type` + `with_strategy`), not by the macro — every
-`#[derive(MsgpackTagged)]` type works under both. Enum variants are
-always emitted int-keyed regardless of strategy; strategy only affects
-struct shape.
+`Serializer::new` + `with_default_strategy` / `with_strategy`), not by
+the macro — every `#[derive(MsgpackTagged)]` type works under both.
+Enum variants are always emitted int-keyed regardless of strategy;
+strategy only affects struct shape.
 
 The decoder is **not** shape-agnostic. The outer `Format` byte
 (`Format::MsgpackTagged`) routes to the tagged reader, and that reader

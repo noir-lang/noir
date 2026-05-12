@@ -62,14 +62,16 @@ use crate::{EncodingStrategy, MsgpackTagged, TagRegistry, type_name_basename};
 /// let mut buf = Vec::new();
 /// let mut s = msgpack_tagged::Serializer::new(&mut buf, &registry)
 ///     .with_default_strategy(EncodingStrategy::Array)
-///     .with_strategy::<Program<F>>(EncodingStrategy::Tagged)
-///     .with_strategy::<Circuit<F>>(EncodingStrategy::Tagged);
+///     .with_strategy::<Program<F>>(EncodingStrategy::Tagged, true)
+///     .with_strategy::<Circuit<F>>(EncodingStrategy::Tagged, true);
 /// program.serialize(&mut s)?;
 /// ```
 ///
 /// `new` defaults the strategy to [`EncodingStrategy::Tagged`] (the most
 /// evolution-friendly shape); `with_default_strategy` swaps it, and
-/// `with_strategy::<U>` overrides for individual types.
+/// `with_strategy::<U>` overrides for individual types. The `must_exist`
+/// flag on `with_strategy` controls registry-miss behavior (panic vs
+/// silently insert) — see the method's docs.
 pub struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
@@ -120,40 +122,51 @@ impl<'a, W: Write> Serializer<'a, W> {
 
     /// Set the encoding strategy for a specific type `T`. Overrides the
     /// default for this type only; later calls for the same `T` win.
+    /// Resolves `T`'s serde name via [`type_name_basename`] and delegates
+    /// to [`Self::with_strategy_for_name`].
     ///
-    /// **Panics** if `T`'s serde name (derived via [`type_name_basename`])
-    /// is not registered in the borrowed registry — setting a strategy
-    /// for an unreachable type is almost always a bug (the override would
-    /// silently never fire). The usual cause is a type-graph miss: the
-    /// top-level type's `register_into` walk didn't reach `T`.
-    pub fn with_strategy<T: MsgpackTagged>(mut self, strategy: EncodingStrategy) -> Self {
-        let name = type_name_basename::<T>();
-        assert!(
-            self.registry.contains(name),
-            "Serializer::with_strategy: serde name {name:?} (from type {full_name}) is not \
-             in the registry — the top-level type's `register_into` walk didn't reach it. \
-             Build the registry from a type that transitively visits T, or remove the \
-             override.",
-            full_name = std::any::type_name::<T>(),
-        );
-        self.overrides.insert(name, strategy);
-        self
+    /// `must_exist` controls what happens when `T`'s name isn't in the
+    /// registry. See [`Self::with_strategy_for_name`] for the policy.
+    pub fn with_strategy<T: MsgpackTagged>(
+        self,
+        strategy: EncodingStrategy,
+        must_exist: bool,
+    ) -> Self {
+        self.with_strategy_for_name(type_name_basename::<T>(), strategy, must_exist)
     }
 
-    /// Set the encoding strategy for `T` *if* `T`'s serde name (derived
-    /// via [`type_name_basename`]) is in this serializer's registry. If
-    /// it isn't, the call is a no-op. Sibling of [`Self::with_strategy`]
-    /// for *policy* sites that configure overrides for a fixed catalog of
-    /// potentially-top-level types regardless of which one the caller
-    /// actually serializes.
-    pub fn with_strategy_if_registered<T: MsgpackTagged>(
+    /// Set the encoding strategy for the type registered under serde
+    /// `name`. Lower-level than [`Self::with_strategy`] — useful when the
+    /// caller has the name as a string (e.g. policy sites that target
+    /// types by their wire identity rather than a Rust type).
+    ///
+    /// `must_exist`:
+    /// * `true` — **panic** if `name` is not in the registry. Use this at
+    ///   call sites where the override targets a type the caller *knows*
+    ///   should be reachable; a registry miss is almost always a type-graph
+    ///   bug (the override would silently never fire).
+    /// * `false` — proceed regardless. Use this at *policy* sites that
+    ///   configure overrides for a fixed catalog of potentially-top-level
+    ///   types but don't know which ones the caller will actually
+    ///   serialize. Unreachable names get a stray override entry that's
+    ///   never looked up at encode time — harmless.
+    pub fn with_strategy_for_name(
         mut self,
+        name: &'static str,
         strategy: EncodingStrategy,
+        must_exist: bool,
     ) -> Self {
-        let name = type_name_basename::<T>();
-        if self.registry.contains(name) {
-            self.overrides.insert(name, strategy);
+        if must_exist {
+            assert!(
+                self.registry.contains(name),
+                "Serializer::with_strategy_for_name: serde name {name:?} is not in the \
+                 registry — the top-level type's `register_into` walk didn't reach it. \
+                 Build the registry from a type that transitively visits it, pass \
+                 `must_exist = false` to make this a no-op for unreachable names, or \
+                 remove the override.",
+            );
         }
+        self.overrides.insert(name, strategy);
         self
     }
 
@@ -1060,7 +1073,7 @@ mod builder_tests {
         let registry = TagRegistry::from_type::<Foo>();
         let s = Serializer::new(Vec::<u8>::new(), &registry)
             .with_default_strategy(EncodingStrategy::Array)
-            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+            .with_strategy::<Foo>(EncodingStrategy::Tagged, true);
         assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
     }
 
@@ -1072,7 +1085,7 @@ mod builder_tests {
         });
         let s = Serializer::new(Vec::<u8>::new(), &registry)
             .with_default_strategy(EncodingStrategy::Array)
-            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+            .with_strategy::<Foo>(EncodingStrategy::Tagged, true);
         // Bar has no override; falls back to the (changed) default.
         assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
         assert_eq!(s.strategy_for::<Bar>(), EncodingStrategy::Array);
@@ -1082,19 +1095,33 @@ mod builder_tests {
     fn last_with_strategy_wins() {
         let registry = TagRegistry::from_type::<Foo>();
         let s = Serializer::new(Vec::<u8>::new(), &registry)
-            .with_strategy::<Foo>(EncodingStrategy::Array)
-            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+            .with_strategy::<Foo>(EncodingStrategy::Array, true)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged, true);
         assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
     }
 
     /// Setting a strategy for a type the registry never saw is almost
     /// always a type-graph miss bug — the override would silently never
-    /// fire. `with_strategy` panics so the misuse surfaces at config time.
+    /// fire. With `must_exist = true`, `with_strategy` panics so the
+    /// misuse surfaces at config time.
     #[test]
     #[should_panic(expected = "is not in the registry")]
-    fn with_strategy_panics_on_unregistered_type() {
+    fn with_strategy_panics_on_unregistered_type_when_must_exist() {
         let registry = TagRegistry::from_type::<Foo>();
         let _ = Serializer::new(Vec::<u8>::new(), &registry)
-            .with_strategy::<Bar>(EncodingStrategy::Array);
+            .with_strategy::<Bar>(EncodingStrategy::Array, true);
+    }
+
+    /// With `must_exist = false`, the same call is a no-op surface — it
+    /// inserts a stray override under `Bar`'s name, but the encoder never
+    /// looks up that name (Bar isn't reachable from Foo), so
+    /// `strategy_for::<Foo>` still resolves the default.
+    #[test]
+    fn with_strategy_is_silent_for_unregistered_type_when_must_exist_is_false() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy::<Bar>(EncodingStrategy::Tagged, false);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Array);
     }
 }
