@@ -55,4 +55,16 @@ Once the contracts are recompiled, run the following commands to record the new 
     ./scripts/bytecode-sizes/$BASELINE-vs-$ALTERNATIVE.jsonl
 ```
 
-You can look at the impact in `./scripts/bytecode-sizes/$BASELINE-vs-$ALTERNATIVE.png`.
+Two scatter plots are produced:
+
+* `./scripts/bytecode-sizes/$BASELINE-vs-$ALTERNATIVE-compressed.png` —
+  ratio of the gzipped + base64-encoded bytecode that actually ships in
+  the artifact (what end users see).
+* `./scripts/bytecode-sizes/$BASELINE-vs-$ALTERNATIVE-uncompressed.png` —
+  ratio of the pre-gzip msgpack bytes. Isolates wire-format cost from
+  gzip's compression ratio.
+
+The two can diverge: a denser pre-gzip encoding may compress slightly
+worse than a more verbose one (gzip rewards repetition), so a small
+post-compression regression on a particular program doesn't necessarily
+mean the wire format itself grew.
