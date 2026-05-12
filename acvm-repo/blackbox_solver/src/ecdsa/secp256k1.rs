@@ -150,31 +150,34 @@ mod secp256k1_tests {
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
+    fn does_not_panic_on_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
 
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_signature() {
+    fn does_not_panic_on_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
 
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_public_key() {
+    fn does_not_panic_on_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
 
-        verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
-            .unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
+                .unwrap();
+        assert!(!result);
     }
 
     #[test]
