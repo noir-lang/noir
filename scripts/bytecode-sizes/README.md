@@ -35,14 +35,16 @@ Record the baseline bytecode size with before switching to other implementations
 
 ## Alternative
 
-After making some changes to `nargo`, or setting an alternative format, compile the contracts again with the commands above. For example here we just set a different format as an alternative, before running the commands again:
+Make some changes to `nargo`, or set an alternative format, for example:
 
 ```shell
 ALTERNATIVE=msgpack-tagged
 export NOIR_SERIALIZATION_FORMAT=$ALTERNATIVE
 ```
 
-Once the contracts are recompiled, run the following commands to record the new measurement, then compare it against the baseline recorded earlier:
+Then compile the contracts again with the commands above.
+
+Once the contracts are recompiled, run the following commands to record the new measurement, and compare it against the baseline recorded earlier:
 
 ```shell
 ./scripts/bytecode-sizes/print-bytecode-size.sh ../aztec-packages \
