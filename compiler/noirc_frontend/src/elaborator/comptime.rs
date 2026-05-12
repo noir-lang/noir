@@ -71,8 +71,8 @@ struct CollectedAttribute {
     arguments: Vec<Expression>,
     /// Module context for the attribute
     context: AttributeContext,
-    /// `Some` when the attribute decorates an `impl` method — generated
-    /// functions should be added as methods on this impl's type.
+    /// When Some, this attribute will target & insert-into a type impl.
+    /// Any functions will be added as methods on the type.
     impl_target: Option<AttributeImplTarget>,
     /// Location of the attribute in source code
     location: Location,
