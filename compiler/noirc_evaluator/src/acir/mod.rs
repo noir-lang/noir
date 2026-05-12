@@ -826,7 +826,8 @@ impl<'a> Context<'a> {
             let underflow = self.acir_context.less_than_var(lhs, rhs, bit_size)?;
             let predicated_underflow = self.acir_context.mul_var(underflow, predicate)?;
             self.acir_context.assert_zero_var(predicated_underflow, msg.to_string())?;
-            return Ok(result);
+            let predicated_result = self.acir_context.mul_var(result, predicate)?;
+            return Ok(predicated_result);
         }
 
         self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
