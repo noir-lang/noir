@@ -1969,7 +1969,6 @@ version = "1.0.0-beta.21"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
- "itertools 0.14.0",
  "serde",
 ]
 
