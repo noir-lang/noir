@@ -450,14 +450,32 @@ mod tests {
     use acir::{
         AcirField, FieldElement,
         circuit::{
-            Circuit, Opcode, PublicInputs,
-            opcodes::{BlackBoxFuncCall, FunctionInput},
+            Circuit, Opcode, OpcodeLocation, PublicInputs,
+            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+            opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness, WitnessMap},
     };
     use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
     use super::validate_witness;
+    use crate::pwg::{
+        ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ResolvedAssertionPayload,
+    };
+
+    fn assert_unsatisfied_constraint(
+        result: Result<(), OpcodeResolutionError<FieldElement>>,
+        opcode_index: usize,
+        message: &str,
+    ) {
+        assert_eq!(
+            result.unwrap_err(),
+            OpcodeResolutionError::UnsatisfiedConstrain {
+                opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(opcode_index)),
+                payload: Some(ResolvedAssertionPayload::String(message.to_string())),
+            },
+        );
+    }
 
     /// Helper to create a simple circuit with the given opcodes
     fn make_circuit(opcodes: Vec<Opcode<FieldElement>>) -> Circuit<FieldElement> {
@@ -518,7 +536,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "Invalid witness assignment: w1 + w2 - w3",
+        );
     }
 
     #[test]
@@ -571,7 +593,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "RANGE opcode violation: value 256 does not fit in 8 bits",
+        );
     }
 
     #[test]
@@ -611,7 +637,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "AND opcode violation: 10 AND 12 != 15 for 8 bits",
+        );
     }
 
     #[test]
@@ -651,7 +681,11 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "XOR opcode violation: 10 XOR 12 != 15 for 8 bits",
+        );
     }
 
     #[test]
@@ -668,15 +702,15 @@ mod tests {
         let witness_map = WitnessMap::default();
 
         let backend = Bn254BlackBoxSolver;
-        // The expression evaluates with missing witness, but won't be zero
-        // so this should fail
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            0,
+            "Invalid witness assignment: w1",
+        );
     }
 
     #[test]
     fn test_call_opcode_valid() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -696,8 +730,6 @@ mod tests {
 
     #[test]
     fn test_call_opcode_missing_input() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -712,13 +744,14 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(2)),
+        );
     }
 
     #[test]
     fn test_call_opcode_missing_output() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
             inputs: vec![Witness(1), Witness(2)],
@@ -733,13 +766,14 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_eq!(
+            validate_witness(&backend, witness_map, &circuit).unwrap_err(),
+            OpcodeResolutionError::OpcodeNotSolvable(OpcodeNotSolvable::MissingAssignment(3)),
+        );
     }
 
     #[test]
     fn test_call_opcode_skipped_with_zero_predicate() {
-        use acir::circuit::opcodes::AcirFunctionId;
-
         // Predicate is zero, so call should be skipped even with missing witnesses
         let circuit = make_circuit(vec![Opcode::Call {
             id: AcirFunctionId(1),
@@ -763,8 +797,6 @@ mod tests {
 
     #[test]
     fn test_memory_init_and_read() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -791,8 +823,6 @@ mod tests {
 
     #[test]
     fn test_memory_read_wrong_value() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -812,13 +842,15 @@ mod tests {
         ]));
 
         let backend = Bn254BlackBoxSolver;
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            "Memory read opcode violation at index 0: expected 42 but found 99",
+        );
     }
 
     #[test]
     fn test_memory_write_then_read() {
-        use acir::circuit::opcodes::{BlockId, MemOp};
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -848,8 +880,6 @@ mod tests {
 
     #[test]
     fn test_brillig_call_with_empty_witness_map() {
-        use acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-
         // Create a BrilligCall opcode with input and output witnesses
         // Brillig calls are unconstrained and should be skipped during validation,
         // so this should pass even with an empty witness map
@@ -872,8 +902,6 @@ mod tests {
 
     #[test]
     fn error_on_memory_init_duplicate_block_id() {
-        use acir::circuit::opcodes::BlockId;
-
         let block_id = BlockId(0);
 
         let circuit = make_circuit(vec![
@@ -892,6 +920,10 @@ mod tests {
         let witness_map = WitnessMap::default();
         let backend = Bn254BlackBoxSolver;
 
-        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, witness_map, &circuit),
+            1,
+            "Memory block already initialized for block BlockId(0)",
+        );
     }
 }
