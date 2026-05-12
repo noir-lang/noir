@@ -20,7 +20,8 @@ use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
-    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
+    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
+    NUM_STACK_FRAMES,
 };
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
@@ -65,6 +66,32 @@ pub const NOIRC_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Note: You can't directly use the value of a constant produced with env! inside a concat! macro.
 pub const NOIR_ARTIFACT_VERSION_STRING: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+", env!("GIT_COMMIT"));
+
+fn parse_num_stack_frames(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n == 0 {
+        return Err("--num-stack-frames must be at least 1".to_string());
+    }
+    Ok(n)
+}
+
+fn parse_max_stack_frame_size(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n < MIN_STACK_FRAME_SIZE {
+        return Err(format!(
+            "--max-stack-frame-size must be at least {MIN_STACK_FRAME_SIZE} (got {n})"
+        ));
+    }
+    Ok(n)
+}
+
+fn parse_max_scratch_space(s: &str) -> Result<usize, String> {
+    let n: usize = s.parse().map_err(|e| format!("'{s}' is not a valid unsigned integer: {e}"))?;
+    if n < MIN_SCRATCH_SPACE {
+        return Err(format!("--max-scratch-space must be at least {MIN_SCRATCH_SPACE} (got {n})"));
+    }
+    Ok(n)
+}
 
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
@@ -234,15 +261,15 @@ pub struct CompileOptions {
     pub max_specializations_per_fn: usize,
 
     /// Maximum size of a single Brillig stack frame.
-    #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
+    #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE, value_parser = parse_max_stack_frame_size)]
     pub max_stack_frame_size: usize,
 
     /// Number of Brillig stack frames / call depth limit.
-    #[arg(long, hide = true, default_value_t = NUM_STACK_FRAMES)]
+    #[arg(long, hide = true, default_value_t = NUM_STACK_FRAMES, value_parser = parse_num_stack_frames)]
     pub num_stack_frames: usize,
 
     /// Maximum Brillig scratch space size.
-    #[arg(long, hide = true, default_value_t = MAX_SCRATCH_SPACE)]
+    #[arg(long, hide = true, default_value_t = MAX_SCRATCH_SPACE, value_parser = parse_max_scratch_space)]
     pub max_scratch_space: usize,
 
     /// Skip reading files/folders from the root directory and instead accept the
