@@ -36,7 +36,6 @@
 //!   tightened, but only inside the four product-shaped methods. New
 //!   shapes that join the family should add the same assert.
 
-use std::any::TypeId;
 use std::collections::HashMap;
 use std::io::Write;
 
@@ -49,7 +48,7 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 
-use crate::{EncodingStrategy, MsgpackTagged, TagRegistry};
+use crate::{EncodingStrategy, MsgpackTagged, TagRegistry, type_name_basename};
 
 /// Tagged-map msgpack serializer.
 ///
@@ -75,7 +74,16 @@ pub struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
     default_strategy: EncodingStrategy,
-    overrides: HashMap<TypeId, EncodingStrategy>,
+    /// Per-type strategy overrides keyed by **serde name** (the name
+    /// `#[serde(rename = "...")]` resolves to, or the bare type ident when
+    /// no rename is set). Keying by name — not [`std::any::TypeId`] — lets
+    /// `with_strategy::<Foo<F>>` apply uniformly across field flavors
+    /// (`Foo<FieldElement>` and `Foo<OtherF>` share the name "Foo") and
+    /// across shadow DTOs (a public `Circuit<F>` with
+    /// `#[tagged(via(CircuitWire<F>))]` reaches the same "Circuit"
+    /// override that CircuitWire registers under via `#[serde(rename)]`).
+    /// See [`type_name_basename`] for the derivation rule.
+    overrides: HashMap<&'static str, EncodingStrategy>,
 }
 
 impl<'a, W: Write> Serializer<'a, W> {
@@ -113,30 +121,48 @@ impl<'a, W: Write> Serializer<'a, W> {
     /// Set the encoding strategy for a specific type `T`. Overrides the
     /// default for this type only; later calls for the same `T` win.
     ///
-    /// **Panics** if `T` is not registered in the borrowed registry —
-    /// setting a strategy for an unreachable type is almost always a bug
-    /// (the override would silently never fire). The usual cause is a
-    /// type-graph miss: the top-level type's `register_into` walk didn't
-    /// reach `T`.
+    /// **Panics** if `T`'s serde name (derived via [`type_name_basename`])
+    /// is not registered in the borrowed registry — setting a strategy
+    /// for an unreachable type is almost always a bug (the override would
+    /// silently never fire). The usual cause is a type-graph miss: the
+    /// top-level type's `register_into` walk didn't reach `T`.
     pub fn with_strategy<T: MsgpackTagged>(mut self, strategy: EncodingStrategy) -> Self {
+        let name = type_name_basename::<T>();
         assert!(
-            self.registry.contains::<T>(),
-            "Serializer::with_strategy: type {} is not in the registry — the \
-             top-level type's `register_into` walk didn't reach it. Build the \
-             registry from a type that transitively visits T, or remove the \
+            self.registry.contains(name),
+            "Serializer::with_strategy: serde name {name:?} (from type {full_name}) is not \
+             in the registry — the top-level type's `register_into` walk didn't reach it. \
+             Build the registry from a type that transitively visits T, or remove the \
              override.",
-            std::any::type_name::<T>(),
+            full_name = std::any::type_name::<T>(),
         );
-        self.overrides.insert(TypeId::of::<T>(), strategy);
+        self.overrides.insert(name, strategy);
+        self
+    }
+
+    /// Set the encoding strategy for `T` *if* `T`'s serde name (derived
+    /// via [`type_name_basename`]) is in this serializer's registry. If
+    /// it isn't, the call is a no-op. Sibling of [`Self::with_strategy`]
+    /// for *policy* sites that configure overrides for a fixed catalog of
+    /// potentially-top-level types regardless of which one the caller
+    /// actually serializes.
+    pub fn with_strategy_if_registered<T: MsgpackTagged>(
+        mut self,
+        strategy: EncodingStrategy,
+    ) -> Self {
+        let name = type_name_basename::<T>();
+        if self.registry.contains(name) {
+            self.overrides.insert(name, strategy);
+        }
         self
     }
 
     /// Look up the effective encoding strategy for the registered type
     /// `T`. Returns the per-type override if one was set; otherwise the
-    /// default strategy. Not currently consulted on the encode side — wired
-    /// up in a follow-up. Exposed for tests and future dispatch use.
+    /// default strategy. Used by the encode-time dispatch and exposed for
+    /// tests.
     pub fn strategy_for<T: MsgpackTagged>(&self) -> EncodingStrategy {
-        self.overrides.get(&TypeId::of::<T>()).copied().unwrap_or(self.default_strategy)
+        self.strategy_for_name(type_name_basename::<T>())
     }
 }
 
@@ -492,19 +518,12 @@ impl<'a, W: Write> Serializer<'a, W> {
     }
 
     /// Resolve the effective encoding strategy for the type registered
-    /// under `name`. Bridges serde's `&str` name (received at
-    /// `serialize_struct` time) to the `TypeId`-keyed overrides map:
-    /// registry lookup yields the entry's `TypeId`, which is matched
-    /// against the overrides; absent any override the per-serializer
-    /// `default_strategy` applies. A registry miss returns the default —
-    /// not a panic, because the caller (`product_and_strategy_for`) calls
-    /// `product_for` separately and that's where a miss surfaces with the
-    /// full diagnostic.
+    /// under serde `name`. Overrides are keyed by the same serde-name
+    /// string the caller passes here, so it's a single hash lookup with
+    /// no registry indirection. Absent any override the per-serializer
+    /// `default_strategy` applies.
     fn strategy_for_name(&self, name: &str) -> EncodingStrategy {
-        self.registry
-            .get(name)
-            .and_then(|entry| self.overrides.get(&entry.type_id()).copied())
-            .unwrap_or(self.default_strategy)
+        self.overrides.get(name).copied().unwrap_or(self.default_strategy)
     }
 
     /// Resolve a registered `Variant` by enum-type name + variant name. Used

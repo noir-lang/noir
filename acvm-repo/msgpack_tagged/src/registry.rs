@@ -227,6 +227,32 @@ impl Entry {
     }
 }
 
+/// The basename component of `std::any::type_name::<T>()` — module path
+/// stripped, generic parameters dropped. Used by the strategy-override
+/// machinery to look up registered types by the same serde name that
+/// `#[serde(rename = "...")]` (or the bare type ident) maps to.
+///
+/// Examples (illustrative — actual results depend on the compiler):
+/// * `Circuit<FieldElement>` → `"Circuit"`
+/// * `acir::circuit::Program<acir_field::FieldElement>` → `"Program"`
+/// * `Vec<u32>` → `"Vec"`
+/// * `u32` → `"u32"`
+///
+/// Caveat: a shadow-DTO type with `#[serde(rename = "Public")]` has
+/// `type_name` = `"…::PublicWire"` (the Rust type) but registers under
+/// `"Public"` (the serde name). The public type that delegates via
+/// `#[tagged(via(PublicWire<F>))]` has `type_name` = `"…::Public"`,
+/// which lines up. So passing the public type to
+/// `with_strategy::<Public<F>>` works; passing the wire DTO directly
+/// (`with_strategy::<PublicWire<F>>`) would silently miss.
+pub fn type_name_basename<T: ?Sized>() -> &'static str {
+    let full: &'static str = std::any::type_name::<T>();
+    // Strip generic parameters: everything from the first `<` onward.
+    let no_generics: &'static str = full.split_once('<').map_or(full, |(head, _)| head);
+    // Strip module path: everything before and including the last `::`.
+    no_generics.rsplit_once("::").map_or(no_generics, |(_, tail)| tail)
+}
+
 /// A registry of types participating in tagged-map serialization.
 #[derive(Default, Debug)]
 pub struct TagRegistry {
@@ -254,13 +280,17 @@ impl TagRegistry {
         reg
     }
 
-    /// Whether the type `T` is registered. Used by
+    /// Whether `name` corresponds to a registered serde name. Used by
     /// [`crate::Serializer::with_strategy`] to fail fast when a strategy
-    /// override targets a type the registry never saw — almost always a
-    /// type-graph miss bug.
-    pub fn contains<T: MsgpackTagged>(&self) -> bool {
-        let target = TypeId::of::<T>();
-        self.entries.values().any(|entry| entry.type_id == target)
+    /// override targets a name the registry never saw — almost always a
+    /// type-graph miss bug. Pair with [`type_name_basename`] when starting
+    /// from a Rust type:
+    ///
+    /// ```ignore
+    /// registry.contains(type_name_basename::<Circuit<F>>())
+    /// ```
+    pub fn contains(&self, name: &str) -> bool {
+        self.entries.contains_key(name)
     }
 
     /// Register a type under its serde name.

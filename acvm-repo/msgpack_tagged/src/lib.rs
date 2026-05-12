@@ -26,7 +26,9 @@ pub use deserializer::{Deserializer, msgpack_tagged_deserialize};
 pub use serializer::{Serializer, msgpack_tagged_serialize};
 
 pub use msgpack_tagged_derive::MsgpackTagged;
-pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};
+pub use registry::{
+    Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind, type_name_basename,
+};
 
 /// On-wire shape for product types (structs, tuple structs, enum-variant
 /// payloads). Picked per-type on the [`Serializer`] (see
