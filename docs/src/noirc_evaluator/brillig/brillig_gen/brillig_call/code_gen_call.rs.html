@@ -307,8 +307,8 @@
 <a href=#307 id=307 data-nosnippet>307</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 <a href=#308 id=308 data-nosnippet>308</a>    ) {
 <a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[func] {
-<a href=#310 id=310 data-nosnippet>310</a>            Value::ForeignFunction(func_name) =&gt; {
-<a href=#311 id=311 data-nosnippet>311</a>                <span class="self">self</span>.convert_ssa_foreign_call(func_name, arguments, instruction_id, dfg);
+<a href=#310 id=310 data-nosnippet>310</a>            Value::ForeignFunction { name, .. } =&gt; {
+<a href=#311 id=311 data-nosnippet>311</a>                <span class="self">self</span>.convert_ssa_foreign_call(name, arguments, instruction_id, dfg);
 <a href=#312 id=312 data-nosnippet>312</a>            }
 <a href=#313 id=313 data-nosnippet>313</a>            Value::Function(func_id) =&gt; {
 <a href=#314 id=314 data-nosnippet>314</a>                <span class="kw">let </span>result_ids = dfg.instruction_results(instruction_id);

@@ -777,7 +777,7 @@
 <a href=#777 id=777 data-nosnippet>777</a>                            </span><span class="macro">assert!</span>(!<span class="self">Self</span>::intrinsic_may_alias(intrinsic));
 <a href=#778 id=778 data-nosnippet>778</a>                        }
 <a href=#779 id=779 data-nosnippet>779</a>                        <span class="comment">// Foreign calls cannot call Noir functions, so we do not mark them as recursive
-<a href=#780 id=780 data-nosnippet>780</a>                        </span>(Value::ForeignFunction(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
+<a href=#780 id=780 data-nosnippet>780</a>                        </span>(Value::ForeignFunction { .. }, <span class="kw">_</span>) =&gt; {
 <a href=#781 id=781 data-nosnippet>781</a>                            <span class="self">self</span>.unresolved_call(function, arguments, results);
 <a href=#782 id=782 data-nosnippet>782</a>                        }
 <a href=#783 id=783 data-nosnippet>783</a>                        <span class="comment">// Fallthrough for unresolved functions whose function body

@@ -288,7 +288,7 @@
 <a href=#288 id=288 data-nosnippet>288</a>                                <span class="self">self</span>.uf.union_all(instruction_values);
 <a href=#289 id=289 data-nosnippet>289</a>                            }
 <a href=#290 id=290 data-nosnippet>290</a>                        },
-<a href=#291 id=291 data-nosnippet>291</a>                        Value::ForeignFunction(..) =&gt; {
+<a href=#291 id=291 data-nosnippet>291</a>                        Value::ForeignFunction { .. } =&gt; {
 <a href=#292 id=292 data-nosnippet>292</a>                            <span class="macro">panic!</span>(
 <a href=#293 id=293 data-nosnippet>293</a>                                <span class="string">"Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}"</span>,
 <a href=#294 id=294 data-nosnippet>294</a>                                function.name()

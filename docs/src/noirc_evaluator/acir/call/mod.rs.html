@@ -74,7 +74,7 @@
 <a href=#74 id=74 data-nosnippet>74</a>                        <span class="macro">assert_eq!</span>(result_ids.len(), outputs.len());
 <a href=#75 id=75 data-nosnippet>75</a>                        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, outputs, dfg)<span class="question-mark">?</span>;
 <a href=#76 id=76 data-nosnippet>76</a>                    }
-<a href=#77 id=77 data-nosnippet>77</a>                    Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(
+<a href=#77 id=77 data-nosnippet>77</a>                    Value::ForeignFunction { .. } =&gt; <span class="macro">unreachable!</span>(
 <a href=#78 id=78 data-nosnippet>78</a>                        <span class="string">"Frontend should remove any oracle calls from constrained functions"
 <a href=#79 id=79 data-nosnippet>79</a>                    </span>),
 <a href=#80 id=80 data-nosnippet>80</a>

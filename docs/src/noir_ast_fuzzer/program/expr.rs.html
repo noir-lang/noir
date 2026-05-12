@@ -402,7 +402,7 @@
 <a href=#402 id=402 data-nosnippet>402</a>        };
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>is_builtin_or_oracle = <span class="macro">matches!</span>(
 <a href=#404 id=404 data-nosnippet>404</a>            definition,
-<a href=#405 id=405 data-nosnippet>405</a>            Definition::Builtin(<span class="kw">_</span>) | Definition::Oracle(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>)
+<a href=#405 id=405 data-nosnippet>405</a>            Definition::Builtin(<span class="kw">_</span>) | Definition::Oracle { .. } | Definition::LowLevel(<span class="kw">_</span>)
 <a href=#406 id=406 data-nosnippet>406</a>        );
 <a href=#407 id=407 data-nosnippet>407</a>        !is_builtin_or_oracle
 <a href=#408 id=408 data-nosnippet>408</a>    })

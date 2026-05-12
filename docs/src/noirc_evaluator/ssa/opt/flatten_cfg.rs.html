@@ -1081,7 +1081,7 @@
 <a href=#1081 id=1081 data-nosnippet>1081</a>            Value::Intrinsic(intrinsic) =&gt; {
 <a href=#1082 id=1082 data-nosnippet>1082</a>                <span class="self">self</span>.handle_intrinsic_side_effects(condition, intrinsic, arguments, call_stack)
 <a href=#1083 id=1083 data-nosnippet>1083</a>            }
-<a href=#1084 id=1084 data-nosnippet>1084</a>            Value::Function(<span class="kw">_</span>) | Value::ForeignFunction(<span class="kw">_</span>) =&gt; arguments,
+<a href=#1084 id=1084 data-nosnippet>1084</a>            Value::Function(<span class="kw">_</span>) | Value::ForeignFunction { .. } =&gt; arguments,
 <a href=#1085 id=1085 data-nosnippet>1085</a>            Value::Instruction { .. }
 <a href=#1086 id=1086 data-nosnippet>1086</a>            | Value::Param { .. }
 <a href=#1087 id=1087 data-nosnippet>1087</a>            | Value::NumericConstant { .. }

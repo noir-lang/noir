@@ -54,71 +54,73 @@
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// This Value refers to an external function in the IR.
 <a href=#55 id=55 data-nosnippet>55</a>    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
 <a href=#56 id=56 data-nosnippet>56</a>    /// other than generating different backend operations and being only accessible through Brillig.
-<a href=#57 id=57 data-nosnippet>57</a>    </span>ForeignFunction(String),
-<a href=#58 id=58 data-nosnippet>58</a>
-<a href=#59 id=59 data-nosnippet>59</a>    <span class="doccomment">/// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
-<a href=#60 id=60 data-nosnippet>60</a>    </span>Global(Type),
-<a href=#61 id=61 data-nosnippet>61</a>}
-<a href=#62 id=62 data-nosnippet>62</a>
-<a href=#63 id=63 data-nosnippet>63</a><span class="kw">impl </span>Value {
-<a href=#64 id=64 data-nosnippet>64</a>    <span class="doccomment">/// Retrieves the type of this Value
-<a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
-<a href=#66 id=66 data-nosnippet>66</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#67 id=67 data-nosnippet>67</a>            Value::Instruction { typ, .. } | Value::Param { typ, .. } =&gt; Cow::Borrowed(typ),
-<a href=#68 id=68 data-nosnippet>68</a>            Value::NumericConstant { typ, .. } =&gt; Cow::Owned(Type::Numeric(<span class="kw-2">*</span>typ)),
-<a href=#69 id=69 data-nosnippet>69</a>            Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } =&gt; {
-<a href=#70 id=70 data-nosnippet>70</a>                Cow::Owned(Type::Function)
-<a href=#71 id=71 data-nosnippet>71</a>            }
-<a href=#72 id=72 data-nosnippet>72</a>            Value::Global(typ) =&gt; Cow::Borrowed(typ),
-<a href=#73 id=73 data-nosnippet>73</a>        }
-<a href=#74 id=74 data-nosnippet>74</a>    }
-<a href=#75 id=75 data-nosnippet>75</a>}
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a><span class="doccomment">/// Like `HashMap&lt;ValueId, ValueId&gt;` but handles:
-<a href=#78 id=78 data-nosnippet>78</a>/// 1. recursion (if v0 -&gt; v1 and v1 -&gt; v2, then v0 -&gt; v2)
-<a href=#79 id=79 data-nosnippet>79</a>/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
-<a href=#80 id=80 data-nosnippet>80</a></span><span class="attr">#[derive(Default, Debug)]
-<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ValueMapping {
-<a href=#82 id=82 data-nosnippet>82</a>    map: HashMap&lt;ValueId, ValueId&gt;,
-<a href=#83 id=83 data-nosnippet>83</a>}
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a><span class="kw">impl </span>ValueMapping {
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: ValueId, to: ValueId) {
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">if </span>from == to {
-<a href=#88 id=88 data-nosnippet>88</a>            <span class="kw">return</span>;
-<a href=#89 id=89 data-nosnippet>89</a>        }
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>        <span class="comment">// If `to` is mapped to something, directly map `from` to that value
-<a href=#92 id=92 data-nosnippet>92</a>        </span><span class="kw">let </span>to = <span class="self">self</span>.get(to);
-<a href=#93 id=93 data-nosnippet>93</a>        <span class="self">self</span>.map.insert(from, to);
-<a href=#94 id=94 data-nosnippet>94</a>    }
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>batch_insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>[ValueId], to: <span class="kw-2">&amp;</span>[ValueId]) {
-<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">for </span>(from_value, to_value) <span class="kw">in </span>from.iter().zip_eq(to) {
-<a href=#98 id=98 data-nosnippet>98</a>            <span class="self">self</span>.insert(<span class="kw-2">*</span>from_value, <span class="kw-2">*</span>to_value);
-<a href=#99 id=99 data-nosnippet>99</a>        }
-<a href=#100 id=100 data-nosnippet>100</a>    }
-<a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
-<a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = <span class="self">self</span>.map.get(<span class="kw-2">&amp;</span>value) { <span class="self">self</span>.get(<span class="kw-2">*</span>replacement) } <span class="kw">else </span>{ value }
-<a href=#104 id=104 data-nosnippet>104</a>    }
-<a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="self">self</span>.map.is_empty()
-<a href=#108 id=108 data-nosnippet>108</a>    }
-<a href=#109 id=109 data-nosnippet>109</a>
-<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: ValueMapping) {
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span>other.map {
-<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.insert(from, to);
-<a href=#113 id=113 data-nosnippet>113</a>        }
-<a href=#114 id=114 data-nosnippet>114</a>    }
-<a href=#115 id=115 data-nosnippet>115</a>
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
-<a href=#117 id=117 data-nosnippet>117</a>    ///
-<a href=#118 id=118 data-nosnippet>118</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
-<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="attr">#[must_use]
-<a href=#120 id=120 data-nosnippet>120</a>    #[cfg(debug_assertions)]
-<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
-<a href=#123 id=123 data-nosnippet>123</a>    }
-<a href=#124 id=124 data-nosnippet>124</a>}</code></pre></div></section></main></body></html>
+<a href=#57 id=57 data-nosnippet>57</a>    ///
+<a href=#58 id=58 data-nosnippet>58</a>    /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
+<a href=#59 id=59 data-nosnippet>59</a>    </span>ForeignFunction { name: String, pure: bool },
+<a href=#60 id=60 data-nosnippet>60</a>
+<a href=#61 id=61 data-nosnippet>61</a>    <span class="doccomment">/// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
+<a href=#62 id=62 data-nosnippet>62</a>    </span>Global(Type),
+<a href=#63 id=63 data-nosnippet>63</a>}
+<a href=#64 id=64 data-nosnippet>64</a>
+<a href=#65 id=65 data-nosnippet>65</a><span class="kw">impl </span>Value {
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="doccomment">/// Retrieves the type of this Value
+<a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
+<a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#69 id=69 data-nosnippet>69</a>            Value::Instruction { typ, .. } | Value::Param { typ, .. } =&gt; Cow::Borrowed(typ),
+<a href=#70 id=70 data-nosnippet>70</a>            Value::NumericConstant { typ, .. } =&gt; Cow::Owned(Type::Numeric(<span class="kw-2">*</span>typ)),
+<a href=#71 id=71 data-nosnippet>71</a>            Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } =&gt; {
+<a href=#72 id=72 data-nosnippet>72</a>                Cow::Owned(Type::Function)
+<a href=#73 id=73 data-nosnippet>73</a>            }
+<a href=#74 id=74 data-nosnippet>74</a>            Value::Global(typ) =&gt; Cow::Borrowed(typ),
+<a href=#75 id=75 data-nosnippet>75</a>        }
+<a href=#76 id=76 data-nosnippet>76</a>    }
+<a href=#77 id=77 data-nosnippet>77</a>}
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a><span class="doccomment">/// Like `HashMap&lt;ValueId, ValueId&gt;` but handles:
+<a href=#80 id=80 data-nosnippet>80</a>/// 1. recursion (if v0 -&gt; v1 and v1 -&gt; v2, then v0 -&gt; v2)
+<a href=#81 id=81 data-nosnippet>81</a>/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+<a href=#82 id=82 data-nosnippet>82</a></span><span class="attr">#[derive(Default, Debug)]
+<a href=#83 id=83 data-nosnippet>83</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ValueMapping {
+<a href=#84 id=84 data-nosnippet>84</a>    map: HashMap&lt;ValueId, ValueId&gt;,
+<a href=#85 id=85 data-nosnippet>85</a>}
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a><span class="kw">impl </span>ValueMapping {
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: ValueId, to: ValueId) {
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">if </span>from == to {
+<a href=#90 id=90 data-nosnippet>90</a>            <span class="kw">return</span>;
+<a href=#91 id=91 data-nosnippet>91</a>        }
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="comment">// If `to` is mapped to something, directly map `from` to that value
+<a href=#94 id=94 data-nosnippet>94</a>        </span><span class="kw">let </span>to = <span class="self">self</span>.get(to);
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="self">self</span>.map.insert(from, to);
+<a href=#96 id=96 data-nosnippet>96</a>    }
+<a href=#97 id=97 data-nosnippet>97</a>
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>batch_insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: <span class="kw-2">&amp;</span>[ValueId], to: <span class="kw-2">&amp;</span>[ValueId]) {
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">for </span>(from_value, to_value) <span class="kw">in </span>from.iter().zip_eq(to) {
+<a href=#100 id=100 data-nosnippet>100</a>            <span class="self">self</span>.insert(<span class="kw-2">*</span>from_value, <span class="kw-2">*</span>to_value);
+<a href=#101 id=101 data-nosnippet>101</a>        }
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, value: ValueId) -&gt; ValueId {
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = <span class="self">self</span>.map.get(<span class="kw-2">&amp;</span>value) { <span class="self">self</span>.get(<span class="kw-2">*</span>replacement) } <span class="kw">else </span>{ value }
+<a href=#106 id=106 data-nosnippet>106</a>    }
+<a href=#107 id=107 data-nosnippet>107</a>
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="self">self</span>.map.is_empty()
+<a href=#110 id=110 data-nosnippet>110</a>    }
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: ValueMapping) {
+<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span>other.map {
+<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.insert(from, to);
+<a href=#115 id=115 data-nosnippet>115</a>        }
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+<a href=#119 id=119 data-nosnippet>119</a>    ///
+<a href=#120 id=120 data-nosnippet>120</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="attr">#[must_use]
+<a href=#122 id=122 data-nosnippet>122</a>    #[cfg(debug_assertions)]
+<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
+<a href=#125 id=125 data-nosnippet>125</a>    }
+<a href=#126 id=126 data-nosnippet>126</a>}</code></pre></div></section></main></body></html>

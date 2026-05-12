@@ -344,8 +344,8 @@
 <a href=#344 id=344 data-nosnippet>344</a>            }
 <a href=#345 id=345 data-nosnippet>345</a>            Value::Function(function) =&gt; <span class="self">self</span>.context.builder.import_function(<span class="kw-2">*</span>function),
 <a href=#346 id=346 data-nosnippet>346</a>            Value::Intrinsic(intrinsic) =&gt; <span class="self">self</span>.context.builder.import_intrinsic_id(<span class="kw-2">*</span>intrinsic),
-<a href=#347 id=347 data-nosnippet>347</a>            Value::ForeignFunction(function) =&gt; {
-<a href=#348 id=348 data-nosnippet>348</a>                <span class="self">self</span>.context.builder.import_foreign_function(function)
+<a href=#347 id=347 data-nosnippet>347</a>            Value::ForeignFunction { name, pure } =&gt; {
+<a href=#348 id=348 data-nosnippet>348</a>                <span class="self">self</span>.context.builder.import_foreign_function(name, <span class="kw-2">*</span>pure)
 <a href=#349 id=349 data-nosnippet>349</a>            }
 <a href=#350 id=350 data-nosnippet>350</a>            Value::Global(<span class="kw">_</span>) =&gt; {
 <a href=#351 id=351 data-nosnippet>351</a>                <span class="macro">panic!</span>(<span class="string">"Expected a global to be resolved to its inner value"</span>);

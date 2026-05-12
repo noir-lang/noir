@@ -579,7 +579,7 @@
 <a href=#579 id=579 data-nosnippet>579</a>        {
 <a href=#580 id=580 data-nosnippet>580</a>            <span class="kw">let </span>is_unsafe = unconstrained &amp;&amp; !<span class="self">self</span>.in_unconstrained;
 <a href=#581 id=581 data-nosnippet>581</a>            <span class="kw">let </span>special = <span class="kw">match </span>definition {
-<a href=#582 id=582 data-nosnippet>582</a>                Definition::Oracle(s) <span class="kw">if </span>s == <span class="string">"print" </span>=&gt; <span class="prelude-val">Some</span>(SpecialCall::Print),
+<a href=#582 id=582 data-nosnippet>582</a>                Definition::Oracle { name: s, .. } <span class="kw">if </span>s == <span class="string">"print" </span>=&gt; <span class="prelude-val">Some</span>(SpecialCall::Print),
 <a href=#583 id=583 data-nosnippet>583</a>                Definition::Builtin(s) <span class="kw">if </span>s.starts_with(<span class="string">"array"</span>) || s.starts_with(<span class="string">"vector"</span>) =&gt; {
 <a href=#584 id=584 data-nosnippet>584</a>                    <span class="prelude-val">Some</span>(SpecialCall::Object(name.clone()))
 <a href=#585 id=585 data-nosnippet>585</a>                }
@@ -730,7 +730,7 @@
 <a href=#730 id=730 data-nosnippet>730</a>            Definition::Function(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"f{id}"</span>),
 <a href=#731 id=731 data-nosnippet>731</a>            Definition::Builtin(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
 <a href=#732 id=732 data-nosnippet>732</a>            Definition::LowLevel(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
-<a href=#733 id=733 data-nosnippet>733</a>            Definition::Oracle(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
+<a href=#733 id=733 data-nosnippet>733</a>            Definition::Oracle { name, .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
 <a href=#734 id=734 data-nosnippet>734</a>        }
 <a href=#735 id=735 data-nosnippet>735</a>    }
 <a href=#736 id=736 data-nosnippet>736</a>}</code></pre></div></section></main></body></html>

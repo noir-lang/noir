@@ -469,7 +469,7 @@
 <a href=#469 id=469 data-nosnippet>469</a>                        <span class="kw">let </span>opcode = attribute.kind.oracle().expect(
 <a href=#470 id=470 data-nosnippet>470</a>                            <span class="string">"ICE: function marked as builtin, but attribute kind does not match this"</span>,
 <a href=#471 id=471 data-nosnippet>471</a>                        );
-<a href=#472 id=472 data-nosnippet>472</a>                        Definition::Oracle(opcode.clone())
+<a href=#472 id=472 data-nosnippet>472</a>                        Definition::Oracle { name: opcode.clone(), pure: attributes.is_pure() }
 <a href=#473 id=473 data-nosnippet>473</a>                    }
 <a href=#474 id=474 data-nosnippet>474</a>                }
 <a href=#475 id=475 data-nosnippet>475</a>            }
@@ -2210,7 +2210,7 @@
 <a href=#2210 id=2210 data-nosnippet>2210</a>        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>func_type);
 <a href=#2211 id=2211 data-nosnippet>2211</a>
 <a href=#2212 id=2212 data-nosnippet>2212</a>        <span class="kw">if let </span>ast::Expression::Ident(ident) = original_func.as_ref() {
-<a href=#2213 id=2213 data-nosnippet>2213</a>            <span class="kw">if let </span>Definition::Oracle(name) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#2213 id=2213 data-nosnippet>2213</a>            <span class="kw">if let </span>Definition::Oracle { name, .. } = <span class="kw-2">&amp;</span>ident.definition
 <a href=#2214 id=2214 data-nosnippet>2214</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(ForeignCall::Print) = ForeignCall::lookup(name)
 <a href=#2215 id=2215 data-nosnippet>2215</a>            {
 <a href=#2216 id=2216 data-nosnippet>2216</a>                <span class="comment">// Oracle calls are required to be wrapped in an unconstrained function
@@ -2965,7 +2965,7 @@
 <a href=#2965 id=2965 data-nosnippet>2965</a></span><span class="kw">fn </span>special_function_name(definition: <span class="kw-2">&amp;</span>Definition) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
 <a href=#2966 id=2966 data-nosnippet>2966</a>    <span class="kw">match </span>definition {
 <a href=#2967 id=2967 data-nosnippet>2967</a>        Definition::Builtin(name) <span class="kw">if </span>name == <span class="string">"static_assert" </span>=&gt; <span class="prelude-val">Some</span>(name),
-<a href=#2968 id=2968 data-nosnippet>2968</a>        Definition::Oracle(name)
+<a href=#2968 id=2968 data-nosnippet>2968</a>        Definition::Oracle { name, .. }
 <a href=#2969 id=2969 data-nosnippet>2969</a>            <span class="kw">if </span><span class="macro">matches!</span>(ForeignCall::lookup(name), <span class="prelude-val">Some</span>(ForeignCall::Print)) =&gt;
 <a href=#2970 id=2970 data-nosnippet>2970</a>        {
 <a href=#2971 id=2971 data-nosnippet>2971</a>            <span class="prelude-val">Some</span>(name)

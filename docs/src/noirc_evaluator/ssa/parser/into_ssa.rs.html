@@ -364,8 +364,8 @@
 <a href=#364 id=364 data-nosnippet>364</a>                <span class="kw">let </span>value_id = <span class="self">self</span>.builder.insert_binary(lhs, op, rhs);
 <a href=#365 id=365 data-nosnippet>365</a>                <span class="self">self</span>.define_variable(target, value_id)<span class="question-mark">?</span>;
 <a href=#366 id=366 data-nosnippet>366</a>            }
-<a href=#367 id=367 data-nosnippet>367</a>            ParsedInstruction::Call { targets, function, arguments, types } =&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">let </span>function_id = <span class="self">self</span>.lookup_call_function(function)<span class="question-mark">?</span>;
+<a href=#367 id=367 data-nosnippet>367</a>            ParsedInstruction::Call { targets, function, arguments, types, pure } =&gt; {
+<a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">let </span>function_id = <span class="self">self</span>.lookup_call_function(function, pure)<span class="question-mark">?</span>;
 <a href=#369 id=369 data-nosnippet>369</a>                <span class="kw">let </span>arguments = <span class="self">self</span>.translate_values(arguments)<span class="question-mark">?</span>;
 <a href=#370 id=370 data-nosnippet>370</a>
 <a href=#371 id=371 data-nosnippet>371</a>                <span class="kw">let </span>value_ids = <span class="self">self</span>.builder.insert_call(function_id, arguments, types).to_vec();
@@ -527,7 +527,7 @@
 <a href=#527 id=527 data-nosnippet>527</a>                            <span class="kw">match </span><span class="self">self</span>.lookup_global(identifier.clone()) {
 <a href=#528 id=528 data-nosnippet>528</a>                                <span class="prelude-val">Ok</span>(global) =&gt; global,
 <a href=#529 id=529 data-nosnippet>529</a>                                <span class="prelude-val">Err</span>(lookup_global_err) =&gt; <span class="self">self
-<a href=#530 id=530 data-nosnippet>530</a>                                    </span>.lookup_call_function(identifier)
+<a href=#530 id=530 data-nosnippet>530</a>                                    </span>.lookup_call_function(identifier, <span class="bool-val">false</span>)
 <a href=#531 id=531 data-nosnippet>531</a>                                    .map_err(|<span class="kw">_</span>| lookup_global_err)<span class="question-mark">?</span>,
 <a href=#532 id=532 data-nosnippet>532</a>                            }
 <a href=#533 id=533 data-nosnippet>533</a>                        }
@@ -616,54 +616,69 @@
 <a href=#616 id=616 data-nosnippet>616</a>        }
 <a href=#617 id=617 data-nosnippet>617</a>    }
 <a href=#618 id=618 data-nosnippet>618</a>
-<a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">fn </span>lookup_call_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: Identifier) -&gt; <span class="prelude-ty">Result</span>&lt;ValueId, SsaError&gt; {
-<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.builder.import_intrinsic(<span class="kw-2">&amp;</span>function.name) {
-<a href=#621 id=621 data-nosnippet>621</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(id);
-<a href=#622 id=622 data-nosnippet>622</a>        }
-<a href=#623 id=623 data-nosnippet>623</a>
-<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">if let </span><span class="prelude-val">Ok</span>(func_id) = <span class="self">self</span>.lookup_function(<span class="kw-2">&amp;</span>function) {
-<a href=#625 id=625 data-nosnippet>625</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.import_function(func_id));
-<a href=#626 id=626 data-nosnippet>626</a>        }
-<a href=#627 id=627 data-nosnippet>627</a>
-<a href=#628 id=628 data-nosnippet>628</a>        <span class="comment">// e.g. `v2 = call v0(v1) -&gt; u32`, a lambda passed as a parameter
-<a href=#629 id=629 data-nosnippet>629</a>        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(var_id) = <span class="self">self</span>.lookup_variable(<span class="kw-2">&amp;</span>function) {
-<a href=#630 id=630 data-nosnippet>630</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(var_id);
-<a href=#631 id=631 data-nosnippet>631</a>        }
-<a href=#632 id=632 data-nosnippet>632</a>
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="comment">// We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
-<a href=#634 id=634 data-nosnippet>634</a>        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
-<a href=#635 id=635 data-nosnippet>635</a>        </span><span class="kw">if </span><span class="kw-2">&amp;</span>function.name == <span class="string">"print" </span>|| function.name.contains(<span class="string">"oracle"</span>) {
-<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.import_foreign_function(<span class="kw-2">&amp;</span>function.name));
-<a href=#637 id=637 data-nosnippet>637</a>        }
-<a href=#638 id=638 data-nosnippet>638</a>
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="prelude-val">Err</span>(SsaError::UnknownFunction(function))
-<a href=#640 id=640 data-nosnippet>640</a>    }
-<a href=#641 id=641 data-nosnippet>641</a>
-<a href=#642 id=642 data-nosnippet>642</a>    <span class="kw">fn </span>finish(<span class="self">self</span>) -&gt; Ssa {
-<a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span><span class="kw-2">mut </span>ssa = <span class="self">self</span>.builder.finish().generate_entry_point_index();
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>        <span class="comment">// Normalize the IDs so we have a better chance of matching the SSA we parsed
-<a href=#646 id=646 data-nosnippet>646</a>        // after the step-by-step reconstruction done during translation. This assumes
-<a href=#647 id=647 data-nosnippet>647</a>        // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
-<a href=#648 id=648 data-nosnippet>648</a>        // before each print.
-<a href=#649 id=649 data-nosnippet>649</a>        </span>ssa.normalize_ids();
-<a href=#650 id=650 data-nosnippet>650</a>
-<a href=#651 id=651 data-nosnippet>651</a>        ssa
-<a href=#652 id=652 data-nosnippet>652</a>    }
+<a href=#619 id=619 data-nosnippet>619</a>    <span class="kw">fn </span>lookup_call_function(
+<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#621 id=621 data-nosnippet>621</a>        function: Identifier,
+<a href=#622 id=622 data-nosnippet>622</a>        pure: bool,
+<a href=#623 id=623 data-nosnippet>623</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;ValueId, SsaError&gt; {
+<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.builder.import_intrinsic(<span class="kw-2">&amp;</span>function.name) {
+<a href=#625 id=625 data-nosnippet>625</a>            <span class="kw">if </span>pure {
+<a href=#626 id=626 data-nosnippet>626</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(SsaError::PureModifierOnNonForeignFunction(function));
+<a href=#627 id=627 data-nosnippet>627</a>            }
+<a href=#628 id=628 data-nosnippet>628</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(id);
+<a href=#629 id=629 data-nosnippet>629</a>        }
+<a href=#630 id=630 data-nosnippet>630</a>
+<a href=#631 id=631 data-nosnippet>631</a>        <span class="kw">if let </span><span class="prelude-val">Ok</span>(func_id) = <span class="self">self</span>.lookup_function(<span class="kw-2">&amp;</span>function) {
+<a href=#632 id=632 data-nosnippet>632</a>            <span class="kw">if </span>pure {
+<a href=#633 id=633 data-nosnippet>633</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(SsaError::PureModifierOnNonForeignFunction(function));
+<a href=#634 id=634 data-nosnippet>634</a>            }
+<a href=#635 id=635 data-nosnippet>635</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.import_function(func_id));
+<a href=#636 id=636 data-nosnippet>636</a>        }
+<a href=#637 id=637 data-nosnippet>637</a>
+<a href=#638 id=638 data-nosnippet>638</a>        <span class="comment">// e.g. `v2 = call v0(v1) -&gt; u32`, a lambda passed as a parameter
+<a href=#639 id=639 data-nosnippet>639</a>        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(var_id) = <span class="self">self</span>.lookup_variable(<span class="kw-2">&amp;</span>function) {
+<a href=#640 id=640 data-nosnippet>640</a>            <span class="kw">if </span>pure {
+<a href=#641 id=641 data-nosnippet>641</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(SsaError::PureModifierOnNonForeignFunction(function));
+<a href=#642 id=642 data-nosnippet>642</a>            }
+<a href=#643 id=643 data-nosnippet>643</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(var_id);
+<a href=#644 id=644 data-nosnippet>644</a>        }
+<a href=#645 id=645 data-nosnippet>645</a>
+<a href=#646 id=646 data-nosnippet>646</a>        <span class="comment">// We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
+<a href=#647 id=647 data-nosnippet>647</a>        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+<a href=#648 id=648 data-nosnippet>648</a>        // The optional `pure` modifier on the call (e.g. `call pure my_oracle(...)`) indicates the oracle
+<a href=#649 id=649 data-nosnippet>649</a>        // was declared with `#[pure]`, and is recorded on the resulting `Value::ForeignFunction`.
+<a href=#650 id=650 data-nosnippet>650</a>        </span><span class="kw">if </span><span class="kw-2">&amp;</span>function.name == <span class="string">"print" </span>|| function.name.contains(<span class="string">"oracle"</span>) {
+<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.import_foreign_function(<span class="kw-2">&amp;</span>function.name, pure));
+<a href=#652 id=652 data-nosnippet>652</a>        }
 <a href=#653 id=653 data-nosnippet>653</a>
-<a href=#654 id=654 data-nosnippet>654</a>    <span class="kw">fn </span>current_function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FunctionId {
-<a href=#655 id=655 data-nosnippet>655</a>        <span class="self">self</span>.builder.current_function.id()
-<a href=#656 id=656 data-nosnippet>656</a>    }
-<a href=#657 id=657 data-nosnippet>657</a>
-<a href=#658 id=658 data-nosnippet>658</a>    <span class="doccomment">/// If any array instruction has an offset, mark the DFG as using offsets in general.
-<a href=#659 id=659 data-nosnippet>659</a>    </span><span class="kw">fn </span>set_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Identifier, offset: ArrayOffset) -&gt; <span class="prelude-ty">Result</span>&lt;(), SsaError&gt; {
-<a href=#660 id=660 data-nosnippet>660</a>        <span class="kw">if </span>offset == ArrayOffset::None {
-<a href=#661 id=661 data-nosnippet>661</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#662 id=662 data-nosnippet>662</a>        }
-<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw">if </span>!<span class="self">self</span>.builder.current_function.dfg.runtime().is_brillig() {
-<a href=#664 id=664 data-nosnippet>664</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(SsaError::IllegalOffset(target.clone(), offset));
-<a href=#665 id=665 data-nosnippet>665</a>        }
-<a href=#666 id=666 data-nosnippet>666</a>        <span class="self">self</span>.builder.current_function.dfg.brillig_arrays_offset = <span class="bool-val">true</span>;
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="prelude-val">Ok</span>(())
-<a href=#668 id=668 data-nosnippet>668</a>    }
-<a href=#669 id=669 data-nosnippet>669</a>}</code></pre></div></section></main></body></html>
+<a href=#654 id=654 data-nosnippet>654</a>        <span class="prelude-val">Err</span>(SsaError::UnknownFunction(function))
+<a href=#655 id=655 data-nosnippet>655</a>    }
+<a href=#656 id=656 data-nosnippet>656</a>
+<a href=#657 id=657 data-nosnippet>657</a>    <span class="kw">fn </span>finish(<span class="self">self</span>) -&gt; Ssa {
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="kw">let </span><span class="kw-2">mut </span>ssa = <span class="self">self</span>.builder.finish().generate_entry_point_index();
+<a href=#659 id=659 data-nosnippet>659</a>
+<a href=#660 id=660 data-nosnippet>660</a>        <span class="comment">// Normalize the IDs so we have a better chance of matching the SSA we parsed
+<a href=#661 id=661 data-nosnippet>661</a>        // after the step-by-step reconstruction done during translation. This assumes
+<a href=#662 id=662 data-nosnippet>662</a>        // that the SSA we parsed was printed by the `SsaBuilder`, which normalizes
+<a href=#663 id=663 data-nosnippet>663</a>        // before each print.
+<a href=#664 id=664 data-nosnippet>664</a>        </span>ssa.normalize_ids();
+<a href=#665 id=665 data-nosnippet>665</a>
+<a href=#666 id=666 data-nosnippet>666</a>        ssa
+<a href=#667 id=667 data-nosnippet>667</a>    }
+<a href=#668 id=668 data-nosnippet>668</a>
+<a href=#669 id=669 data-nosnippet>669</a>    <span class="kw">fn </span>current_function_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FunctionId {
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="self">self</span>.builder.current_function.id()
+<a href=#671 id=671 data-nosnippet>671</a>    }
+<a href=#672 id=672 data-nosnippet>672</a>
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="doccomment">/// If any array instruction has an offset, mark the DFG as using offsets in general.
+<a href=#674 id=674 data-nosnippet>674</a>    </span><span class="kw">fn </span>set_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Identifier, offset: ArrayOffset) -&gt; <span class="prelude-ty">Result</span>&lt;(), SsaError&gt; {
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">if </span>offset == ArrayOffset::None {
+<a href=#676 id=676 data-nosnippet>676</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#677 id=677 data-nosnippet>677</a>        }
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw">if </span>!<span class="self">self</span>.builder.current_function.dfg.runtime().is_brillig() {
+<a href=#679 id=679 data-nosnippet>679</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(SsaError::IllegalOffset(target.clone(), offset));
+<a href=#680 id=680 data-nosnippet>680</a>        }
+<a href=#681 id=681 data-nosnippet>681</a>        <span class="self">self</span>.builder.current_function.dfg.brillig_arrays_offset = <span class="bool-val">true</span>;
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="prelude-val">Ok</span>(())
+<a href=#683 id=683 data-nosnippet>683</a>    }
+<a href=#684 id=684 data-nosnippet>684</a>}</code></pre></div></section></main></body></html>

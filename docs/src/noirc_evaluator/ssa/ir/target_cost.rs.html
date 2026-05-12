@@ -134,7 +134,7 @@
 <a href=#134 id=134 data-nosnippet>134</a>                        <span class="kw">let </span>results = dfg.instruction_results(id);
 <a href=#135 id=135 data-nosnippet>135</a>                        <span class="number">5 </span>+ arguments.len() + results.len()
 <a href=#136 id=136 data-nosnippet>136</a>                    }
-<a href=#137 id=137 data-nosnippet>137</a>                    Value::ForeignFunction(<span class="kw">_</span>) =&gt; {
+<a href=#137 id=137 data-nosnippet>137</a>                    Value::ForeignFunction { .. } =&gt; {
 <a href=#138 id=138 data-nosnippet>138</a>                        <span class="comment">// TODO: we should differentiate inputs/outputs with array and vector allocations
 <a href=#139 id=139 data-nosnippet>139</a>                        </span><span class="number">1
 <a href=#140 id=140 data-nosnippet>140</a>                    </span>}

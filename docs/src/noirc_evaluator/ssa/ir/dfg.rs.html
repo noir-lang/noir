@@ -471,11 +471,11 @@
 <a href=#471 id=471 data-nosnippet>471</a>    }
 <a href=#472 id=472 data-nosnippet>472</a>
 <a href=#473 id=473 data-nosnippet>473</a>    <span class="doccomment">/// Gets or creates a ValueId for the given FunctionId.
-<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str) -&gt; ValueId {
+<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>import_foreign_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>str, pure: bool) -&gt; ValueId {
 <a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.foreign_functions.get(function) {
 <a href=#476 id=476 data-nosnippet>476</a>            <span class="kw">return </span><span class="kw-2">*</span>existing;
 <a href=#477 id=477 data-nosnippet>477</a>        }
-<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>result = <span class="self">self</span>.values.insert(Value::ForeignFunction(function.to_owned()));
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>result = <span class="self">self</span>.values.insert(Value::ForeignFunction { name: function.to_owned(), pure });
 <a href=#479 id=479 data-nosnippet>479</a>        <span class="self">self</span>.foreign_functions.insert(function.to_owned(), result);
 <a href=#480 id=480 data-nosnippet>480</a>        result
 <a href=#481 id=481 data-nosnippet>481</a>    }
