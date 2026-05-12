@@ -1094,7 +1094,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // The constant `Field 1` should be allocated in b0.
         let allocated_in_entry = constants.allocated_in_block(func.entry_block());
@@ -1180,7 +1180,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert_eq!(
             liveness.max_live_count, 6,
@@ -1206,7 +1206,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         assert_eq!(
             liveness.max_live_count, 3,
@@ -1240,7 +1240,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Peak in b1 at `v3 = unchecked_add v2, u32 2`: v1 (carried for the later add),
         // v6 (b2's param pre-allocated via dominator b1), v2 (previous result), u32 2
@@ -1261,7 +1261,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
 
         // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
         // The elements are already in the live set as block params, but

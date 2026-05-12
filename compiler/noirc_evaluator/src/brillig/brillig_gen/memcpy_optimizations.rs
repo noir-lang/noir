@@ -187,7 +187,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 /// Constructs the appropriate `BrilligVariable` for a given SSA type using a pre-allocated register.
 fn make_variable_for_type(typ: &Type, register: MemoryAddress) -> BrilligVariable {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+        Type::Numeric(_) | Type::Reference(_, _) | Type::Function => {
             let bit_size = get_bit_size_from_ssa_type(typ);
             BrilligVariable::SingleAddr(SingleAddrVariable::new(register, bit_size))
         }

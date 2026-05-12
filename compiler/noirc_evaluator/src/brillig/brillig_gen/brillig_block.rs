@@ -768,10 +768,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
     ) {
-        let dead_variables = self
-            .last_uses
-            .get(&instruction_id)
-            .expect("Last uses for instruction should have been computed");
+        let empty = HashSet::default();
+        let dead_variables = self.last_uses.get(&instruction_id).unwrap_or(&empty);
 
         for dead_variable in dead_variables {
             // Globals are reserved throughout the entirety of the program
