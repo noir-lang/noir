@@ -1305,6 +1305,7 @@ mod test {
         // The `#[pure]` ceiling is `UnderSamePredicate`: two calls with the same arguments
         // but split by `enable_side_effects` flips must not be CSE'd, because the brillig-
         // from-acir runtime returns bogus values when the predicate is disabled.
+        // `purity_analysis` propagates `my_oracle`'s purity through the brillig wrapper `f1`.
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: Field):
@@ -1321,10 +1322,10 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        let ssa = ssa.purity_analysis().fold_constants_using_constraints(MIN_ITER);
         // The two `call f1` instructions remain because they sit under different predicates.
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field):
             enable_side_effects v0
             v3 = call f1(v1) -> Field
@@ -1332,7 +1333,7 @@ mod test {
             v5 = call f1(v1) -> Field
             return v3, v5
         }
-        brillig(inline) fn wrapper f1 {
+        brillig(inline) predicate_pure fn wrapper f1 {
           b0(v0: Field):
             v2 = call pure my_oracle(v0) -> Field
             return v2
