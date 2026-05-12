@@ -73,4 +73,8 @@ fn main(x: Field, y: Field) {
     let six: Field = legs + (eyes as Field);
     assert(six == 6_Field);
     let Animal { legs: _, eyes: _ }: Animal = get_dog();
+    let mut Nested { a, b }: Nested = Nested { a: 1_Field, b: 2_Field };
+    b = b * 2_Field;
+    a = a + b;
+    assert(a == 5_Field);
 }

@@ -1,11 +1,7 @@
-define: &AZ_COMMIT 2b1671a7594b69edaf765018d3aeb0b777a3f459
+define: &AZ_COMMIT a2eae19fdef8029921ffe8c7fa3fc320535667d2
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
-    timeout: 2
-    critical: true
-  ec:
-    repo: noir-lang/ec
     timeout: 2
     critical: true
   eddsa:
@@ -65,7 +61,7 @@ libraries:
     critical: true
   poseidon:
     repo: noir-lang/poseidon
-    timeout: 5
+    timeout: 8
     critical: true
   aztec_nr:
     repo: AztecProtocol/aztec-packages

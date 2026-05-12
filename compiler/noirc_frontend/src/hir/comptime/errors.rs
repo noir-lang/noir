@@ -12,7 +12,7 @@ use crate::{
     token::Token,
 };
 use acvm::{BlackBoxResolutionError, FieldElement};
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -533,7 +533,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 let diagnostic = CustomDiagnostic::simple_error(primary, secondary, *location);
 
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
@@ -595,7 +595,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
-                let msg = format!("{index} is out of bounds for the array of length {length}");
+                let msg = format!("Index out of bounds: {index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
@@ -626,6 +626,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "+" => "add",
                     "-" => "subtract",
                     "*" => "multiply",
+                    "/" => "divide",
+                    "%" => "calculate the remainder",
                     ">>" | "<<" => "bit-shift",
                     _ => operator,
                 };
@@ -870,7 +872,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Exceeded the recursion limit".to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::EvaluationDepthOverflow { location, call_stack } => {
                 let diagnostic = CustomDiagnostic::simple_error(
@@ -879,7 +881,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                         .to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::AttributeRecursionLimitExceeded { location } => {
                 CustomDiagnostic::simple_error(

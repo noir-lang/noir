@@ -21,12 +21,12 @@ impl<T> Option<T> {
     }
 
     /// True if this Option is None
-    pub fn is_none(self) -> bool {
+    pub fn is_none(&self) -> bool {
         !self._is_some
     }
 
     /// True if this Option is Some
-    pub fn is_some(self) -> bool {
+    pub fn is_some(&self) -> bool {
         self._is_some
     }
 

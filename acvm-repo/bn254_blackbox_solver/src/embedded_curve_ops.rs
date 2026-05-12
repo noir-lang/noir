@@ -111,15 +111,6 @@ pub fn embedded_curve_add(
     let point2 = create_point(input2[0], input2[1], input2[2])
         .map_err(|e| BlackBoxResolutionError::Failed(BlackBoxFunc::EmbeddedCurveAdd, e))?;
 
-    for point in [point1, point2] {
-        if point == ark_grumpkin::Affine::zero() {
-            return Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveAdd,
-                format!("Infinite input: embedded_curve_add({point1}, {point2})"),
-            ));
-        }
-    }
-
     let res = ark_grumpkin::Affine::from(point1 + point2);
     if let Some((res_x, res_y)) = res.xy() {
         Ok((FieldElement::from_repr(res_x), FieldElement::from_repr(res_y), FieldElement::zero()))
@@ -280,25 +271,6 @@ mod tests {
             Err(BlackBoxResolutionError::Failed(
                 BlackBoxFunc::EmbeddedCurveAdd,
                 "Point (0000000000000000000000000000000000000000000000000000000000000001, 0000000000000000000000000000000000000000000000000000000000000002) is not on curve".into(),
-            ))
-        );
-    }
-
-    #[test]
-    fn rejects_addition_of_infinite_points_when_pedantic() {
-        let x = FieldElement::from(1u128);
-        let y = FieldElement::from(1u128);
-
-        let res = embedded_curve_add(
-            [x, y, FieldElement::from(1u128)],
-            [x, y, FieldElement::from(1u128)],
-        );
-
-        assert_eq!(
-            res,
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveAdd,
-                "Infinite input: embedded_curve_add(infinity, infinity)".into(),
             ))
         );
     }

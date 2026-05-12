@@ -137,3 +137,8 @@ fn fn_env_and_return() {
     let x: i32 = 1;
     let _ = || { x };
 }
+
+fn test_missing_args() {
+    // This is here to prove that inlay hints don't break when arguments are missing
+    yet_another_function()
+}

@@ -101,8 +101,12 @@ impl<F: AcirField> AcirContext<F> {
         // Allow constant inputs for most blackbox
         // Allow constant predicate for all blackbox having predicate
         let inputs = match name {
-            BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::Keccakf1600
+            BlackBoxFunc::MultiScalarMul => {
+                let [points, scalars, predicate] = <[AcirValue; 3]>::try_from(inputs)
+                    .expect("MultiScalarMul expects 3 inputs: points, scalars, predicate");
+                self.prepare_msm_inputs(points, scalars, predicate)?
+            }
+            BlackBoxFunc::Keccakf1600
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
             | BlackBoxFunc::AND
@@ -165,6 +169,43 @@ impl<F: AcirField> AcirContext<F> {
             _ => self.prepare_inputs_for_black_box_func_call(inputs, false)?,
         };
         Ok(inputs)
+    }
+
+    /// Prepares inputs for the MultiScalarMul opcode.
+    ///
+    /// Point coordinates (x, y) and scalar halves (lo, hi) must each be
+    /// uniformly constant or witness — the backend's `to_grumpkin_scalar`
+    /// rejects mixed pairs.
+    fn prepare_msm_inputs(
+        &mut self,
+        points: AcirValue,
+        scalars: AcirValue,
+        predicate: AcirValue,
+    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
+        // Points: each is (x, y, is_infinite).
+        let mut points_inputs = Vec::new();
+        for chunk in self.flatten(points)?.chunks(3) {
+            let x = AcirValue::Var(chunk[0].0, chunk[0].1);
+            let y = AcirValue::Var(chunk[1].0, chunk[1].1);
+            let inf = AcirValue::Var(chunk[2].0, chunk[2].1);
+            for input in self.all_or_nothing_coordinates(x, y)? {
+                points_inputs.extend(input);
+            }
+            points_inputs.extend(self.prepare_input_for_black_box_func_call(inf, true)?);
+        }
+
+        // Scalars: each is (lo, hi).
+        let mut scalars_inputs = Vec::new();
+        for chunk in self.flatten(scalars)?.chunks(2) {
+            let lo = AcirValue::Var(chunk[0].0, chunk[0].1);
+            let hi = AcirValue::Var(chunk[1].0, chunk[1].1);
+            for input in self.all_or_nothing_coordinates(lo, hi)? {
+                scalars_inputs.extend(input);
+            }
+        }
+
+        let predicate_input = self.prepare_input_for_black_box_func_call(predicate, true)?;
+        Ok(vec![points_inputs, scalars_inputs, predicate_input])
     }
 
     fn all_or_nothing_coordinates(

@@ -17,7 +17,7 @@ mod black_box_function_call;
 mod memory_operation;
 
 pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput, InvalidInputBitSize};
-pub use memory_operation::{BlockId, MemOp};
+pub use memory_operation::{BlockId, MemOp, MemOpKind};
 
 /// Type for a memory block
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -173,14 +173,14 @@ pub(super) fn display_opcode<F: AcirField>(
             display_expression(expr, true, return_values, f)
         }
         Opcode::BlackBoxFuncCall(g) => std::fmt::Display::fmt(&g, f),
-        Opcode::MemoryOp { block_id, op } => {
-            let is_read = op.operation.is_zero();
-            if is_read {
+        Opcode::MemoryOp { block_id, op } => match op.operation {
+            MemOpKind::Read => {
                 write!(f, "READ {} = b{}[{}]", op.value, block_id.0, op.index)
-            } else {
+            }
+            MemOpKind::Write => {
                 write!(f, "WRITE b{}[{}] = {}", block_id.0, op.index, op.value)
             }
-        }
+        },
         Opcode::MemoryInit { block_id, init, block_type: databus } => {
             match databus {
                 BlockType::Memory => write!(f, "INIT ")?,

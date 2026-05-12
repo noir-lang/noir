@@ -96,6 +96,14 @@ impl ReservedRegisters {
         let start = ScratchSpace::start();
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
+
+    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// to hold a value across the load → cmov → store sequence. Disjoint from
+    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// can be reused by the inner load/store without clobbering the value.
+    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
+    }
 }
 
 /// Brillig context object that is used while constructing the
@@ -286,6 +294,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         left: SingleAddrVariable,
         right: SingleAddrVariable,
         result: SingleAddrVariable,
+        operator: SignedDivisionOperator,
     ) {
         let left_is_negative = self.allocate_single_addr_bool();
         let left_abs_value = self.allocate_single_addr(left.bit_size);
@@ -327,14 +336,25 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 let no_overflow = ctx.allocate_single_addr_bool();
                 ctx.binary_instruction(result, *max, *no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
-                    ctx2.codegen_constrain(
-                        *no_overflow,
-                        Some("Attempt to divide with overflow".to_string()),
-                    );
+                    let message = match operator {
+                        SignedDivisionOperator::Mod => {
+                            "Attempt to calculate the remainder with overflow"
+                        }
+                        SignedDivisionOperator::Div => "Attempt to divide with overflow",
+                        SignedDivisionOperator::Shift => "Attempt to bit-shift with overflow",
+                    };
+                    ctx2.codegen_constrain(*no_overflow, Some(message.to_string()));
                 });
             }
         });
     }
+}
+
+#[derive(Copy, Clone)]
+pub(crate) enum SignedDivisionOperator {
+    Div,
+    Mod,
+    Shift,
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures

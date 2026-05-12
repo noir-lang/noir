@@ -6,7 +6,10 @@
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
-    ir::{function::Function, instruction::Instruction, value::ValueId},
+    ir::{
+        cfg::ControlFlowGraph, dom::DominatorTree, function::Function, instruction::Instruction,
+        post_order::PostOrder, value::ValueId,
+    },
     ssa_gen::Ssa,
 };
 
@@ -24,13 +27,26 @@ impl Ssa {
 
 impl Function {
     fn remove_truncate_after_range_check(&mut self) {
+        let cfg = ControlFlowGraph::with_function(self);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
         // Keeps the minimum bit size a value was range-checked against
         let mut range_checks: HashMap<ValueId, u32> = HashMap::default();
-
+        let mut previous_block = None;
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
-
+            if previous_block != Some(context.block_id) {
+                // Clear the range checks when the new block is not dominated by
+                // the previous one
+                if let Some(prev) = previous_block
+                    && !dom_tree.dominates(prev, context.block_id)
+                {
+                    range_checks.clear();
+                }
+                previous_block = Some(context.block_id);
+            }
             match instruction {
                 // If this is a range_check instruction, associate the max bit size with the value
                 Instruction::RangeCheck { value, max_bit_size, .. } => {

@@ -578,3 +578,32 @@ fn diamond_trait_inheritance_method_call() {
     let actual_errors: Vec<_> = errors.iter().filter(|e| e.is_error()).collect();
     assert!(actual_errors.is_empty(), "Expected no errors, got: {actual_errors:?}");
 }
+
+// Regression test for lookup_associated_type_in_parent_impls() cyclic recursion.
+// Self::X inside the impl of A triggers lookup_associated_type_in_parent_impls
+// which traverses parent impls B -> C -> B -> ... and would hang without cycle detection.
+#[test]
+fn lookup_associated_type_in_parent_impls_dependency_cycle() {
+    let src = r#"
+        trait B: C {}
+              ^ Dependency cycle found
+              ~ 'B' recursively depends on itself: B -> C -> B
+        trait C: B {}
+
+        trait A: B {
+            type Y;
+        }
+
+        impl C for Field {}
+
+        impl B for Field {}
+
+        impl A for Field {
+            type Y = Self::X;
+                     ^^^^ Could not resolve 'Self' in path
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}

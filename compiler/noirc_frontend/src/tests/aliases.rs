@@ -616,7 +616,7 @@ fn regression_10352_immutable_reference() {
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -738,7 +738,7 @@ fn regression_10763_immutable() {
         fn foo(self) { }
     }
     "#;
-    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+    check_errors_using_features(src, &[]);
 }
 
 #[test]
@@ -762,7 +762,6 @@ fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
     pub type X: u8 = 257u8;
-    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
                      ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
@@ -1161,4 +1160,17 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
         fn main(_x: A) where A: Foo {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
+    "#;
+    check_errors(src);
 }

@@ -213,7 +213,7 @@ impl Parser<'_> {
         kind
     }
 
-    /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier
+    /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier ( '::' GenericTypeArgs )?
     pub(super) fn parse_as_trait_path(&mut self) -> Option<AsTraitPath> {
         if !self.eat_less() {
             return None;
@@ -240,7 +240,15 @@ impl Parser<'_> {
             Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        AsTraitPath { typ, trait_path, trait_generics, impl_item }
+        let turbofish = self.eat_double_colon().then(|| {
+            let generics = self.parse_generic_type_args();
+            if generics.is_empty() {
+                self.expected_token(Token::Less);
+            }
+            generics
+        });
+
+        AsTraitPath { typ, trait_path, trait_generics, impl_item, turbofish }
     }
 }
 

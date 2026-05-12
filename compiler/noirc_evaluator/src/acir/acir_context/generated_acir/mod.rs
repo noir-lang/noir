@@ -181,6 +181,16 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         fresh_witness
     }
+
+    /// Attaches an assertion payload to the last opcode in the ACIR.
+    pub(crate) fn attach_assertion_payload(
+        &mut self,
+        payload: AssertionPayload<F>,
+    ) -> OpcodeLocation {
+        let location = self.last_acir_opcode_location();
+        self.assertion_payloads.insert(location, payload);
+        location
+    }
 }
 
 impl<F: AcirField> GeneratedAcir<F> {
@@ -408,7 +418,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let assertion_payload = self.generate_assertion_message_payload(format!(
             "Field failed to decompose into specified {limb_count} limbs"
         ));
-        self.assertion_payloads.insert(self.last_acir_opcode_location(), assertion_payload);
+        self.attach_assertion_payload(assertion_payload);
 
         Ok(limb_witnesses)
     }
@@ -769,8 +779,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // will be 3 field elements representing the point, i.e. (x,y,infinite)
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
-        // Recursive aggregation has a variable number of outputs
-        BlackBoxFunc::RecursiveAggregation => None,
+        // Recursive aggregation has no output
+        BlackBoxFunc::RecursiveAggregation => Some(0),
 
         // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,

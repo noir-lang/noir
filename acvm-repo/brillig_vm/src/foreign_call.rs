@@ -75,46 +75,46 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // but it is cumbersome, and the cleanest solution is not to send the extra empty
             // items at all. To do this, however, we need infer which input is the vector length.
             let mut vector_length: Option<u32> = None;
+            let mut resolved_inputs = Vec::with_capacity(inputs.len());
 
-            let resolved_inputs = inputs
-                .iter()
-                .zip_eq(input_value_types)
-                .map(|(input, input_type)| {
-                    let mut input = self.get_memory_values(*input, input_type);
-                    // Truncate vectors to their semantic length, which we remember from the preceding field.
-                    match input_type {
-                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
-                            // If we have a single u32 we may have a vector representation, so store this input.
-                            // On the next iteration, if we have a vector then we know we have the dynamic length
-                            // for that vector.
-                            let ForeignCallParam::Single(length) = input else {
-                                unreachable!("expected u32; got {input:?}");
-                            };
-                            vector_length = Some(length.to_u128() as u32);
-                        }
-                        HeapValueType::Vector { value_types } => {
-                            let Some(length) = vector_length else {
-                                unreachable!(
-                                    "ICE: expected the semantic vector length to precede a vector input"
-                                );
-                            };
-                            // Get rid of any items beyond the flattened length.
-                            let flattened_length =
-                                vector_flattened_length(value_types, SemanticLength(length));
-                            let ForeignCallParam::Array(fields) = &mut input else {
-                                unreachable!("ICE: expected Array parameter for vector content");
-                            };
-                            fields.truncate(assert_usize(flattened_length.0));
-                            vector_length = None;
-                        }
-                        _ => {
-                            // Otherwise we are not dealing with a u32 followed by a vector.
-                            vector_length = None;
-                        }
+            for (input, input_type) in inputs.iter().zip_eq(input_value_types) {
+                let mut input = match self.get_memory_values(*input, input_type) {
+                    Ok(input) => input,
+                    Err(e) => return self.fail(e),
+                };
+                // Truncate vectors to their semantic length, which we remember from the preceding field.
+                match input_type {
+                    HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                        // If we have a single u32 we may have a vector representation, so store this input.
+                        // On the next iteration, if we have a vector then we know we have the dynamic length
+                        // for that vector.
+                        let ForeignCallParam::Single(length) = input else {
+                            unreachable!("expected u32; got {input:?}");
+                        };
+                        vector_length = Some(length.to_u128() as u32);
                     }
-                    input
-                })
-                .collect::<Vec<_>>();
+                    HeapValueType::Vector { value_types } => {
+                        let Some(length) = vector_length else {
+                            unreachable!(
+                                "ICE: expected the semantic vector length to precede a vector input"
+                            );
+                        };
+                        // Get rid of any items beyond the flattened length.
+                        let flattened_length =
+                            vector_flattened_length(value_types, SemanticLength(length));
+                        let ForeignCallParam::Array(fields) = &mut input else {
+                            unreachable!("ICE: expected Array parameter for vector content");
+                        };
+                        fields.truncate(assert_usize(flattened_length.0));
+                        vector_length = None;
+                    }
+                    _ => {
+                        // Otherwise we are not dealing with a u32 followed by a vector.
+                        vector_length = None;
+                    }
+                }
+                resolved_inputs.push(input);
+            }
 
             return self.wait_for_foreign_call(function.to_owned(), resolved_inputs);
         }
@@ -139,10 +139,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         &self,
         input: ValueOrArray,
         value_type: &HeapValueType,
-    ) -> ForeignCallParam<F> {
+    ) -> Result<ForeignCallParam<F>, String> {
         match (input, value_type) {
             (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(_)) => {
-                ForeignCallParam::Single(self.memory.read(value_addr).to_field())
+                Ok(ForeignCallParam::Single(self.memory.read(value_addr).to_field()))
             }
             (
                 ValueOrArray::HeapArray(HeapArray { pointer, size }),
@@ -154,11 +154,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 assert_eq!(semi_flattened_size, size);
 
                 let start = self.memory.read_ref(pointer);
-                self.read_slice_of_values_from_memory(start, size, value_types)
+                Ok(self
+                    .read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
-                    .into()
+                    .into())
             }
             (
                 ValueOrArray::HeapVector(HeapVector { pointer, size: size_addr }),
@@ -167,11 +168,28 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                 let start = self.memory.read_ref(pointer);
                 let size = self.memory.read(size_addr).to_u32();
                 let size = SemiFlattenedLength(size);
-                self.read_slice_of_values_from_memory(start, size, value_types)
+
+                // Validate that the vector size does not exceed memory bounds.
+                let start_index = assert_usize(start.unwrap_direct());
+                let size_usize = assert_usize(size.0);
+                if let Some(end) = start_index.checked_add(size_usize)
+                    && end <= self.memory.len()
+                {
+                } else {
+                    return Err(format!(
+                        "HeapVector out of bounds: reading {} elements from address {start_index} \
+                         exceeds memory size {}",
+                        size.0,
+                        self.memory.len()
+                    ));
+                }
+
+                Ok(self
+                    .read_slice_of_values_from_memory(start, size, value_types)
                     .into_iter()
                     .map(|mem_value| mem_value.to_field())
                     .collect::<Vec<_>>()
-                    .into()
+                    .into())
             }
             _ => {
                 unreachable!("Unexpected value type {value_type:?} for input {input:?}");

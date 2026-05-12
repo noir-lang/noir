@@ -7,7 +7,7 @@ use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::ast::{
         Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LValue,
-        LocalId, Program, Type,
+        Literal, LocalId, Program, Type,
     },
     shared::Visibility,
 };
@@ -261,7 +261,7 @@ fn test_assign_ref_element_type() {
         id: IdentId(0),
     };
 
-    let rhs = Expression::Literal(noirc_frontend::monomorphization::ast::Literal::Integer(
+    let rhs = Expression::Literal(Literal::Integer(
         acir::FieldElement::from(0u32),
         crate::program::types::U32,
         Location::dummy(),
@@ -282,4 +282,95 @@ fn test_assign_ref_element_type() {
         crate::program::types::U32,
         "element_type should be the inner type (u32), not the reference type (&mut u32)"
     );
+}
+
+/// The fuzzer's direct oracle print calls in ACIR functions must be wrapped
+/// in unconstrained wrapper functions, since ACIR code cannot call oracles
+/// directly. This matches nargo's `println` -> `print_unconstrained` -> oracle
+/// structure. Unconstrained functions are skipped since they can call oracles
+/// directly.
+#[test]
+fn test_wrap_oracle_prints_in_functions() {
+    use super::expr;
+    use super::rewrite::wrap_oracle_prints_in_functions;
+
+    let array_type = Type::Array(1, Rc::new(Type::Bool));
+
+    // Build: fn main() { let a = [true]; print_oracle(true, a, "...", false); }
+    let mut ctx = Context::new(Config::default());
+
+    let let_expr = Expression::Let(noirc_frontend::monomorphization::ast::Let {
+        id: LocalId(0),
+        mutable: false,
+        name: "a".to_string(),
+        expression: Box::new(Expression::Literal(Literal::Array(
+            noirc_frontend::monomorphization::ast::ArrayLiteral {
+                contents: vec![expr::lit_bool(true)],
+                typ: Type::Bool,
+            },
+        ))),
+    });
+
+    let value_ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "a".to_string(),
+        typ: Rc::new(array_type.clone()),
+        id: IdentId(0),
+    };
+
+    let oracle_call = Expression::Call(Call {
+        func: Box::new(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Oracle("print".to_string()),
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![Type::Bool, array_type],
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
+            id: IdentId(1),
+        })),
+        arguments: vec![
+            expr::lit_bool(true),
+            Expression::Ident(value_ident),
+            Expression::Literal(Literal::Str("type_info".to_string().into())),
+            expr::lit_bool(false),
+        ],
+        return_type: Type::Unit,
+        location: Location::dummy(),
+    });
+
+    let main_func = Function {
+        id: FuncId(0),
+        name: "main".to_string(),
+        parameters: vec![],
+        body: Expression::Block(vec![let_expr, oracle_call]),
+        return_type: Type::Unit,
+        return_visibility: Visibility::Private,
+        unconstrained: false,
+        inline_type: InlineType::default(),
+        is_entry_point: true,
+    };
+
+    ctx.functions.insert(FuncId(0), main_func);
+
+    wrap_oracle_prints_in_functions(&mut ctx);
+    let program = ctx.finalize();
+    let code = format!("{}", DisplayAstAsNoir(&program));
+
+    // The oracle call should be replaced with a call to a wrapper function,
+    // and the wrapper function should contain the oracle call with hardcoded args.
+    insta::assert_snapshot!(code, @r"
+    fn main() -> () {
+        let a: bool = [true];
+        unsafe { print_wrapper_1(a) }
+    }
+    unconstrained fn print_wrapper_1(value: [bool; 1]) -> () {
+        println(value)
+    }
+    ");
 }

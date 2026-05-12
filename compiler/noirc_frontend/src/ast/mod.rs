@@ -51,7 +51,6 @@ use strum_macros::EnumIter;
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, EnumIter)]
 pub enum IntegerBitSize {
-    One,
     Eight,
     Sixteen,
     ThirtyTwo,
@@ -62,7 +61,6 @@ pub enum IntegerBitSize {
 impl IntegerBitSize {
     pub fn bit_size(&self) -> u8 {
         match self {
-            IntegerBitSize::One => 1,
             IntegerBitSize::Eight => 8,
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
@@ -82,7 +80,6 @@ impl From<IntegerBitSize> for u32 {
     fn from(size: IntegerBitSize) -> u32 {
         use IntegerBitSize::*;
         match size {
-            One => 1,
             Eight => 8,
             Sixteen => 16,
             ThirtyTwo => 32,
@@ -101,7 +98,6 @@ impl TryFrom<u32> for IntegerBitSize {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         use IntegerBitSize::*;
         match value {
-            1 => Ok(One),
             8 => Ok(Eight),
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
@@ -361,7 +357,6 @@ impl UnresolvedTypeData {
     pub fn integer(signedness: Signedness, size: IntegerBitSize, location: Location) -> Self {
         let name = match signedness {
             Signedness::Signed => match size {
-                IntegerBitSize::One => "i1",
                 IntegerBitSize::Eight => "i8",
                 IntegerBitSize::Sixteen => "i16",
                 IntegerBitSize::ThirtyTwo => "i32",
@@ -369,7 +364,6 @@ impl UnresolvedTypeData {
                 IntegerBitSize::HundredTwentyEight => "i128",
             },
             Signedness::Unsigned => match size {
-                IntegerBitSize::One => "u1",
                 IntegerBitSize::Eight => "u8",
                 IntegerBitSize::Sixteen => "u16",
                 IntegerBitSize::ThirtyTwo => "u32",

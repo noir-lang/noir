@@ -1,4 +1,5 @@
 mod tests {
+    use super::unresolved_type_to_string;
     use std::meta::op::BinaryOp;
     use std::meta::op::UnaryOp;
 
@@ -158,7 +159,7 @@ mod tests {
             assert_eq(name, quote { bar });
 
             assert_eq(generics.len(), 1);
-            assert(generics[0].is_field());
+            assert_eq(unresolved_type_to_string!(generics[0]), "Field");
 
             assert_eq(arguments.len(), 2);
             assert_eq(arguments[0].as_integer().unwrap(), 3);
@@ -261,7 +262,7 @@ mod tests {
             let expr = quote { 1 as Field }.as_expr().unwrap();
             let (expr, typ) = expr.as_cast().unwrap();
             assert_eq(expr.as_integer().unwrap(), 1);
-            assert(typ.is_field());
+            assert_eq(unresolved_type_to_string!(typ), "Field");
         }
     }
 
@@ -272,7 +273,7 @@ mod tests {
             let expr = expr.modify(times_two);
             let (expr, typ) = expr.as_cast().unwrap();
             assert_eq(expr.as_integer().unwrap(), 2);
-            assert(typ.is_field());
+            assert_eq(unresolved_type_to_string!(typ), "Field");
         }
     }
 
@@ -609,8 +610,8 @@ mod tests {
             let expr = quote { |x: Field| -> Field { 1 } }.as_expr().unwrap();
             let (params, return_type, body) = expr.as_lambda().unwrap();
             assert_eq(params.len(), 1);
-            assert(params[0].1.unwrap().is_field());
-            assert(return_type.unwrap().is_field());
+            assert_eq(unresolved_type_to_string!(params[0].1.unwrap()), "Field");
+            assert_eq(unresolved_type_to_string!(return_type.unwrap()), "Field");
             assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 1);
 
             let expr = quote { |x| { 1 } }.as_expr().unwrap();
@@ -629,8 +630,8 @@ mod tests {
             let expr = expr.modify(times_two);
             let (params, return_type, body) = expr.as_lambda().unwrap();
             assert_eq(params.len(), 1);
-            assert(params[0].1.unwrap().is_field());
-            assert(return_type.unwrap().is_field());
+            assert_eq(unresolved_type_to_string!(params[0].1.unwrap()), "Field");
+            assert_eq(unresolved_type_to_string!(return_type.unwrap()), "Field");
             assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 2);
 
             let expr = quote { |x| { 1 } }.as_expr().unwrap();
@@ -648,7 +649,7 @@ mod tests {
         comptime {
             let expr = quote { let x: Field = 1; }.as_expr().unwrap();
             let (_pattern, typ, expr) = expr.as_let().unwrap();
-            assert(typ.unwrap().is_field());
+            assert_eq(unresolved_type_to_string!(typ.unwrap()), "Field");
             assert_eq(expr.as_integer().unwrap(), 1);
         }
     }
@@ -659,7 +660,7 @@ mod tests {
             let expr = quote { let x : Field = 1; }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (_pattern, typ, expr) = expr.as_let().unwrap();
-            assert(typ.unwrap().is_field());
+            assert_eq(unresolved_type_to_string!(typ.unwrap()), "Field");
             assert_eq(expr.as_integer().unwrap(), 2);
         }
     }
@@ -769,6 +770,10 @@ mod tests {
             quote { $value }.as_expr()
         })
     }
+}
+
+comptime fn unresolved_type_to_string(typ: UnresolvedType) -> Quoted {
+    f"{typ}".as_quoted_str()
 }
 
 fn main() {}

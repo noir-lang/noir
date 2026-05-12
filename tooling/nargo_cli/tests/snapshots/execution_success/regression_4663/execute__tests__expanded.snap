@@ -2,13 +2,17 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{collections::map::HashMap, hash::{BuildHasherDefault, Hasher}};
+use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
 
 struct DummyHasher {}
 
 impl Hasher for DummyHasher {
     fn finish(self) -> Field {
         0_Field
+    }
+
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
     }
 
     fn write(&mut self, _input: Field) {}
@@ -21,7 +25,7 @@ impl Default for DummyHasher {
 }
 
 fn main() {
-    let map: HashMap<u64, u64, 10, BuildHasherDefault<DummyHasher>> =
-        HashMap::<u64, u64, 10, BuildHasherDefault<DummyHasher>>::default();
+    let map: UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> =
+        UHashMap::<u64, u64, BuildHasherDefault<DummyHasher>>::default();
     println(map == map);
 }

@@ -33,9 +33,8 @@ use crate::BlackBoxResolutionError;
 /// The function do not validate a signature if:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
 ///
-/// The function will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
-/// According to ECDSA specification, the message hash leftmost bits should be truncated
-/// up to the curve order length, and then reduced modulo the curve order.
+/// If `hashed_msg >= k256::Secp256k1::ORDER`, the message hash is reduced modulo the curve
+/// order per ECDSA specification (SEC 1, section 4.1.4).
 pub(super) fn verify_signature(
     hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
@@ -182,5 +181,30 @@ mod secp256k1_tests {
 
         verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
             .unwrap();
+    }
+
+    #[test]
+    fn does_not_panic_when_hashed_msg_exceeds_curve_order() {
+        // All 0xFF bytes is larger than the secp256k1 curve order
+        // (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141).
+        // The function should reduce it modulo the order, not panic.
+        let oversized_hash: [u8; 32] = [0xff; 32];
+
+        // The result will be false (signature doesn't match the reduced hash), but no panic.
+        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn does_not_panic_when_hashed_msg_equals_curve_order() {
+        // The exact secp256k1 curve order.
+        let curve_order: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFE, 0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B, 0xBF, 0xD2, 0x5E, 0x8C,
+            0xD0, 0x36, 0x41, 0x41,
+        ];
+
+        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        assert!(result.is_ok());
     }
 }

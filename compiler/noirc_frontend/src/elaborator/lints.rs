@@ -158,7 +158,7 @@ pub(super) fn oracle_returns_multiple_vectors(
 
     fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Array(item, _) => vector_count(item, type_recursion_context.recur()),
             Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
             Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
             Type::Tuple(items) => items
@@ -314,7 +314,7 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedVectorReturnToConstrained { location })
     } else if return_type.contains_function() {
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
-    } else if !return_type.is_valid_for_unconstrained_boundary() {
+    } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
@@ -535,6 +535,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
+            | HirStatement::TraitAssociatedConstant
             | HirStatement::Error => true,
         })
     };

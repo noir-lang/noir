@@ -18,7 +18,6 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_map::fully_qualified_module_path;
-use crate::hir_def::function::FuncMeta;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
@@ -180,12 +179,12 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
         // Assuming that `values.len()` corresponds to `typ`.
-        let Type::Array(_, ref elem) = typ else {
+        let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
         let len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(Box::new(Type::constant_u32(len)), elem.clone()).to_string();
+        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -211,16 +210,6 @@ pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldEl
     match value {
         Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
-    }
-}
-
-pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Shared<Value>>> {
-    match value {
-        Value::Tuple(values) => Ok(values),
-        value => {
-            let expected = "tuple";
-            type_mismatch(value, expected, location)
-        }
     }
 }
 
@@ -333,7 +322,7 @@ pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<Tr
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
-        Value::Type(typ) => Ok(typ),
+        Value::Type(typ) => Ok(typ.follow_bindings()),
         value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }
@@ -585,29 +574,6 @@ pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     Value::Vector(statements, typ)
 }
 
-pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
-where
-    F: FnOnce(&mut FuncMeta),
-{
-    let (name_id, function_type) = {
-        let func_meta = interner.function_meta_mut(&func_id);
-        f(func_meta);
-        (func_meta.name.id, func_meta.typ.clone())
-    };
-
-    interner.push_definition_type(name_id, function_type);
-}
-
-pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
-    match typ {
-        Type::Function(parameters, _, _, _) => {
-            *parameters = parameter_types;
-        }
-        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
-        _ => {}
-    }
-}
-
 pub(super) fn has_named_attribute(
     name: &str,
     attributes: &[SecondaryAttribute],
@@ -688,8 +654,8 @@ pub(super) fn eq_item<T: Eq>(
 pub(crate) fn byte_array_type(len: usize) -> Type {
     let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(Type::constant_u32(len)),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
+        Box::new(Type::constant_u32(len)),
     )
 }
 

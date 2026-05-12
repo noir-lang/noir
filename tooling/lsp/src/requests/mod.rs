@@ -496,21 +496,16 @@ fn position_to_location(
     files: &FileMap,
     file_path: &PathString,
     position: &Position,
-) -> Result<noirc_errors::Location, ResponseError> {
-    let file_id = file_path_to_file_id(files, file_path)?;
-    let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
-        ResponseError::new(
-            ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {err:?}"),
-        )
-    })?;
+) -> Option<noirc_errors::Location> {
+    let file_id = file_path_to_file_id(files, file_path).ok()?;
+    let byte_index = position_to_byte_index(files, file_id, position).ok()?;
 
     let location = noirc_errors::Location {
         file: file_id,
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    Ok(location)
+    Some(location)
 }
 
 pub(crate) fn file_path_to_file_id(
@@ -598,13 +593,20 @@ pub(crate) fn process_request<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
         fake_stdlib_workspace()
     } else {
-        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
+        match resolve_workspace_for_source_path(file_path.as_path()) {
+            Ok(workspace) => workspace,
+            Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+            Err(e) => {
+                return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()));
+            }
+        }
     };
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
@@ -633,11 +635,13 @@ where
 
     let files = file_manager.as_file_map();
 
-    let location = position_to_location(
+    let Some(location) = position_to_location(
         files,
         &PathString::from(file_path),
         &text_document_position_params.position,
-    )?;
+    ) else {
+        return Ok(T::default());
+    };
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
@@ -661,13 +665,18 @@ pub(crate) fn process_request_no_workspace_cache<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let workspace = match resolve_workspace_for_source_path(file_path.as_path()) {
+        Ok(workspace) => workspace,
+        Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+        Err(e) => return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string())),
+    };
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -700,11 +709,13 @@ where
 
     let files = workspace_file_manager.as_file_map();
 
-    let location = position_to_location(
+    let Some(location) = position_to_location(
         files,
         &PathString::from(file_path),
         &text_document_position_params.position,
-    )?;
+    ) else {
+        return Ok(T::default());
+    };
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,

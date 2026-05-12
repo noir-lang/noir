@@ -395,6 +395,7 @@ impl DefCollector {
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
@@ -416,7 +417,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
 
             let dep_def_map =
-                context.def_map(&dep.crate_id).expect("ice: def map was just created");
+                context.def_map(&dep.crate_id).expect("ICE: def map was just created");
 
             let dep_def_root = dep_def_map.root();
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
@@ -471,6 +472,7 @@ impl DefCollector {
     /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
     /// need to be re-collected and re-type-checked.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
         file_id: FileId,
@@ -543,6 +545,7 @@ impl DefCollector {
         errors.extend(more_errors);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn process_imports(
         mut collected_imports: Vec<ImportDirectiveBatch>,
         crate_id: CrateId,
@@ -765,6 +768,16 @@ impl DefCollector {
             })
             .collect::<Vec<_>>();
 
+        for (func_id, ident) in context.usage_tracker.unused_impl_functions() {
+            let func_meta = context.def_interner.function_meta(func_id);
+            if func_meta.source_crate == crate_id {
+                unused_errors.push(CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item: UnusedItem::Function(*func_id),
+                }));
+            }
+        }
+
         // Make sure errors always show up in the same order when compiling the same codebase
         unused_errors.sort_by_key(|error| error.location());
 
@@ -787,6 +800,7 @@ fn add_import_reference(
     interner.add_module_def_id_reference(def_id, location, false);
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 fn inject_prelude(
     crate_id: CrateId,
     context: &mut Context,

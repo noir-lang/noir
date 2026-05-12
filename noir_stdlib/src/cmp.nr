@@ -62,12 +62,6 @@ impl Eq for u8 {
         self == other
     }
 }
-impl Eq for u1 {
-    fn eq(self, other: u1) -> bool {
-        self == other
-    }
-}
-
 impl Eq for i8 {
     fn eq(self, other: i8) -> bool {
         self == other

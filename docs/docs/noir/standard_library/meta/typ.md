@@ -86,7 +86,7 @@ If this is a `str<N>` type, returns the length `N` as a type.
 
 #include_code as_data_type noir_stdlib/src/meta/typ.nr rust
 
-If this is a struct type, returns the struct in addition to
+If this is a struct or enum type, returns the type definition in addition to
 any generic arguments on this type.
 
 ### as_tuple

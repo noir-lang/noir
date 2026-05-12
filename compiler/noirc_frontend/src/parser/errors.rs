@@ -38,7 +38,9 @@ pub enum ParserErrorReason {
     UnconstrainedNotApplicable,
     #[error("Expected an identifier or `(expression) after `$` for unquoting")]
     ExpectedIdentifierOrLeftParenAfterDollar,
-    #[error("`&mut` can only be used with `self")]
+    #[error(
+        "`&` and `&mut` can only be used with `self` as a name. Try putting it on the parameter's type instead"
+    )]
     RefMutCanOnlyBeUsedWithSelf,
     #[error("Invalid pattern")]
     InvalidPattern,
@@ -281,7 +283,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             let primary = "`impl Trait` as a type is experimental".to_string();
                             Diagnostic::simple_warning(primary, secondary, error.location())
                         }
-                        _ => Diagnostic::simple_error(
+                        UnstableFeature::Enums => Diagnostic::simple_error(
                             reason.to_string(),
                             secondary,
                             error.location(),

@@ -189,7 +189,7 @@ impl FunctionBuilder {
 
     /// Returns the type of the given value.
     pub fn type_of_value(&self, value: ValueId) -> Type {
-        self.current_function.dfg.type_of_value(value)
+        self.current_function.dfg.type_of_value(value).into_owned()
     }
 
     /// Insert a new block into the current function and return it.
@@ -254,7 +254,17 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        let reference_type = Type::Reference(Arc::new(element_type));
+        self.insert_allocate_with_mutability(element_type, true)
+    }
+
+    /// Like `insert_allocate`, but allows specifying whether the resulting reference
+    /// is mutable (`&mut T`) or immutable (`&T`).
+    pub fn insert_allocate_with_mutability(
+        &mut self,
+        element_type: Type,
+        mutable: bool,
+    ) -> ValueId {
+        let reference_type = Type::Reference(Arc::new(element_type), mutable);
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
@@ -321,6 +331,11 @@ impl FunctionBuilder {
         rhs: ValueId,
         assert_message: Option<ConstrainError>,
     ) {
+        let lhs_type = self.type_of_value(lhs);
+        assert!(
+            matches!(lhs_type, Type::Numeric(_)),
+            "Constrain operands must be numeric, got {lhs_type}"
+        );
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 
@@ -527,7 +542,7 @@ impl FunctionBuilder {
             return None;
         }
         match self.type_of_value(value) {
-            Type::Numeric(_) | Type::Function | Type::Reference(_) => None,
+            Type::Numeric(_) | Type::Function | Type::Reference(..) => None,
             Type::Array(..) | Type::Vector(..) => {
                 // If there are nested arrays or vectors, we wait until ArrayGet
                 // is issued to increment the count of that array.

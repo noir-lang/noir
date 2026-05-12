@@ -17,7 +17,6 @@ pub enum Integer {
     I16(i16),
     I32(i32),
     I64(i64),
-    U1(bool),
     U8(u8),
     U16(u16),
     U32(u32),
@@ -36,7 +35,6 @@ impl Integer {
             Integer::I16(value) => value.into(),
             Integer::I32(value) => value.into(),
             Integer::I64(value) => value.into(),
-            Integer::U1(value) => value.into(),
             Integer::U8(value) => value.into(),
             Integer::U16(value) => value.into(),
             Integer::U32(value) => value.into(),
@@ -55,7 +53,6 @@ impl Integer {
             Integer::I16(value) => (value as u16).into(),
             Integer::I32(value) => (value as u32).into(),
             Integer::I64(value) => (value as u64).into(),
-            Integer::U1(value) => value.into(),
             Integer::U8(value) => value.into(),
             Integer::U16(value) => value.into(),
             Integer::U32(value) => value.into(),
@@ -81,7 +78,6 @@ impl Integer {
             Integer::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Integer::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Integer::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Integer::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Integer::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Integer::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Integer::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -106,7 +102,6 @@ impl Integer {
             Integer::I16(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I16))),
             Integer::I32(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I32))),
             Integer::I64(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I64))),
-            Integer::U1(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U1))),
             Integer::U8(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U8))),
             Integer::U16(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U16))),
             Integer::U32(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U32))),
@@ -122,7 +117,6 @@ impl Integer {
             Integer::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
-            Integer::U1(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
@@ -133,9 +127,6 @@ impl Integer {
 
     pub(crate) fn into_tokens(self) -> Vec<Token> {
         match self {
-            Integer::U1(bool) => {
-                vec![Token::Int(bool.into(), Some(IntegerTypeSuffix::U1))]
-            }
             Integer::U8(value) => {
                 vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U8))]
             }
@@ -176,7 +167,6 @@ impl Integer {
             Integer::I16(value) => *value == 0,
             Integer::I32(value) => *value == 0,
             Integer::I64(value) => *value == 0,
-            Integer::U1(value) => !value,
             Integer::U8(value) => *value == 0,
             Integer::U16(value) => *value == 0,
             Integer::U32(value) => *value == 0,
@@ -192,7 +182,6 @@ impl Integer {
             Integer::I16(value) => *value == 1,
             Integer::I32(value) => *value == 1,
             Integer::I64(value) => *value == 1,
-            Integer::U1(value) => *value,
             Integer::U8(value) => *value == 1,
             Integer::U16(value) => *value == 1,
             Integer::U32(value) => *value == 1,
@@ -211,15 +200,6 @@ impl Integer {
         use Signedness::*;
         match typ.follow_bindings_shallow().as_ref() {
             Type::FieldElement => Some(Integer::Field(value)),
-            Type::Integer(Unsigned, One) => {
-                if value.is_zero() {
-                    Some(Integer::U1(false))
-                } else if value.is_one() {
-                    Some(Integer::U1(true))
-                } else {
-                    None
-                }
-            }
             Type::Integer(Unsigned, Eight) => value.try_into().ok().map(Integer::U8),
             Type::Integer(Unsigned, Sixteen) => value.try_into().ok().map(Integer::U16),
             Type::Integer(Unsigned, ThirtyTwo) => value.try_into().ok().map(Integer::U32),
@@ -246,7 +226,6 @@ impl Integer {
             Integer::I16(_) => IntegerTypeSuffix::I16,
             Integer::I32(_) => IntegerTypeSuffix::I32,
             Integer::I64(_) => IntegerTypeSuffix::I64,
-            Integer::U1(_) => IntegerTypeSuffix::U1,
             Integer::U8(_) => IntegerTypeSuffix::U8,
             Integer::U16(_) => IntegerTypeSuffix::U16,
             Integer::U32(_) => IntegerTypeSuffix::U32,
@@ -264,8 +243,6 @@ impl Display for Integer {
             Integer::I16(value) => write!(f, "{value}"),
             Integer::I32(value) => write!(f, "{value}"),
             Integer::I64(value) => write!(f, "{value}"),
-            Integer::U1(false) => write!(f, "0"),
-            Integer::U1(true) => write!(f, "1"),
             Integer::U8(value) => write!(f, "{value}"),
             Integer::U16(value) => write!(f, "{value}"),
             Integer::U32(value) => write!(f, "{value}"),
@@ -283,8 +260,6 @@ impl std::fmt::Debug for Integer {
             Integer::I16(value) => write!(f, "{value}_i16"),
             Integer::I32(value) => write!(f, "{value}_i32"),
             Integer::I64(value) => write!(f, "{value}_i64"),
-            Integer::U1(false) => write!(f, "0_u1"),
-            Integer::U1(true) => write!(f, "1_u1"),
             Integer::U8(value) => write!(f, "{value}_u8"),
             Integer::U16(value) => write!(f, "{value}_u16"),
             Integer::U32(value) => write!(f, "{value}_u32"),
@@ -301,10 +276,6 @@ impl std::ops::Add for Integer {
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs + rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => {
-                let result = u32::from(lhs) + u32::from(rhs);
-                (result != 2).then_some(Integer::U1(result != 0))
-            }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_add(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_add(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_add(rhs).map(Integer::U32),
@@ -325,10 +296,6 @@ impl std::ops::Sub for Integer {
     fn sub(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs - rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => {
-                let result = i32::from(lhs) - i32::from(rhs);
-                (result > 0).then_some(Integer::U1(result != 0))
-            }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_sub(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_sub(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_sub(rhs).map(Integer::U32),
@@ -349,9 +316,6 @@ impl std::ops::Mul for Integer {
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs * rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => {
-                Some(Integer::U1(u32::from(lhs) * u32::from(rhs) != 0))
-            }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_mul(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_mul(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_mul(rhs).map(Integer::U32),
@@ -372,7 +336,6 @@ impl std::ops::Div for Integer {
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs / rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => rhs.then_some(Integer::U1(lhs)),
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_div(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_div(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_div(rhs).map(Integer::U32),
@@ -394,9 +357,6 @@ impl std::ops::Rem for Integer {
         match (self, rhs) {
             // Fields do not support the remainder operation
             (Integer::Field(_), Integer::Field(_)) => None,
-            (Integer::U1(lhs), Integer::U1(rhs)) => {
-                u8::from(lhs).checked_rem(u8::from(rhs)).map(|x| Integer::U1(x != 0))
-            }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_rem(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_rem(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_rem(rhs).map(Integer::U32),
@@ -418,7 +378,6 @@ impl Integer {
     pub fn lt(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs < rhs),
-            (Integer::U1(lhs), Integer::U1(rhs)) => Some(lhs < rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs < rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs < rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs < rhs),
@@ -438,7 +397,6 @@ impl Integer {
     pub fn lte(&self, rhs: &Self) -> Option<bool> {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs <= rhs),
-            (Integer::U1(lhs), Integer::U1(rhs)) => Some(lhs <= rhs),
             (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs <= rhs),
             (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs <= rhs),
             (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs <= rhs),
@@ -459,7 +417,6 @@ impl std::ops::Neg for Integer {
     fn neg(self) -> Self::Output {
         match self {
             Integer::Field(rhs) => Some(Integer::Field(-rhs)),
-            Integer::U1(_) => None,
             Integer::U8(_) => None,
             Integer::U16(_) => None,
             Integer::U32(_) => None,
@@ -470,5 +427,241 @@ impl std::ops::Neg for Integer {
             Integer::I32(rhs) => rhs.checked_neg().map(Integer::I32),
             Integer::I64(rhs) => rhs.checked_neg().map(Integer::I64),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{AcirField, FieldElement};
+    use proptest::prelude::*;
+
+    use super::Integer;
+    use crate::Type;
+    use crate::ast::IntegerBitSize;
+    use crate::shared::Signedness;
+
+    // === Proptests: Integer arithmetic matches Rust checked arithmetic ===
+
+    proptest! {
+        #[test]
+        fn i8_add_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) + Integer::I8(b), a.checked_add(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_sub_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) - Integer::I8(b), a.checked_sub(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_mul_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) * Integer::I8(b), a.checked_mul(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_div_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) / Integer::I8(b), a.checked_div(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_rem_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a) % Integer::I8(b), a.checked_rem(b).map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_neg_matches_rust(a: i8) {
+            assert_eq!(-Integer::I8(a), a.checked_neg().map(Integer::I8));
+        }
+
+        #[test]
+        fn i8_lt_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a).lt(&Integer::I8(b)), Some(a < b));
+        }
+
+        #[test]
+        fn i8_lte_matches_rust(a: i8, b: i8) {
+            assert_eq!(Integer::I8(a).lte(&Integer::I8(b)), Some(a <= b));
+        }
+
+        #[test]
+        fn i32_add_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) + Integer::I32(b), a.checked_add(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_sub_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) - Integer::I32(b), a.checked_sub(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_mul_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) * Integer::I32(b), a.checked_mul(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn i32_div_matches_rust(a: i32, b: i32) {
+            assert_eq!(Integer::I32(a) / Integer::I32(b), a.checked_div(b).map(Integer::I32));
+        }
+
+        #[test]
+        fn u8_add_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) + Integer::U8(b), a.checked_add(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_sub_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) - Integer::U8(b), a.checked_sub(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_mul_matches_rust(a: u8, b: u8) {
+            assert_eq!(Integer::U8(a) * Integer::U8(b), a.checked_mul(b).map(Integer::U8));
+        }
+
+        #[test]
+        fn u8_neg_always_none(a: u8) {
+            assert_eq!(-Integer::U8(a), None);
+        }
+
+        #[test]
+        fn i8_is_negative_matches_rust(a: i8) {
+            assert_eq!(Integer::I8(a).is_negative(), a < 0);
+        }
+
+        #[test]
+        fn u8_is_negative_always_false(a: u8) {
+            assert!(!Integer::U8(a).is_negative());
+        }
+
+        #[test]
+        fn i8_as_field_twos_complement_matches_rust(a: i8) {
+            // Two's complement: reinterpret i8 as u8
+            let expected = FieldElement::from(u128::from(a as u8));
+            assert_eq!(Integer::I8(a).as_field_twos_complement(), expected);
+        }
+
+        #[test]
+        fn positive_i8_as_field_equals_twos_complement(a in 0i8..=i8::MAX) {
+            assert_eq!(Integer::I8(a).as_field(), Integer::I8(a).as_field_twos_complement());
+        }
+
+        // Field subtraction is the inverse of addition: (a - b) + b == a
+        // Explicit edge cases: (0,1) tests modular wrapping to p-1, (0,0) tests zero-zero
+        #[test]
+        fn field_subtraction_is_inverse_of_addition(
+            (a, b) in prop_oneof![
+                Just((0u64, 1u64)),
+                Just((0u64, 0u64)),
+                Just((1u64, 1u64)),
+                (any::<u64>(), any::<u64>()),
+            ]
+        ) {
+            let fa = Integer::Field(FieldElement::from(u128::from(a)));
+            let fb = Integer::Field(FieldElement::from(u128::from(b)));
+            let result = (fa - fb).unwrap();
+            let check = (result + fb).unwrap();
+            assert_eq!(check, fa);
+        }
+
+        // Field negation is the additive inverse: (-a) + a == 0
+        // Explicit edge case: negation of zero should be zero
+        #[test]
+        fn field_negation_is_additive_inverse(
+            a in prop_oneof![Just(0u64), any::<u64>()]
+        ) {
+            let fa = Integer::Field(FieldElement::from(u128::from(a)));
+            let neg_a = (-fa).unwrap();
+            let check = (neg_a + fa).unwrap();
+            assert_eq!(check, Integer::Field(FieldElement::zero()));
+        }
+
+        // Field values are never considered negative
+        #[test]
+        fn field_is_never_negative(a: u64) {
+            assert!(!Integer::Field(FieldElement::from(u128::from(a))).is_negative());
+        }
+
+        // Round-trip: Integer -> as_field -> try_from_type -> same Integer
+        // Tests that negative signed values survive the field encoding round-trip.
+        #[test]
+        fn i8_try_from_type_roundtrips(a: i8) {
+            let integer = Integer::I8(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::Eight);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i16_try_from_type_roundtrips(a: i16) {
+            let integer = Integer::I16(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i32_try_from_type_roundtrips(a: i32) {
+            let integer = Integer::I32(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn i64_try_from_type_roundtrips(a: i64) {
+            let integer = Integer::I64(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn u8_try_from_type_roundtrips(a: u8) {
+            let integer = Integer::U8(a);
+            let field = integer.as_field();
+            let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            assert_eq!(Integer::try_from_type(field, &typ), Some(integer));
+        }
+
+        #[test]
+        fn field_try_from_type_roundtrips(a: u64) {
+            let integer = Integer::Field(FieldElement::from(u128::from(a)));
+            let field = integer.as_field();
+            assert_eq!(Integer::try_from_type(field, &Type::FieldElement), Some(integer));
+        }
+    }
+
+    // === Type mismatch returns None ===
+
+    #[test]
+    fn type_mismatch_returns_none() {
+        let a = Integer::I8(1);
+        let b = Integer::I16(1);
+        assert_eq!(a + b, None);
+        assert_eq!(a - b, None);
+        assert_eq!(a * b, None);
+        assert_eq!(a / b, None);
+        assert_eq!(a.lt(&b), None);
+
+        let c = Integer::U8(1);
+        let d = Integer::I8(1);
+        assert_eq!(c + d, None);
+    }
+
+    // === Field-specific tests (not equivalent to Rust arithmetic) ===
+
+    #[test]
+    fn field_division_by_zero() {
+        let a = Integer::Field(FieldElement::from(5u64));
+        let b = Integer::Field(FieldElement::zero());
+        // Field division always "succeeds" (FieldElement handles it internally)
+        assert!((a / b).is_some());
+    }
+
+    #[test]
+    fn field_remainder_rejected() {
+        let a = Integer::Field(FieldElement::from(10u64));
+        let b = Integer::Field(FieldElement::from(3u64));
+        assert_eq!(a % b, None);
     }
 }

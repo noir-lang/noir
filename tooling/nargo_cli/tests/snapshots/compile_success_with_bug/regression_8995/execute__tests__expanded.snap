@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() -> pub bool {
-    let b: [(bool, &mut u1); 2] = [(false, &mut 0_u1), (true, &mut 1_u1)];
+    let b: [(bool, &mut bool); 2] = [(false, &mut false), (true, &mut true)];
     let x: u32 = 0_u32;
     let y: u32 = 1_u32;
     let z: u32 = 2_u32;

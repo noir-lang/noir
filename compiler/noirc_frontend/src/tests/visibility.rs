@@ -285,7 +285,7 @@ fn does_not_error_if_calling_private_struct_function_from_same_struct() {
     }
 
     impl Foo {
-        fn foo() {
+        pub fn foo() {
             Foo::bar()
         }
 
@@ -317,7 +317,7 @@ fn error_if_calling_private_struct_function_from_extension() {
             fn y(_self: Self) -> u32 {
                 0
             }
-            fn e(self: Self) {
+            pub fn e(self: Self) {
                 self.private_extension();
                      ^^^^^^^^^^^^^^^^^ private_extension is private and not visible from the current module
                      ~~~~~~~~~~~~~~~~~ private_extension is private
@@ -661,7 +661,7 @@ fn private_impl_method_on_another_module_1() {
             let _ = self;
         }
 
-        fn bar(self) {
+        pub fn bar(self) {
             self.foo();
         }
     }
@@ -683,7 +683,7 @@ fn private_impl_method_on_another_module_2() {
     }
 
     impl bar::Foo<i64> {
-        fn bar(self) {
+        pub fn bar(self) {
             let _ = self;
             let foo = bar::Foo::<i32> {};
             foo.foo();

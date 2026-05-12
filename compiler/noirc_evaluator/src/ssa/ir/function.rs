@@ -219,9 +219,10 @@ impl Function {
     }
 
     pub(crate) fn signature(&self) -> Signature {
-        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns =
-            vecmap(self.returns().unwrap_or_default(), |ret| self.dfg.type_of_value(*ret));
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param).into_owned());
+        let returns = vecmap(self.returns().unwrap_or_default(), |ret| {
+            self.dfg.type_of_value(*ret).into_owned()
+        });
         Signature { params, returns }
     }
 
@@ -249,6 +250,28 @@ impl Function {
 
     pub fn view(&self) -> FunctionView {
         FunctionView(self)
+    }
+
+    /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
+    ///                                                                                                                                                                                                                              
+    /// This creates a [FunctionInserter][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
+    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
+    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
+    pub(crate) fn simplify_instructions(&mut self) {
+        use crate::ssa::ir::function_inserter::FunctionInserter;
+
+        let mut inserter = FunctionInserter::new(self);
+        let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
+
+        for &block in &blocks {
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                inserter.push_instruction(*instruction_id, block, true);
+            }
+            inserter.map_terminator_in_place(block);
+        }
+        inserter.map_data_bus_in_place();
     }
 }
 
@@ -325,12 +348,12 @@ impl<'a> FunctionView<'a> {
 
     /// Return the types of the function parameters.
     pub fn parameter_types(&self) -> Vec<Type> {
-        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p))
+        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p).into_owned())
     }
 
     /// Return the types of the returned values, if there are any.
     pub fn return_types(&self) -> Option<Vec<Type>> {
-        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p)))
+        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p).into_owned()))
     }
 }
 

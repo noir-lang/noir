@@ -36,12 +36,6 @@ impl Not for u8 {
         !self
     }
 }
-impl Not for u1 {
-    fn not(self) -> u1 {
-        !self
-    }
-}
-
 impl Not for i8 {
     fn not(self) -> i8 {
         !self
@@ -101,12 +95,6 @@ impl BitOr for u8 {
         self | other
     }
 }
-impl BitOr for u1 {
-    fn bitor(self, other: u1) -> u1 {
-        self | other
-    }
-}
-
 impl BitOr for i8 {
     fn bitor(self, other: i8) -> i8 {
         self | other
@@ -165,12 +153,6 @@ impl BitAnd for u8 {
         self & other
     }
 }
-impl BitAnd for u1 {
-    fn bitand(self, other: u1) -> u1 {
-        self & other
-    }
-}
-
 impl BitAnd for i8 {
     fn bitand(self, other: i8) -> i8 {
         self & other
@@ -229,12 +211,6 @@ impl BitXor for u8 {
         self ^ other
     }
 }
-impl BitXor for u1 {
-    fn bitxor(self, other: u1) -> u1 {
-        self ^ other
-    }
-}
-
 impl BitXor for i8 {
     fn bitxor(self, other: i8) -> i8 {
         self ^ other
@@ -287,12 +263,6 @@ impl Shl for u8 {
         self << other
     }
 }
-impl Shl for u1 {
-    fn shl(self, other: u1) -> u1 {
-        self << other
-    }
-}
-
 impl Shl for i8 {
     fn shl(self, other: i8) -> i8 {
         self << other
@@ -345,12 +315,6 @@ impl Shr for u8 {
         self >> other
     }
 }
-impl Shr for u1 {
-    fn shr(self, other: u1) -> u1 {
-        self >> other
-    }
-}
-
 impl Shr for i8 {
     fn shr(self, other: i8) -> i8 {
         self >> other

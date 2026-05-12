@@ -2,7 +2,6 @@
 use crate::tests::assert_no_errors;
 
 use super::get_program_errors;
-use std::collections::HashSet;
 
 #[test]
 fn resolve_shadowing() {
@@ -408,31 +407,11 @@ fn test_name_shadowing() {
         "trait_fn7",
     ];
 
-    // TODO(https://github.com/noir-lang/noir/issues/4973):
-    // Name resolution panic from name shadowing test
-    let cases_to_skip = [
-        (1, 21),
-        (2, 11),
-        (2, 21),
-        (3, 11),
-        (3, 18),
-        (3, 21),
-        (4, 21),
-        (5, 11),
-        (5, 21),
-        (6, 11),
-        (6, 18),
-        (6, 21),
-    ];
-    let cases_to_skip: HashSet<(usize, usize)> = cases_to_skip.into_iter().collect();
-
     for (i, x) in names_to_collapse.iter().enumerate() {
-        for (j, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < *j) {
-            if !cases_to_skip.contains(&(i, j)) {
-                let modified_src = src.replace(x, y);
-                let errors = get_program_errors(&modified_src);
-                assert!(!errors.is_empty(), "Expected errors, got: {errors:?}");
-            }
+        for (_, y) in names_to_collapse.iter().enumerate().filter(|(j, _)| i < *j) {
+            let modified_src = src.replace(x, y);
+            let errors = get_program_errors(&modified_src);
+            assert!(!errors.is_empty(), "Expected errors, got: {errors:?}");
         }
     }
 }
