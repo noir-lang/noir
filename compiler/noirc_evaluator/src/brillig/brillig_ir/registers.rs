@@ -143,6 +143,9 @@ pub(crate) trait RegisterAllocator {
     /// Number of registers that can be allocated before exceeding bounds.
     /// Accounts for deallocated registers that can be reused.
     fn available_registers(&self) -> usize;
+    /// Allocates `count` consecutive registers, guaranteed to be contiguous.
+    /// Returns `None` if there isn't enough room.
+    fn allocate_consecutive_registers(&mut self, count: usize) -> Option<Vec<MemoryAddress>>;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
@@ -234,6 +237,18 @@ impl RegisterAllocator for Stack {
     fn available_registers(&self) -> usize {
         self.storage.available_registers(self.end())
     }
+
+    fn allocate_consecutive_registers(&mut self, count: usize) -> Option<Vec<MemoryAddress>> {
+        let can_use_free_list = self.storage.find_consecutive_in_free_list(count).is_some();
+        let can_use_hwm = self.storage.next_free_register_index + count <= self.end();
+        if !can_use_free_list && !can_use_hwm {
+            return None;
+        }
+        let start = self.storage.allocate_consecutive_registers(count);
+        let registers: Vec<_> =
+            (start..start + count).map(|i| MemoryAddress::relative(assert_u32(i))).collect();
+        Some(registers)
+    }
 }
 
 /// Procedure arguments and returns are passed through scratch space.
@@ -320,6 +335,18 @@ impl RegisterAllocator for ScratchSpace {
 
     fn available_registers(&self) -> usize {
         self.storage.available_registers(self.end())
+    }
+
+    fn allocate_consecutive_registers(&mut self, count: usize) -> Option<Vec<MemoryAddress>> {
+        let can_use_free_list = self.storage.find_consecutive_in_free_list(count).is_some();
+        let can_use_hwm = self.storage.next_free_register_index + count <= self.end();
+        if !can_use_free_list && !can_use_hwm {
+            return None;
+        }
+        let start = self.storage.allocate_consecutive_registers(count);
+        let registers: Vec<_> =
+            (start..start + count).map(|i| MemoryAddress::direct(assert_u32(i))).collect();
+        Some(registers)
     }
 }
 
@@ -426,6 +453,16 @@ impl RegisterAllocator for GlobalSpace {
         // Global space is unbounded; report max to avoid spilling.
         usize::MAX
     }
+
+    fn allocate_consecutive_registers(&mut self, count: usize) -> Option<Vec<MemoryAddress>> {
+        let start = self.storage.allocate_consecutive_registers(count);
+        let registers: Vec<_> =
+            (start..start + count).map(|i| MemoryAddress::direct(assert_u32(i))).collect();
+        for &reg in &registers {
+            self.expand_max_address(reg);
+        }
+        Some(registers)
+    }
 }
 
 /// Register allocator that tracks a contiguous range of register slots using:
@@ -516,6 +553,47 @@ impl DeallocationListAllocator {
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
+    /// Checks if the free-list contains `count` consecutive registers.
+    /// Returns the start index if found, `None` otherwise. Does NOT modify state.
+    fn find_consecutive_in_free_list(&self, count: usize) -> Option<usize> {
+        if self.deallocated_registers.len() < count {
+            return None;
+        }
+        let mut run_start = 0;
+        let mut run_len = 0;
+        for &reg in &self.deallocated_registers {
+            if run_len == 0 || reg == run_start + run_len {
+                if run_len == 0 {
+                    run_start = reg;
+                }
+                run_len += 1;
+                if run_len == count {
+                    return Some(run_start);
+                }
+            } else {
+                run_start = reg;
+                run_len = 1;
+            }
+        }
+        None
+    }
+
+    /// Allocates `count` consecutive registers, guaranteed to be contiguous.
+    /// First tries to find a consecutive run in the free-list. Falls back to the
+    /// high-water mark if no consecutive run is available.
+    fn allocate_consecutive_registers(&mut self, count: usize) -> usize {
+        if let Some(run_start) = self.find_consecutive_in_free_list(count) {
+            for i in run_start..run_start + count {
+                self.deallocated_registers.remove(&i);
+            }
+            return run_start;
+        }
+        // Fall back to the high-water mark.
+        let start = self.next_free_register_index;
+        self.next_free_register_index += count;
+        start
+    }
+
     /// Number of registers that can be allocated without exceeding the `max` register index.
     fn available_registers(&self, max: usize) -> usize {
         let reusable = self.deallocated_registers.len();
@@ -561,6 +639,15 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         let layout = self.registers().layout();
         let new_registers = Registers::from_preallocated_registers(allocated_registers, layout);
         self.registers = Rc::new(RefCell::new(new_registers));
+    }
+
+    /// Allocates `count` consecutive registers, guaranteed to be contiguous in memory.
+    /// Returns `None` if there isn't enough room.
+    pub(crate) fn allocate_consecutive_registers(
+        &self,
+        count: usize,
+    ) -> Option<Vec<MemoryAddress>> {
+        self.registers_mut().allocate_consecutive_registers(count)
     }
 
     /// Allocates an unused register.
