@@ -1472,6 +1472,131 @@ mod unified_fallback_with_both_markers {
     }
 }
 
+// ============================================================================
+// "Replace a field with `()` to skip it" — a portable forward-compat tool.
+//
+// The wrapper's `deserialize_unit` consumes whatever single msgpack value
+// sits at this position (not just `nil`), so a sibling DTO can share the
+// tag layout of the producer's type but ignore a slice of the payload by
+// retyping that field as `()`. The C++ side achieves the same with
+// `std::monostate`; the canonical Rust example is
+// `ProgramWithoutBrillig` in `acvm-repo/acir/src/lib.rs`, which reads
+// the ACIR `functions` field and discards `unconstrained_functions`.
+//
+// Tests below confirm both wire shapes (Tagged + Array) and all three
+// product-shaped decode sites (named struct, tuple struct, struct
+// variant) honor the `()` skip.
+// ============================================================================
+
+/// Named struct: the producer's middle field carries a `Vec<u8>` of
+/// arbitrary content; the consumer keeps the surrounding fields at the
+/// same tags but retypes the middle as `()`. Decode should swallow the
+/// wire bytes silently and yield the unit value.
+mod named_struct_middle_field_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooFull {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: Vec<u8>,
+        #[tag(2)]
+        c: bool,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooSkipMiddle {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: (),
+        #[tag(2)]
+        c: bool,
+    }
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn middle_field_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull { a: 7, b: vec![1, 2, 3, 4, 5], c: true };
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` field");
+        assert_eq!(skipped, FooSkipMiddle { a: 7, b: (), c: true });
+    }
+}
+
+/// Tuple struct: same idea, addressed positionally. The middle position
+/// carries a nested struct in the producer; the consumer retypes it to
+/// `()`. The merged-layout decode path under Array still aligns the
+/// surrounding active positions correctly because the `()` slot consumes
+/// exactly one msgpack value.
+mod tuple_struct_middle_position_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooFull(#[tag(0)] u32, #[tag(1)] Pair, #[tag(2)] bool);
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooSkipMiddle(#[tag(0)] u32, #[tag(1)] (), #[tag(2)] bool);
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn middle_position_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull(7, Pair { first: 99, second: false }, true);
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` position");
+        assert_eq!(skipped, FooSkipMiddle(7, (), true));
+    }
+}
+
+/// Struct-variant payload: the same `()`-as-skip technique applied
+/// inside an enum payload. The variant-tag dispatch is unchanged; only
+/// the variant's inner field gets retyped.
+mod struct_variant_payload_field_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooFull {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: Vec<u8>,
+            #[tag(2)]
+            c: bool,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooSkipMiddle {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: (),
+            #[tag(2)]
+            c: bool,
+        },
+    }
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn variant_payload_middle_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull::Carry { a: 7, b: vec![1, 2, 3, 4, 5], c: true };
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` payload field");
+        assert_eq!(skipped, FooSkipMiddle::Carry { a: 7, b: (), c: true });
+    }
+}
+
 /// Trailing-reserved Array bridge: V1 had three fields; V2 retired the
 /// last one (so `reserved(2)` is strictly greater than all of V2's
 /// active tags); V3 adds a new field at a tag higher than the reserved

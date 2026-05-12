@@ -228,7 +228,26 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
     }
 
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_unit(visitor)
+        // Lenient on purpose: consume whatever single msgpack value sits at
+        // this position and hand `()` to the visitor. Plain serde requires
+        // the wire to carry `nil` to satisfy a `()` field; our wrapper
+        // relaxes that so a `()` field can act as a portable "skip this
+        // position" placeholder.
+        //
+        // Use case: a stripped-down DTO that wants to ignore part of the
+        // wire while keeping the surrounding tag layout intact. The
+        // canonical example is `ProgramWithoutBrillig` in
+        // `acvm-repo/acir/src/lib.rs` — same tag layout as `Program`,
+        // but `unconstrained_functions: ()` discards the brillig payload
+        // so the C++ codegen consumer can read just the ACIR section.
+        // The C++ side achieves the same effect with `std::monostate`;
+        // this hook keeps Rust-side decoding symmetric.
+        //
+        // Unit-variant payloads (encoded as a literal `nil`) flow through
+        // here too and still work — `IgnoredAny` reads the nil byte and
+        // we visit `()` exactly as before.
+        de::IgnoredAny::deserialize(&mut *self)?;
+        visitor.visit_unit()
     }
 
     fn deserialize_unit_struct<V: Visitor<'de>>(
