@@ -370,10 +370,14 @@ pub fn validate_witness<F: AcirField>(
                 solver.check_memory_op(op, &witness_map, opcode_index)?;
             }
             Opcode::MemoryInit { block_id, init, .. } => {
-                MemoryOpSolver::new(init, &witness_map).map(|solver| {
-                    let existing_block_id = block_solvers.insert(*block_id, solver);
-                    assert!(existing_block_id.is_none(), "Memory block already initialized");
-                })?;
+                let solver = MemoryOpSolver::new(init, &witness_map)?;
+                let existing_block_id = block_solvers.insert(*block_id, solver);
+                if existing_block_id.is_some() {
+                    return Err(unsatisfied_constraint(
+                        opcode_index,
+                        format!("Memory block already initialized for block {:?}", *block_id,),
+                    ));
+                }
             }
             // BrilligCall is unconstrained
             Opcode::BrilligCall { .. } => (),
@@ -864,5 +868,30 @@ mod tests {
 
         let backend = Bn254BlackBoxSolver;
         assert!(validate_witness(&backend, witness_map, &circuit).is_ok());
+    }
+
+    #[test]
+    fn error_on_memory_init_duplicate_block_id() {
+        use acir::circuit::opcodes::BlockId;
+
+        let block_id = BlockId(0);
+
+        let circuit = make_circuit(vec![
+            Opcode::MemoryInit {
+                block_id,
+                init: vec![],
+                block_type: acir::circuit::opcodes::BlockType::Memory,
+            },
+            Opcode::MemoryInit {
+                block_id,
+                init: vec![],
+                block_type: acir::circuit::opcodes::BlockType::Memory,
+            },
+        ]);
+
+        let witness_map = WitnessMap::default();
+        let backend = Bn254BlackBoxSolver;
+
+        assert!(validate_witness(&backend, witness_map, &circuit).is_err());
     }
 }
