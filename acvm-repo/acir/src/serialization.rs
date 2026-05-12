@@ -1,6 +1,5 @@
 //! Serialization formats we consider using for the bytecode and the witness stack.
 
-use acir_field::FieldElement;
 use msgpack_tagged::{
     EncodingStrategy, MsgpackTagged, Serializer as TaggedSerializer, TagRegistry,
     msgpack_tagged_deserialize,
@@ -9,8 +8,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum_macros::EnumString;
-
-use crate::circuit::{Circuit, Program, brillig::BrilligBytecode};
 
 const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
@@ -125,40 +122,30 @@ where
 /// `EncodingStrategy::Array` (the compact positional shape), and the
 /// top-level container types (`Program`, `Circuit`, `BrilligBytecode`)
 /// flip to `EncodingStrategy::Tagged` so they stay schema-evolvable. The
-/// overrides are passed with `must_exist = false`, so the same call
-/// works when `value` doesn't reach any of those containers (e.g. a
-/// `WitnessMap` or a bare leaf type) — unreachable names get a stray
-/// override entry that's never looked up at encode time.
+/// overrides use `with_strategy_for_name`, which never asserts on a
+/// registry miss — so the same call works when `value` doesn't reach
+/// any of those containers (e.g. a `WitnessMap` or a bare leaf type):
+/// unreachable names get a stray override entry that's never looked up
+/// at encode time.
 ///
-/// The strategy override is keyed by the type's **serde name**, not its
-/// `TypeId`, so it doesn't matter which field flavor (`FieldElement`,
-/// `GenericFieldElement<X>`, …) the caller is using — every
-/// `Program<_>` shares the name "Program" and resolves to the same
-/// override. The same name-based lookup is what makes the
-/// `Circuit`/`CircuitWire` shadow-DTO pattern transparent here:
-/// CircuitWire registers under "Circuit" via `#[serde(rename = "Circuit")]`
-/// and the override fires on it.
+/// Targeting types by *serde name* rather than Rust type matches the
+/// wire identity directly: it doesn't matter which field flavor
+/// (`FieldElement`, `GenericFieldElement<X>`, …) the caller is using —
+/// every `Program<_>` registers as `"Program"`. The shadow-DTO pattern
+/// (`Circuit<F>` delegates to `CircuitWire<F>` which registers under
+/// `"Circuit"` via `#[serde(rename = "Circuit")]`) is likewise
+/// transparent here.
 pub(crate) fn msgpack_tagged_serialize_acir<T>(value: &T) -> std::io::Result<Vec<u8>>
 where
     T: ?Sized + Serialize + MsgpackTagged,
 {
-    /// Field flavor used at the policy site to look up strategy overrides
-    /// for the generic ACIR containers (`Program<F>`, `Circuit<F>`,
-    /// `BrilligBytecode<F>`). The actual `F` here doesn't matter — the
-    /// override is matched by serde name via [`type_name_basename`], which
-    /// strips the generic parameter. Pinning it to `FieldElement` just
-    /// satisfies the `T: MsgpackTagged` bound on `with_strategy::<T>`.
-    ///
-    /// [`type_name_basename`]: msgpack_tagged::type_name_basename
-    type AcirF = FieldElement;
-
     let registry = TagRegistry::from_type::<T>();
     let mut buf = Vec::new();
     let mut serializer = TaggedSerializer::new(&mut buf, &registry)
         .with_default_strategy(EncodingStrategy::Array)
-        .with_strategy::<Program<AcirF>>(EncodingStrategy::Tagged, false)
-        .with_strategy::<Circuit<AcirF>>(EncodingStrategy::Tagged, false)
-        .with_strategy::<BrilligBytecode<AcirF>>(EncodingStrategy::Tagged, false);
+        .with_strategy_for_name("Program", EncodingStrategy::Tagged)
+        .with_strategy_for_name("Circuit", EncodingStrategy::Tagged)
+        .with_strategy_for_name("BrilligBytecode", EncodingStrategy::Tagged);
     value.serialize(&mut serializer).map_err(std::io::Error::other)?;
     Ok(buf)
 }
