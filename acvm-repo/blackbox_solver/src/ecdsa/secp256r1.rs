@@ -26,7 +26,7 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function do not validate a signature if one of the following is true:
+/// The function does not validate a signature if any of the following are true:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
 /// - The signature components `r` and `s` is zero
 /// - The public key point is not on the Secp256r1 curve
