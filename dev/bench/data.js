@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778581273571,
+  "lastUpdate": 1778581276731,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14857,95 +14857,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f12f11484abc1a1a92cef8356a8e34d470cbf77a",
-          "message": "chore(deps): bump strum from 0.26.3 to 0.28.0 (#12543)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-05-05T14:53:00Z",
-          "tree_id": "599d283e57a3d5721864d52acf8b0240d2f1f8dd",
-          "url": "https://github.com/noir-lang/noir/commit/f12f11484abc1a1a92cef8356a8e34d470cbf77a"
-        },
-        "date": 1777995501756,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 282.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 307.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 356.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 465.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 475.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.36,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 77.17,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 74.99,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -19230,6 +19141,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6750bf074f2bd2f3ec3e862473c0c5213128b11e"
         },
         "date": 1778580823402,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 283.95,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 308.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 279.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 357.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 357.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1290,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 357.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 464.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 475.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 357.14,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 78.36,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 74.54,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b66821b722f16d10a0edf22b51a9c26f2a0bb6dd",
+          "message": "chore(deps): bump afl from 0.18.1 to 0.18.2 (#12624)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-05-12T09:32:18Z",
+          "tree_id": "127fc3f1672665af61177a51e0dc1bf8d8f462b2",
+          "url": "https://github.com/noir-lang/noir/commit/b66821b722f16d10a0edf22b51a9c26f2a0bb6dd"
+        },
+        "date": 1778581214093,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
