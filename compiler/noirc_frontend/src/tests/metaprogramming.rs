@@ -658,6 +658,52 @@ fn attributes_run_in_textual_order_within_module() {
 }
 
 #[test]
+fn impl_method_and_free_function_attributes_run_in_source_order() {
+    let src = r#"
+        comptime mut global counter: Field = 0;
+
+        #[assert_source_order(0)]
+        fn first_free() {}
+
+        pub struct S {}
+
+        impl S {
+            #[assert_source_order(1)]
+            fn m1() {}
+
+            #[assert_source_order(2)]
+            fn m2() {}
+        }
+
+        #[assert_source_order(3)]
+        fn middle_free() {}
+
+        impl S {
+            #[assert_source_order(4)]
+            fn m3() {}
+        }
+
+        #[assert_source_order(5)]
+        fn last_free() {}
+
+        comptime fn assert_source_order(_: FunctionDefinition, expected: Field) {
+            assert(counter == expected);
+            counter += 1;
+        }
+
+        fn main() {
+            let _ = first_free();
+            let _ = S::m1();
+            let _ = S::m2();
+            let _ = middle_free();
+            let _ = S::m3();
+            let _ = last_free();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn sibling_modules_run_in_textual_order() {
     let src = r#"
           comptime mut global counter: Field = 0;
