@@ -66,6 +66,34 @@ impl Quadruple for u64 {
     }
 }
 
+// Two inherent impls of `new` on different structs. Their entries should be qualified by
+// the receiver type so they don't collide on the bare name `new`.
+pub struct First {
+    value: u32,
+}
+
+impl First {
+    pub fn new(value: u32) -> Self {
+        Self { value }
+    }
+}
+
+pub struct Second {
+    value: u32,
+}
+
+impl Second {
+    pub fn new(value: u32) -> Self {
+        Self { value }
+    }
+}
+
+#[test]
+fn test_inherent_news() {
+    let _ = First::new(1);
+    let _ = Second::new(2);
+}
+
 #[test]
 fn test_double() {
     assert_eq(double(3), 6);
