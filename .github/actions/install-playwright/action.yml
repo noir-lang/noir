@@ -21,11 +21,6 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
 
-    - name: Install Playwright browsers
-      if: steps.playwright-cache.outputs.cache-hit != 'true'
+    - name: Install Playwright browsers and system dependencies
       shell: bash
-      run: npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
-
-    - name: Install Playwright system dependencies
-      shell: bash
-      run: npx -y playwright@${{ inputs.playwright-version }} install-deps ${{ inputs.browsers }}
+      run: npx -y playwright@${{ inputs.playwright-version }} install --with-deps ${{ inputs.browsers }}
