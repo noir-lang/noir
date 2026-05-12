@@ -126,7 +126,17 @@ impl Interpreter<'_, '_> {
             "expr_is_break" => expr_is_break(interner, arguments, location),
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
-            "is_unconstrained" => Ok(Value::Bool(self.in_unconstrained)),
+            "is_unconstrained" => {
+                // When in coverage mode, have the comptime interpreter treat `is_unconstrained` the same
+                // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
+                // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
+                // if it's slower so more code is covered by tests.
+                if self.elaborator.evaluation_tracker.is_some() {
+                    Ok(Value::Bool(self.in_unconstrained))
+                } else {
+                    Ok(Value::Bool(true))
+                }
+            }
             "field_less_than" => field_less_than(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),

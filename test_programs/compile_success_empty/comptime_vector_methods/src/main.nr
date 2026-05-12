@@ -1,5 +1,8 @@
 fn main() {
     comptime {
+        // Comptime scopes are counted as unconstrained
+        assert(std::runtime::is_unconstrained());
+
         let vector = [2].as_vector();
         let vector = vector.push_back(3);
         let vector = vector.push_front(1);
