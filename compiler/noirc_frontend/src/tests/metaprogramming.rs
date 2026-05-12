@@ -190,6 +190,50 @@ fn generate_function_with_macros() {
     ");
 }
 
+// Regression for #11880: comptime attributes on impl methods used to be silently ignored.
+#[test]
+fn generate_function_with_macros_on_impl_method() {
+    let src = "
+    pub struct Spam {}
+
+    impl Spam {
+        #[foo]
+        pub fn struct_method() {}
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ";
+
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Spam {
+    }
+
+    impl Spam {
+        pub fn struct_method() {
+        }
+
+        pub fn bar(x: i32) -> i32 {
+            x + 1_i32
+        }
+    }
+
+    pub comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar(x: i32) -> i32 {
+                x + 1
+            }
+        }
+    }
+    ");
+}
+
 #[test]
 fn generate_function_with_macros_on_trait() {
     let src = "
