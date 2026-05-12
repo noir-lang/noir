@@ -1446,3 +1446,266 @@ mod fallback_variant_round_trip {
         assert_roundtrip(WithFallback::Known);
     }
 }
+
+// ============================================================================
+// `EncodingStrategy::Array` — decoder dispatches on the peeked wire shape
+// (`fixmap` → Tagged path, `fixarray` → new positional Array path).
+// Round-trip tests for each product-shaped decode site, plus a cross-
+// strategy test that proves both shapes coexist in a single buffer.
+// ============================================================================
+
+mod array_strategy {
+    use super::*;
+    use msgpack_tagged::{EncodingStrategy, Serializer, TagRegistry};
+    use serde::Serialize as _;
+
+    /// Encode `value` using `Serializer::with_default_strategy(Array)` so
+    /// every product on the wire takes the Array shape. Cross-strategy
+    /// tests below tweak this to mix shapes.
+    fn encode_all_array<T>(value: &T) -> Vec<u8>
+    where
+        T: ?Sized + serde::Serialize + MsgpackTagged,
+    {
+        let registry = TagRegistry::from_type::<T>();
+        let mut buf = Vec::new();
+        let mut s =
+            Serializer::new(&mut buf, &registry).with_default_strategy(EncodingStrategy::Array);
+        value.serialize(&mut s).expect("serialize succeeds");
+        buf
+    }
+
+    /// Round-trip a value through the Array encoder + the
+    /// shape-peeking decoder. The decoder doesn't need to know which
+    /// strategy produced the bytes — it inspects the marker.
+    fn assert_array_roundtrip<T>(value: T)
+    where
+        T: serde::Serialize
+            + serde::de::DeserializeOwned
+            + MsgpackTagged
+            + PartialEq
+            + std::fmt::Debug,
+    {
+        let bytes = encode_all_array(&value);
+        let decoded: T = msgpack_tagged_deserialize(&bytes).expect("decode Array");
+        assert_eq!(decoded, value);
+    }
+
+    /// Named struct: `Pair { first: u32, second: bool }`. Encodes as
+    /// `[first, second]` under Array, decodes back into the same value.
+    #[test]
+    fn named_struct_array_roundtrips() {
+        assert_array_roundtrip(Pair { first: 7, second: true });
+    }
+
+    /// Tuple struct: encodes as `[a, b, c]`, decodes positionally. The
+    /// existing `PositionalTriple` fixture has implicit tags 0,1,2 so
+    /// source order = tag order here — the simple case.
+    #[test]
+    fn tuple_struct_array_roundtrips() {
+        assert_array_roundtrip(PositionalTriple(7, true, 9));
+    }
+
+    // Note: a `tuple_struct_with_reordered_tags_array_roundtrips` test
+    // would require the encoder to emit fields in tag-ascending order
+    // under Array, but `TaggedSerializeProduct::serialize_tagged`
+    // currently writes in serde's call-order = source order. The
+    // decoder (this side) already reads positionally with tags
+    // synthesized from `product.fields` in tag-ascending order, so
+    // round-trip would only succeed when source order *is* tag order —
+    // which `ReorderedTriple` deliberately breaks. Tracked by the
+    // existing `TODO: emit entries in tag-ascending order per the design
+    // doc` in the serializer; the round-trip test will land alongside
+    // that fix.
+
+    /// Tuple variant payload: outer `{variant_tag: payload}` stays a
+    /// 1-entry int-keyed map (the discriminator), but the *payload*
+    /// flips to a positional array under Array strategy. Round-trip
+    /// covers both the encode-time payload shape and the decoder's
+    /// shape-peek on the payload.
+    #[test]
+    fn tuple_variant_payload_array_roundtrips() {
+        assert_array_roundtrip(Mixed::Pair(7, true));
+    }
+
+    /// Struct variant payload follows the same rule — payload is an
+    /// `[a, b]` array under Array strategy.
+    #[test]
+    fn struct_variant_payload_array_roundtrips() {
+        assert_array_roundtrip(Mixed::Named { a: 99, b: false });
+    }
+
+    /// Unit / newtype variants don't have a Product payload, so the
+    /// strategy doesn't affect their wire shape. Including them here
+    /// just verifies the round-trip isn't accidentally broken by the
+    /// new decoder dispatch.
+    #[test]
+    fn unit_and_newtype_variants_unaffected_by_array_default() {
+        assert_array_roundtrip(Mixed::Empty);
+        assert_array_roundtrip(Mixed::Wrap(42));
+    }
+
+    /// Cross-strategy: encode `Outer { nested: Pair, flag }` with the
+    /// default Tagged but force `Outer` to Array. The wire has an Array
+    /// `Outer` containing a Tagged `Pair`. The shape-peek dispatches
+    /// per-struct so both decode correctly through the same buffer.
+    #[test]
+    fn outer_array_with_inner_tagged_roundtrips() {
+        let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+        let registry = TagRegistry::from_type::<Outer>();
+        let mut buf = Vec::new();
+        let mut s =
+            Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+        value.serialize(&mut s).expect("encode succeeds");
+        drop(s);
+        let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");
+        assert_eq!(decoded, value);
+    }
+
+    /// Symmetric: encode `Outer` as Tagged but force the inner `Pair`
+    /// to Array. The wire has a Tagged `Outer` containing an Array
+    /// `Pair`. Again the shape-peek does its job per-struct.
+    #[test]
+    fn outer_tagged_with_inner_array_roundtrips() {
+        let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+        let registry = TagRegistry::from_type::<Outer>();
+        let mut buf = Vec::new();
+        let mut s =
+            Serializer::new(&mut buf, &registry).with_strategy::<Pair>(EncodingStrategy::Array);
+        value.serialize(&mut s).expect("encode succeeds");
+        drop(s);
+        let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");
+        assert_eq!(decoded, value);
+    }
+
+    /// Nested tuple variant payload with a tagged inner element — the
+    /// payload-shape dispatch composes correctly with the existing
+    /// nested-tagged-recursion path.
+    #[test]
+    fn tuple_variant_with_nested_tagged_array_roundtrips() {
+        assert_array_roundtrip(TupleVariantWithNested::Carry(Pair { first: 1, second: false }, 5));
+    }
+
+    #[test]
+    fn struct_variant_with_nested_tagged_array_roundtrips() {
+        assert_array_roundtrip(StructVariantWithNested::Carry {
+            inner: Pair { first: 2, second: true },
+            count: 9,
+        });
+    }
+}
+
+// ============================================================================
+// Negative tests for the Array decoder — malformed shapes, gross overflows.
+// ============================================================================
+
+mod array_decode_errors {
+    use super::*;
+    use msgpack_tagged::{EncodingStrategy, Serializer, TagRegistry};
+    use serde::Serialize as _;
+
+    /// Anything that isn't a `fixmap` or `fixarray` at a struct-shaped
+    /// decode site is a malformed-bytes error. Hand-build a buffer
+    /// starting with a primitive marker (`u8 fixint`) to trigger the
+    /// "expected fixmap or fixarray" rejection cleanly.
+    #[test]
+    fn unexpected_marker_at_struct_site_errors() {
+        // Single fixint byte — not a map or array header. `Pair` decode
+        // should reject with the shape-peek error.
+        let bytes: [u8; 1] = [0x07];
+        let err = msgpack_tagged_deserialize::<Pair>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("expected fixmap or fixarray"), "got: {msg}",);
+    }
+
+    /// Array wire longer than the type's arity, without
+    /// `allow_unknown_tags`: rejected with a clear cap-overflow error.
+    /// Hand-build a 3-element fixarray to feed into a 2-field `Pair`.
+    #[test]
+    fn struct_array_overflow_without_allow_unknown_tags_errors() {
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 3).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        rmp::encode::write_bool(&mut bytes, true).unwrap();
+        rmp::encode::write_uint(&mut bytes, 99).unwrap(); // extra
+        let err = msgpack_tagged_deserialize::<Pair>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("3 positional entries") && msg.contains("at most 2"), "got: {msg}",);
+    }
+
+    /// And with `allow_unknown_tags` on, the same overflow round-trips
+    /// (the extra entries are drained silently).
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[tagged(allow_unknown_tags)]
+    struct LenientPair {
+        #[tag(2)]
+        first: u32,
+        #[tag(5)]
+        second: bool,
+    }
+
+    #[test]
+    fn struct_array_overflow_with_allow_unknown_tags_drains_extras() {
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 3).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        rmp::encode::write_bool(&mut bytes, true).unwrap();
+        rmp::encode::write_uint(&mut bytes, 99).unwrap();
+        let decoded: LenientPair =
+            msgpack_tagged_deserialize(&bytes).expect("lenient decode succeeds");
+        assert_eq!(decoded, LenientPair { first: 7, second: true });
+    }
+
+    /// Short wire under Array strategy works via `#[serde(default)]` on
+    /// the missing trailing position — the decoder yields `Ok(None)`
+    /// and serde-derive fills the default.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug, Default)]
+    struct WithDefaultTrailing {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        #[serde(default)]
+        b: Vec<u8>,
+    }
+
+    #[test]
+    fn struct_array_short_wire_uses_serde_default() {
+        // 1-element fixarray — should fill `b` with `Vec::default()`.
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 1).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        let decoded: WithDefaultTrailing =
+            msgpack_tagged_deserialize(&bytes).expect("short-wire decode");
+        assert_eq!(decoded, WithDefaultTrailing { a: 7, b: Vec::default() });
+    }
+
+    /// Sanity: same buffer encoded under Tagged decodes the same way.
+    /// Locks in that the shape-peek doesn't accidentally route Tagged
+    /// data through the Array path or vice versa.
+    #[test]
+    fn tagged_encode_array_encode_decode_to_same_value() {
+        let value = Pair { first: 7, second: true };
+        let registry = TagRegistry::from_type::<Pair>();
+
+        // Tagged encode.
+        let mut tagged_buf = Vec::new();
+        let mut s = Serializer::new(&mut tagged_buf, &registry)
+            .with_default_strategy(EncodingStrategy::Tagged);
+        value.serialize(&mut s).unwrap();
+        drop(s);
+
+        // Array encode.
+        let mut array_buf = Vec::new();
+        let mut s = Serializer::new(&mut array_buf, &registry)
+            .with_default_strategy(EncodingStrategy::Array);
+        value.serialize(&mut s).unwrap();
+        drop(s);
+
+        // Different bytes…
+        assert_ne!(tagged_buf, array_buf);
+        // …same decoded value.
+        let from_tagged: Pair = msgpack_tagged_deserialize(&tagged_buf).unwrap();
+        let from_array: Pair = msgpack_tagged_deserialize(&array_buf).unwrap();
+        assert_eq!(from_tagged, from_array);
+        assert_eq!(from_tagged, value);
+    }
+}
