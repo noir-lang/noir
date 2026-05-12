@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778581276731,
+  "lastUpdate": 1778586432966,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e0b2c541ef3e9ddbdca7930f8e158e4d22abe91a",
-          "message": "fix(ast_fuzzer): decode raw assertion payload as string when selector is unmapped (#12536)",
-          "timestamp": "2026-05-05T16:03:12Z",
-          "tree_id": "8f9ebc1150e1afcbca6cc8d0cbc0804c7d7e7408",
-          "url": "https://github.com/noir-lang/noir/commit/e0b2c541ef3e9ddbdca7930f8e158e4d22abe91a"
-        },
-        "date": 1777998648104,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166614,
-            "range": "± 1345",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 143905,
-            "range": "± 2588",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2127382,
-            "range": "± 2618",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652275,
             "range": "± 2209",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3d0f03dc29f29832597dbbb6d177b652f15b4bb5",
+          "message": "chore!: remove bytes32_to_field from stdlib (#12619)",
+          "timestamp": "2026-05-12T11:16:06Z",
+          "tree_id": "a90a02eb8019ab5e99f8938f9c7d0669e2a5994e",
+          "url": "https://github.com/noir-lang/noir/commit/3d0f03dc29f29832597dbbb6d177b652f15b4bb5"
+        },
+        "date": 1778586363602,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166591,
+            "range": "± 1000",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136995,
+            "range": "± 1678",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2120842,
+            "range": "± 15491",
             "unit": "ns/iter"
           }
         ]
