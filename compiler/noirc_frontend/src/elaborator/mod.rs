@@ -526,6 +526,9 @@ impl<'context> Elaborator<'context> {
             self.define_type_alias(alias_id, alias);
         }
 
+        // Check for type aliases cycles
+        self.push_errors(self.interner.check_for_dependency_cycles());
+
         // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
         self.collect_enum_definitions(&items.enums);
