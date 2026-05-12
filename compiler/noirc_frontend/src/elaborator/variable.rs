@@ -204,7 +204,8 @@ impl Elaborator<'_> {
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
                 let impl_generics =
                     vecmap(&func_meta.all_generics[..impl_generic_count], |g| g.type_var.clone());
-                let self_type = func_meta.self_type.clone();
+                let self_type =
+                    func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
 
                 // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
                 // impl generics differs from the number of struct generics. The turbofish
