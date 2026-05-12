@@ -347,7 +347,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let index_variable = self.convert_ssa_single_addr_value(index, dfg);
 
         // Constants are assumed to have been offset just before Brillig gen.
-        let has_offset = dfg.get_numeric_constant(index).is_some();
+        let has_offset = dfg.brillig_arrays_offset && dfg.get_numeric_constant(index).is_some();
 
         self.convert_ssa_array_get(
             array_variable,
@@ -374,7 +374,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let destination_variable = self.define_variable(result_id, dfg);
 
         // Constants are assumed to have been offset just before Brillig gen.
-        let has_offset = dfg.get_numeric_constant(index).is_some();
+        let has_offset = dfg.brillig_arrays_offset && dfg.get_numeric_constant(index).is_some();
 
         self.convert_ssa_array_set(
             source_variable,

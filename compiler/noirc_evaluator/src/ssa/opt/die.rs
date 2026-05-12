@@ -24,22 +24,25 @@
 //!     As the SSA flattens all tuples, unused accesses on composite arrays can lead to potentially
 //!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
 //!     and only insert a single OOB check for an array get group.
-//!   - In single-block ACIR functions, all [Store][Instruction::Store] instructions to unused addresses are removed.
 //!   - Instructions that create the value which is returned in the databus (if present) is not removed.
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
-//!   - [Store][Instruction::Store] instructions are removed only when the address is a
-//!     locally-allocated reference (from [Allocate][Instruction::Allocate]) with no remaining uses.
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
+//!
+//! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
+//! Deciding when a store is dead requires reasoning about reference aliasing, which the
+//! reverse traversal cannot do soundly: an earlier instruction such as [IfElse][Instruction::IfElse],
+//! [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or a call returning a
+//! reference argument may produce a value that aliases the address, and reads through that alias
+//! sit later in source order. Mem2reg, which has a proper alias-tracking model, is responsible
+//! for removing dead stores.
 //!
 //! ## Preconditions
 //! - Must be run on the full [Ssa], not individual [Function]s, to avoid dangling
 //!   parameter references from dead parameter pruning.
 //!
 //! ## Post-conditions
-//! - In single-block ACIR functions, no [Load][Instruction::Load] or
-//!   [Store][Instruction::Store] instructions should remain.
 //! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
 use acvm::{AcirField, FieldElement};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -115,18 +118,6 @@ impl Ssa {
 
         (self, result)
     }
-
-    /// Sanity check on the final SSA, panicking if the assumptions don't hold.
-    ///
-    /// Done as a separate step so that we can put it after other passes which provide
-    /// concrete feedback about where the problem with the Noir code might be, such as
-    /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
-    /// of the offending instruction here as well, it's just not clear what error message
-    /// to return, besides the fact that mem2reg was unable to eliminate something.
-    pub(crate) fn dead_instruction_elimination_post_check(&self) {
-        #[cfg(debug_assertions)]
-        self.functions.values().for_each(die_post_check);
-    }
 }
 
 impl Function {
@@ -151,7 +142,7 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context::new(self.reachable_blocks().len() == 1);
+        let mut context = Context::new();
 
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -211,9 +202,6 @@ struct Context {
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 
-    /// Whether the function has exactly one reachable block.
-    is_single_block: bool,
-
     /// A per-block list indicating which block parameters are still considered alive.
     ///
     /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
@@ -227,12 +215,11 @@ struct Context {
 }
 
 impl Context {
-    fn new(is_single_block: bool) -> Self {
+    fn new() -> Self {
         Self {
             used_values: HashSet::default(),
             instructions_to_remove: HashSet::default(),
             rc_instructions: Vec::new(),
-            is_single_block,
             parameter_keep_list: HashMap::default(),
         }
     }
@@ -334,11 +321,10 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block)
-            && {
-                let results = function.dfg.instruction_results(instruction_id);
-                results.iter().all(|result| !self.used_values.contains(result))
-            }
+        can_be_eliminated_if_unused(instruction, function, &self.used_values) && {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
+        }
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -441,7 +427,6 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     used_values: &HashSet<ValueId>,
-    is_single_block: bool,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -488,18 +473,8 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { address, .. } => {
-            // A store is dead when:
-            // - The function is single-block (so reverse traversal guarantees
-            //   `used_values` is complete — no back-edge ordering issues).
-            // - The address is a local allocation (so no caller can observe it).
-            // - The address has no remaining uses (no loads, no escapes).
-            is_single_block
-                && is_local_allocate(&function.dfg, *address)
-                && !used_values.contains(address)
-        }
-
-        Constrain(..)
+        Store { .. }
+        | Constrain(..)
         | ConstrainNotEqual(..)
         | EnableSideEffectsIf { .. }
         | IncrementRc { .. }
@@ -529,58 +504,11 @@ fn can_be_eliminated_if_unused(
     }
 }
 
-/// Returns true if all stores in this function must have been removed by DIE.
-///
-/// This is a post-condition for single-block ACIR functions: after mem2reg and
-/// CFG flattening, every load should already be unused and every store to an
-/// unused address is dead.
-#[cfg(debug_assertions)]
-fn must_remove_all_stores(func: &Function) -> bool {
-    func.runtime().is_acir() && func.reachable_blocks().len() == 1
-}
-
-/// Returns true if `address` is the result of an `Allocate` instruction in this function.
-/// A store to a local allocation whose address has no remaining uses (loads, calls, arrays,
-/// returns) is provably dead and safe to remove even in Brillig.
-fn is_local_allocate(dfg: &DataFlowGraph, address: ValueId) -> bool {
-    if let Value::Instruction { instruction, .. } = &dfg[address] {
-        matches!(&dfg[*instruction], Instruction::Allocate)
-    } else {
-        false
-    }
-}
-
-/// Check post-execution properties:
-/// * In single-block ACIR functions, all Store and Load instructions must be removed.
-#[cfg(debug_assertions)]
-fn die_post_check(func: &Function) {
-    if must_remove_all_stores(func) {
-        super::checks::for_each_instruction(func, |instruction, _dfg| {
-            super::checks::assert_not_load_or_store(instruction);
-        });
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use acvm::acir::brillig::lengths::SemanticLength;
-    use im::vector;
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            function_builder::FunctionBuilder,
-            ir::{
-                function::RuntimeType,
-                map::Id,
-                types::{NumericType, Type},
-            },
-            opt::assert_ssa_does_not_change,
-        },
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
     use test_case::test_case;
 
@@ -685,55 +613,25 @@ mod tests {
 
     #[test]
     fn keep_inc_rc_on_borrowed_array_store() {
-        // brillig(inline) fn main f0 {
-        //     b0():
-        //       v1 = make_array [u32 0, u32 0]
-        //       v2 = allocate
-        //       inc_rc v1
-        //       store v1 at v2
-        //       inc_rc v1
-        //       jmp b1()
-        //     b1():
-        //       v3 = load v2
-        //       v5 = array_set v3, index u32 0, value u32 1
-        //       return v5
-        //   }
-        let main_id = Id::test_new(0);
-
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(32));
-        let array_type = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(2));
-        let v1 = builder.insert_make_array(vector![zero, zero], array_type.clone());
-        let v2 = builder.insert_allocate(array_type.clone());
-        builder.increment_array_reference_count(v1);
-        builder.insert_store(v2, v1);
-        builder.increment_array_reference_count(v1);
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![]);
-        builder.switch_to_block(b1);
-
-        let v3 = builder.insert_load(v2, array_type);
-        let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-        let mutable = false;
-        let v5 = builder.insert_array_set(v3, zero, one, mutable);
-        builder.terminate_with_return(vec![v5]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
-
-        // We expect the output to be unchanged
-        let ssa = ssa.dead_instruction_elimination();
-        let main = ssa.main();
-
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-        assert_eq!(main.dfg[b1].instructions().len(), 2);
+        // The two `inc_rc v1` instructions flank a `store v1 at v2` and so are not a
+        // removable paired pair: the store gives `v2` a borrow of `v1`, and the second
+        // `inc_rc` covers that borrow being read in the next block.
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 0, u32 0] : [u32; 2]
+                v2 = allocate -> &mut [u32; 2]
+                inc_rc v1
+                store v1 at v2
+                inc_rc v1
+                jmp b1()
+              b1():
+                v3 = load v2 -> [u32; 2]
+                v5 = array_set v3, index u32 0, value u32 1
+                return v5
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -884,8 +782,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
         let (ssa, _) = ssa.dead_instruction_elimination_inner();
 
-        // We expect the call to f1 in f0 to be removed, and the dead
-        // allocate+store in f1 to be removed (local alloc with no loads).
+        // The call to f1 in f0 is removed because f1 is pure. The body of f1 is
+        // left untouched: removing stores requires alias-aware reasoning that DIE does
+        // not perform — that cleanup is mem2reg's responsibility.
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -893,6 +792,8 @@ mod tests {
         }
         acir(inline) pure fn pure_basic f1 {
           b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
             return
         }
         "#);
@@ -1354,59 +1255,91 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
-    /// Regression test for #12010.
-    /// A store to a locally-allocated reference with no remaining loads
-    /// should be removed as dead, even in Brillig.
-    #[test]
-    fn dead_brillig_stores_removed_when_no_loads_remain() {
-        let src = "
-            brillig(inline) fn main f0 {
+    /// DIE leaves an `allocate; store; return` triple alone even though no other
+    /// instruction references the address: deciding when a store is dead requires
+    /// alias-aware reasoning that DIE does not perform, and dead-store removal is
+    /// mem2reg's responsibility.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn trivial_dead_stores_not_removed(runtime: &str) {
+        let src = format!(
+            "
+            {runtime}(inline) fn main f0 {{
               b0():
                 v0 = allocate -> &mut Field
                 store Field 0 at v0
                 return
-            }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
+            }}
+            "
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
 
-        assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn main f0 {
+    /// A store must stay when its address is passed to a call: the callee can read or
+    /// retain a reference that aliases the local allocation.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_if_address_escapes(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
               b0():
+                v0 = allocate -> &mut Field
+                store Field 42 at v0
+                v2 = call black_box(v0) -> &mut Field
+                return
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    /// Stores to a reference handed in as a function parameter must always be kept:
+    /// the address was not produced by a local `allocate`, so the caller can observe
+    /// the write even when the callee never loads from it.
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn does_not_remove_store_to_param_reference(runtime: &str) {
+        let src = format!(
+            r#"
+            {runtime}(inline) impure fn main f0 {{
+              b0(v0: &mut Field):
+                store Field 42 at v0
+                return
+            }}
+            "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::dead_instruction_elimination);
+    }
+
+    /// A store must stay when its address is aliased by a later read through an
+    /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
+    /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
+    /// stored to; removing the intervening `store at v0` would leave the load reading
+    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+    /// has not been visited when DIE inspects the store, which is the core reason DIE
+    /// cannot soundly remove stores in general.
+    #[test]
+    fn store_to_address_aliased_by_if_else_not_removed() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = allocate -> &mut u1
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v4 = call f1() -> u1
+                v5 = not v4
+                v6 = if v4 then v0 else (if v5) v1
+                store u1 1 at v0
+                v8 = load v6 -> u1
+                constrain v8 == u1 1
                 return
             }
-        ");
-    }
-
-    /// Stores to locally-allocated references must be kept if the address
-    /// escapes (e.g. passed to a call).
-    #[test]
-    fn does_not_remove_brillig_store_if_address_escapes() {
-        let src = r#"
-        brillig(inline) impure fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 42 at v0
-            v2 = call black_box(v0) -> &mut Field
-            return
-        }
-        "#;
-
-        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
-    }
-
-    /// Stores to non-local references (e.g. function parameters) must not
-    /// be removed, even when there are no loads in this function.
-    #[test]
-    fn does_not_remove_brillig_store_to_param_reference() {
-        let src = r#"
-        brillig(inline) impure fn main f0 {
-          b0(v0: &mut Field):
-            store Field 42 at v0
-            return
-        }
-        "#;
-
+            brillig(inline_never) predicate_pure fn returns_true f1 {
+              b0():
+                return u1 1
+            }
+            ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

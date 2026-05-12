@@ -143,13 +143,13 @@ impl Context<'_> {
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 *generated_pointer,
                 None,
             )?
@@ -157,13 +157,13 @@ impl Context<'_> {
             let code =
                 gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
                 self.current_side_effects_enabled_var,
                 &code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 generated_pointer,
                 None,
             )?;
