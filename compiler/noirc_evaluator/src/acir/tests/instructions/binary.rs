@@ -1,6 +1,15 @@
-use acvm::assert_circuit_snapshot;
+use acvm::{
+    FieldElement,
+    acir::native_types::{Witness, WitnessMap},
+    assert_circuit_snapshot,
+    pwg::{ACVMStatus, OpcodeResolutionError, ResolvedAssertionPayload},
+};
+use std::collections::BTreeMap;
 
-use crate::acir::tests::ssa_to_acir_program;
+use crate::{
+    acir::tests::{execute_ssa, ssa_to_acir_program},
+    ssa::{ir::instruction::ErrorType, ssa_gen::Ssa},
+};
 
 #[test]
 fn add_field() {
@@ -38,6 +47,39 @@ fn sub_field() {
     return values: [w2]
     ASSERT w2 = w0 - w1
     ");
+}
+
+#[test]
+fn checked_sub_error_takes_precedence_over_later_constant_array_oob() {
+    // Minimized from acir_vs_brillig seed 0x2854fcd100100000. Brillig traps on the
+    // checked subtraction before reaching the following OOB assertion, so ACIR must
+    // preserve the same observable failure.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = sub v0, v1
+        constrain v2 == u32 0, \"Index out of bounds\"
+        constrain Field 3702956107 == Field 0, \"Index out of bounds\"
+        unreachable
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let initial_witness = WitnessMap::from(BTreeMap::from([
+        (Witness(0), FieldElement::from(255_u32)),
+        (Witness(1), FieldElement::from(41210_u32)),
+    ]));
+
+    let (status, _) = execute_ssa(ssa, initial_witness, None);
+    let expected_selector =
+        ErrorType::String("attempt to subtract with overflow".to_string()).selector();
+    let ACVMStatus::Failure(OpcodeResolutionError::UnsatisfiedConstrain {
+        payload: Some(ResolvedAssertionPayload::Raw(payload)),
+        ..
+    }) = status
+    else {
+        panic!("expected raw subtract overflow assertion payload, got {status:?}");
+    };
+    assert_eq!(payload.selector, expected_selector);
 }
 
 #[test]

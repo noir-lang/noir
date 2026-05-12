@@ -781,7 +781,7 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, predicate)
+            self.check_unsigned_overflow(result, *bit_size, binary, lhs, rhs, predicate)
         } else {
             Ok(result)
         }
@@ -793,6 +793,8 @@ impl<'a> Context<'a> {
         result: AcirVar,
         bit_size: u32,
         binary: &Binary,
+        lhs: AcirVar,
+        rhs: AcirVar,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         let msg = match binary.operator {
@@ -801,6 +803,31 @@ impl<'a> Context<'a> {
             BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
             _ => return Ok(result),
         };
+
+        if matches!(binary.operator, BinaryOp::Sub { unchecked: false }) {
+            if let (Some(lhs), Some(rhs)) = (
+                self.acir_context
+                    .var_to_expression(lhs)?
+                    .to_const()
+                    .and_then(|value| value.try_into_u128()),
+                self.acir_context
+                    .var_to_expression(rhs)?
+                    .to_const()
+                    .and_then(|value| value.try_into_u128()),
+            ) {
+                if lhs < rhs {
+                    self.acir_context.assert_zero_var(predicate, msg.to_string())?;
+                    let zero = self.acir_context.add_constant(FieldElement::zero());
+                    return Ok(zero);
+                }
+                return Ok(result);
+            }
+
+            let underflow = self.acir_context.less_than_var(lhs, rhs, bit_size)?;
+            let predicated_underflow = self.acir_context.mul_var(underflow, predicate)?;
+            self.acir_context.assert_zero_var(predicated_underflow, msg.to_string())?;
+            return Ok(result);
+        }
 
         self.acir_context.range_constrain_var(result, bit_size, Some(msg.to_string()), predicate)
     }

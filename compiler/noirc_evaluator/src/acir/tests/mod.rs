@@ -458,8 +458,18 @@ pub(crate) fn execute_ssa(
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
     let blackbox_solver = StubbedBlackBoxSolver;
-    let mut acvm =
-        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
+    let assertion_payloads = main
+        .assertion_payloads
+        .iter()
+        .map(|(location, payload)| (*location, payload.clone()))
+        .collect::<Vec<_>>();
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        main.opcodes(),
+        initial_witness,
+        &brillig_functions,
+        &assertion_payloads,
+    );
     let status = acvm.solve();
     if status == ACVMStatus::Solved {
         (status, output.map(|o| acvm.witness_map()[o]))
