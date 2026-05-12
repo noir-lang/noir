@@ -389,17 +389,31 @@ impl<'a, W: Write> Serializer<'a, W> {
     /// choice).
     ///
     /// **Buffering policy.** Per-field bytes are buffered into the
-    /// adapter and flushed in tag-ascending order at `end()` only when
-    /// the strategy is `Array` *and* the type's source-declaration order
-    /// is *not* already tag-ascending (i.e.
-    /// `!product.tag_order_matches_source`) — the case where the wire
-    /// shape we'd get from streaming serde's call order directly is
-    /// wrong. In every other case — `Tagged` with any order, or `Array`
-    /// with already-monotonic tags — we write the outer header upfront
-    /// and stream values directly to the parent, saving the per-field
-    /// `Vec<u8>` allocation. Under `Tagged` this gives up canonical
-    /// byte-order across reorderings, which the design doc currently
-    /// doesn't promise.
+    /// adapter and flushed in tag-ascending order at `end()` whenever
+    /// the user's source-declaration order has been deliberately
+    /// reordered relative to the tags
+    /// (`!product.tag_order_matches_source`). This is what makes both
+    /// strategies emit canonical (tag-ascending) wire order:
+    ///
+    /// * Under `Array` it's a *correctness* requirement — the decoder
+    ///   reads positionally and would otherwise see fields in the wrong
+    ///   slots.
+    /// * Under `Tagged` it's a *byte-determinism* requirement — the
+    ///   decoder doesn't care about order (every wire entry carries its
+    ///   tag), but consumers reading the bytes do: cross-implementation
+    ///   compatibility, hashing, cryptographic commitments. The design
+    ///   doc's "TAGS define the canonical field order" promise applies
+    ///   here.
+    ///
+    /// Types whose source-declaration order is already tag-ascending
+    /// (the common case — newly-added types and types using implicit
+    /// positional tags) skip the buffer entirely: the outer header is
+    /// written upfront and each field streams through to the parent
+    /// directly, saving the per-field `Vec<u8>` allocation. The cost is
+    /// paid only by types whose tags have drifted out of source order
+    /// — typically schema-evolved types with retired-and-re-added
+    /// fields. **If you reorder fields, you're opting into a per-field
+    /// allocation at encode time.**
     fn begin_product<'ser>(
         &'ser mut self,
         name: &'static str,
@@ -636,11 +650,14 @@ fn begin_product_payload<'ser, 'a, W: Write>(
     product: crate::Product,
     strategy: EncodingStrategy,
 ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
-    // Only Array with a non-monotonic source order needs the reorder
-    // buffer. Tagged carries explicit tags on the wire so reordering is
-    // decoder-safe; Array with monotonic tags emits in serde's call
-    // order, which already matches tag order.
-    let buffer = matches!(strategy, EncodingStrategy::Array) && !product.tag_order_matches_source;
+    // Buffer iff serde's call order won't naturally produce
+    // tag-ascending output — i.e. whenever the user's source-declaration
+    // order has been deliberately reordered relative to the tags. Both
+    // strategies benefit from canonical wire order (Array for correctness,
+    // Tagged for byte-determinism — cross-implementation compat, hashing
+    // / commitment use cases). Types whose source order *is* monotonic
+    // (the vast majority) pay no allocation regardless of strategy.
+    let buffer = !product.tag_order_matches_source;
     if !buffer {
         write_strategy_header(parent.inner.get_mut(), product.fields.len(), strategy)?;
     }

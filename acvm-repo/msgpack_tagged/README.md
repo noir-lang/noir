@@ -344,3 +344,31 @@ output regardless of how the user laid out the fields. `BTreeMap` /
 `BTreeSet` are the only blanket-impl'd associative containers; `HashMap`
 / `HashSet` are deliberately omitted because their iteration order is
 non-deterministic.
+
+### Reordering has a hidden encode-time cost
+
+The encoder takes a fast path when a type's source-declaration order is
+already tag-ascending (the common case — newly-added types, types using
+implicit positional tags, types with `#[tag(N)]` values in source
+order): each field streams straight through to the output, no per-field
+allocation.
+
+When source order *doesn't* match tag order — typically because the
+type has been schema-evolved (a tag retired and re-added at a higher
+number, fields reshuffled for readability, etc.) — the encoder falls
+back to a buffer-and-sort path: each field's bytes go into a
+per-field `Vec<u8>`, then the entries are sorted by tag and flushed in
+canonical order at the end of the struct. This preserves the
+tag-ascending wire-order promise above, but the per-field allocation
+is an O(field-count) cost paid on every value of that type.
+
+Practically: **if you reorder fields to make the source readable, you
+opt into a per-field allocation at encode time**. For a hot leaf type
+instantiated thousands of times in a single program, that adds up. The
+fix is either to keep `#[tag(N)]` annotations in source order (the
+encoder then takes the fast path), or to accept the cost in exchange
+for the source-layout flexibility. The `Array` strategy *requires* the
+buffer for correctness on reordered types — it's not optional there —
+but `Tagged` types pay it only for the byte-determinism guarantee, so
+if you've got a Tagged type where cross-implementation byte-equivalence
+isn't load-bearing, keeping the source ordered avoids the cost.
