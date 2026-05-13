@@ -122,51 +122,31 @@ namespace Witnesses {
             }
         }
 
-        /// Cap the positional-array length: under-length wires error
-        /// downstream in `conv_fld_from_array` (index out of bounds);
-        /// over-length wires up to `active + reserved` are tolerated as
-        /// retired trailing fields (Rust-side `#[tagged(reserved(...))]`);
-        /// anything longer is forward-compat drift that the producer
-        /// would only have emitted if newer fields were added, and is
-        /// the cue for a focused error message pointing at the opt-in.
-        static void check_array_size(
-            msgpack::object_array const& array,
+        /// Cap a `MAP` or `ARRAY` entry count against `active + reserved`.
+        /// Under-length wires are caught downstream (`conv_fld_from_array`
+        /// errors out of bounds; `conv_fld_from_kvmap` errors on missing
+        /// required keys), so we only need the upper bound here.
+        ///
+        /// * Up to `reserved` extra trailing entries are tolerated as
+        ///   retired fields (`#[tagged(reserved(...))]` on the Rust side).
+        /// * Anything beyond that is forward-compat drift that the
+        ///   producer only emits when newer fields were added. The
+        ///   Rust-side cue is `#[tagged(allow_unknown_tags)]`; the
+        ///   message points at it so a reviewer can see the opt-in.
+        static void check_size(
+            uint32_t actual,
             std::string const& name,
             uint32_t active,
             uint32_t reserved
         ) {
             uint32_t max_size = active + reserved;
-            if (array.size > max_size) {
+            if (actual > max_size) {
                 throw_or_abort(
-                    "array for " + name +
-                    " has " + std::to_string(array.size) +
-                    " elements but at most " + std::to_string(max_size) +
-                    " are expected (" + std::to_string(active) +
-                    " active + " + std::to_string(reserved) +
-                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
-            }
-        }
-
-        /// Cap a string-keyed map size. Parallel to `check_array_size`
-        /// for the legacy `Format::Msgpack` named-struct wire shape: the
-        /// string-keyed dispatch only looks up keys it recognizes, so
-        /// extras would otherwise pass silently. Same `active +
-        /// reserved` ceiling, same `allow_unknown_tags` opt-out.
-        static void check_map_size(
-            msgpack::object_map const& map,
-            std::string const& name,
-            uint32_t active,
-            uint32_t reserved
-        ) {
-            uint32_t max_size = active + reserved;
-            if (map.size > max_size) {
-                throw_or_abort(
-                    "map for " + name +
-                    " has " + std::to_string(map.size) +
+                    name + " has " + std::to_string(actual) +
                     " entries but at most " + std::to_string(max_size) +
                     " are expected (" + std::to_string(active) +
                     " active + " + std::to_string(reserved) +
-                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extra keys");
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extras");
             }
         }
     };
@@ -229,14 +209,14 @@ namespace Witnesses {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 2, 0);
+                    Helpers::check_size(o.via.map.size, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 2, 0);
+                Helpers::check_size(array.size, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 0);
                 Helpers::conv_fld_from_array(array, name, "witness", witness, 1);
             } else {
@@ -265,13 +245,13 @@ namespace Witnesses {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 1, 0);
+                    Helpers::check_size(o.via.map.size, name, 1, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 1, 0);
+                Helpers::check_size(array.size, name, 1, 0);
                 Helpers::conv_fld_from_array(array, name, "stack", stack, 0);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);

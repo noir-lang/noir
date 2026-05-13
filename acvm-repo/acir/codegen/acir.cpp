@@ -122,51 +122,31 @@ namespace Acir {
             }
         }
 
-        /// Cap the positional-array length: under-length wires error
-        /// downstream in `conv_fld_from_array` (index out of bounds);
-        /// over-length wires up to `active + reserved` are tolerated as
-        /// retired trailing fields (Rust-side `#[tagged(reserved(...))]`);
-        /// anything longer is forward-compat drift that the producer
-        /// would only have emitted if newer fields were added, and is
-        /// the cue for a focused error message pointing at the opt-in.
-        static void check_array_size(
-            msgpack::object_array const& array,
+        /// Cap a `MAP` or `ARRAY` entry count against `active + reserved`.
+        /// Under-length wires are caught downstream (`conv_fld_from_array`
+        /// errors out of bounds; `conv_fld_from_kvmap` errors on missing
+        /// required keys), so we only need the upper bound here.
+        ///
+        /// * Up to `reserved` extra trailing entries are tolerated as
+        ///   retired fields (`#[tagged(reserved(...))]` on the Rust side).
+        /// * Anything beyond that is forward-compat drift that the
+        ///   producer only emits when newer fields were added. The
+        ///   Rust-side cue is `#[tagged(allow_unknown_tags)]`; the
+        ///   message points at it so a reviewer can see the opt-in.
+        static void check_size(
+            uint32_t actual,
             std::string const& name,
             uint32_t active,
             uint32_t reserved
         ) {
             uint32_t max_size = active + reserved;
-            if (array.size > max_size) {
+            if (actual > max_size) {
                 throw_or_abort(
-                    "array for " + name +
-                    " has " + std::to_string(array.size) +
-                    " elements but at most " + std::to_string(max_size) +
-                    " are expected (" + std::to_string(active) +
-                    " active + " + std::to_string(reserved) +
-                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
-            }
-        }
-
-        /// Cap a string-keyed map size. Parallel to `check_array_size`
-        /// for the legacy `Format::Msgpack` named-struct wire shape: the
-        /// string-keyed dispatch only looks up keys it recognizes, so
-        /// extras would otherwise pass silently. Same `active +
-        /// reserved` ceiling, same `allow_unknown_tags` opt-out.
-        static void check_map_size(
-            msgpack::object_map const& map,
-            std::string const& name,
-            uint32_t active,
-            uint32_t reserved
-        ) {
-            uint32_t max_size = active + reserved;
-            if (map.size > max_size) {
-                throw_or_abort(
-                    "map for " + name +
-                    " has " + std::to_string(map.size) +
+                    name + " has " + std::to_string(actual) +
                     " entries but at most " + std::to_string(max_size) +
                     " are expected (" + std::to_string(active) +
                     " active + " + std::to_string(reserved) +
-                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extra keys");
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extras");
             }
         }
     };
@@ -989,14 +969,14 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 2, 0);
+                    Helpers::check_size(o.via.map.size, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 2, 0);
+                Helpers::check_size(array.size, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
                 Helpers::conv_fld_from_array(array, name, "size", size, 1);
             } else {
@@ -1039,7 +1019,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
@@ -1048,7 +1028,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "iv", iv, 1);
                     Helpers::conv_fld_from_array(array, name, "key", key, 2);
@@ -1083,14 +1063,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
                     Helpers::conv_fld_from_array(array, name, "output", output, 1);
                 } else {
@@ -1123,14 +1103,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
                     Helpers::conv_fld_from_array(array, name, "output", output, 1);
                 } else {
@@ -1163,14 +1143,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
                     Helpers::conv_fld_from_array(array, name, "output", output, 1);
                 } else {
@@ -1215,7 +1195,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 5, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
@@ -1225,7 +1205,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 5, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 1);
                     Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 2);
@@ -1273,7 +1253,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 5, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
@@ -1283,7 +1263,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 5, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 1);
                     Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 2);
@@ -1323,7 +1303,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
@@ -1331,7 +1311,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "points", points, 0);
                     Helpers::conv_fld_from_array(array, name, "scalars", scalars, 1);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
@@ -1385,7 +1365,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 7, 0);
+                        Helpers::check_size(o.via.map.size, name, 7, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
@@ -1397,7 +1377,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 7, 0);
+                    Helpers::check_size(array.size, name, 7, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
                     Helpers::conv_fld_from_array(array, name, "input1_y", input1_y, 1);
                     Helpers::conv_fld_from_array(array, name, "input1_infinite", input1_infinite, 2);
@@ -1435,14 +1415,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
                     Helpers::conv_fld_from_array(array, name, "output", output, 1);
                 } else {
@@ -1479,7 +1459,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
@@ -1487,7 +1467,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
                     Helpers::conv_fld_from_array(array, name, "hash_values", hash_values, 1);
                     Helpers::conv_fld_from_array(array, name, "output", output, 2);
@@ -1533,7 +1513,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 5, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
@@ -1543,7 +1523,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 5, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
                     Helpers::conv_fld_from_array(array, name, "radix", radix, 1);
                     Helpers::conv_fld_from_array(array, name, "output_pointer", output_pointer, 2);
@@ -1905,14 +1885,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
                     Helpers::conv_fld_from_array(array, name, "size", size, 1);
                 } else {
@@ -1941,13 +1921,13 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 1, 0);
+                        Helpers::check_size(o.via.map.size, name, 1, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 1, 0);
+                    Helpers::check_size(array.size, name, 1, 0);
                     Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
@@ -2095,14 +2075,14 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 2, 0);
+                    Helpers::check_size(o.via.map.size, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 2, 0);
+                Helpers::check_size(array.size, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
                 Helpers::conv_fld_from_array(array, name, "size", size, 1);
             } else {
@@ -2308,7 +2288,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
@@ -2317,7 +2297,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "op", op, 1);
                     Helpers::conv_fld_from_array(array, name, "lhs", lhs, 2);
@@ -2364,7 +2344,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 5, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
@@ -2374,7 +2354,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 5, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "op", op, 1);
                     Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
@@ -2414,7 +2394,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
@@ -2422,7 +2402,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "source", source, 1);
                     Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
@@ -2460,7 +2440,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
@@ -2468,7 +2448,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "source", source, 1);
                     Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 2);
@@ -2502,14 +2482,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "condition", condition, 0);
                     Helpers::conv_fld_from_array(array, name, "location", location, 1);
                 } else {
@@ -2538,13 +2518,13 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 1, 0);
+                        Helpers::check_size(o.via.map.size, name, 1, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 1, 0);
+                    Helpers::check_size(array.size, name, 1, 0);
                     Helpers::conv_fld_from_array(array, name, "location", location, 0);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
@@ -2580,7 +2560,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
@@ -2588,7 +2568,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "destination_address", destination_address, 0);
                     Helpers::conv_fld_from_array(array, name, "size_address", size_address, 1);
                     Helpers::conv_fld_from_array(array, name, "offset_address", offset_address, 2);
@@ -2618,13 +2598,13 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 1, 0);
+                        Helpers::check_size(o.via.map.size, name, 1, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 1, 0);
+                    Helpers::check_size(array.size, name, 1, 0);
                     Helpers::conv_fld_from_array(array, name, "location", location, 0);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
@@ -2660,7 +2640,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
@@ -2668,7 +2648,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 1);
                     Helpers::conv_fld_from_array(array, name, "value", value, 2);
@@ -2706,7 +2686,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
@@ -2714,7 +2694,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
                     Helpers::conv_fld_from_array(array, name, "bit_size", bit_size, 1);
                     Helpers::conv_fld_from_array(array, name, "value", value, 2);
@@ -2766,7 +2746,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 5, 0);
+                        Helpers::check_size(o.via.map.size, name, 5, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
@@ -2776,7 +2756,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 5, 0);
+                    Helpers::check_size(array.size, name, 5, 0);
                     Helpers::conv_fld_from_array(array, name, "function", function, 0);
                     Helpers::conv_fld_from_array(array, name, "destinations", destinations, 1);
                     Helpers::conv_fld_from_array(array, name, "destination_value_types", destination_value_types, 2);
@@ -2812,14 +2792,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "source", source, 1);
                 } else {
@@ -2860,7 +2840,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
@@ -2869,7 +2849,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "source_a", source_a, 1);
                     Helpers::conv_fld_from_array(array, name, "source_b", source_b, 2);
@@ -2904,14 +2884,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
                     Helpers::conv_fld_from_array(array, name, "source_pointer", source_pointer, 1);
                 } else {
@@ -2944,14 +2924,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
                     Helpers::conv_fld_from_array(array, name, "source", source, 1);
                 } else {
@@ -2995,13 +2975,13 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 1, 0);
+                        Helpers::check_size(o.via.map.size, name, 1, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 1, 0);
+                    Helpers::check_size(array.size, name, 1, 0);
                     Helpers::conv_fld_from_array(array, name, "revert_data", revert_data, 0);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
@@ -3029,13 +3009,13 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 1, 0);
+                        Helpers::check_size(o.via.map.size, name, 1, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 1, 0);
+                    Helpers::check_size(array.size, name, 1, 0);
                     Helpers::conv_fld_from_array(array, name, "return_data", return_data, 0);
                 } else {
                     throw_or_abort("expected MAP or ARRAY for " + name);
@@ -3673,7 +3653,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
@@ -3682,7 +3662,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "iv", iv, 1);
                     Helpers::conv_fld_from_array(array, name, "key", key, 2);
@@ -3725,7 +3705,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
@@ -3734,7 +3714,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
                     Helpers::conv_fld_from_array(array, name, "rhs", rhs, 1);
                     Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 2);
@@ -3777,7 +3757,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
@@ -3786,7 +3766,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
                     Helpers::conv_fld_from_array(array, name, "rhs", rhs, 1);
                     Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 2);
@@ -3821,14 +3801,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
                     Helpers::conv_fld_from_array(array, name, "num_bits", num_bits, 1);
                 } else {
@@ -3861,14 +3841,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
                 } else {
@@ -3901,14 +3881,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
                 } else {
@@ -3957,7 +3937,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 6, 0);
+                        Helpers::check_size(o.via.map.size, name, 6, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
@@ -3968,7 +3948,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 6, 0);
+                    Helpers::check_size(array.size, name, 6, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 1);
                     Helpers::conv_fld_from_array(array, name, "signature", signature, 2);
@@ -4021,7 +4001,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 6, 0);
+                        Helpers::check_size(o.via.map.size, name, 6, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
@@ -4032,7 +4012,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 6, 0);
+                    Helpers::check_size(array.size, name, 6, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
                     Helpers::conv_fld_from_array(array, name, "public_key_y", public_key_y, 1);
                     Helpers::conv_fld_from_array(array, name, "signature", signature, 2);
@@ -4077,7 +4057,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
@@ -4086,7 +4066,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "points", points, 0);
                     Helpers::conv_fld_from_array(array, name, "scalars", scalars, 1);
                     Helpers::conv_fld_from_array(array, name, "predicate", predicate, 2);
@@ -4129,7 +4109,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
@@ -4138,7 +4118,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "input1", input1, 0);
                     Helpers::conv_fld_from_array(array, name, "input2", input2, 1);
                     Helpers::conv_fld_from_array(array, name, "predicate", predicate, 2);
@@ -4173,14 +4153,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
                 } else {
@@ -4229,7 +4209,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 6, 0);
+                        Helpers::check_size(o.via.map.size, name, 6, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
@@ -4240,7 +4220,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 6, 0);
+                    Helpers::check_size(array.size, name, 6, 0);
                     Helpers::conv_fld_from_array(array, name, "verification_key", verification_key, 0);
                     Helpers::conv_fld_from_array(array, name, "proof", proof, 1);
                     Helpers::conv_fld_from_array(array, name, "public_inputs", public_inputs, 2);
@@ -4277,14 +4257,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 1);
                 } else {
@@ -4321,7 +4301,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
@@ -4329,7 +4309,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
                     Helpers::conv_fld_from_array(array, name, "hash_values", hash_values, 1);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
@@ -4859,7 +4839,7 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 3, 0);
+                    Helpers::check_size(o.via.map.size, name, 3, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
@@ -4867,7 +4847,7 @@ namespace Acir {
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 3, 0);
+                Helpers::check_size(array.size, name, 3, 0);
                 Helpers::conv_fld_from_array(array, name, "mul_terms", mul_terms, 0);
                 Helpers::conv_fld_from_array(array, name, "linear_combinations", linear_combinations, 1);
                 Helpers::conv_fld_from_array(array, name, "q_c", q_c, 2);
@@ -5194,7 +5174,7 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 3, 0);
+                    Helpers::check_size(o.via.map.size, name, 3, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
@@ -5202,7 +5182,7 @@ namespace Acir {
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 3, 0);
+                Helpers::check_size(array.size, name, 3, 0);
                 Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 1);
                 Helpers::conv_fld_from_array(array, name, "value", value, 2);
@@ -5268,14 +5248,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
                     Helpers::conv_fld_from_array(array, name, "op", op, 1);
                 } else {
@@ -5312,7 +5292,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 3, 0);
+                        Helpers::check_size(o.via.map.size, name, 3, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
@@ -5320,7 +5300,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 3, 0);
+                    Helpers::check_size(array.size, name, 3, 0);
                     Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
                     Helpers::conv_fld_from_array(array, name, "init", init, 1);
                     Helpers::conv_fld_from_array(array, name, "block_type", block_type, 2);
@@ -5362,7 +5342,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
@@ -5371,7 +5351,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 1);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
@@ -5414,7 +5394,7 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 4, 0);
+                        Helpers::check_size(o.via.map.size, name, 4, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
@@ -5423,7 +5403,7 @@ namespace Acir {
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 4, 0);
+                    Helpers::check_size(array.size, name, 4, 0);
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 1);
                     Helpers::conv_fld_from_array(array, name, "outputs", outputs, 2);
@@ -5766,14 +5746,14 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 2, 0);
+                    Helpers::check_size(o.via.map.size, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 2, 0);
+                Helpers::check_size(array.size, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "error_selector", error_selector, 0);
                 Helpers::conv_fld_from_array(array, name, "payload", payload, 1);
             } else {
@@ -5823,14 +5803,14 @@ namespace Acir {
                             }
                         });
                     } else {
-                        Helpers::check_map_size(o.via.map, name, 2, 0);
+                        Helpers::check_size(o.via.map.size, name, 2, 0);
                         auto kvmap = Helpers::make_kvmap(o, name);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
                         Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
                     }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array;
-                    Helpers::check_array_size(array, name, 2, 0);
+                    Helpers::check_size(array.size, name, 2, 0);
                     Helpers::conv_fld_from_array(array, name, "acir_index", acir_index, 0);
                     Helpers::conv_fld_from_array(array, name, "brillig_index", brillig_index, 1);
                 } else {
@@ -6119,13 +6099,13 @@ namespace Acir {
                         }
                     });
                 } else {
-                    Helpers::check_map_size(o.via.map, name, 2, 0);
+                    Helpers::check_size(o.via.map.size, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array;
-                Helpers::check_array_size(array, name, 2, 0);
+                Helpers::check_size(array.size, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);
