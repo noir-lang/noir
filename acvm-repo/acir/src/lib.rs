@@ -296,8 +296,7 @@ mod reflection {
         fn from_env() -> Self {
             Self {
                 // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
-                // But in the latest version they seem to be using MAP format again.
-                pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", false),
+                pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", true),
                 // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
                 // But in the latest code they seem to have kept it again.
                 no_pack: env_flag("NOIR_CODEGEN_NO_PACK", false),
@@ -455,6 +454,9 @@ mod reflection {
                 throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
             }
             auto element = array.ptr[index];
+            if (element.type == msgpack::type::NIL) {
+                throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+            }
             try {
                 element.convert(field);
             } catch (const msgpack::type_error&) {

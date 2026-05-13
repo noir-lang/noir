@@ -62,6 +62,9 @@ namespace Witnesses {
                 throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
             }
             auto element = array.ptr[index];
+            if (element.type == msgpack::type::NIL) {
+                throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+            }
             try {
                 element.convert(field);
             } catch (const msgpack::type_error&) {
@@ -202,9 +205,9 @@ namespace Witnesses {
         static StackItem bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("index", index));
-            packer.pack(std::make_pair("witness", witness));
+            packer.pack_array(2);
+            packer.pack(index);
+            packer.pack(witness);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -249,8 +252,8 @@ namespace Witnesses {
         static WitnessStack bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(1);
-            packer.pack(std::make_pair("stack", stack));
+            packer.pack_array(1);
+            packer.pack(stack);
         }
 
         void msgpack_unpack(msgpack::object const& o) {

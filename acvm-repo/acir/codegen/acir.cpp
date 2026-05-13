@@ -62,6 +62,9 @@ namespace Acir {
                 throw_or_abort("index out of bounds: " + struct_name + "::" + field_name + " at " + std::to_string(index));
             }
             auto element = array.ptr[index];
+            if (element.type == msgpack::type::NIL) {
+                throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+            }
             try {
                 element.convert(field);
             } catch (const msgpack::type_error&) {
@@ -1272,9 +1275,9 @@ namespace Acir {
         static HeapArray bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("pointer", pointer));
-            packer.pack(std::make_pair("size", size));
+            packer.pack_array(2);
+            packer.pack(pointer);
+            packer.pack(size);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -1324,11 +1327,11 @@ namespace Acir {
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("iv", iv));
-                packer.pack(std::make_pair("key", key));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(4);
+                packer.pack(inputs);
+                packer.pack(iv);
+                packer.pack(key);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1384,9 +1387,9 @@ namespace Acir {
             static Blake2s bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(2);
+                packer.pack(message);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1432,9 +1435,9 @@ namespace Acir {
             static Blake3 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(2);
+                packer.pack(message);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1480,9 +1483,9 @@ namespace Acir {
             static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(2);
+                packer.pack(input);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1531,12 +1534,12 @@ namespace Acir {
             static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("hashed_msg", hashed_msg));
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("result", result));
+                packer.pack_array(5);
+                packer.pack(hashed_msg);
+                packer.pack(public_key_x);
+                packer.pack(public_key_y);
+                packer.pack(signature);
+                packer.pack(result);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1600,12 +1603,12 @@ namespace Acir {
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("hashed_msg", hashed_msg));
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("result", result));
+                packer.pack_array(5);
+                packer.pack(hashed_msg);
+                packer.pack(public_key_x);
+                packer.pack(public_key_y);
+                packer.pack(signature);
+                packer.pack(result);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1667,10 +1670,10 @@ namespace Acir {
             static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("points", points));
-                packer.pack(std::make_pair("scalars", scalars));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(3);
+                packer.pack(points);
+                packer.pack(scalars);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1726,14 +1729,14 @@ namespace Acir {
             static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(7);
-                packer.pack(std::make_pair("input1_x", input1_x));
-                packer.pack(std::make_pair("input1_y", input1_y));
-                packer.pack(std::make_pair("input1_infinite", input1_infinite));
-                packer.pack(std::make_pair("input2_x", input2_x));
-                packer.pack(std::make_pair("input2_y", input2_y));
-                packer.pack(std::make_pair("input2_infinite", input2_infinite));
-                packer.pack(std::make_pair("result", result));
+                packer.pack_array(7);
+                packer.pack(input1_x);
+                packer.pack(input1_y);
+                packer.pack(input1_infinite);
+                packer.pack(input2_x);
+                packer.pack(input2_y);
+                packer.pack(input2_infinite);
+                packer.pack(result);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1804,9 +1807,9 @@ namespace Acir {
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("message", message));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(2);
+                packer.pack(message);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1853,10 +1856,10 @@ namespace Acir {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("hash_values", hash_values));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(3);
+                packer.pack(input);
+                packer.pack(hash_values);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1910,12 +1913,12 @@ namespace Acir {
             static ToRadix bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("radix", radix));
-                packer.pack(std::make_pair("output_pointer", output_pointer));
-                packer.pack(std::make_pair("num_limbs", num_limbs));
-                packer.pack(std::make_pair("output_bits", output_bits));
+                packer.pack_array(5);
+                packer.pack(input);
+                packer.pack(radix);
+                packer.pack(output_pointer);
+                packer.pack(num_limbs);
+                packer.pack(output_bits);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2374,9 +2377,9 @@ namespace Acir {
             static Array bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("value_types", value_types));
-                packer.pack(std::make_pair("size", size));
+                packer.pack_array(2);
+                packer.pack(value_types);
+                packer.pack(size);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2421,8 +2424,8 @@ namespace Acir {
             static Vector bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("value_types", value_types));
+                packer.pack_array(1);
+                packer.pack(value_types);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2611,9 +2614,9 @@ namespace Acir {
         static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("pointer", pointer));
-            packer.pack(std::make_pair("size", size));
+            packer.pack_array(2);
+            packer.pack(pointer);
+            packer.pack(size);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -2870,11 +2873,11 @@ namespace Acir {
             static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("op", op));
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
+                packer.pack_array(4);
+                packer.pack(destination);
+                packer.pack(op);
+                packer.pack(lhs);
+                packer.pack(rhs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2933,12 +2936,12 @@ namespace Acir {
             static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("op", op));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
+                packer.pack_array(5);
+                packer.pack(destination);
+                packer.pack(op);
+                packer.pack(bit_size);
+                packer.pack(lhs);
+                packer.pack(rhs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3000,10 +3003,10 @@ namespace Acir {
             static Not bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
-                packer.pack(std::make_pair("bit_size", bit_size));
+                packer.pack_array(3);
+                packer.pack(destination);
+                packer.pack(source);
+                packer.pack(bit_size);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3055,10 +3058,10 @@ namespace Acir {
             static Cast bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
-                packer.pack(std::make_pair("bit_size", bit_size));
+                packer.pack_array(3);
+                packer.pack(destination);
+                packer.pack(source);
+                packer.pack(bit_size);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3109,9 +3112,9 @@ namespace Acir {
             static JumpIf bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("condition", condition));
-                packer.pack(std::make_pair("location", location));
+                packer.pack_array(2);
+                packer.pack(condition);
+                packer.pack(location);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3156,8 +3159,8 @@ namespace Acir {
             static Jump bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("location", location));
+                packer.pack_array(1);
+                packer.pack(location);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3199,10 +3202,10 @@ namespace Acir {
             static CalldataCopy bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination_address", destination_address));
-                packer.pack(std::make_pair("size_address", size_address));
-                packer.pack(std::make_pair("offset_address", offset_address));
+                packer.pack_array(3);
+                packer.pack(destination_address);
+                packer.pack(size_address);
+                packer.pack(offset_address);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3252,8 +3255,8 @@ namespace Acir {
             static Call bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("location", location));
+                packer.pack_array(1);
+                packer.pack(location);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3295,10 +3298,10 @@ namespace Acir {
             static Const bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("value", value));
+                packer.pack_array(3);
+                packer.pack(destination);
+                packer.pack(bit_size);
+                packer.pack(value);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3350,10 +3353,10 @@ namespace Acir {
             static IndirectConst bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("destination_pointer", destination_pointer));
-                packer.pack(std::make_pair("bit_size", bit_size));
-                packer.pack(std::make_pair("value", value));
+                packer.pack_array(3);
+                packer.pack(destination_pointer);
+                packer.pack(bit_size);
+                packer.pack(value);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3416,12 +3419,12 @@ namespace Acir {
             static ForeignCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
-                packer.pack(std::make_pair("function", function));
-                packer.pack(std::make_pair("destinations", destinations));
-                packer.pack(std::make_pair("destination_value_types", destination_value_types));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("input_value_types", input_value_types));
+                packer.pack_array(5);
+                packer.pack(function);
+                packer.pack(destinations);
+                packer.pack(destination_value_types);
+                packer.pack(inputs);
+                packer.pack(input_value_types);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3482,9 +3485,9 @@ namespace Acir {
             static Mov bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source", source));
+                packer.pack_array(2);
+                packer.pack(destination);
+                packer.pack(source);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3532,11 +3535,11 @@ namespace Acir {
             static ConditionalMov bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source_a", source_a));
-                packer.pack(std::make_pair("source_b", source_b));
-                packer.pack(std::make_pair("condition", condition));
+                packer.pack_array(4);
+                packer.pack(destination);
+                packer.pack(source_a);
+                packer.pack(source_b);
+                packer.pack(condition);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3592,9 +3595,9 @@ namespace Acir {
             static Load bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination", destination));
-                packer.pack(std::make_pair("source_pointer", source_pointer));
+                packer.pack_array(2);
+                packer.pack(destination);
+                packer.pack(source_pointer);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3640,9 +3643,9 @@ namespace Acir {
             static Store bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("destination_pointer", destination_pointer));
-                packer.pack(std::make_pair("source", source));
+                packer.pack_array(2);
+                packer.pack(destination_pointer);
+                packer.pack(source);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3706,8 +3709,8 @@ namespace Acir {
             static Trap bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("revert_data", revert_data));
+                packer.pack_array(1);
+                packer.pack(revert_data);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3747,8 +3750,8 @@ namespace Acir {
             static Stop bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("return_data", return_data));
+                packer.pack_array(1);
+                packer.pack(return_data);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4525,11 +4528,11 @@ namespace Acir {
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("iv", iv));
-                packer.pack(std::make_pair("key", key));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(4);
+                packer.pack(inputs);
+                packer.pack(iv);
+                packer.pack(key);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4587,11 +4590,11 @@ namespace Acir {
             static AND bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-                packer.pack(std::make_pair("num_bits", num_bits));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(4);
+                packer.pack(lhs);
+                packer.pack(rhs);
+                packer.pack(num_bits);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4649,11 +4652,11 @@ namespace Acir {
             static XOR bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("lhs", lhs));
-                packer.pack(std::make_pair("rhs", rhs));
-                packer.pack(std::make_pair("num_bits", num_bits));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(4);
+                packer.pack(lhs);
+                packer.pack(rhs);
+                packer.pack(num_bits);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4709,9 +4712,9 @@ namespace Acir {
             static RANGE bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("input", input));
-                packer.pack(std::make_pair("num_bits", num_bits));
+                packer.pack_array(2);
+                packer.pack(input);
+                packer.pack(num_bits);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4757,9 +4760,9 @@ namespace Acir {
             static Blake2s bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(2);
+                packer.pack(inputs);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4805,9 +4808,9 @@ namespace Acir {
             static Blake3 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(2);
+                packer.pack(inputs);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4857,13 +4860,13 @@ namespace Acir {
             static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("hashed_message", hashed_message));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(6);
+                packer.pack(public_key_x);
+                packer.pack(public_key_y);
+                packer.pack(signature);
+                packer.pack(hashed_message);
+                packer.pack(predicate);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4933,13 +4936,13 @@ namespace Acir {
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("public_key_x", public_key_x));
-                packer.pack(std::make_pair("public_key_y", public_key_y));
-                packer.pack(std::make_pair("signature", signature));
-                packer.pack(std::make_pair("hashed_message", hashed_message));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("output", output));
+                packer.pack_array(6);
+                packer.pack(public_key_x);
+                packer.pack(public_key_y);
+                packer.pack(signature);
+                packer.pack(hashed_message);
+                packer.pack(predicate);
+                packer.pack(output);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5007,11 +5010,11 @@ namespace Acir {
             static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("points", points));
-                packer.pack(std::make_pair("scalars", scalars));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(4);
+                packer.pack(points);
+                packer.pack(scalars);
+                packer.pack(predicate);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5069,11 +5072,11 @@ namespace Acir {
             static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("input1", input1));
-                packer.pack(std::make_pair("input2", input2));
-                packer.pack(std::make_pair("predicate", predicate));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(4);
+                packer.pack(input1);
+                packer.pack(input2);
+                packer.pack(predicate);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5129,9 +5132,9 @@ namespace Acir {
             static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(2);
+                packer.pack(inputs);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5181,13 +5184,13 @@ namespace Acir {
             static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(6);
-                packer.pack(std::make_pair("verification_key", verification_key));
-                packer.pack(std::make_pair("proof", proof));
-                packer.pack(std::make_pair("public_inputs", public_inputs));
-                packer.pack(std::make_pair("key_hash", key_hash));
-                packer.pack(std::make_pair("proof_type", proof_type));
-                packer.pack(std::make_pair("predicate", predicate));
+                packer.pack_array(6);
+                packer.pack(verification_key);
+                packer.pack(proof);
+                packer.pack(public_inputs);
+                packer.pack(key_hash);
+                packer.pack(proof_type);
+                packer.pack(predicate);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5253,9 +5256,9 @@ namespace Acir {
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(2);
+                packer.pack(inputs);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5302,10 +5305,10 @@ namespace Acir {
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("hash_values", hash_values));
-                packer.pack(std::make_pair("outputs", outputs));
+                packer.pack_array(3);
+                packer.pack(inputs);
+                packer.pack(hash_values);
+                packer.pack(outputs);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -5971,10 +5974,10 @@ namespace Acir {
         static Expression bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(3);
-            packer.pack(std::make_pair("mul_terms", mul_terms));
-            packer.pack(std::make_pair("linear_combinations", linear_combinations));
-            packer.pack(std::make_pair("q_c", q_c));
+            packer.pack_array(3);
+            packer.pack(mul_terms);
+            packer.pack(linear_combinations);
+            packer.pack(q_c);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -6395,10 +6398,10 @@ namespace Acir {
         static MemOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(3);
-            packer.pack(std::make_pair("operation", operation));
-            packer.pack(std::make_pair("index", index));
-            packer.pack(std::make_pair("value", value));
+            packer.pack_array(3);
+            packer.pack(operation);
+            packer.pack(index);
+            packer.pack(value);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -6489,9 +6492,9 @@ namespace Acir {
             static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("block_id", block_id));
-                packer.pack(std::make_pair("op", op));
+                packer.pack_array(2);
+                packer.pack(block_id);
+                packer.pack(op);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -6538,10 +6541,10 @@ namespace Acir {
             static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
-                packer.pack(std::make_pair("block_id", block_id));
-                packer.pack(std::make_pair("init", init));
-                packer.pack(std::make_pair("block_type", block_type));
+                packer.pack_array(3);
+                packer.pack(block_id);
+                packer.pack(init);
+                packer.pack(block_type);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -6594,11 +6597,11 @@ namespace Acir {
             static BrilligCall bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("id", id));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("predicate", predicate));
+                packer.pack_array(4);
+                packer.pack(id);
+                packer.pack(inputs);
+                packer.pack(outputs);
+                packer.pack(predicate);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -6656,11 +6659,11 @@ namespace Acir {
             static Call bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(4);
-                packer.pack(std::make_pair("id", id));
-                packer.pack(std::make_pair("inputs", inputs));
-                packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("predicate", predicate));
+                packer.pack_array(4);
+                packer.pack(id);
+                packer.pack(inputs);
+                packer.pack(outputs);
+                packer.pack(predicate);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -7104,9 +7107,9 @@ namespace Acir {
         static AssertionPayload bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("error_selector", error_selector));
-            packer.pack(std::make_pair("payload", payload));
+            packer.pack_array(2);
+            packer.pack(error_selector);
+            packer.pack(payload);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -7173,9 +7176,9 @@ namespace Acir {
             static Brillig bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("acir_index", acir_index));
-                packer.pack(std::make_pair("brillig_index", brillig_index));
+                packer.pack_array(2);
+                packer.pack(acir_index);
+                packer.pack(brillig_index);
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -7367,14 +7370,14 @@ namespace Acir {
         static Circuit bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(7);
-            packer.pack(std::make_pair("function_name", function_name));
-            packer.pack(std::make_pair("current_witness_index", current_witness_index));
-            packer.pack(std::make_pair("opcodes", opcodes));
-            packer.pack(std::make_pair("private_parameters", private_parameters));
-            packer.pack(std::make_pair("public_parameters", public_parameters));
-            packer.pack(std::make_pair("return_values", return_values));
-            packer.pack(std::make_pair("assert_messages", assert_messages));
+            packer.pack_array(7);
+            packer.pack(function_name);
+            packer.pack(current_witness_index);
+            packer.pack(opcodes);
+            packer.pack(private_parameters);
+            packer.pack(public_parameters);
+            packer.pack(return_values);
+            packer.pack(assert_messages);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -7444,9 +7447,9 @@ namespace Acir {
         static BrilligBytecode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("function_name", function_name));
-            packer.pack(std::make_pair("bytecode", bytecode));
+            packer.pack_array(2);
+            packer.pack(function_name);
+            packer.pack(bytecode);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -7491,9 +7494,9 @@ namespace Acir {
         static Program bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("functions", functions));
-            packer.pack(std::make_pair("unconstrained_functions", unconstrained_functions));
+            packer.pack_array(2);
+            packer.pack(functions);
+            packer.pack(unconstrained_functions);
         }
 
         void msgpack_unpack(msgpack::object const& o) {
@@ -7538,8 +7541,9 @@ namespace Acir {
         static ProgramWithoutBrillig bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(1);
-            packer.pack(std::make_pair("functions", functions));
+            packer.pack_array(2);
+            packer.pack(functions);
+            packer.pack(unconstrained_functions);
         }
 
         void msgpack_unpack(msgpack::object const& o) {

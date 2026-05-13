@@ -204,7 +204,7 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
         // `R: Clone` is the cost of admission for that restore. For the
         // `&[u8]`-shaped readers that the public entry function constructs
         // it's a trivial slice-handle copy.
-        let reader_state_before: &'de [u8] = self.inner.get_mut();
+        let reader_state_before: &'de [u8] = self.inner.get_ref();
         let marker = rmp::decode::read_marker(self.inner.get_mut())
             .map_err(|e| RmpError::custom(format!("failed to read msgpack marker: {e:?}")))?;
         if matches!(marker, Marker::Null) {
