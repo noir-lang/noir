@@ -40,6 +40,10 @@ pub(crate) fn execute_multi_scalar_mul<F: AcirField>(
         "Number of scalars must be the same as the number of points"
     );
 
+    for point in points.chunks(3) {
+        assert_all_or_nothing_coordinates(point[0], point[1]);
+    }
+
     let points: Result<Vec<_>, _> =
         points.iter().map(|input| input_to_value(initial_witness, *input)).collect();
     let points: Vec<_> = points?.into_iter().collect();
@@ -88,6 +92,9 @@ pub(crate) fn execute_embedded_curve_add<F: AcirField>(
     input2: [FunctionInput<F>; 3],
     predicate: FunctionInput<F>,
 ) -> Result<(F, F, F), OpcodeResolutionError<F>> {
+    assert_all_or_nothing_coordinates(input1[0], input1[1]);
+    assert_all_or_nothing_coordinates(input2[0], input2[1]);
+
     let input1_x = input_to_value(initial_witness, input1[0])?;
     let input1_y = input_to_value(initial_witness, input1[1])?;
     let input1_infinite = input_to_value(initial_witness, input1[2])?;
@@ -106,4 +113,17 @@ pub(crate) fn execute_embedded_curve_add<F: AcirField>(
     )?;
 
     Ok((res_x, res_y, res_infinite))
+}
+
+/// Checks that x and y are either both witnesses or both constants. Panics otherwise.
+fn assert_all_or_nothing_coordinates<F: AcirField>(x: FunctionInput<F>, y: FunctionInput<F>) {
+    match (x, y) {
+        (FunctionInput::Witness(_), FunctionInput::Witness(_))
+        | (FunctionInput::Constant(_), FunctionInput::Constant(_)) => {}
+        _ => {
+            panic!(
+                "Coordinates must be either both witnesses or both constants. Found: {x:?}, {y:?}",
+            );
+        }
+    }
 }
