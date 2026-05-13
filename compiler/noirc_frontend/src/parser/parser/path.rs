@@ -5,7 +5,7 @@ use crate::token::{Keyword, Token};
 
 use noirc_errors::Location;
 
-use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
+use crate::parser::labels::ParsingRuleLabel;
 
 use super::Parser;
 
@@ -112,9 +112,16 @@ impl Parser<'_> {
     ) -> Path {
         let mut segments = Vec::new();
 
-        if self.token.kind() == TokenKind::Ident {
+        if self.at_ident_token() {
             loop {
-                let ident = self.eat_ident().unwrap();
+                // In `parsing_quote_body` mode we may enter this iteration after
+                // optimistically committing to a `::` whose follow token is `$` (we
+                // only have one token of lookahead). If it turns out to be `$(...)`
+                // instead of `$ident`, `eat_ident` returns None and we bail out
+                // here rather than panicking.
+                let Some(ident) = self.eat_ident() else {
+                    break;
+                };
                 let location = ident.location();
 
                 let generics = if allow_turbofish
@@ -133,9 +140,7 @@ impl Parser<'_> {
                     location: self.location_since(location),
                 });
 
-                if self.at(Token::DoubleColon)
-                    && matches!(self.next_token.token(), Token::Ident(..))
-                {
+                if self.at(Token::DoubleColon) && self.next_starts_path_segment() {
                     // Skip the double colons
                     self.bump();
                 } else {
