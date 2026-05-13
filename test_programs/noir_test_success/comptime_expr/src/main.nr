@@ -60,7 +60,15 @@ mod tests {
     #[test]
     fn test_expr_as_block() {
         comptime {
-            let expr = quote { { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = quote {
+                {
+                    1;
+                    4;
+                    23
+                }
+            }
+                .as_expr()
+                .unwrap();
             let exprs = expr.as_block().unwrap();
             assert_eq(exprs.len(), 3);
             assert_eq(exprs[0].as_integer().unwrap(), 1);
@@ -151,7 +159,15 @@ mod tests {
     #[test]
     fn test_expr_as_comptime() {
         comptime {
-            let expr = quote { comptime { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = quote {
+                comptime {
+                    1;
+                    4;
+                    23
+                }
+            }
+                .as_expr()
+                .unwrap();
             let exprs = expr.as_comptime().unwrap();
             assert_eq(exprs.len(), 3);
         }
@@ -160,7 +176,17 @@ mod tests {
     #[test]
     fn test_expr_as_comptime_as_statement() {
         comptime {
-            let expr = quote { { comptime { 1; 4; 23 } } }.as_expr().unwrap();
+            let expr = quote {
+                {
+                    comptime {
+                        1;
+                        4;
+                        23
+                    }
+                }
+            }
+                .as_expr()
+                .unwrap();
             let exprs = expr.as_block().unwrap();
             assert_eq(exprs.len(), 1);
 
@@ -291,10 +317,14 @@ mod tests {
     #[test]
     fn test_expr_as_unsafe() {
         comptime {
-            let expr = quote {  
+            let expr = quote {
                 // Safety: test
-                unsafe { 1; 4; 23 } 
+                unsafe {
+                    1;
+                    4;
+                    23
                 }
+            }
                 .as_expr()
                 .unwrap();
             let exprs = expr.as_unsafe().unwrap();
@@ -352,7 +382,13 @@ mod tests {
     #[test]
     fn test_expr_as_for_statement() {
         comptime {
-            let expr = quote { for x in 2 { 3 } }.as_expr().unwrap();
+            let expr = quote {
+                for x in 2 {
+                    3
+                }
+            }
+                .as_expr()
+                .unwrap();
             let (index, array, body) = expr.as_for().unwrap();
             assert_eq(index, quote { x });
             assert_eq(array.as_integer().unwrap(), 2);
@@ -363,7 +399,13 @@ mod tests {
     #[test]
     fn test_expr_as_for_range_statement() {
         comptime {
-            let expr = quote { for x in 2..3 { 4 } }.as_expr().unwrap();
+            let expr = quote {
+                for x in 2..3 {
+                    4
+                }
+            }
+                .as_expr()
+                .unwrap();
             let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
             assert_eq(from.as_integer().unwrap(), 2);
@@ -371,7 +413,13 @@ mod tests {
             assert(!inclusive);
             assert_eq(body.as_block().unwrap()[0].as_integer().unwrap(), 4);
 
-            let expr = quote { for x in 2..=3 { 4 } }.as_expr().unwrap();
+            let expr = quote {
+                for x in 2..=3 {
+                    4
+                }
+            }
+                .as_expr()
+                .unwrap();
             let (index, from, to, inclusive, body) = expr.as_for_range().unwrap();
             assert_eq(index, quote { x });
             assert_eq(from.as_integer().unwrap(), 2);

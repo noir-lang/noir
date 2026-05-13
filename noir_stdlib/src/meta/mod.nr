@@ -289,8 +289,8 @@ mod tests {
     #[test]
     fn concatenate_test() {
         comptime {
-            let result = concatenate(quote {foo}, quote {bar});
-            assert_eq(result, quote {foobar});
+            let result = concatenate(quote { foo }, quote { bar });
+            assert_eq(result, quote { foobar });
 
             let result = double_spaced(quote {foo bar 3}).as_quoted_str!();
             assert_eq(result, "foo  bar  3");
