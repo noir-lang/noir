@@ -226,7 +226,6 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BinaryFieldOp'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Add v;
@@ -422,7 +421,6 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BinaryIntOp'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Add v;
@@ -618,7 +616,6 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'IntegerBitSize'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         U1 v;
@@ -745,7 +742,6 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BitSize'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Field v;
@@ -755,9 +751,9 @@ namespace Acir {
                     case 1: {
                         Integer v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BitSize::Integer'");
                         }
                         value = v;
@@ -858,14 +854,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'MemoryAddress'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Direct v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'MemoryAddress::Direct'");
                         }
                         value = v;
@@ -874,9 +869,9 @@ namespace Acir {
                     case 1: {
                         Relative v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
                         }
                         value = v;
@@ -1557,14 +1552,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BlackBoxOp'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         AES128Encrypt v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::AES128Encrypt'");
                         }
                         value = v;
@@ -1573,9 +1567,9 @@ namespace Acir {
                     case 1: {
                         Blake2s v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake2s'");
                         }
                         value = v;
@@ -1584,9 +1578,9 @@ namespace Acir {
                     case 2: {
                         Blake3 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake3'");
                         }
                         value = v;
@@ -1595,9 +1589,9 @@ namespace Acir {
                     case 3: {
                         Keccakf1600 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::Keccakf1600'");
                         }
                         value = v;
@@ -1606,9 +1600,9 @@ namespace Acir {
                     case 4: {
                         EcdsaSecp256k1 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256k1'");
                         }
                         value = v;
@@ -1617,9 +1611,9 @@ namespace Acir {
                     case 5: {
                         EcdsaSecp256r1 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256r1'");
                         }
                         value = v;
@@ -1628,9 +1622,9 @@ namespace Acir {
                     case 6: {
                         MultiScalarMul v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::MultiScalarMul'");
                         }
                         value = v;
@@ -1639,9 +1633,9 @@ namespace Acir {
                     case 7: {
                         EmbeddedCurveAdd v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::EmbeddedCurveAdd'");
                         }
                         value = v;
@@ -1650,9 +1644,9 @@ namespace Acir {
                     case 8: {
                         Poseidon2Permutation v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::Poseidon2Permutation'");
                         }
                         value = v;
@@ -1661,9 +1655,9 @@ namespace Acir {
                     case 9: {
                         Sha256Compression v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::Sha256Compression'");
                         }
                         value = v;
@@ -1672,9 +1666,9 @@ namespace Acir {
                     case 10: {
                         ToRadix v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxOp::ToRadix'");
                         }
                         value = v;
@@ -1957,14 +1951,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'HeapValueType'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Simple v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'HeapValueType::Simple'");
                         }
                         value = v;
@@ -1973,9 +1966,9 @@ namespace Acir {
                     case 1: {
                         Array v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'HeapValueType::Array'");
                         }
                         value = v;
@@ -1984,9 +1977,9 @@ namespace Acir {
                     case 2: {
                         Vector v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'HeapValueType::Vector'");
                         }
                         value = v;
@@ -2160,14 +2153,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'ValueOrArray'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         MemoryAddress v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'ValueOrArray::MemoryAddress'");
                         }
                         value = v;
@@ -2176,9 +2168,9 @@ namespace Acir {
                     case 1: {
                         HeapArray v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'ValueOrArray::HeapArray'");
                         }
                         value = v;
@@ -2187,9 +2179,9 @@ namespace Acir {
                     case 2: {
                         HeapVector v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'ValueOrArray::HeapVector'");
                         }
                         value = v;
@@ -3045,14 +3037,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BrilligOpcode'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         BinaryFieldOp v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryFieldOp'");
                         }
                         value = v;
@@ -3061,9 +3052,9 @@ namespace Acir {
                     case 1: {
                         BinaryIntOp v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryIntOp'");
                         }
                         value = v;
@@ -3072,9 +3063,9 @@ namespace Acir {
                     case 2: {
                         Not v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Not'");
                         }
                         value = v;
@@ -3083,9 +3074,9 @@ namespace Acir {
                     case 3: {
                         Cast v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
                         }
                         value = v;
@@ -3094,9 +3085,9 @@ namespace Acir {
                     case 4: {
                         JumpIf v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIf'");
                         }
                         value = v;
@@ -3105,9 +3096,9 @@ namespace Acir {
                     case 5: {
                         Jump v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Jump'");
                         }
                         value = v;
@@ -3116,9 +3107,9 @@ namespace Acir {
                     case 6: {
                         CalldataCopy v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::CalldataCopy'");
                         }
                         value = v;
@@ -3127,9 +3118,9 @@ namespace Acir {
                     case 7: {
                         Call v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Call'");
                         }
                         value = v;
@@ -3138,9 +3129,9 @@ namespace Acir {
                     case 8: {
                         Const v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Const'");
                         }
                         value = v;
@@ -3149,9 +3140,9 @@ namespace Acir {
                     case 9: {
                         IndirectConst v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::IndirectConst'");
                         }
                         value = v;
@@ -3165,9 +3156,9 @@ namespace Acir {
                     case 11: {
                         ForeignCall v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::ForeignCall'");
                         }
                         value = v;
@@ -3176,9 +3167,9 @@ namespace Acir {
                     case 12: {
                         Mov v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Mov'");
                         }
                         value = v;
@@ -3187,9 +3178,9 @@ namespace Acir {
                     case 13: {
                         ConditionalMov v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::ConditionalMov'");
                         }
                         value = v;
@@ -3198,9 +3189,9 @@ namespace Acir {
                     case 14: {
                         Load v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Load'");
                         }
                         value = v;
@@ -3209,9 +3200,9 @@ namespace Acir {
                     case 15: {
                         Store v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Store'");
                         }
                         value = v;
@@ -3220,9 +3211,9 @@ namespace Acir {
                     case 16: {
                         BlackBox v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::BlackBox'");
                         }
                         value = v;
@@ -3231,9 +3222,9 @@ namespace Acir {
                     case 17: {
                         Trap v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Trap'");
                         }
                         value = v;
@@ -3242,9 +3233,9 @@ namespace Acir {
                     case 18: {
                         Stop v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOpcode::Stop'");
                         }
                         value = v;
@@ -3547,14 +3538,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'FunctionInput'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Constant v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'FunctionInput::Constant'");
                         }
                         value = v;
@@ -3563,9 +3553,9 @@ namespace Acir {
                     case 1: {
                         Witness v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'FunctionInput::Witness'");
                         }
                         value = v;
@@ -4341,14 +4331,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BlackBoxFuncCall'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         AES128Encrypt v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AES128Encrypt'");
                         }
                         value = v;
@@ -4357,9 +4346,9 @@ namespace Acir {
                     case 1: {
                         AND v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AND'");
                         }
                         value = v;
@@ -4368,9 +4357,9 @@ namespace Acir {
                     case 2: {
                         XOR v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::XOR'");
                         }
                         value = v;
@@ -4379,9 +4368,9 @@ namespace Acir {
                     case 3: {
                         RANGE v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RANGE'");
                         }
                         value = v;
@@ -4390,9 +4379,9 @@ namespace Acir {
                     case 4: {
                         Blake2s v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake2s'");
                         }
                         value = v;
@@ -4401,9 +4390,9 @@ namespace Acir {
                     case 5: {
                         Blake3 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake3'");
                         }
                         value = v;
@@ -4412,9 +4401,9 @@ namespace Acir {
                     case 6: {
                         EcdsaSecp256k1 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256k1'");
                         }
                         value = v;
@@ -4423,9 +4412,9 @@ namespace Acir {
                     case 7: {
                         EcdsaSecp256r1 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256r1'");
                         }
                         value = v;
@@ -4434,9 +4423,9 @@ namespace Acir {
                     case 8: {
                         MultiScalarMul v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::MultiScalarMul'");
                         }
                         value = v;
@@ -4445,9 +4434,9 @@ namespace Acir {
                     case 9: {
                         EmbeddedCurveAdd v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EmbeddedCurveAdd'");
                         }
                         value = v;
@@ -4456,9 +4445,9 @@ namespace Acir {
                     case 10: {
                         Keccakf1600 v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Keccakf1600'");
                         }
                         value = v;
@@ -4467,9 +4456,9 @@ namespace Acir {
                     case 11: {
                         RecursiveAggregation v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RecursiveAggregation'");
                         }
                         value = v;
@@ -4478,9 +4467,9 @@ namespace Acir {
                     case 12: {
                         Poseidon2Permutation v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Poseidon2Permutation'");
                         }
                         value = v;
@@ -4489,9 +4478,9 @@ namespace Acir {
                     case 13: {
                         Sha256Compression v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Sha256Compression'");
                         }
                         value = v;
@@ -4743,7 +4732,6 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BlockType'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Memory v;
@@ -4753,9 +4741,9 @@ namespace Acir {
                     case 1: {
                         CallData v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BlockType::CallData'");
                         }
                         value = v;
@@ -4926,14 +4914,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BrilligInputs'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Single v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligInputs::Single'");
                         }
                         value = v;
@@ -4942,9 +4929,9 @@ namespace Acir {
                     case 1: {
                         Array v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligInputs::Array'");
                         }
                         value = v;
@@ -4953,9 +4940,9 @@ namespace Acir {
                     case 2: {
                         MemoryArray v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligInputs::MemoryArray'");
                         }
                         value = v;
@@ -5074,14 +5061,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'BrilligOutputs'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Simple v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOutputs::Simple'");
                         }
                         value = v;
@@ -5090,9 +5076,9 @@ namespace Acir {
                     case 1: {
                         Array v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'BrilligOutputs::Array'");
                         }
                         value = v;
@@ -5436,14 +5422,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'Opcode'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         AssertZero v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::AssertZero'");
                         }
                         value = v;
@@ -5452,9 +5437,9 @@ namespace Acir {
                     case 1: {
                         BlackBoxFuncCall v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::BlackBoxFuncCall'");
                         }
                         value = v;
@@ -5463,9 +5448,9 @@ namespace Acir {
                     case 2: {
                         MemoryOp v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::MemoryOp'");
                         }
                         value = v;
@@ -5474,9 +5459,9 @@ namespace Acir {
                     case 3: {
                         MemoryInit v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::MemoryInit'");
                         }
                         value = v;
@@ -5485,9 +5470,9 @@ namespace Acir {
                     case 4: {
                         BrilligCall v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::BrilligCall'");
                         }
                         value = v;
@@ -5496,9 +5481,9 @@ namespace Acir {
                     case 5: {
                         Call v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'Opcode::Call'");
                         }
                         value = v;
@@ -5650,14 +5635,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'ExpressionOrMemory'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Expression v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Expression'");
                         }
                         value = v;
@@ -5666,9 +5650,9 @@ namespace Acir {
                     case 1: {
                         Memory v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Memory'");
                         }
                         value = v;
@@ -5841,14 +5825,13 @@ namespace Acir {
                     std::cerr << o << std::endl;
                     throw_or_abort("expected u8 variant tag for enum 'OpcodeLocation'");
                 }
-                msgpack::object const& val = o.via.map.ptr[0].val;
                 switch (tag) {
                     case 0: {
                         Acir v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'OpcodeLocation::Acir'");
                         }
                         value = v;
@@ -5857,9 +5840,9 @@ namespace Acir {
                     case 1: {
                         Brillig v;
                         try {
-                            val.convert(v);
+                            o.via.map.ptr[0].val.convert(v);
                         } catch (const msgpack::type_error&) {
-                            std::cerr << val << std::endl;
+                            std::cerr << o << std::endl;
                             throw_or_abort("error converting into enum variant 'OpcodeLocation::Brillig'");
                         }
                         value = v;

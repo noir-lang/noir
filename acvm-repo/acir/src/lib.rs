@@ -1016,7 +1016,6 @@ mod reflection {
             std::cerr << o << std::endl;
             throw_or_abort("expected u8 variant tag for enum '{name}'");
         }}
-        msgpack::object const& val = o.via.map.ptr[0].val;
         switch (tag) {{"#
                 );
                 // cSpell:enable
@@ -1033,9 +1032,12 @@ mod reflection {
                         |reg_v| reg_v.tag,
                     );
                     if matches!(v.value, VariantFormat::Unit) {
-                        // Unit variants carry a `nil` payload; the variant's
-                        // empty `msgpack_unpack` accepts any object, so we
-                        // can call `val.convert(v)` uniformly.
+                        // Unit variants carry a `nil` payload that the
+                        // variant's empty `msgpack_unpack` would accept,
+                        // but constructing the value and assigning is
+                        // simpler and avoids reading `o.via.map.ptr[0].val`
+                        // (which Barretenberg's `-Werror=unused-variable`
+                        // flags when all variants of an enum are unit).
                         body.push_str(&format!(
                             r#"
             case {tag}: {{
@@ -1051,9 +1053,9 @@ mod reflection {
             case {tag}: {{
                 {variant} v;
                 try {{
-                    val.convert(v);
+                    o.via.map.ptr[0].val.convert(v);
                 }} catch (const msgpack::type_error&) {{
-                    std::cerr << val << std::endl;
+                    std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant '{name}::{variant}'");
                 }}
                 value = v;
