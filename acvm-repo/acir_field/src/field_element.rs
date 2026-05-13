@@ -149,44 +149,17 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        // Mirror of `Serialize`: explicitly route through
-        // `deserialize_bytes` so the read side is symmetric with the
-        // write side and works against the msgpack `bin` shape emitted
-        // by `FieldElement::serialize`. The default
-        // `Cow<'_, [u8]>::deserialize` would forward to
-        // `Vec<u8>::deserialize` → `deserialize_seq`, which expects a
-        // msgpack `fixarray` and rejects `bin` under our
+        // Mirror of `Serialize`: route explicitly through the bytes
+        // hook (`deserialize_byte_buf` under the covers) so the read
+        // side is symmetric with the write side and matches the
+        // msgpack `bin` shape `FieldElement::serialize` emits.
+        // `serde_bytes::ByteBuf` is serde-ecosystem's standard wrapper
+        // for "deserialize as bytes, give me an owned `Vec<u8>`",
+        // wrapping the same visitor boilerplate a hand-rolled one
+        // would. The default `Vec<u8>::deserialize` would instead
+        // route to `deserialize_seq` and reject `bin` under our
         // `MsgpackTagged` wrapper.
-        //
-        // The visitor accepts both byte-shaped (`bin`) and sequence
-        // (`fixarray`) wire forms, just in case.
-        struct FieldBytesVisitor;
-        impl<'de> serde::de::Visitor<'de> for FieldBytesVisitor {
-            type Value = Vec<u8>;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("a byte string or sequence of u8 (field-element big-endian bytes)")
-            }
-            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Vec<u8>, E> {
-                Ok(v.to_vec())
-            }
-            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Vec<u8>, E> {
-                Ok(v)
-            }
-            fn visit_borrowed_bytes<E: serde::de::Error>(self, v: &'de [u8]) -> Result<Vec<u8>, E> {
-                Ok(v.to_vec())
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut seq: A,
-            ) -> Result<Vec<u8>, A::Error> {
-                let mut bytes = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-                while let Some(b) = seq.next_element::<u8>()? {
-                    bytes.push(b);
-                }
-                Ok(bytes)
-            }
-        }
-        let bytes = deserializer.deserialize_bytes(FieldBytesVisitor)?;
+        let bytes = serde_bytes::ByteBuf::deserialize(deserializer)?;
         Ok(Self::from_be_bytes_reduce(&bytes))
     }
 }
