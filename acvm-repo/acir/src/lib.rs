@@ -537,6 +537,29 @@ mod reflection {
                     " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
             }
         }
+
+        /// Cap a string-keyed map size. Parallel to `check_array_size`
+        /// for the legacy `Format::Msgpack` named-struct wire shape: the
+        /// string-keyed dispatch only looks up keys it recognizes, so
+        /// extras would otherwise pass silently. Same `active +
+        /// reserved` ceiling, same `allow_unknown_tags` opt-out.
+        static void check_map_size(
+            msgpack::object_map const& map,
+            std::string const& name,
+            uint32_t active,
+            uint32_t reserved
+        ) {
+            uint32_t max_size = active + reserved;
+            if (map.size > max_size) {
+                throw_or_abort(
+                    "map for " + name +
+                    " has " + std::to_string(map.size) +
+                    " entries but at most " + std::to_string(max_size) +
+                    " are expected (" + std::to_string(active) +
+                    " active + " + std::to_string(reserved) +
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extra keys");
+            }
+        }
     };
     "#;
             // cSpell:enable
@@ -798,7 +821,25 @@ mod reflection {
                     r#"
                 }
             });
-        } else {
+        } else {"#,
+                );
+                // cSpell:enable
+                // String-keyed map branch (`Format::Msgpack`): the
+                // lookup is by field name, so extra wire keys would
+                // otherwise pass unnoticed. Same `active + reserved`
+                // ceiling and same `allow_unknown_tags` opt-out as the
+                // ARRAY branch.
+                if !product.allow_unknown_tags {
+                    body.push_str(&format!(
+                        r#"
+            Helpers::check_map_size(o.via.map, name, {active}, {reserved});"#,
+                        active = fields.len(),
+                        reserved = product.reserved.len(),
+                    ));
+                }
+                // cSpell:disable
+                body.push_str(
+                    r#"
             auto kvmap = Helpers::make_kvmap(o, name);"#,
                 );
                 // cSpell:enable

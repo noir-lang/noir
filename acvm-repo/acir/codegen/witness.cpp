@@ -146,6 +146,29 @@ namespace Witnesses {
                     " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
             }
         }
+
+        /// Cap a string-keyed map size. Parallel to `check_array_size`
+        /// for the legacy `Format::Msgpack` named-struct wire shape: the
+        /// string-keyed dispatch only looks up keys it recognizes, so
+        /// extras would otherwise pass silently. Same `active +
+        /// reserved` ceiling, same `allow_unknown_tags` opt-out.
+        static void check_map_size(
+            msgpack::object_map const& map,
+            std::string const& name,
+            uint32_t active,
+            uint32_t reserved
+        ) {
+            uint32_t max_size = active + reserved;
+            if (map.size > max_size) {
+                throw_or_abort(
+                    "map for " + name +
+                    " has " + std::to_string(map.size) +
+                    " entries but at most " + std::to_string(max_size) +
+                    " are expected (" + std::to_string(active) +
+                    " active + " + std::to_string(reserved) +
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept extra keys");
+            }
+        }
     };
     }
 
@@ -206,6 +229,7 @@ namespace Witnesses {
                         }
                     });
                 } else {
+                    Helpers::check_map_size(o.via.map, name, 2, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
@@ -241,6 +265,7 @@ namespace Witnesses {
                         }
                     });
                 } else {
+                    Helpers::check_map_size(o.via.map, name, 1, 0);
                     auto kvmap = Helpers::make_kvmap(o, name);
                     Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
                 }
