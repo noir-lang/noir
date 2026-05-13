@@ -2501,6 +2501,23 @@ let     x   =    1   +    2 ;
     }
 
     #[test]
+    fn format_quote_with_attribute_on_unquote_does_not_panic() {
+        // The body has a leading `#[foo]` attribute followed by `$bar`. The statement
+        // parser would silently consume the attribute and leave the formatter's lexer
+        // pointing at `#[`, which used to make the formatter panic when writing the
+        // unquote. We must fall back to verbatim instead.
+        let src = "fn main() {
+    quote {
+        #[foo]
+        $bar
+    }
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_quote_falls_back_when_unparseable() {
         // The body `foo bar` isn't a valid Noir item sequence so the formatter must
         // leave it verbatim.

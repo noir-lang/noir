@@ -79,15 +79,23 @@ pub fn parse_program_in_quote_body(source: &str) -> Result<ParsedModule, Vec<Par
 /// A trailing `;` is folded into the parsed statement (turning a plain expression
 /// statement into `StatementKind::Semi`) so callers like the formatter can preserve
 /// the semicolon when round-tripping.
+///
+/// We also reject the parse when the body starts with `#[...]` but the resulting
+/// statement kind doesn't carry attributes (only `Let` and `Comptime` do). Otherwise
+/// the parser would silently drop the attribute tokens and the formatter would lose
+/// sync with the source.
 pub fn parse_statement_in_quote_body(
     source: &str,
 ) -> Result<crate::ast::Statement, Vec<ParserError>> {
     use crate::ast::{Statement, StatementKind};
     use crate::parser::labels::ParsingRuleLabel;
+    use crate::token::Token;
     let mut parser = Parser::for_str_with_dummy_file(source);
     parser.parsing_quote_body = true;
     parser
         .parse_result(|parser| {
+            let started_with_attribute =
+                matches!(parser.token.token(), Token::AttributeStart { .. });
             let Some((statement, (semicolon, location))) = parser.parse_statement() else {
                 parser.expected_label(ParsingRuleLabel::Statement);
                 return Statement {
@@ -95,6 +103,12 @@ pub fn parse_statement_in_quote_body(
                     location: parser.location_at_previous_token_end(),
                 };
             };
+            if started_with_attribute
+                && !matches!(statement.kind, StatementKind::Let(_) | StatementKind::Comptime(_))
+            {
+                parser.expected_label(ParsingRuleLabel::Statement);
+                return Statement { kind: StatementKind::Error, location };
+            }
             statement.add_semicolon(
                 semicolon,
                 location,
