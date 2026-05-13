@@ -2,7 +2,6 @@
 
 #include "serde.hpp"
 #include "barretenberg/serialize/msgpack_impl.hpp"
-#include "bincode.hpp"
 
 namespace Witnesses {
     struct Helpers {
@@ -162,8 +161,6 @@ namespace Witnesses {
         uint32_t value;
 
         friend bool operator==(const Witness&, const Witness&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Witness bincodeDeserialize(std::vector<uint8_t>);
 
         bool operator<(Witness const& rhs) const { return value < rhs.value; }void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -181,8 +178,6 @@ namespace Witnesses {
         std::map<Witnesses::Witness, std::vector<uint8_t>> value;
 
         friend bool operator==(const WitnessMap&, const WitnessMap&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static WitnessMap bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const { packer.pack(value); }
 
@@ -201,8 +196,6 @@ namespace Witnesses {
         Witnesses::WitnessMap witness;
 
         friend bool operator==(const StackItem&, const StackItem&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static StackItem bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_array(2);
@@ -248,8 +241,6 @@ namespace Witnesses {
         std::vector<Witnesses::StackItem> stack;
 
         friend bool operator==(const WitnessStack&, const WitnessStack&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static WitnessStack bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             packer.pack_array(1);
@@ -296,21 +287,6 @@ namespace Witnesses {
         return true;
     }
 
-    inline std::vector<uint8_t> StackItem::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<StackItem>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline StackItem StackItem::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<StackItem>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Witnesses
 
 template <>
@@ -340,21 +316,6 @@ namespace Witnesses {
         return true;
     }
 
-    inline std::vector<uint8_t> Witness::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Witness>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Witness Witness::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Witness>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Witnesses
 
 template <>
@@ -382,21 +343,6 @@ namespace Witnesses {
         return true;
     }
 
-    inline std::vector<uint8_t> WitnessMap::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<WitnessMap>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline WitnessMap WitnessMap::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<WitnessMap>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
 } // end of namespace Witnesses
 
 template <>
@@ -422,21 +368,6 @@ namespace Witnesses {
     inline bool operator==(const WitnessStack &lhs, const WitnessStack &rhs) {
         if (!(lhs.stack == rhs.stack)) { return false; }
         return true;
-    }
-
-    inline std::vector<uint8_t> WitnessStack::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<WitnessStack>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline WitnessStack WitnessStack::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<WitnessStack>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
     }
 
 } // end of namespace Witnesses

@@ -214,10 +214,9 @@ mod reflection {
         // Create C++ class definitions.
         let mut source = Vec::new();
         // We use `serde_generate` to take advantage of its integration with `serde_reflection` but only use our
-        // custom msgpack code generation. We don't support the legacy Bincode format any more, but it seems to
-        // be in use in Barretenberg for testing.
+        // custom msgpack code generation.
         let config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
-            .with_encodings(vec![serde_generate::Encoding::Bincode])
+            .with_encodings(vec![])
             .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, registry).expect("failed to generate C++ code");
