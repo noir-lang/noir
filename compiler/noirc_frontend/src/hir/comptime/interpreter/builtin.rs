@@ -11,9 +11,10 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
-    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
-    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
+    get_location, get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl,
+    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
+    has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident,
+    visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -39,7 +40,7 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
@@ -138,6 +139,10 @@ impl Interpreter<'_, '_> {
                 }
             }
             "field_less_than" => field_less_than(arguments, location),
+            "issue_error" => issue_diagnostic(self, arguments, location, false),
+            "issue_warning" => issue_diagnostic(self, arguments, location, true),
+            "location_eq" => location_eq(arguments, location),
+            "location_hash" => location_hash(arguments, location),
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
@@ -152,6 +157,7 @@ impl Interpreter<'_, '_> {
             "function_def_is_unconstrained" => {
                 function_def_is_unconstrained(interner, arguments, location)
             }
+            "function_def_location" => function_def_location(interner, arguments, location),
             "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -163,6 +169,7 @@ impl Interpreter<'_, '_> {
             "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
             "module_hash" => module_hash(arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
+            "module_location" => module_location(interner, arguments, location),
             "module_name" => module_name(interner, arguments, location),
             "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
@@ -177,6 +184,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
+            "quoted_location" => quoted_location(arguments, return_type, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
@@ -199,6 +207,7 @@ impl Interpreter<'_, '_> {
             }
             "trait_def_eq" => trait_def_eq(arguments, location),
             "trait_def_hash" => trait_def_hash(arguments, location),
+            "trait_def_location" => trait_def_location(interner, arguments, location),
             "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
                 trait_impl_trait_generic_args(interner, arguments, location)
@@ -228,6 +237,7 @@ impl Interpreter<'_, '_> {
                 type_def_has_named_attribute(interner, arguments, location)
             }
             "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
             "type_eq" => type_eq(arguments, location),
@@ -246,6 +256,7 @@ impl Interpreter<'_, '_> {
             "typed_expr_get_type" => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
+            "typed_expr_location" => typed_expr_location(interner, arguments, location),
             "unresolved_type_as_mutable_reference" => {
                 unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
             }
@@ -385,6 +396,45 @@ fn static_assert(
     } else {
         failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
+}
+
+// fn error<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+// fn warn<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+fn issue_diagnostic(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    is_warning: bool,
+) -> IResult<Value> {
+    let (msg_argument, (secondary, secondary_location), location_argument) =
+        check_three_arguments(arguments, location)?;
+    let (fragments, _, _) = get_format_string(msg_argument)?;
+
+    // Unwrap the `Option<fmtstr<N, T>>`
+    let secondary = get_option((secondary, secondary_location))?
+        .map(|value| get_format_string((value, secondary_location)))
+        .transpose()?;
+
+    let target_location = get_location(location_argument)?;
+    let interner = &interpreter.elaborator.interner;
+    let message = fragments_to_string(&fragments, interner);
+    let secondary = secondary.map(|(fragments, _, _)| fragments_to_string(&fragments, interner));
+
+    let error = if is_warning {
+        InterpreterError::UserDefinedWarning { message, secondary, location: target_location }
+    } else {
+        InterpreterError::UserDefinedError { message, secondary, location: target_location }
+    };
+    interpreter.elaborator.push_err(error);
+    Ok(Value::Unit)
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -660,6 +710,17 @@ fn type_def_module(
     Ok(Value::ModuleDefinition(parent))
 }
 
+// fn location(self) -> Location
+fn type_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    Ok(Value::Location(interner.get_type(type_id).borrow().location))
+}
+
 // fn name(self) -> Quoted
 fn type_def_name(
     interner: &NodeInterner,
@@ -881,6 +942,23 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+// fn location(self) -> Option<Location>
+fn quoted_location(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    let merged = match (tokens.first(), tokens.last()) {
+        (Some(first), Some(last)) => Some(first.location().merge(last.location())),
+        _ => None,
+    };
+
+    Ok(option(return_type, merged.map(Value::Location), location))
 }
 
 fn to_be_bits(
@@ -2569,6 +2647,17 @@ fn function_def_module(
     Ok(Value::ModuleDefinition(module))
 }
 
+// fn location(self) -> Location
+fn function_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    Ok(Value::Location(interner.function_meta(&func_id).location))
+}
+
 // fn name(self) -> Quoted
 fn function_def_name(
     interner: &NodeInterner,
@@ -2874,6 +2963,53 @@ fn trait_def_as_trait_constraint(
     let constraint = interner.get_trait(trait_id).as_constraint(location);
 
     Ok(Value::TraitConstraint(trait_id, constraint.trait_bound.trait_generics))
+}
+
+// fn location(self) -> Location
+fn trait_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let trait_id = get_trait_def(self_argument)?;
+    Ok(Value::Location(interner.get_trait(trait_id).location))
+}
+
+// fn location(self) -> Location
+fn module_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    Ok(Value::Location(interner.module_attributes(module_id).location))
+}
+
+// fn location(self) -> Location
+fn typed_expr_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typed_expr = get_typed_expr(self_argument)?;
+    let loc = match typed_expr {
+        TypedExpr::ExprId(expr_id) => interner.expr_location(&expr_id),
+        TypedExpr::StmtId(stmt_id) => interner.statement_location(stmt_id),
+    };
+    Ok(Value::Location(loc))
+}
+
+// fn location_eq(a: Location, b: Location) -> bool
+fn location_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    eq_item(arguments, location, get_location)
+}
+
+// fn location_hash(loc: Location) -> Field
+fn location_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    hash_item(arguments, location, get_location)
 }
 
 /// Creates a value that holds an `Option`.

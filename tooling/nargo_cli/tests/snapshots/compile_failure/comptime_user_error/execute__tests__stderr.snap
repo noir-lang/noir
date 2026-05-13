@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: I am the error test on `forbidden`
+  ┌─ src/main.nr:4:4
+  │
+4 │ fn forbidden() {}
+  │    --------- I am the secondary on `forbidden`
+  │
+
+error: error 2
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: error 3
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: error 4
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: I am called twice
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+error: I am called twice
+   ┌─ src/main.nr:14:1
+   │
+14 │ struct IGiveLocations;
+   │ ----------------------
+   │
+
+Aborting due to 6 previous errors
