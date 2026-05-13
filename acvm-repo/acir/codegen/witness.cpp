@@ -68,6 +68,59 @@ namespace Witnesses {
                 throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
+
+        /// Convert `val` into `field`, or throw a focused error mentioning
+        /// the struct + field name. Used by the int-keyed dispatch path
+        /// where each `switch` case populates one field directly.
+        template<typename T>
+        static void convert_or_throw(
+            msgpack::object const& val,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field
+        ) {
+            try {
+                val.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << val << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        }
+
+        /// Whether `o` is a non-empty MAP whose first key is an integer.
+        /// This is the signature of `Format::MsgpackTagged`: int keys for
+        /// struct field tags and enum variant tags. Legacy `Format::Msgpack`
+        /// keys are always strings, so a positive-integer first key is a
+        /// reliable shape discriminator between the two.
+        static bool is_int_keyed_map(msgpack::object const& o) {
+            return o.type == msgpack::type::MAP
+                && o.via.map.size > 0
+                && o.via.map.ptr[0].key.type == msgpack::type::POSITIVE_INTEGER;
+        }
+
+        /// Iterate an int-keyed MAP and invoke `dispatch(tag, val)` for each
+        /// `(u8, msgpack::object)` entry. The per-tag `switch` inside the
+        /// caller's lambda decides which field (or variant) to populate;
+        /// unknown tags fall through to `default` and are silently skipped,
+        /// matching the `MsgpackTagged` decoder's forward-compat policy
+        /// (`allow_unknown_tags` / retired tags drained).
+        template<typename Dispatch>
+        static void int_map_dispatch(
+            msgpack::object const& o,
+            std::string const& name,
+            Dispatch&& dispatch
+        ) {
+            for (uint32_t i = 0; i < o.via.map.size; ++i) {
+                uint8_t tag;
+                try {
+                    o.via.map.ptr[i].key.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o.via.map.ptr[i].key << std::endl;
+                    throw_or_abort("expected u8 tag in int-keyed map for " + name);
+                }
+                dispatch(tag, o.via.map.ptr[i].val);
+            }
+        }
     };
     }
 
@@ -113,9 +166,26 @@ namespace Witnesses {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "StackItem";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "index", index);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "witness", witness);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "index", index, 0);
@@ -134,8 +204,22 @@ namespace Witnesses {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "WitnessStack";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "stack", stack);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "stack", stack, 0);

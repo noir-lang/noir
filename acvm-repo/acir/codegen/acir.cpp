@@ -68,6 +68,59 @@ namespace Acir {
                 throw_or_abort("error converting into field " + struct_name + "::" + field_name);
             }
         }
+
+        /// Convert `val` into `field`, or throw a focused error mentioning
+        /// the struct + field name. Used by the int-keyed dispatch path
+        /// where each `switch` case populates one field directly.
+        template<typename T>
+        static void convert_or_throw(
+            msgpack::object const& val,
+            std::string const& struct_name,
+            std::string const& field_name,
+            T& field
+        ) {
+            try {
+                val.convert(field);
+            } catch (const msgpack::type_error&) {
+                std::cerr << val << std::endl;
+                throw_or_abort("error converting into field " + struct_name + "::" + field_name);
+            }
+        }
+
+        /// Whether `o` is a non-empty MAP whose first key is an integer.
+        /// This is the signature of `Format::MsgpackTagged`: int keys for
+        /// struct field tags and enum variant tags. Legacy `Format::Msgpack`
+        /// keys are always strings, so a positive-integer first key is a
+        /// reliable shape discriminator between the two.
+        static bool is_int_keyed_map(msgpack::object const& o) {
+            return o.type == msgpack::type::MAP
+                && o.via.map.size > 0
+                && o.via.map.ptr[0].key.type == msgpack::type::POSITIVE_INTEGER;
+        }
+
+        /// Iterate an int-keyed MAP and invoke `dispatch(tag, val)` for each
+        /// `(u8, msgpack::object)` entry. The per-tag `switch` inside the
+        /// caller's lambda decides which field (or variant) to populate;
+        /// unknown tags fall through to `default` and are silently skipped,
+        /// matching the `MsgpackTagged` decoder's forward-compat policy
+        /// (`allow_unknown_tags` / retired tags drained).
+        template<typename Dispatch>
+        static void int_map_dispatch(
+            msgpack::object const& o,
+            std::string const& name,
+            Dispatch&& dispatch
+        ) {
+            for (uint32_t i = 0; i < o.via.map.size; ++i) {
+                uint8_t tag;
+                try {
+                    o.via.map.ptr[i].key.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o.via.map.ptr[i].key << std::endl;
+                    throw_or_abort("expected u8 tag in int-keyed map for " + name);
+                }
+                dispatch(tag, o.via.map.ptr[i].val);
+            }
+        }
     };
     }
 
@@ -136,52 +189,111 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BinaryFieldOp'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("expected u8 variant tag for enum 'BinaryFieldOp'");
                 }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BinaryFieldOp'");
-            }
-            if (tag == "Add") {
-                Add v;
-                value = v;
-            }
-            else if (tag == "Sub") {
-                Sub v;
-                value = v;
-            }
-            else if (tag == "Mul") {
-                Mul v;
-                value = v;
-            }
-            else if (tag == "Div") {
-                Div v;
-                value = v;
-            }
-            else if (tag == "IntegerDiv") {
-                IntegerDiv v;
-                value = v;
-            }
-            else if (tag == "Equals") {
-                Equals v;
-                value = v;
-            }
-            else if (tag == "LessThan") {
-                LessThan v;
-                value = v;
-            }
-            else if (tag == "LessThanEquals") {
-                LessThanEquals v;
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BinaryFieldOp' enum variant: " + tag);
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Add v;
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Sub v;
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        Mul v;
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        Div v;
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        IntegerDiv v;
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        Equals v;
+                        value = v;
+                        break;
+                    }
+                    case 6: {
+                        LessThan v;
+                        value = v;
+                        break;
+                    }
+                    case 7: {
+                        LessThanEquals v;
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BinaryFieldOp' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
+                try {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting tag to string for enum 'BinaryFieldOp'");
+                }
+                if (tag == "Add") {
+                    Add v;
+                    value = v;
+                }
+                else if (tag == "Sub") {
+                    Sub v;
+                    value = v;
+                }
+                else if (tag == "Mul") {
+                    Mul v;
+                    value = v;
+                }
+                else if (tag == "Div") {
+                    Div v;
+                    value = v;
+                }
+                else if (tag == "IntegerDiv") {
+                    IntegerDiv v;
+                    value = v;
+                }
+                else if (tag == "Equals") {
+                    Equals v;
+                    value = v;
+                }
+                else if (tag == "LessThan") {
+                    LessThan v;
+                    value = v;
+                }
+                else if (tag == "LessThanEquals") {
+                    LessThanEquals v;
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'BinaryFieldOp' enum variant: " + tag);
+                }
             }
         }
     };
@@ -273,68 +385,147 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BinaryIntOp'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("expected u8 variant tag for enum 'BinaryIntOp'");
                 }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BinaryIntOp'");
-            }
-            if (tag == "Add") {
-                Add v;
-                value = v;
-            }
-            else if (tag == "Sub") {
-                Sub v;
-                value = v;
-            }
-            else if (tag == "Mul") {
-                Mul v;
-                value = v;
-            }
-            else if (tag == "Div") {
-                Div v;
-                value = v;
-            }
-            else if (tag == "Equals") {
-                Equals v;
-                value = v;
-            }
-            else if (tag == "LessThan") {
-                LessThan v;
-                value = v;
-            }
-            else if (tag == "LessThanEquals") {
-                LessThanEquals v;
-                value = v;
-            }
-            else if (tag == "And") {
-                And v;
-                value = v;
-            }
-            else if (tag == "Or") {
-                Or v;
-                value = v;
-            }
-            else if (tag == "Xor") {
-                Xor v;
-                value = v;
-            }
-            else if (tag == "Shl") {
-                Shl v;
-                value = v;
-            }
-            else if (tag == "Shr") {
-                Shr v;
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BinaryIntOp' enum variant: " + tag);
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Add v;
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Sub v;
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        Mul v;
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        Div v;
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        Equals v;
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        LessThan v;
+                        value = v;
+                        break;
+                    }
+                    case 6: {
+                        LessThanEquals v;
+                        value = v;
+                        break;
+                    }
+                    case 7: {
+                        And v;
+                        value = v;
+                        break;
+                    }
+                    case 8: {
+                        Or v;
+                        value = v;
+                        break;
+                    }
+                    case 9: {
+                        Xor v;
+                        value = v;
+                        break;
+                    }
+                    case 10: {
+                        Shl v;
+                        value = v;
+                        break;
+                    }
+                    case 11: {
+                        Shr v;
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BinaryIntOp' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
+                try {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting tag to string for enum 'BinaryIntOp'");
+                }
+                if (tag == "Add") {
+                    Add v;
+                    value = v;
+                }
+                else if (tag == "Sub") {
+                    Sub v;
+                    value = v;
+                }
+                else if (tag == "Mul") {
+                    Mul v;
+                    value = v;
+                }
+                else if (tag == "Div") {
+                    Div v;
+                    value = v;
+                }
+                else if (tag == "Equals") {
+                    Equals v;
+                    value = v;
+                }
+                else if (tag == "LessThan") {
+                    LessThan v;
+                    value = v;
+                }
+                else if (tag == "LessThanEquals") {
+                    LessThanEquals v;
+                    value = v;
+                }
+                else if (tag == "And") {
+                    And v;
+                    value = v;
+                }
+                else if (tag == "Or") {
+                    Or v;
+                    value = v;
+                }
+                else if (tag == "Xor") {
+                    Xor v;
+                    value = v;
+                }
+                else if (tag == "Shl") {
+                    Shl v;
+                    value = v;
+                }
+                else if (tag == "Shr") {
+                    Shr v;
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'BinaryIntOp' enum variant: " + tag);
+                }
             }
         }
     };
@@ -390,44 +581,93 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'IntegerBitSize'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("expected u8 variant tag for enum 'IntegerBitSize'");
                 }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'IntegerBitSize'");
-            }
-            if (tag == "U1") {
-                U1 v;
-                value = v;
-            }
-            else if (tag == "U8") {
-                U8 v;
-                value = v;
-            }
-            else if (tag == "U16") {
-                U16 v;
-                value = v;
-            }
-            else if (tag == "U32") {
-                U32 v;
-                value = v;
-            }
-            else if (tag == "U64") {
-                U64 v;
-                value = v;
-            }
-            else if (tag == "U128") {
-                U128 v;
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'IntegerBitSize' enum variant: " + tag);
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        U1 v;
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        U8 v;
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        U16 v;
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        U32 v;
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        U64 v;
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        U128 v;
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'IntegerBitSize' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
+                try {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting tag to string for enum 'IntegerBitSize'");
+                }
+                if (tag == "U1") {
+                    U1 v;
+                    value = v;
+                }
+                else if (tag == "U8") {
+                    U8 v;
+                    value = v;
+                }
+                else if (tag == "U16") {
+                    U16 v;
+                    value = v;
+                }
+                else if (tag == "U32") {
+                    U32 v;
+                    value = v;
+                }
+                else if (tag == "U64") {
+                    U64 v;
+                    value = v;
+                }
+                else if (tag == "U128") {
+                    U128 v;
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'IntegerBitSize' enum variant: " + tag);
+                }
             }
         }
     };
@@ -468,35 +708,70 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BitSize'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
-                    o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BitSize'");
-            }
-            if (tag == "Field") {
-                Field v;
-                value = v;
-            }
-            else if (tag == "Integer") {
-                Integer v;
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
+                    o.via.map.ptr[0].key.convert(tag);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BitSize::Integer'");
+                    throw_or_abort("expected u8 variant tag for enum 'BitSize'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BitSize' enum variant: " + tag);
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Field v;
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Integer v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BitSize::Integer'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BitSize' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
+                try {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting tag to string for enum 'BitSize'");
+                }
+                if (tag == "Field") {
+                    Field v;
+                    value = v;
+                }
+                else if (tag == "Integer") {
+                    Integer v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BitSize::Integer'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'BitSize' enum variant: " + tag);
+                }
             }
         }
     };
@@ -546,42 +821,83 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'MemoryAddress'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'MemoryAddress'");
-            }
-            if (tag == "Direct") {
-                Direct v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'MemoryAddress::Direct'");
+                    throw_or_abort("expected u8 variant tag for enum 'MemoryAddress'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Relative") {
-                Relative v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Direct v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'MemoryAddress::Direct'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Relative v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'MemoryAddress' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
+                    throw_or_abort("error converting tag to string for enum 'MemoryAddress'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'MemoryAddress' enum variant: " + tag);
+                if (tag == "Direct") {
+                    Direct v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'MemoryAddress::Direct'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Relative") {
+                    Relative v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'MemoryAddress::Relative'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'MemoryAddress' enum variant: " + tag);
+                }
             }
         }
     };
@@ -610,9 +926,26 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "HeapArray";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "pointer", pointer);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "size", size);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
@@ -636,11 +969,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AES128Encrypt";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "iv", iv);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "key", key);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -662,9 +1018,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake2s";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "message", message);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
@@ -684,9 +1057,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake3";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "message", message);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
@@ -706,9 +1096,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Keccakf1600";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input", input);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
@@ -731,12 +1138,38 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256k1";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "hashed_msg", hashed_msg);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "public_key_x", public_key_x);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "public_key_y", public_key_y);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "signature", signature);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "result", result);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
@@ -762,12 +1195,38 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256r1";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "hashed_msg", hashed_msg);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "public_key_x", public_key_x);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "public_key_y", public_key_y);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "signature", signature);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "result", result);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_msg", hashed_msg, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "hashed_msg", hashed_msg, 0);
@@ -791,10 +1250,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MultiScalarMul";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "points", points);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "scalars", scalars);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "points", points, 0);
@@ -820,14 +1299,46 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EmbeddedCurveAdd";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input1_x", input1_x);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "input1_y", input1_y);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "input1_infinite", input1_infinite);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "input2_x", input2_x);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "input2_y", input2_y);
+                                    break;
+                                case 5:
+                                    Helpers::convert_or_throw(val, name, "input2_infinite", input2_infinite);
+                                    break;
+                                case 6:
+                                    Helpers::convert_or_throw(val, name, "result", result);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1_x", input1_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1_y", input1_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1_infinite", input1_infinite, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2_x", input2_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2_y", input2_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2_infinite", input2_infinite, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "result", result, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input1_x", input1_x, 0);
@@ -852,9 +1363,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Poseidon2Permutation";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "message", message);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "message", message, 0);
@@ -875,10 +1403,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Sha256Compression";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input", input);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "hash_values", hash_values);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
@@ -902,12 +1450,38 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ToRadix";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input", input);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "radix", radix);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "output_pointer", output_pointer);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "num_limbs", num_limbs);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "output_bits", output_bits);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "radix", radix, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output_pointer", output_pointer, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "num_limbs", num_limbs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output_bits", output_bits, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
@@ -934,141 +1508,281 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlackBoxOp'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BlackBoxOp'");
-            }
-            if (tag == "AES128Encrypt") {
-                AES128Encrypt v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::AES128Encrypt'");
+                    throw_or_abort("expected u8 variant tag for enum 'BlackBoxOp'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Blake2s") {
-                Blake2s v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        AES128Encrypt v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::AES128Encrypt'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Blake2s v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake2s'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        Blake3 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake3'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        Keccakf1600 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::Keccakf1600'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        EcdsaSecp256k1 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256k1'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        EcdsaSecp256r1 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256r1'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 6: {
+                        MultiScalarMul v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::MultiScalarMul'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 7: {
+                        EmbeddedCurveAdd v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::EmbeddedCurveAdd'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 8: {
+                        Poseidon2Permutation v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::Poseidon2Permutation'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 9: {
+                        Sha256Compression v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::Sha256Compression'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 10: {
+                        ToRadix v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxOp::ToRadix'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BlackBoxOp' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake2s'");
+                    throw_or_abort("error converting tag to string for enum 'BlackBoxOp'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Blake3") {
-                Blake3 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "AES128Encrypt") {
+                    AES128Encrypt v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::AES128Encrypt'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Blake2s") {
+                    Blake2s v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake2s'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Blake3") {
+                    Blake3 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake3'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Keccakf1600") {
+                    Keccakf1600 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::Keccakf1600'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EcdsaSecp256k1") {
+                    EcdsaSecp256k1 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256k1'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EcdsaSecp256r1") {
+                    EcdsaSecp256r1 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256r1'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "MultiScalarMul") {
+                    MultiScalarMul v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::MultiScalarMul'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EmbeddedCurveAdd") {
+                    EmbeddedCurveAdd v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::EmbeddedCurveAdd'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Poseidon2Permutation") {
+                    Poseidon2Permutation v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::Poseidon2Permutation'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Sha256Compression") {
+                    Sha256Compression v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::Sha256Compression'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "ToRadix") {
+                    ToRadix v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxOp::ToRadix'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::Blake3'");
+                    throw_or_abort("unknown 'BlackBoxOp' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else if (tag == "Keccakf1600") {
-                Keccakf1600 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::Keccakf1600'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EcdsaSecp256k1") {
-                EcdsaSecp256k1 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256k1'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EcdsaSecp256r1") {
-                EcdsaSecp256r1 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::EcdsaSecp256r1'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "MultiScalarMul") {
-                MultiScalarMul v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::MultiScalarMul'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EmbeddedCurveAdd") {
-                EmbeddedCurveAdd v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::EmbeddedCurveAdd'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Poseidon2Permutation") {
-                Poseidon2Permutation v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::Poseidon2Permutation'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Sha256Compression") {
-                Sha256Compression v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::Sha256Compression'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "ToRadix") {
-                ToRadix v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxOp::ToRadix'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BlackBoxOp' enum variant: " + tag);
             }
         }
     };
@@ -1116,9 +1830,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Array";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "value_types", value_types);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "size", size);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
@@ -1137,8 +1868,22 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Vector";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "value_types", value_types);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "value_types", value_types, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "value_types", value_types, 0);
@@ -1161,53 +1906,105 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'HeapValueType'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'HeapValueType'");
-            }
-            if (tag == "Simple") {
-                Simple v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'HeapValueType::Simple'");
+                    throw_or_abort("expected u8 variant tag for enum 'HeapValueType'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Array") {
-                Array v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Simple v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'HeapValueType::Simple'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Array v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'HeapValueType::Array'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        Vector v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'HeapValueType::Vector'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'HeapValueType' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'HeapValueType::Array'");
+                    throw_or_abort("error converting tag to string for enum 'HeapValueType'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Vector") {
-                Vector v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "Simple") {
+                    Simple v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'HeapValueType::Simple'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Array") {
+                    Array v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'HeapValueType::Array'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Vector") {
+                    Vector v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'HeapValueType::Vector'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'HeapValueType::Vector'");
+                    throw_or_abort("unknown 'HeapValueType' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'HeapValueType' enum variant: " + tag);
             }
         }
     };
@@ -1221,9 +2018,26 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "HeapVector";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "pointer", pointer);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "size", size);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "pointer", pointer, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "size", size, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "pointer", pointer, 0);
@@ -1294,53 +2108,105 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ValueOrArray'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'ValueOrArray'");
-            }
-            if (tag == "MemoryAddress") {
-                MemoryAddress v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ValueOrArray::MemoryAddress'");
+                    throw_or_abort("expected u8 variant tag for enum 'ValueOrArray'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "HeapArray") {
-                HeapArray v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        MemoryAddress v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'ValueOrArray::MemoryAddress'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        HeapArray v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'ValueOrArray::HeapArray'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        HeapVector v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'ValueOrArray::HeapVector'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'ValueOrArray' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ValueOrArray::HeapArray'");
+                    throw_or_abort("error converting tag to string for enum 'ValueOrArray'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "HeapVector") {
-                HeapVector v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "MemoryAddress") {
+                    MemoryAddress v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'ValueOrArray::MemoryAddress'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "HeapArray") {
+                    HeapArray v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'ValueOrArray::HeapArray'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "HeapVector") {
+                    HeapVector v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'ValueOrArray::HeapVector'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ValueOrArray::HeapVector'");
+                    throw_or_abort("unknown 'ValueOrArray' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'ValueOrArray' enum variant: " + tag);
             }
         }
     };
@@ -1358,11 +2224,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BinaryFieldOp";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "op", op);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "lhs", lhs);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "rhs", rhs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1387,12 +2276,38 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BinaryIntOp";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "op", op);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "bit_size", bit_size);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "lhs", lhs);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "rhs", rhs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1416,10 +2331,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Not";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source", source);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "bit_size", bit_size);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1441,10 +2376,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Cast";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source", source);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "bit_size", bit_size);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1465,9 +2420,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "JumpIf";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "condition", condition);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "location", location);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "condition", condition, 0);
@@ -1486,8 +2458,22 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Jump";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "location", location);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "location", location, 0);
@@ -1507,10 +2493,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "CalldataCopy";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination_address", destination_address);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "size_address", size_address);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "offset_address", offset_address);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination_address", destination_address, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "size_address", size_address, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "offset_address", offset_address, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination_address", destination_address, 0);
@@ -1530,8 +2536,22 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Call";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "location", location);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "location", location, 0);
@@ -1551,10 +2571,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Const";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "bit_size", bit_size);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "value", value);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1576,10 +2616,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "IndirectConst";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination_pointer", destination_pointer);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "bit_size", bit_size);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "value", value);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "bit_size", bit_size, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
@@ -1609,12 +2669,38 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ForeignCall";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "function", function);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "destinations", destinations);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "destination_value_types", destination_value_types);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "input_value_types", input_value_types);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "function", function, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destinations", destinations, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination_value_types", destination_value_types, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input_value_types", input_value_types, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "function", function, 0);
@@ -1637,9 +2723,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Mov";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source", source);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1661,11 +2764,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "ConditionalMov";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source_a", source_a);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "source_b", source_b);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "condition", condition);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source_a", source_a, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source_b", source_b, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1687,9 +2813,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Load";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination", destination);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source_pointer", source_pointer);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination", destination, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source_pointer", source_pointer, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination", destination, 0);
@@ -1709,9 +2852,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Store";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "destination_pointer", destination_pointer);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "source", source);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "destination_pointer", destination_pointer, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "source", source, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "destination_pointer", destination_pointer, 0);
@@ -1745,8 +2905,22 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Trap";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "revert_data", revert_data);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "revert_data", revert_data, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "revert_data", revert_data, 0);
@@ -1764,8 +2938,22 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Stop";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "return_data", return_data);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "return_data", return_data, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "return_data", return_data, 0);
@@ -1788,222 +2976,444 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligOpcode'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BrilligOpcode'");
-            }
-            if (tag == "BinaryFieldOp") {
-                BinaryFieldOp v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryFieldOp'");
+                    throw_or_abort("expected u8 variant tag for enum 'BrilligOpcode'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "BinaryIntOp") {
-                BinaryIntOp v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        BinaryFieldOp v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryFieldOp'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        BinaryIntOp v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryIntOp'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        Not v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Not'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        Cast v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        JumpIf v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIf'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        Jump v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Jump'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 6: {
+                        CalldataCopy v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::CalldataCopy'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 7: {
+                        Call v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Call'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 8: {
+                        Const v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Const'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 9: {
+                        IndirectConst v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::IndirectConst'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 10: {
+                        Return v;
+                        value = v;
+                        break;
+                    }
+                    case 11: {
+                        ForeignCall v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::ForeignCall'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 12: {
+                        Mov v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Mov'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 13: {
+                        ConditionalMov v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::ConditionalMov'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 14: {
+                        Load v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Load'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 15: {
+                        Store v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Store'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 16: {
+                        BlackBox v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::BlackBox'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 17: {
+                        Trap v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Trap'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 18: {
+                        Stop v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOpcode::Stop'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BrilligOpcode' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryIntOp'");
+                    throw_or_abort("error converting tag to string for enum 'BrilligOpcode'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Not") {
-                Not v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "BinaryFieldOp") {
+                    BinaryFieldOp v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryFieldOp'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "BinaryIntOp") {
+                    BinaryIntOp v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::BinaryIntOp'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Not") {
+                    Not v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Not'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Cast") {
+                    Cast v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "JumpIf") {
+                    JumpIf v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIf'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Jump") {
+                    Jump v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Jump'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "CalldataCopy") {
+                    CalldataCopy v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::CalldataCopy'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Call") {
+                    Call v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Call'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Const") {
+                    Const v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Const'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "IndirectConst") {
+                    IndirectConst v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::IndirectConst'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Return") {
+                    Return v;
+                    value = v;
+                }
+                else if (tag == "ForeignCall") {
+                    ForeignCall v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::ForeignCall'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Mov") {
+                    Mov v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Mov'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "ConditionalMov") {
+                    ConditionalMov v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::ConditionalMov'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Load") {
+                    Load v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Load'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Store") {
+                    Store v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Store'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "BlackBox") {
+                    BlackBox v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::BlackBox'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Trap") {
+                    Trap v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Trap'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Stop") {
+                    Stop v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOpcode::Stop'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Not'");
+                    throw_or_abort("unknown 'BrilligOpcode' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else if (tag == "Cast") {
-                Cast v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "JumpIf") {
-                JumpIf v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIf'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Jump") {
-                Jump v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Jump'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "CalldataCopy") {
-                CalldataCopy v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::CalldataCopy'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Call") {
-                Call v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Call'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Const") {
-                Const v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Const'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "IndirectConst") {
-                IndirectConst v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::IndirectConst'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Return") {
-                Return v;
-                value = v;
-            }
-            else if (tag == "ForeignCall") {
-                ForeignCall v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::ForeignCall'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Mov") {
-                Mov v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Mov'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "ConditionalMov") {
-                ConditionalMov v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::ConditionalMov'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Load") {
-                Load v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Load'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Store") {
-                Store v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Store'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "BlackBox") {
-                BlackBox v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::BlackBox'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Trap") {
-                Trap v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Trap'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Stop") {
-                Stop v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::Stop'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BrilligOpcode' enum variant: " + tag);
             }
         }
     };
@@ -2068,42 +3478,83 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'FunctionInput'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'FunctionInput'");
-            }
-            if (tag == "Constant") {
-                Constant v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'FunctionInput::Constant'");
+                    throw_or_abort("expected u8 variant tag for enum 'FunctionInput'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Witness") {
-                Witness v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Constant v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'FunctionInput::Constant'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Witness v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'FunctionInput::Witness'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'FunctionInput' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'FunctionInput::Witness'");
+                    throw_or_abort("error converting tag to string for enum 'FunctionInput'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'FunctionInput' enum variant: " + tag);
+                if (tag == "Constant") {
+                    Constant v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'FunctionInput::Constant'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Witness") {
+                    Witness v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'FunctionInput::Witness'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'FunctionInput' enum variant: " + tag);
+                }
             }
         }
     };
@@ -2121,11 +3572,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AES128Encrypt";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "iv", iv);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "key", key);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "iv", iv, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "key", key, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2149,11 +3623,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "AND";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "lhs", lhs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "rhs", rhs);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "num_bits", num_bits);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
@@ -2177,11 +3674,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "XOR";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "lhs", lhs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "rhs", rhs);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "num_bits", num_bits);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "lhs", lhs, 0);
@@ -2203,9 +3723,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "RANGE";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input", input);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "num_bits", num_bits);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input", input, 0);
@@ -2225,9 +3762,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake2s";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2247,9 +3801,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Blake3";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2273,13 +3844,42 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256k1";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "public_key_x", public_key_x);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "public_key_y", public_key_y);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "signature", signature);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "hashed_message", hashed_message);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                case 5:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
@@ -2307,13 +3907,42 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EcdsaSecp256r1";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "public_key_x", public_key_x);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "public_key_y", public_key_y);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "signature", signature);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "hashed_message", hashed_message);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                case 5:
+                                    Helpers::convert_or_throw(val, name, "output", output);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_x", public_key_x, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_key_y", public_key_y, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "public_key_x", public_key_x, 0);
@@ -2339,11 +3968,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MultiScalarMul";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "points", points);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "scalars", scalars);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "points", points, 0);
@@ -2367,11 +4019,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "EmbeddedCurveAdd";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "input1", input1);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "input2", input2);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "input1", input1, 0);
@@ -2393,9 +4068,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Keccakf1600";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2419,13 +4111,42 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "RecursiveAggregation";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "verification_key", verification_key);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "proof", proof);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "public_inputs", public_inputs);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "key_hash", key_hash);
+                                    break;
+                                case 4:
+                                    Helpers::convert_or_throw(val, name, "proof_type", proof_type);
+                                    break;
+                                case 5:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "verification_key", verification_key, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "proof", proof, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "public_inputs", public_inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "key_hash", key_hash, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "proof_type", proof_type, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "verification_key", verification_key, 0);
@@ -2449,9 +4170,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Poseidon2Permutation";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2472,10 +4210,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Sha256Compression";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "hash_values", hash_values);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "hash_values", hash_values, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "inputs", inputs, 0);
@@ -2500,174 +4258,347 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlackBoxFuncCall'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BlackBoxFuncCall'");
-            }
-            if (tag == "AES128Encrypt") {
-                AES128Encrypt v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AES128Encrypt'");
+                    throw_or_abort("expected u8 variant tag for enum 'BlackBoxFuncCall'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "AND") {
-                AND v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        AES128Encrypt v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AES128Encrypt'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        AND v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AND'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        XOR v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::XOR'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        RANGE v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RANGE'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        Blake2s v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake2s'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        Blake3 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake3'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 6: {
+                        EcdsaSecp256k1 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256k1'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 7: {
+                        EcdsaSecp256r1 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256r1'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 8: {
+                        MultiScalarMul v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::MultiScalarMul'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 9: {
+                        EmbeddedCurveAdd v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EmbeddedCurveAdd'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 10: {
+                        Keccakf1600 v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Keccakf1600'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 11: {
+                        RecursiveAggregation v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RecursiveAggregation'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 12: {
+                        Poseidon2Permutation v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Poseidon2Permutation'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 13: {
+                        Sha256Compression v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Sha256Compression'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BlackBoxFuncCall' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AND'");
+                    throw_or_abort("error converting tag to string for enum 'BlackBoxFuncCall'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "XOR") {
-                XOR v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "AES128Encrypt") {
+                    AES128Encrypt v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AES128Encrypt'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "AND") {
+                    AND v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::AND'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "XOR") {
+                    XOR v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::XOR'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "RANGE") {
+                    RANGE v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RANGE'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Blake2s") {
+                    Blake2s v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake2s'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Blake3") {
+                    Blake3 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake3'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EcdsaSecp256k1") {
+                    EcdsaSecp256k1 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256k1'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EcdsaSecp256r1") {
+                    EcdsaSecp256r1 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256r1'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "MultiScalarMul") {
+                    MultiScalarMul v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::MultiScalarMul'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "EmbeddedCurveAdd") {
+                    EmbeddedCurveAdd v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EmbeddedCurveAdd'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Keccakf1600") {
+                    Keccakf1600 v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Keccakf1600'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "RecursiveAggregation") {
+                    RecursiveAggregation v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RecursiveAggregation'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Poseidon2Permutation") {
+                    Poseidon2Permutation v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Poseidon2Permutation'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Sha256Compression") {
+                    Sha256Compression v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Sha256Compression'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::XOR'");
+                    throw_or_abort("unknown 'BlackBoxFuncCall' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else if (tag == "RANGE") {
-                RANGE v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RANGE'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Blake2s") {
-                Blake2s v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake2s'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Blake3") {
-                Blake3 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Blake3'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EcdsaSecp256k1") {
-                EcdsaSecp256k1 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256k1'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EcdsaSecp256r1") {
-                EcdsaSecp256r1 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EcdsaSecp256r1'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "MultiScalarMul") {
-                MultiScalarMul v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::MultiScalarMul'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "EmbeddedCurveAdd") {
-                EmbeddedCurveAdd v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::EmbeddedCurveAdd'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Keccakf1600") {
-                Keccakf1600 v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Keccakf1600'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "RecursiveAggregation") {
-                RecursiveAggregation v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::RecursiveAggregation'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Poseidon2Permutation") {
-                Poseidon2Permutation v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Poseidon2Permutation'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Sha256Compression") {
-                Sha256Compression v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlackBoxFuncCall::Sha256Compression'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BlackBoxFuncCall' enum variant: " + tag);
             }
         }
     };
@@ -2729,39 +4660,79 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BlockType'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
-                    o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BlockType'");
-            }
-            if (tag == "Memory") {
-                Memory v;
-                value = v;
-            }
-            else if (tag == "CallData") {
-                CallData v;
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
+                    o.via.map.ptr[0].key.convert(tag);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BlockType::CallData'");
+                    throw_or_abort("expected u8 variant tag for enum 'BlockType'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "ReturnData") {
-                ReturnData v;
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BlockType' enum variant: " + tag);
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Memory v;
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        CallData v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BlockType::CallData'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        ReturnData v;
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BlockType' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
+                try {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting tag to string for enum 'BlockType'");
+                }
+                if (tag == "Memory") {
+                    Memory v;
+                    value = v;
+                }
+                else if (tag == "CallData") {
+                    CallData v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BlockType::CallData'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "ReturnData") {
+                    ReturnData v;
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'BlockType' enum variant: " + tag);
+                }
             }
         }
     };
@@ -2776,10 +4747,30 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Expression";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "mul_terms", mul_terms);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "linear_combinations", linear_combinations);
+                                break;
+                            case 2:
+                                Helpers::convert_or_throw(val, name, "q_c", q_c);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "mul_terms", mul_terms, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "linear_combinations", linear_combinations, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "q_c", q_c, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "mul_terms", mul_terms, 0);
@@ -2851,53 +4842,105 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligInputs'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BrilligInputs'");
-            }
-            if (tag == "Single") {
-                Single v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligInputs::Single'");
+                    throw_or_abort("expected u8 variant tag for enum 'BrilligInputs'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Array") {
-                Array v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Single v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligInputs::Single'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Array v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligInputs::Array'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        MemoryArray v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligInputs::MemoryArray'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BrilligInputs' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligInputs::Array'");
+                    throw_or_abort("error converting tag to string for enum 'BrilligInputs'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "MemoryArray") {
-                MemoryArray v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "Single") {
+                    Single v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligInputs::Single'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Array") {
+                    Array v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligInputs::Array'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "MemoryArray") {
+                    MemoryArray v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligInputs::MemoryArray'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligInputs::MemoryArray'");
+                    throw_or_abort("unknown 'BrilligInputs' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BrilligInputs' enum variant: " + tag);
             }
         }
     };
@@ -2947,42 +4990,83 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'BrilligOutputs'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'BrilligOutputs'");
-            }
-            if (tag == "Simple") {
-                Simple v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOutputs::Simple'");
+                    throw_or_abort("expected u8 variant tag for enum 'BrilligOutputs'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Array") {
-                Array v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Simple v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOutputs::Simple'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Array v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'BrilligOutputs::Array'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'BrilligOutputs' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOutputs::Array'");
+                    throw_or_abort("error converting tag to string for enum 'BrilligOutputs'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'BrilligOutputs' enum variant: " + tag);
+                if (tag == "Simple") {
+                    Simple v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOutputs::Simple'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Array") {
+                    Array v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'BrilligOutputs::Array'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'BrilligOutputs' enum variant: " + tag);
+                }
             }
         }
     };
@@ -2997,10 +5081,30 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "MemOp";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "operation", operation);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "index", index);
+                                break;
+                            case 2:
+                                Helpers::convert_or_throw(val, name, "value", value);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "operation", operation, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "index", index, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "value", value, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "operation", operation, 0);
@@ -3053,9 +5157,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MemoryOp";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "block_id", block_id);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "op", op);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
@@ -3076,10 +5197,30 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "MemoryInit";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "block_id", block_id);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "init", init);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "block_type", block_type);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "init", init, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "block_type", block_type, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "block_id", block_id, 0);
@@ -3102,11 +5243,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "BrilligCall";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "id", id);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
@@ -3130,11 +5294,34 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Call";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "id", id);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "inputs", inputs);
+                                    break;
+                                case 2:
+                                    Helpers::convert_or_throw(val, name, "outputs", outputs);
+                                    break;
+                                case 3:
+                                    Helpers::convert_or_throw(val, name, "predicate", predicate);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "id", id, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "id", id, 0);
@@ -3160,86 +5347,171 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'Opcode'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'Opcode'");
-            }
-            if (tag == "AssertZero") {
-                AssertZero v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::AssertZero'");
+                    throw_or_abort("expected u8 variant tag for enum 'Opcode'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "BlackBoxFuncCall") {
-                BlackBoxFuncCall v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        AssertZero v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::AssertZero'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        BlackBoxFuncCall v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::BlackBoxFuncCall'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 2: {
+                        MemoryOp v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::MemoryOp'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 3: {
+                        MemoryInit v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::MemoryInit'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 4: {
+                        BrilligCall v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::BrilligCall'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 5: {
+                        Call v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'Opcode::Call'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'Opcode' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::BlackBoxFuncCall'");
+                    throw_or_abort("error converting tag to string for enum 'Opcode'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "MemoryOp") {
-                MemoryOp v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                if (tag == "AssertZero") {
+                    AssertZero v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::AssertZero'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "BlackBoxFuncCall") {
+                    BlackBoxFuncCall v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::BlackBoxFuncCall'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "MemoryOp") {
+                    MemoryOp v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::MemoryOp'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "MemoryInit") {
+                    MemoryInit v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::MemoryInit'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "BrilligCall") {
+                    BrilligCall v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::BrilligCall'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Call") {
+                    Call v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'Opcode::Call'");
+                    }
+                    
+                    value = v;
+                }
+                else {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::MemoryOp'");
+                    throw_or_abort("unknown 'Opcode' enum variant: " + tag);
                 }
-                
-                value = v;
-            }
-            else if (tag == "MemoryInit") {
-                MemoryInit v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::MemoryInit'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "BrilligCall") {
-                BrilligCall v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::BrilligCall'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "Call") {
-                Call v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'Opcode::Call'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'Opcode' enum variant: " + tag);
             }
         }
     };
@@ -3289,42 +5561,83 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'ExpressionOrMemory'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'ExpressionOrMemory'");
-            }
-            if (tag == "Expression") {
-                Expression v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Expression'");
+                    throw_or_abort("expected u8 variant tag for enum 'ExpressionOrMemory'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Memory") {
-                Memory v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Expression v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Expression'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Memory v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Memory'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'ExpressionOrMemory' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Memory'");
+                    throw_or_abort("error converting tag to string for enum 'ExpressionOrMemory'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'ExpressionOrMemory' enum variant: " + tag);
+                if (tag == "Expression") {
+                    Expression v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Expression'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Memory") {
+                    Memory v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'ExpressionOrMemory::Memory'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'ExpressionOrMemory' enum variant: " + tag);
+                }
             }
         }
     };
@@ -3338,9 +5651,26 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "AssertionPayload";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "error_selector", error_selector);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "payload", payload);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "error_selector", error_selector, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "payload", payload, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "error_selector", error_selector, 0);
@@ -3377,9 +5707,26 @@ namespace Acir {
             void msgpack_unpack(msgpack::object const& o) {
                 std::string name = "Brillig";
                 if (o.type == msgpack::type::MAP) {
-                    auto kvmap = Helpers::make_kvmap(o, name);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
-                    Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
+                    if (Helpers::is_int_keyed_map(o)) {
+                        Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                            switch (tag) {
+                                case 0:
+                                    Helpers::convert_or_throw(val, name, "acir_index", acir_index);
+                                    break;
+                                case 1:
+                                    Helpers::convert_or_throw(val, name, "brillig_index", brillig_index);
+                                    break;
+                                default:
+                                    // Unknown tag — skip silently (forward-compat /
+                                    // retired tags drained — matches the Rust decoder).
+                                    break;
+                            }
+                        });
+                    } else {
+                        auto kvmap = Helpers::make_kvmap(o, name);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "acir_index", acir_index, false);
+                        Helpers::conv_fld_from_kvmap(kvmap, name, "brillig_index", brillig_index, false);
+                    }
                 } else if (o.type == msgpack::type::ARRAY) {
                     auto array = o.via.array; 
                     Helpers::conv_fld_from_array(array, name, "acir_index", acir_index, 0);
@@ -3403,42 +5750,83 @@ namespace Acir {
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
                 throw_or_abort("expected 1 entry for enum 'OpcodeLocation'; got " + std::to_string(o.via.map.size));
             }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
+            if (Helpers::is_int_keyed_map(o)) {
+                // `Format::MsgpackTagged` — int-keyed variant.
+                uint8_t tag;
+                try {
                     o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'OpcodeLocation'");
-            }
-            if (tag == "Acir") {
-                Acir v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'OpcodeLocation::Acir'");
+                    throw_or_abort("expected u8 variant tag for enum 'OpcodeLocation'");
                 }
-                
-                value = v;
-            }
-            else if (tag == "Brillig") {
-                Brillig v;
+                msgpack::object const& val = o.via.map.ptr[0].val;
+                switch (tag) {
+                    case 0: {
+                        Acir v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'OpcodeLocation::Acir'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    case 1: {
+                        Brillig v;
+                        try {
+                            val.convert(v);
+                        } catch (const msgpack::type_error&) {
+                            std::cerr << val << std::endl;
+                            throw_or_abort("error converting into enum variant 'OpcodeLocation::Brillig'");
+                        }
+                        value = v;
+                        break;
+                    }
+                    default:
+                        std::cerr << o << std::endl;
+                        throw_or_abort("unknown 'OpcodeLocation' enum variant tag: " + std::to_string(tag));
+                }
+            } else {
+                // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
+                // unit variant (bare STR) — both dispatch on the variant name.
+                std::string tag;
                 try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
+                    if (o.type == msgpack::type::object_type::MAP) {
+                        o.via.map.ptr[0].key.convert(tag);
+                    } else {
+                        o.convert(tag);
+                    }
+                } catch(const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'OpcodeLocation::Brillig'");
+                    throw_or_abort("error converting tag to string for enum 'OpcodeLocation'");
                 }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'OpcodeLocation' enum variant: " + tag);
+                if (tag == "Acir") {
+                    Acir v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'OpcodeLocation::Acir'");
+                    }
+                    
+                    value = v;
+                }
+                else if (tag == "Brillig") {
+                    Brillig v;
+                    try {
+                        o.via.map.ptr[0].val.convert(v);
+                    } catch (const msgpack::type_error&) {
+                        std::cerr << o << std::endl;
+                        throw_or_abort("error converting into enum variant 'OpcodeLocation::Brillig'");
+                    }
+                    
+                    value = v;
+                }
+                else {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("unknown 'OpcodeLocation' enum variant: " + tag);
+                }
             }
         }
     };
@@ -3472,14 +5860,46 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Circuit";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "function_name", function_name);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "current_witness_index", current_witness_index);
+                                break;
+                            case 2:
+                                Helpers::convert_or_throw(val, name, "opcodes", opcodes);
+                                break;
+                            case 3:
+                                Helpers::convert_or_throw(val, name, "private_parameters", private_parameters);
+                                break;
+                            case 4:
+                                Helpers::convert_or_throw(val, name, "public_parameters", public_parameters);
+                                break;
+                            case 5:
+                                Helpers::convert_or_throw(val, name, "return_values", return_values);
+                                break;
+                            case 6:
+                                Helpers::convert_or_throw(val, name, "assert_messages", assert_messages);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "assert_messages", assert_messages, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
@@ -3504,9 +5924,26 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "BrilligBytecode";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "function_name", function_name);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "bytecode", bytecode);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "function_name", function_name, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "function_name", function_name, 0);
@@ -3526,9 +5963,26 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "Program";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "functions", functions);
+                                break;
+                            case 1:
+                                Helpers::convert_or_throw(val, name, "unconstrained_functions", unconstrained_functions);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "unconstrained_functions", unconstrained_functions, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
@@ -3548,8 +6002,22 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             std::string name = "ProgramWithoutBrillig";
             if (o.type == msgpack::type::MAP) {
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+                if (Helpers::is_int_keyed_map(o)) {
+                    Helpers::int_map_dispatch(o, name, [&](uint8_t tag, msgpack::object const& val) {
+                        switch (tag) {
+                            case 0:
+                                Helpers::convert_or_throw(val, name, "functions", functions);
+                                break;
+                            default:
+                                // Unknown tag — skip silently (forward-compat /
+                                // retired tags drained — matches the Rust decoder).
+                                break;
+                        }
+                    });
+                } else {
+                    auto kvmap = Helpers::make_kvmap(o, name);
+                    Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+                }
             } else if (o.type == msgpack::type::ARRAY) {
                 auto array = o.via.array; 
                 Helpers::conv_fld_from_array(array, name, "functions", functions, 0);
