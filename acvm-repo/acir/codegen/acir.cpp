@@ -936,9 +936,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "size", size);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for HeapArray: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -985,9 +984,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for AES128Encrypt: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1028,9 +1026,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Blake2s: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1067,9 +1064,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Blake3: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1106,9 +1102,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Keccakf1600: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1157,9 +1152,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "result", result);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EcdsaSecp256k1: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1214,9 +1208,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "result", result);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EcdsaSecp256r1: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1263,9 +1256,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for MultiScalarMul: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1324,9 +1316,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "result", result);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EmbeddedCurveAdd: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1373,9 +1364,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Poseidon2Permutation: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1416,9 +1406,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Sha256Compression: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1469,9 +1458,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output_bits", output_bits);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for ToRadix: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1840,9 +1828,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "size", size);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Array: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -1875,9 +1862,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "value_types", value_types);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Vector: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2028,9 +2014,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "size", size);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for HeapVector: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -2240,9 +2225,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "rhs", rhs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for BinaryFieldOp: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2295,9 +2279,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "rhs", rhs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for BinaryIntOp: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2344,9 +2327,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "bit_size", bit_size);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Not: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2389,9 +2371,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "bit_size", bit_size);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Cast: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2430,9 +2411,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "location", location);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for JumpIf: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2465,9 +2445,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "location", location);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Jump: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2506,9 +2485,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "offset_address", offset_address);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for CalldataCopy: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2543,9 +2521,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "location", location);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Call: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2584,9 +2561,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "value", value);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Const: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2629,9 +2605,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "value", value);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for IndirectConst: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2688,9 +2663,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "input_value_types", input_value_types);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for ForeignCall: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2733,9 +2707,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "source", source);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Mov: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2780,9 +2753,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "condition", condition);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for ConditionalMov: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2823,9 +2795,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "source_pointer", source_pointer);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Load: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2862,9 +2833,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "source", source);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Store: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2912,9 +2882,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "revert_data", revert_data);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Trap: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -2945,9 +2914,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "return_data", return_data);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Stop: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3588,9 +3556,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for AES128Encrypt: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3639,9 +3606,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for AND: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3690,9 +3656,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for XOR: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3733,9 +3698,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "num_bits", num_bits);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for RANGE: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3772,9 +3736,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Blake2s: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3811,9 +3774,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Blake3: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3866,9 +3828,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EcdsaSecp256k1: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3929,9 +3890,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "output", output);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EcdsaSecp256r1: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -3984,9 +3944,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for MultiScalarMul: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4035,9 +3994,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for EmbeddedCurveAdd: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4078,9 +4036,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Keccakf1600: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4133,9 +4090,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "predicate", predicate);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for RecursiveAggregation: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4180,9 +4136,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Poseidon2Permutation: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4223,9 +4178,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "outputs", outputs);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Sha256Compression: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -4760,9 +4714,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "q_c", q_c);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for Expression: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -5094,9 +5047,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "value", value);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for MemOp: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -5167,9 +5119,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "op", op);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for MemoryOp: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -5210,9 +5161,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "block_type", block_type);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for MemoryInit: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -5259,9 +5209,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "predicate", predicate);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for BrilligCall: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -5310,9 +5259,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "predicate", predicate);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Call: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -5661,9 +5609,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "payload", payload);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for AssertionPayload: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -5717,9 +5664,8 @@ namespace Acir {
                                     Helpers::convert_or_throw(val, name, "brillig_index", brillig_index);
                                     break;
                                 default:
-                                    // Unknown tag — skip silently (forward-compat /
-                                    // retired tags drained — matches the Rust decoder).
-                                    break;
+                                    std::cerr << val << std::endl;
+                                    throw_or_abort("unknown tag for Brillig: " + std::to_string(tag));
                             }
                         });
                     } else {
@@ -5885,8 +5831,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "assert_messages", assert_messages);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
+                                // `#[tagged(allow_unknown_tags)]` on the Rust side:
+                                // silently skip any tag we don't recognize.
                                 break;
                         }
                     });
@@ -5934,8 +5880,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "bytecode", bytecode);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
+                                // `#[tagged(allow_unknown_tags)]` on the Rust side:
+                                // silently skip any tag we don't recognize.
                                 break;
                         }
                     });
@@ -5973,8 +5919,8 @@ namespace Acir {
                                 Helpers::convert_or_throw(val, name, "unconstrained_functions", unconstrained_functions);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
+                                // `#[tagged(allow_unknown_tags)]` on the Rust side:
+                                // silently skip any tag we don't recognize.
                                 break;
                         }
                     });
@@ -6008,10 +5954,12 @@ namespace Acir {
                             case 0:
                                 Helpers::convert_or_throw(val, name, "functions", functions);
                                 break;
-                            default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
+                            case 1:
+                                // Field is `std::monostate` — wire entry intentionally discarded.
                                 break;
+                            default:
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for ProgramWithoutBrillig: " + std::to_string(tag));
                         }
                     });
                 } else {

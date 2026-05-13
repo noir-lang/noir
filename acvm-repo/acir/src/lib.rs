@@ -695,9 +695,6 @@ mod reflection {
                 );
                 // cSpell:enable
                 for field in fields {
-                    if is_unit(field) {
-                        continue;
-                    }
                     let field_name = &field.name;
                     let tag = product.tag_for(field_name).unwrap_or_else(|| {
                         panic!(
@@ -706,6 +703,21 @@ mod reflection {
                              on which fields are on the wire",
                         )
                     });
+                    if is_unit(field) {
+                        // Field is `()` in Rust / `std::monostate` in C++.
+                        // The wire still carries a value at this tag; we
+                        // consume it without binding to any C++ member,
+                        // mirroring `deserialize_unit`'s skip-any semantics.
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+                    case {tag}:
+                        // Field is `std::monostate` — wire entry intentionally discarded.
+                        break;"#
+                        ));
+                        // cSpell:enable
+                        continue;
+                    }
                     // cSpell:disable
                     body.push_str(&format!(
                         r#"
@@ -715,13 +727,47 @@ mod reflection {
                     ));
                     // cSpell:enable
                 }
+                // Reserved tags: retired in the Rust type via
+                // `#[tagged(reserved(...))]`. The Rust decoder skips
+                // them silently regardless of `allow_unknown_tags`; do
+                // the same here, with an explicit case so the strict
+                // default below can distinguish "retired" from "never
+                // declared".
+                for &reserved_tag in product.reserved {
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+                    case {reserved_tag}:
+                        // Reserved tag (retired field) — skip silently.
+                        break;"#
+                    ));
+                    // cSpell:enable
+                }
+                // Default branch: strict by default (reject unknown tags
+                // so a C++ reviewer can see the type-level intent). Opt
+                // into silent forward-compat with `#[tagged(allow_unknown_tags)]`
+                // on the Rust struct.
+                if product.allow_unknown_tags {
+                    body.push_str(
+                        r#"
+                    default:
+                        // `#[tagged(allow_unknown_tags)]` on the Rust side:
+                        // silently skip any tag we don't recognize.
+                        break;"#,
+                    );
+                } else {
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+                    default:
+                        std::cerr << val << std::endl;
+                        throw_or_abort("unknown tag for {name}: " + std::to_string(tag));"#
+                    ));
+                    // cSpell:enable
+                }
                 // cSpell:disable
                 body.push_str(
                     r#"
-                    default:
-                        // Unknown tag — skip silently (forward-compat /
-                        // retired tags drained — matches the Rust decoder).
-                        break;
                 }
             });
         } else {
@@ -949,14 +995,93 @@ mod reflection {
                         // cSpell:enable
                     }
                 }
-                // cSpell:disable
-                body.push_str(&format!(
-                    r#"
+
+                // Reserved variant tags: retired variants on the Rust side
+                // (`#[tagged(reserved(...))]` on the enum). If the enum
+                // marks a unit variant with `#[tagged(on_reserved)]`,
+                // legacy wires carrying a retired tag route to that
+                // fallback; otherwise we throw with a "retired" message
+                // that's distinguishable from the "unknown" case below.
+                let lookup_unit_variant = |fallback_tag: u8| -> &str {
+                    sum.variants.iter().find(|v| v.tag == fallback_tag).map_or_else(
+                        || {
+                            panic!(
+                                "MsgpackTagged Sum for enum {name:?} declares a fallback \
+                                 tag {fallback_tag} that doesn't match any registered variant",
+                            )
+                        },
+                        |v| v.name,
+                    )
+                };
+                for &reserved_tag in sum.reserved {
+                    if let Some(fallback_tag) = sum.on_reserved_tag {
+                        let fallback_name = lookup_unit_variant(fallback_tag);
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+            case {reserved_tag}: {{
+                // `#[tagged(on_reserved)]` fallback: retired tag routes to
+                // the designated unit variant (payload discarded).
+                {fallback_name} v;
+                value = v;
+                break;
+            }}"#
+                        ));
+                        // cSpell:enable
+                    } else {
+                        // cSpell:disable
+                        body.push_str(&format!(
+                            r#"
+            case {reserved_tag}:
+                std::cerr << o << std::endl;
+                throw_or_abort("retired variant tag {reserved_tag} for enum '{name}' (declare `#[tagged(on_reserved)]` on a unit variant to route legacy data here)");"#
+                        ));
+                        // cSpell:enable
+                    }
+                }
+
+                // Default branch for unknown variant tags (not active,
+                // not reserved). Routes to `#[tagged(on_unknown)]` if
+                // set — the forward-compat opt-in for newer producers
+                // introducing variants this code doesn't know about.
+                if let Some(fallback_tag) = sum.on_unknown_tag {
+                    let fallback_name = lookup_unit_variant(fallback_tag);
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
+            default: {{
+                // `#[tagged(on_unknown)]` fallback: any tag we don't recognize
+                // (and isn't reserved) routes here.
+                {fallback_name} v;
+                value = v;
+                break;
+            }}"#
+                    ));
+                    // cSpell:enable
+                } else {
+                    // cSpell:disable
+                    body.push_str(&format!(
+                        r#"
             default:
                 std::cerr << o << std::endl;
-                throw_or_abort("unknown '{name}' enum variant tag: " + std::to_string(tag));
-        }}
-    }} else {{
+                throw_or_abort("unknown '{name}' enum variant tag: " + std::to_string(tag));"#
+                    ));
+                    // cSpell:enable
+                }
+                // cSpell:disable
+                body.push_str(
+                    r#"
+        }
+    } else {"#,
+                );
+                // cSpell:enable
+                // Reuse the existing format-string body for the legacy
+                // string-keyed dispatch path. The `format!(name = ...)`
+                // substitution from the previous body is preserved in the
+                // already-appended text; the section below is plain C++
+                // with no further interpolation.
+                body.push_str(&format!(
+                    r#"
         // `Format::Msgpack` (MAP, string-keyed) or `Format::MsgpackCompact`
         // unit variant (bare STR) — both dispatch on the variant name.
         std::string tag;

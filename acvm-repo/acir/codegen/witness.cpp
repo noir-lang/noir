@@ -176,9 +176,8 @@ namespace Witnesses {
                                 Helpers::convert_or_throw(val, name, "witness", witness);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for StackItem: " + std::to_string(tag));
                         }
                     });
                 } else {
@@ -211,9 +210,8 @@ namespace Witnesses {
                                 Helpers::convert_or_throw(val, name, "stack", stack);
                                 break;
                             default:
-                                // Unknown tag — skip silently (forward-compat /
-                                // retired tags drained — matches the Rust decoder).
-                                break;
+                                std::cerr << val << std::endl;
+                                throw_or_abort("unknown tag for WitnessStack: " + std::to_string(tag));
                         }
                     });
                 } else {
