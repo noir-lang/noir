@@ -462,10 +462,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let base_index_id = info.base_index;
             let length = info.length;
 
-            // When the base index is a constant, brillig_array_get_and_set has already
-            // adjusted it to include the metadata offset. Use the raw array pointer.
-            // When dynamic, compute the items pointer.
-            let has_offset = dfg.get_numeric_constant(base_index_id).is_some();
+            // When the base index is a constant and the `brillig_array_get_and_set` pass
+            // has run, the index has already been adjusted to include the metadata offset,
+            // so we use the raw array pointer.
+            // Otherwise (dynamic index, or pass not run) we compute the items pointer.
+            let has_offset =
+                dfg.brillig_arrays_offset && dfg.get_numeric_constant(base_index_id).is_some();
             let src_variable = self.convert_ssa_value(source_array, dfg);
             let src_items = if has_offset {
                 src_variable.extract_register()

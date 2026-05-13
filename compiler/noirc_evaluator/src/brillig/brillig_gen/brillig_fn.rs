@@ -90,9 +90,9 @@ impl FunctionContext {
 
         let post_order = PostOrder::with_function(function).into_vec();
         let memcpy_opts = MemcpyOptimizations::from_function(function);
+        let synthetic_uses = memcpy_opts.synthetic_uses();
         let constants = ConstantAllocation::from_function(function);
-        let liveness =
-            VariableLiveness::from_function(function, &constants, &memcpy_opts.memcpy_groups);
+        let liveness = VariableLiveness::from_function(function, &constants, &synthetic_uses);
         let needs_spill_support =
             liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 

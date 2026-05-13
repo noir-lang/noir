@@ -19,7 +19,7 @@
 //! result = make_array([v0, v1, ...])
 //! ```
 //!
-//! When matched, the `MakeArray` is replaced with a `mem_copy` from the source array,
+//! When matched, the `MakeArray` is lowered as `mem_copy` from the source array,
 //! and the individual `ArrayGet` instructions (plus their single-use index computations)
 //! are skipped entirely during codegen.
 
@@ -28,7 +28,10 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     brillig::{
-        brillig_gen::{brillig_block::BrilligBlock, brillig_block_variables::compute_array_length},
+        brillig_gen::{
+            brillig_block::BrilligBlock, brillig_block_variables::compute_array_length,
+            variable_liveness::SyntheticUses,
+        },
         brillig_ir::{
             BrilligBinaryOp, ReservedRegisters,
             brillig_variable::{
@@ -83,6 +86,9 @@ pub(crate) struct LoadGroupInfo {
     pub(crate) base_index: ValueId,
     /// The instruction IDs of all consecutive array_gets in the group.
     pub(crate) array_get_ids: Vec<InstructionId>,
+    /// The `Binary::Add` index computations related to the consecutive array_gets of the group.
+    /// If array_gets are restored, the index computations need to be restored as well.
+    pub(crate) skipped_index_ids: Vec<InstructionId>,
 }
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
@@ -131,8 +137,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             return false;
         };
 
-        // Compute source pointer: array_base + base_index.
-        let has_offset = dfg.get_numeric_constant(info.base_index).is_some();
+        // Compute source pointer: array_base + base_index. The `has_offset` check must
+        // match `codegen_array_get`: a constant index is only pre-adjusted past the
+        // metadata header once the `brillig_array_get_and_set` pass has run.
+        let has_offset =
+            dfg.brillig_arrays_offset && dfg.get_numeric_constant(info.base_index).is_some();
         let array_variable = self.convert_ssa_value(info.source_array, dfg);
         let base_ptr = if has_offset {
             array_variable.extract_register()
@@ -254,6 +263,18 @@ fn is_index_base_plus_offset(
 }
 
 impl MemcpyOptimizations {
+    /// Build the [SyntheticUses][SyntheticUses] entries that
+    /// liveness needs to keep memcpy operands alive at the `MakeArray` they get folded
+    /// into. `MakeArray`'s SSA operands are the per-element values; the memcpy codegen
+    /// instead reads `source_array` and `base_index` at the same site, so we register
+    /// them as extra operands of the `MakeArray`.
+    pub(crate) fn synthetic_uses(&self) -> SyntheticUses {
+        self.memcpy_groups
+            .iter()
+            .map(|(id, info)| (*id, vec![info.source_array, info.base_index]))
+            .collect()
+    }
+
     /// Analyze a function for memcpy optimization opportunities.
     pub(crate) fn from_function(func: &Function) -> Self {
         let dfg = &func.dfg;
@@ -282,11 +303,8 @@ impl MemcpyOptimizations {
                         .memcpy_groups
                         .insert(instruction_id, MemcpyInfo { source_array, base_index, length });
 
-                    // Mark single-use array_gets and index computations for skipping.
-                    // Element 0 is NOT skipped: its array_get naturally uses source_array
-                    // and base_index in the SSA, which keeps them alive via liveness
-                    // (plus the synthetic uses injected in VariableLiveness).
-                    for (_i, element) in elements.iter().enumerate().skip(1) {
+                    // Mark single-use array_gets and their single-use index computations for skipping.
+                    for element in elements {
                         if use_counts.get(element).copied().unwrap_or(0) != 1 {
                             continue;
                         }
@@ -370,15 +388,20 @@ impl MemcpyOptimizations {
 
                 let total_consumed = array_get_ids.len() + skipped_ids.len();
 
-                // Mark ALL elements 1..N for skipping — codegen_load_group defines them all.
+                // Mark elements 1..N for skipping — `codegen_load_group` defines them all.
+                // Element 0 is preserved because to acts as the dispatch key:
+                // `brillig_block` looks up `load_groups[instruction_id]` per-instruction and
+                // emits the memcpy on hit.
                 for &get_id in &array_get_ids[1..] {
                     result.skip_instructions.insert(get_id);
                 }
                 // Mark single-use index computations for skipping.
+                let mut skipped_index_ids = Vec::new();
                 for &add_id in &skipped_ids {
                     let [result_id] = dfg.instruction_result(add_id);
                     if use_counts.get(&result_id).copied().unwrap_or(0) <= 1 {
                         result.skip_instructions.insert(add_id);
+                        skipped_index_ids.push(add_id);
                     }
                 }
 
@@ -387,7 +410,8 @@ impl MemcpyOptimizations {
                     LoadGroupInfo {
                         source_array: array,
                         base_index,
-                        array_get_ids: array_get_ids.clone(),
+                        array_get_ids,
+                        skipped_index_ids,
                     },
                 );
 
@@ -473,7 +497,9 @@ mod tests {
         brillig::{
             BrilligOptions,
             brillig_gen::{brillig_fn::FunctionContext, gen_brillig_for},
-            brillig_ir::artifact::GeneratedBrillig,
+            brillig_ir::{
+                LayoutConfig, MAX_SCRATCH_SPACE, NUM_STACK_FRAMES, artifact::GeneratedBrillig,
+            },
         },
         ssa::ssa_gen::Ssa,
     };
@@ -486,8 +512,15 @@ mod tests {
     }
 
     fn compile_ssa_to_brillig(src: &str) -> GeneratedBrillig<acvm::FieldElement> {
+        compile_ssa_to_brillig_with(src, BrilligOptions::default())
+    }
+
+    fn compile_ssa_to_brillig_with(
+        src: &str,
+        options: BrilligOptions,
+    ) -> GeneratedBrillig<acvm::FieldElement> {
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let brillig = ssa.to_brillig(&options);
         let func = ssa.main();
         let arguments: Vec<_> = func
             .parameters()
@@ -497,7 +530,7 @@ mod tests {
                 FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect();
-        gen_brillig_for(func, arguments, &brillig, &BrilligOptions::default()).unwrap()
+        gen_brillig_for(func, arguments, &brillig, &options).unwrap()
     }
 
     /// Count the number of `Store` instructions in the bytecode.
@@ -533,9 +566,9 @@ mod tests {
         ";
         let opts = analyze(src);
         assert_eq!(opts.memcpy_groups.len(), 1, "should detect one memcpy group");
-        // Elements 1..7: 7 array_gets + 7 Binary::Adds = 14 skipped.
-        // Element 0 is NOT skipped.
-        assert_eq!(opts.skip_instructions.len(), 14);
+        // All 8 array_gets (single-use) + their 7 Binary::Adds = 15 skipped.
+        // (Element 0's index is `v2 = mul ...`, not skipped here.)
+        assert_eq!(opts.skip_instructions.len(), 15);
     }
 
     #[test]
@@ -580,8 +613,8 @@ mod tests {
         ";
         let opts = analyze(src);
         assert_eq!(opts.memcpy_groups.len(), 1, "should detect constant index pattern");
-        // All array_gets except element 0 should be skipped (7 array_gets, no index adds).
-        assert_eq!(opts.skip_instructions.len(), 7);
+        // All 8 array_gets are skipped; indices are constants so no Binary::Adds to skip.
+        assert_eq!(opts.skip_instructions.len(), 8);
     }
 
     #[test]
@@ -613,9 +646,9 @@ mod tests {
         ";
         let opts = analyze(src);
         assert_eq!(opts.memcpy_groups.len(), 1, "memcpy group still detected");
-        // Element 1 (v5) has 2 uses, so its array_get + Binary::Add are NOT skipped.
-        // Element 0 is never skipped. Elements 2..7: 6 array_gets + 6 adds = 12.
-        assert_eq!(opts.skip_instructions.len(), 12);
+        // v5 (element 1) has 2 uses, so its array_get + Binary::Add are NOT skipped.
+        // Element 0 (v3) and elements 2..7 are single-use: 7 array_gets + 6 adds = 13.
+        assert_eq!(opts.skip_instructions.len(), 13);
     }
 
     #[test]
@@ -762,5 +795,119 @@ mod tests {
         // We'd see at most 1 Store (in the MemCopy procedure) instead of 8.
         let stores = count_stores(&generated);
         assert!(stores == 1, "Expected at most 1 Store (in MemCopy procedure), got {stores}");
+    }
+
+    /// Test the fall back path in `codegen_load_group` when there is not enough consecutive registers.
+    #[test]
+    fn load_group_records_skipped_index_ids() {
+        // Same shape as `load_optimization`: 8 consecutive array_gets, each result
+        // used twice so the MakeArray path doesn't claim them and the load-group
+        // path does.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 80], v1: u32):
+            v2 = mul v1, u32 10
+            v3 = array_get v0, index v2 -> Field
+            v4 = unchecked_add v2, u32 1
+            v5 = array_get v0, index v4 -> Field
+            v6 = unchecked_add v2, u32 2
+            v7 = array_get v0, index v6 -> Field
+            v8 = unchecked_add v2, u32 3
+            v9 = array_get v0, index v8 -> Field
+            v10 = unchecked_add v2, u32 4
+            v11 = array_get v0, index v10 -> Field
+            v12 = unchecked_add v2, u32 5
+            v13 = array_get v0, index v12 -> Field
+            v14 = unchecked_add v2, u32 6
+            v15 = array_get v0, index v14 -> Field
+            v16 = unchecked_add v2, u32 7
+            v17 = array_get v0, index v16 -> Field
+            v18 = make_array [v3, v5, v7, v9, v11, v13, v15, v17] : [Field; 8]
+            v19 = add v3, Field 1
+            v20 = add v5, Field 2
+            v21 = add v7, Field 3
+            v22 = add v9, Field 4
+            v23 = add v11, Field 5
+            v24 = add v13, Field 6
+            v25 = add v15, Field 7
+            v26 = add v17, Field 8
+            return v18
+        }
+        ";
+        let opts = analyze(src);
+
+        assert_eq!(opts.load_groups.len(), 1);
+        let load_group = opts.load_groups.values().next().unwrap();
+
+        // 7 interleaved `unchecked_add` index computations (one per non-head array_get),
+        // all single-use, all recorded for the fallback to restore.
+        assert_eq!(load_group.skipped_index_ids.len(), 7);
+        for &id in &load_group.skipped_index_ids {
+            assert!(
+                opts.skip_instructions.contains(&id),
+                "skipped_index_ids must mirror skip_instructions",
+            );
+        }
+    }
+
+    /// Regression test for the load-group fallback path. When
+    /// `allocate_consecutive_registers` fails (not enough room for N consecutive
+    /// destination registers), `codegen_load_group` returns false and the dispatcher
+    /// must un-skip both the `array_get`s and their index `Binary::Add`s, then
+    /// codegen them individually. Without the index un-skip, the un-skipped
+    /// `array_get`s would reference indices whose defining instructions never
+    /// emit, panicking in `convert_ssa_single_addr_value`.
+    ///
+    /// We force the fallback by setting `max_stack_frame_size` small enough that 8
+    /// consecutive registers can't be allocated when the load group fires.
+    #[test]
+    fn load_group_fallback_compiles() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 80], v1: u32):
+            v2 = mul v1, u32 10
+            v3 = array_get v0, index v2 -> Field
+            v4 = unchecked_add v2, u32 1
+            v5 = array_get v0, index v4 -> Field
+            v6 = unchecked_add v2, u32 2
+            v7 = array_get v0, index v6 -> Field
+            v8 = unchecked_add v2, u32 3
+            v9 = array_get v0, index v8 -> Field
+            v10 = unchecked_add v2, u32 4
+            v11 = array_get v0, index v10 -> Field
+            v12 = unchecked_add v2, u32 5
+            v13 = array_get v0, index v12 -> Field
+            v14 = unchecked_add v2, u32 6
+            v15 = array_get v0, index v14 -> Field
+            v16 = unchecked_add v2, u32 7
+            v17 = array_get v0, index v16 -> Field
+            v18 = make_array [v3, v5, v7, v9, v11, v13, v15, v17] : [Field; 8]
+            v19 = add v3, Field 1
+            v20 = add v5, Field 2
+            v21 = add v7, Field 3
+            v22 = add v9, Field 4
+            v23 = add v11, Field 5
+            v24 = add v13, Field 6
+            v25 = add v15, Field 7
+            v26 = add v17, Field 8
+            return v18
+        }
+        ";
+
+        // Confirm the analysis still sees a load group at default options.
+        let opts = analyze(src);
+        assert_eq!(opts.load_groups.len(), 1, "load group must be detectable");
+
+        // Tight frame: 8 consecutive registers won't be available when the
+        // load-group dispatch fires. `codegen_load_group` returns false and
+        // the dispatcher falls back to per-element codegen. The point of the
+        // assertion is simply that compilation completes — without the
+        // `skipped_index_ids` un-skip, this would panic resolving an
+        // unallocated index value.
+        let options = BrilligOptions {
+            layout: LayoutConfig::new(14, NUM_STACK_FRAMES, MAX_SCRATCH_SPACE),
+            ..BrilligOptions::default()
+        };
+        let _ = compile_ssa_to_brillig_with(src, options);
     }
 }

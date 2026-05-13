@@ -3,21 +3,18 @@
 
 use std::collections::BTreeSet;
 
-use crate::{
-    brillig::brillig_gen::memcpy_optimizations::MemcpyInfo,
-    ssa::{
-        ir::{
-            basic_block::{BasicBlock, BasicBlockId},
-            cfg::ControlFlowGraph,
-            dfg::DataFlowGraph,
-            dom::DominatorTree,
-            function::Function,
-            instruction::{Instruction, InstructionId},
-            post_order::PostOrder,
-            value::{Value, ValueId},
-        },
-        opt::{LoopOrder, Loops},
+use crate::ssa::{
+    ir::{
+        basic_block::{BasicBlock, BasicBlockId},
+        cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
+        dom::DominatorTree,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        post_order::PostOrder,
+        value::{Value, ValueId},
     },
+    opt::{LoopOrder, Loops},
 };
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -30,6 +27,30 @@ type Variables = HashSet<ValueId>;
 type LastUses = HashMap<InstructionId, Variables>;
 /// Maps a loop (identified by its header and back-edge) to the blocks in the loop body.
 type LoopMap = HashMap<BackEdge, BTreeSet<BasicBlockId>>;
+
+/// Extra operands that a downstream consumer (e.g. memcpy codegen) needs to keep
+/// alive at a given instruction, beyond what the SSA's own operands express.
+///
+/// Liveness treats these as additional uses of the listed values at the keyed
+/// instruction. Each caller is responsible for what it puts in here; liveness
+/// applies the same `is_variable` filter it applies to natural operands.
+pub(crate) type SyntheticUses = HashMap<InstructionId, Vec<ValueId>>;
+
+/// Add any synthetic-use entries registered for `instruction_id` to `vars`.
+fn extend_with_synthetic_uses(
+    vars: &mut Variables,
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+    synthetic_uses: &SyntheticUses,
+) {
+    if let Some(extras) = synthetic_uses.get(&instruction_id) {
+        for &v in extras {
+            if is_variable(v, dfg) {
+                vars.insert(v);
+            }
+        }
+    }
+}
 
 /// A back edge is an edge from a node to one of its ancestors. It denotes a loop in the CFG.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -89,23 +110,14 @@ fn variables_returned_by_instruction(
 fn variables_used_in_block(
     block: &BasicBlock,
     dfg: &DataFlowGraph,
-    memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+    synthetic_uses: &SyntheticUses,
 ) -> Variables {
     let mut used: Variables = block
         .instructions()
         .iter()
         .flat_map(|instruction_id| {
             let mut vars = variables_used_in_instruction(&dfg[*instruction_id], dfg);
-            // For memcpy-group MakeArrays, the codegen needs source_array and
-            // base_index alive — inject them as synthetic uses.
-            if let Some(info) = memcpy_groups.get(instruction_id) {
-                if is_variable(info.source_array, dfg) {
-                    vars.insert(info.source_array);
-                }
-                if is_variable(info.base_index, dfg) {
-                    vars.insert(info.base_index);
-                }
-            }
+            extend_with_synthetic_uses(&mut vars, *instruction_id, dfg, synthetic_uses);
             vars
         })
         .collect();
@@ -147,14 +159,16 @@ pub(crate) struct VariableLiveness {
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
     ///
-    /// `memcpy_groups` maps `MakeArray` instruction IDs to their memcpy info.
-    /// The memcpy codegen needs `source_array` and `base_index` alive at the
-    /// `MakeArray`, even though these are NOT SSA operands of `MakeArray`.
-    /// We inject them as synthetic uses so liveness keeps them alive.
+    /// `synthetic_uses` lets callers register additional operands for an
+    /// instruction beyond what the SSA itself exposes. The memcpy lowering
+    /// uses this to keep the source array and base index alive at the
+    /// `MakeArray` they get folded into, even though neither is an SSA
+    /// operand of `MakeArray`. Liveness applies the same `is_variable`
+    /// filter to these as it does to natural operands.
     pub(crate) fn from_function(
         func: &Function,
         constants: &ConstantAllocation,
-        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+        synthetic_uses: &SyntheticUses,
     ) -> Self {
         let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
@@ -169,8 +183,8 @@ impl VariableLiveness {
 
         Self { cfg: loops.cfg, ..Default::default() }
             .compute_block_param_definitions(func, &loops.dom)
-            .compute_live_in_of_blocks(func, constants, memcpy_groups, back_edges)
-            .compute_last_uses(func, memcpy_groups)
+            .compute_live_in_of_blocks(func, constants, synthetic_uses, back_edges)
+            .compute_last_uses(func, synthetic_uses)
             .compute_max_live_count(func, constants)
     }
 
@@ -235,11 +249,11 @@ impl VariableLiveness {
         mut self,
         func: &Function,
         constants: &ConstantAllocation,
-        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+        synthetic_uses: &SyntheticUses,
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in(func, constants, memcpy_groups, &back_edges);
+        self.compute_live_in(func, constants, synthetic_uses, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -262,7 +276,7 @@ impl VariableLiveness {
         &mut self,
         func: &Function,
         constants: &ConstantAllocation,
-        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
+        synthetic_uses: &SyntheticUses,
         back_edges: &LoopMap,
     ) {
         for block_id in PostOrder::with_function(func).as_slice().iter().copied() {
@@ -284,7 +298,7 @@ impl VariableLiveness {
                 );
             }
 
-            let used = variables_used_in_block(block, &func.dfg, memcpy_groups);
+            let used = variables_used_in_block(block, &func.dfg, synthetic_uses);
             let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
             let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
 
@@ -342,11 +356,7 @@ impl VariableLiveness {
     ///
     /// For each block, starting from the terminator than going backwards through the instructions,
     /// take note of the first (technically last) instruction the value is used in.
-    fn compute_last_uses(
-        mut self,
-        func: &Function,
-        memcpy_groups: &HashMap<InstructionId, MemcpyInfo>,
-    ) -> Self {
+    fn compute_last_uses(mut self, func: &Function, synthetic_uses: &SyntheticUses) -> Self {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             let live_out = self.get_live_out(&block_id);
@@ -370,15 +380,12 @@ impl VariableLiveness {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
                 let mut used_vars = variables_used_in_instruction(instruction, &func.dfg);
-                // Inject synthetic uses for memcpy-group MakeArrays.
-                if let Some(info) = memcpy_groups.get(instruction_id) {
-                    if is_variable(info.source_array, &func.dfg) {
-                        used_vars.insert(info.source_array);
-                    }
-                    if is_variable(info.base_index, &func.dfg) {
-                        used_vars.insert(info.base_index);
-                    }
-                }
+                extend_with_synthetic_uses(
+                    &mut used_vars,
+                    *instruction_id,
+                    &func.dfg,
+                    synthetic_uses,
+                );
                 let mut instruction_last_uses: HashSet<ValueId> = used_vars
                     .into_iter()
                     .filter(|id| !used_after.contains(id) && !live_out.contains(id))

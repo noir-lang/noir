@@ -739,11 +739,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         {
             if !self.codegen_load_group(&info, dfg) {
                 // Not enough consecutive register space — undo the skip so elements
-                // are codegen'd individually.
-                for &id in &info.array_get_ids {
+                // are codegen'd individually. The interleaved index `Binary::Add`s
+                // must also be un-skipped.:
+                for &id in info.array_get_ids.iter().chain(&info.skipped_index_ids) {
                     self.function_context.memcpy_opts.skip_instructions.remove(&id);
                 }
-                // Codegen element 0 normally (it was going to be skipped by the load_group branch).
+                // Codegen element 0 normally (the load_group branch intercepted it).
                 self.codegen_instruction(instruction_id, instruction, dfg);
             }
         } else if !self.function_context.memcpy_opts.skip_instructions.contains(&instruction_id) {
