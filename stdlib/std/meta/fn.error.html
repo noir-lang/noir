@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
 <script defer src="../../nargo_doc.js"></script>
-<title>Function unquote documentation</title>
+<title>Function error documentation</title>
 </head>
 <body>
 <div id="sidebar-toggle">
 <button id="sidebar-toggle-button"></button>
-<div id="sidebar-toggle-title">unquote</div>
+<div id="sidebar-toggle-title">error</div>
 </div>
 <span id="main-contents">
 <nav class="sidebar">
@@ -38,13 +38,17 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">meta</a></div>
-<h1>Function <span class="fn">unquote</span></h1>
-<pre><code>pub comptime fn unquote(code: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></pre>
+<h1>Function <span class="fn">error</span></h1>
+<pre><code>pub comptime fn error&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T, let N2: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T2&gt;(
+    _msg: <a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;,
+    _secondary: <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N2, T2&gt;&gt;,
+    _location: <a href="../../std/primitive.Location.html" class="primitive">Location</a>,
+)</code></pre>
 
 <div class="comments">
-<p>Calling unquote as a macro (via <code>unquote!(arg)</code>) will unquote
-its argument. Since this is the effect <code>!</code> already does, <code>unquote</code>
-itself does not need to do anything besides return its argument.</p>
+<p>Issues an error diagnostic at the given location with the given primary
+message and an optional secondary message. Unlike a comptime panic, current
+execution will continue allowing possibly multiple errors to be issued.</p>
 </div>
 </main>
 </span>
