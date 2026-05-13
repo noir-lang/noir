@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ImportsGranularity"],"fn":["format"],"mod":["chunks","config","errors","formatter"],"struct":["Config"]};
+window.SIDEBAR_ITEMS = {"enum":["ImportsGranularity"],"fn":["format","format_expression","format_statement"],"mod":["chunks","config","errors","formatter"],"struct":["Config"]};

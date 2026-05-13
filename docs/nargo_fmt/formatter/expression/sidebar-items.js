@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["force_if_chunks_to_multiple_lines"],"struct":["FormattedLambda"]};
+window.SIDEBAR_ITEMS = {"fn":["force_if_chunks_to_multiple_lines","format_quote_body","quote_body_tokens_match"],"struct":["FormattedLambda"]};
