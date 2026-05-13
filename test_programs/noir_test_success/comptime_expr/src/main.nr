@@ -559,10 +559,14 @@ mod tests {
     #[test]
     fn test_expr_as_unsafe() {
         comptime {
-            let expr = quote {  
+            let expr = quote {
                 // Safety: test
-                unsafe { 1; 4; 23 } 
+                unsafe {
+                    1;
+                    4;
+                    23
                 }
+            }
                 .as_expr()
                 .unwrap();
             let exprs = expr.as_unsafe().unwrap();
@@ -573,9 +577,13 @@ mod tests {
     #[test]
     fn test_expr_modify_for_unsafe() {
         comptime {
-            let expr = quote { 
+            let expr = quote {
                 // Safety: test
-                unsafe { 1; 4; 23 } 
+                unsafe {
+                    1;
+                    4;
+                    23
+                }
             }
                 .as_expr()
                 .unwrap();
@@ -657,7 +665,7 @@ mod tests {
     #[test]
     fn test_expr_modify_for_let() {
         comptime {
-            let expr = quote { let x : Field = 1; }.as_expr().unwrap();
+            let expr = quote { let x: Field = 1; }.as_expr().unwrap();
             let expr = expr.modify(times_two);
             let (_pattern, typ, expr) = expr.as_let().unwrap();
             assert_eq(unresolved_type_to_string!(typ.unwrap()), "Field");

@@ -90,7 +90,7 @@ mod test_as_typed_expr_1 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> i32 {
                 $func(1)
             }
@@ -114,10 +114,12 @@ mod test_as_typed_expr_2 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> u32 {
                 // Safety: test program
-                unsafe { $func([1, 2, 3, 0]) }
+                unsafe {
+                    $func([1, 2, 3, 0])
+                }
             }
         }
     }
@@ -140,10 +142,12 @@ mod test_as_typed_expr_3 {
     comptime fn foo(module: Module) -> Quoted {
         let method = module.functions().filter(|f| f.name() == quote { method })[0];
         let func = method.as_typed_expr();
-        quote { 
+        quote {
             pub fn bar() -> u32 {
                 // Safety: test program
-                comptime { $func(([1, 2, 3, 0], "a")) }
+                comptime {
+                    $func(([1, 2, 3, 0], "a"))
+                }
             }
         }
     }
@@ -158,8 +162,8 @@ mod test_as_typed_expr_3 {
 mod test_as_typed_expr_4 {
     comptime fn foo(f: TypedExpr) -> Quoted {
         quote {
-        $f()
-    }
+            $f()
+        }
     }
 
     fn bar() -> Field {
@@ -169,8 +173,8 @@ mod test_as_typed_expr_4 {
     fn baz() -> Field {
         let x: Field = comptime {
             let bar_q = quote {
-            bar
-        };
+                bar
+            };
             foo!(bar_q.as_expr().unwrap().resolve(Option::none()))
         };
         x

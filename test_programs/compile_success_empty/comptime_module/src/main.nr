@@ -119,11 +119,11 @@ mod module1 {
 #[test]
 fn parent_test() {
     comptime {
-        let my_module2 = quote [module1::module2].as_module().unwrap();
-        assert_eq(my_module2.name(), quote [module2]);
+        let my_module2 = quote [ module1::module2 ].as_module().unwrap();
+        assert_eq(my_module2.name(), quote [ module2 ]);
 
         let my_module1 = my_module2.parent().unwrap();
-        assert_eq(my_module1.name(), quote [module1]);
+        assert_eq(my_module1.name(), quote [ module1 ]);
 
         // The top-level module in each crate has no name
         let top_level_module = my_module1.parent().unwrap();
@@ -144,11 +144,11 @@ mod my_module {
 #[test]
 fn child_modules_test() {
     comptime {
-        let my_module = quote [my_module].as_module().unwrap();
+        let my_module = quote [ my_module ].as_module().unwrap();
         let children = my_module.child_modules().map(Module::name);
 
         // The order children are returned in is left unspecified.
-        assert_eq(children, [quote [child1], quote [child2], quote [child3]].as_vector());
+        assert_eq(children, [quote [ child1 ], quote [ child2 ], quote [ child3 ]].as_vector());
     }
 }
 // docs:end:child_modules_example
@@ -160,18 +160,18 @@ fn child_modules_test() {
 #[test]
 fn child_modules_test2() {
     comptime {
-        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        let top = quote [ my_module ].as_module().unwrap().parent().unwrap();
         let children = top.child_modules().map(Module::name);
 
         let expected = [
-            quote [separate_module],
-            quote [foo],
-            quote [bar],
-            quote [another_module],
-            quote [yet_another_module],
-            quote [baz],
-            quote [module1],
-            quote [my_module],
+            quote [ separate_module ],
+            quote [ foo ],
+            quote [ bar ],
+            quote [ another_module ],
+            quote [ yet_another_module ],
+            quote [ baz ],
+            quote [ module1 ],
+            quote [ my_module ],
         ]
             .as_vector();
         assert_eq(children, expected);
@@ -182,7 +182,7 @@ fn child_modules_test2() {
 #[test]
 fn top_level_module_name_is_empty() {
     comptime {
-        let top = quote [my_module].as_module().unwrap().parent().unwrap();
+        let top = quote [ my_module ].as_module().unwrap().parent().unwrap();
         assert_eq(top.name(), quote []);
     }
 }
