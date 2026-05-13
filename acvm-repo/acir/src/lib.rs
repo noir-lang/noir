@@ -214,9 +214,10 @@ mod reflection {
         // Create C++ class definitions.
         let mut source = Vec::new();
         // We use `serde_generate` to take advantage of its integration with `serde_reflection` but only use our
-        // custom msgpack code generation.
+        // custom msgpack code generation. We don't support the legacy Bincode format any more, but it seems to
+        // be in use in Barretenberg for testing.
         let config = serde_generate::CodeGeneratorConfig::new(namespace.to_string())
-            .with_encodings(vec![])
+            .with_encodings(vec![serde_generate::Encoding::Bincode])
             .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, registry).expect("failed to generate C++ code");
@@ -295,9 +296,11 @@ mod reflection {
         fn from_env() -> Self {
             Self {
                 // We agreed on the default format to be compact, so it makes sense for Barretenberg to use it for serialization.
-                pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", true),
+                // But in the latest version they seem to be using MAP format again.
+                pack_compact: env_flag("NOIR_CODEGEN_PACK_COMPACT", false),
                 // Barretenberg didn't use serialization outside tests, so they decided they don't want to have this code at all.
-                no_pack: env_flag("NOIR_CODEGEN_NO_PACK", true),
+                // But in the latest code they seem to have kept it again.
+                no_pack: env_flag("NOIR_CODEGEN_NO_PACK", false),
             }
         }
     }
