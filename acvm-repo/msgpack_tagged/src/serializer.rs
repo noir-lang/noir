@@ -611,7 +611,7 @@ impl<'a, W: Write> Serializer<'a, W> {
 /// a `Vec`. Hard to debug, easy to land in.
 ///
 /// Instead we keep the wrapper simple and require the load-bearing
-/// case ([`acir_field::FieldElement`]'s `Serialize` impl) to call
+/// case (`FieldElement`'s `Serialize` impl) to call
 /// `serializer.serialize_bytes(...)` directly — bypassing
 /// `collect_seq` entirely. `serialize_bytes` is `rmp_serde`'s
 /// unconditional `write_bin` (independent of `BytesMode`), and our
