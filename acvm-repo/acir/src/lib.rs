@@ -512,6 +512,31 @@ mod reflection {
                 dispatch(tag, o.via.map.ptr[i].val);
             }
         }
+
+        /// Cap the positional-array length: under-length wires error
+        /// downstream in `conv_fld_from_array` (index out of bounds);
+        /// over-length wires up to `active + reserved` are tolerated as
+        /// retired trailing fields (Rust-side `#[tagged(reserved(...))]`);
+        /// anything longer is forward-compat drift that the producer
+        /// would only have emitted if newer fields were added, and is
+        /// the cue for a focused error message pointing at the opt-in.
+        static void check_array_size(
+            msgpack::object_array const& array,
+            std::string const& name,
+            uint32_t active,
+            uint32_t reserved
+        ) {
+            uint32_t max_size = active + reserved;
+            if (array.size > max_size) {
+                throw_or_abort(
+                    "array for " + name +
+                    " has " + std::to_string(array.size) +
+                    " elements but at most " + std::to_string(max_size) +
+                    " are expected (" + std::to_string(active) +
+                    " active + " + std::to_string(reserved) +
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
+            }
+        }
     };
     "#;
             // cSpell:enable
@@ -794,8 +819,27 @@ mod reflection {
                     "
         }
     } else if (o.type == msgpack::type::ARRAY) {
-        auto array = o.via.array; ",
+        auto array = o.via.array;",
                 );
+                // Cap the array length: an older reader of a newer wire
+                // (forward-compat) should reject extra trailing items
+                // unless the type opts into `#[tagged(allow_unknown_tags)]`;
+                // a newer reader of an older wire that retired trailing
+                // fields (backward-compat) gets `reserved.len()` extra
+                // trailing positions tolerated either way.
+                //
+                // Under-length wires are caught downstream by
+                // `Helpers::conv_fld_from_array` (it errors when its
+                // index is past `array.size`), so we only need the
+                // upper bound here.
+                if !product.allow_unknown_tags {
+                    body.push_str(&format!(
+                        r#"
+        Helpers::check_array_size(array, name, {active}, {reserved});"#,
+                        active = fields.len(),
+                        reserved = product.reserved.len(),
+                    ));
+                }
                 for (index, field) in fields.iter().enumerate() {
                     if is_unit(field) {
                         continue;

@@ -121,6 +121,31 @@ namespace Witnesses {
                 dispatch(tag, o.via.map.ptr[i].val);
             }
         }
+
+        /// Cap the positional-array length: under-length wires error
+        /// downstream in `conv_fld_from_array` (index out of bounds);
+        /// over-length wires up to `active + reserved` are tolerated as
+        /// retired trailing fields (Rust-side `#[tagged(reserved(...))]`);
+        /// anything longer is forward-compat drift that the producer
+        /// would only have emitted if newer fields were added, and is
+        /// the cue for a focused error message pointing at the opt-in.
+        static void check_array_size(
+            msgpack::object_array const& array,
+            std::string const& name,
+            uint32_t active,
+            uint32_t reserved
+        ) {
+            uint32_t max_size = active + reserved;
+            if (array.size > max_size) {
+                throw_or_abort(
+                    "array for " + name +
+                    " has " + std::to_string(array.size) +
+                    " elements but at most " + std::to_string(max_size) +
+                    " are expected (" + std::to_string(active) +
+                    " active + " + std::to_string(reserved) +
+                    " reserved); opt into `#[tagged(allow_unknown_tags)]` on the Rust type to accept trailing extras");
+            }
+        }
     };
     }
 
@@ -186,7 +211,8 @@ namespace Witnesses {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "witness", witness, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
-                auto array = o.via.array; 
+                auto array = o.via.array;
+                Helpers::check_array_size(array, name, 2, 0);
                 Helpers::conv_fld_from_array(array, name, "index", index, 0);
                 Helpers::conv_fld_from_array(array, name, "witness", witness, 1);
             } else {
@@ -219,7 +245,8 @@ namespace Witnesses {
                     Helpers::conv_fld_from_kvmap(kvmap, name, "stack", stack, false);
                 }
             } else if (o.type == msgpack::type::ARRAY) {
-                auto array = o.via.array; 
+                auto array = o.via.array;
+                Helpers::check_array_size(array, name, 1, 0);
                 Helpers::conv_fld_from_array(array, name, "stack", stack, 0);
             } else {
                 throw_or_abort("expected MAP or ARRAY for " + name);
