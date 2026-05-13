@@ -430,6 +430,9 @@ mod reflection {
         ) {
             auto it = kvmap.find(field_name);
             if (it != kvmap.end()) {
+                if (!is_optional && it->second->type == msgpack::type::NIL) {
+                    throw_or_abort("nil value for required field: " + struct_name + "::" + field_name);
+                }
                 try {
                     it->second->convert(field);
                 } catch (const msgpack::type_error&) {
