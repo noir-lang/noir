@@ -1456,12 +1456,6 @@ fn format_quote_body(body_source: &str, config: &crate::Config) -> Option<String
     if trimmed.is_empty() || !quote_body_tokens_match(body_source, trimmed) {
         return None;
     }
-    // Don't rewrite a single-line `quote { ... }` into a multi-line block. Authors who
-    // wrote it on one line generally want it kept on one line, and forcing a wrap can
-    // make the surrounding call chain look much worse.
-    if !body_source.contains('\n') && trimmed.contains('\n') {
-        return None;
-    }
     Some(trimmed.to_string())
 }
 
@@ -2550,6 +2544,26 @@ let     x   =    1   +    2 ;
     fn format_quote_with_statement_body() {
         let src = "global x = quote { let  y   =    1 ;  };\n";
         let expected = "global x = quote { let y = 1; };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote_wraps_single_line_body_when_formatted_form_is_multi_line() {
+        // If the formatted body can't fit on one line we lay the quote out across
+        // multiple lines even if the author wrote it on a single line — the result
+        // is more readable than packing a multi-statement block back onto one line.
+        let src = "comptime fn outside() -> Quoted {
+    quote { fn foo() {   1     } }
+}
+";
+        let expected = "comptime fn outside() -> Quoted {
+    quote {
+        fn foo() {
+            1
+        }
+    }
+}
+";
         assert_format(src, expected);
     }
 

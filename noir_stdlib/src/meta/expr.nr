@@ -556,14 +556,28 @@ comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Ex
 comptime fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
     if alternative.is_some() {
         let alternative = alternative.unwrap();
-        quote { if $condition { $consequence } else { $alternative }}.as_expr().unwrap()
+        quote {
+            if $condition {
+                $consequence
+            } else {
+                $alternative
+            }
+        }
+            .as_expr()
+            .unwrap()
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
     }
 }
 
 comptime fn new_for(identifier: Quoted, array: Expr, body: Expr) -> Expr {
-    quote { for $identifier in $array { $body } }.as_expr().unwrap()
+    quote {
+        for $identifier in $array {
+            $body
+        }
+    }
+        .as_expr()
+        .unwrap()
 }
 
 comptime fn new_for_range(
