@@ -4,6 +4,7 @@ use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -33,18 +34,23 @@ enum SerializationError {
 pub struct WitnessStackError(#[from] SerializationError);
 
 /// An ordered set of witness maps for separate circuits
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct WitnessStack<F> {
+    #[tag(0)]
     stack: Vec<StackItem<F>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct StackItem<F> {
     /// Index into a [crate::circuit::Program] function list for which we have an associated witness
+    #[tag(0)]
     pub index: u32,
     /// A full witness for the respective constraint system specified by the index
+    #[tag(1)]
     pub witness: WitnessMap<F>,
 }
 

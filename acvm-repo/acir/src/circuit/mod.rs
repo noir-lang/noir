@@ -11,6 +11,7 @@ use crate::{
     serialization::{self, deserialize_any_format, serialize_with_format},
 };
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -26,17 +27,21 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(allow_unknown_tags)]
 pub struct Program<F: AcirField> {
+    #[tag(0)]
     pub functions: Vec<Circuit<F>>,
+    #[tag(1)]
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
 /// is dictated by the construction of a [crate::native_types::WitnessMap]
-#[derive(Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[tagged(via(CircuitWire<F>))]
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     pub function_name: String,
@@ -67,16 +72,24 @@ pub struct Circuit<F: AcirField> {
 /// Wire format for `Circuit` — preserves backwards-compatible serialization that includes
 /// `current_witness_index`. The `serde(rename)` ensures this type registers under the same
 /// name ("Circuit") as the public type so that `serde_reflection` traces it correctly.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[serde(rename = "Circuit")]
+#[tagged(allow_unknown_tags)] // To make it forward compatible with future extensions.
 struct CircuitWire<F: AcirField> {
     #[serde(default)]
+    #[tag(0)]
     function_name: String,
+    #[tag(1)]
     current_witness_index: u32,
+    #[tag(2)]
     opcodes: Vec<Opcode<F>>,
+    #[tag(3)]
     private_parameters: BTreeSet<Witness>,
+    #[tag(4)]
     public_parameters: PublicInputs,
+    #[tag(5)]
     return_values: PublicInputs,
+    #[tag(6)]
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
 }
 
@@ -110,20 +123,25 @@ impl<'de, F: AcirField + Deserialize<'de>> Deserialize<'de> for Circuit<F> {
 }
 
 /// Enumeration of either an [expression][Expression] or a [memory identifier][BlockId].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
+    #[tag(0)]
     Expression(Expression<F>),
+    #[tag(1)]
     Memory(BlockId),
 }
 
 /// Payload tied to an assertion failure.
 /// This data allows users to specify feedback upon a constraint not being satisfied in the circuit.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
     /// Selector that maps a hash of either a constant string or an internal compiler error type
     /// to an ABI type. The ABI type should then be used to appropriately resolve the payload data.
+    #[tag(0)]
     pub error_selector: u64,
     /// The dynamic payload data.
     ///
@@ -131,6 +149,7 @@ pub struct AssertionPayload<F> {
     /// in this payload can be decoded into the given ABI type.
     /// The payload is expected to be empty in the case of a constant string
     /// as the string can be contained entirely within the error type and ABI type.
+    #[tag(1)]
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
@@ -168,15 +187,23 @@ impl<'de> Deserialize<'de> for ErrorSelector {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
+    #[tag(0)]
     Acir(usize),
     // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
     // used for resolving assert messages which is a breaking serialization change.
-    Brillig { acir_index: usize, brillig_index: usize },
+    #[tag(1)]
+    Brillig {
+        #[tag(0)]
+        acir_index: usize,
+        #[tag(1)]
+        brillig_index: usize,
+    },
 }
 
 /// Opcodes are locatable so that callers can
@@ -456,7 +483,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
@@ -566,6 +593,19 @@ mod tests {
         BLACKBOX::KECCAKF1600 inputs: [w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25], outputs: [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
+    }
+
+    /// This test is a reminder that when we slap `#[derive(MsgpackTagged)]` on type,
+    /// we only get immediate compilation errors for non-generic fields that
+    /// don't implement `MsgpackTagged`; for generic types like `Circuit<F>`
+    /// in `Program<F>`, we may or may not have an implementation, depending on `F`.
+    ///
+    /// A test like this brings out all the concrete missing implementations by
+    /// choosing a particular `F`.
+    #[test]
+    fn ensure_program_is_msgpack_tagged() {
+        fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
+        assert_impl::<Program<FieldElement>>();
     }
 
     /// Property based testing for serialization

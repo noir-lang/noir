@@ -46,6 +46,7 @@ mod reflection {
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
+    use msgpack_tagged::MsgpackTagged;
     use regex::Regex;
     use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
@@ -72,13 +73,15 @@ mod reflection {
     /// This one is simpler. The cost is that msgpack will deserialize
     /// into a JSON-like structure, but since we won't be interpreting it,
     /// it's okay if new tags appear.
-    #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
+    #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
     struct ProgramWithoutBrillig<F: AcirField> {
+        #[tag(0)]
         pub functions: Vec<Circuit<F>>,
         /// We want to ignore this field. By setting its type as `unit`
         /// it will not be deserialized, but it will correctly maintain
         /// the position of the others (although in this case it doesn't)
         /// matter since it's the last field.
+        #[tag(1)]
         pub unconstrained_functions: (),
     }
 

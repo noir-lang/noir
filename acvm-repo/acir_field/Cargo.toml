@@ -19,6 +19,7 @@ workspace = true
 hex.workspace = true
 num-bigint.workspace = true
 serde.workspace = true
+msgpack_tagged.workspace = true
 
 ark-bn254.workspace = true
 ark-bls12-381 = { workspace = true, optional = true }
