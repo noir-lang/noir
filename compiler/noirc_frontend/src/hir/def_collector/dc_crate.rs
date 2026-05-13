@@ -768,6 +768,16 @@ impl DefCollector {
             })
             .collect::<Vec<_>>();
 
+        for (func_id, ident) in context.usage_tracker.unused_impl_functions() {
+            let func_meta = context.def_interner.function_meta(func_id);
+            if func_meta.source_crate == crate_id {
+                unused_errors.push(CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item: UnusedItem::Function(*func_id),
+                }));
+            }
+        }
+
         // Make sure errors always show up in the same order when compiling the same codebase
         unused_errors.sort_by_key(|error| error.location());
 

@@ -209,7 +209,7 @@ impl Elaborator<'_> {
                 ));
                 let size =
                     self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
-                Type::Array(Box::new(size), elem)
+                Type::Array(elem, Box::new(size))
             }
             Vector(elem) => {
                 let elem = Box::new(self.resolve_type_with_kind_inner(
@@ -1764,6 +1764,17 @@ impl Elaborator<'_> {
         });
     }
 
+    pub(super) fn unify_with_reference_coercion(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        location: Location,
+    ) {
+        if !actual.try_reference_coercion(expected) {
+            self.unify_or_type_mismatch(actual, expected, location);
+        }
+    }
+
     pub(super) fn unify_or_type_mismatch_with_source(
         &mut self,
         actual: &Type,
@@ -3040,8 +3051,14 @@ impl Elaborator<'_> {
         expr: ExprId,
         location: Location,
     ) -> Result<bool, CompilationError> {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
-            let meta = self.interner.function_meta(&func_id);
+        // `try_function_meta` rather than `function_meta`: the call may happen while
+        // the callee's meta is still mid-resolution (e.g. a function whose signature
+        // transitively calls itself through a global). A dependency-cycle error has
+        // already been pushed in that case; treat the call as constrained to avoid a
+        // panic.
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)?
+            && let Some(meta) = self.interner.try_function_meta(&func_id)
+        {
             Ok(meta.is_unconstrained())
         } else {
             Ok(false)

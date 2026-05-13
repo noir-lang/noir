@@ -123,6 +123,7 @@ pub(crate) enum ParsedInstruction {
         function: Identifier,
         arguments: Vec<ParsedValue>,
         types: Vec<Type>,
+        pure: bool,
     },
     Cast {
         target: Identifier,

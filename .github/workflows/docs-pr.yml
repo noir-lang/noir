@@ -143,16 +143,3 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 1
-
-  add_comment:
-    needs: [deploy_preview]
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Tag dev rel in comment
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3
-        with:
-          message: |
-            FYI @noir-lang/developerrelations on Noir doc changes.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

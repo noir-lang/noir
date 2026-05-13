@@ -137,6 +137,119 @@ fn vector_push_back_unknown_length() {
 }
 
 #[test]
+fn vector_push_back_known_length_dynamic_array_element() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v2 = make_array [Field 1, Field 2] : [Field; 2]
+        v4 = array_set v2, index v0, value Field 9
+        v5 = make_array [v2] : [[Field; 2]]
+        v7, v8 = call vector_push_back(u32 1, v5, v4) -> (u32, [[Field; 2]])
+        // Observe v8 so the push_back codegen runs and the result is consumed downstream.
+        v10 = array_get v8, index v0 -> [Field; 2]
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = 1
+    ASSERT w2 = 2
+    INIT b1 = [w1, w2]
+    ASSERT w3 = 9
+    WRITE b1[w0] = w3
+    ASSERT w4 = 0
+    READ w5 = b1[w4]
+    READ w6 = b1[w1]
+    INIT b2 = [w1, w2, w5, w6]
+    ASSERT w7 = 2*w0
+    READ w8 = b2[w7]
+    ASSERT w9 = w7 + 1
+    READ w10 = b2[w9]
+    ");
+}
+
+#[test]
+fn vector_push_front_dynamic_array_element() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v2 = make_array [Field 1, Field 2] : [Field; 2]
+        v4 = array_set v2, index v0, value Field 9
+        v5 = make_array [v2] : [[Field; 2]]
+        v7, v8 = call vector_push_front(u32 1, v5, v4) -> (u32, [[Field; 2]])
+        // Observe v8 so the push_front codegen runs and the result is consumed downstream.
+        v10 = array_get v8, index v0 -> [Field; 2]
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = 1
+    ASSERT w2 = 2
+    INIT b1 = [w1, w2]
+    ASSERT w3 = 9
+    WRITE b1[w0] = w3
+    ASSERT w4 = 0
+    READ w5 = b1[w4]
+    READ w6 = b1[w1]
+    INIT b2 = [w5, w6, w1, w2]
+    ASSERT w7 = 2*w0
+    READ w8 = b2[w7]
+    ASSERT w9 = w7 + 1
+    READ w10 = b2[w9]
+    ");
+}
+
+#[test]
+fn vector_push_back_unknown_length_dynamic_array_element() {
+    // Regression: pushing an SSA array element produced by `array_set` materializes
+    // as an `AcirValue::DynamicArray` at ACIR codegen time, and is
+    // flattened into the vector's backing memory.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = make_array [Field 1, Field 2] : [Field; 2]
+        v4 = array_set v2, index v0, value Field 9
+        v5 = make_array [v2] : [[Field; 2]]
+        v7, v8 = call vector_push_back(v1, v5, v4) -> (u32, [[Field; 2]])
+        return
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w1, bits: 32
+    ASSERT w2 = 1
+    ASSERT w3 = 2
+    INIT b1 = [w2, w3]
+    ASSERT w4 = 9
+    WRITE b1[w0] = w4
+    ASSERT w5 = 0
+    READ w6 = b1[w5]
+    READ w7 = b1[w2]
+    INIT b2 = [w2, w3, w5, w5]
+    ASSERT w8 = 2*w1
+    WRITE b2[w8] = w6
+    ASSERT w9 = w8 + 1
+    WRITE b2[w9] = w7
+    ");
+}
+
+#[test]
 fn vector_push_front() {
     let src = "
     acir(inline) predicate_pure fn main f0 {

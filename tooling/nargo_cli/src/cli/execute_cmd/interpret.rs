@@ -214,7 +214,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
             Value::field(*value)
         }
-        Type::Array(length, element_typ) => {
+        Type::Array(element_typ, length) => {
             let length =
                 length.evaluate_to_u32(location).expect("Could not evaluate array length to u32");
             let InputValue::Vec(inputs) = input else {

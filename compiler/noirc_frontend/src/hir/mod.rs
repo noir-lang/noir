@@ -10,6 +10,7 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::comptime::EvaluationTracker;
 use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
@@ -65,6 +66,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 
+    /// Tracks comptime expression locations to facilitate code coverage.
+    pub evaluation_tracker: Option<EvaluationTracker>,
+
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -77,6 +81,14 @@ pub enum FunctionNameMatch {
     Anything,
     Exact(Vec<String>),
     Contains(Vec<String>),
+}
+
+#[derive(Debug)]
+pub enum LspMode {
+    // In full mode all files are type-checked, and errors are published and shown to the user.
+    Full,
+    // In single file mode only a single file is type-checked and errors are not shown to the user.
+    SingleFile,
 }
 
 impl Context<'_, '_> {
@@ -95,6 +107,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -116,6 +129,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -142,6 +156,7 @@ impl Context<'_, '_> {
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -317,8 +332,8 @@ impl Context<'_, '_> {
     }
 
     /// Activates LSP mode, which will track references for all definitions.
-    pub fn activate_lsp_mode(&mut self) {
-        self.def_interner.lsp_mode = true;
+    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
+        self.def_interner.lsp_mode = Some(mode);
     }
 
     pub fn disable_comptime_printing(&mut self) {

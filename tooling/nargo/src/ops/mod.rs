@@ -11,7 +11,8 @@ pub use self::fuzz::{
 };
 pub use self::test::{
     FuzzConfig, TestStatus, check_expected_failure_message, fuzz_test, run_or_fuzz_test, run_test,
-    test_status_program_compile_fail, test_status_program_compile_pass,
+    test_status_comptime_interpret_result, test_status_program_compile_fail,
+    test_status_program_compile_pass,
 };
 
 mod check;

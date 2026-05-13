@@ -527,7 +527,7 @@ fn self_with_non_associated_item_access() {
     struct Inner {}
 
     impl Inner {
-        fn method() -> u32 { 42 }
+        pub fn method() -> u32 { 42 }
     }
 
     trait MyTrait {

@@ -21,8 +21,8 @@ Example:
 use poseidon::poseidon2::Poseidon2Hasher;
 let mut map: UHashMap<Field, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
-map.insert(1, 2);
-map.insert(3, 4);
+let _ = map.insert(1, 2);
+let _ = map.insert(3, 4);
 
 let two = map.get(1).unwrap();
 ```
@@ -74,6 +74,9 @@ Example:
 
 Inserts a new key-value pair into the map. If the key was already in the map, its
 previous value will be overridden with the newly provided one.
+
+This returns whether the value was newly-inserted. In other words, if the value was
+already present in the map, `false` is returned. Otherwise, `true` is returned.
 
 Example:
 

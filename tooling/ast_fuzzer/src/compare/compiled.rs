@@ -1,7 +1,7 @@
 //! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 use std::collections::BTreeMap;
 
-use acir::{FieldElement, native_types::WitnessStack};
+use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -49,15 +49,24 @@ impl NargoErrorWithTypes {
             match payload {
                 ResolvedAssertionPayload::String(message) => Some(message.clone()),
                 ResolvedAssertionPayload::Raw(raw) => {
-                    let ssa_type = self.1.get(&raw.selector)?;
-                    match ssa_type {
-                        ErrorType::String(message) => Some(message.clone()),
-                        ErrorType::Dynamic(_hir_type) => {
-                            // This would be the case if we have a format string that needs to be filled with the raw payload
-                            // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
-                            // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
-                            panic!("didn't expect dynamic error types")
+                    if let Some(ssa_type) = self.1.get(&raw.selector) {
+                        match ssa_type {
+                            ErrorType::String(message) => Some(message.clone()),
+                            ErrorType::Dynamic(_hir_type) => {
+                                // This would be the case if we have a format string that needs to be filled with the raw payload
+                                // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
+                                // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
+                                panic!("didn't expect dynamic error types")
+                            }
                         }
+                    } else {
+                        // `codegen_constrain_error` only records the SSA `ErrorType` when the
+                        // assert message type is *not* a string (see `is_string_type` branch in
+                        // `compiler/noirc_evaluator/src/ssa/ssa_gen/mod.rs`). When a non-literal
+                        // string expression is used as an assert message, the runtime payload
+                        // therefore carries the bytes of the string with a selector that has no
+                        // entry in the SSA error type table. Recover the message from the bytes.
+                        decode_raw_string_payload(&raw.data)
                     }
                 }
             }
@@ -80,6 +89,26 @@ impl NargoErrorWithTypes {
             NargoError::CompilationError => None,
         }
     }
+}
+
+/// Try to interpret the raw bytes of an assertion payload as a UTF-8 string,
+/// matching the encoding produced by `ConstrainError::Dynamic { is_string_type: true, .. }`.
+///
+/// Returns `None` if the data is empty, contains a field element wider than a byte,
+/// or the bytes are not valid UTF-8.
+fn decode_raw_string_payload(data: &[FieldElement]) -> Option<String> {
+    if data.is_empty() {
+        return None;
+    }
+    let bytes: Vec<u8> = data
+        .iter()
+        .map(|field| {
+            let be = field.to_be_bytes();
+            let (low, high) = be.split_last().expect("FieldElement::to_be_bytes is non-empty");
+            high.iter().all(|b| *b == 0).then_some(*low)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    String::from_utf8(bytes).ok()
 }
 
 /// The result of the execution of compiled programs, decoded by their ABI.
@@ -379,7 +408,10 @@ impl HasPrograms for CompareMorph {
 mod tests {
     use std::collections::BTreeMap;
 
-    use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};
+    use acir::{
+        FieldElement,
+        circuit::{ErrorSelector, brillig::BrilligFunctionId},
+    };
     use acvm::pwg::{RawAssertionPayload, ResolvedAssertionPayload};
     use nargo::errors::ExecutionError;
 
@@ -417,5 +449,52 @@ mod tests {
         );
 
         assert!(NargoErrorWithTypes::equivalent(&error, &brillig_error));
+    }
+
+    #[test]
+    fn matches_static_string_with_inline_string_payload() {
+        // Regression test for the `orig_vs_morph` failure with seed 0xbd897d3000100000.
+        //
+        // The metamorphic rule `any_inevitable` wraps a string literal `"KJQ"` used as
+        // an `assert(_, "KJQ")` message into `if a { "KJQ" } else { "KJQ" }`. The original
+        // program lowers the literal to `ConstrainError::StaticString` (selector mapped to
+        // `ErrorType::String("KJQ")` in the SSA error type table, runtime payload has empty
+        // data). The morphed program lowers the `if`-expression to
+        // `ConstrainError::Dynamic(_, is_string_type=true, _)` whose runtime payload carries
+        // the bytes of the string directly and whose selector is *not* recorded in the SSA
+        // error type table (the `is_string_type` branch in `codegen_constrain_error` skips
+        // `record_error_type`). Both encodings represent the same user-visible message, so
+        // the comparator must treat them as equivalent.
+        let static_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(17370598246489328139),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(17370598246489328139),
+                ErrorType::String("KJQ".to_string()),
+            )]),
+        );
+        let inline_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(9230725515038505495),
+                    data: vec![
+                        FieldElement::from(u32::from(b'K')),
+                        FieldElement::from(u32::from(b'J')),
+                        FieldElement::from(u32::from(b'Q')),
+                    ],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::new(),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&static_string_error, &inline_string_error));
     }
 }

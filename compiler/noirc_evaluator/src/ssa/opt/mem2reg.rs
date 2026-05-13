@@ -292,6 +292,9 @@ fn get_value_from_visited_predecessor(
 /// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
 ///
 /// Only blocks in a variable's IDF have block parameters that need arguments wired.
+/// The decl block is skipped even when it is in its own IDF (loop-header pattern):
+/// `compute_entry_state` does not add a block parameter there, and predecessors of the
+/// decl block don't have the variable in their state.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
@@ -303,17 +306,19 @@ fn add_terminator_arguments(
     for block in blocks.iter().copied() {
         let block_state = &block_states[&block];
 
-        for predecessor in cfg.predecessors(block) {
-            let pred_state = &block_states[&predecessor];
-            for_each_terminator_edge_mut(&mut inserter.function.dfg, predecessor, block, |args| {
-                for address in block_state.entry_state.keys() {
-                    // Only wire arguments for IDF blocks (those with block parameters).
-                    // Declaration blocks and inherited-value blocks don't have params to wire.
-                    if block != variables[address] && param_locations[address].contains(&block) {
-                        args.push(pred_state.get_exit_value(*address));
-                    }
-                }
-            });
+        for address in block_state.entry_state.keys() {
+            if block == variables[address] || !param_locations[address].contains(&block) {
+                continue;
+            }
+            for predecessor in cfg.predecessors(block) {
+                let value = block_states[&predecessor].get_exit_value(*address);
+                for_each_terminator_edge_mut(
+                    &mut inserter.function.dfg,
+                    predecessor,
+                    block,
+                    |args| args.push(value),
+                );
+            }
         }
     }
 }
@@ -514,6 +519,40 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
+
+    #[test]
+    fn decl_block_in_own_idf_regression() {
+        // The allocate is in a loop header (b1), so the decl block is in its own IDF via the
+        // back-edge predecessor. `compute_entry_state` does not add a block parameter at the
+        // decl block (the `block == decl_block` branch wins over the IDF branch), so
+        // `add_terminator_arguments` must skip pushing args from b1's predecessors — they
+        // don't have the variable in their state.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            v1 = allocate -> &mut Field
+            store Field 5 at v1
+            v2 = load v1 -> Field
+            jmpif v0 then: b2(), else: b1()
+          b2():
+            return Field 0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b1()
+          b2():
+            return Field 0
+        }
+        ");
+    }
 
     #[test]
     fn test_simple() {

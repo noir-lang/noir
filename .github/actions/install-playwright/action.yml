@@ -9,7 +9,7 @@ inputs:
   playwright-version:
     description: 'Playwright version to install'
     required: false
-    default: '1.55.0'
+    default: '1.58.2'
 
 runs:
   using: composite

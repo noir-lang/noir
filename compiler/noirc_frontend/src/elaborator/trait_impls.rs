@@ -426,6 +426,10 @@ impl Elaborator<'_> {
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
+        // The override method's meta may not have been resolved yet — function metas are
+        // resolved lazily so they can see fully-bound trait impls and globals. Resolve it
+        // now before we read it.
+        self.define_function_meta_if_undefined(*func_id);
         let override_meta = self.interner.remove_function_meta(func_id);
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function

@@ -1981,7 +1981,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
 
 fn get_array_element_type(typ: Type) -> Option<Type> {
     match typ {
-        Type::Array(_, typ) | Type::Vector(typ) => Some(*typ),
+        Type::Array(typ, _) | Type::Vector(typ) => Some(*typ),
         Type::Alias(alias_type, generics) => {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)

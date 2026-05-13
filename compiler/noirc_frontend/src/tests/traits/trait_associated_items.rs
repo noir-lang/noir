@@ -2083,3 +2083,61 @@ fn associated_constant_type_mismatch_does_not_crash() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn trait_associated_constant_global_uses_placeholder_statement() {
+    use crate::hir::def_map::ModuleDefId;
+    use crate::hir_def::stmt::HirStatement;
+
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+    }
+
+    impl Foo for u32 {
+        let N: u32 = 0u32;
+    }
+
+    fn main() {}
+    "#;
+
+    let context = assert_no_errors(src);
+
+    let mut found_trait_constant_global = false;
+    for def_map in context.def_maps.values() {
+        for (_, module_data) in def_map.modules().iter() {
+            for module_def in module_data.definitions().definitions() {
+                if let ModuleDefId::GlobalId(global_id) = module_def {
+                    let info = context.def_interner.get_global(*global_id);
+                    if info.ident.as_str() == "N" {
+                        match context.def_interner.statement(&info.let_statement) {
+                            HirStatement::TraitAssociatedConstant => {
+                                found_trait_constant_global = true;
+                            }
+                            HirStatement::Let(_) => {} // the impl-side let is fine
+                            other => panic!("unexpected statement for global N: {other:?}"),
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        found_trait_constant_global,
+        "expected at least one global named N backed by HirStatement::TraitAssociatedConstant",
+    );
+}
+
+#[test]
+fn trait_associated_constant_duplicate_is_an_error() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+            ~ First trait associated item found here
+        let N: u8;
+            ^ Duplicate definitions of trait associated item with name N found
+            ~ Second trait associated item found here
+    }
+    "#;
+    check_errors(src);
+}
