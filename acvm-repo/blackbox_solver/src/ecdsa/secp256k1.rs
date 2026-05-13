@@ -150,7 +150,7 @@ mod secp256k1_tests {
     }
 
     #[test]
-    fn does_not_panic_on_signature_that_does_not_have_the_full_y_coordinate() {
+    fn signature_does_not_verify_on_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
 
@@ -160,7 +160,7 @@ mod secp256k1_tests {
     }
 
     #[test]
-    fn does_not_panic_on_invalid_signature() {
+    fn signature_does_not_verify_on_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
 
@@ -170,7 +170,7 @@ mod secp256k1_tests {
     }
 
     #[test]
-    fn does_not_panic_on_invalid_public_key() {
+    fn signature_does_not_verify_on_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
 
@@ -181,19 +181,19 @@ mod secp256k1_tests {
     }
 
     #[test]
-    fn does_not_panic_when_hashed_msg_exceeds_curve_order() {
+    fn signature_does_not_verify_when_hashed_msg_exceeds_curve_order() {
         // All 0xFF bytes is larger than the secp256k1 curve order
         // (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141).
         // The function should reduce it modulo the order, not panic.
         let oversized_hash: [u8; 32] = [0xff; 32];
 
         // The result will be false (signature doesn't match the reduced hash), but no panic.
-        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-        assert!(result.is_ok());
+        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    fn does_not_panic_when_hashed_msg_equals_curve_order() {
+    fn signature_does_not_verify_when_hashed_msg_equals_curve_order() {
         // The exact secp256k1 curve order.
         let curve_order: [u8; 32] = [
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -201,7 +201,7 @@ mod secp256k1_tests {
             0xD0, 0x36, 0x41, 0x41,
         ];
 
-        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-        assert!(result.is_ok());
+        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 }
