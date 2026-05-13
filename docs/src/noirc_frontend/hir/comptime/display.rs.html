@@ -546,472 +546,473 @@
 <a href=#546 id=546 data-nosnippet>546</a>            Value::UnresolvedType(typ) =&gt; {
 <a href=#547 id=547 data-nosnippet>547</a>                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, remove_interned_in_unresolved_type_data(<span class="self">self</span>.interner, typ.clone()))
 <a href=#548 id=548 data-nosnippet>548</a>            }
-<a href=#549 id=549 data-nosnippet>549</a>        }
-<a href=#550 id=550 data-nosnippet>550</a>    }
-<a href=#551 id=551 data-nosnippet>551</a>}
-<a href=#552 id=552 data-nosnippet>552</a>
-<a href=#553 id=553 data-nosnippet>553</a><span class="kw">impl </span>Token {
-<a href=#554 id=554 data-nosnippet>554</a>    <span class="kw">pub fn </span>display&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt;(
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw-2">&amp;</span><span class="lifetime">'token </span><span class="self">self</span>,
-<a href=#556 id=556 data-nosnippet>556</a>        interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
-<a href=#557 id=557 data-nosnippet>557</a>    ) -&gt; TokenPrinter&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt; {
-<a href=#558 id=558 data-nosnippet>558</a>        TokenPrinter { token: <span class="self">self</span>, interner }
-<a href=#559 id=559 data-nosnippet>559</a>    }
-<a href=#560 id=560 data-nosnippet>560</a>}
-<a href=#561 id=561 data-nosnippet>561</a>
-<a href=#562 id=562 data-nosnippet>562</a><span class="kw">pub struct </span>TokenPrinter&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt; {
-<a href=#563 id=563 data-nosnippet>563</a>    token: <span class="kw-2">&amp;</span><span class="lifetime">'token </span>Token,
-<a href=#564 id=564 data-nosnippet>564</a>    interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
-<a href=#565 id=565 data-nosnippet>565</a>}
-<a href=#566 id=566 data-nosnippet>566</a>
-<a href=#567 id=567 data-nosnippet>567</a><span class="kw">impl </span>Display <span class="kw">for </span>TokenPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw">match </span><span class="self">self</span>.token {
-<a href=#570 id=570 data-nosnippet>570</a>            Token::QuotedType(id) =&gt; {
-<a href=#571 id=571 data-nosnippet>571</a>                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>id))
-<a href=#572 id=572 data-nosnippet>572</a>            }
-<a href=#573 id=573 data-nosnippet>573</a>            Token::InternedExpr(id) =&gt; {
-<a href=#574 id=574 data-nosnippet>574</a>                <span class="kw">let </span>value = Value::expression(ExpressionKind::Interned(<span class="kw-2">*</span>id));
-<a href=#575 id=575 data-nosnippet>575</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#576 id=576 data-nosnippet>576</a>            }
-<a href=#577 id=577 data-nosnippet>577</a>            Token::InternedStatement(id) =&gt; {
-<a href=#578 id=578 data-nosnippet>578</a>                <span class="kw">let </span>value = Value::statement(StatementKind::Interned(<span class="kw-2">*</span>id));
-<a href=#579 id=579 data-nosnippet>579</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#580 id=580 data-nosnippet>580</a>            }
-<a href=#581 id=581 data-nosnippet>581</a>            Token::InternedLValue(id) =&gt; {
-<a href=#582 id=582 data-nosnippet>582</a>                <span class="kw">let </span>value = Value::lvalue(LValue::Interned(<span class="kw-2">*</span>id, Location::dummy()));
-<a href=#583 id=583 data-nosnippet>583</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#584 id=584 data-nosnippet>584</a>            }
-<a href=#585 id=585 data-nosnippet>585</a>            Token::InternedUnresolvedTypeData(id) =&gt; {
-<a href=#586 id=586 data-nosnippet>586</a>                <span class="kw">let </span>value = Value::UnresolvedType(UnresolvedTypeData::Interned(<span class="kw-2">*</span>id));
-<a href=#587 id=587 data-nosnippet>587</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#588 id=588 data-nosnippet>588</a>            }
-<a href=#589 id=589 data-nosnippet>589</a>            Token::InternedPattern(id) =&gt; {
-<a href=#590 id=590 data-nosnippet>590</a>                <span class="kw">let </span>value = Value::pattern(Pattern::Interned(<span class="kw-2">*</span>id, Location::dummy()));
-<a href=#591 id=591 data-nosnippet>591</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#592 id=592 data-nosnippet>592</a>            }
-<a href=#593 id=593 data-nosnippet>593</a>            Token::UnquoteMarker(id) =&gt; {
-<a href=#594 id=594 data-nosnippet>594</a>                <span class="kw">let </span>value = Value::TypedExpr(TypedExpr::ExprId(<span class="kw-2">*</span>id));
-<a href=#595 id=595 data-nosnippet>595</a>                value.display(<span class="self">self</span>.interner).fmt(f)
-<a href=#596 id=596 data-nosnippet>596</a>            }
-<a href=#597 id=597 data-nosnippet>597</a>            other =&gt; <span class="macro">write!</span>(f, <span class="string">"{other}"</span>),
-<a href=#598 id=598 data-nosnippet>598</a>        }
-<a href=#599 id=599 data-nosnippet>599</a>    }
-<a href=#600 id=600 data-nosnippet>600</a>}
-<a href=#601 id=601 data-nosnippet>601</a>
-<a href=#602 id=602 data-nosnippet>602</a><span class="kw">fn </span>display_trait_constraint(interner: <span class="kw-2">&amp;</span>NodeInterner, trait_constraint: <span class="kw-2">&amp;</span>TraitConstraint) -&gt; String {
-<a href=#603 id=603 data-nosnippet>603</a>    <span class="kw">let </span>trait_ = interner.get_trait(trait_constraint.trait_bound.trait_id);
-<a href=#604 id=604 data-nosnippet>604</a>    <span class="macro">format!</span>(
-<a href=#605 id=605 data-nosnippet>605</a>        <span class="string">"{}: {}{}"</span>,
-<a href=#606 id=606 data-nosnippet>606</a>        trait_constraint.typ, trait_.name, trait_constraint.trait_bound.trait_generics
-<a href=#607 id=607 data-nosnippet>607</a>    )
-<a href=#608 id=608 data-nosnippet>608</a>}
-<a href=#609 id=609 data-nosnippet>609</a>
-<a href=#610 id=610 data-nosnippet>610</a><span class="comment">// Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
-<a href=#611 id=611 data-nosnippet>611</a></span><span class="kw">fn </span>remove_interned_in_expression(interner: <span class="kw-2">&amp;</span>NodeInterner, expr: Expression) -&gt; Expression {
-<a href=#612 id=612 data-nosnippet>612</a>    Expression {
-<a href=#613 id=613 data-nosnippet>613</a>        kind: remove_interned_in_expression_kind(interner, expr.kind),
-<a href=#614 id=614 data-nosnippet>614</a>        location: expr.location,
-<a href=#615 id=615 data-nosnippet>615</a>    }
-<a href=#616 id=616 data-nosnippet>616</a>}
-<a href=#617 id=617 data-nosnippet>617</a>
-<a href=#618 id=618 data-nosnippet>618</a><span class="comment">// Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
-<a href=#619 id=619 data-nosnippet>619</a></span><span class="kw">fn </span>remove_interned_in_expression_kind(
-<a href=#620 id=620 data-nosnippet>620</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#621 id=621 data-nosnippet>621</a>    expr: ExpressionKind,
-<a href=#622 id=622 data-nosnippet>622</a>) -&gt; ExpressionKind {
-<a href=#623 id=623 data-nosnippet>623</a>    <span class="kw">match </span>expr {
-<a href=#624 id=624 data-nosnippet>624</a>        ExpressionKind::Literal(literal) =&gt; {
-<a href=#625 id=625 data-nosnippet>625</a>            ExpressionKind::Literal(remove_interned_in_literal(interner, literal))
-<a href=#626 id=626 data-nosnippet>626</a>        }
-<a href=#627 id=627 data-nosnippet>627</a>        ExpressionKind::Block(block) =&gt; {
-<a href=#628 id=628 data-nosnippet>628</a>            <span class="kw">let </span>statements =
-<a href=#629 id=629 data-nosnippet>629</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-<a href=#630 id=630 data-nosnippet>630</a>            ExpressionKind::Block(BlockExpression { statements })
-<a href=#631 id=631 data-nosnippet>631</a>        }
-<a href=#632 id=632 data-nosnippet>632</a>        ExpressionKind::Prefix(prefix) =&gt; ExpressionKind::Prefix(Box::new(PrefixExpression {
-<a href=#633 id=633 data-nosnippet>633</a>            rhs: remove_interned_in_expression(interner, prefix.rhs),
-<a href=#634 id=634 data-nosnippet>634</a>            ..<span class="kw-2">*</span>prefix
-<a href=#635 id=635 data-nosnippet>635</a>        })),
-<a href=#636 id=636 data-nosnippet>636</a>        ExpressionKind::Index(index) =&gt; ExpressionKind::Index(Box::new(IndexExpression {
-<a href=#637 id=637 data-nosnippet>637</a>            collection: remove_interned_in_expression(interner, index.collection),
-<a href=#638 id=638 data-nosnippet>638</a>            index: remove_interned_in_expression(interner, index.index),
-<a href=#639 id=639 data-nosnippet>639</a>        })),
-<a href=#640 id=640 data-nosnippet>640</a>        ExpressionKind::Call(call) =&gt; ExpressionKind::Call(Box::new(CallExpression {
-<a href=#641 id=641 data-nosnippet>641</a>            func: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>call.func)),
-<a href=#642 id=642 data-nosnippet>642</a>            arguments: vecmap(call.arguments, |arg| remove_interned_in_expression(interner, arg)),
-<a href=#643 id=643 data-nosnippet>643</a>            ..<span class="kw-2">*</span>call
-<a href=#644 id=644 data-nosnippet>644</a>        })),
-<a href=#645 id=645 data-nosnippet>645</a>        ExpressionKind::MethodCall(call) =&gt; {
-<a href=#646 id=646 data-nosnippet>646</a>            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-<a href=#647 id=647 data-nosnippet>647</a>                object: remove_interned_in_expression(interner, call.object),
-<a href=#648 id=648 data-nosnippet>648</a>                arguments: vecmap(call.arguments, |arg| {
-<a href=#649 id=649 data-nosnippet>649</a>                    remove_interned_in_expression(interner, arg)
-<a href=#650 id=650 data-nosnippet>650</a>                }),
-<a href=#651 id=651 data-nosnippet>651</a>                ..<span class="kw-2">*</span>call
-<a href=#652 id=652 data-nosnippet>652</a>            }))
-<a href=#653 id=653 data-nosnippet>653</a>        }
-<a href=#654 id=654 data-nosnippet>654</a>        ExpressionKind::Constrain(constrain) =&gt; ExpressionKind::Constrain(ConstrainExpression {
-<a href=#655 id=655 data-nosnippet>655</a>            arguments: vecmap(constrain.arguments, |expr| {
-<a href=#656 id=656 data-nosnippet>656</a>                remove_interned_in_expression(interner, expr)
-<a href=#657 id=657 data-nosnippet>657</a>            }),
-<a href=#658 id=658 data-nosnippet>658</a>            ..constrain
-<a href=#659 id=659 data-nosnippet>659</a>        }),
-<a href=#660 id=660 data-nosnippet>660</a>        ExpressionKind::Constructor(constructor) =&gt; {
-<a href=#661 id=661 data-nosnippet>661</a>            ExpressionKind::Constructor(Box::new(ConstructorExpression {
-<a href=#662 id=662 data-nosnippet>662</a>                fields: vecmap(constructor.fields, |(name, expr)| {
-<a href=#663 id=663 data-nosnippet>663</a>                    (name, remove_interned_in_expression(interner, expr))
-<a href=#664 id=664 data-nosnippet>664</a>                }),
-<a href=#665 id=665 data-nosnippet>665</a>                ..<span class="kw-2">*</span>constructor
-<a href=#666 id=666 data-nosnippet>666</a>            }))
-<a href=#667 id=667 data-nosnippet>667</a>        }
-<a href=#668 id=668 data-nosnippet>668</a>        ExpressionKind::MemberAccess(member_access) =&gt; {
-<a href=#669 id=669 data-nosnippet>669</a>            ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
-<a href=#670 id=670 data-nosnippet>670</a>                lhs: remove_interned_in_expression(interner, member_access.lhs),
-<a href=#671 id=671 data-nosnippet>671</a>                ..<span class="kw-2">*</span>member_access
-<a href=#672 id=672 data-nosnippet>672</a>            }))
-<a href=#673 id=673 data-nosnippet>673</a>        }
-<a href=#674 id=674 data-nosnippet>674</a>        ExpressionKind::Cast(cast) =&gt; ExpressionKind::Cast(Box::new(CastExpression {
-<a href=#675 id=675 data-nosnippet>675</a>            lhs: remove_interned_in_expression(interner, cast.lhs),
-<a href=#676 id=676 data-nosnippet>676</a>            ..<span class="kw-2">*</span>cast
-<a href=#677 id=677 data-nosnippet>677</a>        })),
-<a href=#678 id=678 data-nosnippet>678</a>        ExpressionKind::Infix(infix) =&gt; ExpressionKind::Infix(Box::new(InfixExpression {
-<a href=#679 id=679 data-nosnippet>679</a>            lhs: remove_interned_in_expression(interner, infix.lhs),
-<a href=#680 id=680 data-nosnippet>680</a>            rhs: remove_interned_in_expression(interner, infix.rhs),
-<a href=#681 id=681 data-nosnippet>681</a>            ..<span class="kw-2">*</span>infix
-<a href=#682 id=682 data-nosnippet>682</a>        })),
-<a href=#683 id=683 data-nosnippet>683</a>        ExpressionKind::If(if_expr) =&gt; ExpressionKind::If(Box::new(IfExpression {
-<a href=#684 id=684 data-nosnippet>684</a>            condition: remove_interned_in_expression(interner, if_expr.condition),
-<a href=#685 id=685 data-nosnippet>685</a>            consequence: remove_interned_in_expression(interner, if_expr.consequence),
-<a href=#686 id=686 data-nosnippet>686</a>            alternative: if_expr
-<a href=#687 id=687 data-nosnippet>687</a>                .alternative
-<a href=#688 id=688 data-nosnippet>688</a>                .map(|alternative| remove_interned_in_expression(interner, alternative)),
-<a href=#689 id=689 data-nosnippet>689</a>        })),
-<a href=#690 id=690 data-nosnippet>690</a>        ExpressionKind::Match(match_expr) =&gt; ExpressionKind::Match(Box::new(MatchExpression {
-<a href=#691 id=691 data-nosnippet>691</a>            expression: remove_interned_in_expression(interner, match_expr.expression),
-<a href=#692 id=692 data-nosnippet>692</a>            rules: vecmap(match_expr.rules, |(pattern, branch)| {
-<a href=#693 id=693 data-nosnippet>693</a>                <span class="kw">let </span>pattern = remove_interned_in_expression(interner, pattern);
-<a href=#694 id=694 data-nosnippet>694</a>                <span class="kw">let </span>branch = remove_interned_in_expression(interner, branch);
-<a href=#695 id=695 data-nosnippet>695</a>                (pattern, branch)
-<a href=#696 id=696 data-nosnippet>696</a>            }),
-<a href=#697 id=697 data-nosnippet>697</a>        })),
-<a href=#698 id=698 data-nosnippet>698</a>        ExpressionKind::Variable(<span class="kw">_</span>) =&gt; expr,
-<a href=#699 id=699 data-nosnippet>699</a>        ExpressionKind::Tuple(expressions) =&gt; ExpressionKind::Tuple(vecmap(expressions, |expr| {
-<a href=#700 id=700 data-nosnippet>700</a>            remove_interned_in_expression(interner, expr)
-<a href=#701 id=701 data-nosnippet>701</a>        })),
-<a href=#702 id=702 data-nosnippet>702</a>        ExpressionKind::Lambda(lambda) =&gt; ExpressionKind::Lambda(Box::new(Lambda {
-<a href=#703 id=703 data-nosnippet>703</a>            body: remove_interned_in_expression(interner, lambda.body),
-<a href=#704 id=704 data-nosnippet>704</a>            ..<span class="kw-2">*</span>lambda
-<a href=#705 id=705 data-nosnippet>705</a>        })),
-<a href=#706 id=706 data-nosnippet>706</a>        ExpressionKind::Parenthesized(expr) =&gt; {
-<a href=#707 id=707 data-nosnippet>707</a>            ExpressionKind::Parenthesized(Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>expr)))
-<a href=#708 id=708 data-nosnippet>708</a>        }
-<a href=#709 id=709 data-nosnippet>709</a>        ExpressionKind::Quote(<span class="kw">_</span>) =&gt; expr,
-<a href=#710 id=710 data-nosnippet>710</a>        ExpressionKind::Unquote(expr) =&gt; {
-<a href=#711 id=711 data-nosnippet>711</a>            ExpressionKind::Unquote(Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>expr)))
-<a href=#712 id=712 data-nosnippet>712</a>        }
-<a href=#713 id=713 data-nosnippet>713</a>        ExpressionKind::Comptime(block, span) =&gt; {
-<a href=#714 id=714 data-nosnippet>714</a>            <span class="kw">let </span>statements =
-<a href=#715 id=715 data-nosnippet>715</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-<a href=#716 id=716 data-nosnippet>716</a>            ExpressionKind::Comptime(BlockExpression { statements }, span)
-<a href=#717 id=717 data-nosnippet>717</a>        }
-<a href=#718 id=718 data-nosnippet>718</a>        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) =&gt; {
-<a href=#719 id=719 data-nosnippet>719</a>            <span class="kw">let </span>statements =
-<a href=#720 id=720 data-nosnippet>720</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-<a href=#721 id=721 data-nosnippet>721</a>            ExpressionKind::Unsafe(UnsafeExpression {
-<a href=#722 id=722 data-nosnippet>722</a>                block: BlockExpression { statements },
-<a href=#723 id=723 data-nosnippet>723</a>                unsafe_keyword_location,
-<a href=#724 id=724 data-nosnippet>724</a>            })
-<a href=#725 id=725 data-nosnippet>725</a>        }
-<a href=#726 id=726 data-nosnippet>726</a>        ExpressionKind::AsTraitPath(<span class="kw-2">mut </span>path) =&gt; {
-<a href=#727 id=727 data-nosnippet>727</a>            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
-<a href=#728 id=728 data-nosnippet>728</a>            path.trait_generics =
-<a href=#729 id=729 data-nosnippet>729</a>                remove_interned_in_generic_type_args(interner, path.trait_generics);
-<a href=#730 id=730 data-nosnippet>730</a>            path.turbofish = path
-<a href=#731 id=731 data-nosnippet>731</a>                .turbofish
-<a href=#732 id=732 data-nosnippet>732</a>                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
-<a href=#733 id=733 data-nosnippet>733</a>            ExpressionKind::AsTraitPath(path)
-<a href=#734 id=734 data-nosnippet>734</a>        }
-<a href=#735 id=735 data-nosnippet>735</a>        ExpressionKind::TypePath(<span class="kw-2">mut </span>path) =&gt; {
-<a href=#736 id=736 data-nosnippet>736</a>            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
-<a href=#737 id=737 data-nosnippet>737</a>            path.turbofish = path
-<a href=#738 id=738 data-nosnippet>738</a>                .turbofish
-<a href=#739 id=739 data-nosnippet>739</a>                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
-<a href=#740 id=740 data-nosnippet>740</a>            ExpressionKind::TypePath(path)
-<a href=#741 id=741 data-nosnippet>741</a>        }
-<a href=#742 id=742 data-nosnippet>742</a>        ExpressionKind::Resolved(id) =&gt; {
-<a href=#743 id=743 data-nosnippet>743</a>            <span class="kw">let </span>expr = interner.expression(<span class="kw-2">&amp;</span>id);
-<a href=#744 id=744 data-nosnippet>744</a>            expr.to_display_ast(interner, Location::dummy()).kind
-<a href=#745 id=745 data-nosnippet>745</a>        }
-<a href=#746 id=746 data-nosnippet>746</a>        ExpressionKind::Interned(id) =&gt; {
-<a href=#747 id=747 data-nosnippet>747</a>            <span class="kw">let </span>expr = interner.get_expression_kind(id).clone();
-<a href=#748 id=748 data-nosnippet>748</a>            remove_interned_in_expression_kind(interner, expr)
-<a href=#749 id=749 data-nosnippet>749</a>        }
-<a href=#750 id=750 data-nosnippet>750</a>        ExpressionKind::Error =&gt; expr,
-<a href=#751 id=751 data-nosnippet>751</a>        ExpressionKind::InternedStatement(id) =&gt; remove_interned_in_statement_expr(interner, id),
-<a href=#752 id=752 data-nosnippet>752</a>    }
-<a href=#753 id=753 data-nosnippet>753</a>}
-<a href=#754 id=754 data-nosnippet>754</a>
-<a href=#755 id=755 data-nosnippet>755</a><span class="kw">fn </span>remove_interned_in_statement_expr(
-<a href=#756 id=756 data-nosnippet>756</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#757 id=757 data-nosnippet>757</a>    id: InternedStatementKind,
-<a href=#758 id=758 data-nosnippet>758</a>) -&gt; ExpressionKind {
-<a href=#759 id=759 data-nosnippet>759</a>    <span class="kw">let </span>expr = <span class="kw">match </span>interner.get_statement_kind(id).clone() {
-<a href=#760 id=760 data-nosnippet>760</a>        StatementKind::Expression(expr) | StatementKind::Semi(expr) =&gt; expr.kind,
-<a href=#761 id=761 data-nosnippet>761</a>        StatementKind::Interned(id) =&gt; remove_interned_in_statement_expr(interner, id),
-<a href=#762 id=762 data-nosnippet>762</a>        <span class="kw">_ </span>=&gt; ExpressionKind::Error,
-<a href=#763 id=763 data-nosnippet>763</a>    };
-<a href=#764 id=764 data-nosnippet>764</a>    remove_interned_in_expression_kind(interner, expr)
-<a href=#765 id=765 data-nosnippet>765</a>}
-<a href=#766 id=766 data-nosnippet>766</a>
-<a href=#767 id=767 data-nosnippet>767</a><span class="kw">fn </span>remove_interned_in_literal(interner: <span class="kw-2">&amp;</span>NodeInterner, literal: Literal) -&gt; Literal {
-<a href=#768 id=768 data-nosnippet>768</a>    <span class="kw">match </span>literal {
-<a href=#769 id=769 data-nosnippet>769</a>        Literal::Array(array_literal) =&gt; {
-<a href=#770 id=770 data-nosnippet>770</a>            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
-<a href=#771 id=771 data-nosnippet>771</a>        }
-<a href=#772 id=772 data-nosnippet>772</a>        Literal::Vector(array_literal) =&gt; {
-<a href=#773 id=773 data-nosnippet>773</a>            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
-<a href=#774 id=774 data-nosnippet>774</a>        }
-<a href=#775 id=775 data-nosnippet>775</a>        Literal::Bool(<span class="kw">_</span>)
-<a href=#776 id=776 data-nosnippet>776</a>        | Literal::Integer(..)
-<a href=#777 id=777 data-nosnippet>777</a>        | Literal::Str(<span class="kw">_</span>)
-<a href=#778 id=778 data-nosnippet>778</a>        | Literal::RawStr(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#779 id=779 data-nosnippet>779</a>        | Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#780 id=780 data-nosnippet>780</a>        | Literal::Unit =&gt; literal,
-<a href=#781 id=781 data-nosnippet>781</a>    }
-<a href=#782 id=782 data-nosnippet>782</a>}
-<a href=#783 id=783 data-nosnippet>783</a>
-<a href=#784 id=784 data-nosnippet>784</a><span class="kw">fn </span>remove_interned_in_array_literal(
-<a href=#785 id=785 data-nosnippet>785</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#786 id=786 data-nosnippet>786</a>    literal: ArrayLiteral,
-<a href=#787 id=787 data-nosnippet>787</a>) -&gt; ArrayLiteral {
-<a href=#788 id=788 data-nosnippet>788</a>    <span class="kw">match </span>literal {
-<a href=#789 id=789 data-nosnippet>789</a>        ArrayLiteral::Standard(expressions) =&gt; {
-<a href=#790 id=790 data-nosnippet>790</a>            ArrayLiteral::Standard(vecmap(expressions, |expr| {
-<a href=#791 id=791 data-nosnippet>791</a>                remove_interned_in_expression(interner, expr)
-<a href=#792 id=792 data-nosnippet>792</a>            }))
-<a href=#793 id=793 data-nosnippet>793</a>        }
-<a href=#794 id=794 data-nosnippet>794</a>        ArrayLiteral::Repeated { repeated_element, length } =&gt; ArrayLiteral::Repeated {
-<a href=#795 id=795 data-nosnippet>795</a>            repeated_element: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>repeated_element)),
-<a href=#796 id=796 data-nosnippet>796</a>            length: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>length)),
-<a href=#797 id=797 data-nosnippet>797</a>        },
-<a href=#798 id=798 data-nosnippet>798</a>    }
-<a href=#799 id=799 data-nosnippet>799</a>}
-<a href=#800 id=800 data-nosnippet>800</a>
-<a href=#801 id=801 data-nosnippet>801</a><span class="comment">// Returns a new Statement where all Interned statements have been turned into non-interned StatementKind.
-<a href=#802 id=802 data-nosnippet>802</a></span><span class="kw">fn </span>remove_interned_in_statement(interner: <span class="kw-2">&amp;</span>NodeInterner, statement: Statement) -&gt; Statement {
-<a href=#803 id=803 data-nosnippet>803</a>    Statement {
-<a href=#804 id=804 data-nosnippet>804</a>        kind: remove_interned_in_statement_kind(interner, statement.kind),
-<a href=#805 id=805 data-nosnippet>805</a>        location: statement.location,
-<a href=#806 id=806 data-nosnippet>806</a>    }
-<a href=#807 id=807 data-nosnippet>807</a>}
-<a href=#808 id=808 data-nosnippet>808</a>
-<a href=#809 id=809 data-nosnippet>809</a><span class="comment">// Returns a new StatementKind where all Interned statements have been turned into non-interned StatementKind.
-<a href=#810 id=810 data-nosnippet>810</a></span><span class="kw">fn </span>remove_interned_in_statement_kind(
-<a href=#811 id=811 data-nosnippet>811</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#812 id=812 data-nosnippet>812</a>    statement: StatementKind,
-<a href=#813 id=813 data-nosnippet>813</a>) -&gt; StatementKind {
-<a href=#814 id=814 data-nosnippet>814</a>    <span class="kw">match </span>statement {
-<a href=#815 id=815 data-nosnippet>815</a>        StatementKind::Let(let_statement) =&gt; StatementKind::Let(LetStatement {
-<a href=#816 id=816 data-nosnippet>816</a>            pattern: remove_interned_in_pattern(interner, let_statement.pattern),
-<a href=#817 id=817 data-nosnippet>817</a>            expression: remove_interned_in_expression(interner, let_statement.expression),
-<a href=#818 id=818 data-nosnippet>818</a>            r#type: remove_interned_in_option_unresolved_type(interner, let_statement.r#type),
-<a href=#819 id=819 data-nosnippet>819</a>            ..let_statement
-<a href=#820 id=820 data-nosnippet>820</a>        }),
-<a href=#821 id=821 data-nosnippet>821</a>        StatementKind::Expression(expr) =&gt; {
-<a href=#822 id=822 data-nosnippet>822</a>            StatementKind::Expression(remove_interned_in_expression(interner, expr))
-<a href=#823 id=823 data-nosnippet>823</a>        }
-<a href=#824 id=824 data-nosnippet>824</a>        StatementKind::Assign(assign) =&gt; StatementKind::Assign(AssignStatement {
-<a href=#825 id=825 data-nosnippet>825</a>            lvalue: assign.lvalue,
-<a href=#826 id=826 data-nosnippet>826</a>            expression: remove_interned_in_expression(interner, assign.expression),
-<a href=#827 id=827 data-nosnippet>827</a>        }),
-<a href=#828 id=828 data-nosnippet>828</a>        StatementKind::AssignOp(assign_op) =&gt; StatementKind::AssignOp(AssignOpStatement {
-<a href=#829 id=829 data-nosnippet>829</a>            lvalue: assign_op.lvalue,
-<a href=#830 id=830 data-nosnippet>830</a>            op: assign_op.op,
-<a href=#831 id=831 data-nosnippet>831</a>            expression: remove_interned_in_expression(interner, assign_op.expression),
-<a href=#832 id=832 data-nosnippet>832</a>        }),
-<a href=#833 id=833 data-nosnippet>833</a>        StatementKind::For(for_loop) =&gt; StatementKind::For(ForLoopStatement {
-<a href=#834 id=834 data-nosnippet>834</a>            range: <span class="kw">match </span>for_loop.range {
-<a href=#835 id=835 data-nosnippet>835</a>                ForRange::Range(ForBounds { start, end, inclusive }) =&gt; {
-<a href=#836 id=836 data-nosnippet>836</a>                    ForRange::Range(ForBounds {
-<a href=#837 id=837 data-nosnippet>837</a>                        start: remove_interned_in_expression(interner, start),
-<a href=#838 id=838 data-nosnippet>838</a>                        end: remove_interned_in_expression(interner, end),
-<a href=#839 id=839 data-nosnippet>839</a>                        inclusive,
-<a href=#840 id=840 data-nosnippet>840</a>                    })
-<a href=#841 id=841 data-nosnippet>841</a>                }
-<a href=#842 id=842 data-nosnippet>842</a>                ForRange::Array(expr) =&gt; {
-<a href=#843 id=843 data-nosnippet>843</a>                    ForRange::Array(remove_interned_in_expression(interner, expr))
-<a href=#844 id=844 data-nosnippet>844</a>                }
-<a href=#845 id=845 data-nosnippet>845</a>            },
-<a href=#846 id=846 data-nosnippet>846</a>            block: remove_interned_in_expression(interner, for_loop.block),
-<a href=#847 id=847 data-nosnippet>847</a>            ..for_loop
-<a href=#848 id=848 data-nosnippet>848</a>        }),
-<a href=#849 id=849 data-nosnippet>849</a>        StatementKind::Loop(loop_) =&gt; StatementKind::Loop(LoopStatement {
-<a href=#850 id=850 data-nosnippet>850</a>            body: remove_interned_in_expression(interner, loop_.body),
-<a href=#851 id=851 data-nosnippet>851</a>            loop_keyword_location: loop_.loop_keyword_location,
-<a href=#852 id=852 data-nosnippet>852</a>        }),
-<a href=#853 id=853 data-nosnippet>853</a>        StatementKind::While(while_) =&gt; StatementKind::While(WhileStatement {
-<a href=#854 id=854 data-nosnippet>854</a>            condition: remove_interned_in_expression(interner, while_.condition),
-<a href=#855 id=855 data-nosnippet>855</a>            body: remove_interned_in_expression(interner, while_.body),
-<a href=#856 id=856 data-nosnippet>856</a>            while_keyword_location: while_.while_keyword_location,
-<a href=#857 id=857 data-nosnippet>857</a>        }),
-<a href=#858 id=858 data-nosnippet>858</a>        StatementKind::Comptime(statement) =&gt; {
-<a href=#859 id=859 data-nosnippet>859</a>            StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, <span class="kw-2">*</span>statement)))
-<a href=#860 id=860 data-nosnippet>860</a>        }
-<a href=#861 id=861 data-nosnippet>861</a>        StatementKind::Semi(expr) =&gt; {
-<a href=#862 id=862 data-nosnippet>862</a>            StatementKind::Semi(remove_interned_in_expression(interner, expr))
-<a href=#863 id=863 data-nosnippet>863</a>        }
-<a href=#864 id=864 data-nosnippet>864</a>        StatementKind::Interned(id) =&gt; {
-<a href=#865 id=865 data-nosnippet>865</a>            <span class="kw">let </span>statement = interner.get_statement_kind(id).clone();
-<a href=#866 id=866 data-nosnippet>866</a>            remove_interned_in_statement_kind(interner, statement)
-<a href=#867 id=867 data-nosnippet>867</a>        }
-<a href=#868 id=868 data-nosnippet>868</a>        StatementKind::Break | StatementKind::Continue | StatementKind::Error =&gt; statement,
-<a href=#869 id=869 data-nosnippet>869</a>    }
-<a href=#870 id=870 data-nosnippet>870</a>}
-<a href=#871 id=871 data-nosnippet>871</a>
-<a href=#872 id=872 data-nosnippet>872</a><span class="comment">// Returns a new LValue where all Interned LValues have been turned into LValue.
-<a href=#873 id=873 data-nosnippet>873</a></span><span class="kw">fn </span>remove_interned_in_lvalue(interner: <span class="kw-2">&amp;</span>NodeInterner, lvalue: LValue) -&gt; LValue {
-<a href=#874 id=874 data-nosnippet>874</a>    <span class="kw">match </span>lvalue {
-<a href=#875 id=875 data-nosnippet>875</a>        LValue::Path(<span class="kw">_</span>) =&gt; lvalue,
-<a href=#876 id=876 data-nosnippet>876</a>        LValue::MemberAccess { object, field_name, location: span } =&gt; LValue::MemberAccess {
-<a href=#877 id=877 data-nosnippet>877</a>            object: Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>object)),
-<a href=#878 id=878 data-nosnippet>878</a>            field_name,
-<a href=#879 id=879 data-nosnippet>879</a>            location: span,
-<a href=#880 id=880 data-nosnippet>880</a>        },
-<a href=#881 id=881 data-nosnippet>881</a>        LValue::Index { array, index, location: span } =&gt; LValue::Index {
-<a href=#882 id=882 data-nosnippet>882</a>            array: Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>array)),
-<a href=#883 id=883 data-nosnippet>883</a>            index: remove_interned_in_expression(interner, index),
-<a href=#884 id=884 data-nosnippet>884</a>            location: span,
-<a href=#885 id=885 data-nosnippet>885</a>        },
-<a href=#886 id=886 data-nosnippet>886</a>        LValue::Dereference(lvalue, span) =&gt; {
-<a href=#887 id=887 data-nosnippet>887</a>            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>lvalue)), span)
-<a href=#888 id=888 data-nosnippet>888</a>        }
-<a href=#889 id=889 data-nosnippet>889</a>        LValue::Interned(id, span) =&gt; {
-<a href=#890 id=890 data-nosnippet>890</a>            <span class="kw">let </span>lvalue = interner.get_lvalue(id, span);
-<a href=#891 id=891 data-nosnippet>891</a>            remove_interned_in_lvalue(interner, lvalue)
-<a href=#892 id=892 data-nosnippet>892</a>        }
-<a href=#893 id=893 data-nosnippet>893</a>    }
-<a href=#894 id=894 data-nosnippet>894</a>}
-<a href=#895 id=895 data-nosnippet>895</a>
-<a href=#896 id=896 data-nosnippet>896</a><span class="kw">fn </span>remove_interned_in_option_unresolved_type(
-<a href=#897 id=897 data-nosnippet>897</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#898 id=898 data-nosnippet>898</a>    typ: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
-<a href=#899 id=899 data-nosnippet>899</a>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt; {
-<a href=#900 id=900 data-nosnippet>900</a>    typ.map(|typ| remove_interned_in_unresolved_type(interner, typ))
-<a href=#901 id=901 data-nosnippet>901</a>}
-<a href=#902 id=902 data-nosnippet>902</a>
-<a href=#903 id=903 data-nosnippet>903</a><span class="kw">fn </span>remove_interned_in_unresolved_type(
-<a href=#904 id=904 data-nosnippet>904</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#905 id=905 data-nosnippet>905</a>    typ: UnresolvedType,
-<a href=#906 id=906 data-nosnippet>906</a>) -&gt; UnresolvedType {
-<a href=#907 id=907 data-nosnippet>907</a>    UnresolvedType {
-<a href=#908 id=908 data-nosnippet>908</a>        typ: remove_interned_in_unresolved_type_data(interner, typ.typ),
-<a href=#909 id=909 data-nosnippet>909</a>        location: typ.location,
-<a href=#910 id=910 data-nosnippet>910</a>    }
-<a href=#911 id=911 data-nosnippet>911</a>}
-<a href=#912 id=912 data-nosnippet>912</a>
-<a href=#913 id=913 data-nosnippet>913</a><span class="kw">fn </span>remove_interned_in_unresolved_type_data(
-<a href=#914 id=914 data-nosnippet>914</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#915 id=915 data-nosnippet>915</a>    typ: UnresolvedTypeData,
-<a href=#916 id=916 data-nosnippet>916</a>) -&gt; UnresolvedTypeData {
-<a href=#917 id=917 data-nosnippet>917</a>    <span class="kw">match </span>typ {
-<a href=#918 id=918 data-nosnippet>918</a>        UnresolvedTypeData::Array(expr, typ) =&gt; UnresolvedTypeData::Array(
-<a href=#919 id=919 data-nosnippet>919</a>            expr,
-<a href=#920 id=920 data-nosnippet>920</a>            Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)),
-<a href=#921 id=921 data-nosnippet>921</a>        ),
-<a href=#922 id=922 data-nosnippet>922</a>        UnresolvedTypeData::Vector(typ) =&gt; {
-<a href=#923 id=923 data-nosnippet>923</a>            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)))
-<a href=#924 id=924 data-nosnippet>924</a>        }
-<a href=#925 id=925 data-nosnippet>925</a>        UnresolvedTypeData::Parenthesized(typ) =&gt; UnresolvedTypeData::Parenthesized(Box::new(
-<a href=#926 id=926 data-nosnippet>926</a>            remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ),
-<a href=#927 id=927 data-nosnippet>927</a>        )),
-<a href=#928 id=928 data-nosnippet>928</a>        UnresolvedTypeData::Named(path, generic_type_args, is_synthesized) =&gt; {
-<a href=#929 id=929 data-nosnippet>929</a>            UnresolvedTypeData::Named(
-<a href=#930 id=930 data-nosnippet>930</a>                path,
-<a href=#931 id=931 data-nosnippet>931</a>                remove_interned_in_generic_type_args(interner, generic_type_args),
-<a href=#932 id=932 data-nosnippet>932</a>                is_synthesized,
-<a href=#933 id=933 data-nosnippet>933</a>            )
-<a href=#934 id=934 data-nosnippet>934</a>        }
-<a href=#935 id=935 data-nosnippet>935</a>        UnresolvedTypeData::TraitAsType(path, generic_type_args) =&gt; {
-<a href=#936 id=936 data-nosnippet>936</a>            UnresolvedTypeData::TraitAsType(
-<a href=#937 id=937 data-nosnippet>937</a>                path,
-<a href=#938 id=938 data-nosnippet>938</a>                remove_interned_in_generic_type_args(interner, generic_type_args),
-<a href=#939 id=939 data-nosnippet>939</a>            )
-<a href=#940 id=940 data-nosnippet>940</a>        }
-<a href=#941 id=941 data-nosnippet>941</a>        UnresolvedTypeData::Reference(typ, mutable) =&gt; UnresolvedTypeData::Reference(
-<a href=#942 id=942 data-nosnippet>942</a>            Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)),
-<a href=#943 id=943 data-nosnippet>943</a>            mutable,
-<a href=#944 id=944 data-nosnippet>944</a>        ),
-<a href=#945 id=945 data-nosnippet>945</a>        UnresolvedTypeData::Tuple(types) =&gt; UnresolvedTypeData::Tuple(vecmap(types, |typ| {
-<a href=#946 id=946 data-nosnippet>946</a>            remove_interned_in_unresolved_type(interner, typ)
-<a href=#947 id=947 data-nosnippet>947</a>        })),
-<a href=#948 id=948 data-nosnippet>948</a>        UnresolvedTypeData::Function(arg_types, ret_type, env_type, unconstrained) =&gt; {
-<a href=#949 id=949 data-nosnippet>949</a>            UnresolvedTypeData::Function(
-<a href=#950 id=950 data-nosnippet>950</a>                vecmap(arg_types, |typ| remove_interned_in_unresolved_type(interner, typ)),
-<a href=#951 id=951 data-nosnippet>951</a>                Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>ret_type)),
-<a href=#952 id=952 data-nosnippet>952</a>                Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>env_type)),
-<a href=#953 id=953 data-nosnippet>953</a>                unconstrained,
-<a href=#954 id=954 data-nosnippet>954</a>            )
-<a href=#955 id=955 data-nosnippet>955</a>        }
-<a href=#956 id=956 data-nosnippet>956</a>        UnresolvedTypeData::AsTraitPath(as_trait_path) =&gt; {
-<a href=#957 id=957 data-nosnippet>957</a>            UnresolvedTypeData::AsTraitPath(Box::new(AsTraitPath {
-<a href=#958 id=958 data-nosnippet>958</a>                typ: remove_interned_in_unresolved_type(interner, as_trait_path.typ),
-<a href=#959 id=959 data-nosnippet>959</a>                trait_generics: remove_interned_in_generic_type_args(
-<a href=#960 id=960 data-nosnippet>960</a>                    interner,
-<a href=#961 id=961 data-nosnippet>961</a>                    as_trait_path.trait_generics,
-<a href=#962 id=962 data-nosnippet>962</a>                ),
-<a href=#963 id=963 data-nosnippet>963</a>                turbofish: as_trait_path
-<a href=#964 id=964 data-nosnippet>964</a>                    .turbofish
-<a href=#965 id=965 data-nosnippet>965</a>                    .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish)),
-<a href=#966 id=966 data-nosnippet>966</a>                ..<span class="kw-2">*</span>as_trait_path
-<a href=#967 id=967 data-nosnippet>967</a>            }))
-<a href=#968 id=968 data-nosnippet>968</a>        }
-<a href=#969 id=969 data-nosnippet>969</a>        UnresolvedTypeData::Interned(id) =&gt; interner.get_unresolved_type_data(id).clone(),
-<a href=#970 id=970 data-nosnippet>970</a>        UnresolvedTypeData::Unit
-<a href=#971 id=971 data-nosnippet>971</a>        | UnresolvedTypeData::Resolved(<span class="kw">_</span>)
-<a href=#972 id=972 data-nosnippet>972</a>        | UnresolvedTypeData::Expression(<span class="kw">_</span>)
-<a href=#973 id=973 data-nosnippet>973</a>        | UnresolvedTypeData::Error =&gt; typ,
-<a href=#974 id=974 data-nosnippet>974</a>    }
-<a href=#975 id=975 data-nosnippet>975</a>}
-<a href=#976 id=976 data-nosnippet>976</a>
-<a href=#977 id=977 data-nosnippet>977</a><span class="kw">fn </span>remove_interned_in_generic_type_args(
-<a href=#978 id=978 data-nosnippet>978</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#979 id=979 data-nosnippet>979</a>    args: GenericTypeArgs,
-<a href=#980 id=980 data-nosnippet>980</a>) -&gt; GenericTypeArgs {
-<a href=#981 id=981 data-nosnippet>981</a>    GenericTypeArgs {
-<a href=#982 id=982 data-nosnippet>982</a>        ordered_args: vecmap(args.ordered_args, |typ| {
-<a href=#983 id=983 data-nosnippet>983</a>            remove_interned_in_unresolved_type(interner, typ)
-<a href=#984 id=984 data-nosnippet>984</a>        }),
-<a href=#985 id=985 data-nosnippet>985</a>        named_args: vecmap(args.named_args, |(name, typ)| {
-<a href=#986 id=986 data-nosnippet>986</a>            (name, remove_interned_in_unresolved_type(interner, typ))
-<a href=#987 id=987 data-nosnippet>987</a>        }),
-<a href=#988 id=988 data-nosnippet>988</a>        kinds: args.kinds,
-<a href=#989 id=989 data-nosnippet>989</a>    }
-<a href=#990 id=990 data-nosnippet>990</a>}
-<a href=#991 id=991 data-nosnippet>991</a>
-<a href=#992 id=992 data-nosnippet>992</a><span class="comment">// Returns a new Pattern where all Interned Patterns have been turned into Pattern.
-<a href=#993 id=993 data-nosnippet>993</a></span><span class="kw">fn </span>remove_interned_in_pattern(interner: <span class="kw-2">&amp;</span>NodeInterner, pattern: Pattern) -&gt; Pattern {
-<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">match </span>pattern {
-<a href=#995 id=995 data-nosnippet>995</a>        Pattern::Identifier(<span class="kw">_</span>) =&gt; pattern,
-<a href=#996 id=996 data-nosnippet>996</a>        Pattern::Mutable(pattern, location, is_synthesized) =&gt; Pattern::Mutable(
-<a href=#997 id=997 data-nosnippet>997</a>            Box::new(remove_interned_in_pattern(interner, <span class="kw-2">*</span>pattern)),
-<a href=#998 id=998 data-nosnippet>998</a>            location,
-<a href=#999 id=999 data-nosnippet>999</a>            is_synthesized,
-<a href=#1000 id=1000 data-nosnippet>1000</a>        ),
-<a href=#1001 id=1001 data-nosnippet>1001</a>        Pattern::Tuple(patterns, location) =&gt; Pattern::Tuple(
-<a href=#1002 id=1002 data-nosnippet>1002</a>            vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
-<a href=#1003 id=1003 data-nosnippet>1003</a>            location,
-<a href=#1004 id=1004 data-nosnippet>1004</a>        ),
-<a href=#1005 id=1005 data-nosnippet>1005</a>        Pattern::Struct(path, patterns, location) =&gt; {
-<a href=#1006 id=1006 data-nosnippet>1006</a>            <span class="kw">let </span>patterns = vecmap(patterns, |(name, pattern)| {
-<a href=#1007 id=1007 data-nosnippet>1007</a>                (name, remove_interned_in_pattern(interner, pattern))
-<a href=#1008 id=1008 data-nosnippet>1008</a>            });
-<a href=#1009 id=1009 data-nosnippet>1009</a>            Pattern::Struct(path, patterns, location)
-<a href=#1010 id=1010 data-nosnippet>1010</a>        }
-<a href=#1011 id=1011 data-nosnippet>1011</a>        Pattern::Parenthesized(pattern, location) =&gt; Pattern::Parenthesized(
-<a href=#1012 id=1012 data-nosnippet>1012</a>            Box::new(remove_interned_in_pattern(interner, <span class="kw-2">*</span>pattern)),
-<a href=#1013 id=1013 data-nosnippet>1013</a>            location,
-<a href=#1014 id=1014 data-nosnippet>1014</a>        ),
-<a href=#1015 id=1015 data-nosnippet>1015</a>        Pattern::Interned(id, <span class="kw">_</span>) =&gt; interner.get_pattern(id).clone(),
-<a href=#1016 id=1016 data-nosnippet>1016</a>    }
-<a href=#1017 id=1017 data-nosnippet>1017</a>}</code></pre></div></section></main></body></html>
+<a href=#549 id=549 data-nosnippet>549</a>            Value::Location(location) =&gt; <span class="macro">write!</span>(f, <span class="string">"{location:?}"</span>),
+<a href=#550 id=550 data-nosnippet>550</a>        }
+<a href=#551 id=551 data-nosnippet>551</a>    }
+<a href=#552 id=552 data-nosnippet>552</a>}
+<a href=#553 id=553 data-nosnippet>553</a>
+<a href=#554 id=554 data-nosnippet>554</a><span class="kw">impl </span>Token {
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">pub fn </span>display&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt;(
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw-2">&amp;</span><span class="lifetime">'token </span><span class="self">self</span>,
+<a href=#557 id=557 data-nosnippet>557</a>        interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
+<a href=#558 id=558 data-nosnippet>558</a>    ) -&gt; TokenPrinter&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt; {
+<a href=#559 id=559 data-nosnippet>559</a>        TokenPrinter { token: <span class="self">self</span>, interner }
+<a href=#560 id=560 data-nosnippet>560</a>    }
+<a href=#561 id=561 data-nosnippet>561</a>}
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a><span class="kw">pub struct </span>TokenPrinter&lt;<span class="lifetime">'token</span>, <span class="lifetime">'interner</span>&gt; {
+<a href=#564 id=564 data-nosnippet>564</a>    token: <span class="kw-2">&amp;</span><span class="lifetime">'token </span>Token,
+<a href=#565 id=565 data-nosnippet>565</a>    interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span>NodeInterner,
+<a href=#566 id=566 data-nosnippet>566</a>}
+<a href=#567 id=567 data-nosnippet>567</a>
+<a href=#568 id=568 data-nosnippet>568</a><span class="kw">impl </span>Display <span class="kw">for </span>TokenPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">match </span><span class="self">self</span>.token {
+<a href=#571 id=571 data-nosnippet>571</a>            Token::QuotedType(id) =&gt; {
+<a href=#572 id=572 data-nosnippet>572</a>                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>id))
+<a href=#573 id=573 data-nosnippet>573</a>            }
+<a href=#574 id=574 data-nosnippet>574</a>            Token::InternedExpr(id) =&gt; {
+<a href=#575 id=575 data-nosnippet>575</a>                <span class="kw">let </span>value = Value::expression(ExpressionKind::Interned(<span class="kw-2">*</span>id));
+<a href=#576 id=576 data-nosnippet>576</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#577 id=577 data-nosnippet>577</a>            }
+<a href=#578 id=578 data-nosnippet>578</a>            Token::InternedStatement(id) =&gt; {
+<a href=#579 id=579 data-nosnippet>579</a>                <span class="kw">let </span>value = Value::statement(StatementKind::Interned(<span class="kw-2">*</span>id));
+<a href=#580 id=580 data-nosnippet>580</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#581 id=581 data-nosnippet>581</a>            }
+<a href=#582 id=582 data-nosnippet>582</a>            Token::InternedLValue(id) =&gt; {
+<a href=#583 id=583 data-nosnippet>583</a>                <span class="kw">let </span>value = Value::lvalue(LValue::Interned(<span class="kw-2">*</span>id, Location::dummy()));
+<a href=#584 id=584 data-nosnippet>584</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#585 id=585 data-nosnippet>585</a>            }
+<a href=#586 id=586 data-nosnippet>586</a>            Token::InternedUnresolvedTypeData(id) =&gt; {
+<a href=#587 id=587 data-nosnippet>587</a>                <span class="kw">let </span>value = Value::UnresolvedType(UnresolvedTypeData::Interned(<span class="kw-2">*</span>id));
+<a href=#588 id=588 data-nosnippet>588</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#589 id=589 data-nosnippet>589</a>            }
+<a href=#590 id=590 data-nosnippet>590</a>            Token::InternedPattern(id) =&gt; {
+<a href=#591 id=591 data-nosnippet>591</a>                <span class="kw">let </span>value = Value::pattern(Pattern::Interned(<span class="kw-2">*</span>id, Location::dummy()));
+<a href=#592 id=592 data-nosnippet>592</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#593 id=593 data-nosnippet>593</a>            }
+<a href=#594 id=594 data-nosnippet>594</a>            Token::UnquoteMarker(id) =&gt; {
+<a href=#595 id=595 data-nosnippet>595</a>                <span class="kw">let </span>value = Value::TypedExpr(TypedExpr::ExprId(<span class="kw-2">*</span>id));
+<a href=#596 id=596 data-nosnippet>596</a>                value.display(<span class="self">self</span>.interner).fmt(f)
+<a href=#597 id=597 data-nosnippet>597</a>            }
+<a href=#598 id=598 data-nosnippet>598</a>            other =&gt; <span class="macro">write!</span>(f, <span class="string">"{other}"</span>),
+<a href=#599 id=599 data-nosnippet>599</a>        }
+<a href=#600 id=600 data-nosnippet>600</a>    }
+<a href=#601 id=601 data-nosnippet>601</a>}
+<a href=#602 id=602 data-nosnippet>602</a>
+<a href=#603 id=603 data-nosnippet>603</a><span class="kw">fn </span>display_trait_constraint(interner: <span class="kw-2">&amp;</span>NodeInterner, trait_constraint: <span class="kw-2">&amp;</span>TraitConstraint) -&gt; String {
+<a href=#604 id=604 data-nosnippet>604</a>    <span class="kw">let </span>trait_ = interner.get_trait(trait_constraint.trait_bound.trait_id);
+<a href=#605 id=605 data-nosnippet>605</a>    <span class="macro">format!</span>(
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="string">"{}: {}{}"</span>,
+<a href=#607 id=607 data-nosnippet>607</a>        trait_constraint.typ, trait_.name, trait_constraint.trait_bound.trait_generics
+<a href=#608 id=608 data-nosnippet>608</a>    )
+<a href=#609 id=609 data-nosnippet>609</a>}
+<a href=#610 id=610 data-nosnippet>610</a>
+<a href=#611 id=611 data-nosnippet>611</a><span class="comment">// Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
+<a href=#612 id=612 data-nosnippet>612</a></span><span class="kw">fn </span>remove_interned_in_expression(interner: <span class="kw-2">&amp;</span>NodeInterner, expr: Expression) -&gt; Expression {
+<a href=#613 id=613 data-nosnippet>613</a>    Expression {
+<a href=#614 id=614 data-nosnippet>614</a>        kind: remove_interned_in_expression_kind(interner, expr.kind),
+<a href=#615 id=615 data-nosnippet>615</a>        location: expr.location,
+<a href=#616 id=616 data-nosnippet>616</a>    }
+<a href=#617 id=617 data-nosnippet>617</a>}
+<a href=#618 id=618 data-nosnippet>618</a>
+<a href=#619 id=619 data-nosnippet>619</a><span class="comment">// Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
+<a href=#620 id=620 data-nosnippet>620</a></span><span class="kw">fn </span>remove_interned_in_expression_kind(
+<a href=#621 id=621 data-nosnippet>621</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#622 id=622 data-nosnippet>622</a>    expr: ExpressionKind,
+<a href=#623 id=623 data-nosnippet>623</a>) -&gt; ExpressionKind {
+<a href=#624 id=624 data-nosnippet>624</a>    <span class="kw">match </span>expr {
+<a href=#625 id=625 data-nosnippet>625</a>        ExpressionKind::Literal(literal) =&gt; {
+<a href=#626 id=626 data-nosnippet>626</a>            ExpressionKind::Literal(remove_interned_in_literal(interner, literal))
+<a href=#627 id=627 data-nosnippet>627</a>        }
+<a href=#628 id=628 data-nosnippet>628</a>        ExpressionKind::Block(block) =&gt; {
+<a href=#629 id=629 data-nosnippet>629</a>            <span class="kw">let </span>statements =
+<a href=#630 id=630 data-nosnippet>630</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+<a href=#631 id=631 data-nosnippet>631</a>            ExpressionKind::Block(BlockExpression { statements })
+<a href=#632 id=632 data-nosnippet>632</a>        }
+<a href=#633 id=633 data-nosnippet>633</a>        ExpressionKind::Prefix(prefix) =&gt; ExpressionKind::Prefix(Box::new(PrefixExpression {
+<a href=#634 id=634 data-nosnippet>634</a>            rhs: remove_interned_in_expression(interner, prefix.rhs),
+<a href=#635 id=635 data-nosnippet>635</a>            ..<span class="kw-2">*</span>prefix
+<a href=#636 id=636 data-nosnippet>636</a>        })),
+<a href=#637 id=637 data-nosnippet>637</a>        ExpressionKind::Index(index) =&gt; ExpressionKind::Index(Box::new(IndexExpression {
+<a href=#638 id=638 data-nosnippet>638</a>            collection: remove_interned_in_expression(interner, index.collection),
+<a href=#639 id=639 data-nosnippet>639</a>            index: remove_interned_in_expression(interner, index.index),
+<a href=#640 id=640 data-nosnippet>640</a>        })),
+<a href=#641 id=641 data-nosnippet>641</a>        ExpressionKind::Call(call) =&gt; ExpressionKind::Call(Box::new(CallExpression {
+<a href=#642 id=642 data-nosnippet>642</a>            func: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>call.func)),
+<a href=#643 id=643 data-nosnippet>643</a>            arguments: vecmap(call.arguments, |arg| remove_interned_in_expression(interner, arg)),
+<a href=#644 id=644 data-nosnippet>644</a>            ..<span class="kw-2">*</span>call
+<a href=#645 id=645 data-nosnippet>645</a>        })),
+<a href=#646 id=646 data-nosnippet>646</a>        ExpressionKind::MethodCall(call) =&gt; {
+<a href=#647 id=647 data-nosnippet>647</a>            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+<a href=#648 id=648 data-nosnippet>648</a>                object: remove_interned_in_expression(interner, call.object),
+<a href=#649 id=649 data-nosnippet>649</a>                arguments: vecmap(call.arguments, |arg| {
+<a href=#650 id=650 data-nosnippet>650</a>                    remove_interned_in_expression(interner, arg)
+<a href=#651 id=651 data-nosnippet>651</a>                }),
+<a href=#652 id=652 data-nosnippet>652</a>                ..<span class="kw-2">*</span>call
+<a href=#653 id=653 data-nosnippet>653</a>            }))
+<a href=#654 id=654 data-nosnippet>654</a>        }
+<a href=#655 id=655 data-nosnippet>655</a>        ExpressionKind::Constrain(constrain) =&gt; ExpressionKind::Constrain(ConstrainExpression {
+<a href=#656 id=656 data-nosnippet>656</a>            arguments: vecmap(constrain.arguments, |expr| {
+<a href=#657 id=657 data-nosnippet>657</a>                remove_interned_in_expression(interner, expr)
+<a href=#658 id=658 data-nosnippet>658</a>            }),
+<a href=#659 id=659 data-nosnippet>659</a>            ..constrain
+<a href=#660 id=660 data-nosnippet>660</a>        }),
+<a href=#661 id=661 data-nosnippet>661</a>        ExpressionKind::Constructor(constructor) =&gt; {
+<a href=#662 id=662 data-nosnippet>662</a>            ExpressionKind::Constructor(Box::new(ConstructorExpression {
+<a href=#663 id=663 data-nosnippet>663</a>                fields: vecmap(constructor.fields, |(name, expr)| {
+<a href=#664 id=664 data-nosnippet>664</a>                    (name, remove_interned_in_expression(interner, expr))
+<a href=#665 id=665 data-nosnippet>665</a>                }),
+<a href=#666 id=666 data-nosnippet>666</a>                ..<span class="kw-2">*</span>constructor
+<a href=#667 id=667 data-nosnippet>667</a>            }))
+<a href=#668 id=668 data-nosnippet>668</a>        }
+<a href=#669 id=669 data-nosnippet>669</a>        ExpressionKind::MemberAccess(member_access) =&gt; {
+<a href=#670 id=670 data-nosnippet>670</a>            ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+<a href=#671 id=671 data-nosnippet>671</a>                lhs: remove_interned_in_expression(interner, member_access.lhs),
+<a href=#672 id=672 data-nosnippet>672</a>                ..<span class="kw-2">*</span>member_access
+<a href=#673 id=673 data-nosnippet>673</a>            }))
+<a href=#674 id=674 data-nosnippet>674</a>        }
+<a href=#675 id=675 data-nosnippet>675</a>        ExpressionKind::Cast(cast) =&gt; ExpressionKind::Cast(Box::new(CastExpression {
+<a href=#676 id=676 data-nosnippet>676</a>            lhs: remove_interned_in_expression(interner, cast.lhs),
+<a href=#677 id=677 data-nosnippet>677</a>            ..<span class="kw-2">*</span>cast
+<a href=#678 id=678 data-nosnippet>678</a>        })),
+<a href=#679 id=679 data-nosnippet>679</a>        ExpressionKind::Infix(infix) =&gt; ExpressionKind::Infix(Box::new(InfixExpression {
+<a href=#680 id=680 data-nosnippet>680</a>            lhs: remove_interned_in_expression(interner, infix.lhs),
+<a href=#681 id=681 data-nosnippet>681</a>            rhs: remove_interned_in_expression(interner, infix.rhs),
+<a href=#682 id=682 data-nosnippet>682</a>            ..<span class="kw-2">*</span>infix
+<a href=#683 id=683 data-nosnippet>683</a>        })),
+<a href=#684 id=684 data-nosnippet>684</a>        ExpressionKind::If(if_expr) =&gt; ExpressionKind::If(Box::new(IfExpression {
+<a href=#685 id=685 data-nosnippet>685</a>            condition: remove_interned_in_expression(interner, if_expr.condition),
+<a href=#686 id=686 data-nosnippet>686</a>            consequence: remove_interned_in_expression(interner, if_expr.consequence),
+<a href=#687 id=687 data-nosnippet>687</a>            alternative: if_expr
+<a href=#688 id=688 data-nosnippet>688</a>                .alternative
+<a href=#689 id=689 data-nosnippet>689</a>                .map(|alternative| remove_interned_in_expression(interner, alternative)),
+<a href=#690 id=690 data-nosnippet>690</a>        })),
+<a href=#691 id=691 data-nosnippet>691</a>        ExpressionKind::Match(match_expr) =&gt; ExpressionKind::Match(Box::new(MatchExpression {
+<a href=#692 id=692 data-nosnippet>692</a>            expression: remove_interned_in_expression(interner, match_expr.expression),
+<a href=#693 id=693 data-nosnippet>693</a>            rules: vecmap(match_expr.rules, |(pattern, branch)| {
+<a href=#694 id=694 data-nosnippet>694</a>                <span class="kw">let </span>pattern = remove_interned_in_expression(interner, pattern);
+<a href=#695 id=695 data-nosnippet>695</a>                <span class="kw">let </span>branch = remove_interned_in_expression(interner, branch);
+<a href=#696 id=696 data-nosnippet>696</a>                (pattern, branch)
+<a href=#697 id=697 data-nosnippet>697</a>            }),
+<a href=#698 id=698 data-nosnippet>698</a>        })),
+<a href=#699 id=699 data-nosnippet>699</a>        ExpressionKind::Variable(<span class="kw">_</span>) =&gt; expr,
+<a href=#700 id=700 data-nosnippet>700</a>        ExpressionKind::Tuple(expressions) =&gt; ExpressionKind::Tuple(vecmap(expressions, |expr| {
+<a href=#701 id=701 data-nosnippet>701</a>            remove_interned_in_expression(interner, expr)
+<a href=#702 id=702 data-nosnippet>702</a>        })),
+<a href=#703 id=703 data-nosnippet>703</a>        ExpressionKind::Lambda(lambda) =&gt; ExpressionKind::Lambda(Box::new(Lambda {
+<a href=#704 id=704 data-nosnippet>704</a>            body: remove_interned_in_expression(interner, lambda.body),
+<a href=#705 id=705 data-nosnippet>705</a>            ..<span class="kw-2">*</span>lambda
+<a href=#706 id=706 data-nosnippet>706</a>        })),
+<a href=#707 id=707 data-nosnippet>707</a>        ExpressionKind::Parenthesized(expr) =&gt; {
+<a href=#708 id=708 data-nosnippet>708</a>            ExpressionKind::Parenthesized(Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>expr)))
+<a href=#709 id=709 data-nosnippet>709</a>        }
+<a href=#710 id=710 data-nosnippet>710</a>        ExpressionKind::Quote(<span class="kw">_</span>) =&gt; expr,
+<a href=#711 id=711 data-nosnippet>711</a>        ExpressionKind::Unquote(expr) =&gt; {
+<a href=#712 id=712 data-nosnippet>712</a>            ExpressionKind::Unquote(Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>expr)))
+<a href=#713 id=713 data-nosnippet>713</a>        }
+<a href=#714 id=714 data-nosnippet>714</a>        ExpressionKind::Comptime(block, span) =&gt; {
+<a href=#715 id=715 data-nosnippet>715</a>            <span class="kw">let </span>statements =
+<a href=#716 id=716 data-nosnippet>716</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+<a href=#717 id=717 data-nosnippet>717</a>            ExpressionKind::Comptime(BlockExpression { statements }, span)
+<a href=#718 id=718 data-nosnippet>718</a>        }
+<a href=#719 id=719 data-nosnippet>719</a>        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) =&gt; {
+<a href=#720 id=720 data-nosnippet>720</a>            <span class="kw">let </span>statements =
+<a href=#721 id=721 data-nosnippet>721</a>                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
+<a href=#722 id=722 data-nosnippet>722</a>            ExpressionKind::Unsafe(UnsafeExpression {
+<a href=#723 id=723 data-nosnippet>723</a>                block: BlockExpression { statements },
+<a href=#724 id=724 data-nosnippet>724</a>                unsafe_keyword_location,
+<a href=#725 id=725 data-nosnippet>725</a>            })
+<a href=#726 id=726 data-nosnippet>726</a>        }
+<a href=#727 id=727 data-nosnippet>727</a>        ExpressionKind::AsTraitPath(<span class="kw-2">mut </span>path) =&gt; {
+<a href=#728 id=728 data-nosnippet>728</a>            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
+<a href=#729 id=729 data-nosnippet>729</a>            path.trait_generics =
+<a href=#730 id=730 data-nosnippet>730</a>                remove_interned_in_generic_type_args(interner, path.trait_generics);
+<a href=#731 id=731 data-nosnippet>731</a>            path.turbofish = path
+<a href=#732 id=732 data-nosnippet>732</a>                .turbofish
+<a href=#733 id=733 data-nosnippet>733</a>                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
+<a href=#734 id=734 data-nosnippet>734</a>            ExpressionKind::AsTraitPath(path)
+<a href=#735 id=735 data-nosnippet>735</a>        }
+<a href=#736 id=736 data-nosnippet>736</a>        ExpressionKind::TypePath(<span class="kw-2">mut </span>path) =&gt; {
+<a href=#737 id=737 data-nosnippet>737</a>            path.typ = remove_interned_in_unresolved_type(interner, path.typ);
+<a href=#738 id=738 data-nosnippet>738</a>            path.turbofish = path
+<a href=#739 id=739 data-nosnippet>739</a>                .turbofish
+<a href=#740 id=740 data-nosnippet>740</a>                .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish));
+<a href=#741 id=741 data-nosnippet>741</a>            ExpressionKind::TypePath(path)
+<a href=#742 id=742 data-nosnippet>742</a>        }
+<a href=#743 id=743 data-nosnippet>743</a>        ExpressionKind::Resolved(id) =&gt; {
+<a href=#744 id=744 data-nosnippet>744</a>            <span class="kw">let </span>expr = interner.expression(<span class="kw-2">&amp;</span>id);
+<a href=#745 id=745 data-nosnippet>745</a>            expr.to_display_ast(interner, Location::dummy()).kind
+<a href=#746 id=746 data-nosnippet>746</a>        }
+<a href=#747 id=747 data-nosnippet>747</a>        ExpressionKind::Interned(id) =&gt; {
+<a href=#748 id=748 data-nosnippet>748</a>            <span class="kw">let </span>expr = interner.get_expression_kind(id).clone();
+<a href=#749 id=749 data-nosnippet>749</a>            remove_interned_in_expression_kind(interner, expr)
+<a href=#750 id=750 data-nosnippet>750</a>        }
+<a href=#751 id=751 data-nosnippet>751</a>        ExpressionKind::Error =&gt; expr,
+<a href=#752 id=752 data-nosnippet>752</a>        ExpressionKind::InternedStatement(id) =&gt; remove_interned_in_statement_expr(interner, id),
+<a href=#753 id=753 data-nosnippet>753</a>    }
+<a href=#754 id=754 data-nosnippet>754</a>}
+<a href=#755 id=755 data-nosnippet>755</a>
+<a href=#756 id=756 data-nosnippet>756</a><span class="kw">fn </span>remove_interned_in_statement_expr(
+<a href=#757 id=757 data-nosnippet>757</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#758 id=758 data-nosnippet>758</a>    id: InternedStatementKind,
+<a href=#759 id=759 data-nosnippet>759</a>) -&gt; ExpressionKind {
+<a href=#760 id=760 data-nosnippet>760</a>    <span class="kw">let </span>expr = <span class="kw">match </span>interner.get_statement_kind(id).clone() {
+<a href=#761 id=761 data-nosnippet>761</a>        StatementKind::Expression(expr) | StatementKind::Semi(expr) =&gt; expr.kind,
+<a href=#762 id=762 data-nosnippet>762</a>        StatementKind::Interned(id) =&gt; remove_interned_in_statement_expr(interner, id),
+<a href=#763 id=763 data-nosnippet>763</a>        <span class="kw">_ </span>=&gt; ExpressionKind::Error,
+<a href=#764 id=764 data-nosnippet>764</a>    };
+<a href=#765 id=765 data-nosnippet>765</a>    remove_interned_in_expression_kind(interner, expr)
+<a href=#766 id=766 data-nosnippet>766</a>}
+<a href=#767 id=767 data-nosnippet>767</a>
+<a href=#768 id=768 data-nosnippet>768</a><span class="kw">fn </span>remove_interned_in_literal(interner: <span class="kw-2">&amp;</span>NodeInterner, literal: Literal) -&gt; Literal {
+<a href=#769 id=769 data-nosnippet>769</a>    <span class="kw">match </span>literal {
+<a href=#770 id=770 data-nosnippet>770</a>        Literal::Array(array_literal) =&gt; {
+<a href=#771 id=771 data-nosnippet>771</a>            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
+<a href=#772 id=772 data-nosnippet>772</a>        }
+<a href=#773 id=773 data-nosnippet>773</a>        Literal::Vector(array_literal) =&gt; {
+<a href=#774 id=774 data-nosnippet>774</a>            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
+<a href=#775 id=775 data-nosnippet>775</a>        }
+<a href=#776 id=776 data-nosnippet>776</a>        Literal::Bool(<span class="kw">_</span>)
+<a href=#777 id=777 data-nosnippet>777</a>        | Literal::Integer(..)
+<a href=#778 id=778 data-nosnippet>778</a>        | Literal::Str(<span class="kw">_</span>)
+<a href=#779 id=779 data-nosnippet>779</a>        | Literal::RawStr(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#780 id=780 data-nosnippet>780</a>        | Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#781 id=781 data-nosnippet>781</a>        | Literal::Unit =&gt; literal,
+<a href=#782 id=782 data-nosnippet>782</a>    }
+<a href=#783 id=783 data-nosnippet>783</a>}
+<a href=#784 id=784 data-nosnippet>784</a>
+<a href=#785 id=785 data-nosnippet>785</a><span class="kw">fn </span>remove_interned_in_array_literal(
+<a href=#786 id=786 data-nosnippet>786</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#787 id=787 data-nosnippet>787</a>    literal: ArrayLiteral,
+<a href=#788 id=788 data-nosnippet>788</a>) -&gt; ArrayLiteral {
+<a href=#789 id=789 data-nosnippet>789</a>    <span class="kw">match </span>literal {
+<a href=#790 id=790 data-nosnippet>790</a>        ArrayLiteral::Standard(expressions) =&gt; {
+<a href=#791 id=791 data-nosnippet>791</a>            ArrayLiteral::Standard(vecmap(expressions, |expr| {
+<a href=#792 id=792 data-nosnippet>792</a>                remove_interned_in_expression(interner, expr)
+<a href=#793 id=793 data-nosnippet>793</a>            }))
+<a href=#794 id=794 data-nosnippet>794</a>        }
+<a href=#795 id=795 data-nosnippet>795</a>        ArrayLiteral::Repeated { repeated_element, length } =&gt; ArrayLiteral::Repeated {
+<a href=#796 id=796 data-nosnippet>796</a>            repeated_element: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>repeated_element)),
+<a href=#797 id=797 data-nosnippet>797</a>            length: Box::new(remove_interned_in_expression(interner, <span class="kw-2">*</span>length)),
+<a href=#798 id=798 data-nosnippet>798</a>        },
+<a href=#799 id=799 data-nosnippet>799</a>    }
+<a href=#800 id=800 data-nosnippet>800</a>}
+<a href=#801 id=801 data-nosnippet>801</a>
+<a href=#802 id=802 data-nosnippet>802</a><span class="comment">// Returns a new Statement where all Interned statements have been turned into non-interned StatementKind.
+<a href=#803 id=803 data-nosnippet>803</a></span><span class="kw">fn </span>remove_interned_in_statement(interner: <span class="kw-2">&amp;</span>NodeInterner, statement: Statement) -&gt; Statement {
+<a href=#804 id=804 data-nosnippet>804</a>    Statement {
+<a href=#805 id=805 data-nosnippet>805</a>        kind: remove_interned_in_statement_kind(interner, statement.kind),
+<a href=#806 id=806 data-nosnippet>806</a>        location: statement.location,
+<a href=#807 id=807 data-nosnippet>807</a>    }
+<a href=#808 id=808 data-nosnippet>808</a>}
+<a href=#809 id=809 data-nosnippet>809</a>
+<a href=#810 id=810 data-nosnippet>810</a><span class="comment">// Returns a new StatementKind where all Interned statements have been turned into non-interned StatementKind.
+<a href=#811 id=811 data-nosnippet>811</a></span><span class="kw">fn </span>remove_interned_in_statement_kind(
+<a href=#812 id=812 data-nosnippet>812</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#813 id=813 data-nosnippet>813</a>    statement: StatementKind,
+<a href=#814 id=814 data-nosnippet>814</a>) -&gt; StatementKind {
+<a href=#815 id=815 data-nosnippet>815</a>    <span class="kw">match </span>statement {
+<a href=#816 id=816 data-nosnippet>816</a>        StatementKind::Let(let_statement) =&gt; StatementKind::Let(LetStatement {
+<a href=#817 id=817 data-nosnippet>817</a>            pattern: remove_interned_in_pattern(interner, let_statement.pattern),
+<a href=#818 id=818 data-nosnippet>818</a>            expression: remove_interned_in_expression(interner, let_statement.expression),
+<a href=#819 id=819 data-nosnippet>819</a>            r#type: remove_interned_in_option_unresolved_type(interner, let_statement.r#type),
+<a href=#820 id=820 data-nosnippet>820</a>            ..let_statement
+<a href=#821 id=821 data-nosnippet>821</a>        }),
+<a href=#822 id=822 data-nosnippet>822</a>        StatementKind::Expression(expr) =&gt; {
+<a href=#823 id=823 data-nosnippet>823</a>            StatementKind::Expression(remove_interned_in_expression(interner, expr))
+<a href=#824 id=824 data-nosnippet>824</a>        }
+<a href=#825 id=825 data-nosnippet>825</a>        StatementKind::Assign(assign) =&gt; StatementKind::Assign(AssignStatement {
+<a href=#826 id=826 data-nosnippet>826</a>            lvalue: assign.lvalue,
+<a href=#827 id=827 data-nosnippet>827</a>            expression: remove_interned_in_expression(interner, assign.expression),
+<a href=#828 id=828 data-nosnippet>828</a>        }),
+<a href=#829 id=829 data-nosnippet>829</a>        StatementKind::AssignOp(assign_op) =&gt; StatementKind::AssignOp(AssignOpStatement {
+<a href=#830 id=830 data-nosnippet>830</a>            lvalue: assign_op.lvalue,
+<a href=#831 id=831 data-nosnippet>831</a>            op: assign_op.op,
+<a href=#832 id=832 data-nosnippet>832</a>            expression: remove_interned_in_expression(interner, assign_op.expression),
+<a href=#833 id=833 data-nosnippet>833</a>        }),
+<a href=#834 id=834 data-nosnippet>834</a>        StatementKind::For(for_loop) =&gt; StatementKind::For(ForLoopStatement {
+<a href=#835 id=835 data-nosnippet>835</a>            range: <span class="kw">match </span>for_loop.range {
+<a href=#836 id=836 data-nosnippet>836</a>                ForRange::Range(ForBounds { start, end, inclusive }) =&gt; {
+<a href=#837 id=837 data-nosnippet>837</a>                    ForRange::Range(ForBounds {
+<a href=#838 id=838 data-nosnippet>838</a>                        start: remove_interned_in_expression(interner, start),
+<a href=#839 id=839 data-nosnippet>839</a>                        end: remove_interned_in_expression(interner, end),
+<a href=#840 id=840 data-nosnippet>840</a>                        inclusive,
+<a href=#841 id=841 data-nosnippet>841</a>                    })
+<a href=#842 id=842 data-nosnippet>842</a>                }
+<a href=#843 id=843 data-nosnippet>843</a>                ForRange::Array(expr) =&gt; {
+<a href=#844 id=844 data-nosnippet>844</a>                    ForRange::Array(remove_interned_in_expression(interner, expr))
+<a href=#845 id=845 data-nosnippet>845</a>                }
+<a href=#846 id=846 data-nosnippet>846</a>            },
+<a href=#847 id=847 data-nosnippet>847</a>            block: remove_interned_in_expression(interner, for_loop.block),
+<a href=#848 id=848 data-nosnippet>848</a>            ..for_loop
+<a href=#849 id=849 data-nosnippet>849</a>        }),
+<a href=#850 id=850 data-nosnippet>850</a>        StatementKind::Loop(loop_) =&gt; StatementKind::Loop(LoopStatement {
+<a href=#851 id=851 data-nosnippet>851</a>            body: remove_interned_in_expression(interner, loop_.body),
+<a href=#852 id=852 data-nosnippet>852</a>            loop_keyword_location: loop_.loop_keyword_location,
+<a href=#853 id=853 data-nosnippet>853</a>        }),
+<a href=#854 id=854 data-nosnippet>854</a>        StatementKind::While(while_) =&gt; StatementKind::While(WhileStatement {
+<a href=#855 id=855 data-nosnippet>855</a>            condition: remove_interned_in_expression(interner, while_.condition),
+<a href=#856 id=856 data-nosnippet>856</a>            body: remove_interned_in_expression(interner, while_.body),
+<a href=#857 id=857 data-nosnippet>857</a>            while_keyword_location: while_.while_keyword_location,
+<a href=#858 id=858 data-nosnippet>858</a>        }),
+<a href=#859 id=859 data-nosnippet>859</a>        StatementKind::Comptime(statement) =&gt; {
+<a href=#860 id=860 data-nosnippet>860</a>            StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, <span class="kw-2">*</span>statement)))
+<a href=#861 id=861 data-nosnippet>861</a>        }
+<a href=#862 id=862 data-nosnippet>862</a>        StatementKind::Semi(expr) =&gt; {
+<a href=#863 id=863 data-nosnippet>863</a>            StatementKind::Semi(remove_interned_in_expression(interner, expr))
+<a href=#864 id=864 data-nosnippet>864</a>        }
+<a href=#865 id=865 data-nosnippet>865</a>        StatementKind::Interned(id) =&gt; {
+<a href=#866 id=866 data-nosnippet>866</a>            <span class="kw">let </span>statement = interner.get_statement_kind(id).clone();
+<a href=#867 id=867 data-nosnippet>867</a>            remove_interned_in_statement_kind(interner, statement)
+<a href=#868 id=868 data-nosnippet>868</a>        }
+<a href=#869 id=869 data-nosnippet>869</a>        StatementKind::Break | StatementKind::Continue | StatementKind::Error =&gt; statement,
+<a href=#870 id=870 data-nosnippet>870</a>    }
+<a href=#871 id=871 data-nosnippet>871</a>}
+<a href=#872 id=872 data-nosnippet>872</a>
+<a href=#873 id=873 data-nosnippet>873</a><span class="comment">// Returns a new LValue where all Interned LValues have been turned into LValue.
+<a href=#874 id=874 data-nosnippet>874</a></span><span class="kw">fn </span>remove_interned_in_lvalue(interner: <span class="kw-2">&amp;</span>NodeInterner, lvalue: LValue) -&gt; LValue {
+<a href=#875 id=875 data-nosnippet>875</a>    <span class="kw">match </span>lvalue {
+<a href=#876 id=876 data-nosnippet>876</a>        LValue::Path(<span class="kw">_</span>) =&gt; lvalue,
+<a href=#877 id=877 data-nosnippet>877</a>        LValue::MemberAccess { object, field_name, location: span } =&gt; LValue::MemberAccess {
+<a href=#878 id=878 data-nosnippet>878</a>            object: Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>object)),
+<a href=#879 id=879 data-nosnippet>879</a>            field_name,
+<a href=#880 id=880 data-nosnippet>880</a>            location: span,
+<a href=#881 id=881 data-nosnippet>881</a>        },
+<a href=#882 id=882 data-nosnippet>882</a>        LValue::Index { array, index, location: span } =&gt; LValue::Index {
+<a href=#883 id=883 data-nosnippet>883</a>            array: Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>array)),
+<a href=#884 id=884 data-nosnippet>884</a>            index: remove_interned_in_expression(interner, index),
+<a href=#885 id=885 data-nosnippet>885</a>            location: span,
+<a href=#886 id=886 data-nosnippet>886</a>        },
+<a href=#887 id=887 data-nosnippet>887</a>        LValue::Dereference(lvalue, span) =&gt; {
+<a href=#888 id=888 data-nosnippet>888</a>            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>lvalue)), span)
+<a href=#889 id=889 data-nosnippet>889</a>        }
+<a href=#890 id=890 data-nosnippet>890</a>        LValue::Interned(id, span) =&gt; {
+<a href=#891 id=891 data-nosnippet>891</a>            <span class="kw">let </span>lvalue = interner.get_lvalue(id, span);
+<a href=#892 id=892 data-nosnippet>892</a>            remove_interned_in_lvalue(interner, lvalue)
+<a href=#893 id=893 data-nosnippet>893</a>        }
+<a href=#894 id=894 data-nosnippet>894</a>    }
+<a href=#895 id=895 data-nosnippet>895</a>}
+<a href=#896 id=896 data-nosnippet>896</a>
+<a href=#897 id=897 data-nosnippet>897</a><span class="kw">fn </span>remove_interned_in_option_unresolved_type(
+<a href=#898 id=898 data-nosnippet>898</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#899 id=899 data-nosnippet>899</a>    typ: <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt;,
+<a href=#900 id=900 data-nosnippet>900</a>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt; {
+<a href=#901 id=901 data-nosnippet>901</a>    typ.map(|typ| remove_interned_in_unresolved_type(interner, typ))
+<a href=#902 id=902 data-nosnippet>902</a>}
+<a href=#903 id=903 data-nosnippet>903</a>
+<a href=#904 id=904 data-nosnippet>904</a><span class="kw">fn </span>remove_interned_in_unresolved_type(
+<a href=#905 id=905 data-nosnippet>905</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#906 id=906 data-nosnippet>906</a>    typ: UnresolvedType,
+<a href=#907 id=907 data-nosnippet>907</a>) -&gt; UnresolvedType {
+<a href=#908 id=908 data-nosnippet>908</a>    UnresolvedType {
+<a href=#909 id=909 data-nosnippet>909</a>        typ: remove_interned_in_unresolved_type_data(interner, typ.typ),
+<a href=#910 id=910 data-nosnippet>910</a>        location: typ.location,
+<a href=#911 id=911 data-nosnippet>911</a>    }
+<a href=#912 id=912 data-nosnippet>912</a>}
+<a href=#913 id=913 data-nosnippet>913</a>
+<a href=#914 id=914 data-nosnippet>914</a><span class="kw">fn </span>remove_interned_in_unresolved_type_data(
+<a href=#915 id=915 data-nosnippet>915</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#916 id=916 data-nosnippet>916</a>    typ: UnresolvedTypeData,
+<a href=#917 id=917 data-nosnippet>917</a>) -&gt; UnresolvedTypeData {
+<a href=#918 id=918 data-nosnippet>918</a>    <span class="kw">match </span>typ {
+<a href=#919 id=919 data-nosnippet>919</a>        UnresolvedTypeData::Array(expr, typ) =&gt; UnresolvedTypeData::Array(
+<a href=#920 id=920 data-nosnippet>920</a>            expr,
+<a href=#921 id=921 data-nosnippet>921</a>            Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)),
+<a href=#922 id=922 data-nosnippet>922</a>        ),
+<a href=#923 id=923 data-nosnippet>923</a>        UnresolvedTypeData::Vector(typ) =&gt; {
+<a href=#924 id=924 data-nosnippet>924</a>            UnresolvedTypeData::Vector(Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)))
+<a href=#925 id=925 data-nosnippet>925</a>        }
+<a href=#926 id=926 data-nosnippet>926</a>        UnresolvedTypeData::Parenthesized(typ) =&gt; UnresolvedTypeData::Parenthesized(Box::new(
+<a href=#927 id=927 data-nosnippet>927</a>            remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ),
+<a href=#928 id=928 data-nosnippet>928</a>        )),
+<a href=#929 id=929 data-nosnippet>929</a>        UnresolvedTypeData::Named(path, generic_type_args, is_synthesized) =&gt; {
+<a href=#930 id=930 data-nosnippet>930</a>            UnresolvedTypeData::Named(
+<a href=#931 id=931 data-nosnippet>931</a>                path,
+<a href=#932 id=932 data-nosnippet>932</a>                remove_interned_in_generic_type_args(interner, generic_type_args),
+<a href=#933 id=933 data-nosnippet>933</a>                is_synthesized,
+<a href=#934 id=934 data-nosnippet>934</a>            )
+<a href=#935 id=935 data-nosnippet>935</a>        }
+<a href=#936 id=936 data-nosnippet>936</a>        UnresolvedTypeData::TraitAsType(path, generic_type_args) =&gt; {
+<a href=#937 id=937 data-nosnippet>937</a>            UnresolvedTypeData::TraitAsType(
+<a href=#938 id=938 data-nosnippet>938</a>                path,
+<a href=#939 id=939 data-nosnippet>939</a>                remove_interned_in_generic_type_args(interner, generic_type_args),
+<a href=#940 id=940 data-nosnippet>940</a>            )
+<a href=#941 id=941 data-nosnippet>941</a>        }
+<a href=#942 id=942 data-nosnippet>942</a>        UnresolvedTypeData::Reference(typ, mutable) =&gt; UnresolvedTypeData::Reference(
+<a href=#943 id=943 data-nosnippet>943</a>            Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>typ)),
+<a href=#944 id=944 data-nosnippet>944</a>            mutable,
+<a href=#945 id=945 data-nosnippet>945</a>        ),
+<a href=#946 id=946 data-nosnippet>946</a>        UnresolvedTypeData::Tuple(types) =&gt; UnresolvedTypeData::Tuple(vecmap(types, |typ| {
+<a href=#947 id=947 data-nosnippet>947</a>            remove_interned_in_unresolved_type(interner, typ)
+<a href=#948 id=948 data-nosnippet>948</a>        })),
+<a href=#949 id=949 data-nosnippet>949</a>        UnresolvedTypeData::Function(arg_types, ret_type, env_type, unconstrained) =&gt; {
+<a href=#950 id=950 data-nosnippet>950</a>            UnresolvedTypeData::Function(
+<a href=#951 id=951 data-nosnippet>951</a>                vecmap(arg_types, |typ| remove_interned_in_unresolved_type(interner, typ)),
+<a href=#952 id=952 data-nosnippet>952</a>                Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>ret_type)),
+<a href=#953 id=953 data-nosnippet>953</a>                Box::new(remove_interned_in_unresolved_type(interner, <span class="kw-2">*</span>env_type)),
+<a href=#954 id=954 data-nosnippet>954</a>                unconstrained,
+<a href=#955 id=955 data-nosnippet>955</a>            )
+<a href=#956 id=956 data-nosnippet>956</a>        }
+<a href=#957 id=957 data-nosnippet>957</a>        UnresolvedTypeData::AsTraitPath(as_trait_path) =&gt; {
+<a href=#958 id=958 data-nosnippet>958</a>            UnresolvedTypeData::AsTraitPath(Box::new(AsTraitPath {
+<a href=#959 id=959 data-nosnippet>959</a>                typ: remove_interned_in_unresolved_type(interner, as_trait_path.typ),
+<a href=#960 id=960 data-nosnippet>960</a>                trait_generics: remove_interned_in_generic_type_args(
+<a href=#961 id=961 data-nosnippet>961</a>                    interner,
+<a href=#962 id=962 data-nosnippet>962</a>                    as_trait_path.trait_generics,
+<a href=#963 id=963 data-nosnippet>963</a>                ),
+<a href=#964 id=964 data-nosnippet>964</a>                turbofish: as_trait_path
+<a href=#965 id=965 data-nosnippet>965</a>                    .turbofish
+<a href=#966 id=966 data-nosnippet>966</a>                    .map(|turbofish| remove_interned_in_generic_type_args(interner, turbofish)),
+<a href=#967 id=967 data-nosnippet>967</a>                ..<span class="kw-2">*</span>as_trait_path
+<a href=#968 id=968 data-nosnippet>968</a>            }))
+<a href=#969 id=969 data-nosnippet>969</a>        }
+<a href=#970 id=970 data-nosnippet>970</a>        UnresolvedTypeData::Interned(id) =&gt; interner.get_unresolved_type_data(id).clone(),
+<a href=#971 id=971 data-nosnippet>971</a>        UnresolvedTypeData::Unit
+<a href=#972 id=972 data-nosnippet>972</a>        | UnresolvedTypeData::Resolved(<span class="kw">_</span>)
+<a href=#973 id=973 data-nosnippet>973</a>        | UnresolvedTypeData::Expression(<span class="kw">_</span>)
+<a href=#974 id=974 data-nosnippet>974</a>        | UnresolvedTypeData::Error =&gt; typ,
+<a href=#975 id=975 data-nosnippet>975</a>    }
+<a href=#976 id=976 data-nosnippet>976</a>}
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a><span class="kw">fn </span>remove_interned_in_generic_type_args(
+<a href=#979 id=979 data-nosnippet>979</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#980 id=980 data-nosnippet>980</a>    args: GenericTypeArgs,
+<a href=#981 id=981 data-nosnippet>981</a>) -&gt; GenericTypeArgs {
+<a href=#982 id=982 data-nosnippet>982</a>    GenericTypeArgs {
+<a href=#983 id=983 data-nosnippet>983</a>        ordered_args: vecmap(args.ordered_args, |typ| {
+<a href=#984 id=984 data-nosnippet>984</a>            remove_interned_in_unresolved_type(interner, typ)
+<a href=#985 id=985 data-nosnippet>985</a>        }),
+<a href=#986 id=986 data-nosnippet>986</a>        named_args: vecmap(args.named_args, |(name, typ)| {
+<a href=#987 id=987 data-nosnippet>987</a>            (name, remove_interned_in_unresolved_type(interner, typ))
+<a href=#988 id=988 data-nosnippet>988</a>        }),
+<a href=#989 id=989 data-nosnippet>989</a>        kinds: args.kinds,
+<a href=#990 id=990 data-nosnippet>990</a>    }
+<a href=#991 id=991 data-nosnippet>991</a>}
+<a href=#992 id=992 data-nosnippet>992</a>
+<a href=#993 id=993 data-nosnippet>993</a><span class="comment">// Returns a new Pattern where all Interned Patterns have been turned into Pattern.
+<a href=#994 id=994 data-nosnippet>994</a></span><span class="kw">fn </span>remove_interned_in_pattern(interner: <span class="kw-2">&amp;</span>NodeInterner, pattern: Pattern) -&gt; Pattern {
+<a href=#995 id=995 data-nosnippet>995</a>    <span class="kw">match </span>pattern {
+<a href=#996 id=996 data-nosnippet>996</a>        Pattern::Identifier(<span class="kw">_</span>) =&gt; pattern,
+<a href=#997 id=997 data-nosnippet>997</a>        Pattern::Mutable(pattern, location, is_synthesized) =&gt; Pattern::Mutable(
+<a href=#998 id=998 data-nosnippet>998</a>            Box::new(remove_interned_in_pattern(interner, <span class="kw-2">*</span>pattern)),
+<a href=#999 id=999 data-nosnippet>999</a>            location,
+<a href=#1000 id=1000 data-nosnippet>1000</a>            is_synthesized,
+<a href=#1001 id=1001 data-nosnippet>1001</a>        ),
+<a href=#1002 id=1002 data-nosnippet>1002</a>        Pattern::Tuple(patterns, location) =&gt; Pattern::Tuple(
+<a href=#1003 id=1003 data-nosnippet>1003</a>            vecmap(patterns, |pattern| remove_interned_in_pattern(interner, pattern)),
+<a href=#1004 id=1004 data-nosnippet>1004</a>            location,
+<a href=#1005 id=1005 data-nosnippet>1005</a>        ),
+<a href=#1006 id=1006 data-nosnippet>1006</a>        Pattern::Struct(path, patterns, location) =&gt; {
+<a href=#1007 id=1007 data-nosnippet>1007</a>            <span class="kw">let </span>patterns = vecmap(patterns, |(name, pattern)| {
+<a href=#1008 id=1008 data-nosnippet>1008</a>                (name, remove_interned_in_pattern(interner, pattern))
+<a href=#1009 id=1009 data-nosnippet>1009</a>            });
+<a href=#1010 id=1010 data-nosnippet>1010</a>            Pattern::Struct(path, patterns, location)
+<a href=#1011 id=1011 data-nosnippet>1011</a>        }
+<a href=#1012 id=1012 data-nosnippet>1012</a>        Pattern::Parenthesized(pattern, location) =&gt; Pattern::Parenthesized(
+<a href=#1013 id=1013 data-nosnippet>1013</a>            Box::new(remove_interned_in_pattern(interner, <span class="kw-2">*</span>pattern)),
+<a href=#1014 id=1014 data-nosnippet>1014</a>            location,
+<a href=#1015 id=1015 data-nosnippet>1015</a>        ),
+<a href=#1016 id=1016 data-nosnippet>1016</a>        Pattern::Interned(id, <span class="kw">_</span>) =&gt; interner.get_pattern(id).clone(),
+<a href=#1017 id=1017 data-nosnippet>1017</a>    }
+<a href=#1018 id=1018 data-nosnippet>1018</a>}</code></pre></div></section></main></body></html>
