@@ -369,7 +369,12 @@ impl ChunkFormatter<'_, '_> {
 
         let mut group = ChunkGroup::new();
         if let Some(formatted_body) = formatted_body {
-            let single_line_body = !formatted_body.contains('\n');
+            // Stay on one line only if the author wrote it on one line *and* the
+            // formatted content fits on one line. If the source spans multiple lines
+            // we preserve that shape — `quote { fn foo() {} }` and the version
+            // written across three lines are both valid, and we shouldn't flip
+            // between them.
+            let single_line_body = !body_source.contains('\n') && !formatted_body.contains('\n');
             group.force_multiple_lines = !single_line_body;
             group.text(self.chunk(|formatter| {
                 formatter.write("quote");
@@ -2545,6 +2550,20 @@ let     x   =    1   +    2 ;
     fn format_quote_with_statement_body() {
         let src = "global x = quote { let  y   =    1 ;  };\n";
         let expected = "global x = quote { let y = 1; };\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_quote_keeps_multi_line_body_multi_line() {
+        // The author wrote the body across multiple lines; even though the formatted
+        // content fits on a single line, we keep the multi-line shape.
+        let src = "comptime fn outside() -> Quoted {
+    quote {
+        fn foo() {}
+    }
+}
+";
+        let expected = src;
         assert_format(src, expected);
     }
 
