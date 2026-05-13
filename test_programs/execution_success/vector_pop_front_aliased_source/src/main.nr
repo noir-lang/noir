@@ -12,7 +12,7 @@
 // This test ensures that the RC is properly added by the frontend
 // when a vector is kept alive after a discarded `vector_pop_front`.
 unconstrained fn main() {
-    foo(&[42, 43, 44]);
+    foo(@[42, 43, 44]);
 }
 
 unconstrained fn foo(mut v: [Field]) {
