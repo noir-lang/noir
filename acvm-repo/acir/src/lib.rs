@@ -733,15 +733,18 @@ mod reflection {
                 // the same here, with an explicit case so the strict
                 // default below can distinguish "retired" from "never
                 // declared".
-                for &reserved_tag in product.reserved {
-                    // cSpell:disable
-                    body.push_str(&format!(
+                if !product.reserved.is_empty() {
+                    for &reserved_tag in product.reserved {
+                        body.push_str(&format!(
+                            "
+                    case {reserved_tag}:"
+                        ));
+                    }
+                    body.push_str(
                         r#"
-                    case {reserved_tag}:
                         // Reserved tag (retired field) — skip silently.
-                        break;"#
-                    ));
-                    // cSpell:enable
+                        break;"#,
+                    );
                 }
                 // Default branch: strict by default (reject unknown tags
                 // so a C++ reviewer can see the type-level intent). Opt
@@ -1013,13 +1016,18 @@ mod reflection {
                         |v| v.name,
                     )
                 };
-                for &reserved_tag in sum.reserved {
+                if !sum.reserved.is_empty() {
+                    for &reserved_tag in sum.reserved {
+                        body.push_str(&format!(
+                            "
+            case {reserved_tag}:"
+                        ));
+                    }
                     if let Some(fallback_tag) = sum.on_reserved_tag {
                         let fallback_name = lookup_unit_variant(fallback_tag);
                         // cSpell:disable
                         body.push_str(&format!(
-                            r#"
-            case {reserved_tag}: {{
+                            r#" {{
                 // `#[tagged(on_reserved)]` fallback: retired tag routes to
                 // the designated unit variant (payload discarded).
                 {fallback_name} v;
@@ -1032,9 +1040,8 @@ mod reflection {
                         // cSpell:disable
                         body.push_str(&format!(
                             r#"
-            case {reserved_tag}:
                 std::cerr << o << std::endl;
-                throw_or_abort("retired variant tag {reserved_tag} for enum '{name}' (declare `#[tagged(on_reserved)]` on a unit variant to route legacy data here)");"#
+                throw_or_abort("retired variant tag for enum '{name}' (declare `#[tagged(on_reserved)]` on a unit variant to route legacy data here): " + std::to_string(tag));"#
                         ));
                         // cSpell:enable
                     }
