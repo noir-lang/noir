@@ -98,16 +98,16 @@ impl<'a, W: Write> Serializer<'a, W> {
     /// the top-level type being serialized — the registration walk seeds
     /// every nested tagged type.
     pub fn new(writer: W, registry: &'a TagRegistry) -> Self {
-        // We intentionally use rmp_serde's default config (no
-        // `with_struct_map`): every tagged type's `serialize_struct` /
-        // variant call routes through our interception layer below, which
-        // emits int-keyed maps directly. The handful of `Serializer` methods
-        // we still forward to inner won't be reached by tagged types under
-        // the registry's bound chain — primitives and containers don't go
-        // through `serialize_struct`, and any type that does is expected to
-        // be in the registry.
+        // Tagged types' `serialize_struct` / variant calls route
+        // through our interception layer below; the inner
+        // `RmpSerializer` only gets the structurally-irrelevant calls
+        // (primitives, `serialize_bytes`, etc.). See
+        // [`make_inner_rmp_serializer`] for why no `BytesMode`
+        // override is applied (and the rule for new bytes-shaped
+        // types: call `serialize_bytes` directly in their
+        // `Serialize` impl).
         Self {
-            inner: RmpSerializer::new(writer),
+            inner: make_inner_rmp_serializer(writer),
             registry,
             default_strategy: EncodingStrategy::Tagged,
             overrides: HashMap::new(),
@@ -493,7 +493,7 @@ impl<'a, W: Write> Serializer<'a, W> {
         writer: &'sub mut Vec<u8>,
     ) -> Serializer<'a, &'sub mut Vec<u8>> {
         Serializer {
-            inner: RmpSerializer::new(writer),
+            inner: make_inner_rmp_serializer(writer),
             registry: self.registry,
             default_strategy: self.default_strategy,
             overrides: self.overrides.clone(),
@@ -580,6 +580,52 @@ impl<'a, W: Write> Serializer<'a, W> {
         ser::Serializer::serialize_u8(&mut *self, v.tag)?;
         Ok(v)
     }
+}
+
+/// Build the inner `rmp_serde::Serializer` for primitive / forwarded
+/// calls. Single construction point so every spawn site
+/// ([`Serializer::new`], [`Serializer::sub_serializer_into`]) stays in
+/// lockstep.
+///
+/// **Why we don't apply `BytesMode::ForceIterables` here** (despite
+/// the legacy `acir::serialization::msgpack_serialize` doing so):
+///
+/// `ForceIterables` makes `rmp_serde::Serializer::collect_seq` detect
+/// byte-shaped iterators and emit msgpack `bin` instead of a
+/// `fixarray` of `fixint`s — the wire shape the C++ codegen's
+/// `std::vector<uint8_t>` adapter expects. But for that detection to
+/// apply, the call has to *reach* the inner's `collect_seq`. Our
+/// wrapper intercepts `Vec<T>::serialize` via the default
+/// `collect_seq` → `Self::serialize_seq` path: `serialize_seq` writes
+/// a `fixarray` header directly and routes each element through this
+/// wrapper, so the inner's `ForceIterables` is never consulted.
+///
+/// We could override `collect_seq` to forward byte-shaped iterators
+/// to `inner.collect_seq` — but rmp_serde's detection heuristic is
+/// purely size-based: any iterator over pointer-sized items (`&u8`,
+/// `Box<T>`, `Rc<T>`, `&T`, …) matches. For items that *aren't*
+/// actually `u8`, rmp_serde's `OnlyBytes` probe rejects, and rmp_serde
+/// falls back to its **own** `serialize_seq` — which doesn't route
+/// through our wrapper. That would silently bypass `MsgpackTagged`
+/// interception for any tagged type wrapped in `Box`/`&`/etc. inside
+/// a `Vec`. Hard to debug, easy to land in.
+///
+/// Instead we keep the wrapper simple and require the load-bearing
+/// case ([`acir_field::FieldElement`]'s `Serialize` impl) to call
+/// `serializer.serialize_bytes(...)` directly — bypassing
+/// `collect_seq` entirely. `serialize_bytes` is `rmp_serde`'s
+/// unconditional `write_bin` (independent of `BytesMode`), and our
+/// own `serialize_bytes` forwards it untouched, so the wire is
+/// reliably `bin` for that field.
+///
+/// **If a future model adds another byte-shaped value type**, prefer
+/// hooking it up via `serialize_bytes` for the same reason. Only if a
+/// generic byte-iter intercept becomes truly necessary should we
+/// override `collect_seq` here — and at that point we'd need to
+/// **also replicate rmp_serde's `OnlyBytes` probe** so the
+/// reference-bypass risk above is closed.
+fn make_inner_rmp_serializer<W: Write>(writer: W) -> RmpSerializer<W> {
+    RmpSerializer::new(writer)
 }
 
 /// Write a msgpack array header (`fixarray` / `array16` / `array32` depending

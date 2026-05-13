@@ -3,7 +3,6 @@ use ark_ff::Zero;
 use msgpack_tagged::MsgpackTagged;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 use crate::AcirField;
@@ -119,7 +118,29 @@ impl<T: PrimeField> Serialize for FieldElement<T> {
     where
         S: serde::Serializer,
     {
-        self.to_be_bytes().serialize(serializer)
+        // Call `serialize_bytes` rather than `self.to_be_bytes().serialize(...)`
+        // (which would forward to `Vec<u8>::serialize` and then
+        // `serializer.collect_seq(...)`). A field element is
+        // semantically a fixed-width byte blob, not a sequence of u8
+        // elements, and going through `serialize_bytes` keeps the wire
+        // shape consistent across serializers:
+        //
+        // * `rmp_serde`'s `serialize_bytes` is unconditional
+        //   `write_bin` — independent of `BytesMode` — so all three
+        //   `Format::Msgpack*` variants emit the same `bin` blob the
+        //   C++ codegen's `std::vector<uint8_t>` adapter expects.
+        // * Without this, our `MsgpackTagged` wrapper would have to intercept
+        //   the `collect_seq` call and emit a `fixarray` of `fixint`s
+        //   instead (per its tagged-recursion contract for sequences),
+        //   which msgpack-c's `std::vector<uint8_t>` adapter refuses
+        //   with `type_error` mid-decode — a confusing failure mode
+        //   that's much easier to land in than to debug. The other two
+        //   `Msgpack*` formats would have to remember to create a
+        //   `RmpSerializer::with_bytes(BytesMode::ForceAll)`.
+        //
+        // The corresponding `Deserialize` (see below) calls
+        // `deserialize_bytes` via a visitor — the symmetric read hook.
+        serializer.serialize_bytes(&self.to_be_bytes())
     }
 }
 
@@ -128,8 +149,45 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: Cow<'de, [u8]> = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from_be_bytes_reduce(&s))
+        // Mirror of `Serialize`: explicitly route through
+        // `deserialize_bytes` so the read side is symmetric with the
+        // write side and works against the msgpack `bin` shape emitted
+        // by `FieldElement::serialize`. The default
+        // `Cow<'_, [u8]>::deserialize` would forward to
+        // `Vec<u8>::deserialize` → `deserialize_seq`, which expects a
+        // msgpack `fixarray` and rejects `bin` under our
+        // `MsgpackTagged` wrapper.
+        //
+        // The visitor accepts both byte-shaped (`bin`) and sequence
+        // (`fixarray`) wire forms, just in case.
+        struct FieldBytesVisitor;
+        impl<'de> serde::de::Visitor<'de> for FieldBytesVisitor {
+            type Value = Vec<u8>;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a byte string or sequence of u8 (field-element big-endian bytes)")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Vec<u8>, E> {
+                Ok(v.to_vec())
+            }
+            fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Vec<u8>, E> {
+                Ok(v)
+            }
+            fn visit_borrowed_bytes<E: serde::de::Error>(self, v: &'de [u8]) -> Result<Vec<u8>, E> {
+                Ok(v.to_vec())
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Vec<u8>, A::Error> {
+                let mut bytes = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(b) = seq.next_element::<u8>()? {
+                    bytes.push(b);
+                }
+                Ok(bytes)
+            }
+        }
+        let bytes = deserializer.deserialize_bytes(FieldBytesVisitor)?;
+        Ok(Self::from_be_bytes_reduce(&bytes))
     }
 }
 

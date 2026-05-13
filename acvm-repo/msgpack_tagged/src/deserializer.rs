@@ -278,8 +278,7 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
         visitor.visit_newtype_struct(&mut *self)
     }
 
-    // -------- collection / aggregate shapes: forwarded for now; subsequent
-    //          commits intercept these.
+    // -------- collection / aggregate shapes
 
     fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         // Read the msgpack array header (length-prefixed; `read_array_len`
@@ -289,6 +288,12 @@ impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
         // The adapter then yields each element via `&mut *self.parent`
         // so any tagged element inside the sequence recurses through
         // this wrapper.
+        //
+        // Byte-shaped values (`Vec<u8>`-equivalents like `FieldElement`)
+        // arrive via `deserialize_bytes`, not `deserialize_seq` — see
+        // the comment on `FieldElement::serialize` for why the encode
+        // side uses `serialize_bytes` directly. So `deserialize_seq`
+        // doesn't need to peek for `bin` markers here.
         let len = self.read_array_len()?;
         visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len })
     }

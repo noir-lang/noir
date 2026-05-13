@@ -353,6 +353,82 @@ mod tests {
         assert!(matches!(msg, Value::Integer(_)));
     }
 
+    /// `FieldElement` serializes via `serializer.serialize_bytes`, which
+    /// in msgpack-land is the `bin8` / `bin16` / `bin32` family — NOT a
+    /// `fixarray` of `fixint`s. The C++ codegen's
+    /// `std::vector<uint8_t>` adapter only accepts the `bin` shape, and
+    /// our `MsgpackTagged` wrapper relies on this hook to bypass the
+    /// `collect_seq` interception that would otherwise emit a fixarray.
+    /// These tests lock the wire shape under all three formats so a
+    /// regression here surfaces in `cargo test`, not as an obscure
+    /// runtime `type_error` on the Barretenberg side.
+    mod msgpack_repr_field_element {
+        use super::super::{Format, deserialize_any_format, serialize_with_format};
+        use acir_field::{AcirField, FieldElement};
+        use rmpv::Value;
+
+        /// Helper: encode `value` with a given `Format` and pop the
+        /// 1-byte `Format` prefix so the returned bytes can be fed to
+        /// `rmpv::decode::read_value` directly.
+        fn encoded_msgpack<F: Into<Format>>(value: &FieldElement, format: F) -> Vec<u8> {
+            let mut bz = serialize_with_format(value, format.into()).unwrap();
+            bz.remove(0);
+            bz
+        }
+
+        /// Decode and assert the top-level msgpack value is a `Binary`
+        /// blob, returning the decoded byte vector for further checks.
+        fn assert_bin(bz: &[u8]) -> Vec<u8> {
+            let msg = rmpv::decode::read_value::<&[u8]>(&mut &bz[..]).unwrap();
+            match msg {
+                Value::Binary(v) => v,
+                other => panic!("expected msgpack Binary for FieldElement; got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn msgpack_tagged_emits_bin() {
+            let v = FieldElement::from(1u128);
+            let bytes = assert_bin(&encoded_msgpack(&v, Format::MsgpackTagged));
+            assert_eq!(bytes.len(), v.to_be_bytes().len());
+            assert_eq!(bytes, v.to_be_bytes());
+        }
+
+        #[test]
+        fn msgpack_compact_emits_bin() {
+            // The legacy `Format::MsgpackCompact` path used by the C++
+            // side has historically emitted `bin` via
+            // `BytesMode::ForceIterables` on the rmp_serde serializer.
+            // After the `FieldElement::serialize` change it still does,
+            // because `serialize_bytes` writes `write_bin` regardless of
+            // `BytesMode`. This test guards the legacy shape so the
+            // change can't accidentally regress what Barretenberg
+            // already consumes.
+            let v = FieldElement::from(42u128);
+            let bytes = assert_bin(&encoded_msgpack(&v, Format::MsgpackCompact));
+            assert_eq!(bytes, v.to_be_bytes());
+        }
+
+        #[test]
+        fn msgpack_named_emits_bin() {
+            // Same guarantee for the named-struct legacy format.
+            let v = FieldElement::from(99u128);
+            let bytes = assert_bin(&encoded_msgpack(&v, Format::Msgpack));
+            assert_eq!(bytes, v.to_be_bytes());
+        }
+
+        /// Sanity: round-trip through each format yields the same value.
+        #[test]
+        fn round_trips_under_all_formats() {
+            for &format in &[Format::Msgpack, Format::MsgpackCompact, Format::MsgpackTagged] {
+                let v = FieldElement::from(7u128);
+                let bytes = serialize_with_format(&v, format).unwrap();
+                let decoded: FieldElement = deserialize_any_format(&bytes).unwrap();
+                assert_eq!(decoded, v, "round-trip failed under {format:?}");
+            }
+        }
+    }
+
     #[test]
     fn format_from_str() {
         assert_eq!(Format::from_str("msgpack-compact").unwrap(), Format::MsgpackCompact);
