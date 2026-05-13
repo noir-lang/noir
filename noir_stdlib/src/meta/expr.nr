@@ -504,7 +504,7 @@ comptime fn modify_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Ex
 
 comptime fn new_array(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
-    quote { [$exprs]}.as_expr().unwrap()
+    quote { [$exprs] }.as_expr().unwrap()
 }
 
 comptime fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
@@ -536,7 +536,7 @@ comptime fn new_binary_op(lhs: Expr, op: BinaryOp, rhs: Expr) -> Expr {
 
 comptime fn new_block(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
-    quote { { $exprs }}.as_expr().unwrap()
+    quote { { $exprs } }.as_expr().unwrap()
 }
 
 comptime fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
@@ -545,7 +545,7 @@ comptime fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
 
 comptime fn new_comptime(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { ; });
-    quote { comptime { $exprs }}.as_expr().unwrap()
+    quote { comptime { $exprs } }.as_expr().unwrap()
 }
 
 comptime fn new_constructor(typ: UnresolvedType, fields: [(Quoted, Expr)]) -> Expr {
@@ -612,7 +612,7 @@ comptime fn new_lambda(
 comptime fn new_let(pattern: Expr, typ: Option<UnresolvedType>, expr: Expr) -> Expr {
     if typ.is_some() {
         let typ = typ.unwrap();
-        quote { let $pattern : $typ = $expr; }.as_expr().unwrap()
+        quote { let $pattern: $typ = $expr; }.as_expr().unwrap()
     } else {
         quote { let $pattern = $expr; }.as_expr().unwrap()
     }
