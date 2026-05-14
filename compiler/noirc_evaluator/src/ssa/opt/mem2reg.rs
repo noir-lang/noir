@@ -54,57 +54,71 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        let cfg = ControlFlowGraph::with_function(self);
-        let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-        let mut inserter = FunctionInserter::new(self);
+        // Run mem2reg until we stop making progress. In an SSA like this one:
+        //
+        // ```
+        // v0 = allocate -> &mut u16
+        // store u16 1 at v0
+        // v2 = allocate -> &mut &mut u16
+        // store v0 at v2
+        // ```
+        //
+        // - v0 can't be optimized out because it's stored in v2
+        // - v2 can and will be optimized out
+        // - now running it again will lead to optimizing out v0, etc.
+        loop {
+            let cfg = ControlFlowGraph::with_function(self);
+            let post_order = PostOrder::with_cfg(&cfg);
+            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+            let mut inserter = FunctionInserter::new(self);
 
-        let blocks = post_order.into_vec_reverse();
+            let blocks = post_order.into_vec_reverse();
 
-        // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
-        // instruction result. These are iterated on in key order when adding block
-        // parameters and terminator arguments, so the maps must have a deterministic ordering
-        // for arguments to line up with parameters.
-        let (variables, def_sites) =
-            collect_eligible_variables_and_def_sites(inserter.function, &blocks);
+            // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
+            // instruction result. These are iterated on in key order when adding block
+            // parameters and terminator arguments, so the maps must have a deterministic ordering
+            // for arguments to line up with parameters.
+            let (variables, def_sites) =
+                collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
-        if variables.is_empty() {
-            return;
+            if variables.is_empty() {
+                break;
+            }
+
+            // Compute where block parameters are needed using iterated dominance frontiers.
+            // A variable only needs a block parameter at blocks where values from different
+            // control-flow paths could merge (its IDF). For variables stored in a single block,
+            // this is typically empty — no block parameters needed at all.
+            let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
+            let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
+
+            // Precompute which variables are visible at each block by walking the dominator tree.
+            // A variable declared in block D is visible at block B iff D dominates B.
+            // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
+            // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
+            // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
+            // this visibility propagation replaces the per-variable dominance checks in phase 2).
+            let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
+            let mut block_states = BlockStates::default();
+            add_block_params_and_find_exit_states(
+                &blocks,
+                &visible_vars,
+                &param_locations,
+                &mut inserter,
+                &mut block_states,
+                &cfg,
+            );
+            add_terminator_arguments(
+                &blocks,
+                &variables,
+                &param_locations,
+                &mut inserter,
+                &block_states,
+                &cfg,
+            );
+            commit(&mut inserter, &variables, blocks);
         }
-
-        // Compute where block parameters are needed using iterated dominance frontiers.
-        // A variable only needs a block parameter at blocks where values from different
-        // control-flow paths could merge (its IDF). For variables stored in a single block,
-        // this is typically empty — no block parameters needed at all.
-        let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
-        let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
-
-        // Precompute which variables are visible at each block by walking the dominator tree.
-        // A variable declared in block D is visible at block B iff D dominates B.
-        // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
-        // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
-        // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
-        // this visibility propagation replaces the per-variable dominance checks in phase 2).
-        let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
-
-        let mut block_states = BlockStates::default();
-        add_block_params_and_find_exit_states(
-            &blocks,
-            &visible_vars,
-            &param_locations,
-            &mut inserter,
-            &mut block_states,
-            &cfg,
-        );
-        add_terminator_arguments(
-            &blocks,
-            &variables,
-            &param_locations,
-            &mut inserter,
-            &block_states,
-            &cfg,
-        );
-        commit(&mut inserter, &variables, blocks);
     }
 }
 
@@ -1462,6 +1476,31 @@ brillig(inline) fn main f0 {
           b3(v1: Field, v2: Field):
             v8 = add v1, v2
             return v8
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_running_while_allocations_are_removed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u16
+            store u16 1 at v0
+            v2 = allocate -> &mut &mut u16
+            store v0 at v2
+            constrain u1 0 == u1 1
+            unreachable
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1
+            unreachable
         }
         ");
     }
