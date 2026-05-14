@@ -57,6 +57,7 @@ impl Function {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 
         // Run mem2reg while we successfully removed at least one allocate instruction and there
@@ -91,8 +92,12 @@ impl Function {
             // A variable only needs a block parameter at blocks where values from different
             // control-flow paths could merge (its IDF). For variables stored in a single block,
             // this is typically empty — no block parameters needed at all.
-            let dom_frontiers = dom_tree.compute_dominance_frontiers_with_back_edges(&cfg);
-            let param_locations = compute_param_locations(&variables, &def_sites, &dom_frontiers);
+            if dom_frontiers.is_none() {
+                dom_frontiers = Some(dom_tree.compute_dominance_frontiers_with_back_edges(&cfg));
+            }
+
+            let param_locations =
+                compute_param_locations(&variables, &def_sites, dom_frontiers.as_ref().unwrap());
 
             // Precompute which variables are visible at each block by walking the dominator tree.
             // A variable declared in block D is visible at block B iff D dominates B.
