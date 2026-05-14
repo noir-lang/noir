@@ -44,10 +44,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
     /// 2*w3*w4 + w1 + w4 = 0        // which is only used here
     ///
     /// For w1 we can say:
-    /// w1 = -1/2*w2*w3 - w2 - 1/2*w3
+    /// w1 = -w2*w3 - 2*w2 - w3
     ///
     /// Then we will remove the first one and modify the second one like this:
-    /// 2*w3*w4 + w4 - w2 - 1/2*w3 - 1/2*w2*w3 = 0
+    /// 2*w3*w4 + w4 - 2*w2 - w3 - w2*w3 = 0
     ///
     /// Pre-condition:
     /// - This pass is relevant for backends that can handle unlimited width and

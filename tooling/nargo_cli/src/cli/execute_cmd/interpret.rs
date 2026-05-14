@@ -374,7 +374,8 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::TypedExpr(..)
         | Value::UnresolvedType(..)
         | Value::FormatString(..)
-        | Value::CtString(..) => {
+        | Value::CtString(..)
+        | Value::Location(..) => {
             panic!("Unexpected output value: {}", value.display(&context.def_interner))
         }
     }

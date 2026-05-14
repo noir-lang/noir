@@ -579,7 +579,7 @@ impl AstPrinter {
         {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
-                Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                Definition::Oracle { name: s, .. } if s == "print" => Some(SpecialCall::Print),
                 Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
                     Some(SpecialCall::Object(name.clone()))
                 }
@@ -730,7 +730,7 @@ impl Display for Definition {
             Definition::Function(id) => write!(f, "f{id}"),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
-            Definition::Oracle(name) => write!(f, "{name}"),
+            Definition::Oracle { name, .. } => write!(f, "{name}"),
         }
     }
 }

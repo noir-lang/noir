@@ -543,6 +543,16 @@ impl Elaborator<'_> {
             return (rhs, typ);
         }
 
+        // Simplify `&*x` and `&mut *x` to just `x`
+        if let UnaryOp::Reference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && let UnaryOp::Dereference { .. } = inner.operator
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
+            return (rhs, typ);
+        }
+
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
