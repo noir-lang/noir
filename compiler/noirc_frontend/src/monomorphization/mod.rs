@@ -1696,6 +1696,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         location: Location,
     ) -> Result<ast::Type, MonomorphizationError> {
+        Self::error_on_complex_type(typ, &location)?;
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
@@ -1713,8 +1714,6 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
-        Self::error_on_complex_type(typ, &location)?;
-
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
