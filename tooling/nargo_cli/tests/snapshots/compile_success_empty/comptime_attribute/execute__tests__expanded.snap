@@ -6,9 +6,7 @@ mod moo {
     pub comptime fn add_fn(f: FunctionDefinition, name: Quoted) -> Quoted {
         assert(f.has_named_attribute("add_fn"));
         quote {
-            pub fn $name() {
-                
-            }
+            pub fn $name() {}
         }
     }
 

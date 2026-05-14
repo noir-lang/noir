@@ -80,6 +80,13 @@ function if possible.
 
 Returns true if this type has a custom attribute with the given name.
 
+### location
+
+#include_code location noir_stdlib/src/meta/type_def.nr rust
+
+Returns the source [`Location`](./location.md) where this type is defined.
+This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagnostic to the type.
+
 ### module
 
 #include_code module noir_stdlib/src/meta/type_def.nr rust
