@@ -426,9 +426,35 @@ impl Function {
     /// instructions are deliberately retained so that the set and order
     /// of constraints emitted to ACIR is unchanged.
     ///
-    /// `ValueId`s referenced by the function's databus (call data, return
-    /// data) are seeded into the live set so their definitions survive
-    /// even if the block has no in-block consumer.
+    /// ## Why this isn't handled by mem2reg
+    ///
+    /// [`Ssa::mem2reg`] only optimizes references whose only uses are
+    /// `Store`/`Load` against the address — see
+    /// [`collect_eligible_variables_and_def_sites`]. The triggering
+    /// pattern is a nested `&mut [&mut &mut T; N]` bound to a `let mut`,
+    /// whose inner allocations escape into a `make_array`. That escape
+    /// flips the address into a first-class use and mem2reg excludes it,
+    /// so the `Allocate` survives every subsequent pass. The DCE here
+    /// fires only on the special case the forward sweep just created
+    /// (a block now ending in `Unreachable`) and reasons about
+    /// observability rather than alias analysis.
+    ///
+    /// ## Aliasing / fail-secure invariants
+    ///
+    /// `flatten_cfg`, `Remove IfElse`, and the major inlining passes
+    /// have all run before this pass (see the preconditions in the
+    /// module-level docs and the primary SSA pipeline). The combinations
+    /// below would invalidate the observability argument above, so they
+    /// are treated as ICEs rather than silently mishandled:
+    ///
+    /// - `Instruction::IfElse` — should have been lowered away.
+    /// - `Instruction::Call` whose return type contains a reference —
+    ///   would surface a reference that can alias caller-visible memory,
+    ///   which the block-local DCE has no way to reason about.
+    ///
+    /// `ValueId`s referenced by the function's databus (call data,
+    /// return data) are seeded into the live set so their definitions
+    /// survive even if the block has no in-block consumer.
     fn strip_dead_instructions_in_unreachable_blocks(&mut self) {
         let mut databus_used: HashSet<ValueId> = HashSet::new();
         let _ = self.dfg.data_bus.map_values(|v| {
@@ -446,6 +472,11 @@ impl Function {
             }
 
             let instruction_ids = self.dfg[block_id].take_instructions();
+
+            for &instruction_id in &instruction_ids {
+                self.assert_unreachable_block_invariants(instruction_id);
+            }
+
             let mut used: HashSet<ValueId> = databus_used.clone();
             let mut kept_rev: Vec<InstructionId> = Vec::new();
 
@@ -488,6 +519,37 @@ impl Function {
 
             kept_rev.reverse();
             *self.dfg[block_id].instructions_mut() = kept_rev;
+        }
+    }
+
+    /// Fail-secure invariants enforced on every instruction of an
+    /// `Unreachable`-terminated block before the block-local DCE runs.
+    /// See `strip_dead_instructions_in_unreachable_blocks` for the
+    /// rationale.
+    fn assert_unreachable_block_invariants(&self, instruction_id: InstructionId) {
+        let instruction = &self.dfg[instruction_id];
+        match instruction {
+            Instruction::IfElse { .. } => {
+                panic!(
+                    "remove_unreachable_instructions: encountered `IfElse` in a block whose \
+                     terminator is `Unreachable`. The `Remove IfElse` pass is expected to run \
+                     before this pass; please ensure the SSA pipeline order is preserved."
+                )
+            }
+            Instruction::Call { .. } => {
+                let results = self.dfg.instruction_results(instruction_id);
+                for &result in results {
+                    if self.dfg.type_of_value(result).contains_reference() {
+                        panic!(
+                            "remove_unreachable_instructions: encountered `Call` returning a \
+                             reference-typed result in an `Unreachable` block. The block-local \
+                             DCE cannot reason about aliasing through caller-visible memory \
+                             surfaced by such a call."
+                        );
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -1391,6 +1453,82 @@ mod tests {
           b0():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    #[should_panic(expected = "encountered `IfElse` in a block whose terminator is `Unreachable`")]
+    fn rejects_if_else_in_unreachable_block() {
+        // `Remove IfElse` runs before this pass; an `IfElse` reaching here would
+        // mean the pipeline ordering invariant was violated, so we ICE rather
+        // than silently mishandle aliasing through the merged result.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 1], v2: [Field; 1]):
+            v3 = not v0
+            v4 = if v0 then v1 else (if v3) v2
+            constrain u1 0 == u1 1, \"Index out of bounds\"
+            unreachable
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.remove_unreachable_instructions();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "encountered `Call` returning a reference-typed result in an `Unreachable` block"
+    )]
+    fn rejects_call_returning_reference_in_unreachable_block() {
+        // A `Call` returning a `&mut T` would surface aliasing the block-local
+        // DCE cannot reason about; treat it as an ICE.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = call f1() -> &mut u8
+            store u8 0 at v0
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        acir(inline) predicate_pure fn helper f1 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            return v0
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.remove_unreachable_instructions();
+    }
+
+    #[test]
+    fn accepts_call_with_non_reference_result_in_unreachable_block() {
+        // The fail-secure guard must not fire for non-reference call results.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = call f1() -> u8
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        acir(inline) predicate_pure fn helper f1 {
+          b0():
+            return u8 0
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> u8
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        acir(inline) predicate_pure fn helper f1 {
+          b0():
+            return u8 0
         }
         "#);
     }
