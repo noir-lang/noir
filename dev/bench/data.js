@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778770044779,
+  "lastUpdate": 1778770054494,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14866,95 +14866,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "edcf12e897790342f58c9ec526506b87f673dd5b",
-          "message": "fix(frontend): emit one error for numeric type alias overflow (#12565)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-05-06T19:42:05Z",
-          "tree_id": "93effe3556131aa6372e12dec7dee10524cf3c95",
-          "url": "https://github.com/noir-lang/noir/commit/edcf12e897790342f58c9ec526506b87f673dd5b"
-        },
-        "date": 1778098958898,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 282.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 306.93,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 355.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1290,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 464.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 475.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 353.92,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 76.72,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 74.54,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "7e3ab104a8774b57f36b6532ecb68e612808accd",
           "message": "fix(ssa): array_gets are not side-effectual in brillig (#12567)\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
@@ -19230,6 +19141,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/02dde8bf6808a7f478713d1bc02dffad701a929e"
         },
         "date": 1778765172932,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 282.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 307.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 277.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 355.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 355.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1290,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1290,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 356.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 463.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 473.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 355.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 77.07,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.86,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ede14c7c721ea02474257f11764a0010c2929938",
+          "message": "chore(ci): capture fuzzer seeds from nightly fuzz run for programmatic RCA (#12661)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-14T13:57:54Z",
+          "tree_id": "148da10b8d3bfb8b5d2d1e990a9ecd018055c894",
+          "url": "https://github.com/noir-lang/noir/commit/ede14c7c721ea02474257f11764a0010c2929938"
+        },
+        "date": 1778769984424,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
