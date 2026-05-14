@@ -49,9 +49,9 @@ jobs:
         run: |
           ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
           seed_count=$(wc -l < seeds.txt | tr -d ' ')
-          first_seeds=$(head -n 3 seeds.txt | paste -sd, -)
+          seeds=$(paste -sd, - < seeds.txt)
           echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
-          echo "first_seeds=${first_seeds}" >> "$GITHUB_OUTPUT"
+          echo "seeds=${seeds}" >> "$GITHUB_OUTPUT"
 
       - name: Upload fuzz failure artifact
         if: failure()
@@ -78,5 +78,5 @@ jobs:
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             seed-count: ${{ steps.seeds.outputs.seed_count }}
-            first-seeds: ${{ steps.seeds.outputs.first_seeds }}
+            seeds: ${{ steps.seeds.outputs.seeds }}
             artifact-name: nightly-fuzz-failure
