@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    f(5_u8);
+}
+
+#[inline_always]
+unconstrained fn f(mut a: u8) {
+    let mut i: u32 = 0_u32;
+    while a != 0_u8 {
+        if i == 2_u32 { break; };
+        i = i + 1_u32;
+        a = if a < 3_u8 { 3_u8 } else { 1_u8 };
+        println(a);
+    }
+}

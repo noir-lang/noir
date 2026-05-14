@@ -877,6 +877,10 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
             let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
                 Value::Function(id) => dfg.purity_of(id),
+                // A `#[pure]` oracle behaves like `PureWithPredicate`: its return is a
+                // function of its arguments, so hoisting it from a non-empty loop is sound.
+                Value::ForeignFunction { pure: true, .. } => Some(Purity::PureWithPredicate),
+                Value::ForeignFunction { pure: false, .. } => Some(Purity::Impure),
                 _ => None,
             };
             match purity {
@@ -2235,6 +2239,7 @@ mod tests {
     enum TestCall {
         Function(Option<Purity>),
         ForeignFunction,
+        PureForeignFunction,
         Intrinsic(Intrinsic),
     }
 
@@ -2245,7 +2250,9 @@ mod tests {
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
-    #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
+    #[test_case(1, TestCall::ForeignFunction, false; "non-pure foreign functions stay impure")]
+    #[test_case(1, TestCall::PureForeignFunction, true; "non-empty loop, pure foreign function hoists")]
+    #[test_case(0, TestCall::PureForeignFunction, false; "empty loop, pure foreign function does not hoist")]
     #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -2253,10 +2260,13 @@ mod tests {
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
 
         // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
-        let call_target = match test_call {
-            TestCall::Function(_) => "f1".to_string(),
-            TestCall::ForeignFunction => "print".to_string(),
-            TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
+        // The `pure` modifier on the call (e.g. `call pure my_oracle(...)`) is how the SSA textual
+        // parser recognizes a `#[pure]` oracle declaration.
+        let (call_target, pure_modifier) = match test_call {
+            TestCall::Function(_) => ("f1".to_string(), ""),
+            TestCall::ForeignFunction => ("print".to_string(), ""),
+            TestCall::PureForeignFunction => ("my_oracle".to_string(), "pure "),
+            TestCall::Intrinsic(intrinsic) => (format!("{intrinsic}"), ""),
         };
 
         let src = format!(
@@ -2268,7 +2278,7 @@ mod tests {
             v2 = lt v1, u32 {upper}
             jmpif v2 then: b2(), else: b3()
           b2():
-            v3 = call {call_target}(v0) -> [u64; 25]
+            v3 = call {pure_modifier}{call_target}(v0) -> [u64; 25]
             v4 = unchecked_add v1, u32 1
             jmp b1(v4)
           b3():
@@ -3822,5 +3832,44 @@ mod control_dependence {
             jmp b1(v4)
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_consider_descending_loop_bounds_as_valid() {
+        // The loop header is `b1(v0: u8, v1: u32)` where `v0` is the first block parameter
+        // and is therefore mistakenly identified as the induction variable. The header exits
+        // via `eq v0, u8 0`, which causes `get_const_upper_bound` to return 0 as the upper
+        // bound while the pre-header supplies 5 as the lower bound — an inverted range (5, 0).
+        // The bounds simplification must not use an inverted range: doing so would wrongly
+        // fold `v12 = lt v0, u8 3` to `u1 1` because `upper_bound (0) <= constant (3)`.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u8 5, u32 0)
+          b1(v0: u8, v1: u32):
+            v6 = eq v0, u8 0
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v8 = eq v1, u32 2
+            jmpif v8 then: b4(), else: b5()
+          b4():
+            jmp b2()
+          b5():
+            v10 = add v1, u32 1
+            v12 = lt v0, u8 3
+            jmpif v12 then: b6(), else: b7()
+          b6():
+            jmp b8(u8 3)
+          b7():
+            jmp b8(u8 1)
+          b8(v2: u8):
+            v32 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v2, v32, u1 0)
+            jmp b1(v2, v10)
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }

@@ -16,7 +16,7 @@ warning: Unsafe block must have a safety comment above it
   │         ------ The comment must start with the "Safety: " word
   │
 
-error: Attempt to / with overflow
+error: Attempt to divide with overflow
    ┌─ src/main.nr:12:6
    │
 12 │     (a / -1)

@@ -68,9 +68,57 @@ jobs:
           git commit -m 'chore: Update root workspace acvm versions and lockfile'
           git push
 
+  update-stdlib-docs:
+    name: Update stdlib docs
+    needs: [release-please, update-acvm-workspace-package-versions]
+    if: ${{ needs.release-please.outputs.release-pr }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
+          token: ${{ secrets.NOIR_RELEASES_TOKEN }}
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: false
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Regenerate stdlib docs
+        working-directory: ./noir_stdlib
+        run: |
+          ../target/release/nargo doc
+          rm -rf ./docs
+          mv ./target/docs ./docs
+
+      - name: Configure git
+        run: |
+          git config --local user.name noirwhal
+          git config --local user.email tomfrench@aztecprotocol.com
+
+      - name: Commit updated stdlib docs
+        run: |
+          git add noir_stdlib/docs
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(docs): regenerate stdlib docs"
+            git push
+          fi
+
   update-docs:
     name: Update docs
-    needs: [release-please, update-acvm-workspace-package-versions]
+    needs: [release-please, update-acvm-workspace-package-versions, update-stdlib-docs]
     if: ${{ needs.release-please.outputs.release-pr }}
     runs-on: ubuntu-22.04
     permissions:
@@ -131,6 +179,7 @@ jobs:
     needs:
       - release-please
       - update-acvm-workspace-package-versions
+      - update-stdlib-docs
       - update-docs
 
     env:

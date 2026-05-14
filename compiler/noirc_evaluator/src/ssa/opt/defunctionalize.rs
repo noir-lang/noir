@@ -802,7 +802,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
 #[cfg(debug_assertions)]
 fn defunctionalize_pre_check(function: &Function) {
     visit_values_other_than_call_target(function, |value| match value {
-        Value::ForeignFunction(name) => panic!("foreign function as value: {name}"),
+        Value::ForeignFunction { name, .. } => panic!("foreign function as value: {name}"),
         Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
         _ => (),
     });

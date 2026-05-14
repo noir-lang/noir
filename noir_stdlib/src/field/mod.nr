@@ -295,22 +295,6 @@ pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
     __field_less_than(x, y)
 }
 
-// Convert a 32 byte array to a field element by modding
-pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
-    // Convert it to a field element
-    let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
-
-    for i in 0..16 {
-        high = high + (bytes32[15 - i] as Field) * v;
-        low = low + (bytes32[16 + 15 - i] as Field) * v;
-        v = v * 256;
-    }
-    // Abuse that a % p + b % p = (a + b) % p and that low < p
-    low + high * v
-}
-
 fn lt_fallback(x: Field, y: Field) -> bool {
     if is_unconstrained() {
         // Safety: unconstrained context
@@ -768,4 +752,11 @@ mod tests {
             assert_eq(p_bits, [false; 254]);
         }
     }
+
+    #[test(should_fail_with = "call to assert_max_bit_size")]
+    fn max_bit_size_too_large() {
+        let x: Field = 0x010000;
+        x.assert_max_bit_size::<16>();
+    }
+
 }

@@ -238,7 +238,9 @@ impl FunctionContext<'_> {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
-            ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
+            ast::Definition::Oracle { name, pure } => {
+                self.builder.import_foreign_function(name, *pure).into()
+            }
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
                 match self.builder.import_intrinsic(name) {
                     Some(builtin) => builtin.into(),
@@ -702,7 +704,9 @@ impl FunctionContext<'_> {
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
             if end_constant.into_numeric_constant().0.to_u128() < max_value {
-                let end_constant_plus_one = end_constant.inc();
+                let end_constant_plus_one = end_constant.inc().expect(
+                    "Expected to be able to increment end_constant as it's less than max_value",
+                );
                 end_index = self
                     .builder
                     .numeric_constant(end_constant_plus_one.into_numeric_constant().0, index_type);
@@ -1671,5 +1675,5 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
 
 /// Return whether the expression refers to a foreign function.
 fn is_oracle_func(expr: &Expression) -> bool {
-    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
 }

@@ -476,6 +476,20 @@ mod tests {
         drop(target_dir);
     }
 
+    fn nargo_test_comptime(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_success(nargo);
+        drop(target_dir);
+    }
+
+    fn nargo_test_comptime_expect_failure(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_failure(nargo);
+        drop(target_dir);
+    }
+
     fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
         let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force").arg("--force-brillig");
