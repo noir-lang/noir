@@ -54,7 +54,8 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        // Run mem2reg until we stop making progress. In an SSA like this one:
+        // Run mem2reg while we successfully removed at least one allocate instruction and there
+        // are at least one more that couldn't be removed. In an SSA like this one:
         //
         // ```
         // v0 = allocate -> &mut u16
@@ -66,7 +67,8 @@ impl Function {
         // - v0 can't be optimized out because it's stored in v2
         // - v2 can and will be optimized out
         // - now running it again will lead to optimizing out v0, etc.
-        loop {
+        let mut keep_running = true;
+        while keep_running {
             let cfg = ControlFlowGraph::with_function(self);
             let post_order = PostOrder::with_cfg(&cfg);
             let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -78,7 +80,7 @@ impl Function {
             // instruction result. These are iterated on in key order when adding block
             // parameters and terminator arguments, so the maps must have a deterministic ordering
             // for arguments to line up with parameters.
-            let (variables, def_sites) =
+            let (variables, def_sites, has_ineligible_variables) =
                 collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
             if variables.is_empty() {
@@ -118,6 +120,8 @@ impl Function {
                 &cfg,
             );
             commit(&mut inserter, &variables, blocks);
+
+            keep_running = has_ineligible_variables;
         }
     }
 }
@@ -437,11 +441,13 @@ fn abstract_interpret_block(
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
-) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>) {
+) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, bool) {
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
     // Map each variable to the set of blocks that contain stores to it
     let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
+    // Whether there's any allocate that can't be optimized out
+    let mut has_ineligible_variables = false;
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
@@ -459,7 +465,9 @@ fn collect_eligible_variables_and_def_sites(
                 Instruction::Load { .. } => (),
                 // Storing to an address is fine, but storing an address prevents optimizing it out.
                 Instruction::Store { address, value } => {
-                    variables.remove(value);
+                    if variables.remove(value).is_some() {
+                        has_ineligible_variables = true;
+                    }
 
                     if let Some(decl_block) = variables.get(address) {
                         let is_decl_block = *decl_block == block_id;
@@ -471,13 +479,17 @@ fn collect_eligible_variables_and_def_sites(
                 }
                 // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
                 _ => instruction.for_each_value(|value| {
-                    variables.remove(&value);
+                    if variables.remove(&value).is_some() {
+                        has_ineligible_variables = true;
+                    }
                 }),
             }
         }
 
         block.unwrap_terminator().for_each_value(|value| {
-            variables.remove(&value);
+            if variables.remove(&value).is_some() {
+                has_ineligible_variables = true;
+            }
         });
     }
 
@@ -485,9 +497,16 @@ fn collect_eligible_variables_and_def_sites(
     // `variables`, so `variables` is the authoritative set of eligible addresses. Both retains
     // below prune any stale entries left by first-class uses that removed an address from
     // `variables` without clearing `def_sites`.
-    variables.retain(|address, _| variables_with_stores_in_decl_block.contains(address));
+    variables.retain(|address, _| {
+        if variables_with_stores_in_decl_block.contains(address) {
+            true
+        } else {
+            has_ineligible_variables = true;
+            false
+        }
+    });
     def_sites.retain(|address, _| variables.contains_key(address));
-    (variables, def_sites)
+    (variables, def_sites, has_ineligible_variables)
 }
 
 /// Commit to all changes made by the pass:
