@@ -715,7 +715,10 @@ impl<'f> LoopInvariantContext<'f> {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // RefCount for ArrayGet is managed by the ownership analysis.
+                // RefCount for ArrayGet is managed by the ownership analysis, e.g.
+                // for multi dimensional arrays, `let aij = a[i][j];` would make sure
+                // it only inserts clones at the last get; we shouldn't need more
+                // increments here.
                 _ => false,
             }
         } else {
