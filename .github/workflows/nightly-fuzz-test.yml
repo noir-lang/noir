@@ -45,7 +45,13 @@ jobs:
       - name: Extract fuzzer seeds
         if: failure()
         id: seeds
-        run: ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
+        shell: bash
+        run: |
+          ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
+          seed_count=$(wc -l < seeds.txt | tr -d ' ')
+          first_seeds=$(head -n 3 seeds.txt | paste -sd, -)
+          echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
+          echo "first_seeds=${first_seeds}" >> "$GITHUB_OUTPUT"
 
       - name: Upload fuzz failure artifact
         if: failure()

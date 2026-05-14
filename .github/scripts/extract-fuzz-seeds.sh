@@ -9,10 +9,6 @@ set -eu
 #
 # Recognises both the arbtest panic line (e.g. "    Seed: 0x6819c61400001000")
 # and the explicit repro env var (e.g. "NOIR_AST_FUZZER_SEED=0x6819c61400001000").
-#
-# When run inside GitHub Actions ($GITHUB_OUTPUT is set), also exports
-# step outputs `seed_count` and `first_seeds` (top three, comma-separated).
-# When run locally, prints the same summary to stdout.
 
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     echo "Usage: $0 <fuzz-output.log> [output-dir]" >&2
@@ -42,16 +38,3 @@ awk '
         print current "\t" seed
     }
 ' "$log_file" > "$by_test_file" || true
-
-seed_count=$(wc -l < "$seeds_file" | tr -d ' ')
-first_seeds=$(head -n 3 "$seeds_file" | paste -sd, -)
-
-if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    {
-        echo "seed_count=${seed_count}"
-        echo "first_seeds=${first_seeds}"
-    } >> "$GITHUB_OUTPUT"
-else
-    echo "seed_count=${seed_count}"
-    echo "first_seeds=${first_seeds}"
-fi
