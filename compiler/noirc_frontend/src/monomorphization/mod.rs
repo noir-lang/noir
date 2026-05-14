@@ -1624,9 +1624,20 @@ impl<'interner> Monomorphizer<'interner> {
                 acc = Self::type_complexity_inner(elem_typ, acc);
                 Self::type_complexity_inner(len, acc)
             }
-            HirType::DataType(_def, generics) => {
+            HirType::DataType(def, generics) => {
                 for generic in generics {
                     acc = Self::type_complexity_inner(generic, acc);
+                }
+                if let Some(fields) = def.borrow().get_fields(generics) {
+                    for (_, field, _) in fields {
+                        acc = Self::type_complexity_inner(&field, acc);
+                    }
+                } else if let Some(variants) = def.borrow().get_variants(generics) {
+                    for (_, fields) in variants {
+                        for field in fields {
+                            acc = Self::type_complexity_inner(&field, acc);
+                        }
+                    }
                 }
                 acc
             }
@@ -1638,7 +1649,9 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::type_complexity_inner(env, acc)
             }
             HirType::Reference(inner, _) => Self::type_complexity_inner(inner, acc),
-            HirType::Alias(_, generics) => {
+            HirType::Alias(alias, generics) => {
+                let typ = alias.borrow().get_type(generics);
+                acc = Self::type_complexity_inner(&typ, acc);
                 for generic in generics {
                     acc = Self::type_complexity_inner(generic, acc);
                 }
