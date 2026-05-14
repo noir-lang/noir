@@ -1586,7 +1586,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// This is roughly the number of "nodes" in the type tree.
     ///
     /// To prevent stack overflow on deeply nested types, we stop recursion when
-    /// accumulated complexity exceeds MAX_TYPE_COMPLEXITY.
+    /// accumulated complexity exceeds [MAX_TYPE_COMPLEXITY].
     fn error_on_complex_type(
         typ: &HirType,
         location: &Location,
@@ -1602,50 +1602,47 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn type_complexity_inner(typ: &HirType, accumulated: usize) -> usize {
+    fn type_complexity_inner(typ: &HirType, mut accumulated: usize) -> usize {
         // Early return if accumulated complexity exceeds the limit,
         // this avoids stack overflow due to the recursive nature of this computation
         if accumulated > MAX_TYPE_COMPLEXITY {
             return accumulated + 1;
         }
 
+        // Every type increases it by one, even if seen already.
+        accumulated += 1;
+
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
             HirType::Tuple(fields) => {
-                let mut complexity = accumulated + 1;
                 for field in fields {
-                    complexity = Self::type_complexity_inner(field, complexity);
+                    accumulated = Self::type_complexity_inner(field, accumulated);
                 }
-                complexity
+                accumulated
             }
-            HirType::Array(elem_typ, _len) => {
-                Self::type_complexity_inner(elem_typ, accumulated + 1)
-            }
+            HirType::Array(elem_typ, _len) => Self::type_complexity_inner(elem_typ, accumulated),
             HirType::DataType(_def, generics) => {
-                let mut complexity = accumulated + 1;
                 for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                    accumulated = Self::type_complexity_inner(generic, accumulated);
                 }
-                complexity
+                accumulated
             }
             HirType::Function(args, ret, env, _) => {
-                let mut complexity = accumulated + 1;
                 for arg in args {
-                    complexity = Self::type_complexity_inner(arg, complexity);
+                    accumulated = Self::type_complexity_inner(arg, accumulated);
                 }
-                complexity = Self::type_complexity_inner(ret, complexity);
-                Self::type_complexity_inner(env, complexity)
+                accumulated = Self::type_complexity_inner(ret, accumulated);
+                Self::type_complexity_inner(env, accumulated)
             }
-            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated + 1),
+            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated),
             HirType::Alias(_, generics) => {
-                let mut complexity = accumulated + 1;
                 for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                    accumulated = Self::type_complexity_inner(generic, accumulated);
                 }
-                complexity
+                accumulated
             }
             // Simple types
-            _ => accumulated + 1,
+            _ => accumulated,
         }
     }
 
