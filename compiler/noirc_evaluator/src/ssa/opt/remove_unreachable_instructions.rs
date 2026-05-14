@@ -1271,6 +1271,46 @@ mod tests {
         "#);
     }
 
+    /// Regression test for an ACIR codegen crash where dead `Allocate`/`Store`
+    /// instructions preceding an always-failing `constrain` survived all SSA passes
+    /// and reached ACIR generation, which raises `UnknownReference` on `Allocate`.
+    ///
+    /// Reproduced via the AST fuzzer smoke test with seed `0x95b8eab400100000`.
+    /// The corresponding Noir source is roughly:
+    /// ```text
+    /// fn main() -> pub Field {
+    ///     let mut q: &mut [&mut &mut u16; 1] = &mut [&mut &mut 1_u16];
+    ///     let r: [Field] = &[];
+    ///     let i: u32 = 1;
+    ///     r[i]
+    /// }
+    /// ```
+    /// which lowers to the SSA below before ACIR-gen.
+    #[test]
+    fn removes_dead_allocate_before_unreachable_terminator() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u16
+            store u16 1 at v0
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u16
+            store u16 1 at v0
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#);
+    }
+
     #[test]
     fn removes_failing_array_access_when_predicate_is_one() {
         let src = "
