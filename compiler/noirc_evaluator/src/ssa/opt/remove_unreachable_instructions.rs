@@ -12,13 +12,19 @@
 //! Given an SSA like this:
 //!
 //! ```ssa
+//! v0 = allocate -> &mut Field
+//! store Field 0 at v0
 //! constrain u1 0 == u1 1
 //! v1 = load v0 -> Field
 //! return v1
 //! ```
 //!
 //! Because the constrain is guaranteed to fail, every instruction after it is removed
-//! and the terminator is replaced with `unreachable`:
+//! and the terminator is replaced with `unreachable`. The block's preceding
+//! instructions are then also pruned by a block-local dead-code elimination, so
+//! that side-effect-free computation (here the `allocate`/`store` pair) does not
+//! reach ACIR codegen, which would reject the `Allocate` with
+//! `RuntimeError::UnknownReference`:
 //!
 //! ```ssa
 //! constrain u1 0 == u1 1
@@ -138,7 +144,8 @@ use crate::{
             dfg::DataFlowGraph,
             function::{Function, FunctionId},
             instruction::{
-                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
+                TerminatorInstruction,
                 binary::{BinaryEvaluationResult, eval_constant_binary_op},
             },
             types::{NumericType, Type},
@@ -398,6 +405,90 @@ impl Function {
                 unreachable_predicates.insert(context.enable_side_effects);
             }
         });
+
+        self.strip_dead_instructions_in_unreachable_blocks();
+    }
+
+    /// In blocks whose terminator is `Unreachable`, any reference allocation
+    /// or array materialization preceding the failing constraint is
+    /// unobservable: the block cannot fall through and no later block can
+    /// reach values defined here (a block ending in `Unreachable` has no
+    /// successors, so values it defines can only be used within itself or
+    /// via the function-level databus).
+    ///
+    /// We walk those blocks backwards and drop `Allocate`/`Store`/
+    /// `MakeArray`/`IncrementRc`/`DecrementRc` instructions whose results
+    /// are not consumed by any retained instruction (or, for `Store`,
+    /// whose address is no longer read). This prevents `Allocate` chains
+    /// from reaching ACIR generation, which would otherwise raise
+    /// `RuntimeError::UnknownReference`. Constraints, range checks, calls,
+    /// arithmetic, casts, and any other constraint-contributing
+    /// instructions are deliberately retained so that the set and order
+    /// of constraints emitted to ACIR is unchanged.
+    ///
+    /// `ValueId`s referenced by the function's databus (call data, return
+    /// data) are seeded into the live set so their definitions survive
+    /// even if the block has no in-block consumer.
+    fn strip_dead_instructions_in_unreachable_blocks(&mut self) {
+        let mut databus_used: HashSet<ValueId> = HashSet::new();
+        let _ = self.dfg.data_bus.map_values(|v| {
+            databus_used.insert(v);
+            v
+        });
+
+        for block_id in self.reachable_blocks() {
+            let is_unreachable = matches!(
+                self.dfg[block_id].terminator(),
+                Some(TerminatorInstruction::Unreachable { .. })
+            );
+            if !is_unreachable {
+                continue;
+            }
+
+            let instruction_ids = self.dfg[block_id].take_instructions();
+            let mut used: HashSet<ValueId> = databus_used.clone();
+            let mut kept_rev: Vec<InstructionId> = Vec::new();
+
+            for instruction_id in instruction_ids.into_iter().rev() {
+                let instruction = &self.dfg[instruction_id];
+
+                // Only drop instructions whose only effect is to produce a
+                // reference, an array value, or RC bookkeeping. Constraints,
+                // range checks, calls, arithmetic, and other constraint-
+                // contributing instructions are retained so that the set
+                // and order of constraints emitted to ACIR is unchanged.
+                let droppable = matches!(
+                    instruction,
+                    Instruction::Allocate
+                        | Instruction::Store { .. }
+                        | Instruction::MakeArray { .. }
+                        | Instruction::IncrementRc { .. }
+                        | Instruction::DecrementRc { .. }
+                );
+
+                let store_addr_used = if let Instruction::Store { address, .. } = instruction {
+                    used.contains(address)
+                } else {
+                    false
+                };
+
+                let has_used_result = self
+                    .dfg
+                    .instruction_results(instruction_id)
+                    .iter()
+                    .any(|r| used.contains(r));
+
+                if !droppable || has_used_result || store_addr_used {
+                    instruction.for_each_value(|v| {
+                        used.insert(v);
+                    });
+                    kept_rev.push(instruction_id);
+                }
+            }
+
+            kept_rev.reverse();
+            *self.dfg[block_id].instructions_mut() = kept_rev;
+        }
     }
 }
 
@@ -653,7 +744,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -678,7 +768,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 != u1 0, "Index out of bounds"
             unreachable
         }
@@ -936,7 +1025,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
-            v4 = make_array [u1 1, u32 2, u64 3] : [(u1, u32, u64)]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -967,7 +1055,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -1000,7 +1087,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -1303,8 +1389,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u16
-            store u16 1 at v0
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -1333,9 +1417,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8
-            store u8 0 at v0
-            v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -1440,7 +1521,6 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
-            v1 = make_array [] : [u32]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
