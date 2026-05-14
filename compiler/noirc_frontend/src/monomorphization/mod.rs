@@ -1629,7 +1629,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             let typ = typ.follow_bindings_shallow();
             match typ.as_ref() {
-                HirType::Tuple(fields) => go_fold(fields, acc, ctx.recur()),
+                HirType::Tuple(fields) => go_fold(fields, acc, ctx),
                 HirType::Array(elem_typ, len) => {
                     go_fold([elem_typ.as_ref(), len.as_ref()], acc, ctx)
                 }
