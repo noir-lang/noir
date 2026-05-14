@@ -3795,9 +3795,9 @@ mod tests {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            jmp b1(u32 0, u1 1, u32 50)
+            jmp b1(u32 0, u1 1, u32 1)
           b1(v0: u32, v1: u1, v2: u32):
-            v15 = lt v0, u32 3
+            v15 = lt v0, u32 2
             jmpif v15 then: b2(), else: b3()
           b2():
             v16 = eq v2, u32 0
@@ -3806,61 +3806,17 @@ mod tests {
             return v1
           b4(v3: u32):
             v20 = eq v3, u32 0
-            jmpif v20 then: b6(v3), else: b7()
+            jmpif v20 then: b13(v3), else: b13(v3)
           b5():
             v18 = sub v2, u32 1
             jmp b8(u1 0)
-          b6(v4: u32):
-            v22 = eq v4, u32 0
-            jmpif v22 then: b9(v4), else: b10()
-          b7():
-            v21 = sub v3, u32 1
-            jmp b11(u1 0)
           b8(v5: u1):
             jmpif v1 then: b12(), else: b4(v18)
-          b9(v6: u32):
-            v24 = eq v6, u32 0
-            jmpif v24 then: b13(v6), else: b14()
-          b10():
-            v23 = sub v4, u32 1
-            jmp b15(u1 0)
-          b11(v7: u1):
-            jmpif v1 then: b16(), else: b6(v21)
           b12():
-            jmpif v5 then: b17(), else: b18()
+            jmpif v5 then: b4(v18), else: b8(u1 1)
           b13(v8: u32):
-            v26 = eq v0, u32 0
             v27 = unchecked_add v0, u32 1
-            jmp b1(v27, v26, v8)
-          b14():
-            v25 = sub v6, u32 1
-            jmp b19(u1 0)
-          b15(v9: u1):
-            jmpif v1 then: b20(), else: b9(v23)
-          b16():
-            jmpif v7 then: b21(), else: b22()
-          b17():
-            jmp b4(v18)
-          b18():
-            jmp b8(u1 1)
-          b19(v10: u1):
-            jmpif v1 then: b23(), else: b13(v25)
-          b20():
-            jmpif v9 then: b24(), else: b25()
-          b21():
-            jmp b6(v21)
-          b22():
-            jmp b11(u1 1)
-          b23():
-            jmpif v10 then: b26(), else: b27()
-          b24():
-            jmp b9(v23)
-          b25():
-            jmp b15(u1 1)
-          b26():
-            jmp b13(v25)
-          b27():
-            jmp b19(u1 1)
+            jmp b1(v27, u1 0, v8)
         }
         ";
 
@@ -3871,122 +3827,22 @@ mod tests {
 
         let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, 0).unwrap();
 
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u1 0)
           b1(v0: u1):
-            jmpif v0 then: b2(), else: b3()
-          b2():
-            jmp b4()
-          b3():
-            jmp b1(u1 1)
-          b4():
-            jmp b5(u1 0)
-          b5(v1: u1):
-            jmpif v1 then: b6(), else: b7()
-          b6():
-            jmp b8(u32 48)
-          b7():
-            jmp b5(u1 1)
-          b8(v2: u32):
-            v23 = eq v2, u32 0
-            jmpif v23 then: b9(v2), else: b10()
-          b9(v3: u32):
-            v26 = eq v3, u32 0
-            jmpif v26 then: b11(v3), else: b12()
-          b10():
-            v25 = sub v2, u32 1
-            jmp b13(u1 0)
-          b11(v4: u32):
-            v28 = eq v4, u32 0
-            jmpif v28 then: b14(v4), else: b15()
-          b12():
-            v27 = sub v3, u32 1
-            jmp b16(u1 0)
-          b13(v5: u1):
-            jmpif v5 then: b17(), else: b18()
-          b14(v6: u32):
-            v30 = eq v6, u32 0
-            jmpif v30 then: b19(v6), else: b20()
-          b15():
-            v29 = sub v4, u32 1
-            jmp b21(u1 0)
-          b16(v7: u1):
-            jmpif v7 then: b22(), else: b23()
-          b17():
-            jmp b9(v25)
-          b18():
-            jmp b13(u1 1)
-          b19(v8: u32):
-            v32 = eq v8, u32 0
-            jmpif v32 then: b24(v8), else: b25()
-          b20():
-            v31 = sub v6, u32 1
-            jmp b26(u1 0)
-          b21(v9: u1):
-            jmpif v9 then: b27(), else: b28()
-          b22():
-            jmp b11(v27)
-          b23():
-            jmp b16(u1 1)
-          b24(v10: u32):
-            v34 = eq v10, u32 0
-            jmpif v34 then: b29(v10), else: b30()
-          b25():
-            v33 = sub v8, u32 1
-            jmp b31(u1 0)
-          b26(v11: u1):
-            jmpif v11 then: b32(), else: b33()
-          b27():
-            jmp b14(v29)
-          b28():
-            jmp b21(u1 1)
-          b29(v12: u32):
-            v36 = eq v12, u32 0
-            jmpif v36 then: b34(v12), else: b35()
-          b30():
-            v35 = sub v10, u32 1
-            jmp b36(u1 0)
-          b31(v13: u1):
-            jmpif v13 then: b37(), else: b38()
-          b32():
-            jmp b19(v31)
-          b33():
-            jmp b26(u1 1)
-          b34(v14: u32):
-            v38 = eq v14, u32 0
-            jmpif v38 then: b39(v14), else: b40()
-          b35():
-            v37 = sub v12, u32 1
-            jmp b34(v37)
-          b36(v15: u1):
-            jmpif v15 then: b41(), else: b42()
-          b37():
-            jmp b24(v33)
-          b38():
-            jmp b31(u1 1)
-          b39(v16: u32):
-            v40 = eq v16, u32 0
-            jmpif v40 then: b43(v16), else: b44()
-          b40():
-            v39 = sub v14, u32 1
-            jmp b39(v39)
-          b41():
-            jmp b29(v35)
-          b42():
-            jmp b36(u1 1)
-          b43(v17: u32):
-            v42 = eq v17, u32 0
-            jmpif v42 then: b45(v17), else: b46()
-          b44():
-            v41 = sub v16, u32 1
-            jmp b43(v41)
-          b45(v18: u32):
+            jmpif v0 then: b2(u32 0), else: b1(u1 1)
+          b2(v1: u32):
+            v6 = eq v1, u32 0
+            v7 = eq v1, u32 0
+            jmpif v7 then: b3(v1), else: b4()
+          b3(v2: u32):
+            v10 = eq v2, u32 0
             return u1 0
-          b46():
-            v43 = sub v17, u32 1
-            jmp b45(v43)
+          b4():
+            v9 = sub v1, u32 1
+            jmp b3(v9)
         }
         ");
     }
