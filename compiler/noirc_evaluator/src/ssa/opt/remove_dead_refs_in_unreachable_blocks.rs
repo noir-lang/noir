@@ -36,21 +36,29 @@
 //! constraint-contributing instruction are deliberately retained, so the
 //! set and order of constraints emitted to ACIR is unchanged.
 //!
-//! ## Aliasing / fail-secure invariants
+//! ## Aliasing
+//!
+//! `Call`, `ArrayGet`, `ArraySet`, and `Load` can all return values whose
+//! type contains a reference, and that reference can alias something this
+//! pass cannot track on its own. To keep aliasing-sensitive stores live
+//! through the backward sweep, every kept (non-droppable) instruction's
+//! reference-typed results are seeded into the live set up front. A
+//! subsequent `Store` whose address is such a returned reference then
+//! satisfies the `store_addr_used` check and is preserved.
+//!
+//! `make_array` of references is only dangerous through its consumers, so
+//! the `make_array` itself is safe to drop when its result is unused —
+//! the seeding above fires on the consumer (`array_get`/`array_set`/etc.)
+//! that actually surfaces the aliased reference.
+//!
+//! ## Fail-secure invariants
 //!
 //! `flatten_cfg`, `Remove IfElse`, and the major inlining passes have all
 //! run before [`Ssa::remove_unreachable_instructions`] (and therefore
-//! before this pass). The combinations below would invalidate the
-//! observability argument above, so they are treated as ICEs rather than
-//! silently mishandled:
-//!
-//! - `Instruction::IfElse` — should have been lowered away.
-//! - `Instruction::Call` whose return type contains a reference — would
-//!   surface a value that can alias caller-visible memory, which this
-//!   pass has no way to reason about.
-//!
-//! Both conditions are checked before any removal happens; the pass panics
-//! at the first offender.
+//! before this pass). `Instruction::IfElse` reaching here would mean the
+//! pipeline-ordering invariant was violated and aliasing through the
+//! merged branches would be invisible to the seeding above, so it ICEs
+//! before any removal happens.
 use im::HashSet;
 
 use crate::ssa::{
@@ -90,24 +98,40 @@ impl Function {
 
             let instruction_ids = self.dfg[block_id].take_instructions();
 
+            // Fail-secure: `IfElse` must already have been lowered before this
+            // pass; encountering one here means the pipeline-ordering
+            // invariant was violated.
             for &instruction_id in &instruction_ids {
-                self.assert_unreachable_block_invariants(instruction_id);
+                if matches!(self.dfg[instruction_id], Instruction::IfElse { .. }) {
+                    panic!(
+                        "remove_dead_refs_in_unreachable_blocks: encountered `IfElse` in a block \
+                         whose terminator is `Unreachable`. The `Remove IfElse` pass is expected \
+                         to run before this one; please ensure the SSA pipeline order is preserved."
+                    );
+                }
             }
 
+            // Aliasing: reference-typed results of non-droppable instructions
+            // (`Call`/`ArrayGet`/`ArraySet`/`Load`/…) can alias something
+            // outside this pass's view. Seed those into the live set so any
+            // `Store` that targets one survives the backward sweep below.
             let mut used: HashSet<ValueId> = databus_used.clone();
-            let mut kept_rev: Vec<InstructionId> = Vec::new();
+            for &instruction_id in &instruction_ids {
+                if is_droppable(&self.dfg[instruction_id]) {
+                    continue;
+                }
+                for &result in self.dfg.instruction_results(instruction_id) {
+                    if self.dfg.type_of_value(result).contains_reference() {
+                        used.insert(result);
+                    }
+                }
+            }
 
+            let mut kept_rev: Vec<InstructionId> = Vec::new();
             for instruction_id in instruction_ids.into_iter().rev() {
                 let instruction = &self.dfg[instruction_id];
 
-                let droppable = matches!(
-                    instruction,
-                    Instruction::Allocate
-                        | Instruction::Store { .. }
-                        | Instruction::MakeArray { .. }
-                        | Instruction::IncrementRc { .. }
-                        | Instruction::DecrementRc { .. }
-                );
+                let droppable = is_droppable(instruction);
 
                 let store_addr_used = if let Instruction::Store { address, .. } = instruction {
                     used.contains(address)
@@ -133,33 +157,21 @@ impl Function {
             *self.dfg[block_id].instructions_mut() = kept_rev;
         }
     }
+}
 
-    fn assert_unreachable_block_invariants(&self, instruction_id: InstructionId) {
-        let instruction = &self.dfg[instruction_id];
-        match instruction {
-            Instruction::IfElse { .. } => {
-                panic!(
-                    "remove_dead_refs_in_unreachable_blocks: encountered `IfElse` in a block \
-                     whose terminator is `Unreachable`. The `Remove IfElse` pass is expected to \
-                     run before this one; please ensure the SSA pipeline order is preserved."
-                )
-            }
-            Instruction::Call { .. } => {
-                let results = self.dfg.instruction_results(instruction_id);
-                for &result in results {
-                    if self.dfg.type_of_value(result).contains_reference() {
-                        panic!(
-                            "remove_dead_refs_in_unreachable_blocks: encountered `Call` returning \
-                             a reference-typed result in an `Unreachable` block. This pass \
-                             cannot reason about aliasing through caller-visible memory \
-                             surfaced by such a call."
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+/// Instructions whose only effect is to produce a reference, an array
+/// value, or RC bookkeeping. These are the only candidates for removal in
+/// an `Unreachable`-terminated block — everything else is retained so the
+/// set of constraints emitted to ACIR is unchanged.
+fn is_droppable(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::Allocate
+            | Instruction::Store { .. }
+            | Instruction::MakeArray { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+    )
 }
 
 #[cfg(test)]
@@ -303,17 +315,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "encountered `Call` returning a reference-typed result in an `Unreachable` block"
-    )]
-    fn rejects_call_returning_reference_in_unreachable_block() {
-        // A `Call` returning a `&mut T` would surface aliasing this pass
-        // cannot reason about; treat it as an ICE.
+    fn preserves_store_through_call_returned_reference() {
+        // A `Call` returning a `&mut T` produces a reference that can alias
+        // caller-visible memory. A subsequent `Store` through that returned
+        // reference must survive the backward sweep so the aliasing effect
+        // is not silently dropped.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v0 = call f1() -> &mut u8
-            store u8 0 at v0
+            store u8 1 at v0
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
@@ -324,14 +335,77 @@ mod tests {
             return v0
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.remove_dead_refs_in_unreachable_blocks();
+        assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
+    }
+
+    #[test]
+    fn preserves_store_through_array_get_returned_reference() {
+        // An `ArrayGet` whose result is `&mut T` aliases the reference
+        // stored into the source array. The `Store` through that returned
+        // reference must be kept; consequently the whole producing chain
+        // (allocate / store / make_array / array_get) is kept too.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            v2 = make_array [v0] : [&mut u8; 1]
+            v3 = array_get v2, index u32 0 -> &mut u8
+            store u8 1 at v3
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
+    }
+
+    #[test]
+    fn preserves_store_through_array_set_returned_array_of_references() {
+        // An `ArraySet` on an array of references produces a new array
+        // that still holds aliasing references. The new array's elements
+        // are seeded as live; the chain producing them must survive.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            v2 = allocate -> &mut u8
+            store u8 0 at v2
+            v4 = make_array [v0, v2] : [&mut u8; 2]
+            v5 = array_set v4, index u32 0, value v2
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
+    }
+
+    #[test]
+    fn preserves_store_through_load_returned_reference() {
+        // `load v_outer -> &mut u8` hands out a reference that aliases
+        // whatever was last stored to `v_outer`. The subsequent `Store`
+        // through that loaded reference must survive — together with the
+        // outer/inner allocate+store chain that produced it.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            v1 = allocate -> &mut &mut u8
+            store v0 at v1
+            v2 = load v1 -> &mut u8
+            store u8 1 at v2
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
     }
 
     #[test]
     fn accepts_call_with_non_reference_result_in_unreachable_block() {
-        // The fail-secure guard must not fire for non-reference call
-        // results.
+        // Sanity check: a `Call` returning a non-reference value flows
+        // through the pass unchanged.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -342,6 +416,27 @@ mod tests {
         acir(inline) predicate_pure fn helper f1 {
           b0():
             return u8 0
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
+    }
+
+    #[test]
+    fn accepts_array_and_load_ops_with_non_reference_results_in_unreachable_block() {
+        // Sanity check: `ArrayGet`/`ArraySet`/`Load` returning plain
+        // numeric values flow through the pass unchanged.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 7 at v0
+            v1 = load v0 -> u8
+            v2 = make_array [u8 1, u8 2] : [u8; 2]
+            v3 = array_get v2, index u32 0 -> u8
+            v4 = array_set v2, index u32 0, value u8 9
+            constrain v1 == u8 7, "loaded value"
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::remove_dead_refs_in_unreachable_blocks);
