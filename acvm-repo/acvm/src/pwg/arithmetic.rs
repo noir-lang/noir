@@ -121,13 +121,13 @@ impl ExpressionSolver {
         let opcode = &ExpressionSolver::evaluate(opcode, initial_witness);
 
         // Evaluate multiplication terms
-        let mul_result = ExpressionSolver::solve_mul_term(&opcode.mul_terms, initial_witness);
+        let mul_result = ExpressionSolver::mul_term_status(&opcode.mul_terms);
 
         // If we can't solve the multiplication terms, try again by combining multiplication terms
         // with the same witnesses to see if they all cancel out.
         let mul_result = if mul_result.is_err() {
             let mul_terms = ExpressionSolver::combine_mul_terms(&opcode.mul_terms);
-            ExpressionSolver::solve_mul_term(&mul_terms, initial_witness)
+            ExpressionSolver::mul_term_status(&mul_terms)
         } else {
             mul_result
         };
@@ -139,8 +139,7 @@ impl ExpressionSolver {
         })?;
 
         // Evaluate the fan-in terms
-        let opcode_status =
-            ExpressionSolver::solve_fan_in_term(&opcode.linear_combinations, initial_witness);
+        let opcode_status = ExpressionSolver::fan_in_status(&opcode.linear_combinations);
 
         // If we can solve the multiplication terms but not the linear terms,
         // try again by combining linear terms with the same witness.
@@ -150,7 +149,7 @@ impl ExpressionSolver {
         ) {
             let linear_combinations =
                 ExpressionSolver::combine_linear_terms(&opcode.linear_combinations);
-            ExpressionSolver::solve_fan_in_term(&linear_combinations, initial_witness)
+            ExpressionSolver::fan_in_status(&linear_combinations)
         } else {
             opcode_status
         };
@@ -194,20 +193,13 @@ impl ExpressionSolver {
         }
     }
 
-    /// Try to reduce the multiplication terms of the given expression's mul terms to a known value or to a linear term,
-    /// using the provided witness mapping.
-    /// If there are 2 or more multiplication terms it returns the OpcodeUnsolvable error.
-    /// If no witnesses value is in the provided 'witness_assignments' map,
-    /// it returns MulTerm::TooManyUnknowns
-    fn solve_mul_term<F: AcirField>(
+    /// Indicates the 'solved' status of the mul term, after partial evaluation.
+    fn mul_term_status<F: AcirField>(
         mul_terms: &[(F, Witness, Witness)],
-        witness_assignments: &WitnessMap<F>,
     ) -> Result<MulTerm<F>, OpcodeStatus<F>> {
-        // First note that the mul term can only contain one/zero term,
-        // e.g. that it has been optimized, or else we're returning OpcodeUnsolvable
         match mul_terms.len() {
             0 => Ok(MulTerm::Solved(F::zero())),
-            1 => Ok(ExpressionSolver::solve_mul_term_helper(&mul_terms[0], witness_assignments)),
+            1 => Ok(MulTerm::TooManyUnknowns),
             _ => Err(OpcodeStatus::OpcodeUnsolvable),
         }
     }
@@ -246,41 +238,15 @@ impl ExpressionSolver {
         w_l_value.map(|a| *q_l * *a)
     }
 
-    /// Returns the summation of all of the variables, plus the unknown variable
-    /// Returns [`OpcodeStatus::OpcodeUnsolvable`], if there is more than one unknown variable
-    pub(super) fn solve_fan_in_term<F: AcirField>(
+    /// Indicate the 'solved' status of the linear terms after partial evaluation.
+    pub(super) fn fan_in_status<F: AcirField>(
         linear_combinations: &[(F, Witness)],
-        witness_assignments: &WitnessMap<F>,
     ) -> OpcodeStatus<F> {
-        // If the fan-in has more than 0 num_unknowns:
-
-        // This is the variable that we want to assign the value to
-        let mut unknown_variable = (F::zero(), Witness::default());
-        let mut num_unknowns = 0;
-        // This is the sum of all of the known variables
-        let mut result = F::zero();
-
-        for term in linear_combinations {
-            let value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
-            match value {
-                Some(a) => result += a,
-                None => {
-                    unknown_variable = *term;
-                    num_unknowns += 1;
-                }
-            }
-
-            // If we have more than 1 unknown, then we cannot solve this equation
-            if num_unknowns > 1 {
-                return OpcodeStatus::OpcodeUnsolvable;
-            }
+        match linear_combinations.len() {
+            0 => OpcodeStatus::OpcodeSatisfied(F::zero()),
+            1 => OpcodeStatus::OpcodeSolvable(F::zero(), linear_combinations[0]),
+            _ => OpcodeStatus::OpcodeUnsolvable,
         }
-
-        if num_unknowns == 0 {
-            return OpcodeStatus::OpcodeSatisfied(result);
-        }
-
-        OpcodeStatus::OpcodeSolvable(result, unknown_variable)
     }
 
     // Partially evaluate the opcode using the known witnesses

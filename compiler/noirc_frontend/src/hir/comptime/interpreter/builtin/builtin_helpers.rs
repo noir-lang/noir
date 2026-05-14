@@ -290,6 +290,13 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
+pub(crate) fn get_location((value, location): (Value, Location)) -> IResult<Location> {
+    match value {
+        Value::Location(loc) => Ok(loc),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Location), location),
+    }
+}
+
 pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => Ok(id),
@@ -612,6 +619,7 @@ fn secondary_attribute_name(
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
         SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
         SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        SecondaryAttributeKind::Pure => Some("pure".to_string()),
     }
 }
 
@@ -754,4 +762,25 @@ pub(crate) fn fragments_to_string(
         }
     }
     result
+}
+
+/// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
+pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<Option<Value>> {
+    let Value::Struct(fields, _) = value else {
+        return Err(InterpreterError::TypeMismatch {
+            expected: "Option<_>".to_string(),
+            actual: Type::Error,
+            location: value_location,
+        });
+    };
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
+        panic!("Expected `_is_some` field of Option to be a boolean");
+    };
+    if !is_some {
+        return Ok(None);
+    }
+    let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
+    let value = value.borrow().clone();
+    Ok(Some(value))
 }

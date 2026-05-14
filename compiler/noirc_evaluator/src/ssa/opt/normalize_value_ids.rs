@@ -220,7 +220,9 @@ impl IdMaps {
                 new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
-            Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::ForeignFunction { name, pure } => {
+                new_function.dfg.import_foreign_function(name, *pure)
+            }
             Value::Global(_) => {
                 unreachable!("Should have handled the global case already");
             },
