@@ -14,6 +14,7 @@
 
 use std::{collections::BTreeMap, fmt::Display};
 
+use fm::FileMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
@@ -123,6 +124,7 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.files,
             self.interpreter_output,
             self.evaluation_tracker.as_deref_mut(),
             self.required_unstable_features,
@@ -420,7 +422,9 @@ impl<'context> Elaborator<'context> {
 
         let value = result.map_err(CompilationError::from)?;
 
-        self.debug_comptime(location, |interner| value.display(interner).to_string());
+        self.debug_comptime(location, |interner, file_manager| {
+            value.display(interner, file_manager).to_string()
+        });
 
         if value != Value::Unit {
             // Items must be added in the correct module (for a module attribute, this will be the
@@ -724,13 +728,13 @@ impl<'context> Elaborator<'context> {
     /// When `--debug-comptime` is enabled for a specific file, this will emit
     /// compilation "errors" that show the evaluated comptime values for debugging.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
+    pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner, &FileMap) -> T>(
         &mut self,
         location: Location,
         mut expr_f: F,
     ) {
         if Some(location.file) == self.options.debug_comptime_in_file {
-            let displayed_expr = expr_f(self.interner);
+            let displayed_expr = expr_f(self.interner, self.files);
             let error: CompilationError =
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into();
             self.push_err(error);

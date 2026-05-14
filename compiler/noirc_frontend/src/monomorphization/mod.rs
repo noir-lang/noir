@@ -69,6 +69,7 @@ use crate::{
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
+use fm::FileMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -147,6 +148,7 @@ pub struct Monomorphizer<'interner> {
 
     /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
+    files: &'interner FileMap,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -202,9 +204,17 @@ const MAX_TYPE_COMPLEXITY: usize = 100_000;
 pub fn monomorphize(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
+    monomorphize_debug(
+        main,
+        interner,
+        files,
+        &DebugInstrumenter::default(),
+        None,
+        force_unconstrained,
+    )
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -214,13 +224,19 @@ pub fn monomorphize(
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     debug_instrumenter: &DebugInstrumenter,
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer =
-        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
+    let mut monomorphizer = Monomorphizer::new(
+        interner,
+        files,
+        debug_type_tracker,
+        debug_crate_id,
+        force_unconstrained,
+    );
     monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
@@ -230,6 +246,7 @@ pub fn monomorphize_debug(
 impl<'interner> Monomorphizer<'interner> {
     pub fn new(
         interner: &'interner mut NodeInterner,
+        files: &'interner FileMap,
         debug_type_tracker: DebugTypeTracker,
         debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
@@ -246,6 +263,7 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             next_ident_id: 0,
             interner,
+            files,
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
@@ -1540,7 +1558,7 @@ impl<'interner> Monomorphizer<'interner> {
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_runtime_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, self.files, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
