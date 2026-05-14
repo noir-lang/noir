@@ -157,7 +157,7 @@ impl Interpreter<'_, '_> {
             "function_def_is_unconstrained" => {
                 function_def_is_unconstrained(self, arguments, location)
             }
-            "function_def_location" => function_def_location(interner, arguments, location),
+            "function_def_location" => function_def_location(self.elaborator, arguments, location),
             "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(self, arguments, location),
@@ -2649,13 +2649,13 @@ fn function_def_module(
 
 // fn location(self) -> Location
 fn function_def_location(
-    interner: &NodeInterner,
+    elaborator: &mut Elaborator,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    Ok(Value::Location(interner.function_meta(&func_id).location))
+    Ok(Value::Location(elaborator.function_meta(func_id).location))
 }
 
 // fn name(self) -> Quoted
