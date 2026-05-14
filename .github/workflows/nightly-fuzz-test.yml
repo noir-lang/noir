@@ -45,31 +45,7 @@ jobs:
       - name: Extract fuzzer seeds
         if: failure()
         id: seeds
-        shell: bash
-        run: |
-          # Capture both the arbtest panic line ("    Seed: 0x...") and the
-          # explicit repro env var ("NOIR_AST_FUZZER_SEED=0x...") and normalise
-          # to bare hex.
-          grep -hoE '(Seed:[[:space:]]*0x[0-9a-fA-F]+|NOIR_AST_FUZZER_SEED=0x[0-9a-fA-F]+)' fuzz-output.log \
-            | grep -oE '0x[0-9a-fA-F]+' \
-            | sort -u > seeds.txt || true
-
-          # Map each seed back to the failing nextest test name. nextest prints
-          # "FAIL [ N.NNNs] <package> <test>" before the panic body.
-          awk '
-            /^[[:space:]]*FAIL / { current = $0 }
-            /Seed:[[:space:]]*0x[0-9a-fA-F]+/ {
-              match($0, /0x[0-9a-fA-F]+/); seed = substr($0, RSTART, RLENGTH);
-              print current "\t" seed
-            }
-          ' fuzz-output.log > seeds-by-test.tsv || true
-
-          seed_count=$(wc -l < seeds.txt | tr -d ' ')
-          echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
-
-          # Emit the first three seeds as a comma-separated summary for Slack.
-          first_seeds=$(head -n 3 seeds.txt | paste -sd, -)
-          echo "first_seeds=${first_seeds}" >> "$GITHUB_OUTPUT"
+        run: ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
 
       - name: Upload fuzz failure artifact
         if: failure()
