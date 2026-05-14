@@ -1905,13 +1905,12 @@ impl<'f> LoopIteration<'f> {
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
                 //
-                // This substitution is only valid for the loop header's constant jump
-                // into the loop body, because the body is inlined directly into the
-                // current unroll target. For constant `jmpif`s encountered later in
-                // loop-body blocks whose destination is a merge/exit block still
-                // reached through other predecessors, rewriting the destination's
-                // own parameter uses to one predecessor's argument would produce
-                // invalid SSA.
+                // This only applies when the constant jmp originates in the loop
+                // header. For body-block constant jmpifs the fresh destination
+                // becomes the next insert_block, its params are real SSA params
+                // filled by each predecessor's jmp arguments, and remapping them
+                // globally would replace uses fed by other predecessors with one
+                // predecessor's argument.
                 if jumped_from_header {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
