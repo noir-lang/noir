@@ -92,7 +92,7 @@
 <a href=#92 id=92 data-nosnippet>92</a>        .get_main_function(context.root_crate_id())
 <a href=#93 id=93 data-nosnippet>93</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"get_monomorphized: test program contains no 'main' function"</span>));
 <a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>    monomorphize(main, <span class="kw-2">&amp;mut </span>context.def_interner, <span class="bool-val">false</span>)
+<a href=#95 id=95 data-nosnippet>95</a>    monomorphize(main, <span class="kw-2">&amp;mut </span>context.def_interner, context.file_manager.as_file_map(), <span class="bool-val">false</span>)
 <a href=#96 id=96 data-nosnippet>96</a>}
 <a href=#97 id=97 data-nosnippet>97</a>
 <a href=#98 id=98 data-nosnippet>98</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_parser_error(errors: <span class="kw-2">&amp;</span>[CompilationError]) -&gt; bool {

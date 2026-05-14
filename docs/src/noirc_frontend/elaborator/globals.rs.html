@@ -150,27 +150,29 @@
 <a href=#150 id=150 data-nosnippet>150</a>                    .lookup_id(definition_id, location)
 <a href=#151 id=151 data-nosnippet>151</a>                    .expect(<span class="string">"The global should be defined since evaluate_let did not error"</span>);
 <a href=#152 id=152 data-nosnippet>152</a>
-<a href=#153 id=153 data-nosnippet>153</a>                <span class="self">self</span>.debug_comptime(location, |interner| value.display(interner).to_string());
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>                <span class="comment">// Store the resolved value so it can be used later
-<a href=#156 id=156 data-nosnippet>156</a>                </span><span class="self">self</span>.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
-<a href=#157 id=157 data-nosnippet>157</a>            }
-<a href=#158 id=158 data-nosnippet>158</a>        }
-<a href=#159 id=159 data-nosnippet>159</a>    }
-<a href=#160 id=160 data-nosnippet>160</a>
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="doccomment">/// If the given global is unresolved, elaborate it and return true.
-<a href=#162 id=162 data-nosnippet>162</a>    ///
-<a href=#163 id=163 data-nosnippet>163</a>    /// This is used for dependency resolution. When we encounter a reference to a global
-<a href=#164 id=164 data-nosnippet>164</a>    /// while elaborating another item, we check if that global needs to be elaborated first.
-<a href=#165 id=165 data-nosnippet>165</a>    /// Returns true if the global was unresolved and has now been elaborated, false if it was
-<a href=#166 id=166 data-nosnippet>166</a>    /// already elaborated (or doesn't exist in the unresolved set).
-<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_global_if_unresolved(<span class="kw-2">&amp;mut </span><span class="self">self</span>, global_id: <span class="kw-2">&amp;</span>GlobalId) -&gt; bool {
-<a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(global) = <span class="self">self</span>.unresolved_globals.remove(global_id) {
-<a href=#170 id=170 data-nosnippet>170</a>            <span class="self">self</span>.elaborate_global(global);
-<a href=#171 id=171 data-nosnippet>171</a>            <span class="bool-val">true
-<a href=#172 id=172 data-nosnippet>172</a>        </span>} <span class="kw">else </span>{
-<a href=#173 id=173 data-nosnippet>173</a>            <span class="bool-val">false
-<a href=#174 id=174 data-nosnippet>174</a>        </span>}
-<a href=#175 id=175 data-nosnippet>175</a>    }
-<a href=#176 id=176 data-nosnippet>176</a>}</code></pre></div></section></main></body></html>
+<a href=#153 id=153 data-nosnippet>153</a>                <span class="self">self</span>.debug_comptime(location, |interner, file_manager| {
+<a href=#154 id=154 data-nosnippet>154</a>                    value.display(interner, file_manager).to_string()
+<a href=#155 id=155 data-nosnippet>155</a>                });
+<a href=#156 id=156 data-nosnippet>156</a>
+<a href=#157 id=157 data-nosnippet>157</a>                <span class="comment">// Store the resolved value so it can be used later
+<a href=#158 id=158 data-nosnippet>158</a>                </span><span class="self">self</span>.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+<a href=#159 id=159 data-nosnippet>159</a>            }
+<a href=#160 id=160 data-nosnippet>160</a>        }
+<a href=#161 id=161 data-nosnippet>161</a>    }
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="doccomment">/// If the given global is unresolved, elaborate it and return true.
+<a href=#164 id=164 data-nosnippet>164</a>    ///
+<a href=#165 id=165 data-nosnippet>165</a>    /// This is used for dependency resolution. When we encounter a reference to a global
+<a href=#166 id=166 data-nosnippet>166</a>    /// while elaborating another item, we check if that global needs to be elaborated first.
+<a href=#167 id=167 data-nosnippet>167</a>    /// Returns true if the global was unresolved and has now been elaborated, false if it was
+<a href=#168 id=168 data-nosnippet>168</a>    /// already elaborated (or doesn't exist in the unresolved set).
+<a href=#169 id=169 data-nosnippet>169</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_global_if_unresolved(<span class="kw-2">&amp;mut </span><span class="self">self</span>, global_id: <span class="kw-2">&amp;</span>GlobalId) -&gt; bool {
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(global) = <span class="self">self</span>.unresolved_globals.remove(global_id) {
+<a href=#172 id=172 data-nosnippet>172</a>            <span class="self">self</span>.elaborate_global(global);
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="bool-val">true
+<a href=#174 id=174 data-nosnippet>174</a>        </span>} <span class="kw">else </span>{
+<a href=#175 id=175 data-nosnippet>175</a>            <span class="bool-val">false
+<a href=#176 id=176 data-nosnippet>176</a>        </span>}
+<a href=#177 id=177 data-nosnippet>177</a>    }
+<a href=#178 id=178 data-nosnippet>178</a>}</code></pre></div></section></main></body></html>

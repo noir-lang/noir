@@ -68,5 +68,11 @@
 <a href=#68 id=68 data-nosnippet>68</a>
 <a href=#69 id=69 data-nosnippet>69</a>    check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 <a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="prelude-val">Ok</span>(get_expanded_crate(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner))
-<a href=#72 id=72 data-nosnippet>72</a>}</code></pre></div></section></main></body></html>
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="prelude-val">Ok</span>(get_expanded_crate(
+<a href=#72 id=72 data-nosnippet>72</a>        crate_id,
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw-2">&amp;</span>context.crate_graph,
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw-2">&amp;</span>context.def_maps,
+<a href=#75 id=75 data-nosnippet>75</a>        <span class="kw-2">&amp;</span>context.def_interner,
+<a href=#76 id=76 data-nosnippet>76</a>        context.file_manager.as_file_map(),
+<a href=#77 id=77 data-nosnippet>77</a>    ))
+<a href=#78 id=78 data-nosnippet>78</a>}</code></pre></div></section></main></body></html>

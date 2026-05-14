@@ -1739,7 +1739,7 @@
 <a href=#1739 id=1739 data-nosnippet>1739</a>        <span class="kw">let </span>(id, typ) = <span class="self">self</span>.inline_comptime_value(value, location, from_macro_call);
 <a href=#1740 id=1740 data-nosnippet>1740</a>
 <a href=#1741 id=1741 data-nosnippet>1741</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(id);
-<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="self">self</span>.debug_comptime(location, |interner| {
+<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="self">self</span>.debug_comptime(location, |interner, <span class="kw">_</span>| {
 <a href=#1743 id=1743 data-nosnippet>1743</a>            interner.expression(<span class="kw-2">&amp;</span>id).to_display_ast(interner, location).kind
 <a href=#1744 id=1744 data-nosnippet>1744</a>        });
 <a href=#1745 id=1745 data-nosnippet>1745</a>
