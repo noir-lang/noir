@@ -254,6 +254,12 @@ struct LoopContext {
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
     /// Indicates whether the current loop has break or early returns
     no_break: bool,
+    /// True if any instruction in the loop is an `ArraySet`. In Brillig, an `ArraySet`
+    /// can mutate its source array in place at runtime (when its reference count is 1),
+    /// so a loop-invariant `ArrayGet` on any array in the same loop cannot be hoisted
+    /// soundly: the pre-header read would miss the in-place mutation that subsequent
+    /// iterations of the unhoisted program observe.
+    has_array_set: bool,
 }
 
 #[derive(Debug)]
@@ -301,12 +307,16 @@ impl LoopContext {
         pre_header: BasicBlockId,
     ) -> Self {
         let mut defined_in_loop = HashSet::default();
+        let mut has_array_set = false;
         for block in &loop_.blocks {
             let params = inserter.function.dfg.block_parameters(*block);
             defined_in_loop.extend(params);
             for instruction_id in inserter.function.dfg[*block].instructions() {
                 let results = inserter.function.dfg.instruction_results(*instruction_id);
                 defined_in_loop.extend(results);
+                if matches!(inserter.function.dfg[*instruction_id], Instruction::ArraySet { .. }) {
+                    has_array_set = true;
+                }
             }
         }
         let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
@@ -324,6 +334,7 @@ impl LoopContext {
             // leading to missed hoisting opportunities.
             nested_loop_control_dependent_blocks: HashSet::default(),
             no_break: loop_.is_fully_executed(cfg),
+            has_array_set,
         }
     }
 
@@ -704,9 +715,24 @@ impl<'f> LoopInvariantContext<'f> {
             return (false, false);
         }
 
+        let dfg = &self.inserter.function.dfg;
+
+        // In Brillig, hoisting an `ArrayGet` past an in-loop `ArraySet` is unsound:
+        // when the source array has reference count 1 at runtime, the `ArraySet`
+        // mutates it in place, and the original program's subsequent iterations
+        // would observe that mutation. A pre-header hoist captures the pre-mutation
+        // value once, so the hoisted read no longer matches the per-iteration read.
+        // Aliasing through chained `ArraySet`s makes a same-source check unsound,
+        // so we block hoisting any `ArrayGet` when *any* `ArraySet` is in the loop.
+        if dfg.runtime().is_brillig()
+            && loop_context.has_array_set
+            && matches!(instruction, Instruction::ArrayGet { .. })
+        {
+            return (false, false);
+        }
+
         // In Brillig, if the instruction creates a new array, we need to insert an inc_rc
         // to handle potential mutations.
-        let dfg = &self.inserter.function.dfg;
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
@@ -3994,6 +4020,34 @@ mod control_dependence {
             jmp b1(v2, v10)
         }
         "#;
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn does_not_hoist_array_get_when_array_set_exists_in_loop() {
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 2]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 2
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = array_get v0, index u32 0 -> u32
+            v4 = eq v1, u32 1
+            jmpif v4 then: b4(), else: b5()
+          b4():
+            v5 = array_get v0, index u32 1 -> u32
+            constrain v3 == v5, "iter 1 v0[0] should equal v0[1]=99 after mutation"
+            jmp b5()
+          b5():
+            v6 = array_set v0, index v1, value u32 99
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }
+             "#;
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }
