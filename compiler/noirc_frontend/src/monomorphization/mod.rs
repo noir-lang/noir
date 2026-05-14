@@ -1602,47 +1602,47 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn type_complexity_inner(typ: &HirType, mut accumulated: usize) -> usize {
-        // Early return if accumulated complexity exceeds the limit,
+    fn type_complexity_inner(typ: &HirType, mut acc: usize) -> usize {
+        // Early return if acc complexity exceeds the limit,
         // this avoids stack overflow due to the recursive nature of this computation
-        if accumulated > MAX_TYPE_COMPLEXITY {
-            return accumulated + 1;
+        if acc > MAX_TYPE_COMPLEXITY {
+            return acc + 1;
         }
 
         // Every type increases it by one, even if seen already.
-        accumulated += 1;
+        acc += 1;
 
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
             HirType::Tuple(fields) => {
                 for field in fields {
-                    accumulated = Self::type_complexity_inner(field, accumulated);
+                    acc = Self::type_complexity_inner(field, acc);
                 }
-                accumulated
+                acc
             }
-            HirType::Array(elem_typ, _len) => Self::type_complexity_inner(elem_typ, accumulated),
+            HirType::Array(elem_typ, _len) => Self::type_complexity_inner(elem_typ, acc),
             HirType::DataType(_def, generics) => {
                 for generic in generics {
-                    accumulated = Self::type_complexity_inner(generic, accumulated);
+                    acc = Self::type_complexity_inner(generic, acc);
                 }
-                accumulated
+                acc
             }
             HirType::Function(args, ret, env, _) => {
                 for arg in args {
-                    accumulated = Self::type_complexity_inner(arg, accumulated);
+                    acc = Self::type_complexity_inner(arg, acc);
                 }
-                accumulated = Self::type_complexity_inner(ret, accumulated);
-                Self::type_complexity_inner(env, accumulated)
+                acc = Self::type_complexity_inner(ret, acc);
+                Self::type_complexity_inner(env, acc)
             }
-            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated),
+            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, acc),
             HirType::Alias(_, generics) => {
                 for generic in generics {
-                    accumulated = Self::type_complexity_inner(generic, accumulated);
+                    acc = Self::type_complexity_inner(generic, acc);
                 }
-                accumulated
+                acc
             }
             // Simple types
-            _ => accumulated,
+            _ => acc,
         }
     }
 
