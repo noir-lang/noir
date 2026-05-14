@@ -710,8 +710,8 @@ impl<'f> LoopInvariantContext<'f> {
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
-                Instruction::MakeArray { .. } => true,
-                Instruction::Call { .. } | Instruction::ArraySet { .. } => {
+                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
+                Instruction::Call { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
