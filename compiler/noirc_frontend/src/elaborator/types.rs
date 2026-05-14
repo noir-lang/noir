@@ -1224,10 +1224,6 @@ impl Elaborator<'_> {
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
         let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
-        // Projection resolution uses the prepared-impl-aware lookup so
-        // `<X as Trait>::AssocType` can resolve in type aliases, struct fields, and
-        // enum variant types — positions elaborated before each impl has reached
-        // its `Normal` state. See https://github.com/noir-lang/noir/issues/12659.
         match self.interner.lookup_trait_implementation_for_projection(
             &object_type,
             trait_id,

@@ -17,66 +17,18 @@ use crate::{
 
 use super::NodeInterner;
 
-/// Collect every unbound `NamedGeneric`'s `TypeVariable` reachable from `typ`,
-/// preserving the order they're encountered and skipping duplicates by id. Used
-/// to instantiate the type with fresh type variables in
-/// [NodeInterner::lookup_trait_implementation_for_projection].
+/// Append every unbound [NamedGeneric] typevar reachable from `typ` to `out`,
+/// preserving first-encounter order and skipping ids already in `out`.
 fn collect_unbound_named_generic_typevars(typ: &Type, out: &mut Vec<TypeVariable>) {
     let mut seen: HashSet<_> = out.iter().map(|tv| tv.id()).collect();
-
-    fn walk(typ: &Type, out: &mut Vec<TypeVariable>, seen: &mut HashSet<crate::TypeVariableId>) {
-        match typ {
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if type_var.borrow().is_unbound() && seen.insert(type_var.id()) {
-                    out.push(type_var.clone());
-                }
+    typ.visit(&mut |typ| {
+        if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ {
+            if type_var.borrow().is_unbound() && seen.insert(type_var.id()) {
+                out.push(type_var.clone());
             }
-            Type::Array(elem, len) => {
-                walk(elem, out, seen);
-                walk(len, out, seen);
-            }
-            Type::Vector(elem) => walk(elem, out, seen),
-            Type::String(len) => walk(len, out, seen),
-            Type::FmtString(len, elems) => {
-                walk(len, out, seen);
-                walk(elems, out, seen);
-            }
-            Type::Tuple(elems) => {
-                for e in elems {
-                    walk(e, out, seen);
-                }
-            }
-            Type::DataType(_, args) | Type::Alias(_, args) => {
-                for a in args {
-                    walk(a, out, seen);
-                }
-            }
-            Type::Function(params, ret, env, _) => {
-                for p in params {
-                    walk(p, out, seen);
-                }
-                walk(ret, out, seen);
-                walk(env, out, seen);
-            }
-            Type::Reference(inner, _) => walk(inner, out, seen),
-            Type::CheckedCast { to, .. } => walk(to, out, seen),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                walk(lhs, out, seen);
-                walk(rhs, out, seen);
-            }
-            Type::TraitAsType(_, _, generics) => {
-                for g in &generics.ordered {
-                    walk(g, out, seen);
-                }
-                for n in &generics.named {
-                    walk(&n.typ, out, seen);
-                }
-            }
-            _ => {}
         }
-    }
-
-    walk(typ, out, &mut seen);
+        true
+    });
 }
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -379,17 +331,15 @@ impl NodeInterner {
         Ok((impl_kind, instantiation_bindings))
     }
 
-    /// Variant of [Self::lookup_trait_implementation] that can find `Prepared` impls
-    /// even when they were stored with their named generics intact (which prevents
-    /// the default lookup from unifying them with a concrete query). Used when
-    /// resolving `<X as Trait>::AssocItem` projections that may appear in struct
-    /// fields, enum variants, or type-alias bodies before the impl has been
-    /// fully collected. Bound resolution and overlap detection still go through
-    /// the stricter [Self::lookup_trait_implementation] so they don't pick up
-    /// spurious `Prepared` matches with unvalidated where-clauses.
+    /// Variant of [Self::lookup_trait_implementation] used to resolve
+    /// `<X as Trait>::AssocItem` projections that may appear in struct fields, enum
+    /// variants, or type-alias bodies — positions elaborated before impls reach
+    /// their `Normal` state. Falls back to scanning `Prepared` impls and freshly
+    /// instantiating their named generics so a concrete query can unify with them.
     ///
-    /// On success, returns `(impl_kind, instantiation_bindings)` and applies
-    /// unification bindings — same contract as `lookup_trait_implementation`.
+    /// Trait-bound resolution and overlap detection should still go through
+    /// [Self::lookup_trait_implementation] so they don't pick up spurious
+    /// `Prepared` matches with unvalidated where-clauses.
     pub(crate) fn lookup_trait_implementation_for_projection(
         &self,
         object_type: &Type,
@@ -407,11 +357,6 @@ impl NodeInterner {
             return default_result;
         }
 
-        // Fallback: scan `Prepared` impls and instantiate each one's named generics
-        // with fresh type variables on the fly, then attempt the same matching the
-        // default lookup performs. We do this only on `Prepared` so the default
-        // path's behaviour for `Normal` impls (including where-clause validation
-        // and most-specific-match logic) is unchanged.
         let Some(entries) = self.trait_implementation_map.get(&trait_id) else {
             return default_result;
         };
@@ -419,17 +364,12 @@ impl NodeInterner {
         for (existing_object_type, impl_kind) in entries {
             let TraitImplKind::Prepared(impl_id, _) = impl_kind else { continue };
 
-            // Instantiate the impl's named generics with fresh typevars. Without
-            // this, unbound NamedGenerics in `existing_object_type` won't unify
-            // with concrete types in the query.
             let impl_trait_generics = self.get_trait_generics_for_impl(*impl_id).clone();
 
-            // Gather every unbound NamedGeneric reachable from the impl's
-            // object_type *and* its trait generics. The impl's named generics
-            // appear in both — e.g., `impl<T, Context> RuntimeState<Context> for
-            // PublicMutable<T>` has T in the object_type and Context in the trait
-            // generics. Without freshening Context, a concrete query like
-            // `RuntimeState<ContextType>` won't unify with it.
+            // An impl's named generics can appear in both its object type and its
+            // trait generics (e.g. `impl<T, Context> RuntimeState<Context> for
+            // PublicMutable<T>`). Gather both so freshening covers every typevar
+            // that needs to unify with a concrete query.
             let mut impl_generics = Vec::new();
             collect_unbound_named_generic_typevars(existing_object_type, &mut impl_generics);
             for g in &impl_trait_generics.ordered {
@@ -473,8 +413,6 @@ impl NodeInterner {
             return Ok((impl_kind.clone(), instantiation_bindings));
         }
 
-        // No prepared impl matched either; surface the original error so the
-        // caller's diagnostic carries the failing constraint.
         default_result
     }
 

@@ -116,12 +116,11 @@ impl Elaborator<'_> {
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
-            // Re-resolve any associated-type RHSes whose placeholders weren't bound
-            // by the earlier [Self::resolve_trait_impl_associated_type_bodies] pass.
-            // That pass binds the simple cases (the ones we need for projection
-            // resolution in struct fields, etc.) and drops its own diagnostics so
-            // this site remains the canonical one. RHSes whose placeholders survived
-            // unbound get a second shot here with the full where-clause in scope.
+            // Resolve and bind any associated-type RHSes still parked on
+            // `unresolved_associated_types`. Most are bound earlier by
+            // [Self::resolve_trait_impl_associated_type_bodies]; the leftovers
+            // (resolution or binding failed, e.g. a cyclic RHS) are retried here
+            // under the full where-clause scope, with diagnostics surfaced.
             if let Some(trait_impl_id) = trait_impl.impl_id {
                 let unresolved_associated_types =
                     std::mem::take(&mut trait_impl.unresolved_associated_types);
@@ -135,8 +134,8 @@ impl Elaborator<'_> {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         continue;
                     };
-                    // Skip placeholders that the early pass already bound. We still
-                    // pull the unresolved entry out so it doesn't accumulate.
+                    // Drain even when already bound so the map doesn't accumulate
+                    // stale entries across retries.
                     let unresolved_type = unresolved_associated_types.remove(&associated_type.name);
                     if !named_generic.type_var.borrow().is_unbound() {
                         continue;
@@ -950,22 +949,14 @@ impl Elaborator<'_> {
         (constraints, new_generics_trait_constraints)
     }
 
-    /// Resolves associated types for a trait impl and checks for missing generics.
-    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
-    /// Resolves the RHS of each associated type in `trait_impl` and binds it onto
-    /// the placeholder typevar declared by [Self::resolve_trait_impl_associated_types].
+    /// Resolves each associated type's RHS and binds it onto the placeholder
+    /// typevar that [Self::resolve_trait_impl_associated_types] created during
+    /// [Self::prepare_trait_impl_for_function_meta_definition]. Entries that fail
+    /// to resolve or bind are re-parked in `trait_impl.unresolved_associated_types`
+    /// for [Self::collect_trait_impl] to retry and diagnose.
     ///
-    /// This is the second pass of trait-impl preparation: after every impl has
-    /// declared its placeholders (so cross-impl references work), each impl resolves
-    /// its actual `type Foo = ...` / `let N: u32 = ...` bodies and binds them. Doing
-    /// this before type aliases, struct fields, and enum variants are elaborated
-    /// means an `<X as Trait>::AssocType` projection in those positions can follow
-    /// the placeholder through its binding to the real RHS. See
-    /// https://github.com/noir-lang/noir/issues/12659.
-    ///
-    /// Mirrors the body-resolution block in [Self::collect_trait_impl]; the latter
-    /// becomes a no-op for this work after this pass runs (the `unresolved` list is
-    /// drained via `mem::take`).
+    /// Diagnostics added during this pass are discarded; `collect_trait_impl` is
+    /// the canonical diagnostic site, with full impl state and where-clause scope.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_impl_associated_type_bodies(
         &mut self,
@@ -987,11 +978,6 @@ impl Elaborator<'_> {
         let previous_generics =
             std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
 
-        // Diagnostics emitted by the where-clause resolution and the RHS resolution
-        // below would be emitted *again* by `collect_trait_impl` later (which redoes
-        // the same work). Snapshot the error list and discard anything we add in this
-        // pass — `collect_trait_impl` remains the canonical site for impl-level
-        // diagnostics.
         let errors_snapshot = self.errors.len();
 
         let where_clause =
@@ -1010,10 +996,6 @@ impl Elaborator<'_> {
             };
             let Some(unresolved_type) = unresolved_associated_types.remove(&associated_type.name)
             else {
-                self.push_err(TypeCheckError::expecting_other_error(
-                    "resolve_trait_impl_associated_type_bodies: missing associated type",
-                    trait_impl.object_type.location,
-                ));
                 continue;
             };
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
@@ -1024,11 +1006,6 @@ impl Elaborator<'_> {
                 wildcard_allowed,
             );
 
-            // If resolution failed OR binding fails (e.g. a cyclic RHS), leave the
-            // placeholder unbound and re-park the entry so `collect_trait_impl` can
-            // retry under the full where-clause context. That keeps it as the
-            // canonical site for these diagnostics — our errors here get truncated
-            // below.
             let failed = matches!(resolved_type, Type::Error)
                 || named_generic
                     .type_var
@@ -1043,8 +1020,6 @@ impl Elaborator<'_> {
 
         self.remove_trait_constraints_from_scope(where_clause.iter());
 
-        // Drop any diagnostics we added — `collect_trait_impl` will emit the
-        // canonical ones when it redoes this same work for unresolved entries.
         self.errors.truncate(errors_snapshot);
 
         self.generics = previous_generics;
@@ -1054,6 +1029,8 @@ impl Elaborator<'_> {
         self.local_module = previous_local_module;
     }
 
+    /// Resolves associated types for a trait impl and checks for missing generics.
+    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_impl_associated_types(
         &mut self,
