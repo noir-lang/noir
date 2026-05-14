@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778777820824,
+  "lastUpdate": 1778779231554,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d01417bf09b07505d2f1ed27cbf5c8cf9e9f7ccf",
-          "message": "fix: use fresh type vars when unifying type turbofish against impl ge… (#12566)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-05-06T20:26:33Z",
-          "tree_id": "c01666403635d2f547d11f2336288faa2e5ce084",
-          "url": "https://github.com/noir-lang/noir/commit/d01417bf09b07505d2f1ed27cbf5c8cf9e9f7ccf"
-        },
-        "date": 1778100676064,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173916,
-            "range": "± 1146",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 143664,
-            "range": "± 6350",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646852,
-            "range": "± 4597",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359654,
             "range": "± 5558",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "491cde769d427c68592f160905f2e4d46d888c89",
+          "message": "fix(licm): Insert `inc_rc` after hoisting `array_set`  (#12665)",
+          "timestamp": "2026-05-14T16:49:07Z",
+          "tree_id": "49d569ef7bd03b9e84c486a907e907ead102fb1e",
+          "url": "https://github.com/noir-lang/noir/commit/491cde769d427c68592f160905f2e4d46d888c89"
+        },
+        "date": 1778779168981,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168682,
+            "range": "± 354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137571,
+            "range": "± 415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650680,
+            "range": "± 4507",
             "unit": "ns/iter"
           }
         ]
