@@ -33,10 +33,101 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Run fuzzer
-        run: just fuzz-nightly
+        id: fuzz
+        shell: bash
+        run: |
+          set -o pipefail
+          just fuzz-nightly 2>&1 | tee fuzz-output.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_MIN_STACK: 8388608
+
+      - name: Extract fuzzer seeds
+        if: failure()
+        id: seeds
+        shell: bash
+        run: |
+          # Capture both the arbtest panic line ("    Seed: 0x...") and the
+          # explicit repro env var ("NOIR_AST_FUZZER_SEED=0x...") and normalise
+          # to bare hex.
+          grep -hoE '(Seed:[[:space:]]*0x[0-9a-fA-F]+|NOIR_AST_FUZZER_SEED=0x[0-9a-fA-F]+)' fuzz-output.log \
+            | grep -oE '0x[0-9a-fA-F]+' \
+            | sort -u > seeds.txt || true
+
+          # Map each seed back to the failing nextest test name. nextest prints
+          # "FAIL [ N.NNNs] <package> <test>" before the panic body.
+          awk '
+            /^[[:space:]]*FAIL / { current = $0 }
+            /Seed:[[:space:]]*0x[0-9a-fA-F]+/ {
+              match($0, /0x[0-9a-fA-F]+/); seed = substr($0, RSTART, RLENGTH);
+              print current "\t" seed
+            }
+          ' fuzz-output.log > seeds-by-test.tsv || true
+
+          seed_count=$(wc -l < seeds.txt | tr -d ' ')
+          echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
+
+          # Emit the first three seeds as a comma-separated summary for Slack.
+          first_seeds=$(head -n 3 seeds.txt | paste -sd, -)
+          echo "first_seeds=${first_seeds}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload fuzz failure artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-fuzz-failure
+          path: |
+            fuzz-output.log
+            seeds.txt
+            seeds-by-test.tsv
+          retention-days: 30
+
+      - name: Publish failure report gist
+        if: failure()
+        id: gist
+        shell: bash
+        env:
+          # A PAT with `gist` scope. The default GITHUB_TOKEN does not have
+          # gist scope, so this must be configured in repository secrets.
+          GIST_TOKEN: ${{ secrets.FUZZ_REPORT_GIST_PAT }}
+        run: |
+          if [ -z "${GIST_TOKEN}" ]; then
+            echo "FUZZ_REPORT_GIST_PAT not configured; skipping gist upload." >&2
+            echo "gist_url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Truncate the log if it is unreasonably large (gist payload limits).
+          # 900 KiB keeps us comfortably under the per-file gist limit.
+          head -c 921600 fuzz-output.log > fuzz-output.trimmed.log
+
+          payload=$(jq -n \
+            --arg desc "Nightly fuzz failure ${GITHUB_REPOSITORY}#${GITHUB_RUN_ID}" \
+            --rawfile log fuzz-output.trimmed.log \
+            --rawfile seeds seeds.txt \
+            --rawfile by_test seeds-by-test.tsv \
+            '{
+              description: $desc,
+              public: false,
+              files: {
+                "fuzz-output.log":   { content: $log   },
+                "seeds.txt":         { content: $seeds },
+                "seeds-by-test.tsv": { content: $by_test }
+              }
+            }')
+
+          response=$(curl -sS -X POST https://api.github.com/gists \
+            -H "Authorization: Bearer ${GIST_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "${payload}")
+
+          gist_url=$(printf '%s' "${response}" | jq -r '.html_url // empty')
+          if [ -z "${gist_url}" ]; then
+            echo "Gist creation failed. Response was:" >&2
+            printf '%s\n' "${response}" >&2
+          fi
+          echo "gist_url=${gist_url}" >> "$GITHUB_OUTPUT"
 
       - name: Get current date
         id: date
@@ -51,3 +142,7 @@ jobs:
           webhook-type: webhook-trigger
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            seed-count: ${{ steps.seeds.outputs.seed_count }}
+            first-seeds: ${{ steps.seeds.outputs.first_seeds }}
+            gist-url: ${{ steps.gist.outputs.gist_url }}
+            artifact-name: nightly-fuzz-failure
