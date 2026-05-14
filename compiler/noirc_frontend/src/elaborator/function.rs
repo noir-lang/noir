@@ -12,7 +12,7 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, ResolvedGeneric, Type, TypeVariable,
+    Kind, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
@@ -74,7 +74,7 @@ impl Elaborator<'_> {
     pub(super) fn prepare_trait_impls_for_meta_definition(
         &mut self,
         trait_impls: &mut [UnresolvedTraitImpl],
-    ) -> Vec<(Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>)> {
+    ) -> Vec<(Vec<(TraitConstraint, Location)>, ResolvedGenerics)> {
         vecmap(trait_impls.iter_mut(), |trait_impl| {
             self.prepare_trait_impl_for_function_meta_definition(trait_impl)
         })
@@ -95,7 +95,7 @@ impl Elaborator<'_> {
         functions: &mut [UnresolvedFunctions],
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
-        prepared_trait_impls: Vec<(Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>)>,
+        prepared_trait_impls: Vec<(Vec<(TraitConstraint, Location)>, ResolvedGenerics)>,
     ) {
         // Register metas for regular functions
         for function_set in functions {

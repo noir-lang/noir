@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{
         PathResolutionMode, WildcardDisallowedContext,
@@ -736,7 +736,7 @@ impl Elaborator<'_> {
     pub(super) fn prepare_trait_impl_for_function_meta_definition(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
+    ) -> (Vec<(TraitConstraint, Location)>, ResolvedGenerics) {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
         // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
         self.current_item = None;
@@ -1017,9 +1017,8 @@ impl Elaborator<'_> {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
         let previous_self_type =
             std::mem::replace(&mut self.self_type, trait_impl.methods.self_type.clone());
-        let previous_current_trait_impl =
-            std::mem::replace(&mut self.current_trait_impl, Some(trait_impl_id));
-        let previous_current_trait = std::mem::replace(&mut self.current_trait, Some(trait_id));
+        let previous_current_trait_impl = self.current_trait_impl.replace(trait_impl_id);
+        let previous_current_trait = self.current_trait.replace(trait_id);
         let previous_generics =
             std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
 

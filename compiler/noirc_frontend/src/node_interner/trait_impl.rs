@@ -22,10 +22,11 @@ use super::NodeInterner;
 fn collect_unbound_named_generic_typevars(typ: &Type, out: &mut Vec<TypeVariable>) {
     let mut seen: HashSet<_> = out.iter().map(|tv| tv.id()).collect();
     typ.visit(&mut |typ| {
-        if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ {
-            if type_var.borrow().is_unbound() && seen.insert(type_var.id()) {
-                out.push(type_var.clone());
-            }
+        if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ
+            && type_var.borrow().is_unbound()
+            && seen.insert(type_var.id())
+        {
+            out.push(type_var.clone());
         }
         true
     });
