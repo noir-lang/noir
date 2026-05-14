@@ -39,6 +39,7 @@ mod preprocess_fns;
 pub(crate) mod pure;
 mod rc;
 mod remove_bit_shifts;
+mod remove_dead_refs_in_unreachable_blocks;
 mod remove_enable_side_effects;
 mod remove_if_else;
 mod remove_redundant_params;

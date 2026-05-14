@@ -349,6 +349,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // then DIE would just remove the Stores, leaving the Loads dangling.
         // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_dead_refs_in_unreachable_blocks)
             .and_then(Ssa::remove_unreachable_functions),
         // We cannot run load/store forwarding after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
@@ -372,6 +373,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding",
         ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_dead_refs_in_unreachable_blocks)
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
