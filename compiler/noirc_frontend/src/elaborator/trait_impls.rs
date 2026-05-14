@@ -34,6 +34,15 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 
+/// Failure mode for [Elaborator::bind_associated_type_bodies].
+enum AssociatedTypeFailure {
+    /// Surface diagnostics directly.
+    Emit,
+    /// Re-park failures onto `trait_impl.unresolved_associated_types` for a later
+    /// [Self::Emit] pass to retry and diagnose.
+    Repark,
+}
+
 impl Elaborator<'_> {
     /// Collects and validates a trait implementation.
     ///
@@ -122,47 +131,11 @@ impl Elaborator<'_> {
             // (resolution or binding failed, e.g. a cyclic RHS) are retried here
             // under the full where-clause scope, with diagnostics surfaced.
             if let Some(trait_impl_id) = trait_impl.impl_id {
-                let unresolved_associated_types =
-                    std::mem::take(&mut trait_impl.unresolved_associated_types);
-                let mut unresolved_associated_types =
-                    unresolved_associated_types.into_iter().collect::<HashMap<_, _>>();
-
-                let associated_types =
-                    self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-
-                for associated_type in &associated_types {
-                    let Type::NamedGeneric(named_generic) = &associated_type.typ else {
-                        continue;
-                    };
-                    // Drain even when already bound so the map doesn't accumulate
-                    // stale entries across retries.
-                    let unresolved_type = unresolved_associated_types.remove(&associated_type.name);
-                    if !named_generic.type_var.borrow().is_unbound() {
-                        continue;
-                    }
-                    let Some(unresolved_type) = unresolved_type else {
-                        self.push_err(TypeCheckError::expecting_other_error(
-                            "collect_trait_impl: missing associated type",
-                            trait_impl.object_type.location,
-                        ));
-                        continue;
-                    };
-                    let wildcard_allowed =
-                        WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
-                    let location = unresolved_type.location;
-                    let resolved_type = self.resolve_type_with_kind(
-                        unresolved_type,
-                        &associated_type.typ.kind(),
-                        wildcard_allowed,
-                    );
-                    if let Err(error) = named_generic.type_var.try_bind(
-                        resolved_type,
-                        &named_generic.type_var.kind(),
-                        location,
-                    ) {
-                        self.push_err(error);
-                    }
-                }
+                self.bind_associated_type_bodies(
+                    trait_impl,
+                    trait_impl_id,
+                    AssociatedTypeFailure::Emit,
+                );
             }
 
             let trait_ = self.interner.get_trait(trait_id);
@@ -950,6 +923,78 @@ impl Elaborator<'_> {
     }
 
     /// Resolves each associated type's RHS and binds it onto the placeholder
+    /// typevar created by [Self::resolve_trait_impl_associated_types]. Already-
+    /// bound placeholders are skipped and their map entries drained. Failures
+    /// are handled per `on_failure`.
+    fn bind_associated_type_bodies(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+        trait_impl_id: TraitImplId,
+        on_failure: AssociatedTypeFailure,
+    ) {
+        let unresolved_associated_types =
+            std::mem::take(&mut trait_impl.unresolved_associated_types);
+        let mut unresolved_associated_types =
+            unresolved_associated_types.into_iter().collect::<HashMap<_, _>>();
+
+        let associated_types = self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+
+        for associated_type in &associated_types {
+            let Type::NamedGeneric(named_generic) = &associated_type.typ else {
+                continue;
+            };
+            let unresolved_type = unresolved_associated_types.remove(&associated_type.name);
+            if !named_generic.type_var.borrow().is_unbound() {
+                continue;
+            }
+            let Some(unresolved_type) = unresolved_type else {
+                if matches!(on_failure, AssociatedTypeFailure::Emit) {
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing associated type",
+                        trait_impl.object_type.location,
+                    ));
+                }
+                continue;
+            };
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            let location = unresolved_type.location;
+            let resolved_type = self.resolve_type_with_kind(
+                unresolved_type.clone(),
+                &associated_type.typ.kind(),
+                wildcard_allowed,
+            );
+
+            match on_failure {
+                AssociatedTypeFailure::Emit => {
+                    if let Err(error) = named_generic.type_var.try_bind(
+                        resolved_type,
+                        &named_generic.type_var.kind(),
+                        location,
+                    ) {
+                        self.push_err(error);
+                    }
+                }
+                AssociatedTypeFailure::Repark => {
+                    // Short-circuit on resolve error: leave the placeholder unbound
+                    // so the [AssociatedTypeFailure::Emit] pass retries and surfaces
+                    // the diagnostic. If we bound it here (even to [Type::Error]),
+                    // that pass would skip it as already-bound.
+                    let failed = matches!(resolved_type, Type::Error)
+                        || named_generic
+                            .type_var
+                            .try_bind(resolved_type, &named_generic.type_var.kind(), location)
+                            .is_err();
+                    if failed {
+                        trait_impl
+                            .unresolved_associated_types
+                            .push((associated_type.name.clone(), unresolved_type));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Resolves each associated type's RHS and binds it onto the placeholder
     /// typevar that [Self::resolve_trait_impl_associated_types] created during
     /// [Self::prepare_trait_impl_for_function_meta_definition]. Entries that fail
     /// to resolve or bind are re-parked in `trait_impl.unresolved_associated_types`
@@ -983,40 +1028,7 @@ impl Elaborator<'_> {
         let where_clause =
             self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
-        let unresolved_associated_types =
-            std::mem::take(&mut trait_impl.unresolved_associated_types);
-        let mut unresolved_associated_types =
-            unresolved_associated_types.into_iter().collect::<HashMap<_, _>>();
-
-        let associated_types = self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-
-        for associated_type in &associated_types {
-            let Type::NamedGeneric(named_generic) = &associated_type.typ else {
-                continue;
-            };
-            let Some(unresolved_type) = unresolved_associated_types.remove(&associated_type.name)
-            else {
-                continue;
-            };
-            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
-            let location = unresolved_type.location;
-            let resolved_type = self.resolve_type_with_kind(
-                unresolved_type.clone(),
-                &associated_type.typ.kind(),
-                wildcard_allowed,
-            );
-
-            let failed = matches!(resolved_type, Type::Error)
-                || named_generic
-                    .type_var
-                    .try_bind(resolved_type, &named_generic.type_var.kind(), location)
-                    .is_err();
-            if failed {
-                trait_impl
-                    .unresolved_associated_types
-                    .push((associated_type.name.clone(), unresolved_type));
-            }
-        }
+        self.bind_associated_type_bodies(trait_impl, trait_impl_id, AssociatedTypeFailure::Repark);
 
         self.remove_trait_constraints_from_scope(where_clause.iter());
 
