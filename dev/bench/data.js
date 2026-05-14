@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778780621811,
+  "lastUpdate": 1778781176629,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e88d35b2fbdba4e99a37b7b31f56ad6a255dc601",
-          "message": "fix(ssa): keep signed `shl` results inside the signed range (#12571)",
-          "timestamp": "2026-05-07T10:51:15Z",
-          "tree_id": "78ce3f43d85a0a5fe285e4a2df0e8c0bd32cb78c",
-          "url": "https://github.com/noir-lang/noir/commit/e88d35b2fbdba4e99a37b7b31f56ad6a255dc601"
-        },
-        "date": 1778153228436,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171952,
-            "range": "± 173",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145436,
-            "range": "± 1601",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645378,
-            "range": "± 1499",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645273,
             "range": "± 7153",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20aa04194b2b06fe5e8d3e30276dbaac762cfa3d",
+          "message": "fix: run mem2reg while it keeps making progress (#12664)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-14T17:20:50Z",
+          "tree_id": "4d857f06762780fe9ec550db25a3b33594b2750c",
+          "url": "https://github.com/noir-lang/noir/commit/20aa04194b2b06fe5e8d3e30276dbaac762cfa3d"
+        },
+        "date": 1778781113210,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127144,
+            "range": "± 172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113468,
+            "range": "± 2978",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3040819,
+            "range": "± 82501",
             "unit": "ns/iter"
           }
         ]
