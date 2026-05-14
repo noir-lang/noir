@@ -711,11 +711,11 @@ impl<'f> LoopInvariantContext<'f> {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
                 Instruction::MakeArray { .. } => true,
-                Instruction::Call { .. } => {
+                Instruction::Call { .. } | Instruction::ArraySet { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                // RefCount for ArrayGet is managed by the ownership analysis.
                 _ => false,
             }
         } else {
@@ -2545,7 +2545,7 @@ mod tests {
     }
 
     #[test]
-    fn do_not_hoist_array_set_from_loop_when_it_gets_overwritten() {
+    fn inserts_inc_rc_for_hoisted_array_set() {
         // The SSA below has been captured during the pre-processing of functions in the following:
 
         // unconstrained fn main() {
@@ -2621,8 +2621,6 @@ mod tests {
         }
         "#;
 
-        // assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
-
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
@@ -2642,6 +2640,7 @@ mod tests {
             v9 = lt v2, u32 2
             jmpif v9 then: b2(), else: b3()
           b2():
+            inc_rc v7
             v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
             call print(u1 1, v7, v34, u1 0)
             jmp b4(v7, u32 0)
