@@ -54,6 +54,11 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
+        let cfg = ControlFlowGraph::with_function(self);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let blocks = post_order.into_vec_reverse();
+
         // Run mem2reg while we successfully removed at least one allocate instruction and there
         // are at least one more that couldn't be removed. In an SSA like this one:
         //
@@ -69,12 +74,7 @@ impl Function {
         // - now running it again will lead to optimizing out v0, etc.
         let mut keep_running = true;
         while keep_running {
-            let cfg = ControlFlowGraph::with_function(self);
-            let post_order = PostOrder::with_cfg(&cfg);
-            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
             let mut inserter = FunctionInserter::new(self);
-
-            let blocks = post_order.into_vec_reverse();
 
             // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
             // instruction result. These are iterated on in key order when adding block
@@ -119,7 +119,7 @@ impl Function {
                 &block_states,
                 &cfg,
             );
-            commit(&mut inserter, &variables, blocks);
+            commit(&mut inserter, &variables, &blocks);
 
             keep_running = has_ineligible_variables;
         }
@@ -515,9 +515,9 @@ fn collect_eligible_variables_and_def_sites(
 fn commit(
     inserter: &mut FunctionInserter,
     variables: &BTreeMap<ValueId, BasicBlockId>,
-    blocks: Vec<BasicBlockId>,
+    blocks: &[BasicBlockId],
 ) {
-    for block in blocks {
+    for &block in blocks {
         let mut instructions = inserter.function.dfg[block].take_instructions();
 
         // Remove any allocate, load, or store instructions for variables which were optimized out
