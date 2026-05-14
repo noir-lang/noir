@@ -73,8 +73,7 @@ impl Function {
         // - v0 can't be optimized out because it's stored in v2
         // - v2 can and will be optimized out
         // - now running it again will lead to optimizing out v0, etc.
-        let mut keep_running = true;
-        while keep_running {
+        loop {
             let mut inserter = FunctionInserter::new(self);
 
             // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
@@ -126,7 +125,10 @@ impl Function {
             );
             commit(&mut inserter, &variables, &blocks);
 
-            keep_running = has_ineligible_variables;
+            if !has_ineligible_variables {
+                // mem2reg can no longer simplify the program.
+                break;
+            }
         }
     }
 }
