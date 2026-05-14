@@ -1,4 +1,4 @@
-//! Block-local DCE that runs immediately after [`Ssa::remove_unreachable_instructions`].
+//! Block-local cleanup that runs immediately after [`Ssa::remove_unreachable_instructions`].
 //!
 //! [`Ssa::remove_unreachable_instructions`] terminates a block with `Unreachable`
 //! whenever it discovers an always-failing constraint, but it only deletes
@@ -47,7 +47,7 @@
 //! - `Instruction::IfElse` — should have been lowered away.
 //! - `Instruction::Call` whose return type contains a reference — would
 //!   surface a value that can alias caller-visible memory, which this
-//!   block-local DCE has no way to reason about.
+//!   pass has no way to reason about.
 //!
 //! Both conditions are checked before any removal happens; the pass panics
 //! at the first offender.
@@ -254,8 +254,8 @@ mod tests {
 
     #[test]
     fn preserves_constraints_in_unreachable_block() {
-        // The block-local DCE must keep every `Constrain` so the set and
-        // order of constraints emitted to ACIR is unchanged.
+        // This pass must keep every `Constrain` so the set and order of
+        // constraints emitted to ACIR is unchanged.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
