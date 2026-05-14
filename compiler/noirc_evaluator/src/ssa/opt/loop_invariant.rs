@@ -94,7 +94,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -254,12 +254,17 @@ struct LoopContext {
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
     /// Indicates whether the current loop has break or early returns
     no_break: bool,
-    /// True if any instruction in the loop is an `ArraySet`. In Brillig, an `ArraySet`
-    /// can mutate its source array in place at runtime (when its reference count is 1),
-    /// so a loop-invariant `ArrayGet` on any array in the same loop cannot be hoisted
-    /// soundly: the pre-header read would miss the in-place mutation that subsequent
-    /// iterations of the unhoisted program observe.
-    has_array_set: bool,
+    /// Values used inside the loop in a position that could let an in-loop `ArraySet`
+    /// mutate them at runtime (Brillig RC=1 in-place mutation, possibly through
+    /// aliasing). A scalar-returning `ArrayGet vX, _` cannot be hoisted past such
+    /// mutations: the pre-header read captures a value the subsequent iterations of
+    /// the unhoisted program would have observed after the mutation.
+    ///
+    /// We track this conservatively as the union of all operands of in-loop
+    /// instructions that can propagate aliasing (everything except `IncrementRc`,
+    /// `DecrementRc`, and scalar-returning `ArrayGet`), plus block-parameter
+    /// arguments in `Jmp`/`JmpIf` terminators. Only populated for Brillig loops.
+    unsafe_array_values: HashSet<ValueId>,
 }
 
 #[derive(Debug)]
@@ -306,17 +311,25 @@ impl LoopContext {
         loop_: &Loop,
         pre_header: BasicBlockId,
     ) -> Self {
+        let dfg = &inserter.function.dfg;
         let mut defined_in_loop = HashSet::default();
-        let mut has_array_set = false;
+        let mut unsafe_array_values: HashSet<ValueId> = HashSet::default();
+        let track_unsafe_uses = dfg.runtime().is_brillig();
         for block in &loop_.blocks {
-            let params = inserter.function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in inserter.function.dfg[*block].instructions() {
-                let results = inserter.function.dfg.instruction_results(*instruction_id);
+            let block_data = &dfg[*block];
+            defined_in_loop.extend(block_data.parameters());
+            for instruction_id in block_data.instructions() {
+                let results = dfg.instruction_results(*instruction_id);
                 defined_in_loop.extend(results);
-                if matches!(inserter.function.dfg[*instruction_id], Instruction::ArraySet { .. }) {
-                    has_array_set = true;
+                if track_unsafe_uses {
+                    collect_unsafe_array_uses(dfg, *instruction_id, &mut unsafe_array_values);
                 }
+            }
+            if track_unsafe_uses {
+                collect_unsafe_terminator_uses(
+                    block_data.unwrap_terminator(),
+                    &mut unsafe_array_values,
+                );
             }
         }
         let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
@@ -334,7 +347,7 @@ impl LoopContext {
             // leading to missed hoisting opportunities.
             nested_loop_control_dependent_blocks: HashSet::default(),
             no_break: loop_.is_fully_executed(cfg),
-            has_array_set,
+            unsafe_array_values,
         }
     }
 
@@ -717,18 +730,24 @@ impl<'f> LoopInvariantContext<'f> {
 
         let dfg = &self.inserter.function.dfg;
 
-        // In Brillig, hoisting an `ArrayGet` past an in-loop `ArraySet` is unsound:
-        // when the source array has reference count 1 at runtime, the `ArraySet`
-        // mutates it in place, and the original program's subsequent iterations
-        // would observe that mutation. A pre-header hoist captures the pre-mutation
-        // value once, so the hoisted read no longer matches the per-iteration read.
-        // Aliasing through chained `ArraySet`s makes a same-source check unsound,
-        // so we block hoisting any `ArrayGet` when *any* `ArraySet` is in the loop.
-        if dfg.runtime().is_brillig()
-            && loop_context.has_array_set
-            && matches!(instruction, Instruction::ArrayGet { .. })
-        {
-            return (false, false);
+        // In Brillig, hoisting a scalar-returning `ArrayGet vX, _` is unsound if
+        // any in-loop instruction could mutate vX's memory at runtime. Mutation
+        // happens via an `ArraySet` whose source is vX or aliases vX. vX can be
+        // aliased by any in-loop instruction that takes vX as an operand and
+        // produces a value sharing vX's memory (e.g. `MakeArray`, `Store`,
+        // `Call`, array-returning `ArrayGet`, `IfElse`, or a `Jmp`/`JmpIf`
+        // block-parameter argument). `IncrementRc`/`DecrementRc` only adjust
+        // the runtime refcount and cannot create such aliases. We pre-computed
+        // the set of values used in any of these unsafe positions in
+        // `LoopContext::new`; if vX is in that set, refuse the hoist.
+        if let Instruction::ArrayGet { array, .. } = instruction {
+            let result_is_array = dfg
+                .instruction_results(instruction_id)
+                .iter()
+                .any(|r| dfg.type_of_value(*r).is_array());
+            if !result_is_array && loop_context.unsafe_array_values.contains(&array) {
+                return (false, false);
+            }
         }
 
         // In Brillig, if the instruction creates a new array, we need to insert an inc_rc
@@ -820,6 +839,69 @@ impl<'f> LoopInvariantContext<'f> {
             }
             self.inserter.map_terminator_in_place(block);
         }
+    }
+}
+
+/// Record every operand of `instruction` that could let an in-loop `ArraySet`
+/// (re)mutate the underlying memory of a loop-invariant array. See
+/// [`LoopContext::unsafe_array_values`].
+fn collect_unsafe_array_uses(
+    dfg: &DataFlowGraph,
+    instruction_id: InstructionId,
+    out: &mut HashSet<ValueId>,
+) {
+    let instruction = &dfg[instruction_id];
+    match instruction {
+        Instruction::ArrayGet { array, .. } => {
+            let result_is_array = dfg
+                .instruction_results(instruction_id)
+                .iter()
+                .any(|r| dfg.type_of_value(*r).is_array());
+            if result_is_array {
+                out.insert(*array);
+            }
+        }
+        Instruction::Call { .. }
+        | Instruction::Store { .. }
+        | Instruction::ArraySet { .. }
+        | Instruction::IfElse { .. }
+        | Instruction::MakeArray { .. } => {
+            instruction.for_each_value(|v| {
+                out.insert(v);
+            });
+        }
+        Instruction::IncrementRc { .. }
+        | Instruction::DecrementRc { .. }
+        | Instruction::Binary(_)
+        | Instruction::Cast(..)
+        | Instruction::Not(_)
+        | Instruction::Truncate { .. }
+        | Instruction::Constrain(..)
+        | Instruction::ConstrainNotEqual(..)
+        | Instruction::RangeCheck { .. }
+        | Instruction::Allocate
+        | Instruction::Load { .. }
+        | Instruction::EnableSideEffectsIf { .. }
+        | Instruction::Noop => {}
+    }
+}
+
+/// Record block-parameter arguments passed by a terminator: the receiving
+/// block parameters alias these values at runtime, so a subsequent in-loop
+/// `ArraySet` on the parameter can mutate the original via aliasing.
+/// [`TerminatorInstruction::Return`] flows values out of the function and
+/// [`TerminatorInstruction::Unreachable`] has no operands, so neither needs
+/// to be recorded.
+fn collect_unsafe_terminator_uses(terminator: &TerminatorInstruction, out: &mut HashSet<ValueId>) {
+    match terminator {
+        TerminatorInstruction::Jmp { arguments, .. } => {
+            out.extend(arguments.iter().copied());
+        }
+        TerminatorInstruction::JmpIf { then_arguments, else_arguments, .. } => {
+            out.extend(then_arguments.iter().copied());
+            out.extend(else_arguments.iter().copied());
+        }
+        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {}
     }
 }
 
