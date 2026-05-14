@@ -52,6 +52,7 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
+use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
 use crate::{
@@ -1591,7 +1592,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         location: &Location,
     ) -> Result<(), MonomorphizationError> {
-        let complexity = Self::type_complexity(typ, 0);
+        let complexity = Self::type_complexity(typ);
         if complexity > MAX_TYPE_COMPLEXITY {
             return Err(MonomorphizationError::ComplexType {
                 complexity,
@@ -1602,80 +1603,92 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn types_complexity<I, T>(types: I, acc: usize) -> usize
-    where
-        I: IntoIterator<Item = T>,
-        T: std::borrow::Borrow<HirType>,
-    {
-        types.into_iter().fold(acc, |acc, t| Self::type_complexity(t.borrow(), acc))
-    }
-
-    fn type_complexity(typ: &HirType, mut acc: usize) -> usize {
-        // Every type increases it by one, even if seen already.
-        acc += 1;
-
-        // Early return if acc complexity exceeds the limit,
-        // this avoids stack overflow due to the recursive nature of this computation
-        if acc > MAX_TYPE_COMPLEXITY {
-            return acc;
+    /// Estimate the complexity of a type by counting all the types in it (with repetition).
+    fn type_complexity(typ: &Type) -> usize {
+        fn go_fold<I, T>(types: I, acc: usize, ctx: TypeRecursionContext) -> usize
+        where
+            I: IntoIterator<Item = T>,
+            T: std::borrow::Borrow<HirType>,
+        {
+            types.into_iter().fold(acc, |acc, t| go(t.borrow(), acc, ctx.clone()))
         }
 
-        let typ = typ.follow_bindings_shallow();
-        match typ.as_ref() {
-            HirType::Tuple(fields) => Self::types_complexity(fields, acc),
-            HirType::Array(elem_typ, len) => {
-                Self::types_complexity([elem_typ.as_ref(), len.as_ref()], acc)
+        fn go(typ: &HirType, mut acc: usize, mut ctx: TypeRecursionContext) -> usize {
+            // Every type increases it by one, even if seen already.
+            acc += 1;
+
+            // Early return if acc complexity exceeds the limit,
+            // this avoids stack overflow due to the recursive nature of this computation
+            if acc > MAX_TYPE_COMPLEXITY {
+                return acc;
             }
-            HirType::Vector(elem_typ) => Self::type_complexity(elem_typ, acc),
-            HirType::DataType(def, generics) => {
-                if let Some(fields) = def.borrow().get_fields(generics) {
-                    let types = fields.iter().map(|(_, typ, _)| typ);
-                    acc = Self::types_complexity(types, acc);
-                } else if let Some(variants) = def.borrow().get_variants(generics) {
-                    let types = variants.iter().flat_map(|(_, fields)| fields);
-                    acc = Self::types_complexity(types, acc);
+
+            // This will prevent a stack overflow on overly deep and skinny types,
+            // where we might be well below the MAX_TYPE_COMPLEXITY.
+            ctx = ctx.recur();
+
+            let typ = typ.follow_bindings_shallow();
+            match typ.as_ref() {
+                HirType::Tuple(fields) => go_fold(fields, acc, ctx.recur()),
+                HirType::Array(elem_typ, len) => {
+                    go_fold([elem_typ.as_ref(), len.as_ref()], acc, ctx)
                 }
-                Self::types_complexity(generics, acc)
-            }
-            HirType::Function(args, ret, env, _) => {
-                let types = [ret.as_ref(), env.as_ref()].into_iter().chain(args);
-                Self::types_complexity(types, acc)
-            }
-            HirType::Reference(inner, _) => Self::type_complexity(inner, acc),
-            HirType::Alias(alias, generics) => {
-                let typ = alias.borrow().get_type(generics);
-                let types = std::iter::once(&typ).chain(generics);
-                Self::types_complexity(types, acc)
-            }
-            Type::String(len) => Self::type_complexity(len, acc),
-            Type::FmtString(len, args) => {
-                Self::types_complexity([len.as_ref(), args.as_ref()], acc)
-            }
+                HirType::Vector(elem_typ) => go(elem_typ, acc, ctx),
+                HirType::DataType(def, generics) => {
+                    // We count every type multiple times in the complexity, but if we are dealing
+                    // with a recursive type, we have more specific errors than the inevitable max
+                    // complexity we will hit.
+                    if !ctx.insert_data_type(def.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    if let Some(fields) = def.borrow().get_fields(generics) {
+                        let types = fields.iter().map(|(_, typ, _)| typ);
+                        acc = go_fold(types, acc, ctx.clone());
+                    } else if let Some(variants) = def.borrow().get_variants(generics) {
+                        let types = variants.iter().flat_map(|(_, fields)| fields);
+                        acc = go_fold(types, acc, ctx.clone());
+                    }
+                    go_fold(generics, acc, ctx)
+                }
+                HirType::Function(args, ret, env, _) => {
+                    let types = [ret.as_ref(), env.as_ref()].into_iter().chain(args);
+                    go_fold(types, acc, ctx)
+                }
+                HirType::Reference(inner, _) => go(inner, acc, ctx),
+                HirType::Alias(alias, generics) => {
+                    if !ctx.insert_alias(alias.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    let typ = alias.borrow().get_type(generics);
+                    let types = std::iter::once(&typ).chain(generics);
+                    go_fold(types, acc, ctx)
+                }
+                Type::String(len) => go(len, acc, ctx),
+                Type::FmtString(len, args) => go_fold([len.as_ref(), args.as_ref()], acc, ctx),
 
-            Type::TraitAsType(_, _, trait_generics) => {
-                let generics = trait_generics
-                    .ordered
-                    .iter()
-                    .chain(trait_generics.named.iter().map(|n| &n.typ));
-                Self::types_complexity(generics, acc)
+                Type::TraitAsType(_, _, trait_generics) => {
+                    let generics = trait_generics
+                        .ordered
+                        .iter()
+                        .chain(trait_generics.named.iter().map(|n| &n.typ));
+                    go_fold(generics, acc, ctx)
+                }
+                Type::CheckedCast { from, to } => go_fold([from.as_ref(), to.as_ref()], acc, ctx),
+                Type::Forall(_, typ) => go(typ, acc, ctx),
+                Type::InfixExpr(lhs, _, rhs, _) => go_fold([lhs.as_ref(), rhs.as_ref()], acc, ctx),
+                Type::Constant(..)
+                | Type::Quoted(..)
+                | Type::TypeVariable(..)
+                | Type::NamedGeneric(..)
+                | Type::Unit
+                | Type::FieldElement
+                | Type::Integer(..)
+                | Type::Bool
+                | Type::Error => acc,
             }
-            Type::CheckedCast { from, to } => {
-                Self::types_complexity([from.as_ref(), to.as_ref()], acc)
-            }
-            Type::Forall(_, typ) => Self::type_complexity(typ, acc),
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                Self::types_complexity([lhs.as_ref(), rhs.as_ref()], acc)
-            }
-            Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Unit
-            | Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::Error => acc,
         }
+
+        go(typ, 0, TypeRecursionContext::default())
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
