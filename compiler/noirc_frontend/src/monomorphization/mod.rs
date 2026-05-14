@@ -1620,7 +1620,10 @@ impl<'interner> Monomorphizer<'interner> {
                 }
                 acc
             }
-            HirType::Array(elem_typ, _len) => Self::type_complexity_inner(elem_typ, acc),
+            HirType::Array(elem_typ, len) => {
+                acc = Self::type_complexity_inner(elem_typ, acc);
+                Self::type_complexity_inner(len, acc)
+            }
             HirType::DataType(_def, generics) => {
                 for generic in generics {
                     acc = Self::type_complexity_inner(generic, acc);
