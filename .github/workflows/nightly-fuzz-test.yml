@@ -33,10 +33,36 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Run fuzzer
-        run: just fuzz-nightly
+        id: fuzz
+        shell: bash
+        run: |
+          set -o pipefail
+          just fuzz-nightly 2>&1 | tee fuzz-output.log
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_MIN_STACK: 8388608
+
+      - name: Extract fuzzer seeds
+        if: failure()
+        id: seeds
+        shell: bash
+        run: |
+          ./.github/scripts/extract-fuzz-seeds.sh fuzz-output.log .
+          seed_count=$(wc -l < seeds.txt | tr -d ' ')
+          seeds=$(paste -sd, - < seeds.txt)
+          echo "seed_count=${seed_count}" >> "$GITHUB_OUTPUT"
+          echo "seeds=${seeds}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload fuzz failure artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-fuzz-failure
+          path: |
+            fuzz-output.log
+            seeds.txt
+            seeds-by-test.tsv
+          retention-days: 30
 
       - name: Get current date
         id: date
@@ -51,3 +77,6 @@ jobs:
           webhook-type: webhook-trigger
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            seed-count: ${{ steps.seeds.outputs.seed_count }}
+            seeds: ${{ steps.seeds.outputs.seeds }}
+            artifact-name: nightly-fuzz-failure
