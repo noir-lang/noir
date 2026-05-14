@@ -327,6 +327,7 @@ impl LoopContext {
             }
             if track_unsafe_uses {
                 collect_unsafe_terminator_uses(
+                    dfg,
                     block_data.unwrap_terminator(),
                     &mut unsafe_array_values,
                 );
@@ -867,7 +868,9 @@ fn collect_unsafe_array_uses(
         | Instruction::IfElse { .. }
         | Instruction::MakeArray { .. } => {
             instruction.for_each_value(|v| {
-                out.insert(v);
+                if dfg.type_of_value(v).is_array() {
+                    out.insert(v);
+                }
             });
         }
         Instruction::IncrementRc { .. }
@@ -892,14 +895,25 @@ fn collect_unsafe_array_uses(
 /// [`TerminatorInstruction::Return`] flows values out of the function and
 /// [`TerminatorInstruction::Unreachable`] has no operands, so neither needs
 /// to be recorded.
-fn collect_unsafe_terminator_uses(terminator: &TerminatorInstruction, out: &mut HashSet<ValueId>) {
+fn collect_unsafe_terminator_uses(
+    dfg: &DataFlowGraph,
+    terminator: &TerminatorInstruction,
+    out: &mut HashSet<ValueId>,
+) {
+    let mut record_array_args = |args: &[ValueId]| {
+        for &arg in args {
+            if dfg.type_of_value(arg).is_array() {
+                out.insert(arg);
+            }
+        }
+    };
     match terminator {
         TerminatorInstruction::Jmp { arguments, .. } => {
-            out.extend(arguments.iter().copied());
+            record_array_args(arguments);
         }
         TerminatorInstruction::JmpIf { then_arguments, else_arguments, .. } => {
-            out.extend(then_arguments.iter().copied());
-            out.extend(else_arguments.iter().copied());
+            record_array_args(then_arguments);
+            record_array_args(else_arguments);
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {}
     }
