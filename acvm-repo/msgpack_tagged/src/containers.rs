@@ -15,14 +15,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{MsgpackTagged, Product, TagRegistry, Tagged};
+use crate::{MsgpackTagged, TagRegistry, Tagged};
 
-const LEAF: Tagged = Tagged::Product(Product {
-    fields: &[],
-    reserved: &[],
-    defaults: &[],
-    allow_unknown_tags: false,
-});
+const LEAF: Tagged = Tagged::empty_product();
 
 impl<T: MsgpackTagged> MsgpackTagged for Vec<T> {
     const TAGGED: Tagged = LEAF;
@@ -93,6 +88,8 @@ impl_msgpack_tagged_for_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
 
 #[cfg(test)]
 mod tests {
+    use crate::Product;
+
     use super::*;
 
     /// A `MsgpackTagged` type that *does* register itself, used to prove
@@ -102,7 +99,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "x")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(reg: &mut TagRegistry) {
@@ -116,7 +112,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "y")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(reg: &mut TagRegistry) {

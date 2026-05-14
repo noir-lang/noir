@@ -3326,7 +3326,11 @@ name = "msgpack_tagged"
 version = "1.0.0-beta.20"
 dependencies = [
  "msgpack_tagged_derive",
+ "rmp",
+ "rmp-serde",
+ "rmpv",
  "serde",
+ "smallvec",
  "trybuild",
 ]
 

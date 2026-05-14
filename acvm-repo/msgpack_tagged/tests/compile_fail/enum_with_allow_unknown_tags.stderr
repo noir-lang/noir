@@ -1,4 +1,4 @@
-error: `#[tagged(allow_unknown_tags)]` doesn't apply to enums — there's no meaningful skip semantics for an unknown variant tag (the value's discriminator itself becomes unrepresentable). Use it on a struct field whose unknown tags can be silently dropped instead
+error: `#[tagged(allow_unknown_tags)]` doesn't apply to enums — there's no meaningful skip semantics for an unknown variant tag (the value's discriminator itself becomes non-representable). Mark a unit variant with `#[tagged(on_unknown)]` instead — the wrapper will route unknown wire tags there on decode
   --> tests/compile_fail/enum_with_allow_unknown_tags.rs:10:1
    |
 10 | / #[tagged(allow_unknown_tags)]

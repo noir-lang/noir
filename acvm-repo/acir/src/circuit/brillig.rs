@@ -94,7 +94,7 @@ impl std::fmt::Display for BrilligOutputs {
 #[tagged(allow_unknown_tags)]
 pub struct BrilligBytecode<F> {
     #[serde(default)] // For backwards compatibility
-    #[tag(0, default)]
+    #[tag(0)]
     pub function_name: String,
     #[tag(1)]
     pub bytecode: Vec<BrilligOpcode<F>>,

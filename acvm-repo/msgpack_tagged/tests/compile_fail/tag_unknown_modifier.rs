@@ -1,6 +1,6 @@
-//! Modifiers in `#[tag(N, ...)]` are extensible (the only one today is
-//! `default`), but unknown idents in that position should error with a
-//! span on the offending token.
+//! Anything past the integer tag in `#[tag(N, ...)]` is rejected — the
+//! grammar accepts a single integer tag literal and nothing else. Pins
+//! the rejection.
 
 use msgpack_tagged::MsgpackTagged;
 

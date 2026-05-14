@@ -9,9 +9,21 @@
 //!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
 //!   wrapper Serializer/Deserializer (added in a follow-up step).
 
+// `msgpack_tagged_derive`'s `MsgpackTagged` proc-macro emits
+// `::msgpack_tagged::...` paths to remain hygienic at every call site. From
+// inside this crate that absolute path doesn't resolve unless we tell rustc
+// the current crate also goes by that name.
+extern crate self as msgpack_tagged;
+
 mod containers;
 mod primitives;
 mod registry;
+
+pub mod deserializer;
+pub mod serializer;
+
+pub use deserializer::{Deserializer, msgpack_tagged_deserialize};
+pub use serializer::{Serializer, msgpack_tagged_serialize};
 
 pub use msgpack_tagged_derive::MsgpackTagged;
 pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};
@@ -61,22 +73,16 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
-            defaults: &[],
             allow_unknown_tags: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
-    /// Minimal impl supplying a `TAGGED` with all `Product` extras blank —
-    /// proves the empty-defaults shape compiles and reads back as expected.
+    /// Minimal impl supplying a `TAGGED` with `Product` extras blank —
+    /// proves the empty shape compiles and reads back as expected.
     struct Bar;
     impl MsgpackTagged for Bar {
-        const TAGGED: Tagged = Tagged::Product(Product {
-            fields: &[],
-            reserved: &[],
-            defaults: &[],
-            allow_unknown_tags: false,
-        });
+        const TAGGED: Tagged = Tagged::empty_product();
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
@@ -89,10 +95,9 @@ mod tests {
 
     #[test]
     #[allow(clippy::const_is_empty)]
-    fn bar_has_nothing_reserved_or_defaulted() {
+    fn bar_has_nothing_reserved() {
         let p = <Bar as MsgpackTagged>::TAGGED.as_product().unwrap();
         assert!(p.reserved.is_empty());
-        assert!(p.defaults.is_empty());
     }
 
     #[test]

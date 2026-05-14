@@ -67,15 +67,15 @@ impl Tagged {
 /// `fields` is in tag-ascending order (the canonical wire order). `reserved`
 /// lists tags previously used by this product and now retired — purely
 /// compile-time metadata that prevents reuse, never affects decode behavior.
-/// `defaults` lists the subset of tags whose decoder is allowed to fall back
-/// to `T::default()` when missing on the wire (i.e., `#[tag(N, default)]`).
 /// `allow_unknown_tags` opts the decoder into silently skipping fields whose
-/// tag isn't in `fields` or `reserved`.
+/// tag isn't in `fields` or `reserved`. Per-field wire-tolerance (i.e. "fill
+/// `T::default()` when this tag is missing") is **not** modeled here — it's
+/// expressed on the user side via serde-derive's `#[serde(default)]`, which
+/// is what actually performs the substitution at decode time.
 #[derive(Clone, Copy, Debug)]
 pub struct Product {
     pub fields: &'static [(Tag, &'static str)],
     pub reserved: &'static [Tag],
-    pub defaults: &'static [Tag],
     pub allow_unknown_tags: bool,
 }
 
@@ -99,15 +99,9 @@ impl Product {
         self.reserved.contains(&tag)
     }
 
-    /// Whether the field at `tag` is marked `#[tag(N, default)]` —
-    /// wire-tolerant: the decoder fills `T::default()` when it's missing.
-    pub fn is_default(self, tag: Tag) -> bool {
-        self.defaults.contains(&tag)
-    }
-
     /// Empty [Product] used for primitives and _newtypes_.
     pub const fn empty() -> Self {
-        Self { fields: &[], reserved: &[], defaults: &[], allow_unknown_tags: false }
+        Self { fields: &[], reserved: &[], allow_unknown_tags: false }
     }
 }
 
@@ -148,38 +142,38 @@ pub struct Variant {
 /// A sum type — a discriminated union of [`Variant`]s.
 ///
 /// `reserved` lists retired *variant* tags. Like `Product::reserved`, this is
-/// always a compile-time tag-reuse guard; whether the runtime decoder
-/// substitutes a default value when it encounters one is controlled
-/// independently by `default_on_reserved`.
+/// always a compile-time tag-reuse guard; whether the runtime decoder routes
+/// such tags to a fallback variant is controlled by `on_reserved_tag`.
 ///
-/// `default_on_reserved` and `default_on_unknown` opt into runtime-lenient
-/// decode of variant tags. Unlike for products there's no `allow_unknown_tags`
-/// "skip" — sums can't skip a fragment, since the value's discriminator is
-/// the value — so the tolerance is expressed as "fall back to `T::default()`
-/// instead of erroring":
+/// `on_reserved_tag` and `on_unknown_tag` opt into runtime-lenient decode of
+/// variant tags. Unlike products' `allow_unknown_tags` (which just skips an
+/// entry), sums can't skip a discriminator — the value is the discriminator —
+/// so the tolerance is expressed as "route to a designated fallback variant,
+/// discarding the payload":
 ///
-/// * `default_on_reserved` — substitute `T::default()` when the encoded
-///   variant tag is in `reserved`. Useful for backwards-compat: legacy data
-///   carrying a now-retired tag still decodes (to a safe default) instead of
-///   killing the whole structure. Use only when `T::default()` is a sound
-///   stand-in for "this used to be something we no longer support."
-/// * `default_on_unknown` — substitute `T::default()` when the encoded tag
-///   is in neither `variants` nor `reserved`. Useful for forward-compat:
-///   legacy readers can still parse data produced by a newer schema.
-///   **More dangerous**: silently swallows real corruption and unknown
-///   discriminators, so opt in only when "default" is a safe semantic
-///   substitute for "anything I don't recognize" (e.g. metadata-bearing
-///   `InlineType`-shaped types — definitely not `BrilligOpcode`-shaped ones,
-///   where an unknown discriminator means we can't execute the program).
+/// * `on_reserved_tag` — when set, the wire tag of the unit variant that
+///   acts as the backward-compat fallback. The macro fills it in iff a
+///   variant in the source carries `#[tagged(on_reserved)]`. On decode,
+///   any wire tag in `reserved` is routed here (payload discarded).
+/// * `on_unknown_tag` — same shape, but for forward-compat: a variant
+///   marked `#[tagged(on_unknown)]` catches any wire tag that's neither in
+///   `variants` nor in `reserved`. **More dangerous** than `on_reserved`:
+///   silently swallows real corruption alongside future-version tags, so
+///   opt in only when the fallback variant is a safe semantic substitute
+///   for "anything I don't recognize" (e.g. metadata-bearing
+///   `InlineType`-shaped types — definitely not `BrilligOpcode`-shaped
+///   ones, where an unknown discriminator means we can't execute the
+///   program).
 ///
-/// The macro emits `where Self: Default` on the generated impl whenever
-/// either flag is set, so misuse (no `Default` impl) is a compile error.
+/// A single variant may carry both `#[tagged(on_reserved)]` and
+/// `#[tagged(on_unknown)]` when the user wants the unified-catch-all
+/// behavior; in that case both fields point at the same tag.
 #[derive(Clone, Copy, Debug)]
 pub struct Sum {
     pub variants: &'static [Variant],
     pub reserved: &'static [Tag],
-    pub default_on_reserved: bool,
-    pub default_on_unknown: bool,
+    pub on_reserved_tag: Option<Tag>,
+    pub on_unknown_tag: Option<Tag>,
 }
 
 impl Sum {
@@ -220,6 +214,21 @@ impl TagRegistry {
     /// Construct an empty registry.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Construct a registry by starting the type-graph walk at `T`. Calls
+    /// `T::register_into` against a fresh registry, which registers `T`
+    /// itself and then recurses through every reachable tagged field/variant
+    /// type. The standard one-shot way to build a registry for a top-level
+    /// value about to be encoded.
+    ///
+    /// ```ignore
+    /// let registry = TagRegistry::from_type::<Program>();
+    /// ```
+    pub fn from_type<T: ?Sized + MsgpackTagged>() -> Self {
+        let mut reg = Self::new();
+        T::register_into(&mut reg);
+        reg
     }
 
     /// Register a type under its serde name.
@@ -277,7 +286,6 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
-            defaults: &[1],
             allow_unknown_tags: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
@@ -289,14 +297,13 @@ mod tests {
         const TAGGED: Tagged = Tagged::Product(Product {
             fields: &[(0, "x")],
             reserved: &[],
-            defaults: &[],
             allow_unknown_tags: false,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
     /// Hand-written sum-shaped impl: stand-in for what the derive macro will
-    /// emit for `enum Choice { #[tag(0)] Empty, #[tag(1)] Pair { #[tag(0)] a, #[tag(2, default)] b } }`.
+    /// emit for `enum Choice { #[tag(0)] Empty, #[tag(1)] Pair { #[tag(0)] a, #[tag(2)] b } }`.
     struct Choice;
     impl MsgpackTagged for Choice {
         const TAGGED: Tagged = Tagged::Sum(Sum {
@@ -305,12 +312,7 @@ mod tests {
                     tag: 0,
                     name: "Empty",
                     kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
+                    payload: Product::empty(),
                 },
                 Variant {
                     tag: 1,
@@ -319,51 +321,36 @@ mod tests {
                     payload: Product {
                         fields: &[(0, "a"), (2, "b")],
                         reserved: &[],
-                        defaults: &[2],
                         allow_unknown_tags: false,
                     },
                 },
             ],
             reserved: &[5],
-            default_on_reserved: false,
-            default_on_unknown: false,
+            on_reserved_tag: None,
+            on_unknown_tag: None,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
 
-    /// Hand-written sum exercising both decode-policy flags together. Mirrors
+    /// Hand-written sum exercising both fallback markers together. Mirrors
     /// the derive-macro emission for an enum like
-    /// `#[tagged(reserved(7), default_on_reserved, default_on_unknown)] enum Lenient { #[tag(0)] A, #[tag(1)] B }`.
+    /// `#[tagged(reserved(7))] enum Lenient { #[tag(0)] A, #[tag(1)] B, #[tag(2)] #[tagged(on_reserved, on_unknown)] Other }`.
     struct Lenient;
     impl MsgpackTagged for Lenient {
         const TAGGED: Tagged = Tagged::Sum(Sum {
             variants: &[
+                Variant { tag: 0, name: "A", kind: VariantKind::Unit, payload: Product::empty() },
+                Variant { tag: 1, name: "B", kind: VariantKind::Unit, payload: Product::empty() },
                 Variant {
-                    tag: 0,
-                    name: "A",
+                    tag: 2,
+                    name: "Other",
                     kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
-                },
-                Variant {
-                    tag: 1,
-                    name: "B",
-                    kind: VariantKind::Unit,
-                    payload: Product {
-                        fields: &[],
-                        reserved: &[],
-                        defaults: &[],
-                        allow_unknown_tags: false,
-                    },
+                    payload: Product::empty(),
                 },
             ],
             reserved: &[7],
-            default_on_reserved: true,
-            default_on_unknown: true,
+            on_reserved_tag: Some(2),
+            on_unknown_tag: Some(2),
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -374,6 +361,26 @@ mod tests {
 
     fn sum_of<T: MsgpackTagged>() -> Sum {
         T::TAGGED.as_sum().expect("expected a sum-shaped type")
+    }
+
+    /// Self-registering fixture: unlike `Foo` / `Choice`, this fixture's
+    /// `register_into` actually populates the registry — exercises the
+    /// `TagRegistry::of::<T>` helper end-to-end.
+    struct SelfRegistering;
+    impl MsgpackTagged for SelfRegistering {
+        const TAGGED: Tagged = Tagged::empty_product();
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("SelfRegistering");
+        }
+    }
+
+    #[test]
+    fn from_type_walks_the_type_graph_from_a_typed_entry_point() {
+        let reg = TagRegistry::from_type::<SelfRegistering>();
+        assert!(
+            reg.get("SelfRegistering").is_some(),
+            "SelfRegistering's `register_into` should run via `TagRegistry::from_type`",
+        );
     }
 
     #[test]
@@ -415,7 +422,6 @@ mod tests {
         let p = entry.tagged().as_product().unwrap();
         assert_eq!(p.fields, &[(0, "a"), (1, "b")]);
         assert_eq!(p.reserved, &[3]);
-        assert_eq!(p.defaults, &[1]);
         assert!(p.allow_unknown_tags);
     }
 
@@ -447,14 +453,6 @@ mod tests {
         assert!(p.is_reserved(3));
         assert!(!p.is_reserved(0));
         assert!(!p.is_reserved(99));
-    }
-
-    #[test]
-    fn product_is_default_only_for_listed_tags() {
-        let p = product_of::<Foo>();
-        assert!(p.is_default(1), "Foo's tag 1 (`b`) is in defaults");
-        assert!(!p.is_default(0), "tag 0 (`a`) is not defaulted");
-        assert!(!p.is_default(99), "unknown tags are not defaulted");
     }
 
     #[test]
@@ -505,22 +503,13 @@ mod tests {
         assert_eq!(pair.payload.field_for(99), None);
     }
 
-    #[test]
-    fn variant_payload_is_default_uses_per_variant_defaults_list() {
-        let pair = sum_of::<Choice>().variant_for("Pair").unwrap();
-        assert!(pair.payload.is_default(2), "tag 2 (`b`) is `#[tag(2, default)]`");
-        assert!(!pair.payload.is_default(0), "tag 0 (`a`) is not defaulted");
-        assert!(!pair.payload.is_default(99), "unknown tags are not defaulted");
-    }
-
-    /// Unit variants have empty `fields` and `defaults` slices — the wrapper
-    /// can rely on this to short-circuit field-table lookups.
+    /// Unit variants have an empty `fields` slice — the wrapper can rely
+    /// on this to short-circuit field-table lookups.
     #[test]
     #[allow(clippy::const_is_empty)]
-    fn unit_variants_have_empty_field_and_default_tables() {
+    fn unit_variants_have_empty_field_table() {
         let empty = sum_of::<Choice>().variant_for("Empty").unwrap();
         assert!(empty.payload.fields.is_empty());
-        assert!(empty.payload.defaults.is_empty());
     }
 
     #[test]
@@ -531,20 +520,20 @@ mod tests {
         assert!(!s.is_reserved(99));
     }
 
-    /// Both decode-policy flags default to `false` — strict decode unless
-    /// the type opts in.
+    /// Both fallback-tag slots default to `None` — strict decode unless
+    /// the type opts in via a variant-level marker.
     #[test]
     #[allow(clippy::assertions_on_constants)]
     fn sum_default_decode_policy_is_strict() {
         let s = sum_of::<Choice>();
-        assert!(!s.default_on_reserved);
-        assert!(!s.default_on_unknown);
+        assert!(s.on_reserved_tag.is_none());
+        assert!(s.on_unknown_tag.is_none());
     }
 
     #[test]
     fn sum_decode_policy_flags_propagate_when_set() {
         let s = sum_of::<Lenient>();
-        assert!(s.default_on_reserved);
-        assert!(s.default_on_unknown);
+        assert_eq!(s.on_reserved_tag, Some(2));
+        assert_eq!(s.on_unknown_tag, Some(2));
     }
 }
