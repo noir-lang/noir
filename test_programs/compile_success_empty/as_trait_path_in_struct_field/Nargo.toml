@@ -1,0 +1,6 @@
+[package]
+name = "as_trait_path_in_struct_field"
+type = "bin"
+authors = [""]
+
+[dependencies]

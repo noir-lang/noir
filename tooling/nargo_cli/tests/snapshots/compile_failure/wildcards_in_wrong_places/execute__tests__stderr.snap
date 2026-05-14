@@ -9,20 +9,6 @@ warning: Constraint for `Gen<_>: Trait2` is not needed, another matching impl is
    │             ------ Unnecessary trait constraint in where clause
    │
 
-error: The placeholder `_` is not allowed in struct field types
-  ┌─ src/main.nr:6:9
-  │
-6 │     x: [_; _],
-  │         -
-  │
-
-error: The placeholder `_` is not allowed in struct field types
-  ┌─ src/main.nr:6:12
-  │
-6 │     x: [_; _],
-  │            -
-  │
-
 error: The placeholder `_` is not allowed in trait constraints
    ┌─ src/main.nr:29:9
    │
@@ -36,6 +22,20 @@ error: The placeholder `_` is not allowed in trait bounds
 29 │     Gen<_>: Trait2<_>,
    │                    -
    │
+
+error: The placeholder `_` is not allowed in struct field types
+  ┌─ src/main.nr:6:9
+  │
+6 │     x: [_; _],
+  │         -
+  │
+
+error: The placeholder `_` is not allowed in struct field types
+  ┌─ src/main.nr:6:12
+  │
+6 │     x: [_; _],
+  │            -
+  │
 
 error: The placeholder `_` is not allowed in function parameter types
    ┌─ src/main.nr:16:25

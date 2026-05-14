@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{
-    GenericTypeVars, Shared, Type, TypeBindings,
+    GenericTypeVars, NamedGeneric, Shared, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -16,6 +16,68 @@ use crate::{
 };
 
 use super::NodeInterner;
+
+/// Collect every unbound `NamedGeneric`'s `TypeVariable` reachable from `typ`,
+/// preserving the order they're encountered and skipping duplicates by id. Used
+/// to instantiate the type with fresh type variables in
+/// [NodeInterner::lookup_trait_implementation_for_projection].
+fn collect_unbound_named_generic_typevars(typ: &Type, out: &mut Vec<TypeVariable>) {
+    let mut seen: HashSet<_> = out.iter().map(|tv| tv.id()).collect();
+
+    fn walk(typ: &Type, out: &mut Vec<TypeVariable>, seen: &mut HashSet<crate::TypeVariableId>) {
+        match typ {
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                if type_var.borrow().is_unbound() && seen.insert(type_var.id()) {
+                    out.push(type_var.clone());
+                }
+            }
+            Type::Array(elem, len) => {
+                walk(elem, out, seen);
+                walk(len, out, seen);
+            }
+            Type::Vector(elem) => walk(elem, out, seen),
+            Type::String(len) => walk(len, out, seen),
+            Type::FmtString(len, elems) => {
+                walk(len, out, seen);
+                walk(elems, out, seen);
+            }
+            Type::Tuple(elems) => {
+                for e in elems {
+                    walk(e, out, seen);
+                }
+            }
+            Type::DataType(_, args) | Type::Alias(_, args) => {
+                for a in args {
+                    walk(a, out, seen);
+                }
+            }
+            Type::Function(params, ret, env, _) => {
+                for p in params {
+                    walk(p, out, seen);
+                }
+                walk(ret, out, seen);
+                walk(env, out, seen);
+            }
+            Type::Reference(inner, _) => walk(inner, out, seen),
+            Type::CheckedCast { to, .. } => walk(to, out, seen),
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                walk(lhs, out, seen);
+                walk(rhs, out, seen);
+            }
+            Type::TraitAsType(_, _, generics) => {
+                for g in &generics.ordered {
+                    walk(g, out, seen);
+                }
+                for n in &generics.named {
+                    walk(&n.typ, out, seen);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    walk(typ, out, &mut seen);
+}
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
@@ -315,6 +377,105 @@ impl NodeInterner {
 
         Type::apply_type_bindings(bindings);
         Ok((impl_kind, instantiation_bindings))
+    }
+
+    /// Variant of [Self::lookup_trait_implementation] that can find `Prepared` impls
+    /// even when they were stored with their named generics intact (which prevents
+    /// the default lookup from unifying them with a concrete query). Used when
+    /// resolving `<X as Trait>::AssocItem` projections that may appear in struct
+    /// fields, enum variants, or type-alias bodies before the impl has been
+    /// fully collected. Bound resolution and overlap detection still go through
+    /// the stricter [Self::lookup_trait_implementation] so they don't pick up
+    /// spurious `Prepared` matches with unvalidated where-clauses.
+    ///
+    /// On success, returns `(impl_kind, instantiation_bindings)` and applies
+    /// unification bindings — same contract as `lookup_trait_implementation`.
+    pub(crate) fn lookup_trait_implementation_for_projection(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        let default_result = self.lookup_trait_implementation(
+            object_type,
+            trait_id,
+            trait_generics,
+            trait_associated_types,
+        );
+        if default_result.is_ok() {
+            return default_result;
+        }
+
+        // Fallback: scan `Prepared` impls and instantiate each one's named generics
+        // with fresh type variables on the fly, then attempt the same matching the
+        // default lookup performs. We do this only on `Prepared` so the default
+        // path's behaviour for `Normal` impls (including where-clause validation
+        // and most-specific-match logic) is unchanged.
+        let Some(entries) = self.trait_implementation_map.get(&trait_id) else {
+            return default_result;
+        };
+
+        for (existing_object_type, impl_kind) in entries {
+            let TraitImplKind::Prepared(impl_id, _) = impl_kind else { continue };
+
+            // Instantiate the impl's named generics with fresh typevars. Without
+            // this, unbound NamedGenerics in `existing_object_type` won't unify
+            // with concrete types in the query.
+            let impl_trait_generics = self.get_trait_generics_for_impl(*impl_id).clone();
+
+            // Gather every unbound NamedGeneric reachable from the impl's
+            // object_type *and* its trait generics. The impl's named generics
+            // appear in both — e.g., `impl<T, Context> RuntimeState<Context> for
+            // PublicMutable<T>` has T in the object_type and Context in the trait
+            // generics. Without freshening Context, a concrete query like
+            // `RuntimeState<ContextType>` won't unify with it.
+            let mut impl_generics = Vec::new();
+            collect_unbound_named_generic_typevars(existing_object_type, &mut impl_generics);
+            for g in &impl_trait_generics.ordered {
+                collect_unbound_named_generic_typevars(g, &mut impl_generics);
+            }
+            for n in &impl_trait_generics.named {
+                collect_unbound_named_generic_typevars(&n.typ, &mut impl_generics);
+            }
+
+            let (instantiated, instantiation_bindings) = existing_object_type
+                .substitute_type_vars_with_fresh_type_vars(&impl_generics, self);
+
+            let mut bindings = TypeBindings::default();
+            if object_type.try_unify(&instantiated, &mut bindings).is_err() {
+                continue;
+            }
+
+            let ordered_unify =
+                trait_generics.iter().zip(&impl_trait_generics.ordered).all(|(q, ig)| {
+                    let ig = ig.force_substitute(&instantiation_bindings);
+                    q.try_unify(&ig, &mut bindings).is_ok()
+                });
+            if !ordered_unify {
+                continue;
+            }
+
+            let assoc_unify = trait_associated_types.iter().all(|qg| {
+                let Some(impl_named) =
+                    impl_trait_generics.named.iter().find(|n| n.name.as_str() == qg.name.as_str())
+                else {
+                    return false;
+                };
+                let ig = impl_named.typ.force_substitute(&instantiation_bindings);
+                qg.typ.try_unify(&ig, &mut bindings).is_ok()
+            });
+            if !assoc_unify {
+                continue;
+            }
+
+            Type::apply_type_bindings(bindings);
+            return Ok((impl_kind.clone(), instantiation_bindings));
+        }
+
+        // No prepared impl matched either; surface the original error so the
+        // caller's diagnostic carries the failing constraint.
+        default_result
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.

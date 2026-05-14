@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait RuntimeState<Context> {
+    type Runtime;
+}
+
+struct PublicMutable<T> {}
+
+impl<Context, T> RuntimeState<Context> for PublicMutable<T> {
+    type Runtime = RuntimePublicMutable<T, Context>;
+}
+
+impl<T> HasSize for PublicMutable<T> {
+    let N: u32 = 1;
+}
+
+struct RuntimePublicMutable<T, Context> {
+    context: Context,
+    slot: Field,
+}
+
+struct ContextType {}
+
+struct Storage {
+    value: RuntimePublicMutable<u128, ContextType>,
+}
+
+trait HasSize {
+    let N: u32;
+}
+
+struct StorageArray {
+    value: [Field; 1],
+}
+
+struct Wrapper<let N: u32> {
+    value: [Field; N],
+}
+
+struct StorageWrapper {
+    value: Wrapper<1>,
+}
+
+fn main() {
+    let _: Storage = Storage {
+        value: RuntimePublicMutable::<u128, ContextType> { context: ContextType {}, slot: 0_Field },
+    };
+    let _: StorageArray = StorageArray { value: [0_Field] };
+    let _: StorageWrapper = StorageWrapper { value: Wrapper::<1> { value: [0_Field] } };
+}

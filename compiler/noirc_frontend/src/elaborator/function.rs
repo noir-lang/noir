@@ -63,12 +63,37 @@ pub(super) struct UnresolvedFunctionMeta {
     pub(super) extra_trait_constraints: Vec<(TraitConstraint, Location)>,
 }
 
+/// Per-impl outputs of [Elaborator::prepare_trait_impls_for_meta_definition]:
+/// the trait constraints created when desugaring the impl's where-clause and the
+/// impl's resolved generics, in source order. Threaded into
+/// [Elaborator::register_function_metas] so trait-impl methods inherit them.
+pub(super) type PreparedTraitImpls = Vec<(Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>)>;
+
 impl Elaborator<'_> {
+    /// Prepares every trait impl so its `<Object as Trait>::Type` references can be
+    /// resolved by subsequent phases. Running this early (before struct, enum, alias,
+    /// and function-meta elaboration) is what makes such projections work in
+    /// struct-field type position. See https://github.com/noir-lang/noir/issues/12659.
+    ///
+    /// The returned vec is threaded into [Self::register_function_metas] so trait-impl
+    /// methods inherit the constraints/generics produced here.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn prepare_trait_impls_for_meta_definition(
+        &mut self,
+        trait_impls: &mut [UnresolvedTraitImpl],
+    ) -> PreparedTraitImpls {
+        vecmap(trait_impls.iter_mut(), |trait_impl| {
+            self.prepare_trait_impl_for_function_meta_definition(trait_impl)
+        })
+    }
+
     /// Registers all functions, impl methods, and trait impl methods for *lazy*
     /// metadata resolution. Each entry captures the elaborator context (self_type,
-    /// outer generics, trait/impl ids) needed to resolve the meta later. Trait
-    /// impls are also prepared here so that `<Object as Trait>::Type` references
-    /// inside any signature can be looked up during meta resolution.
+    /// outer generics, trait/impl ids) needed to resolve the meta later.
+    ///
+    /// Trait impls must have been prepared via
+    /// [Self::prepare_trait_impls_for_meta_definition] beforehand; the resulting
+    /// `prepared_trait_impls` is passed in so trait-impl methods inherit it.
     ///
     /// The metas are not actually resolved here — they are resolved on demand
     /// (the first time something reads the meta) or drained at the end of
@@ -79,12 +104,8 @@ impl Elaborator<'_> {
         functions: &mut [UnresolvedFunctions],
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
+        prepared_trait_impls: PreparedTraitImpls,
     ) {
-        // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function signatures.
-        let trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
-            self.prepare_trait_impl_for_function_meta_definition(trait_impl)
-        });
-
         // Register metas for regular functions
         for function_set in functions {
             self.register_function_metas_for_functions(function_set, &[]);
@@ -97,7 +118,7 @@ impl Elaborator<'_> {
 
         // Register metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
-            trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
+            trait_impls.iter_mut().zip_eq(prepared_trait_impls)
         {
             self.register_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }

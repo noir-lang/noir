@@ -631,3 +631,128 @@ fn generic_substitution_with_turbofish_trait_method() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12659
+#[test]
+fn as_trait_path_in_struct_field() {
+    let src = r#"
+    pub trait RuntimeState<Context> {
+        type Runtime;
+    }
+
+    pub struct PublicMutable<T> {}
+
+    pub struct RuntimePublicMutable<T, Context> {
+        pub context: Context,
+        pub slot: Field,
+    }
+
+    impl<T, Context> RuntimeState<Context> for PublicMutable<T> {
+        type Runtime = RuntimePublicMutable<T, Context>;
+    }
+
+    pub struct ContextType {}
+
+    pub struct Storage {
+        pub value: <PublicMutable<u128> as RuntimeState<ContextType>>::Runtime,
+    }
+
+    fn main() {
+        let _s: Storage = Storage {
+            value: RuntimePublicMutable { context: ContextType {}, slot: 0 },
+        };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12659
+#[test]
+fn as_trait_path_as_array_length_in_struct_field() {
+    let src = r#"
+    trait HasSize {
+        let N: u32;
+    }
+
+    struct PublicMutable<T> {}
+
+    impl<T> HasSize for PublicMutable<T> {
+        let N: u32 = 1;
+    }
+
+    struct StorageArray {
+        value: [Field; <PublicMutable<u128> as HasSize>::N],
+    }
+
+    fn main() {
+        let _ = StorageArray { value: [0] };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12659
+#[test]
+fn as_trait_path_as_wrapper_generic_in_struct_field() {
+    let src = r#"
+    trait HasSize {
+        let N: u32;
+    }
+
+    struct PublicMutable<T> {}
+
+    impl<T> HasSize for PublicMutable<T> {
+        let N: u32 = 1;
+    }
+
+    struct Wrapper<let N: u32> {
+        value: [Field; N],
+    }
+
+    struct StorageWrapper {
+        value: Wrapper<<PublicMutable<u128> as HasSize>::N>,
+    }
+
+    fn main() {
+        let _ = StorageWrapper { value: Wrapper::<1> { value: [0] } };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Sanity: same projection in function body should still work post-fix.
+#[test]
+fn as_trait_path_in_function_body_baseline() {
+    let src = r#"
+    trait HasItem { type Item; }
+    struct PublicMutable<T> {}
+    impl<T> HasItem for PublicMutable<T> { type Item = T; }
+    fn main() {
+        let _: <PublicMutable<u32> as HasItem>::Item = 0;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/12659
+#[test]
+fn as_trait_path_in_type_alias() {
+    let src = r#"
+    trait HasItem {
+        type Item;
+    }
+
+    struct PublicMutable<T> {}
+
+    impl<T> HasItem for PublicMutable<T> {
+        type Item = T;
+    }
+
+    type Aliased = <PublicMutable<u32> as HasItem>::Item;
+
+    fn main() {
+        let _: Aliased = 0_u32;
+    }
+    "#;
+    assert_no_errors(src);
+}

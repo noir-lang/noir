@@ -522,6 +522,32 @@ impl<'context> Elaborator<'context> {
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         self.set_unresolved_globals_ordering(items.globals);
 
+        // Elaborate traits before preparing trait impls: impl where-clause desugaring
+        // reads `Trait::associated_type_bounds`, which `collect_traits` populates.
+        self.collect_traits(&mut items.traits);
+
+        // Prepare trait impls early so `<Object as Trait>::AssocType` projections can
+        // resolve in type alias bodies, struct fields, and enum variant types. This
+        // happens in two passes:
+        //
+        //   1. `prepare_trait_impls_for_meta_definition` declares each impl in the
+        //      interner with placeholder associated types.
+        //   2. `resolve_trait_impl_associated_type_bodies` walks each impl again and
+        //      binds those placeholders to their resolved RHSes. The split lets
+        //      cross-impl references between associated types resolve correctly:
+        //      impl A's RHS may reference impl B's placeholder, regardless of order.
+        //
+        // Without (2), an `<X as Trait>::AssocType` query against a prepared impl
+        // returns an unbound placeholder; the subsequent substitute call cannot reach
+        // the impl's RHS through the placeholder, and the projection captures the
+        // wrong type. See https://github.com/noir-lang/noir/issues/12659.
+        let prepared_trait_impls =
+            self.prepare_trait_impls_for_meta_definition(&mut items.trait_impls);
+
+        for trait_impl in &mut items.trait_impls {
+            self.resolve_trait_impl_associated_type_bodies(trait_impl);
+        }
+
         for (alias_id, alias) in items.type_aliases {
             self.define_type_alias(alias_id, alias);
         }
@@ -529,12 +555,12 @@ impl<'context> Elaborator<'context> {
         // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
         self.collect_enum_definitions(&items.enums);
-        self.collect_traits(&mut items.traits);
 
         self.register_function_metas(
             &mut items.functions,
             &mut items.impls,
             &mut items.trait_impls,
+            prepared_trait_impls,
         );
 
         // Before we resolve any function symbols we must go through our impls and
