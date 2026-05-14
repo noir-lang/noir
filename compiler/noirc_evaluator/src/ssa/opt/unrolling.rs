@@ -1896,6 +1896,7 @@ impl<'f> LoopIteration<'f> {
                     (then_destination, then_arguments)
                 };
 
+                let jumped_from_header = self.source_block == self.loop_.header;
                 self.source_block = self.get_original_block(destination);
 
                 // The body block's instructions will be inlined directly into the
@@ -1903,9 +1904,19 @@ impl<'f> LoopIteration<'f> {
                 // by `get_or_insert_block`. Map the destination's block params to the
                 // jmp arguments so that inlined instructions resolve to the actual
                 // values rather than the fresh block's (now unreachable) params.
-                let destination_params = self.dfg().block_parameters(destination).to_vec();
-                for (param, arg) in destination_params.iter().zip(&arguments) {
-                    self.inserter.map_value(*param, *arg);
+                //
+                // This substitution is only valid for the loop header's constant jump
+                // into the loop body, because the body is inlined directly into the
+                // current unroll target. For constant `jmpif`s encountered later in
+                // loop-body blocks whose destination is a merge/exit block still
+                // reached through other predecessors, rewriting the destination's
+                // own parameter uses to one predecessor's argument would produce
+                // invalid SSA.
+                if jumped_from_header {
+                    let destination_params = self.dfg().block_parameters(destination).to_vec();
+                    for (param, arg) in destination_params.iter().zip(&arguments) {
+                        self.inserter.map_value(*param, *arg);
+                    }
                 }
 
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
@@ -3365,7 +3376,7 @@ mod tests {
         let _ = ssa.interpret(vec![]).unwrap();
 
         // Loop has been unrolled
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v11 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
@@ -3374,22 +3385,22 @@ mod tests {
           b1():
             v33 = array_get v32, index u32 6 -> Field
             constrain v33 == Field 27
-            v34 = array_get v5, index u32 6 -> Field
+            v34 = array_get v9, index u32 6 -> Field
             v35 = eq v34, Field 27
             constrain v35 == u1 0
             return
           b2(v0: [Field; 10]):
             v14 = array_set v11, index u32 0, value Field 27
-            jmp b3(v11)
+            jmp b3(v0)
           b3(v1: [Field; 10]):
             v16 = array_set v14, index u32 1, value Field 27
-            jmp b4(v11)
+            jmp b4(v1)
           b4(v2: [Field; 10]):
             v18 = array_set v16, index u32 2, value Field 27
-            jmp b5(v11)
+            jmp b5(v2)
           b5(v3: [Field; 10]):
             v20 = array_set v18, index u32 3, value Field 27
-            jmp b6(v11)
+            jmp b6(v3)
           b6(v4: [Field; 10]):
             v22 = array_set v20, index u32 4, value Field 27
             jmp b7()
@@ -3401,13 +3412,13 @@ mod tests {
             jmp b9(v5)
           b9(v6: [Field; 10]):
             v26 = array_set v24, index u32 6, value Field 27
-            jmp b10(v5)
+            jmp b10(v6)
           b10(v7: [Field; 10]):
             v28 = array_set v26, index u32 7, value Field 27
-            jmp b11(v5)
+            jmp b11(v7)
           b11(v8: [Field; 10]):
             v30 = array_set v28, index u32 8, value Field 27
-            jmp b12(v5)
+            jmp b12(v8)
           b12(v9: [Field; 10]):
             v32 = array_set v30, index u32 9, value Field 27
             jmp b1()
@@ -3775,6 +3786,207 @@ mod tests {
             jmp b1(u32 50)
           b1(v1: u32):
             return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn unroll_body_jmpif_does_not_remap_later_merge_block_params() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0, u1 1, u32 50)
+          b1(v0: u32, v1: u1, v2: u32):
+            v15 = lt v0, u32 3
+            jmpif v15 then: b2(), else: b3()
+          b2():
+            v16 = eq v2, u32 0
+            jmpif v16 then: b4(v2), else: b5()
+          b3():
+            return v1
+          b4(v3: u32):
+            v20 = eq v3, u32 0
+            jmpif v20 then: b6(v3), else: b7()
+          b5():
+            v18 = sub v2, u32 1
+            jmp b8(u1 0)
+          b6(v4: u32):
+            v22 = eq v4, u32 0
+            jmpif v22 then: b9(v4), else: b10()
+          b7():
+            v21 = sub v3, u32 1
+            jmp b11(u1 0)
+          b8(v5: u1):
+            jmpif v1 then: b12(), else: b4(v18)
+          b9(v6: u32):
+            v24 = eq v6, u32 0
+            jmpif v24 then: b13(v6), else: b14()
+          b10():
+            v23 = sub v4, u32 1
+            jmp b15(u1 0)
+          b11(v7: u1):
+            jmpif v1 then: b16(), else: b6(v21)
+          b12():
+            jmpif v5 then: b17(), else: b18()
+          b13(v8: u32):
+            v26 = eq v0, u32 0
+            v27 = unchecked_add v0, u32 1
+            jmp b1(v27, v26, v8)
+          b14():
+            v25 = sub v6, u32 1
+            jmp b19(u1 0)
+          b15(v9: u1):
+            jmpif v1 then: b20(), else: b9(v23)
+          b16():
+            jmpif v7 then: b21(), else: b22()
+          b17():
+            jmp b4(v18)
+          b18():
+            jmp b8(u1 1)
+          b19(v10: u1):
+            jmpif v1 then: b23(), else: b13(v25)
+          b20():
+            jmpif v9 then: b24(), else: b25()
+          b21():
+            jmp b6(v21)
+          b22():
+            jmp b11(u1 1)
+          b23():
+            jmpif v10 then: b26(), else: b27()
+          b24():
+            jmp b9(v23)
+          b25():
+            jmp b15(u1 1)
+          b26():
+            jmp b13(v25)
+          b27():
+            jmp b19(u1 1)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa
+            .unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+            .unwrap();
+
+        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, 0).unwrap();
+
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u1 0)
+          b1(v0: u1):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b4()
+          b3():
+            jmp b1(u1 1)
+          b4():
+            jmp b5(u1 0)
+          b5(v1: u1):
+            jmpif v1 then: b6(), else: b7()
+          b6():
+            jmp b8(u32 48)
+          b7():
+            jmp b5(u1 1)
+          b8(v2: u32):
+            v23 = eq v2, u32 0
+            jmpif v23 then: b9(v2), else: b10()
+          b9(v3: u32):
+            v26 = eq v3, u32 0
+            jmpif v26 then: b11(v3), else: b12()
+          b10():
+            v25 = sub v2, u32 1
+            jmp b13(u1 0)
+          b11(v4: u32):
+            v28 = eq v4, u32 0
+            jmpif v28 then: b14(v4), else: b15()
+          b12():
+            v27 = sub v3, u32 1
+            jmp b16(u1 0)
+          b13(v5: u1):
+            jmpif v5 then: b17(), else: b18()
+          b14(v6: u32):
+            v30 = eq v6, u32 0
+            jmpif v30 then: b19(v6), else: b20()
+          b15():
+            v29 = sub v4, u32 1
+            jmp b21(u1 0)
+          b16(v7: u1):
+            jmpif v7 then: b22(), else: b23()
+          b17():
+            jmp b9(v25)
+          b18():
+            jmp b13(u1 1)
+          b19(v8: u32):
+            v32 = eq v8, u32 0
+            jmpif v32 then: b24(v8), else: b25()
+          b20():
+            v31 = sub v6, u32 1
+            jmp b26(u1 0)
+          b21(v9: u1):
+            jmpif v9 then: b27(), else: b28()
+          b22():
+            jmp b11(v27)
+          b23():
+            jmp b16(u1 1)
+          b24(v10: u32):
+            v34 = eq v10, u32 0
+            jmpif v34 then: b29(v10), else: b30()
+          b25():
+            v33 = sub v8, u32 1
+            jmp b31(u1 0)
+          b26(v11: u1):
+            jmpif v11 then: b32(), else: b33()
+          b27():
+            jmp b14(v29)
+          b28():
+            jmp b21(u1 1)
+          b29(v12: u32):
+            v36 = eq v12, u32 0
+            jmpif v36 then: b34(v12), else: b35()
+          b30():
+            v35 = sub v10, u32 1
+            jmp b36(u1 0)
+          b31(v13: u1):
+            jmpif v13 then: b37(), else: b38()
+          b32():
+            jmp b19(v31)
+          b33():
+            jmp b26(u1 1)
+          b34(v14: u32):
+            v38 = eq v14, u32 0
+            jmpif v38 then: b39(v14), else: b40()
+          b35():
+            v37 = sub v12, u32 1
+            jmp b34(v37)
+          b36(v15: u1):
+            jmpif v15 then: b41(), else: b42()
+          b37():
+            jmp b24(v33)
+          b38():
+            jmp b31(u1 1)
+          b39(v16: u32):
+            v40 = eq v16, u32 0
+            jmpif v40 then: b43(v16), else: b44()
+          b40():
+            v39 = sub v14, u32 1
+            jmp b39(v39)
+          b41():
+            jmp b29(v35)
+          b42():
+            jmp b36(u1 1)
+          b43(v17: u32):
+            v42 = eq v17, u32 0
+            jmpif v42 then: b45(v17), else: b46()
+          b44():
+            v41 = sub v16, u32 1
+            jmp b43(v41)
+          b45(v18: u32):
+            return u1 0
+          b46():
+            v43 = sub v17, u32 1
+            jmp b45(v43)
         }
         ");
     }
