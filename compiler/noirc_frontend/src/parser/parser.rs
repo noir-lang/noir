@@ -62,6 +62,73 @@ pub fn parse_program_with_dummy_file(source_program: &str) -> (ParsedModule, Vec
     parse_program(source_program, FileId::dummy())
 }
 
+/// Like `parse_program_with_dummy_file`, but enables a relaxed mode that accepts
+/// macro placeholders (e.g. `$name`, `$T`) in identifier-accepting positions.
+/// Intended for tooling that needs to inspect or reformat the body of a
+/// `quote { ... }` expression, where placeholders are legal. Returns `Err` if the
+/// input doesn't parse cleanly.
+pub fn parse_program_in_quote_body(source: &str) -> Result<ParsedModule, Vec<ParserError>> {
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser.parse_result(|parser| parser.parse_program()).map(|(program, _warnings)| program)
+}
+
+/// Parses the input as a single statement using the quote-body relaxation. Returns
+/// `Err` if the input doesn't parse cleanly or there is leftover input.
+///
+/// A trailing `;` is folded into the parsed statement (turning a plain expression
+/// statement into `StatementKind::Semi`) so callers like the formatter can preserve
+/// the semicolon when round-tripping.
+///
+/// We also reject the parse when the body starts with `#[...]` but the resulting
+/// statement kind doesn't carry attributes (only `Let` and `Comptime` do). Otherwise
+/// the parser would silently drop the attribute tokens and the formatter would lose
+/// sync with the source.
+pub fn parse_statement_in_quote_body(
+    source: &str,
+) -> Result<crate::ast::Statement, Vec<ParserError>> {
+    use crate::ast::{Statement, StatementKind};
+    use crate::parser::labels::ParsingRuleLabel;
+    use crate::token::Token;
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser
+        .parse_result(|parser| {
+            let started_with_attribute =
+                matches!(parser.token.token(), Token::AttributeStart { .. });
+            let Some((statement, (semicolon, location))) = parser.parse_statement() else {
+                parser.expected_label(ParsingRuleLabel::Statement);
+                return Statement {
+                    kind: StatementKind::Error,
+                    location: parser.location_at_previous_token_end(),
+                };
+            };
+            if started_with_attribute
+                && !matches!(statement.kind, StatementKind::Let(_) | StatementKind::Comptime(_))
+            {
+                parser.expected_label(ParsingRuleLabel::Statement);
+                return Statement { kind: StatementKind::Error, location };
+            }
+            statement.add_semicolon(
+                semicolon,
+                location,
+                true, // last_statement_in_block — permits a missing trailing `;`
+                &mut |error| parser.errors.push(error),
+            )
+        })
+        .map(|(stmt, _warnings)| stmt)
+}
+
+/// Parses the input as a single expression using the quote-body relaxation. Returns
+/// `Err` if the input doesn't parse cleanly or there is leftover input.
+pub fn parse_expression_in_quote_body(
+    source: &str,
+) -> Result<crate::ast::Expression, Vec<ParserError>> {
+    let mut parser = Parser::for_str_with_dummy_file(source);
+    parser.parsing_quote_body = true;
+    parser.parse_result(|parser| parser.parse_expression_or_error()).map(|(expr, _warnings)| expr)
+}
+
 enum TokenStream<'a> {
     Lexer(Lexer<'a>),
     Tokens(Tokens),
@@ -118,6 +185,12 @@ pub struct Parser<'a> {
     /// Set to true when recovering from a recursion depth overflow.
     /// Used to suppress cascading errors during stack unwinding.
     recovering_from_depth_overflow: bool,
+
+    /// When set, the parser permits `$ident` (and chained `$ident::...` paths) in
+    /// identifier-accepting positions, treating the two tokens as a single synthetic
+    /// identifier whose name literally begins with `$`. This lets the formatter parse
+    /// the body of a `quote { ... }` block even when it contains macro placeholders.
+    pub(crate) parsing_quote_body: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -151,6 +224,7 @@ impl<'a> Parser<'a> {
             statement_comments: None,
             recursion_depth: 0,
             recovering_from_depth_overflow: false,
+            parsing_quote_body: false,
         };
         parser.read_two_first_tokens();
         parser
@@ -285,13 +359,45 @@ impl<'a> Parser<'a> {
 
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
-            match token.into_token() {
+            return match token.into_token() {
                 Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location)),
                 _ => unreachable!(),
-            }
-        } else {
-            None
+            };
         }
+        if self.at_quote_placeholder() {
+            let start_location = self.current_token_location;
+            self.bump(); // consume `$`
+            let Token::Ident(ident) = self.bump().into_token() else {
+                unreachable!("at_quote_placeholder guarantees the next token is Ident");
+            };
+            let location = start_location.merge(self.previous_token_location);
+            return Some(Ident::new(format!("${ident}"), location));
+        }
+        None
+    }
+
+    /// Returns true when looking at something `eat_ident` would consume — either a
+    /// regular identifier, or a `$ident` placeholder while parsing a quote body.
+    fn at_ident_token(&self) -> bool {
+        self.token.kind() == TokenKind::Ident || self.at_quote_placeholder()
+    }
+
+    /// Used in path parsing to decide whether to commit to consuming a `::`: if the
+    /// token after the `::` is plausibly the start of the next path segment.
+    /// We only have one token of lookahead, so in `parsing_quote_body` mode we accept
+    /// a `$` as the start of a placeholder identifier even though we can't verify the
+    /// following token here.
+    fn next_starts_path_segment(&self) -> bool {
+        matches!(self.next_token.token(), Token::Ident(..))
+            || (self.parsing_quote_body && self.next_token.token() == &Token::DollarSign)
+    }
+
+    /// True only when `parsing_quote_body` and the next two tokens are `$` followed
+    /// by an identifier — a synthetic identifier that we accept inside quote bodies.
+    fn at_quote_placeholder(&self) -> bool {
+        self.parsing_quote_body
+            && self.token.token() == &Token::DollarSign
+            && matches!(self.next_token.token(), Token::Ident(_))
     }
 
     fn eat_self(&mut self) -> bool {

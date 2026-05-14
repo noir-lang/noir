@@ -192,6 +192,48 @@ fn errors_if_oracle_clashes_with_stdlib() {
 }
 
 #[test]
+fn allows_pure_attribute_on_oracle() {
+    let src = r#"
+    #[pure]
+    #[oracle(foo)]
+    unconstrained fn foo(x: Field) -> Field {}
+
+    unconstrained fn main(x: Field) {
+        let _ = foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_non_oracle() {
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub unconstrained fn helper(x: Field) -> Field {
+                         ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_pure_attribute_on_constrained_function() {
+    // `#[pure]` requires `#[oracle(...)]`. The frontend reports the missing-oracle
+    // error rather than a separate "constrained" error, which is enough to reject the case.
+    let src = r#"
+    #[pure]
+    ^^^^^^^ The `#[pure]` attribute is only valid on `unconstrained` functions marked `#[oracle(...)]`
+    pub fn helper(x: Field) -> Field {
+           ~~~~~~ `#[pure]` requires `unconstrained` and `#[oracle(...)]`
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn oracle_returning_recursive_struct() {
     let src = r#"
     pub struct Foo {

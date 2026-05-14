@@ -1081,7 +1081,7 @@ impl<'f> Context<'f> {
             Value::Intrinsic(intrinsic) => {
                 self.handle_intrinsic_side_effects(condition, intrinsic, arguments, call_stack)
             }
-            Value::Function(_) | Value::ForeignFunction(_) => arguments,
+            Value::Function(_) | Value::ForeignFunction { .. } => arguments,
             Value::Instruction { .. }
             | Value::Param { .. }
             | Value::NumericConstant { .. }

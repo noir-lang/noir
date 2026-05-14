@@ -779,8 +779,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // will be 3 field elements representing the point, i.e. (x,y,infinite)
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
 
-        // Recursive aggregation has a variable number of outputs
-        BlackBoxFunc::RecursiveAggregation => None,
+        // Recursive aggregation has no output
+        BlackBoxFunc::RecursiveAggregation => Some(0),
 
         // AES encryption returns a variable number of outputs
         BlackBoxFunc::AES128Encrypt => None,

@@ -6,6 +6,8 @@ use acir::{
 };
 use indexmap::IndexMap;
 
+use crate::compiler::simulator::unresolved_witnesses;
+
 /// Minimum width accepted by the `CSatTransformer`.
 pub(crate) const MIN_EXPRESSION_WIDTH: usize = 3;
 
@@ -34,29 +36,11 @@ impl CSatTransformer {
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve<F>(&mut self, opcode: &Expression<F>) {
-        let mut unresolved = Vec::new();
-        for (_, w1, w2) in &opcode.mul_terms {
-            if !self.solvable_witness.contains(w1) {
-                unresolved.push(w1);
-                if !self.solvable_witness.contains(w2) {
-                    return;
-                }
-            }
-            if !self.solvable_witness.contains(w2) {
-                unresolved.push(w2);
-                if !self.solvable_witness.contains(w1) {
-                    return;
-                }
-            }
-        }
-        for (_, w) in &opcode.linear_combinations {
-            if !self.solvable_witness.contains(w) {
-                unresolved.push(w);
-            }
-        }
-        if unresolved.len() == 1 {
-            self.mark_solvable(*unresolved[0]);
+    fn try_solve<F: AcirField>(&mut self, opcode: &Expression<F>) {
+        if let Some(unresolved) = unresolved_witnesses(opcode, &self.solvable_witness)
+            && unresolved.len() == 1
+        {
+            self.mark_solvable(*unresolved.iter().next().expect("len == 1"));
         }
     }
 

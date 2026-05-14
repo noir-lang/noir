@@ -546,6 +546,7 @@ impl Display for ValuePrinter<'_, '_> {
             Value::UnresolvedType(typ) => {
                 write!(f, "{}", remove_interned_in_unresolved_type_data(self.interner, typ.clone()))
             }
+            Value::Location(location) => write!(f, "{location:?}"),
         }
     }
 }
