@@ -265,120 +265,121 @@
 <a href=#265 id=265 data-nosnippet>265</a>        <span class="kw">let </span>trait_impl = interner.get_trait_implementation(trait_impl_id);
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="kw">let </span>trait_impl = trait_impl.borrow();
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>trait_def = interner.get_trait(trait_impl.trait_id);
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="macro">format!</span>(<span class="string">"&lt;{} as {}&gt;::{}"</span>, trait_impl.typ, trait_def.name, name)
-<a href=#269 id=269 data-nosnippet>269</a>    } <span class="kw">else if </span>meta.trait_id.is_some() {
-<a href=#270 id=270 data-nosnippet>270</a>        <span class="comment">// Trait function (inside `trait { ... }`): `self_type` here is `Self`, an
-<a href=#271 id=271 data-nosnippet>271</a>        // unbound type variable that would render as `_`. Skip the type prefix — the
-<a href=#272 id=272 data-nosnippet>272</a>        // module path already includes the trait name.
-<a href=#273 id=273 data-nosnippet>273</a>        </span>name.to_string()
-<a href=#274 id=274 data-nosnippet>274</a>    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span>meta.self_type {
-<a href=#275 id=275 data-nosnippet>275</a>        <span class="macro">format!</span>(<span class="string">"{self_type}::{name}"</span>)
-<a href=#276 id=276 data-nosnippet>276</a>    } <span class="kw">else </span>{
-<a href=#277 id=277 data-nosnippet>277</a>        name.to_string()
-<a href=#278 id=278 data-nosnippet>278</a>    };
-<a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">if </span>module_path.is_empty() { label } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{module_path}::{label}"</span>) }
-<a href=#281 id=281 data-nosnippet>281</a>}
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a><span class="doccomment">/// Returns the path where coverage data for `package_name` should be written.
-<a href=#284 id=284 data-nosnippet>284</a>///
-<a href=#285 id=285 data-nosnippet>285</a>/// `coverage_dir_override` takes precedence when provided. Otherwise the base directory is
-<a href=#286 id=286 data-nosnippet>286</a>/// derived from the workspace target directory.
-<a href=#287 id=287 data-nosnippet>287</a>///
-<a href=#288 id=288 data-nosnippet>288</a>/// When the package sits at the workspace root (single-package layout) the file is
-<a href=#289 id=289 data-nosnippet>289</a>/// `&lt;base&gt;/lcov.info`. In a multi-package workspace each package is nested:
-<a href=#290 id=290 data-nosnippet>290</a>/// `&lt;base&gt;/&lt;package-name&gt;/lcov.info`.
-<a href=#291 id=291 data-nosnippet>291</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>package_lcov_path(
-<a href=#292 id=292 data-nosnippet>292</a>    workspace: <span class="kw-2">&amp;</span>Workspace,
-<a href=#293 id=293 data-nosnippet>293</a>    package_name: <span class="kw-2">&amp;</span>str,
-<a href=#294 id=294 data-nosnippet>294</a>    coverage_dir_override: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::Path&gt;,
-<a href=#295 id=295 data-nosnippet>295</a>) -&gt; PathBuf {
-<a href=#296 id=296 data-nosnippet>296</a>    <span class="comment">// Most plugins that display coverage in the editor look for `lcov.info` files.
-<a href=#297 id=297 data-nosnippet>297</a>    // We could use `*.lcov`, but it might need extra configuration; an extra hurdle.
-<a href=#298 id=298 data-nosnippet>298</a>    </span><span class="kw">const </span>LCOV_FILE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"lcov.info"</span>;
-<a href=#299 id=299 data-nosnippet>299</a>
-<a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">let </span>base_dir = coverage_dir_override
-<a href=#301 id=301 data-nosnippet>301</a>        .map_or_else(|| workspace.target_directory_path().join(<span class="string">"coverage"</span>), |p| p.to_path_buf());
-<a href=#302 id=302 data-nosnippet>302</a>
-<a href=#303 id=303 data-nosnippet>303</a>    <span class="kw">let </span>is_root_package = workspace
-<a href=#304 id=304 data-nosnippet>304</a>        .members
-<a href=#305 id=305 data-nosnippet>305</a>        .iter()
-<a href=#306 id=306 data-nosnippet>306</a>        .find(|p| p.name.to_string() == package_name)
-<a href=#307 id=307 data-nosnippet>307</a>        .is_none_or(|p| p.root_dir == workspace.root_dir);
-<a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">if </span>is_root_package {
-<a href=#310 id=310 data-nosnippet>310</a>        base_dir.join(LCOV_FILE_NAME)
-<a href=#311 id=311 data-nosnippet>311</a>    } <span class="kw">else </span>{
-<a href=#312 id=312 data-nosnippet>312</a>        base_dir.join(package_name).join(LCOV_FILE_NAME)
-<a href=#313 id=313 data-nosnippet>313</a>    }
-<a href=#314 id=314 data-nosnippet>314</a>}
-<a href=#315 id=315 data-nosnippet>315</a>
-<a href=#316 id=316 data-nosnippet>316</a><span class="doccomment">/// Writes an lcov report to `path`, creating parent directories if necessary.
-<a href=#317 id=317 data-nosnippet>317</a>/// Prints a warning to stderr on failure.
-<a href=#318 id=318 data-nosnippet>318</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>write_package_coverage(report: Report, path: <span class="kw-2">&amp;</span>std::path::Path) {
-<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">use </span>std::io::Write;
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">let </span>write = || -&gt; std::io::Result&lt;()&gt; {
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(parent) = path.parent() {
-<a href=#323 id=323 data-nosnippet>323</a>            std::fs::create_dir_all(parent)<span class="question-mark">?</span>;
-<a href=#324 id=324 data-nosnippet>324</a>        }
-<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span><span class="kw-2">mut </span>file = std::fs::File::create(path)<span class="question-mark">?</span>;
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">for </span>record <span class="kw">in </span>report.into_records() {
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="macro">writeln!</span>(file, <span class="string">"{record}"</span>)<span class="question-mark">?</span>;
-<a href=#328 id=328 data-nosnippet>328</a>        }
-<a href=#329 id=329 data-nosnippet>329</a>        <span class="prelude-val">Ok</span>(())
-<a href=#330 id=330 data-nosnippet>330</a>    };
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = write() {
-<a href=#333 id=333 data-nosnippet>333</a>        <span class="macro">noirc_errors::println_to_stderr!</span>(
-<a href=#334 id=334 data-nosnippet>334</a>            <span class="string">"Warning: could not write coverage report to {}: {err}"</span>,
-<a href=#335 id=335 data-nosnippet>335</a>            path.display()
-<a href=#336 id=336 data-nosnippet>336</a>        );
-<a href=#337 id=337 data-nosnippet>337</a>    } <span class="kw">else </span>{
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Coverage report written to {}"</span>, path.display());
-<a href=#339 id=339 data-nosnippet>339</a>    }
-<a href=#340 id=340 data-nosnippet>340</a>}
-<a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a><span class="doccomment">/// Returns a vec of byte offsets where each line starts (0-indexed by line, 1-indexed by value).
-<a href=#343 id=343 data-nosnippet>343</a>/// `line_starts[0]` is always 0 (start of line 1).
-<a href=#344 id=344 data-nosnippet>344</a></span><span class="kw">fn </span>build_line_starts(source: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;u32&gt; {
-<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">let </span><span class="kw-2">mut </span>starts = <span class="macro">vec!</span>[<span class="number">0u32</span>];
-<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">for </span>(i, b) <span class="kw">in </span>source.bytes().enumerate() {
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">if </span>b == <span class="string">b'\n' </span>{
-<a href=#348 id=348 data-nosnippet>348</a>            starts.push(i <span class="kw">as </span>u32 + <span class="number">1</span>);
-<a href=#349 id=349 data-nosnippet>349</a>        }
-<a href=#350 id=350 data-nosnippet>350</a>    }
-<a href=#351 id=351 data-nosnippet>351</a>    starts
-<a href=#352 id=352 data-nosnippet>352</a>}
-<a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a><span class="doccomment">/// Converts a byte offset within a file to a 1-indexed line number.
-<a href=#355 id=355 data-nosnippet>355</a></span><span class="kw">fn </span>offset_to_line(offset: u32, line_starts: <span class="kw-2">&amp;</span>[u32]) -&gt; u32 {
-<a href=#356 id=356 data-nosnippet>356</a>    line_starts.partition_point(|<span class="kw-2">&amp;</span>start| start &lt;= offset) <span class="kw">as </span>u32
-<a href=#357 id=357 data-nosnippet>357</a>}
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a><span class="kw">struct </span>LineStartsCache&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#360 id=360 data-nosnippet>360</a>    context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Context&lt;<span class="lifetime">'a</span>, <span class="lifetime">'a</span>&gt;,
-<a href=#361 id=361 data-nosnippet>361</a>    line_starts: HashMap&lt;FileId, Vec&lt;u32&gt;&gt;,
-<a href=#362 id=362 data-nosnippet>362</a>}
-<a href=#363 id=363 data-nosnippet>363</a>
-<a href=#364 id=364 data-nosnippet>364</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; LineStartsCache&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">fn </span>new(context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Context&lt;<span class="lifetime">'a</span>, <span class="lifetime">'a</span>&gt;) -&gt; <span class="self">Self </span>{
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="self">Self </span>{ context, line_starts: HashMap::new() }
-<a href=#367 id=367 data-nosnippet>367</a>    }
-<a href=#368 id=368 data-nosnippet>368</a>
-<a href=#369 id=369 data-nosnippet>369</a>    <span class="doccomment">/// Get from the cache or build.
-<a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: <span class="kw-2">&amp;</span>FileId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u32]&gt; {
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw">if </span>!<span class="self">self</span>.line_starts.contains_key(file_id) {
-<a href=#372 id=372 data-nosnippet>372</a>            <span class="kw">let </span>line_starts = <span class="self">self</span>.build(file_id)<span class="question-mark">?</span>;
-<a href=#373 id=373 data-nosnippet>373</a>            <span class="self">self</span>.line_starts.insert(<span class="kw-2">*</span>file_id, line_starts);
-<a href=#374 id=374 data-nosnippet>374</a>        }
-<a href=#375 id=375 data-nosnippet>375</a>        <span class="self">self</span>.line_starts.get(file_id).map(|v| v.as_slice())
-<a href=#376 id=376 data-nosnippet>376</a>    }
-<a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a>    <span class="doccomment">/// Build without caching.
-<a href=#379 id=379 data-nosnippet>379</a>    </span><span class="kw">fn </span>build(<span class="kw-2">&amp;</span><span class="self">self</span>, file_id: <span class="kw-2">&amp;</span>FileId) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;u32&gt;&gt; {
-<a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>source = <span class="self">self</span>.context.file_manager.fetch_file(<span class="kw-2">*</span>file_id)<span class="question-mark">?</span>;
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>line_starts = build_line_starts(source);
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="prelude-val">Some</span>(line_starts)
-<a href=#383 id=383 data-nosnippet>383</a>    }
-<a href=#384 id=384 data-nosnippet>384</a>}</code></pre></div></section></main></body></html>
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">let </span>trait_generics = interner.get_trait_generics_for_impl(trait_impl_id);
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="macro">format!</span>(<span class="string">"&lt;{} as {}{}&gt;::{}"</span>, trait_impl.typ, trait_def.name, trait_generics, name)
+<a href=#270 id=270 data-nosnippet>270</a>    } <span class="kw">else if </span>meta.trait_id.is_some() {
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="comment">// Trait function (inside `trait { ... }`): `self_type` here is `Self`, an
+<a href=#272 id=272 data-nosnippet>272</a>        // unbound type variable that would render as `_`. Skip the type prefix — the
+<a href=#273 id=273 data-nosnippet>273</a>        // module path already includes the trait name.
+<a href=#274 id=274 data-nosnippet>274</a>        </span>name.to_string()
+<a href=#275 id=275 data-nosnippet>275</a>    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(self_type) = <span class="kw-2">&amp;</span>meta.self_type {
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="macro">format!</span>(<span class="string">"{self_type}::{name}"</span>)
+<a href=#277 id=277 data-nosnippet>277</a>    } <span class="kw">else </span>{
+<a href=#278 id=278 data-nosnippet>278</a>        name.to_string()
+<a href=#279 id=279 data-nosnippet>279</a>    };
+<a href=#280 id=280 data-nosnippet>280</a>
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">if </span>module_path.is_empty() { label } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{module_path}::{label}"</span>) }
+<a href=#282 id=282 data-nosnippet>282</a>}
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a><span class="doccomment">/// Returns the path where coverage data for `package_name` should be written.
+<a href=#285 id=285 data-nosnippet>285</a>///
+<a href=#286 id=286 data-nosnippet>286</a>/// `coverage_dir_override` takes precedence when provided. Otherwise the base directory is
+<a href=#287 id=287 data-nosnippet>287</a>/// derived from the workspace target directory.
+<a href=#288 id=288 data-nosnippet>288</a>///
+<a href=#289 id=289 data-nosnippet>289</a>/// When the package sits at the workspace root (single-package layout) the file is
+<a href=#290 id=290 data-nosnippet>290</a>/// `&lt;base&gt;/lcov.info`. In a multi-package workspace each package is nested:
+<a href=#291 id=291 data-nosnippet>291</a>/// `&lt;base&gt;/&lt;package-name&gt;/lcov.info`.
+<a href=#292 id=292 data-nosnippet>292</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>package_lcov_path(
+<a href=#293 id=293 data-nosnippet>293</a>    workspace: <span class="kw-2">&amp;</span>Workspace,
+<a href=#294 id=294 data-nosnippet>294</a>    package_name: <span class="kw-2">&amp;</span>str,
+<a href=#295 id=295 data-nosnippet>295</a>    coverage_dir_override: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::Path&gt;,
+<a href=#296 id=296 data-nosnippet>296</a>) -&gt; PathBuf {
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="comment">// Most plugins that display coverage in the editor look for `lcov.info` files.
+<a href=#298 id=298 data-nosnippet>298</a>    // We could use `*.lcov`, but it might need extra configuration; an extra hurdle.
+<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">const </span>LCOV_FILE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"lcov.info"</span>;
+<a href=#300 id=300 data-nosnippet>300</a>
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">let </span>base_dir = coverage_dir_override
+<a href=#302 id=302 data-nosnippet>302</a>        .map_or_else(|| workspace.target_directory_path().join(<span class="string">"coverage"</span>), |p| p.to_path_buf());
+<a href=#303 id=303 data-nosnippet>303</a>
+<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">let </span>is_root_package = workspace
+<a href=#305 id=305 data-nosnippet>305</a>        .members
+<a href=#306 id=306 data-nosnippet>306</a>        .iter()
+<a href=#307 id=307 data-nosnippet>307</a>        .find(|p| p.name.to_string() == package_name)
+<a href=#308 id=308 data-nosnippet>308</a>        .is_none_or(|p| p.root_dir == workspace.root_dir);
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a>    <span class="kw">if </span>is_root_package {
+<a href=#311 id=311 data-nosnippet>311</a>        base_dir.join(LCOV_FILE_NAME)
+<a href=#312 id=312 data-nosnippet>312</a>    } <span class="kw">else </span>{
+<a href=#313 id=313 data-nosnippet>313</a>        base_dir.join(package_name).join(LCOV_FILE_NAME)
+<a href=#314 id=314 data-nosnippet>314</a>    }
+<a href=#315 id=315 data-nosnippet>315</a>}
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a><span class="doccomment">/// Writes an lcov report to `path`, creating parent directories if necessary.
+<a href=#318 id=318 data-nosnippet>318</a>/// Prints a warning to stderr on failure.
+<a href=#319 id=319 data-nosnippet>319</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>write_package_coverage(report: Report, path: <span class="kw-2">&amp;</span>std::path::Path) {
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">use </span>std::io::Write;
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">let </span>write = || -&gt; std::io::Result&lt;()&gt; {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(parent) = path.parent() {
+<a href=#324 id=324 data-nosnippet>324</a>            std::fs::create_dir_all(parent)<span class="question-mark">?</span>;
+<a href=#325 id=325 data-nosnippet>325</a>        }
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span><span class="kw-2">mut </span>file = std::fs::File::create(path)<span class="question-mark">?</span>;
+<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">for </span>record <span class="kw">in </span>report.into_records() {
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="macro">writeln!</span>(file, <span class="string">"{record}"</span>)<span class="question-mark">?</span>;
+<a href=#329 id=329 data-nosnippet>329</a>        }
+<a href=#330 id=330 data-nosnippet>330</a>        <span class="prelude-val">Ok</span>(())
+<a href=#331 id=331 data-nosnippet>331</a>    };
+<a href=#332 id=332 data-nosnippet>332</a>
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = write() {
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="macro">noirc_errors::println_to_stderr!</span>(
+<a href=#335 id=335 data-nosnippet>335</a>            <span class="string">"Warning: could not write coverage report to {}: {err}"</span>,
+<a href=#336 id=336 data-nosnippet>336</a>            path.display()
+<a href=#337 id=337 data-nosnippet>337</a>        );
+<a href=#338 id=338 data-nosnippet>338</a>    } <span class="kw">else </span>{
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Coverage report written to {}"</span>, path.display());
+<a href=#340 id=340 data-nosnippet>340</a>    }
+<a href=#341 id=341 data-nosnippet>341</a>}
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a><span class="doccomment">/// Returns a vec of byte offsets where each line starts (0-indexed by line, 1-indexed by value).
+<a href=#344 id=344 data-nosnippet>344</a>/// `line_starts[0]` is always 0 (start of line 1).
+<a href=#345 id=345 data-nosnippet>345</a></span><span class="kw">fn </span>build_line_starts(source: <span class="kw-2">&amp;</span>str) -&gt; Vec&lt;u32&gt; {
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">let </span><span class="kw-2">mut </span>starts = <span class="macro">vec!</span>[<span class="number">0u32</span>];
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="kw">for </span>(i, b) <span class="kw">in </span>source.bytes().enumerate() {
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">if </span>b == <span class="string">b'\n' </span>{
+<a href=#349 id=349 data-nosnippet>349</a>            starts.push(i <span class="kw">as </span>u32 + <span class="number">1</span>);
+<a href=#350 id=350 data-nosnippet>350</a>        }
+<a href=#351 id=351 data-nosnippet>351</a>    }
+<a href=#352 id=352 data-nosnippet>352</a>    starts
+<a href=#353 id=353 data-nosnippet>353</a>}
+<a href=#354 id=354 data-nosnippet>354</a>
+<a href=#355 id=355 data-nosnippet>355</a><span class="doccomment">/// Converts a byte offset within a file to a 1-indexed line number.
+<a href=#356 id=356 data-nosnippet>356</a></span><span class="kw">fn </span>offset_to_line(offset: u32, line_starts: <span class="kw-2">&amp;</span>[u32]) -&gt; u32 {
+<a href=#357 id=357 data-nosnippet>357</a>    line_starts.partition_point(|<span class="kw-2">&amp;</span>start| start &lt;= offset) <span class="kw">as </span>u32
+<a href=#358 id=358 data-nosnippet>358</a>}
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a><span class="kw">struct </span>LineStartsCache&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#361 id=361 data-nosnippet>361</a>    context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Context&lt;<span class="lifetime">'a</span>, <span class="lifetime">'a</span>&gt;,
+<a href=#362 id=362 data-nosnippet>362</a>    line_starts: HashMap&lt;FileId, Vec&lt;u32&gt;&gt;,
+<a href=#363 id=363 data-nosnippet>363</a>}
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; LineStartsCache&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">fn </span>new(context: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Context&lt;<span class="lifetime">'a</span>, <span class="lifetime">'a</span>&gt;) -&gt; <span class="self">Self </span>{
+<a href=#367 id=367 data-nosnippet>367</a>        <span class="self">Self </span>{ context, line_starts: HashMap::new() }
+<a href=#368 id=368 data-nosnippet>368</a>    }
+<a href=#369 id=369 data-nosnippet>369</a>
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="doccomment">/// Get from the cache or build.
+<a href=#371 id=371 data-nosnippet>371</a>    </span><span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: <span class="kw-2">&amp;</span>FileId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u32]&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">if </span>!<span class="self">self</span>.line_starts.contains_key(file_id) {
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="kw">let </span>line_starts = <span class="self">self</span>.build(file_id)<span class="question-mark">?</span>;
+<a href=#374 id=374 data-nosnippet>374</a>            <span class="self">self</span>.line_starts.insert(<span class="kw-2">*</span>file_id, line_starts);
+<a href=#375 id=375 data-nosnippet>375</a>        }
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="self">self</span>.line_starts.get(file_id).map(|v| v.as_slice())
+<a href=#377 id=377 data-nosnippet>377</a>    }
+<a href=#378 id=378 data-nosnippet>378</a>
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Build without caching.
+<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">fn </span>build(<span class="kw-2">&amp;</span><span class="self">self</span>, file_id: <span class="kw-2">&amp;</span>FileId) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;u32&gt;&gt; {
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>source = <span class="self">self</span>.context.file_manager.fetch_file(<span class="kw-2">*</span>file_id)<span class="question-mark">?</span>;
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>line_starts = build_line_starts(source);
+<a href=#383 id=383 data-nosnippet>383</a>        <span class="prelude-val">Some</span>(line_starts)
+<a href=#384 id=384 data-nosnippet>384</a>    }
+<a href=#385 id=385 data-nosnippet>385</a>}</code></pre></div></section></main></body></html>

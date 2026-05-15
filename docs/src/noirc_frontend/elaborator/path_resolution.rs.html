@@ -1036,13 +1036,13 @@
 <a href=#1036 id=1036 data-nosnippet>1036</a>        </span><span class="kw">let </span>method_name = method_name_ident.as_str();
 <a href=#1037 id=1037 data-nosnippet>1037</a>
 <a href=#1038 id=1038 data-nosnippet>1038</a>        <span class="comment">// First check for a direct (inherent) method
-<a href=#1039 id=1039 data-nosnippet>1039</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>) {
+<a href=#1039 id=1039 data-nosnippet>1039</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>) {
 <a href=#1040 id=1040 data-nosnippet>1040</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(func_id);
 <a href=#1041 id=1041 data-nosnippet>1041</a>        }
 <a href=#1042 id=1042 data-nosnippet>1042</a>
 <a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="comment">// Otherwise look through trait methods
-<a href=#1044 id=1044 data-nosnippet>1044</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
-<a href=#1045 id=1045 data-nosnippet>1045</a>        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
+<a href=#1044 id=1044 data-nosnippet>1044</a>        </span><span class="kw">let </span>trait_methods = <span class="self">self</span>.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
+<a href=#1045 id=1045 data-nosnippet>1045</a>        <span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
 <a href=#1046 id=1046 data-nosnippet>1046</a>
 <a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
 <a href=#1048 id=1048 data-nosnippet>1048</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
