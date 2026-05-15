@@ -307,7 +307,9 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 
     let ssa = generate_ssa(program).unwrap();
 
-    // The `inc_rc v0` in `foo` is the SSA lowering of the unnecessary `.clone()`.
+    // `foo` does not emit `inc_rc v0` before the call to `println` even though the
+    // monomorphized AST contains `a.clone()`: the SSA-gen call lowering recognizes
+    // `println` as a thin wrapper around the `print` oracle and skips the clone.
     assert_ssa_snapshot!(ssa, @r#"
     brillig(inline) fn main f0 {
       b0():
@@ -317,7 +319,6 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
     }
     brillig(inline) fn foo f1 {
       b0(v0: [u64; 1]):
-        inc_rc v0
         call f2(v0)
         v3 = array_get v0, index u32 0 -> u64
         return v3
