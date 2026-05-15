@@ -285,5 +285,13 @@
 <a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">pub const </span>PRINT: <span class="kw-2">&amp;</span>str = <span class="string">"
 <a href=#286 id=286 data-nosnippet>286</a>        #[oracle(print)]
 <a href=#287 id=287 data-nosnippet>287</a>        unconstrained fn print_oracle&lt;T&gt;(with_newline: bool, input: T) {}
-<a href=#288 id=288 data-nosnippet>288</a>    "</span>;
-<a href=#289 id=289 data-nosnippet>289</a>}</code></pre></div></section></main></body></html>
+<a href=#288 id=288 data-nosnippet>288</a>
+<a href=#289 id=289 data-nosnippet>289</a>        unconstrained fn println&lt;T&gt;(input: T) {
+<a href=#290 id=290 data-nosnippet>290</a>            print_unconstrained(true, input);
+<a href=#291 id=291 data-nosnippet>291</a>        }
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>        unconstrained fn print_unconstrained&lt;T&gt;(with_newline: bool, input: T) {
+<a href=#294 id=294 data-nosnippet>294</a>            print_oracle(with_newline, input);
+<a href=#295 id=295 data-nosnippet>295</a>        }
+<a href=#296 id=296 data-nosnippet>296</a>    "</span>;
+<a href=#297 id=297 data-nosnippet>297</a>}</code></pre></div></section></main></body></html>
