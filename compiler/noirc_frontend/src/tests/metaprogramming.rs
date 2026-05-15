@@ -1883,3 +1883,20 @@ fn reference_generated_struct_in_another_struct_field() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn reference_generated_struct_in_a_global() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub global s: MyStruct = MyStruct {};
+    "#;
+    assert_no_errors(src);
+}

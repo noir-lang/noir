@@ -20,6 +20,8 @@
 //! Globals are assumed to be elaborated in dependency order. This means if global `A` references global `B`, then `B`
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
+use std::collections::HashSet;
+
 use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
@@ -46,6 +48,19 @@ impl Elaborator<'_> {
         // Start at the first global IDs to maintain the dependency order
         while let Some((_, global)) = self.unresolved_globals.pop_first() {
             self.elaborate_global(global);
+        }
+    }
+
+    /// Drains every remaining unresolved global, except those listed in `skip`
+    /// (used to preserve the outer call's pending entries in a recursive
+    /// `elaborate_items`). Preserves the BTreeMap-ordered drain so that
+    /// inter-global dependency order is maintained.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn resolve_unresolved_globals_skipping(&mut self, skip: &HashSet<GlobalId>) {
+        let to_resolve: Vec<GlobalId> =
+            self.unresolved_globals.keys().copied().filter(|id| !skip.contains(id)).collect();
+        for global_id in to_resolve {
+            self.elaborate_global_if_unresolved(&global_id);
         }
     }
 
@@ -138,6 +153,14 @@ impl Elaborator<'_> {
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
+            // Lazy global elaboration can fire from inside an active comptime
+            // call (an attribute body reading the global). Set aside any
+            // function scopes so `define` lands the global in the persistent
+            // global scope (scope[0]); otherwise the value is dropped when the
+            // active function returns and later `Interpreter::mutate` calls
+            // can't find it (it searches `comptime_scopes`).
+            let saved_scopes: Vec<_> = self.interner.comptime_scopes.drain(1..).collect();
+
             let mut interpreter = self.setup_interpreter();
 
             // Evaluate the global's initializer expression at compile time using the interpreter.
@@ -157,6 +180,8 @@ impl Elaborator<'_> {
                 // Store the resolved value so it can be used later
                 self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
             }
+
+            self.interner.comptime_scopes.extend(saved_scopes);
         }
     }
 
