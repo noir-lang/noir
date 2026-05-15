@@ -585,22 +585,13 @@ impl<'context> Elaborator<'context> {
         // post-attribute drain. They stay in the map (so lazy resolution from
         // generated bodies can still pull them out on demand), we just don't
         // unconditionally resolve them here.
-        let outer_pending: HashSet<FuncId> =
+        // The same is true for struct fields, enum variants and globals.
+        let outer_pending_functions: HashSet<FuncId> =
             self.unresolved_function_metas.keys().copied().collect();
-
-        // Same idea for struct field resolution: anything already pending when
-        // this call starts must remain pending for the outer call's own
-        // post-attribute drain.
         let outer_pending_struct_fields: HashSet<TypeId> =
             self.unresolved_struct_fields.keys().copied().collect();
-
-        // Same idea for enum variant resolution.
         let outer_pending_enum_variants: HashSet<TypeId> =
             self.unresolved_enum_variants.keys().copied().collect();
-
-        // Same idea for globals. Note `unresolved_globals` is shared by `&mut`
-        // with child elaborators (rather than owned and `mem::take`'d), so the
-        // inner drain would otherwise consume the outer call's pending entries.
         let outer_pending_globals: HashSet<GlobalId> =
             self.unresolved_globals.keys().copied().collect();
 
@@ -647,23 +638,11 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
-        // In the case of the stdlib we eagerly resolve function metas as these are
-        // needed in some globals initializers regarding built-in trait methods
-        // like Add, Ord, etc. Trying to define these lazily is a lot of work compared
-        // to just not supporting it in the stdlib. The stdlib right now doesn't generate
-        // types that are used in other function signatures and we can always extend
-        // with the stdlib with this small restriction in place.
+        // The stdlib doesn't generate types at compile time so it's fine to eagerly resolve
+        // function metas and globals now. Not doing this leads to some dependency issues regarding
+        // trait functions. The stdlib is simple and will likely remain simple so this is fine.
         if self.crate_id.is_stdlib() {
-            self.resolve_unresolved_function_metas_skipping(&outer_pending);
-        }
-
-        // Stdlib does not generate types via comptime attributes, and stdlib
-        // globals construct stdlib structs whose fields are already eagerly
-        // resolved. Keep the original eager spot for stdlib so its elaboration
-        // order is unchanged. For user crates the drain runs *after*
-        // `run_attributes` below so that globals can reference types generated
-        // by comptime attribute expansion.
-        if self.crate_id.is_stdlib() {
+            self.resolve_unresolved_function_metas_skipping(&outer_pending_functions);
             self.elaborate_remaining_globals();
         }
 
@@ -704,7 +683,7 @@ impl<'context> Elaborator<'context> {
         // scope, so a signature like `fn bar(_: Generated)` can finally
         // resolve. Outer-pending metas are still skipped — only this call's
         // metas are drained.
-        self.resolve_unresolved_function_metas_skipping(&outer_pending);
+        self.resolve_unresolved_function_metas_skipping(&outer_pending_functions);
 
         // Now that trait method metas are defined, fill in the stub
         // `TraitFunction` records on each trait, and run the empty-body /
@@ -864,9 +843,7 @@ impl<'context> Elaborator<'context> {
                             visited,
                         );
                     }
-                    // If this struct's fields are still deferred, lazy-resolve
-                    // them before reading so we don't silently skip marking
-                    // transitive field types.
+                    // The struct's field might not be type-checked yet: do it now.
                     let datatype_id = datatype.borrow().id;
                     self.define_struct_fields_if_undefined(datatype_id);
                     if let Some(fields) = datatype.borrow().get_fields(generics) {

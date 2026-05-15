@@ -51,10 +51,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Drains every remaining unresolved global, except those listed in `skip`
-    /// (used to preserve the outer call's pending entries in a recursive
-    /// `elaborate_items`). Preserves the BTreeMap-ordered drain so that
-    /// inter-global dependency order is maintained.
+    /// Drains every remaining unresolved global, except those listed in `skip`.
+    /// Preserves the BTreeMap-ordered drain so that inter-global dependency order is maintained.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_globals_skipping(&mut self, skip: &HashSet<GlobalId>) {
         let to_resolve: Vec<GlobalId> =
@@ -153,12 +151,7 @@ impl Elaborator<'_> {
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
-            // Lazy global elaboration can fire from inside an active comptime
-            // call (an attribute body reading the global). Set aside any
-            // function scopes so `define` lands the global in the persistent
-            // global scope (scope[0]); otherwise the value is dropped when the
-            // active function returns and later `Interpreter::mutate` calls
-            // can't find it (it searches `comptime_scopes`).
+            // Globals must be elaborated at the global scope
             let saved_scopes: Vec<_> = self.interner.comptime_scopes.drain(1..).collect();
 
             let mut interpreter = self.setup_interpreter();

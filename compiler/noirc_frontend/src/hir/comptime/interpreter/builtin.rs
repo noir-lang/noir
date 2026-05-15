@@ -620,10 +620,9 @@ fn type_def_fields(
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(typ)?;
-    // If the struct's fields were registered for deferred elaboration (so
-    // attribute-generated types can appear in field types), resolve them now —
-    // attribute bodies that ask for `.fields()` must see the real field list.
+
     interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
     let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -690,7 +689,9 @@ fn type_def_fields_as_written(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_type_id(argument)?;
+
     interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
     let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 

@@ -49,8 +49,7 @@ const WILDCARD_PATTERN: &str = "_";
 
 /// Everything needed to resolve an enum's variants later, captured at
 /// registration time. Mirrors [super::structs::UnresolvedStructFields] for
-/// struct fields. The actual `DataType` already lives in the interner; this
-/// just holds the syntactic enum definition plus the module context.
+/// struct fields.
 pub(super) struct UnresolvedEnumVariants {
     pub(super) enum_def: NoirEnumeration,
     pub(super) module_id: LocalModuleId,
@@ -164,8 +163,7 @@ impl Elaborator<'_> {
     }
 
     /// Drains every remaining unresolved enum's variants, except those listed
-    /// in `skip` (used to preserve the outer call's pending entries in a
-    /// recursive `elaborate_items`).
+    /// in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_enum_variants_skipping(&mut self, skip: &HashSet<TypeId>) {
         let to_resolve: Vec<TypeId> =
@@ -185,15 +183,13 @@ impl Elaborator<'_> {
         enum_def: &NoirEnumeration,
     ) {
         let previous_local_module = self.local_module.replace(module_id);
-        let previous_current_item = self.current_item.take();
-        self.current_item = Some(DependencyId::DataType(type_id));
+        let previous_current_item = self.current_item.replace(DependencyId::DataType(type_id));
 
         let previous_in_comptime_context =
             std::mem::replace(&mut self.in_comptime_context, enum_def.comptime);
 
         // Enum variants are resolved at the module level: clear any generics
-        // that an outer caller may have in scope (mirrors the struct-field
-        // path; see `resolve_one_struct_fields`).
+        // that an outer caller may have in scope.
         let previous_generics = std::mem::take(&mut self.generics);
 
         let datatype = self.interner.get_type(type_id);
