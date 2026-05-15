@@ -480,6 +480,19 @@ impl FunctionContext<'_> {
                 let tuple = self.codegen_reference(tuple)?;
                 Ok(Self::get_field(tuple, *index))
             }
+            // `&mut (*x)` is just `x`. Wrapping as `Value::Mutable` signals to
+            // the surrounding `UnaryOp::Reference` handler that these are already addresses,
+            // so it returns them directly instead of allocating a fresh temporary copy.
+            Expression::Unary(unary)
+                if matches!(unary.operator, UnaryOp::Dereference { .. }) && !unary.skip =>
+            {
+                let references = self.codegen_expression(&unary.rhs)?;
+                let element_types = Self::convert_type(&unary.result_type);
+                Ok(references.map_both(element_types, |value, element_type| {
+                    let reference = value.eval_reference();
+                    Tree::Leaf(value::Value::Mutable(reference, element_type))
+                }))
+            }
             other => self.codegen_expression(other),
         }
     }
