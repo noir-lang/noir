@@ -721,8 +721,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::ErrorNodeEncountered { location })
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
         self.evaluation_depth -= 1;
@@ -1372,7 +1372,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
             }
-            HirStatement::Error | HirStatement::TraitAssociatedConstant => {
+            HirStatement::Error => {
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
+            }
+            HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
