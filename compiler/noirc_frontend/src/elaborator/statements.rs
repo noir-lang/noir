@@ -276,18 +276,34 @@ impl Elaborator<'_> {
         // let bindings (new_statements) and replaces them with simple ident references, so the
         // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
         // any side effects.
+        //
+        // We also extract a side-effectful right-hand side into a fresh let-binding emitted before
+        // the lvalue is evaluated. This ensures the RHS is evaluated before the lvalue is read or written.
+        // For example, in `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
+        // lowering reads/writes `arr[1]`. For a plain-variable lvalue the place doesn't depend
+        // on any sub-expression the RHS could change, so we leave the RHS inline.
         let expression_location = assign_op.expression.location;
 
-        let (hir_lvalue, lvalue_type, mutable, new_statements) =
+        // Elaborate the right-hand side of the operator first.
+        let (mut rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
+
+        let (hir_lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign_op.lvalue, true);
+
+        if let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
+            rhs_expr,
+            rhs_type.clone(),
+            expression_location,
+            "op_rhs",
+        ) {
+            new_statements.insert(0, rhs_let);
+            rhs_expr = rhs_ident;
+        }
 
         // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
         // that were already bound by the index let-statements in new_statements.
         let lhs_expr = self.hir_lvalue_as_expr(&hir_lvalue);
         let lhs_type = lvalue_type.clone();
-
-        // Elaborate the right-hand side of the operator.
-        let (rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
 
         let op_kind = assign_op.op.contents.to_binary_op_kind();
         let operator = HirBinaryOp { kind: op_kind, location: assign_op.op.location() };
@@ -724,8 +740,13 @@ impl Elaborator<'_> {
                 // afterward with a let binding. Note that since we recur first then push to the
                 // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
                 // be evaluated first, followed by `j`.
-                if let Some((index_definition, new_index)) =
-                    self.fresh_definition_for_lvalue_index(index, index_type, expr_location)
+                if let Some((index_definition, new_index)) = self
+                    .fresh_definition_for_side_effect_extraction(
+                        index,
+                        index_type,
+                        expr_location,
+                        "i",
+                    )
                 {
                     index = new_index;
                     statements.push(index_definition);
@@ -844,22 +865,23 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn fresh_definition_for_lvalue_index(
+    fn fresh_definition_for_side_effect_extraction(
         &mut self,
         expr: ExprId,
         typ: Type,
         location: Location,
+        name_prefix: &str,
     ) -> Option<(StmtId, ExprId)> {
         // If the original expression trivially cannot have side-effects, don't bother cluttering
         // the output with a let binding. Note that array literals can have side-effects but these
         // would produce type errors anyway.
-        if !self.index_could_have_side_effects(expr) {
+        if !self.expression_could_have_side_effects(expr) {
             return None;
         }
 
-        let lvalue_index_counter = self.next_lvalue_index_counter();
+        let counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{lvalue_index_counter}"),
+            format!("{name_prefix}_{counter}"),
             false,
             false,
             DefinitionKind::Local(None),
@@ -876,9 +898,9 @@ impl Elaborator<'_> {
         Some((let_, ident_id))
     }
 
-    /// Returns `true` if the given index expression could potentially have side-effects.
+    /// Returns `true` if the given expression could potentially have side-effects.
     /// Returns `false` if the expression is guaranteed to not have side-effects.
-    fn index_could_have_side_effects(&self, expr: ExprId) -> bool {
+    fn expression_could_have_side_effects(&self, expr: ExprId) -> bool {
         match self.interner.expression_ref(&expr) {
             HirExpression::Ident(..) => false,
             HirExpression::Literal(hir_literal) => match hir_literal {
@@ -889,17 +911,27 @@ impl Elaborator<'_> {
                 HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
             },
             HirExpression::Prefix(hir_prefix_expression) => {
-                hir_prefix_expression.trait_method_id.is_some()
-                    || self.index_could_have_side_effects(hir_prefix_expression.rhs)
+                // Something like `-x` can't have side effects if `x` is numeric
+                if hir_prefix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_prefix_expression.rhs)
             }
             HirExpression::Infix(hir_infix_expression) => {
-                hir_infix_expression.trait_method_id.is_some()
-                    || self.index_could_have_side_effects(hir_infix_expression.lhs)
-                    || self.index_could_have_side_effects(hir_infix_expression.rhs)
+                // Something like `x + y` can't have side effects if `x` is numeric
+                if hir_infix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_infix_expression.lhs)
+                    || self.expression_could_have_side_effects(hir_infix_expression.rhs)
             }
             HirExpression::Index(hir_index_expression) => {
-                self.index_could_have_side_effects(hir_index_expression.collection)
-                    || self.index_could_have_side_effects(hir_index_expression.index)
+                self.expression_could_have_side_effects(hir_index_expression.collection)
+                    || self.expression_could_have_side_effects(hir_index_expression.index)
             }
             HirExpression::Constructor(hir_constructor_expression) => {
                 !hir_constructor_expression.fields.is_empty()
@@ -908,12 +940,12 @@ impl Elaborator<'_> {
                 !hir_enum_constructor_expression.arguments.is_empty()
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.index_could_have_side_effects(hir_member_access.lhs)
+                self.expression_could_have_side_effects(hir_member_access.lhs)
             }
             HirExpression::Call(..) => true,
             HirExpression::Constrain(..) => true,
             HirExpression::Cast(hir_cast_expression) => {
-                self.index_could_have_side_effects(hir_cast_expression.lhs)
+                self.expression_could_have_side_effects(hir_cast_expression.lhs)
             }
             HirExpression::If(..)
             | HirExpression::Match(..)
