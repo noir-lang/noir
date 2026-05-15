@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778853983422,
+  "lastUpdate": 1778861725003,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "64184e6554021dce4d946ca317fc15e32725f57c",
-          "message": "chore: enforce crate layering via cargo metadata test (#12588)",
-          "timestamp": "2026-05-07T19:30:32Z",
-          "tree_id": "f2f06a0d4755e87926810ab61db5908a4a88d420",
-          "url": "https://github.com/noir-lang/noir/commit/64184e6554021dce4d946ca317fc15e32725f57c"
-        },
-        "date": 1778183655598,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127130,
-            "range": "± 423",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113191,
-            "range": "± 1606",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041668,
-            "range": "± 11235",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2121552,
             "range": "± 17924",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "be7d17552aea5a97c01a86677a3af3123b88b855",
+          "message": "fix(ssa-gen): consider `&mut (*x)` to be `x` in codegen_reference (#12684)",
+          "timestamp": "2026-05-15T15:50:34Z",
+          "tree_id": "ffc7b4acecae3ee4f991810687ba5f291908586c",
+          "url": "https://github.com/noir-lang/noir/commit/be7d17552aea5a97c01a86677a3af3123b88b855"
+        },
+        "date": 1778861659935,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168489,
+            "range": "± 421",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137611,
+            "range": "± 624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650551,
+            "range": "± 11344",
             "unit": "ns/iter"
           }
         ]
