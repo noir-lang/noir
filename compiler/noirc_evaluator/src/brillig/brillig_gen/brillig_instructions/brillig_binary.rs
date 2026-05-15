@@ -56,6 +56,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 }
             }
             BinaryOp::Mod => {
+                self.mod_by_zero_check(right);
                 if is_signed {
                     self.convert_signed_modulo(left, right, result_variable);
                     return;
@@ -125,6 +126,19 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // result_register = left - j
         self.brillig_context.binary_instruction(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
+    }
+
+    fn mod_by_zero_check(&mut self, right: SingleAddrVariable) {
+        let right_is_nonzero = self.brillig_context.allocate_single_addr_bool();
+        let zero = self.brillig_context.make_constant_instruction(0_usize.into(), right.bit_size);
+        self.brillig_context.binary_instruction(
+            *zero,
+            right,
+            *right_is_nonzero,
+            BrilligBinaryOp::LessThan,
+        );
+        let msg = "attempt to calculate the remainder with a divisor of zero".to_string();
+        self.brillig_context.codegen_constrain(*right_is_nonzero, Some(msg));
     }
 
     fn bit_shift_overflow(&mut self, left: SingleAddrVariable, right: SingleAddrVariable) {

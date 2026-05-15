@@ -115,11 +115,15 @@ fn brillig_mod() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: sp[5] = u32 div sp[2], sp[3]
-    1: sp[6] = u32 mul sp[5], sp[3]
-    2: sp[4] = u32 sub sp[2], sp[6]
-    3: sp[2] = sp[4]
-    4: return
+    0: sp[6] = const u32 0
+    1: sp[5] = u32 lt sp[6], sp[3]
+    2: jump if sp[5] to 0 // -> 4: f0/b0/1
+    3: call 0 // -> ErrorWithString
+    4: sp[5] = u32 div sp[2], sp[3] // f0/b0/1
+    5: sp[6] = u32 mul sp[5], sp[3]
+    6: sp[4] = u32 sub sp[2], sp[6]
+    7: sp[2] = sp[4]
+    8: return
     ");
 }
 
