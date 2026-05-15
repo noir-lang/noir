@@ -1285,7 +1285,7 @@ impl FunctionContext<'_> {
         let program = &self.shared_context.program;
         let can_modify_args = !is_pure_builtin_func(&call.func)
             && !is_oracle_func(&call.func)
-            && !is_oracle_wrapper(&call.func, program, ORACLE_WRAPPER_MAX_DEPTH);
+            && !is_oracle_wrapper(&call.func, program);
 
         for argument in &call.arguments {
             // The ownership pass inserts `Clone` around call arguments, however if we know that
@@ -1683,11 +1683,6 @@ fn is_oracle_func(expr: &Expression) -> bool {
     matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
 }
 
-/// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
-/// (e.g. `println` -> `print_unconstrained` -> `print` oracle); the bound only exists to
-/// keep pathological inputs from blowing the stack.
-const ORACLE_WRAPPER_MAX_DEPTH: u32 = 8;
-
 /// Return whether the expression refers to a function whose body, after peeling block/semi
 /// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
 /// or another oracle wrapper.
@@ -1696,22 +1691,30 @@ const ORACLE_WRAPPER_MAX_DEPTH: u32 = 8;
 /// only read their inputs (values are copied across the runtime boundary), so a wrapper
 /// that forwards to one cannot modify its array arguments either. This lets us drop the
 /// `Clone` that the ownership pass conservatively inserts around array arguments.
-///
-/// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
-fn is_oracle_wrapper(expr: &Expression, program: &Program, depth: u32) -> bool {
-    if depth == 0 {
-        return false;
+fn is_oracle_wrapper(expr: &Expression, program: &Program) -> bool {
+    /// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
+    /// (e.g. `println` -> `print_unconstrained` -> `print` oracle); the bound only exists to
+    /// keep pathological inputs from blowing the stack.
+    const ORACLE_WRAPPER_MAX_DEPTH: u32 = 5;
+
+    /// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
+    fn go(expr: &Expression, program: &Program, depth: u32) -> bool {
+        if depth == 0 {
+            return false;
+        }
+        let Expression::Ident(ident) = expr else {
+            return false;
+        };
+        let ast::Definition::Function(func_id) = &ident.definition else {
+            return false;
+        };
+        let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
+            return false;
+        };
+        is_oracle_func(&inner.func) || go(&inner.func, program, depth - 1)
     }
-    let Expression::Ident(ident) = expr else {
-        return false;
-    };
-    let ast::Definition::Function(func_id) = &ident.definition else {
-        return false;
-    };
-    let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
-        return false;
-    };
-    is_oracle_func(&inner.func) || is_oracle_wrapper(&inner.func, program, depth - 1)
+
+    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
 }
 
 /// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
