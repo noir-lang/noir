@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778850768904,
+  "lastUpdate": 1778851016561,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "89a0f0faf3a5f1273c8ac4843b7877882437e277",
-          "message": "chore: Release Noir(1.0.0-beta.21) (#12265)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-05-07T17:50:04+01:00",
-          "tree_id": "2b17b13af96efbfe74155c9c4383a1a6557844ce",
-          "url": "https://github.com/noir-lang/noir/commit/89a0f0faf3a5f1273c8ac4843b7877882437e277"
-        },
-        "date": 1778172761832,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169806,
-            "range": "± 421",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138001,
-            "range": "± 7012",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648488,
-            "range": "± 5403",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648777,
             "range": "± 1588",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c7a3bec082b671950aa2eee917c451645e30a45f",
+          "message": "fix(elaborator): detect cyclic type aliases to prevent stack overflow (#12633)",
+          "timestamp": "2026-05-15T12:46:23Z",
+          "tree_id": "3d4842df4e2d31bad4b4e9456c9e21f9e0c3dcf2",
+          "url": "https://github.com/noir-lang/noir/commit/c7a3bec082b671950aa2eee917c451645e30a45f"
+        },
+        "date": 1778850946072,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 165231,
+            "range": "± 560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136255,
+            "range": "± 444",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2120483,
+            "range": "± 3192",
             "unit": "ns/iter"
           }
         ]
