@@ -2959,6 +2959,7 @@ impl Elaborator<'_> {
         // Check if it's `foo.bar()` where `bar` is a member of the struct `foo`.
         // In that case we tell the user that they need to write it like `(foo.bar)()`.
         if let Type::DataType(datatype, _) = object_type {
+            self.define_struct_fields_if_undefined(datatype.borrow().id);
             let datatype = datatype.borrow();
             let has_field_with_function_type = datatype.fields_raw().is_some_and(|fields| {
                 fields

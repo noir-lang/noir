@@ -275,7 +275,14 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location)),
+            "zeroed" => {
+                // Resolve any deferred struct fields or enum variants in the
+                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
+                // instead of an opaque `Value::Zeroed` placeholder when called
+                // before the post-attribute drain.
+                self.elaborator.define_deferred_data_types_in(&return_type);
+                Ok(zeroed(return_type, location))
+            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })

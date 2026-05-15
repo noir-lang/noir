@@ -994,10 +994,12 @@ impl Elaborator<'_> {
         typ: &Type,
         location: Location,
     ) -> Option<(Ident, Vec<(String, Type, ItemVisibility)>)> {
-        if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref()
-            && let Some(fields) = typ.borrow().get_fields(generics)
-        {
-            return Some((typ.borrow().name.clone(), fields));
+        if let Type::DataType(datatype, generics) = typ.follow_bindings_shallow().as_ref() {
+            let type_id = datatype.borrow().id;
+            self.define_struct_fields_if_undefined(type_id);
+            if let Some(fields) = datatype.borrow().get_fields(generics) {
+                return Some((datatype.borrow().name.clone(), fields));
+            }
         }
 
         let error = ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), location };
@@ -1110,6 +1112,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             }
             Type::DataType(type_definition, generics) => {
                 let location = self.elaborator.interner.definition(branch_var).location;
+                let type_id = type_definition.borrow().id;
+                self.elaborator.define_struct_fields_if_undefined(type_id);
+                self.elaborator.define_enum_variants_if_undefined(type_id);
                 let definition = type_definition.borrow();
                 if let Some(variants) = definition.get_variants(&generics) {
                     drop(definition);
@@ -1474,6 +1479,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
         let typ = type_matched_on.follow_bindings_shallow();
+        if let Type::DataType(shared, _) = typ.as_ref() {
+            self.elaborator.define_enum_variants_if_undefined(shared.borrow().id);
+        }
         if let Type::DataType(shared, generics) = typ.as_ref()
             && let Some(variants) = shared.borrow().get_variants(generics)
         {
