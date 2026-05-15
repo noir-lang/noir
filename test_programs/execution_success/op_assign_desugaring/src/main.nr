@@ -17,4 +17,17 @@ fn main() {
     p.x += 5;
     assert_eq(p.x, 15);
     assert_eq(p.y, 20);
+
+    // Another regression: here the RHS expression must be evaluated
+    // first, so i ends up being 1, then the entire op-assign expression
+    // ends up being `arr[i] += 5`.
+    let mut arr = [10_i32, 20];
+    let mut i = 0;
+
+    arr[i] += {
+        i = 1;
+        5
+    };
+
+    assert_eq(arr, [10, 25]);
 }
