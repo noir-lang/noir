@@ -1122,7 +1122,7 @@ impl Elaborator<'_> {
                 let Some(method) =
                     trait_def.methods.iter_mut().find(|m| m.name.as_str() == name.as_str())
                 else {
-                    panic!("Trait method {name} should exist no the trait it was registered for");
+                    panic!("Trait method {name} should exist on the trait it was registered for");
                 };
 
                 method.typ = typ;
