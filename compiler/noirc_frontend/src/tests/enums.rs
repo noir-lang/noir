@@ -484,8 +484,6 @@ fn mutually_recursive_types_with_structs_error() {
     }
 
     enum Even {
-         ^^^^ Dependency cycle found
-         ~~~~ 'Even' recursively depends on itself: Even -> EvenSucc -> Odd -> OddSucc -> Even
         Zero,
         Succ(EvenSucc),
     }
@@ -498,6 +496,8 @@ fn mutually_recursive_types_with_structs_error() {
     }
 
     pub struct OddSucc { inner: Even }
+               ^^^^^^^ Dependency cycle found
+               ~~~~~~~ 'OddSucc' recursively depends on itself: OddSucc -> Even -> EvenSucc -> Odd -> OddSucc
     ";
     // cSpell:enable
     check_errors_using_features(src, &[UnstableFeature::Enums]);

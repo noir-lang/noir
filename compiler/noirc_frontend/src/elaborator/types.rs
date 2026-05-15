@@ -2562,6 +2562,8 @@ impl Elaborator<'_> {
 
         match &lhs_type {
             Type::DataType(s, args) => {
+                let type_id = s.borrow().id;
+                self.define_struct_fields_if_undefined(type_id);
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     self.interner.add_struct_member_reference(s.id, index, location);

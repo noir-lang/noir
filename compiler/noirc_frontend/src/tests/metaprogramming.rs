@@ -1864,3 +1864,22 @@ fn reference_generated_struct_in_trait_impl() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn reference_generated_struct_in_another_struct_field() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub struct Bar {
+        s: MyStruct,
+    }
+    "#;
+    assert_no_errors(src);
+}
