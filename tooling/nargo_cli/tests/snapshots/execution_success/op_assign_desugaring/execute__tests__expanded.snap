@@ -31,4 +31,13 @@ fn main() {
         arr[i] = arr[i] + op_rhs_1;
     };
     assert(arr == [10_i32, 25_i32]);
+    let mut i: Field = 0_Field;
+    {
+        let op_rhs_2: Field = {
+            i = 10_Field;
+            1_Field
+        };
+        i = i + op_rhs_2;
+    };
+    assert(i == 11_Field);
 }

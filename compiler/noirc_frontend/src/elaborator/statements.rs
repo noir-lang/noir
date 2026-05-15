@@ -911,12 +911,22 @@ impl Elaborator<'_> {
                 HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
             },
             HirExpression::Prefix(hir_prefix_expression) => {
-                hir_prefix_expression.trait_method_id.is_some()
-                    || self.expression_could_have_side_effects(hir_prefix_expression.rhs)
+                // Something like `-x` can't have side effects if `x` is numeric
+                if hir_prefix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_prefix_expression.rhs)
             }
             HirExpression::Infix(hir_infix_expression) => {
-                hir_infix_expression.trait_method_id.is_some()
-                    || self.expression_could_have_side_effects(hir_infix_expression.lhs)
+                // Something like `x + y` can't have side effects if `x` is numeric
+                if hir_infix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_infix_expression.lhs)
                     || self.expression_could_have_side_effects(hir_infix_expression.rhs)
             }
             HirExpression::Index(hir_index_expression) => {
