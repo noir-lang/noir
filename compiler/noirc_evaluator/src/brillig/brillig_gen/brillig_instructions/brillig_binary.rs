@@ -56,7 +56,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 }
             }
             BinaryOp::Mod => {
-                self.mod_by_zero_check(right);
+                // Mod is lowered to division where division by 0 gives a "divide by zero"
+                // error instead of a "mod by 0" one. This costs 4 extra opcodes to have
+                // a pre-check to change the error message.
+                if dfg.get_numeric_constant(binary.rhs).is_none_or(|rhs| rhs.is_zero()) {
+                    self.mod_by_zero_check(right);
+                }
                 if is_signed {
                     self.convert_signed_modulo(left, right, result_variable);
                     return;
@@ -129,6 +134,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     }
 
     fn mod_by_zero_check(&mut self, right: SingleAddrVariable) {
+        // `LessThan` is unsigned; an all-zero bit pattern is the only encoding of zero,
+        // including for signed operands (two's complement). Negative signed values have
+        // a large unsigned bit pattern and pass `0 < right`.
         let right_is_nonzero = self.brillig_context.allocate_single_addr_bool();
         let zero = self.brillig_context.make_constant_instruction(0_usize.into(), right.bit_size);
         self.brillig_context.binary_instruction(
