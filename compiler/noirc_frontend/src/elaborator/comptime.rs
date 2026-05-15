@@ -86,11 +86,14 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let meta = elaborator.interner.function_meta(&function);
+                let (source_crate, source_module, all_generics) = elaborator
+                    .with_function_meta(function, |meta| {
+                        (meta.source_crate, meta.source_module, meta.all_generics.clone())
+                    });
                 elaborator.current_item = Some(DependencyId::Function(function));
-                elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = Some(meta.source_module);
-                elaborator.introduce_generics_into_scope(meta.all_generics.clone());
+                elaborator.crate_id = source_crate;
+                elaborator.local_module = Some(source_module);
+                elaborator.introduce_generics_into_scope(all_generics);
             }
         })
     }
@@ -148,6 +151,8 @@ impl<'context> Elaborator<'context> {
 
         elaborator.local_module = self.local_module;
         elaborator.parent_runtime_variables = parent_runtime_variables;
+        elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
+        elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
 
         setup(&mut elaborator);
 
@@ -155,6 +160,9 @@ impl<'context> Elaborator<'context> {
 
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
+
+        self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
+        self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
@@ -458,7 +466,7 @@ impl<'context> Elaborator<'context> {
         arguments: Vec<Expression>,
         location: Location,
     ) -> Result<Vec<(Value, Location)>, CompilationError> {
-        let meta = interpreter.elaborator.interner.function_meta(&function);
+        let meta = interpreter.elaborator.function_meta(function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
 
