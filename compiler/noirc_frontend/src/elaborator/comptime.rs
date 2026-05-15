@@ -153,6 +153,7 @@ impl<'context> Elaborator<'context> {
         elaborator.parent_runtime_variables = parent_runtime_variables;
         elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
         elaborator.unresolved_struct_fields = std::mem::take(&mut self.unresolved_struct_fields);
+        elaborator.unresolved_enum_variants = std::mem::take(&mut self.unresolved_enum_variants);
         elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
 
         setup(&mut elaborator);
@@ -164,6 +165,7 @@ impl<'context> Elaborator<'context> {
 
         self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
         self.unresolved_struct_fields = std::mem::take(&mut elaborator.unresolved_struct_fields);
+        self.unresolved_enum_variants = std::mem::take(&mut elaborator.unresolved_enum_variants);
         self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
 
         let mut errors = std::mem::take(&mut elaborator.errors);

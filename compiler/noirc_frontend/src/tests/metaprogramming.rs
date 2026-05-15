@@ -1900,3 +1900,23 @@ fn reference_generated_struct_in_a_global() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn reference_generated_struct_in_an_enum_variant() {
+    let src = r#"
+    #[make_struct]
+    pub fn foo() {}
+
+    comptime fn make_struct(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub struct MyStruct {}
+        }
+    }
+
+    pub enum Bar {
+        Variant(MyStruct),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    crate::tests::assert_no_errors_using_features(src, &features);
+}

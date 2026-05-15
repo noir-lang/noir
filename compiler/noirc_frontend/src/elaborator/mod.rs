@@ -391,6 +391,13 @@ pub struct Elaborator<'context> {
     /// left after lazy resolution are drained post-attributes.
     unresolved_struct_fields: BTreeMap<TypeId, structs::UnresolvedStructFields>,
 
+    /// Enum definitions whose variants have been *registered* but not yet *resolved*.
+    /// Same posture as [Self::unresolved_struct_fields], for enum variants: variant
+    /// parameter types may reference items produced by comptime attribute expansion,
+    /// so we defer them. Any entries left after lazy resolution are drained
+    /// post-attributes.
+    unresolved_enum_variants: BTreeMap<TypeId, enums::UnresolvedEnumVariants>,
+
     /// Bookkeeping for trait-related work that has to wait until the
     /// post-attribute drain has resolved the involved metas. See
     /// [PendingTraitWork] for what each list is for.
@@ -506,6 +513,7 @@ impl<'context> Elaborator<'context> {
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
             unresolved_struct_fields: BTreeMap::default(),
+            unresolved_enum_variants: BTreeMap::default(),
             pending_trait_work: PendingTraitWork::default(),
         }
     }
@@ -585,6 +593,10 @@ impl<'context> Elaborator<'context> {
         // post-attribute drain.
         let outer_pending_struct_fields: HashSet<TypeId> =
             self.unresolved_struct_fields.keys().copied().collect();
+
+        // Same idea for enum variant resolution.
+        let outer_pending_enum_variants: HashSet<TypeId> =
+            self.unresolved_enum_variants.keys().copied().collect();
 
         // Same idea for globals. Note `unresolved_globals` is shared by `&mut`
         // with child elaborators (rather than owned and `mem::take`'d), so the
@@ -672,6 +684,13 @@ impl<'context> Elaborator<'context> {
         // doesn't depend on function metas, so this order is safe.
         // Outer-pending struct fields are kept for the outer call.
         self.resolve_unresolved_struct_fields_skipping(&outer_pending_struct_fields);
+
+        // Drain enum variants right after struct fields. Variant constructor
+        // registration (`define_enum_variant_function`/`_global`) populates the
+        // module def-map with the variant names, which path resolution in
+        // function bodies (elaborated below) needs to see. Outer-pending enum
+        // variants are kept for the outer call.
+        self.resolve_unresolved_enum_variants_skipping(&outer_pending_enum_variants);
 
         // Drain remaining globals now that attribute-generated items are in
         // scope. Cross-references with struct fields and function metas are
