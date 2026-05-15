@@ -123,6 +123,23 @@ fn check_errors(src: &str) {
     );
 }
 
+/// Like [`check_errors`], but also runs the elaborator when the source has parser
+/// errors. Use this when the test case deliberately exercises behavior past a
+/// parse failure (e.g. the parser produced `StatementKind::Error` and we want to
+/// verify the elaborator/interpreter handle it gracefully).
+fn check_errors_allowing_parser_errors(src: &str) {
+    let monomorphize = false;
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            allow_parser_errors: true,
+            ..Default::default()
+        },
+    );
+}
+
 /// Check for errors, prefixing user code with some snippet from the stdlib.
 fn check_errors_with_stdlib<'a>(src: &str, stdlib_src: impl IntoIterator<Item = &'a str>) {
     let stdlib_src: String = stdlib_src.into_iter().flat_map(|s| [s, "\n"]).collect();

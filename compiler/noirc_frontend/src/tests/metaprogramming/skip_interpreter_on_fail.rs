@@ -1,7 +1,7 @@
 //! Tests for skipping the comptime interpreter when there are elaboration errors for
 //! comptime blocks, functions, or let statements.
 
-use crate::tests::check_errors;
+use crate::tests::{check_errors, check_errors_allowing_parser_errors};
 
 #[test]
 fn do_not_evaluate_separate_comptime_block_with_preceding_failure() {
@@ -1039,4 +1039,19 @@ fn mismatched_struct_pattern_assignment() {
     }
     ";
     check_errors(src);
+}
+
+// The parser turns the unsupported `return` into `StatementKind::Error` after
+// reporting the user-facing diagnostic. Before this regression test the comptime
+// interpreter would then evaluate the resulting `HirStatement::Error` and emit an
+// extra "Error node encountered" ICE on top of the real error.
+#[test]
+fn early_return_in_comptime_block_does_not_emit_ice() {
+    let src = "
+    fn main() {
+        comptime { return; }
+                   ^^^^^^ Early 'return' is unsupported
+    }
+    ";
+    check_errors_allowing_parser_errors(src);
 }

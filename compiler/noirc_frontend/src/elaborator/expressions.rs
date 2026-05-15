@@ -76,7 +76,13 @@ impl Elaborator<'_> {
 
         self.dec_recursion_depth();
 
-        if has_errors {
+        // `HirExpression::Error` is the elaborator's signal that this expression has already
+        // failed (parser error, recursion limit, or a path that intentionally produced
+        // `(HirExpression::Error, Type::Error)` after pushing its own diagnostic). Flag it so
+        // the comptime interpreter halts here instead of evaluating the node and raising an
+        // ICE on top of the existing diagnostic.
+        let is_error_expr = matches!(self.interner.expression(&id), HirExpression::Error);
+        if has_errors || is_error_expr {
             self.interner.exprs_with_errors.insert(id);
         }
 
