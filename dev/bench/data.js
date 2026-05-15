@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778878077971,
+  "lastUpdate": 1778878177090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fd7093fe447d8d405a8b1fcb9fa684f83c105c0a",
-          "message": "fix(ssa): do not remove Brillig stores in DIE (#12594)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
-          "timestamp": "2026-05-08T14:52:38Z",
-          "tree_id": "fecd2a8d309ad88e015250fcc8767666a66d18ca",
-          "url": "https://github.com/noir-lang/noir/commit/fd7093fe447d8d405a8b1fcb9fa684f83c105c0a"
-        },
-        "date": 1778254525609,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.786,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 20.08,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.638,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.928,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.85,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.99,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.956,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 273,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 287,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.982,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 20.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 93.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.934,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.128,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.7,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.918,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6a584c410f78f4d9c53c830dabbf730d3f8c939",
+          "message": "fix: elaborate op-assign RHS before LHS (#12682)",
+          "timestamp": "2026-05-15T20:09:29Z",
+          "tree_id": "99dbb7ec118521a269d7d6b5134a954a75386223",
+          "url": "https://github.com/noir-lang/noir/commit/f6a584c410f78f4d9c53c830dabbf730d3f8c939"
+        },
+        "date": 1778878115245,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 6.376,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 14.98,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 3.726,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.03,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.072,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 344,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 303,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.156,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 19.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 144.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.066,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.162,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.71,
             "unit": "s"
           }
         ]
