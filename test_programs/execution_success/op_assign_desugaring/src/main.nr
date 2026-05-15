@@ -30,4 +30,14 @@ fn main() {
     };
 
     assert_eq(arr, [10, 25]);
+
+    // And another one: here this should be equivalent to `i = 10; i += 1;`
+    let mut i = 0;
+
+    i += {
+        i = 10;
+        1
+    };
+
+    assert_eq(i, 11);
 }

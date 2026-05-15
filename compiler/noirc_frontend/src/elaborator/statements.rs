@@ -277,10 +277,9 @@ impl Elaborator<'_> {
         // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
         // any side effects.
         //
-        // When the lvalue is more than a plain variable, we also extract a side-effectful
-        // right-hand side into a fresh let-binding emitted before the lvalue is evaluated. This
-        // ensures the RHS is evaluated before the lvalue is read or written. For example, in
-        // `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
+        // We also extract a side-effectful right-hand side into a fresh let-binding emitted before
+        // the lvalue is evaluated. This ensures the RHS is evaluated before the lvalue is read or written.
+        // For example, in `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
         // lowering reads/writes `arr[1]`. For a plain-variable lvalue the place doesn't depend
         // on any sub-expression the RHS could change, so we leave the RHS inline.
         let expression_location = assign_op.expression.location;
@@ -291,14 +290,12 @@ impl Elaborator<'_> {
         let (hir_lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign_op.lvalue, true);
 
-        if !matches!(&hir_lvalue, HirLValue::Ident(..))
-            && let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
-                rhs_expr,
-                rhs_type.clone(),
-                expression_location,
-                "op_rhs",
-            )
-        {
+        if let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
+            rhs_expr,
+            rhs_type.clone(),
+            expression_location,
+            "op_rhs",
+        ) {
             new_statements.insert(0, rhs_let);
             rhs_expr = rhs_ident;
         }
