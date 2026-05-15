@@ -1069,7 +1069,10 @@ fn early_return_in_comptime_block_does_not_ice() {
     assert!(has_early_return, "expected EarlyReturn parser error, got: {errors:?}");
 
     let has_ice = errors.iter().any(|e| {
-        matches!(e, CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. }))
+        matches!(
+            e,
+            CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. })
+        )
     });
     assert!(!has_ice, "should not emit ErrorNodeEncountered ICE, got: {errors:?}");
 }
@@ -1093,7 +1096,10 @@ fn unresolved_path_in_comptime_block_does_not_ice() {
     .2;
 
     let has_ice = errors.iter().any(|e| {
-        matches!(e, CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. }))
+        matches!(
+            e,
+            CompilationError::InterpreterError(InterpreterError::ErrorNodeEncountered { .. })
+        )
     });
     assert!(!has_ice, "should not emit ErrorNodeEncountered ICE, got: {errors:?}");
 }
