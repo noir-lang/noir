@@ -3080,6 +3080,17 @@ impl Elaborator<'_> {
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
             }
 
+            // Resolve any deferred struct fields reachable through the arg
+            // types so the boundary validity check sees real fields instead
+            // of stub `StructWithUnknownFields`. Without this, an unresolved
+            // struct is misread as an enum (`get_fields` returns `None`) and
+            // the check reports a spurious "mutable reference" error. This
+            // matters inside recursive `elaborate_items` (from `run_attributes`)
+            // where outer-pending structs haven't been drained yet.
+            for (typ, _, _) in &args {
+                self.define_deferred_data_types_in(typ);
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             self.push_errors(errors);
         }
@@ -3087,6 +3098,7 @@ impl Elaborator<'_> {
         let return_type = self.bind_function_type(func_type, args, location);
 
         if crossing_runtime_boundary {
+            self.define_deferred_data_types_in(&return_type);
             self.run_lint(|_| {
                 lints::unconstrained_function_return(&return_type, location).map(Into::into)
             });

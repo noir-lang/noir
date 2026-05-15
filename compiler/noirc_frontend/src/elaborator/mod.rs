@@ -912,6 +912,130 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Walk `typ` and lazy-resolve any [Type::DataType]'s struct fields or
+    /// enum variants encountered. Used at sites that ask whole-type questions
+    /// (`is_valid_for_unconstrained_boundary`, `contains_vector`, etc.) which
+    /// read fields/variants directly and would otherwise misinterpret a stub
+    /// `StructWithUnknownFields` body as an enum (or vice versa) when a
+    /// deferred struct/enum still hasn't been drained.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn define_deferred_data_types_in(&mut self, typ: &Type) {
+        self.define_deferred_data_types_in_helper(
+            typ,
+            TypeRecursionContext::default(),
+            &mut VisitedRefHashSet::new(),
+        );
+    }
+
+    fn define_deferred_data_types_in_helper(
+        &mut self,
+        typ: &Type,
+        mut type_recursion_context: TypeRecursionContext,
+        visited: &mut VisitedRefHashSet<Type>,
+    ) {
+        if !visited.insert(typ) {
+            return;
+        }
+        match typ {
+            Type::Array(elem, _) | Type::Vector(elem) | Type::Reference(elem, _) => {
+                self.define_deferred_data_types_in_helper(
+                    elem,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::Tuple(types) => {
+                for t in types {
+                    self.define_deferred_data_types_in_helper(
+                        t,
+                        type_recursion_context.clone().recur(),
+                        visited,
+                    );
+                }
+            }
+            Type::DataType(datatype, generics) => {
+                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
+                    let datatype_id = datatype.borrow().id;
+                    self.define_struct_fields_if_undefined(datatype_id);
+                    self.define_enum_variants_if_undefined(datatype_id);
+                    for generic in generics {
+                        self.define_deferred_data_types_in_helper(
+                            generic,
+                            type_recursion_context.clone().recur(),
+                            visited,
+                        );
+                    }
+                    if let Some(fields) = datatype.borrow().get_fields(generics) {
+                        for (_, field_type, _) in fields {
+                            self.define_deferred_data_types_in_helper(
+                                &field_type,
+                                type_recursion_context.clone().recur(),
+                                visited,
+                            );
+                        }
+                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                        for (_, variant_types) in variants {
+                            for t in variant_types {
+                                self.define_deferred_data_types_in_helper(
+                                    &t,
+                                    type_recursion_context.clone().recur(),
+                                    visited,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            Type::Alias(alias_type, generics) => {
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.define_deferred_data_types_in_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                        visited,
+                    );
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                self.define_deferred_data_types_in_helper(
+                    from,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.define_deferred_data_types_in_helper(
+                    to,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::InfixExpr(left, _op, right, _) => {
+                self.define_deferred_data_types_in_helper(
+                    left,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.define_deferred_data_types_in_helper(
+                    right,
+                    type_recursion_context.recur(),
+                    visited,
+                );
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+    }
+
     /// Returns `true` if the current module is a contract.
     ///
     /// This is usually determined by `self.module_id()`, but it can
