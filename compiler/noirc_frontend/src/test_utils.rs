@@ -285,5 +285,13 @@ pub mod stdlib_src {
     pub const PRINT: &str = "
         #[oracle(print)]
         unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+        unconstrained fn println<T>(input: T) {
+            print_unconstrained(true, input);
+        }
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+            print_oracle(with_newline, input);
+        }
     ";
 }
