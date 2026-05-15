@@ -277,7 +277,7 @@ impl Elaborator<'_> {
         // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
         // any side effects.
         //
-        // When the lvalue could have side effects, we also extract a side-effectful
+        // When the lvalue is more than a plain variable, we also extract a side-effectful
         // right-hand side into a fresh let-binding emitted before the lvalue is evaluated. This
         // ensures the RHS is evaluated before the lvalue is read or written. For example, in
         // `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
@@ -291,7 +291,7 @@ impl Elaborator<'_> {
         let (hir_lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign_op.lvalue, true);
 
-        if self.lvalue_could_have_side_effects(&hir_lvalue)
+        if !matches!(&hir_lvalue, HirLValue::Ident(..))
             && let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
                 rhs_expr,
                 rhs_type.clone(),
@@ -949,19 +949,6 @@ impl Elaborator<'_> {
             | HirExpression::Unsafe(..)
             | HirExpression::Block(..)
             | HirExpression::Error => true,
-        }
-    }
-
-    fn lvalue_could_have_side_effects(&self, lvalue: &HirLValue) -> bool {
-        match lvalue {
-            HirLValue::Ident(..) => false,
-            HirLValue::MemberAccess { object, .. } => self.lvalue_could_have_side_effects(object),
-            HirLValue::Index { array, index, .. } => {
-                self.lvalue_could_have_side_effects(array)
-                    || self.expression_could_have_side_effects(*index)
-            }
-            HirLValue::Dereference { lvalue, .. } => self.lvalue_could_have_side_effects(lvalue),
-            HirLValue::Error { .. } => false,
         }
     }
 
