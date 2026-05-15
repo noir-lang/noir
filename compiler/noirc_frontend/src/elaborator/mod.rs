@@ -114,6 +114,7 @@ mod variable;
 mod visibility;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+use fm::FileMap;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -236,6 +237,7 @@ pub struct Elaborator<'context> {
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
+    pub(crate) files: &'context FileMap,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
     pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
 
@@ -412,6 +414,7 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
+        files: &'context FileMap,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -428,6 +431,7 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
+            files,
             interpreter_output,
             evaluation_tracker,
             required_unstable_features,
@@ -484,6 +488,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_maps,
             &mut context.usage_tracker,
             &context.crate_graph,
+            context.file_manager.as_file_map(),
             &context.interpreter_output,
             context.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
@@ -1151,15 +1156,24 @@ pub mod test_utils {
         ) {
             Err(e) => return Err(ElaboratorError::Interpret(e)),
             Ok(value) => {
-                match value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                match value.into_runtime_hir_expression(
+                    elaborator.interner,
+                    elaborator.files,
+                    Location::dummy(),
+                ) {
                     Err(e) => return Err(ElaboratorError::HIRConvert(e)),
                     Ok(expr_id) => expr_id,
                 }
             }
         };
 
-        let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
+        let mut monomorphizer = Monomorphizer::new(
+            elaborator.interner,
+            elaborator.files,
+            DebugTypeTracker::default(),
+            None,
+            false,
+        );
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

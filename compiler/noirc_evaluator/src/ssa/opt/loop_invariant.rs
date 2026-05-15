@@ -710,12 +710,15 @@ impl<'f> LoopInvariantContext<'f> {
         let returns_array = if dfg.runtime().is_brillig() {
             // Add inc_rc for instructions that create new arrays
             match &instruction {
-                Instruction::MakeArray { .. } => true,
+                Instruction::MakeArray { .. } | Instruction::ArraySet { .. } => true,
                 Instruction::Call { .. } => {
                     let results = dfg.instruction_results(instruction_id);
                     results.iter().any(|r| dfg.type_of_value(*r).is_array())
                 }
-                // RefCount for ArrayGet and ArraySet is managed by the ownership analysis.
+                // RefCount for ArrayGet is managed by the ownership analysis, e.g.
+                // for multi dimensional arrays, `let aij = a[i][j];` would make sure
+                // it only inserts clones at the last get; we shouldn't need more
+                // increments here.
                 _ => false,
             }
         } else {
@@ -2542,6 +2545,127 @@ mod tests {
         };
 
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
+    }
+
+    #[test]
+    fn inserts_inc_rc_for_hoisted_array_set() {
+        // The SSA below has been captured during the pre-processing of functions in the following:
+
+        // unconstrained fn main() {
+        //     func_1((0, [10]))
+        // }
+        // unconstrained fn func_1(a: (u8, [u64; 1])) {
+        //     let mut c = a.1;
+        //     for _ in 0..2 {
+        //         c[0_u32] = 20;
+        //         println(c);
+        //         c = {
+        //             {
+        //                 let mut idx_e: u32 = 0_u32;
+        //                 loop {
+        //                     if (idx_e == 1_u32) {
+        //                         break
+        //                     } else {
+        //                         idx_e = (idx_e + 1_u32);
+        //                         c[0_u32] = 30;
+        //                     }
+        //                 }
+        //             };
+        //             a.1
+        //         };
+        //     }
+        // }
+
+        // In the SSA the `inc_rc` that normally comes with the print has
+        // been removed; it would have been removed for any other direct
+        // oracle call as well.
+
+        // If the LICM hoists the `array_set v1, index u32 0, value u64 20` out
+        // out of the loop, and doesn't leave an `inc_rc` for its result,
+        // then the subsequent `array_set v3, index u32 0, value u64 30`
+        // will modify the array and it never gets reset in the next loop.
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 2
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v9 = array_set v1, index u32 0, value u64 20
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v9, v34, u1 0)
+            jmp b4(v9, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = make_array [u64 10] : [u64; 1]
+            call f1(u8 0, v1)
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u8, v1: [u64; 1]):
+            inc_rc v1
+            v7 = array_set v1, index u32 0, value u64 20
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            inc_rc v7
+            v34 = make_array b"{\"kind\":\"array\",\"length\":1,\"type\":{\"kind\":\"unsignedinteger\",\"width\":64}}"
+            call print(u1 1, v7, v34, u1 0)
+            jmp b4(v7, u32 0)
+          b3():
+            return
+          b4(v3: [u64; 1], v4: u32):
+            v39 = eq v4, u32 1
+            jmpif v39 then: b5(), else: b6()
+          b5():
+            jmp b7()
+          b6():
+            v40 = add v4, u32 1
+            v42 = array_set v3, index u32 0, value u64 30
+            jmp b8()
+          b7():
+            inc_rc v1
+            v43 = unchecked_add v2, u32 1
+            jmp b1(v43)
+          b8():
+            jmp b4(v42, v40)
+        }
+        "#);
     }
 }
 

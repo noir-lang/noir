@@ -52,7 +52,7 @@ impl Elaborator<'_> {
             if value.is_ok() {
                 let from_macro_call = false;
                 let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
-                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {
                 (id, typ)
