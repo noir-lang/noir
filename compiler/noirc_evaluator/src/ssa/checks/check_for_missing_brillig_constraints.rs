@@ -1072,7 +1072,7 @@ mod tests {
         "#;
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
-        assert!(!ssa_level_warnings.is_empty());
+        assert_eq!(ssa_level_warnings.len(), 2);
     }
 
     #[test]
