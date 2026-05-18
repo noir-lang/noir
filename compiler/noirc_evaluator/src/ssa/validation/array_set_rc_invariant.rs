@@ -103,14 +103,21 @@ impl Function {
                 // A hit means the `array_set` may mutate storage in place
                 // (RC=1) and a downstream instruction will observe the
                 // pre-mutation contents through an aliased name.
-                if ctx.has_reachable_aliased_use(&alias_set, *instruction_id, block_id, idx) {
+                if let Some(hit) =
+                    ctx.find_reachable_aliased_use(&alias_set, *instruction_id, block_id, idx)
+                {
                     let call_stack = self.dfg.get_instruction_call_stack(*instruction_id);
                     let message = format!(
-                        "array_set in function {} on array {array} has an aliased read on a \
-                         forward path but no `inc_rc` dominates it; the in-place mutation \
-                         would be observable through an alias",
+                        "array_set in function {} on array {array} has an aliased read of {} \
+                         on a forward path with no preceding `inc_rc`; the in-place mutation \
+                         would be observable through that alias",
                         self.name(),
+                        hit.value,
                     );
+                    // `hit.instruction` is the instruction that observes
+                    // the alias; not yet plumbed into the diagnostic as a
+                    // secondary location.
+                    let _ = hit.instruction;
                     return Err(RuntimeError::SsaValidationError { message, call_stack });
                 }
             }
@@ -235,7 +242,7 @@ impl<'f> Context<'f> {
     /// threading) are intentional reads of the mutated storage, not
     /// hazards. Keeping them in the alias-set would defeat the per-arg
     /// kill rule in [`Context::succ_use_set`]: a back-edge
-    /// `jmp b(v_arrset)` would see `v_arrset` in the use-set and refuse
+    /// `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and refuse
     /// to kill the receiving param, letting the alias leak past the loop.
     ///
     /// The source itself is kept even when it happens to be an
@@ -329,13 +336,13 @@ impl<'f> Context<'f> {
     /// subset of what we already explored at that block adds no new
     /// information. We record the *union* of use-sets seen per block and
     /// skip on subset matches.
-    fn has_reachable_aliased_use(
+    fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
         array_set_id: InstructionId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
-    ) -> bool {
+    ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
 
         // (block, start_idx, use_set_on_entry)
@@ -377,7 +384,7 @@ impl<'f> Context<'f> {
                         continue;
                     }
                     if use_set.contains(&operand) {
-                        return true;
+                        return Some(AliasedUse { instruction: inst_id, value: operand });
                     }
                 }
             }
@@ -404,7 +411,7 @@ impl<'f> Context<'f> {
                 | TerminatorInstruction::Unreachable { .. } => (),
             }
         }
-        false
+        None
     }
 
     /// Compute the use-set carried into `dest` when its predecessor jumps
@@ -504,6 +511,21 @@ fn materialize_value_aliases(mut uf: UnionFind<ValueId>) -> HashMap<ValueId, im:
 /// with two array operands contributes two entries. Tuples are
 /// `(instruction-index-within-block, instruction-id, operand-value)`.
 type ArrayOperandUse = (usize, InstructionId, ValueId);
+
+/// A non-terminator instruction reachable forward from an `array_set` that
+/// reads a value still in the alias-set — the *aliased use* that the
+/// reachable-use walk surfaced. Carries both pieces so callers can build a
+/// diagnostic that names the offending alias value and the instruction
+/// that observed it.
+#[derive(Debug)]
+struct AliasedUse {
+    /// The instruction that uses the aliased value as a (non-terminator)
+    /// operand.
+    instruction: InstructionId,
+    /// The alias-set member that was used. Names *which* alias triggered
+    /// the flag — useful when the alias-set has more than one member.
+    value: ValueId,
+}
 
 /// For each parameter of `dest`, union it with the corresponding argument
 /// from the calling terminator. Only array-typed parameters participate —
@@ -906,7 +928,7 @@ mod tests {
         let (block, idx, inst_id, _source, alias_set) =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(
             !has_use,
             "well-formed loop: array_get v2 is reached via cycle but v2 is rebound at b1; no aliased use should be found"
@@ -941,7 +963,7 @@ mod tests {
         let (block, idx, inst_id, _source, alias_set) =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(
             has_use,
             "malformed loop: array_get v0 reads the pre-header value, which aliases the array_set's source via b1's pre-header jmp"
@@ -984,7 +1006,7 @@ mod tests {
         let (block, idx, inst_id, _source, alias_set) =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(
             !has_use,
             "no aliased read exists; the walk must terminate and return false despite re-entering b3 with non-overlapping use-sets"
@@ -1022,7 +1044,7 @@ mod tests {
         assert!(alias_set.contains(&v2_param), "alias-set must include the sibling param v2");
 
         // The forward walk catches `array_get v2` as an aliased read.
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(has_use, "array_get v2 reads a sibling alias of the array_set's source v1");
     }
 
@@ -1056,7 +1078,7 @@ mod tests {
         let (block, idx, inst_id, _source, alias_set) =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(
             has_use,
             "array_get v7 in b3 reads a value (v7 ← v2) that still aliases the array_set's source"
@@ -1089,7 +1111,7 @@ mod tests {
         let (block, idx, inst_id, _source, alias_set) =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
+        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
         assert!(
             !has_use,
             "b2's v5 is rebound to v4 (the array_set's result, excluded from alias-set), so it is killed and array_get v5 is not aliased"
