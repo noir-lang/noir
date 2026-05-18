@@ -49,7 +49,8 @@ use crate::{
             function::Function,
             instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
-            value::{Value, ValueId},
+            union_find::UnionFind,
+            value::ValueId,
         },
         ssa_gen::Ssa,
     },
@@ -81,7 +82,6 @@ impl Function {
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let inc_rc_locations = collect_inc_rc_locations(self);
-        let array_params_by_block = collect_array_params_by_block(self);
         let value_aliases = collect_value_aliases(self);
 
         for block_id in self.reachable_blocks() {
@@ -109,14 +109,8 @@ impl Function {
                 // Expensive: forward CFG walk looking for an aliased read.
                 // Step 5 will gate `Err` on this; for now we just exercise the
                 // function.
-                let _has_use = has_reachable_aliased_use(
-                    self,
-                    &array_params_by_block,
-                    &alias_set,
-                    *instruction_id,
-                    block_id,
-                    idx,
-                );
+                let _has_use =
+                    has_reachable_aliased_use(self, &alias_set, *instruction_id, block_id, idx);
             }
         }
         Ok(())
@@ -174,56 +168,35 @@ fn some_inc_rc_dominates(
     false
 }
 
-/// For each block, the set of its array-typed parameters. The reachable-use
-/// walk uses this to "kill" alias-set members from the live use-set when the
-/// walk crosses into a block where the member is a parameter — the parameter
-/// is re-bound by the predecessor's terminator argument, so the *name* refers
-/// to a different value in this block (and its dominated descendants) than to
-/// the array_set's pre-mutation source.
-fn collect_array_params_by_block(
-    function: &Function,
-) -> HashMap<BasicBlockId, im::HashSet<ValueId>> {
-    let mut out: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
-    for block_id in function.reachable_blocks() {
-        let mut set = im::HashSet::new();
-        for &param in function.dfg.block_parameters(block_id) {
-            if function.dfg.type_of_value(param).contains_an_array() {
-                set.insert(param);
-            }
-        }
-        if !set.is_empty() {
-            out.insert(block_id, set);
-        }
-    }
-    out
-}
-
 /// Forward CFG walk from after the `array_set` looking for a non-terminator
 /// instruction that reads a value still in the alias use-set.
 ///
-/// **Use-set evolution.** Starts as `alias_set` and only shrinks: when the
-/// walk crosses *into* a block where an alias-set member is a parameter, that
-/// member is dropped from the use-set for this path onward. This models the
-/// re-binding that happens at block boundaries — a `jmp b(v_new)` to a block
-/// whose parameter is in our alias-set means the parameter's name now refers
-/// to `v_new` in that block (and its dominated descendants), not to the
-/// array_set's source.
+/// **Use-set evolution.** Starts as `alias_set` and only shrinks. Kills are
+/// applied **during propagation** to each successor — see
+/// [`succ_use_set`] for the per-arg kill rule. The intuition: a parameter
+/// of the successor is in the alias-set means it shares storage with the
+/// array_set's source. After the jump, the parameter is rebound to the
+/// arg passed by this terminator. If the arg is *also* in the use-set
+/// (still an alias), the parameter stays in the use-set; if the arg is
+/// a *fresh* value (not in the use-set, e.g. the array_set's own result),
+/// the parameter is killed.
 ///
 /// **What counts as a use.** Only non-terminator operands. Terminator
-/// arguments are the legitimate threading mechanism the invariant relies on:
-/// `jmp b(v_alias)` is how the post-mutation value reaches the next block
-/// where it is re-bound to that block's parameter. Flagging this would defeat
-/// the invariant's whole purpose.
+/// arguments are the legitimate threading mechanism the invariant relies
+/// on; `jmp b(v_alias)` is how the post-mutation value reaches the next
+/// block where it is re-bound to that block's parameter. The kill logic
+/// above already accounts for these args.
 ///
-/// The original `array_set` itself is also skipped, in case a cycle re-enters
-/// its block — it is, by construction, a use of its own source, not a hazard.
+/// The original `array_set` itself is also skipped, in case a cycle
+/// re-enters its block — it is, by construction, a use of its own source,
+/// not a hazard.
 ///
-/// **Cycle detection.** Re-visiting a block with a use-set that is a subset
-/// of what we already explored at that block adds no new information. We
-/// record the *largest* use-set seen per block and skip on subset matches.
+/// **Cycle detection.** Re-visiting a block with a use-set that is a
+/// subset of what we already explored at that block adds no new
+/// information. We record the *union* of use-sets seen per block and skip
+/// on subset matches.
 fn has_reachable_aliased_use(
     function: &Function,
-    array_params_by_block: &HashMap<BasicBlockId, im::HashSet<ValueId>>,
     alias_set: &im::HashSet<ValueId>,
     array_set_id: InstructionId,
     array_set_block: BasicBlockId,
@@ -233,21 +206,12 @@ fn has_reachable_aliased_use(
 
     // (block, start_idx, use_set_on_entry)
     //
-    // `start_idx > 0` denotes the very first frame, where we continue inside
-    // the array_set's own block past the array_set instruction itself. Block
-    // kills are not applied on that frame because we are mid-block (kills
-    // would have already been applied when the array_set's block was first
-    // entered from a predecessor; we are picking up after that point).
+    // `start_idx > 0` denotes the very first frame, which continues inside
+    // the array_set's own block past the array_set instruction itself.
     let mut worklist: Vec<(BasicBlockId, usize, im::HashSet<ValueId>)> =
         vec![(array_set_block, array_set_idx + 1, alias_set.clone())];
 
-    while let Some((block, start_idx, mut use_set)) = worklist.pop() {
-        if start_idx == 0
-            && let Some(kills) = array_params_by_block.get(&block)
-        {
-            use_set = use_set.relative_complement(kills.clone());
-        }
-
+    while let Some((block, start_idx, use_set)) = worklist.pop() {
         // No live aliases on this path: the instruction scan can't hit and
         // propagating the empty set to successors is wasted work.
         if use_set.is_empty() {
@@ -284,11 +248,60 @@ fn has_reachable_aliased_use(
             }
         }
 
-        for succ in function.dfg[block].successors() {
-            worklist.push((succ, 0, use_set.clone()));
+        // Propagate to each successor with per-arg kills applied.
+        let Some(terminator) = function.dfg[block].terminator() else { continue };
+        match terminator {
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                let next = succ_use_set(function, *destination, arguments, &use_set);
+                worklist.push((*destination, 0, next));
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                let then_next = succ_use_set(function, *then_destination, then_arguments, &use_set);
+                worklist.push((*then_destination, 0, then_next));
+                let else_next = succ_use_set(function, *else_destination, else_arguments, &use_set);
+                worklist.push((*else_destination, 0, else_next));
+            }
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
         }
     }
     false
+}
+
+/// Compute the use-set carried into `dest` when its predecessor jumps with
+/// `arguments`.
+///
+/// For each `dest.params[i]` that is currently in `use_set`, look at the
+/// corresponding `arguments[i]`:
+/// - If the arg is *also* in `use_set`, the parameter is rebound to a value
+///   that still aliases the array_set's source; keep the parameter in the
+///   use-set.
+/// - Otherwise (arg is a fresh value — most commonly the array_set's own
+///   result, which was excluded from the alias-set at lookup time), the
+///   parameter is rebound to a non-aliased value; drop it from the use-set.
+fn succ_use_set(
+    function: &Function,
+    dest: BasicBlockId,
+    arguments: &[ValueId],
+    use_set: &im::HashSet<ValueId>,
+) -> im::HashSet<ValueId> {
+    let mut result = use_set.clone();
+    let params = function.dfg.block_parameters(dest);
+    for (i, &param) in params.iter().enumerate() {
+        if !use_set.contains(&param) {
+            continue;
+        }
+        let arg_is_alias = arguments.get(i).is_some_and(|arg| use_set.contains(arg));
+        if !arg_is_alias {
+            result.remove(&param);
+        }
+    }
+    result
 }
 
 /// Compute aliasing equivalence classes for every value that participates in
@@ -329,7 +342,8 @@ fn has_reachable_aliased_use(
 /// protects only `v1`'s array_set would falsely appear to protect `v3` as
 /// well. See `alias_set_does_not_walk_array_set_chains` for a worked example.
 fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<ValueId>> {
-    let mut parent: HashMap<ValueId, ValueId> = HashMap::default();
+    let mut uf: UnionFind<ValueId> = UnionFind::new();
+    let mut touched: HashSet<ValueId> = HashSet::default();
 
     for block_id in function.reachable_blocks() {
         let Some(terminator) = function.dfg[block_id].terminator() else {
@@ -337,7 +351,7 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
         };
         match terminator {
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                union_param_args(function, &mut parent, *destination, arguments);
+                union_param_args(function, &mut uf, &mut touched, *destination, arguments);
             }
             TerminatorInstruction::JmpIf {
                 then_destination,
@@ -346,18 +360,29 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
                 else_arguments,
                 ..
             } => {
-                union_param_args(function, &mut parent, *then_destination, then_arguments);
-                union_param_args(function, &mut parent, *else_destination, else_arguments);
+                union_param_args(
+                    function,
+                    &mut uf,
+                    &mut touched,
+                    *then_destination,
+                    then_arguments,
+                );
+                union_param_args(
+                    function,
+                    &mut uf,
+                    &mut touched,
+                    *else_destination,
+                    else_arguments,
+                );
             }
             _ => (),
         }
     }
 
-    // Invert: collect each canonical representative's full class.
+    // Group every touched value by its class representative.
     let mut class_of_rep: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    let touched: Vec<ValueId> = parent.keys().copied().collect();
     for &v in &touched {
-        let rep = uf_find(&mut parent, v);
+        let rep = uf.find(v);
         class_of_rep.entry(rep).or_default().insert(v);
     }
 
@@ -365,7 +390,7 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
     // lookups.
     let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
     for v in touched {
-        let rep = uf_find(&mut parent, v);
+        let rep = uf.find(v);
         if let Some(class) = class_of_rep.get(&rep) {
             result.insert(v, class.clone());
         }
@@ -379,7 +404,8 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
 /// keeps the equivalence-class structure focused.
 fn union_param_args(
     function: &Function,
-    parent: &mut HashMap<ValueId, ValueId>,
+    uf: &mut UnionFind<ValueId>,
+    touched: &mut HashSet<ValueId>,
     dest: BasicBlockId,
     arguments: &[ValueId],
 ) {
@@ -389,41 +415,9 @@ fn union_param_args(
         if !function.dfg.type_of_value(param).contains_an_array() {
             continue;
         }
-        uf_union(parent, param, arg);
-    }
-}
-
-/// Union-find: return the canonical representative of `v`'s equivalence
-/// class. Inserts `v` as its own root if not yet present, walks up the
-/// parent chain to the root, then applies path compression so future
-/// `uf_find` calls for any node on the walked path are O(1).
-fn uf_find(parent: &mut HashMap<ValueId, ValueId>, v: ValueId) -> ValueId {
-    parent.entry(v).or_insert(v);
-    let mut steps: Vec<ValueId> = Vec::new();
-    let mut current = v;
-    loop {
-        let p = parent[&current];
-        if p == current {
-            break;
-        }
-        steps.push(current);
-        current = p;
-    }
-    for s in steps {
-        parent.insert(s, current);
-    }
-    current
-}
-
-/// Union-find: merge the equivalence classes containing `a` and `b`. If
-/// they are already in the same class this is a no-op. No rank/size
-/// heuristic is used — the trees stay shallow because every operation
-/// runs through [`uf_find`], which path-compresses.
-fn uf_union(parent: &mut HashMap<ValueId, ValueId>, a: ValueId, b: ValueId) {
-    let ra = uf_find(parent, a);
-    let rb = uf_find(parent, b);
-    if ra != rb {
-        parent.insert(ra, rb);
+        touched.insert(param);
+        touched.insert(arg);
+        uf.union(param, arg);
     }
 }
 
@@ -669,19 +663,11 @@ mod tests {
             }"#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let array_params_by_block = super::collect_array_params_by_block(function);
         let value_aliases = collect_value_aliases(function);
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(
-            function,
-            &array_params_by_block,
-            &alias_set,
-            inst_id,
-            block,
-            idx,
-        );
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
         assert!(
             !has_use,
             "well-formed loop: array_get v2 is reached via cycle but v2 is rebound at b1; no aliased use should be found"
@@ -712,19 +698,11 @@ mod tests {
             }"#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let array_params_by_block = super::collect_array_params_by_block(function);
         let value_aliases = collect_value_aliases(function);
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(
-            function,
-            &array_params_by_block,
-            &alias_set,
-            inst_id,
-            block,
-            idx,
-        );
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
         assert!(
             has_use,
             "malformed loop: array_get v0 reads the pre-header value, which aliases the array_set's source via b1's pre-header jmp"
@@ -763,19 +741,11 @@ mod tests {
             }"#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let array_params_by_block = super::collect_array_params_by_block(function);
         let value_aliases = collect_value_aliases(function);
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(
-            function,
-            &array_params_by_block,
-            &alias_set,
-            inst_id,
-            block,
-            idx,
-        );
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
         assert!(
             !has_use,
             "no aliased read exists; the walk must terminate and return false despite re-entering b3 with non-overlapping use-sets"
@@ -801,7 +771,6 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let value_aliases = collect_value_aliases(function);
-        let array_params_by_block = super::collect_array_params_by_block(function);
         let (block, idx, source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
@@ -814,15 +783,78 @@ mod tests {
         assert!(alias_set.contains(&v2_param), "alias-set must include the sibling param v2");
 
         // The forward walk catches `array_get v2` as an aliased read.
-        let has_use = super::has_reachable_aliased_use(
-            function,
-            &array_params_by_block,
-            &alias_set,
-            inst_id,
-            block,
-            idx,
-        );
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
         assert!(has_use, "array_get v2 reads a sibling alias of the array_set's source v1");
+    }
+
+    /// Cross-block sibling aliasing. The array_set is in `b1`; its source
+    /// `v1` aliases its sibling param `v2` (both bound to `v0` by `b0`'s
+    /// `jmp b1(v0, v0)`). The post-array_set jmp threads `v2` forward to
+    /// `b3`'s parameter `v4` — so `v4` is rebound to a value (`v2`) that
+    /// is still in the alias-set, meaning `v4` *stays* aliased to the
+    /// array_set's source.
+    ///
+    /// The forward walk must therefore *not* kill `v4` on entry to `b3`,
+    /// and must flag the `array_get v4` as an aliased read. The
+    /// per-arg kill rule (see [`super::succ_use_set`]) is what makes this
+    /// work: `v4`'s arg `v2` is in `use_set`, so `v4` is preserved.
+    #[test]
+    fn reachable_use_walk_preserves_aliased_param_across_jmp() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(v0, v0)
+              b1(v1: [u32; 2], v2: [u32; 2]):
+                v5 = array_set v1, index u32 0, value u32 99
+                jmp b3(v5, v2)
+              b3(v6: [u32; 2], v7: [u32; 2]):
+                v9 = array_get v7, index u32 0 -> u32
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let value_aliases = collect_value_aliases(function);
+        let (block, idx, _source, alias_set, inst_id) =
+            find_array_set_with_id(function, &value_aliases).expect("array_set present");
+
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        assert!(
+            has_use,
+            "array_get v7 in b3 reads a value (v7 ← v2) that still aliases the array_set's source"
+        );
+    }
+
+    /// Counterpart of the above: when the jmp arg is the array_set's own
+    /// result (`v5`), the destination's parameter `v6` is rebound to a
+    /// value that is *not* in the alias-set (the result was excluded at
+    /// lookup time). The kill must fire so `v6` is removed from the
+    /// use-set, and a downstream `array_get v6` must not be flagged.
+    ///
+    /// This is the "happy path" of the per-arg kill rule.
+    #[test]
+    fn reachable_use_walk_kills_param_rebound_to_array_set_result() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                jmp b1(v0)
+              b1(v1: [u32; 2]):
+                v4 = array_set v1, index u32 0, value u32 99
+                jmp b2(v4)
+              b2(v5: [u32; 2]):
+                v7 = array_get v5, index u32 0 -> u32
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let value_aliases = collect_value_aliases(function);
+        let (block, idx, _source, alias_set, inst_id) =
+            find_array_set_with_id(function, &value_aliases).expect("array_set present");
+
+        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        assert!(
+            !has_use,
+            "b2's v5 is rebound to v4 (the array_set's result, excluded from alias-set), so it is killed and array_get v5 is not aliased"
+        );
     }
 
     fn find_array_set_with_id(
