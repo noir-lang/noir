@@ -44,6 +44,8 @@ pub enum LexerErrorKind {
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
     #[error("Unicode character '{}' looks like space, but is it not", char)]
     UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
+    #[error("Unicode bidirectional control character '\\u{{{:x}}}' is not allowed", *char as u32)]
+    BidiControlCharacter { char: char, location: Location },
     #[error(
         "Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
     )]
@@ -80,9 +82,8 @@ impl LexerErrorKind {
             | LexerErrorKind::EmptyFormatStringInterpolation { location, .. }
             | LexerErrorKind::InvalidEscape { location, .. }
             | LexerErrorKind::MalformedMustUseAttribute { location }
-            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
-                *location
-            }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. }
+            | LexerErrorKind::BidiControlCharacter { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
@@ -220,6 +221,28 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedMustUseAttribute { location } => {
                 ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
             },
+            LexerErrorKind::BidiControlCharacter { char, location } => {
+                let char_name = match char {
+                    '\u{202A}' => "Left-to-Right Embedding",
+                    '\u{202B}' => "Right-to-Left Embedding",
+                    '\u{202C}' => "Pop Directional Formatting",
+                    '\u{202D}' => "Left-to-Right Override",
+                    '\u{202E}' => "Right-to-Left Override",
+                    '\u{2066}' => "Left-to-Right Isolate",
+                    '\u{2067}' => "Right-to-Left Isolate",
+                    '\u{2068}' => "First Strong Isolate",
+                    '\u{2069}' => "Pop Directional Isolate",
+                    _ => "Unicode bidirectional control character",
+                };
+                let primary = format!(
+                    "Unicode bidirectional control character not allowed: \\u{{{:x}}}",
+                    (*char as u32)
+                );
+                let secondary = format!(
+                    "{char_name} can visually reorder source text and is rejected to prevent \"Trojan Source\" attacks"
+                );
+                (primary, secondary, *location)
+            }
         }
     }
 }

@@ -506,6 +506,12 @@ impl<'a> Lexer<'a> {
                             });
                         }
                     },
+                    other if Self::is_bidi_control(other) => {
+                        return Err(LexerErrorKind::BidiControlCharacter {
+                            char: other,
+                            location: self.location(Span::single_char(self.position)),
+                        });
+                    }
                     other => other,
                 };
 
@@ -583,6 +589,12 @@ impl<'a> Lexer<'a> {
                         '{' => {
                             found_curly = true;
                             break;
+                        }
+                        other if Self::is_bidi_control(other) => {
+                            return Err(LexerErrorKind::BidiControlCharacter {
+                                char: other,
+                                location: self.location(Span::single_char(self.position)),
+                            });
                         }
                         other => other,
                     };
@@ -725,8 +737,19 @@ impl<'a> Lexer<'a> {
 
         let mut str_literal = String::new();
         loop {
-            let chars = self.eat_while(None, |ch| ch != '"');
-            str_literal.push_str(&chars[..]);
+            while let Some(ch) = self.peek_char() {
+                if ch == '"' {
+                    break;
+                }
+                self.next_char();
+                if Self::is_bidi_control(ch) {
+                    return Err(LexerErrorKind::BidiControlCharacter {
+                        char: ch,
+                        location: self.location(Span::single_char(self.position)),
+                    });
+                }
+                str_literal.push(ch);
+            }
             if !self.peek_char_is('"') {
                 return Err(LexerErrorKind::UnexpectedCharacter {
                     location: self.location(Span::single_char(self.position)),
@@ -844,6 +867,12 @@ impl<'a> Lexer<'a> {
                     location: self.location(Span::single_char(self.position)),
                 });
             }
+            if Self::is_bidi_control(ch) {
+                return Err(LexerErrorKind::BidiControlCharacter {
+                    char: ch,
+                    location: self.location(Span::single_char(self.position)),
+                });
+            }
             comment.push(ch);
         }
 
@@ -889,6 +918,12 @@ impl<'a> Lexer<'a> {
                         location: self.location(Span::single_char(self.position)),
                     });
                 }
+                ch if Self::is_bidi_control(ch) => {
+                    return Err(LexerErrorKind::BidiControlCharacter {
+                        char: ch,
+                        location: self.location(Span::single_char(self.position)),
+                    });
+                }
                 ch => content.push(ch),
             }
         }
@@ -918,6 +953,28 @@ impl<'a> Lexer<'a> {
             || ch == '\u{200D}'
             || ch == '\u{2060}'
             || ch == '\u{FEFF}'
+    }
+
+    /// Returns true for Unicode bidirectional control characters that can
+    /// visually reorder source text. Permitting these in source allows
+    /// "Trojan Source" attacks (CVE-2021-42574) where the rendered text
+    /// differs from the byte sequence the compiler sees. The set matches
+    /// Rust's `text_direction_codepoint_in_comment` /
+    /// `text_direction_codepoint_in_literal` lints; the plain LRM/RLM marks
+    /// (U+200E/F) don't reorder on their own and are not included.
+    fn is_bidi_control(ch: char) -> bool {
+        matches!(
+            ch,
+            '\u{202A}' // LEFT-TO-RIGHT EMBEDDING
+                | '\u{202B}' // RIGHT-TO-LEFT EMBEDDING
+                | '\u{202C}' // POP DIRECTIONAL FORMATTING
+                | '\u{202D}' // LEFT-TO-RIGHT OVERRIDE
+                | '\u{202E}' // RIGHT-TO-LEFT OVERRIDE
+                | '\u{2066}' // LEFT-TO-RIGHT ISOLATE
+                | '\u{2067}' // RIGHT-TO-LEFT ISOLATE
+                | '\u{2068}' // FIRST STRONG ISOLATE
+                | '\u{2069}' // POP DIRECTIONAL ISOLATE
+        )
     }
     // cSpell:enable
 
@@ -1580,7 +1637,8 @@ mod tests {
                             | Err(LexerErrorKind::InvalidFormatString { .. })
                             | Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot {
                                 ..
-                            }) => {
+                            })
+                            | Err(LexerErrorKind::BidiControlCharacter { .. }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
@@ -1778,6 +1836,84 @@ mod tests {
                 assert_eq!(char, '\u{00A0}');
             }
             other => panic!("Expected UnicodeCharacterLooksLikeSpaceButIsItNot, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_in_line_comment() {
+        // U+202E RIGHT-TO-LEFT OVERRIDE — the "Trojan Source" attack character.
+        let input = "// hello\u{202E}world";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{202E}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_in_block_comment() {
+        let input = "/* hello\u{202E}world */";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{202E}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_in_string_literal() {
+        let input = "\"hello\u{202E}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{202E}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_in_raw_string_literal() {
+        let input = "r\"hello\u{202E}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{202E}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_in_fmt_string_literal() {
+        let input = "f\"hello\u{202E}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{202E}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_bidi_control_character_outside_comments_and_strings() {
+        // At the top level a BIDI control char falls into the `Token::Invalid` path
+        // (no token starts with it) — that's the parser's territory. This test pins
+        // that no BIDI control char ever becomes part of a valid token's text.
+        // We pick U+2066 (LRI) here to exercise a different codepoint than the others.
+        let input = "let \u{2066}x = 1;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        // `let`
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
+        // The LRI char becomes a Token::Invalid (it's not whitespace, not an ident start).
+        match lexer.next_token().unwrap().into_token() {
+            Token::Invalid(ch) => assert_eq!(ch, '\u{2066}'),
+            other => panic!("Expected Token::Invalid('\\u{{2066}}'), got {other:?}"),
         }
     }
 
