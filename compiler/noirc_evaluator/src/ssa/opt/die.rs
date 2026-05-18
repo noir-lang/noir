@@ -1111,6 +1111,34 @@ mod tests {
     }
 
     #[test]
+    fn does_not_collapse_independent_dynamic_composite_gets() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = array_get v2, index v1 -> Field
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = cast v0 as u64
+            v4 = lt v2, u64 4
+            constrain v4 == u1 1, "Index out of bounds"
+            v6 = cast v1 as u64
+            v7 = lt v6, u64 4
+            constrain v7 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
     fn keeps_unused_databus_return_value() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {

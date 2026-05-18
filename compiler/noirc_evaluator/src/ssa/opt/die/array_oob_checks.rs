@@ -1,12 +1,14 @@
+use acvm::AcirField;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, InstructionId},
         types::{NumericType, Type},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     opt::die::Context,
 };
@@ -247,6 +249,17 @@ fn handle_array_get_group(
         return;
     }
 
+    // The base index used by the *current* (first) ArrayGet in the group.
+    // Subsequent gets only join the group when their index is `base_index + k`
+    // for a small constant `k`, which is the structural pattern the SSA
+    // generator emits for the trailing flattened reads of one composite access.
+    // Without this check, two unrelated dynamic gets on the same composite
+    // array would collapse into a single OOB constraint, dropping the OOB
+    // side effect of every grouped access after the first.
+    let Instruction::ArrayGet { index: base_index, .. } = function.dfg[instructions[index]] else {
+        return;
+    };
+
     // Initially we would expect the last index of the group (5 in the example above)
     // to be `index + 2 * (element_size - 1)`, however, we can't expect this to hold
     // after previous DIE passes have partially removed the group.
@@ -273,6 +286,12 @@ fn handle_array_get_group(
                 // There is a chance that *this* instruction is safe, which means the one before it
                 // needs to be replaced with a constraint, even if this does not.
                 if function.dfg.is_safe_index(*next_index, *next_array) {
+                    break;
+                }
+                // Require that this `array_get` reads `base + k` of the original
+                // composite element; otherwise it is an independent access on the
+                // same array and must keep its own OOB check.
+                if !is_composite_offset(&function.dfg, *next_index, base_index, element_size) {
                     break;
                 }
                 // This instruction is also OOB, so it belongs to the same group.
@@ -313,6 +332,41 @@ fn handle_array_get_group(
         // We don't need to insert any checks, and given that we already popped
         // all of the indexes in the group, there's nothing else to do here.
     }
+}
+
+/// True when `next_index` is `base_index + k` (in either operand order) where
+/// `k` is a non-zero constant strictly less than `element_size`. This is the
+/// structural pattern the SSA generator emits for the trailing flattened reads
+/// of a single composite `array_get` (see the example in
+/// [`handle_array_get_group`]). Any other relationship between the indices
+/// means the gets are independent accesses that need their own OOB checks.
+fn is_composite_offset(
+    dfg: &DataFlowGraph,
+    next_index: ValueId,
+    base_index: ValueId,
+    element_size: usize,
+) -> bool {
+    let Value::Instruction { instruction: inst_id, .. } = dfg[next_index] else {
+        return false;
+    };
+    let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Add { .. } }) = dfg[inst_id]
+    else {
+        return false;
+    };
+    let other = if lhs == base_index {
+        rhs
+    } else if rhs == base_index {
+        lhs
+    } else {
+        return false;
+    };
+    let Some(k) = dfg.get_numeric_constant(other) else {
+        return false;
+    };
+    let Some(k) = k.try_to_u64() else {
+        return false;
+    };
+    k >= 1 && (k as usize) < element_size
 }
 
 /// Given `lhs` and `rhs` values, if there's a side effects condition this will
