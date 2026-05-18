@@ -2535,12 +2535,10 @@ mod tests {
         ";
 
         let args = vec![Value::bool(true)];
-
-        let pre_result = Ssa::from_str(src).unwrap().interpret(args.clone());
-        let post_result = Ssa::from_str(src).unwrap().defunctionalize().interpret(args);
-
+        let (_ result) =
+            assert_pass_does_not_affect_execution(ssa, args, Ssa::defunctionalize);
+            
         let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
-        assert_eq!(pre_result, expected);
-        assert_eq!(post_result, expected);
+        assert_eq!(result, expected);
     }
 }
