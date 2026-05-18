@@ -320,6 +320,14 @@ impl<'a> Parser<'a> {
                     let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
                     return (token, last_comments);
                 }
+                // A non-ASCII identifier is lexed as a single error so the parser can see the
+                // whole word at once. Push the error and substitute the original identifier back
+                // into the token stream so name resolution see a consistent program.
+                Some(Err(LexerErrorKind::NonAsciiIdentifier { found, location })) => {
+                    let ident_token = Token::Ident(found.clone());
+                    self.errors.push(LexerErrorKind::NonAsciiIdentifier { found, location }.into());
+                    return (LocatedToken::new(ident_token, location), last_comments);
+                }
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
                 None => {
                     let end_span = Span::single_char(self.current_token_location.span.end());
