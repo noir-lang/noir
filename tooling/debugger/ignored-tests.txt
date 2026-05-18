@@ -22,3 +22,4 @@ reference_cancelling
 brillig_cow_regression
 clone_index_object_dereference_1
 clone_index_field_dereference
+brillig_block_mutable_reference_regression
