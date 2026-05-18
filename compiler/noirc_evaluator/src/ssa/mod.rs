@@ -194,6 +194,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
+        SsaPass::new_try(Ssa::verify_array_set_rc_invariant, "Verify array_set RC invariant"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,

@@ -39,6 +39,8 @@
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use std::cmp::Ordering;
+
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
@@ -78,7 +80,7 @@ impl Function {
             return Ok(());
         }
 
-        let mut ctx = Context::new(self);
+        let ctx = Context::new(self);
 
         for block_id in self.reachable_blocks() {
             for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
@@ -89,10 +91,11 @@ impl Function {
                 let alias_set = ctx.alias_set_for(array);
 
                 // Cheap check first: if any `inc_rc` on an alias-set member
-                // dominates this `array_set`, the in-place mutation is
-                // bounded by RC ≥ 2 and the SSA is safe regardless of
-                // downstream uses.
-                if ctx.some_inc_rc_dominates(&alias_set, block_id, idx) {
+                // precedes this `array_set` in flow order, treat the
+                // aliasing as already protected. See `some_inc_rc_precedes`
+                // for the rationale (relaxed from dominance to RPO
+                // precedence).
+                if ctx.some_inc_rc_precedes(&alias_set, block_id, idx) {
                     continue;
                 }
 
@@ -246,19 +249,41 @@ impl<'f> Context<'f> {
         class.into_iter().filter(|&v| v == source || !self.array_set_results.contains(&v)).collect()
     }
 
-    /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` dominates
-    /// the `array_set` located at `(array_set_block, array_set_idx)`.
+    /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` exists at a
+    /// program point that precedes the `array_set` in flow order — either
+    /// in a strictly-earlier position within the same block, or in a
+    /// different block whose reverse-post-order index is smaller.
     ///
-    /// "Dominates" means the `inc_rc` is guaranteed to execute before the
-    /// `array_set` on every CFG path — either in a strictly-earlier
-    /// position within the same block, or in a block that dominates the
-    /// `array_set`'s block.
+    /// # Why RPO precedence, not dominance
     ///
-    /// Well-formed SSA contains no `DecrementRc`, so we don't need to worry
-    /// about a `dec_rc` intervening between the `inc_rc` and the
+    /// The strict invariant would be "the `inc_rc` dominates the
+    /// `array_set`" — i.e., is on *every* path. But the frontend in
+    /// practice emits **path-specific** `inc_rc`s: each path that creates
+    /// an alias gets its own `inc_rc`, with no single dominating one. See
+    /// e.g. `brillig_array_ifelse` where `b1` has `inc_rc v8` and `b4` has
+    /// `inc_rc v2`, neither dominating the `array_set` in `b6`. On every
+    /// runtime path the alias is either covered by an `inc_rc` or the
+    /// values are freshly allocated, but the verifier can't observe
+    /// path-specific freshness with the current alias-set model.
+    ///
+    /// We weaken the check accordingly: presence of *any* `inc_rc` on an
+    /// alias-set member, anywhere earlier in flow, is taken as the
+    /// frontend signalling "I'm aware of this aliasing and have handled
+    /// it." Absence of any such `inc_rc` *combined* with a forward aliased
+    /// read (checked separately) still flags as a hazard, which is the
+    /// shape PR-12671 had.
+    ///
+    /// **Known weakness:** this accepts SSAs where an `inc_rc` is placed
+    /// on a different branch than the `array_set` (e.g.
+    /// `b0: jmpif then b1{inc_rc v0} else b2{v_ = array_set v0}`). The
+    /// frontend doesn't appear to produce that shape in practice; a
+    /// fuzzer might.
+    ///
+    /// Well-formed SSA contains no `DecrementRc`, so we don't need to
+    /// worry about a `dec_rc` intervening between the `inc_rc` and the
     /// `array_set`.
-    fn some_inc_rc_dominates(
-        &mut self,
+    fn some_inc_rc_precedes(
+        &self,
         alias_set: &im::HashSet<ValueId>,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
@@ -272,7 +297,9 @@ impl<'f> Context<'f> {
                     if inc_idx < array_set_idx {
                         return true;
                     }
-                } else if self.dom_tree.dominates(inc_block, array_set_block) {
+                } else if self.dom_tree.reverse_post_order_cmp(inc_block, array_set_block)
+                    == Ordering::Less
+                {
                     return true;
                 }
             }
@@ -776,17 +803,21 @@ mod tests {
         assert!(alias_set.contains(&entry_v0));
     }
 
-    /// Five dominance shapes for `inc_rc`, each isolated on its own array
-    /// parameter so the inc_rcs don't accidentally cover for each other:
-    ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **dominates**.
-    ///   - `v1`: inc_rc in a strictly-dominating block (entry) → **dominates**.
-    ///   - `v3`: same-block, inc_rc *later* than the array_set → does **not**
-    ///     dominate.
-    ///   - `v4`: no inc_rc anywhere → does **not** dominate.
-    ///   - `v2`: inc_rc in a sibling branch that does not dominate the
-    ///     array_set's block → does **not** dominate.
+    /// Five `inc_rc` placements, each isolated on its own array parameter
+    /// so the inc_rcs don't accidentally cover for each other. Tests the
+    /// **relaxed** precedence check (any `inc_rc` earlier in RPO suffices;
+    /// it does **not** need to dominate the array_set's block):
+    ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **precedes**.
+    ///   - `v1`: inc_rc in entry block → **precedes**.
+    ///   - `v2`: inc_rc in a sibling branch (b1) → **precedes** under the
+    ///     relaxed check (sibling blocks come earlier in RPO than the
+    ///     common-successor block); would fail a strict dominance check.
+    ///   - `v3`: same-block, inc_rc *later* than the array_set → does
+    ///     **not** precede (same-block comparison still requires earlier
+    ///     position).
+    ///   - `v4`: no inc_rc anywhere → does **not** precede.
     #[test]
-    fn inc_rc_dominance_recognizes_dominating_and_local_positions() {
+    fn inc_rc_precedence_recognizes_earlier_in_flow_positions() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2], v1: [u32; 2], v2: [u32; 2], v3: [u32; 2], v4: [u32; 2], v5: u1):
@@ -809,7 +840,7 @@ mod tests {
             }"#;
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
-        let mut ctx = Context::new(function);
+        let ctx = Context::new(function);
 
         let entry_params = function.dfg.block_parameters(function.entry_block());
         let v0 = entry_params[0];
@@ -822,13 +853,13 @@ mod tests {
         assert_eq!(array_sets.len(), 5, "five array_set instructions expected");
 
         for (block_id, idx, _inst_id, source, alias_set) in &array_sets {
-            let dominates = ctx.some_inc_rc_dominates(alias_set, *block_id, *idx);
+            let precedes = ctx.some_inc_rc_precedes(alias_set, *block_id, *idx);
             let (expected, label) = if *source == v0 {
                 (true, "v0: same-block earlier inc_rc")
             } else if *source == v1 {
-                (true, "v1: cross-block dominator inc_rc")
+                (true, "v1: entry-block inc_rc")
             } else if *source == v2 {
-                (false, "v2: inc_rc in sibling branch")
+                (true, "v2: inc_rc in sibling branch (precedes in RPO)")
             } else if *source == v3 {
                 (false, "v3: same-block later inc_rc")
             } else if *source == v4 {
@@ -836,10 +867,7 @@ mod tests {
             } else {
                 panic!("unexpected array_set source {source:?}");
             };
-            assert_eq!(
-                dominates, expected,
-                "{label}: expected dominates={expected}, got {dominates}"
-            );
+            assert_eq!(precedes, expected, "{label}: expected precedes={expected}, got {precedes}");
         }
     }
 
