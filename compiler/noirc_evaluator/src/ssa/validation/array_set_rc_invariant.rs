@@ -37,7 +37,7 @@
 //! the common invariant the frontend produces after mem2reg, not a universal
 //! safety property.
 
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     errors::RtResult,
@@ -343,7 +343,6 @@ fn succ_use_set(
 /// well. See `alias_set_does_not_walk_array_set_chains` for a worked example.
 fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<ValueId>> {
     let mut uf: UnionFind<ValueId> = UnionFind::new();
-    let mut touched: HashSet<ValueId> = HashSet::default();
 
     for block_id in function.reachable_blocks() {
         let Some(terminator) = function.dfg[block_id].terminator() else {
@@ -351,7 +350,7 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
         };
         match terminator {
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                union_param_args(function, &mut uf, &mut touched, *destination, arguments);
+                union_param_args(function, &mut uf, *destination, arguments);
             }
             TerminatorInstruction::JmpIf {
                 then_destination,
@@ -360,37 +359,24 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
                 else_arguments,
                 ..
             } => {
-                union_param_args(
-                    function,
-                    &mut uf,
-                    &mut touched,
-                    *then_destination,
-                    then_arguments,
-                );
-                union_param_args(
-                    function,
-                    &mut uf,
-                    &mut touched,
-                    *else_destination,
-                    else_arguments,
-                );
+                union_param_args(function, &mut uf, *then_destination, then_arguments);
+                union_param_args(function, &mut uf, *else_destination, else_arguments);
             }
             _ => (),
         }
     }
 
-    // Group every touched value by its class representative.
+    // Group every value in the union-find by its class representative.
     let mut class_of_rep: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for &v in &touched {
-        let rep = uf.find(v);
+    for v in uf.keys() {
+        let rep = uf.find_immutable(v).expect("v is a key in the union-find");
         class_of_rep.entry(rep).or_default().insert(v);
     }
 
-    // Map each touched value directly to its class for O(1) per-array_set
-    // lookups.
+    // Map each value directly to its class for O(1) per-array_set lookups.
     let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for v in touched {
-        let rep = uf.find(v);
+    for v in uf.keys() {
+        let rep = uf.find_immutable(v).expect("v is a key in the union-find");
         if let Some(class) = class_of_rep.get(&rep) {
             result.insert(v, class.clone());
         }
@@ -405,7 +391,6 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
 fn union_param_args(
     function: &Function,
     uf: &mut UnionFind<ValueId>,
-    touched: &mut HashSet<ValueId>,
     dest: BasicBlockId,
     arguments: &[ValueId],
 ) {
@@ -415,8 +400,6 @@ fn union_param_args(
         if !function.dfg.type_of_value(param).contains_an_array() {
             continue;
         }
-        touched.insert(param);
-        touched.insert(arg);
         uf.union(param, arg);
     }
 }

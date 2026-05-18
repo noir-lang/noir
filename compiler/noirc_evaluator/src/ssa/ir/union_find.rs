@@ -51,6 +51,14 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
         }
     }
 
+    /// Iterate over every value that has been inserted into the union-find
+    /// (either explicitly via [`make_set`] / [`union`] or implicitly via
+    /// [`find`]). Useful for grouping values into their equivalence classes
+    /// without maintaining a parallel set of touched values.
+    pub(crate) fn keys(&self) -> impl Iterator<Item = K> + '_ {
+        self.parent.keys().copied()
+    }
+
     /// Return a map from each class representative to the number of values
     /// in that class.
     pub(crate) fn class_sizes(&self) -> HashMap<K, u32> {
