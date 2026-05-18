@@ -437,13 +437,14 @@
 <a href=#437 id=437 data-nosnippet>437</a>    }
 <a href=#438 id=438 data-nosnippet>438</a>
 <a href=#439 id=439 data-nosnippet>439</a>    <span class="doccomment">/// Clears all location data associated with a given file.
-<a href=#440 id=440 data-nosnippet>440</a>    /// Note that this only clears locations in `id_to_location` and `location_indices`.
-<a href=#441 id=441 data-nosnippet>441</a>    /// For example, items that exist in the given `file` will still be present after
-<a href=#442 id=442 data-nosnippet>442</a>    /// this call.
-<a href=#443 id=443 data-nosnippet>443</a>    /// This is only used by LSP when a single file is changed, when just that file
-<a href=#444 id=444 data-nosnippet>444</a>    /// is type-checked again.
-<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>clear_file_locations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: FileId) {
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="self">self</span>.id_to_location.retain(|_index, location| location.file != file);
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="self">self</span>.location_indices.map_file_to_range.remove(<span class="kw-2">&amp;</span>file);
-<a href=#448 id=448 data-nosnippet>448</a>    }
-<a href=#449 id=449 data-nosnippet>449</a>}</code></pre></div></section></main></body></html>
+<a href=#440 id=440 data-nosnippet>440</a>    /// Note that this only clears locations in `location_indices`.
+<a href=#441 id=441 data-nosnippet>441</a>    /// This doesn't delete from `id_to_location` because IDs cannot be deleted from the interner,
+<a href=#442 id=442 data-nosnippet>442</a>    /// so existing IDs should be able to be resolved to their location.
+<a href=#443 id=443 data-nosnippet>443</a>    /// For example, items that exist in the given `file` will still be present after
+<a href=#444 id=444 data-nosnippet>444</a>    /// this call.
+<a href=#445 id=445 data-nosnippet>445</a>    /// This is only used by LSP when a single file is changed, when just that file
+<a href=#446 id=446 data-nosnippet>446</a>    /// is type-checked again.
+<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>clear_file_locations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: FileId) {
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.location_indices.map_file_to_range.remove(<span class="kw-2">&amp;</span>file);
+<a href=#449 id=449 data-nosnippet>449</a>    }
+<a href=#450 id=450 data-nosnippet>450</a>}</code></pre></div></section></main></body></html>
