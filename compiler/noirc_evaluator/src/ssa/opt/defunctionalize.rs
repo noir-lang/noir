@@ -163,14 +163,10 @@ impl DefunctionalizationContext {
                 if matches!(&func.dfg[target_func_id], Param { .. } | Value::Instruction { .. }) {
                     let mut arguments = arguments.clone();
                     let results = func.dfg.instruction_results(instruction_id);
-                    let signature = Signature {
-                        params: vecmap(&arguments, |param| {
-                            func.dfg.type_of_value(*param).into_owned()
-                        }),
-                        returns: vecmap(results, |result| {
-                            func.dfg.type_of_value(*result).into_owned()
-                        }),
-                    };
+                    let signature = Signature::new(
+                        vecmap(&arguments, |param| func.dfg.type_of_value(*param).into_owned()),
+                        vecmap(results, |result| func.dfg.type_of_value(*result).into_owned()),
+                    );
 
                     // Find the correct apply function
                     let Some(apply_function) = self.get_apply_function(signature, func.runtime())
@@ -419,14 +415,10 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                 Instruction::Call { func: target, arguments } => {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
                         let results = func.dfg.instruction_results(*instruction_id);
-                        dispatches.insert(Signature {
-                            params: vecmap(arguments, |param| {
-                                func.dfg.type_of_value(*param).into_owned()
-                            }),
-                            returns: vecmap(results, |result| {
-                                func.dfg.type_of_value(*result).into_owned()
-                            }),
-                        });
+                        dispatches.insert(Signature::new(
+                            vecmap(arguments, |param| func.dfg.type_of_value(*param).into_owned()),
+                            vecmap(results, |result| func.dfg.type_of_value(*result).into_owned()),
+                        ));
                     }
                 }
                 _ => continue,
@@ -2505,5 +2497,50 @@ mod tests {
             return v1, v2
         }
         ");
+    }
+
+    // Regression test for issue #1110:
+    // A function value of static type `fn(&T) -> X` dispatched at a `&mut T`
+    // argument site used to miss the candidate lookup because keys were
+    // compared by strict `Signature` equality. The dispatch fell through to a
+    // silent-zero `apply_dummy`, miscompiling `arr[0]` into `0`.
+    #[test]
+    fn dispatch_to_immut_ref_param_at_mut_ref_arg_site() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u1):
+              v5 = make_array [Field 5, Field 6, Field 7] : [Field; 3]
+              v6 = allocate -> &mut [Field; 3]
+              store v5 at v6
+              jmpif v0 then: b1(), else: b2()
+            b1():
+              jmp b3(f1)
+            b2():
+              jmp b3(f1)
+            b3(v3: function):
+              v7 = call f2(v3, v6) -> Field
+              return v7
+          }
+          acir(inline) fn read_first_immut f1 {
+            b0(v0: &[Field; 3]):
+              v1 = load v0 -> [Field; 3]
+              v3 = array_get v1, index u32 0 -> Field
+              return v3
+          }
+          acir(inline) fn dispatch f2 {
+            b0(v0: function, v2: &mut [Field; 3]):
+              v3 = call v0(v2) -> Field
+              return v3
+          }
+        ";
+
+        let args = vec![Value::bool(true)];
+
+        let pre_result = Ssa::from_str(src).unwrap().interpret(args.clone());
+        let post_result = Ssa::from_str(src).unwrap().defunctionalize().interpret(args);
+
+        let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
+        assert_eq!(pre_result, expected);
+        assert_eq!(post_result, expected);
     }
 }
