@@ -177,16 +177,23 @@ impl RuntimeError {
                 let location =
                     call_stack.last_or_dummy();
 
-                let mut diagnostic = CustomDiagnostic::from_message(
-                    &format!("SSA validation error: {message}"),
-                    location.file
-                );
-
-                if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err() {
-                    diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                if location.is_dummy() {
+                    // The validation error comes from a panic we caught.
+                    let mut diagnostic = CustomDiagnostic::from_message(
+                        &format!("SSA validation error: {message}"),
+                        location.file
+                    );
+                    if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err()  {
+                        diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
+                    }
+                    diagnostic
+                } else {
+                    CustomDiagnostic::simple_error(
+                        message,
+                        "SSA validation error".to_string(),
+                        location,
+                    )
                 }
-
-                diagnostic
             }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();
