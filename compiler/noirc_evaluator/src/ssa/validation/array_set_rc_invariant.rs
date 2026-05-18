@@ -37,7 +37,7 @@
 //! the common invariant the frontend produces after mem2reg, not a universal
 //! safety property.
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     errors::{RtResult, RuntimeError},
@@ -85,9 +85,8 @@ impl Function {
                 let Instruction::ArraySet { array, .. } = self.dfg[*instruction_id] else {
                     continue;
                 };
-                let [result] = self.dfg.instruction_result(*instruction_id);
 
-                let alias_set = ctx.alias_set_for(array, result);
+                let alias_set = ctx.alias_set_for(array);
 
                 // Cheap check first: if any `inc_rc` on an alias-set member
                 // dominates this `array_set`, the in-place mutation is
@@ -133,6 +132,10 @@ struct Context<'f> {
     /// the defining instruction lives. Used by the kill-on-re-entry rule
     /// inside [`Context::succ_use_set`].
     array_value_defs: HashMap<ValueId, BasicBlockId>,
+    /// Every value that is the result of an `array_set` instruction.
+    /// Filtered out of every alias-set (except when the value is the
+    /// `array_set`'s own source) — see [`Context::alias_set_for`].
+    array_set_results: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
@@ -153,10 +156,11 @@ impl<'f> Context<'f> {
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
             HashMap::default();
         let mut array_value_defs: HashMap<ValueId, BasicBlockId> = HashMap::default();
+        let mut array_set_results: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
 
         // Single pass over every reachable block. Each iteration populates
-        // all four per-instruction indices plus the union-find from the
+        // all per-instruction indices plus the union-find from the
         // terminator's (param, arg) pairs.
         for block_id in function.reachable_blocks() {
             let mut operand_uses: Vec<ArrayOperandUse> = Vec::new();
@@ -167,9 +171,13 @@ impl<'f> Context<'f> {
                     inc_rc_locations.entry(*value).or_default().push((block_id, idx));
                 }
 
+                let is_array_set = matches!(instruction, Instruction::ArraySet { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
                         array_value_defs.insert(result, block_id);
+                        if is_array_set {
+                            array_set_results.insert(result);
+                        }
                     }
                 }
 
@@ -210,18 +218,32 @@ impl<'f> Context<'f> {
             dom_tree,
             value_aliases,
             array_value_defs,
+            array_set_results,
             inc_rc_locations,
             array_operand_uses,
         }
     }
 
-    /// Look up `source`'s alias-equivalence class and remove `exclude` from
-    /// it. `exclude` is the `array_set`'s own result — see the rationale on
-    /// [`materialize_value_aliases`] for why the result is excluded.
-    fn alias_set_for(&self, source: ValueId, exclude: ValueId) -> im::HashSet<ValueId> {
+    /// Look up `source`'s alias-equivalence class and filter out every
+    /// `array_set` result *except* the source itself.
+    ///
+    /// Every `array_set` result represents a post-mutation value — uses
+    /// of it (or of any name it gets re-bound to through block-parameter
+    /// threading) are intentional reads of the mutated storage, not
+    /// hazards. Keeping them in the alias-set would defeat the per-arg
+    /// kill rule in [`Context::succ_use_set`]: a back-edge
+    /// `jmp b(v_arrset)` would see `v_arrset` in the use-set and refuse
+    /// to kill the receiving param, letting the alias leak past the loop.
+    ///
+    /// The source itself is kept even when it happens to be an
+    /// `array_set` result (e.g. a chain
+    /// `v_a = array_set _ ; v_b = array_set v_a`): `v_a` is *this*
+    /// check's source, so its forward uses are exactly what we want to
+    /// look for.
+    fn alias_set_for(&self, source: ValueId) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
-        class.without(&exclude)
+        class.into_iter().filter(|&v| v == source || !self.array_set_results.contains(&v)).collect()
     }
 
     /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` dominates
@@ -586,6 +608,42 @@ mod tests {
         assert!(ssa.verify_array_set_rc_invariant().is_ok());
     }
 
+    /// End-to-end regression for the pattern in stdlib's `compute_root`
+    /// (`array_dynamic_blackbox_input`). The loop body has *two* chained
+    /// `array_set`s — the back-edge threads the second one's result back
+    /// into the block-parameter, and the loop exit reads the parameter
+    /// directly via `array_get`.
+    ///
+    /// Without the array_set-results filter, the alias-set would include
+    /// the second array_set's result; the per-arg kill rule at the
+    /// back-edge would then see that result in the use-set and refuse to
+    /// kill the parameter, letting the alias leak to the loop exit and
+    /// producing a false positive on the post-loop `array_get`.
+    #[test]
+    fn end_to_end_loop_chained_array_sets_with_post_loop_read_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0)
+              b1(v2: [u32; 2], v3: u32):
+                v5 = lt v3, v1
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v8 = array_set v2, index u32 0, value u32 1
+                v11 = array_set v8, index u32 1, value u32 2
+                v13 = add v3, u32 1
+                jmp b1(v11, v13)
+              b3():
+                v15 = array_get v2, index u32 0 -> u32
+                return v15
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(
+            ssa.verify_array_set_rc_invariant().is_ok(),
+            "loop exit reads `v2`, which is rebound on the back-edge to the chained array_set's result; not a hazard"
+        );
+    }
+
     /// End-to-end: `&mut [u32; 2]` parameter pattern (like stdlib's
     /// `quicksort::partition`). mem2reg can't eliminate the reference, so
     /// the loop body has `v_loaded = load v_ref` re-executed each iteration,
@@ -654,9 +712,8 @@ mod tests {
         let function = ssa.main();
         let ctx = Context::new(function);
 
-        let (source, result) = last_array_set(function).expect("array_set present");
-
-        let alias_set = ctx.alias_set_for(source, result);
+        let (_block, _idx, _inst_id, source, alias_set) =
+            last_array_set(function, &ctx).expect("array_set present");
 
         // Only the source itself — no walking into the upstream chain links
         // (v2, v0) or any block-parameter predecessors.
@@ -706,19 +763,17 @@ mod tests {
         let function = ssa.main();
         let ctx = Context::new(function);
 
-        let (source, result) = last_array_set(function).expect("array_set present");
-
-        let alias_set = ctx.alias_set_for(source, result);
+        let (_block, _idx, _inst_id, source, alias_set) =
+            last_array_set(function, &ctx).expect("array_set present");
 
         // Expect `{v2, v0}`: the source itself plus the function's array
         // parameter that flows into `v2` via the pre-header jmp from `b0`.
         // The back-edge's argument is the array_set's own result and is
-        // excluded by construction.
+        // excluded by the array_set-result filter inside `alias_set_for`.
         let entry_v0 = function.dfg.block_parameters(function.entry_block())[0];
         assert_eq!(alias_set.len(), 2);
         assert!(alias_set.contains(&source));
         assert!(alias_set.contains(&entry_v0));
-        assert!(!alias_set.contains(&result));
     }
 
     /// Five dominance shapes for `inc_rc`, each isolated on its own array
@@ -766,7 +821,7 @@ mod tests {
         let array_sets = find_array_sets(function, &ctx);
         assert_eq!(array_sets.len(), 5, "five array_set instructions expected");
 
-        for (block_id, idx, source, alias_set) in &array_sets {
+        for (block_id, idx, _inst_id, source, alias_set) in &array_sets {
             let dominates = ctx.some_inc_rc_dominates(alias_set, *block_id, *idx);
             let (expected, label) = if *source == v0 {
                 (true, "v0: same-block earlier inc_rc")
@@ -820,8 +875,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, _source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, _source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
         assert!(
@@ -855,8 +910,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, _source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, _source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
         assert!(
@@ -898,8 +953,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, _source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, _source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
         assert!(
@@ -927,8 +982,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         // alias_set should include v0 (function param), v1 (= source), and
         // v2 (sibling param threaded the same v0 by b0's jmp).
@@ -970,8 +1025,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, _source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, _source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
         assert!(
@@ -1003,8 +1058,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, _source, alias_set, inst_id) =
-            find_array_set_with_id(function, &ctx).expect("array_set present");
+        let (block, idx, inst_id, _source, alias_set) =
+            first_array_set(function, &ctx).expect("array_set present");
 
         let has_use = ctx.has_reachable_aliased_use(&alias_set, inst_id, block, idx);
         assert!(
@@ -1013,50 +1068,29 @@ mod tests {
         );
     }
 
-    fn find_array_set_with_id(
-        function: &Function,
-        ctx: &Context<'_>,
-    ) -> Option<(super::BasicBlockId, usize, ValueId, im::HashSet<ValueId>, super::InstructionId)>
-    {
-        for block_id in function.reachable_blocks() {
-            for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction_id] {
-                    let [result] = function.dfg.instruction_result(*instruction_id);
-                    let alias_set = ctx.alias_set_for(array, result);
-                    return Some((block_id, idx, array, alias_set, *instruction_id));
-                }
-            }
-        }
-        None
-    }
+    /// `(block, idx-within-block, instruction-id, source-operand, alias-set)`
+    /// for each `array_set` instruction in `function`, in source order.
+    type ArraySetSite =
+        (super::BasicBlockId, usize, super::InstructionId, ValueId, im::HashSet<ValueId>);
 
-    fn find_array_sets(
-        function: &Function,
-        ctx: &Context<'_>,
-    ) -> Vec<(super::BasicBlockId, usize, ValueId, im::HashSet<ValueId>)> {
+    fn find_array_sets(function: &Function, ctx: &Context<'_>) -> Vec<ArraySetSite> {
         let mut out = Vec::new();
         for block_id in function.reachable_blocks() {
             for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
                 if let Instruction::ArraySet { array, .. } = function.dfg[*instruction_id] {
-                    let [result] = function.dfg.instruction_result(*instruction_id);
-                    let alias_set = ctx.alias_set_for(array, result);
-                    out.push((block_id, idx, array, alias_set));
+                    let alias_set = ctx.alias_set_for(array);
+                    out.push((block_id, idx, *instruction_id, array, alias_set));
                 }
             }
         }
         out
     }
 
-    fn last_array_set(function: &Function) -> Option<(ValueId, ValueId)> {
-        let mut found = None;
-        for block_id in function.reachable_blocks() {
-            for inst_id in function.dfg[block_id].instructions() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*inst_id] {
-                    let [result] = function.dfg.instruction_result(*inst_id);
-                    found = Some((array, result));
-                }
-            }
-        }
-        found
+    fn first_array_set(function: &Function, ctx: &Context<'_>) -> Option<ArraySetSite> {
+        find_array_sets(function, ctx).into_iter().next()
+    }
+
+    fn last_array_set(function: &Function, ctx: &Context<'_>) -> Option<ArraySetSite> {
+        find_array_sets(function, ctx).into_iter().last()
     }
 }
