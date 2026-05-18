@@ -512,6 +512,12 @@ impl<'a> Lexer<'a> {
                             location: self.location(Span::single_char(self.position)),
                         });
                     }
+                    other if Self::is_tag_character(other) => {
+                        return Err(LexerErrorKind::TagCharacter {
+                            char: other,
+                            location: self.location(Span::single_char(self.position)),
+                        });
+                    }
                     other => other,
                 };
 
@@ -592,6 +598,12 @@ impl<'a> Lexer<'a> {
                         }
                         other if Self::is_bidi_control(other) => {
                             return Err(LexerErrorKind::BidiControlCharacter {
+                                char: other,
+                                location: self.location(Span::single_char(self.position)),
+                            });
+                        }
+                        other if Self::is_tag_character(other) => {
+                            return Err(LexerErrorKind::TagCharacter {
                                 char: other,
                                 location: self.location(Span::single_char(self.position)),
                             });
@@ -748,6 +760,12 @@ impl<'a> Lexer<'a> {
                         location: self.location(Span::single_char(self.position)),
                     });
                 }
+                if Self::is_tag_character(ch) {
+                    return Err(LexerErrorKind::TagCharacter {
+                        char: ch,
+                        location: self.location(Span::single_char(self.position)),
+                    });
+                }
                 str_literal.push(ch);
             }
             if !self.peek_char_is('"') {
@@ -873,6 +891,12 @@ impl<'a> Lexer<'a> {
                     location: self.location(Span::single_char(self.position)),
                 });
             }
+            if Self::is_tag_character(ch) {
+                return Err(LexerErrorKind::TagCharacter {
+                    char: ch,
+                    location: self.location(Span::single_char(self.position)),
+                });
+            }
             comment.push(ch);
         }
 
@@ -924,6 +948,12 @@ impl<'a> Lexer<'a> {
                         location: self.location(Span::single_char(self.position)),
                     });
                 }
+                ch if Self::is_tag_character(ch) => {
+                    return Err(LexerErrorKind::TagCharacter {
+                        char: ch,
+                        location: self.location(Span::single_char(self.position)),
+                    });
+                }
                 ch => content.push(ch),
             }
         }
@@ -953,6 +983,16 @@ impl<'a> Lexer<'a> {
             || ch == '\u{200D}'
             || ch == '\u{2060}'
             || ch == '\u{FEFF}'
+    }
+
+    /// Returns true for Unicode tag characters (U+E0000\u{2013}U+E007F).
+    /// Codepoints U+E0020\u{2013}U+E007E mirror printable ASCII, so any
+    /// ASCII string can be re-encoded in this range. Virtually no renderer
+    /// displays them, but text processors (including LLM-based code review
+    /// tools) see the bytes — making them a vehicle for "ASCII smuggling"
+    /// of hidden instructions. They have no legitimate use in source code.
+    fn is_tag_character(ch: char) -> bool {
+        matches!(ch, '\u{E0000}'..='\u{E007F}')
     }
 
     /// Returns true for Unicode bidirectional control characters that can
@@ -1638,7 +1678,8 @@ mod tests {
                             | Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot {
                                 ..
                             })
-                            | Err(LexerErrorKind::BidiControlCharacter { .. }) => {
+                            | Err(LexerErrorKind::BidiControlCharacter { .. })
+                            | Err(LexerErrorKind::TagCharacter { .. }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
@@ -1897,6 +1938,71 @@ mod tests {
                 assert_eq!(char, '\u{202E}');
             }
             other => panic!("Expected BidiControlCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_in_line_comment() {
+        // U+E0041 = "TAG LATIN CAPITAL LETTER A" — invisible to humans, but a real
+        // byte sequence that an LLM-based reviewer would tokenize.
+        let input = "// hello\u{E0041}world";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, '\u{E0041}'),
+            other => panic!("Expected TagCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_in_block_comment() {
+        let input = "/* hello\u{E0041}world */";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, '\u{E0041}'),
+            other => panic!("Expected TagCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_in_string_literal() {
+        let input = "\"hello\u{E0041}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, '\u{E0041}'),
+            other => panic!("Expected TagCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_in_raw_string_literal() {
+        let input = "r\"hello\u{E0041}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, '\u{E0041}'),
+            other => panic!("Expected TagCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_in_fmt_string_literal() {
+        let input = "f\"hello\u{E0041}world\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, '\u{E0041}'),
+            other => panic!("Expected TagCharacter, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_tag_character_at_range_boundaries() {
+        // First and last codepoint of the tag block. Both must be rejected.
+        for ch in ['\u{E0000}', '\u{E007F}'] {
+            let input = format!("// x{ch}");
+            let mut lexer = Lexer::new_with_dummy_file(&input);
+            match lexer.next_token() {
+                Err(LexerErrorKind::TagCharacter { char, .. }) => assert_eq!(char, ch),
+                other => panic!("Expected TagCharacter for {:#x}, got {other:?}", ch as u32),
+            }
         }
     }
 

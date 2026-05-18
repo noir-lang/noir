@@ -46,6 +46,8 @@ pub enum LexerErrorKind {
     UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
     #[error("Unicode bidirectional control character '\\u{{{:x}}}' is not allowed", *char as u32)]
     BidiControlCharacter { char: char, location: Location },
+    #[error("Unicode tag character '\\u{{{:x}}}' is not allowed", *char as u32)]
+    TagCharacter { char: char, location: Location },
     #[error(
         "Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
     )]
@@ -83,7 +85,8 @@ impl LexerErrorKind {
             | LexerErrorKind::InvalidEscape { location, .. }
             | LexerErrorKind::MalformedMustUseAttribute { location }
             | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. }
-            | LexerErrorKind::BidiControlCharacter { location, .. } => *location,
+            | LexerErrorKind::BidiControlCharacter { location, .. }
+            | LexerErrorKind::TagCharacter { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
@@ -221,6 +224,15 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedMustUseAttribute { location } => {
                 ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
             },
+            LexerErrorKind::TagCharacter { char, location } => {
+                let primary = format!(
+                    "Unicode tag character not allowed: \\u{{{:x}}}",
+                    (*char as u32)
+                );
+                let secondary = "Unicode tag characters (U+E0000\u{2013}U+E007F) are invisible in source but real bytes to text processors, and have been used to smuggle hidden instructions into LLM-assisted reviews"
+                    .to_string();
+                (primary, secondary, *location)
+            }
             LexerErrorKind::BidiControlCharacter { char, location } => {
                 let char_name = match char {
                     '\u{202A}' => "Left-to-Right Embedding",
