@@ -37,15 +37,18 @@
 //! the common invariant the frontend produces after mem2reg, not a universal
 //! safety property.
 
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     errors::RtResult,
     ssa::{
         ir::{
+            basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
+            dom::DominatorTree,
             function::Function,
             instruction::{Instruction, TerminatorInstruction},
+            post_order::PostOrder,
             value::{Value, ValueId},
         },
         ssa_gen::Ssa,
@@ -75,19 +78,89 @@ impl Function {
         }
 
         let cfg = ControlFlowGraph::with_function(self);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let inc_rc_locations = collect_inc_rc_locations(self);
 
         for block_id in self.reachable_blocks() {
-            for instruction_id in self.dfg[block_id].instructions() {
+            for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
                 let Instruction::ArraySet { array, .. } = self.dfg[*instruction_id] else {
                     continue;
                 };
                 let [result] = self.dfg.instruction_result(*instruction_id);
-                // Compute alias-roots; remaining checks land in subsequent steps.
-                let _alias_set = compute_alias_set(self, &cfg, array, result);
+
+                let alias_set = compute_alias_set(self, &cfg, array, result);
+
+                // Cheap check first: if any `inc_rc` on an alias-set member dominates
+                // this `array_set`, the in-place mutation is bounded by RC ≥ 2 and
+                // the SSA is safe regardless of downstream uses.
+                if some_inc_rc_dominates(
+                    &mut dom_tree,
+                    &inc_rc_locations,
+                    &alias_set,
+                    block_id,
+                    idx,
+                ) {
+                    continue;
+                }
+                // The expensive reachable-use walk lands in step 4. Until then,
+                // we don't error — only the alias-walk and dominance check are
+                // exercised.
             }
         }
         Ok(())
     }
+}
+
+/// Indexes every `inc_rc v` instruction in the function by `v`, recording its
+/// `(block, position-in-block)`. Used for the dominance check at each
+/// `array_set` site.
+fn collect_inc_rc_locations(function: &Function) -> HashMap<ValueId, Vec<(BasicBlockId, usize)>> {
+    let mut locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
+    for block_id in function.reachable_blocks() {
+        for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+            if let Instruction::IncrementRc { value } = function.dfg[*instruction_id] {
+                locations.entry(value).or_default().push((block_id, idx));
+            }
+        }
+    }
+    locations
+}
+
+/// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` dominates the
+/// `array_set` located at `(array_set_block, array_set_idx)`.
+///
+/// "Dominates" means the `inc_rc` is guaranteed to execute before the
+/// `array_set` on every CFG path — either in a strictly-earlier position
+/// within the same block, or in a block that strictly or improperly dominates
+/// the `array_set`'s block (improper dominance suffices when the position
+/// within the block is earlier).
+///
+/// Well-formed SSA contains no `DecrementRc` (the existing SSA validator
+/// panics on any), so we don't need to worry about a `dec_rc` intervening
+/// between the `inc_rc` and the `array_set`.
+fn some_inc_rc_dominates(
+    dom_tree: &mut DominatorTree,
+    inc_rc_locations: &HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
+    alias_set: &im::HashSet<ValueId>,
+    array_set_block: BasicBlockId,
+    array_set_idx: usize,
+) -> bool {
+    for value in alias_set {
+        let Some(locations) = inc_rc_locations.get(value) else {
+            continue;
+        };
+        for &(inc_block, inc_idx) in locations {
+            if inc_block == array_set_block {
+                if inc_idx < array_set_idx {
+                    return true;
+                }
+            } else if dom_tree.dominates(inc_block, array_set_block) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Compute the set of value-IDs that alias the storage of `source` through
@@ -327,6 +400,99 @@ mod tests {
         assert!(alias_set.contains(&source));
         assert!(alias_set.contains(&entry_v0));
         assert!(!alias_set.contains(&result));
+    }
+
+    /// Five dominance shapes for `inc_rc`, each isolated on its own array
+    /// parameter so the inc_rcs don't accidentally cover for each other:
+    ///   - `v0`: same-block, inc_rc *earlier* than the array_set → **dominates**.
+    ///   - `v1`: inc_rc in a strictly-dominating block (entry) → **dominates**.
+    ///   - `v3`: same-block, inc_rc *later* than the array_set → does **not**
+    ///     dominate.
+    ///   - `v4`: no inc_rc anywhere → does **not** dominate.
+    ///   - `v2`: inc_rc in a sibling branch that does not dominate the
+    ///     array_set's block → does **not** dominate.
+    #[test]
+    fn inc_rc_dominance_recognizes_dominating_and_local_positions() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: [u32; 2], v2: [u32; 2], v3: [u32; 2], v4: [u32; 2], v5: u1):
+                inc_rc v1
+                jmpif v5 then: b1(), else: b2()
+              b1():
+                inc_rc v2
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                inc_rc v0
+                v8 = array_set v0, index u32 10, value u32 11
+                v11 = array_set v1, index u32 20, value u32 21
+                v14 = array_set v3, index u32 30, value u32 31
+                inc_rc v3
+                v17 = array_set v4, index u32 40, value u32 41
+                v20 = array_set v2, index u32 50, value u32 51
+                return v20
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_order = super::PostOrder::with_cfg(&cfg);
+        let mut dom_tree = super::DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let inc_rc_locations = super::collect_inc_rc_locations(function);
+
+        let entry_params = function.dfg.block_parameters(function.entry_block());
+        let v0 = entry_params[0];
+        let v1 = entry_params[1];
+        let v2 = entry_params[2];
+        let v3 = entry_params[3];
+        let v4 = entry_params[4];
+
+        let array_sets = find_array_sets(function, &cfg);
+        assert_eq!(array_sets.len(), 5, "five array_set instructions expected");
+
+        for (block_id, idx, source, alias_set) in &array_sets {
+            let dominates = super::some_inc_rc_dominates(
+                &mut dom_tree,
+                &inc_rc_locations,
+                alias_set,
+                *block_id,
+                *idx,
+            );
+            let (expected, label) = if *source == v0 {
+                (true, "v0: same-block earlier inc_rc")
+            } else if *source == v1 {
+                (true, "v1: cross-block dominator inc_rc")
+            } else if *source == v2 {
+                (false, "v2: inc_rc in sibling branch")
+            } else if *source == v3 {
+                (false, "v3: same-block later inc_rc")
+            } else if *source == v4 {
+                (false, "v4: no inc_rc")
+            } else {
+                panic!("unexpected array_set source {source:?}");
+            };
+            assert_eq!(
+                dominates, expected,
+                "{label}: expected dominates={expected}, got {dominates}"
+            );
+        }
+    }
+
+    fn find_array_sets(
+        function: &Function,
+        cfg: &super::ControlFlowGraph,
+    ) -> Vec<(super::BasicBlockId, usize, ValueId, im::HashSet<ValueId>)> {
+        let mut out = Vec::new();
+        for block_id in function.reachable_blocks() {
+            for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction_id] {
+                    let [result] = function.dfg.instruction_result(*instruction_id);
+                    let alias_set = super::compute_alias_set(function, cfg, array, result);
+                    out.push((block_id, idx, array, alias_set));
+                }
+            }
+        }
+        out
     }
 
     fn last_array_set(function: &Function) -> Option<(ValueId, ValueId)> {
