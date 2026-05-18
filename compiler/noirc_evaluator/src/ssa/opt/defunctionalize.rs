@@ -876,7 +876,7 @@ mod tests {
                 value::{NumericValue, Value},
             },
             ir::function::FunctionId,
-            opt::defunctionalize::create_apply_functions,
+            opt::{assert_pass_does_not_affect_execution, defunctionalize::create_apply_functions},
         },
     };
 
@@ -2533,6 +2533,7 @@ mod tests {
               return v3
           }
         ";
+        let ssa = Ssa::from_str(src).unwrap();
 
         let args = vec![Value::bool(true)];
         let (_, result) = assert_pass_does_not_affect_execution(ssa, args, Ssa::defunctionalize);
