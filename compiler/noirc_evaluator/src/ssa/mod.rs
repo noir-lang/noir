@@ -194,6 +194,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
+        // Debug-only sanity check: verify the frontend's `array_set` /
+        // `inc_rc` aliasing invariant on the just-cleaned Brillig SSA.
+        // A no-op in release builds. Standalone (not chained via
+        // `and_then_try`) so `--show-ssa` can display the SSA at this point.
+        SsaPass::new_try(Ssa::verify_array_set_rc_invariant, "Verify array_set RC invariant"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,

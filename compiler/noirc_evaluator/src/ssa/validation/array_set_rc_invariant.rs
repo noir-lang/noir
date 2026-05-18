@@ -37,10 +37,10 @@
 //! the common invariant the frontend produces after mem2reg, not a universal
 //! safety property.
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
-    errors::RtResult,
+    errors::{RtResult, RuntimeError},
     ssa::{
         ir::{
             basic_block::BasicBlockId,
@@ -84,6 +84,7 @@ impl Function {
         let inc_rc_locations = collect_inc_rc_locations(self);
         let value_aliases = collect_value_aliases(self);
         let array_operand_uses = collect_array_operand_uses(self);
+        let array_value_defs = collect_array_value_defs(self);
 
         for block_id in self.reachable_blocks() {
             for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
@@ -108,20 +109,51 @@ impl Function {
                 }
 
                 // Expensive: forward CFG walk looking for an aliased read.
-                // Step 5 will gate `Err` on this; for now we just exercise the
-                // function.
-                let _has_use = has_reachable_aliased_use(
+                // A hit means the `array_set` may mutate storage in place
+                // (RC=1) and a downstream instruction will observe the
+                // pre-mutation contents through an aliased name.
+                if has_reachable_aliased_use(
                     self,
                     &array_operand_uses,
+                    &array_value_defs,
                     &alias_set,
                     *instruction_id,
                     block_id,
                     idx,
-                );
+                ) {
+                    let call_stack = self.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "array_set in function {} on array {array} has an aliased read on a \
+                         forward path but no `inc_rc` dominates it; the in-place mutation \
+                         would be observable through an alias",
+                        self.name(),
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
         Ok(())
     }
+}
+
+/// Map every array-typed value defined by an instruction to its defining
+/// block. Used by the reachable-use walk to recognize when a forward step
+/// re-enters the block that defines an alias-set member (so the member
+/// should be killed — the defining instruction re-executes and produces a
+/// fresh runtime value). Keyed by the result value directly so the kill
+/// check is a single hashmap lookup.
+fn collect_array_value_defs(function: &Function) -> HashMap<ValueId, BasicBlockId> {
+    let mut out: HashMap<ValueId, BasicBlockId> = HashMap::default();
+    for block_id in function.reachable_blocks() {
+        for instruction_id in function.dfg[block_id].instructions() {
+            for &result in function.dfg.instruction_results(*instruction_id) {
+                if function.dfg.type_of_value(result).contains_an_array() {
+                    out.insert(result, block_id);
+                }
+            }
+        }
+    }
+    out
 }
 
 /// A non-terminator instruction's reference to an array-typed value.
@@ -212,14 +244,15 @@ fn some_inc_rc_dominates(
 /// instruction that reads a value still in the alias use-set.
 ///
 /// **Use-set evolution.** Starts as `alias_set` and only shrinks. Kills are
-/// applied **during propagation** to each successor — see
-/// [`succ_use_set`] for the per-arg kill rule. The intuition: a parameter
-/// of the successor is in the alias-set means it shares storage with the
-/// array_set's source. After the jump, the parameter is rebound to the
-/// arg passed by this terminator. If the arg is *also* in the use-set
-/// (still an alias), the parameter stays in the use-set; if the arg is
-/// a *fresh* value (not in the use-set, e.g. the array_set's own result),
-/// the parameter is killed.
+/// applied **during propagation** to each successor — see [`succ_use_set`]
+/// for the kill rules:
+/// - **Block params** of `dest` get a *conditional* kill: if the predecessor
+///   passed an arg that is itself in the use-set, the param stays (still
+///   aliased); otherwise it's dropped (rebound to a fresh value).
+/// - **Instruction-defined values** whose defining block is `dest` get an
+///   *unconditional* kill: re-entering the block re-executes the defining
+///   instruction (e.g. `load`, `make_array`), so the previous iteration's
+///   runtime storage is no longer reachable through that name.
 ///
 /// **What counts as a use.** Only non-terminator operands. Terminator
 /// arguments are the legitimate threading mechanism the invariant relies
@@ -238,6 +271,7 @@ fn some_inc_rc_dominates(
 fn has_reachable_aliased_use(
     function: &Function,
     array_operand_uses: &HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
+    array_value_defs: &HashMap<ValueId, BasicBlockId>,
     alias_set: &im::HashSet<ValueId>,
     array_set_id: InstructionId,
     array_set_block: BasicBlockId,
@@ -280,7 +314,8 @@ fn has_reachable_aliased_use(
         // operand — most arithmetic / branching instructions can't be a hit,
         // so iterating them is wasted work. Entries are pre-sorted by `idx`.
         if let Some(uses) = array_operand_uses.get(&block) {
-            for &(idx, inst_id, operand) in uses.iter().skip_while(|(idx, _, _)| *idx < start_idx) {
+            for &(_idx, inst_id, operand) in uses.iter().skip_while(|(idx, _, _)| *idx < start_idx)
+            {
                 if inst_id == array_set_id {
                     continue;
                 }
@@ -290,11 +325,12 @@ fn has_reachable_aliased_use(
             }
         }
 
-        // Propagate to each successor with per-arg kills applied.
+        // Propagate to each successor with per-arg and re-execution kills applied.
         let Some(terminator) = function.dfg[block].terminator() else { continue };
         match terminator {
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let next = succ_use_set(function, *destination, arguments, &use_set);
+                let next =
+                    succ_use_set(function, array_value_defs, *destination, arguments, &use_set);
                 worklist.push((*destination, 0, next));
             }
             TerminatorInstruction::JmpIf {
@@ -304,9 +340,21 @@ fn has_reachable_aliased_use(
                 else_arguments,
                 ..
             } => {
-                let then_next = succ_use_set(function, *then_destination, then_arguments, &use_set);
+                let then_next = succ_use_set(
+                    function,
+                    array_value_defs,
+                    *then_destination,
+                    then_arguments,
+                    &use_set,
+                );
                 worklist.push((*then_destination, 0, then_next));
-                let else_next = succ_use_set(function, *else_destination, else_arguments, &use_set);
+                let else_next = succ_use_set(
+                    function,
+                    array_value_defs,
+                    *else_destination,
+                    else_arguments,
+                    &use_set,
+                );
                 worklist.push((*else_destination, 0, else_next));
             }
             TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => (),
@@ -318,21 +366,33 @@ fn has_reachable_aliased_use(
 /// Compute the use-set carried into `dest` when its predecessor jumps with
 /// `arguments`.
 ///
-/// For each `dest.params[i]` that is currently in `use_set`, look at the
-/// corresponding `arguments[i]`:
-/// - If the arg is *also* in `use_set`, the parameter is rebound to a value
-///   that still aliases the array_set's source; keep the parameter in the
-///   use-set.
-/// - Otherwise (arg is a fresh value — most commonly the array_set's own
-///   result, which was excluded from the alias-set at lookup time), the
-///   parameter is rebound to a non-aliased value; drop it from the use-set.
+/// Two kill rules apply, in order:
+///
+/// 1. **Conditional kill — block parameters of `dest`.** For each
+///    `dest.params[i]` that is currently in `use_set`, look at the
+///    corresponding `arguments[i]`:
+///    - If the arg is *also* in `use_set`, the parameter is rebound to a
+///      value that still aliases the array_set's source; keep it.
+///    - Otherwise (arg is a fresh value — most commonly the array_set's
+///      own result, excluded from the alias-set at lookup time), the
+///      parameter is rebound to a non-aliased value; drop it.
+///
+/// 2. **Unconditional kill — instructions defined in `dest`.** For each
+///    alias-set member that is the result of an instruction whose block is
+///    `dest`: drop it. Re-entering `dest` re-executes that defining
+///    instruction (e.g. `load`, `make_array`), producing a fresh runtime
+///    value; the previous iteration's storage is no longer reachable
+///    through that name.
 fn succ_use_set(
     function: &Function,
+    array_value_defs: &HashMap<ValueId, BasicBlockId>,
     dest: BasicBlockId,
     arguments: &[ValueId],
     use_set: &im::HashSet<ValueId>,
 ) -> im::HashSet<ValueId> {
     let mut result = use_set.clone();
+
+    // (1) Per-arg conditional kill for params of `dest`.
     let params = function.dfg.block_parameters(dest);
     for (i, &param) in params.iter().enumerate() {
         if !use_set.contains(&param) {
@@ -343,6 +403,15 @@ fn succ_use_set(
             result.remove(&param);
         }
     }
+
+    // (2) Unconditional kill for instruction-defined values whose def-block
+    // is `dest` (re-execution on cycle re-entry produces a fresh value).
+    for &v in use_set {
+        if array_value_defs.get(&v) == Some(&dest) {
+            result.remove(&v);
+        }
+    }
+
     result
 }
 
@@ -486,6 +555,129 @@ mod tests {
             }"#;
         let ssa = Ssa::from_str(src).unwrap();
         assert!(ssa.verify_array_set_rc_invariant().is_ok());
+    }
+
+    /// End-to-end: the user's well-formed example from the design
+    /// discussion. The loop mutates `v2` in place each iteration and
+    /// threads the result back through the block-parameter, so no
+    /// `inc_rc` is needed and the verifier must accept.
+    #[test]
+    fn end_to_end_well_formed_loop_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0)
+              b1(v2: [u32; 2], v3: u32):
+                v5 = lt v3, v1
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v6 = array_get v2, index u32 0 -> u32
+                v8 = eq v3, u32 1
+                jmpif v8 then: b4(), else: b5()
+              b3():
+                return
+              b4():
+                v10 = eq v6, u32 99
+                constrain v6 == u32 99
+                jmp b5()
+              b5():
+                v11 = array_set v2, index u32 0, value u32 99
+                v12 = add v3, u32 1
+                jmp b1(v11, v12)
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(ssa.verify_array_set_rc_invariant().is_ok());
+    }
+
+    /// End-to-end: PR-12671 malformed repro. `array_get v0` reads the
+    /// pre-header value while `array_set v2` mutates the same storage in
+    /// place — verifier must reject.
+    #[test]
+    fn end_to_end_pr_12671_repro_is_rejected() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0, u32 0)
+              b1(v2: [u32; 2], v3: u32, v4: u32):
+                v7 = lt v4, v1
+                jmpif v7 then: b2(), else: b3()
+              b2():
+                v6 = array_get v0, index u32 0 -> u32
+                v10 = add v3, v6
+                v12 = array_set v2, index u32 0, value u32 99
+                v14 = add v4, u32 1
+                jmp b1(v12, v10, v14)
+              b3():
+                return v3
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::SsaValidationError { .. }),
+            "expected SsaValidationError, got {err:?}"
+        );
+    }
+
+    /// End-to-end: same PR-12671 SSA but with an `inc_rc v0` placed in the
+    /// pre-header. `inc_rc v0` dominates the array_set, so the check
+    /// short-circuits and the verifier must accept.
+    #[test]
+    fn end_to_end_pr_12671_repro_with_inc_rc_is_accepted() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                inc_rc v0
+                jmp b1(v0, u32 0, u32 0)
+              b1(v2: [u32; 2], v3: u32, v4: u32):
+                v7 = lt v4, v1
+                jmpif v7 then: b2(), else: b3()
+              b2():
+                v6 = array_get v0, index u32 0 -> u32
+                v10 = add v3, v6
+                v12 = array_set v2, index u32 0, value u32 99
+                v14 = add v4, u32 1
+                jmp b1(v12, v10, v14)
+              b3():
+                return v3
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(ssa.verify_array_set_rc_invariant().is_ok());
+    }
+
+    /// End-to-end: `&mut [u32; 2]` parameter pattern (like stdlib's
+    /// `quicksort::partition`). mem2reg can't eliminate the reference, so
+    /// the loop body has `v_loaded = load v_ref` re-executed each iteration,
+    /// followed by `array_set v_loaded; store`. The cycle re-enters the
+    /// load's block, where the load is re-executed and produces a *fresh*
+    /// runtime value — so the `array_get v_loaded` on the next iteration is
+    /// not a hazard.
+    ///
+    /// This test verifies the re-execution kill rule: on entry to the
+    /// load's defining block, the loaded value is dropped from the use-set.
+    #[test]
+    fn end_to_end_loop_load_array_set_store_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: &mut [u32; 2], v1: u32):
+                jmp b1(u32 0)
+              b1(v3: u32):
+                v5 = lt v3, v1
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v6 = load v0 -> [u32; 2]
+                v8 = array_get v6, index u32 0 -> u32
+                v10 = array_set v6, index u32 0, value u32 99
+                store v10 at v0
+                v12 = add v3, u32 1
+                jmp b1(v12)
+              b3():
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(
+            ssa.verify_array_set_rc_invariant().is_ok(),
+            "load result is re-executed each iteration; the cycle's array_get is not a hazard"
+        );
     }
 
     /// The alias-equivalence classes deliberately do **not** unify an
@@ -700,9 +892,11 @@ mod tests {
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
@@ -743,9 +937,11 @@ mod tests {
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
@@ -794,9 +990,11 @@ mod tests {
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
@@ -840,9 +1038,11 @@ mod tests {
 
         // The forward walk catches `array_get v2` as an aliased read.
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
@@ -882,9 +1082,11 @@ mod tests {
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
@@ -923,9 +1125,11 @@ mod tests {
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
         let array_operand_uses = super::collect_array_operand_uses(function);
+        let array_value_defs = super::collect_array_value_defs(function);
         let has_use = super::has_reachable_aliased_use(
             function,
             &array_operand_uses,
+            &array_value_defs,
             &alias_set,
             inst_id,
             block,
