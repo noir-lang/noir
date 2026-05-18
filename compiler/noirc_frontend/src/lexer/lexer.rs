@@ -396,24 +396,21 @@ impl<'a> Lexer<'a> {
         if !word.is_ascii() {
             return Err(LexerErrorKind::NonAsciiIdentifier {
                 found: word,
-                location: self.location(Span::from(start..end)),
+                location: self.location(Span::inclusive(start, end)),
             });
         }
         self.lookup_word_token(word, start, end)
     }
 
     /// Lex the next word in the input stream. Returns (start position, word, end position).
-    /// The continuation predicate is intentionally broad: ASCII alphanumerics and `_`,
-    /// plus any non-ASCII character that isn't whitespace. This lets us consume the
-    /// whole "bad" identifier as a single unit — including emoji and Unicode symbols
-    /// that aren't alphanumeric — so `eat_word` can produce one clean error instead
-    /// of fragmenting it into a token cascade.
     fn lex_word(&mut self, initial_char: char) -> (Position, String, Position) {
         let start = self.position;
         let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_alphanumeric() || ch == '_' || (!ch.is_ascii() && !ch.is_whitespace())
         });
-        (start, word, self.position)
+        let last_char_len = word.chars().next_back().map_or(1, |c| c.len_utf8() as u32);
+        let end = self.position + last_char_len - 1;
+        (start, word, end)
     }
 
     fn lookup_word_token(
@@ -1876,6 +1873,29 @@ mod tests {
         match lexer.next_token() {
             Err(LexerErrorKind::NonAsciiIdentifier { found, .. }) => {
                 assert_eq!(found, "日本語_var");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_non_ascii_identifier_span_includes_full_last_char() {
+        // The span end is the offset of the byte JUST PAST the last char so that
+        // the byte range covers the whole identifier. LSP byte→UTF-16 conversion
+        // requires the offset to land on a char boundary; if the span ended in
+        // the middle of a multi-byte char, conversions for tools like inlay hints
+        // would silently fail.
+        let input = "let xé = 1;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        let _ = lexer.next_token(); // `let`
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, location }) => {
+                assert_eq!(found, "xé");
+                // 'x' is at byte 4, 'é' is 2 bytes starting at 5, so the span
+                // should be 4..7 (exclusive end past the 'é').
+                assert_eq!(location.span.start(), 4);
+                assert_eq!(location.span.end(), 7);
+                assert!(input.is_char_boundary(location.span.end() as usize));
             }
             other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
         }
