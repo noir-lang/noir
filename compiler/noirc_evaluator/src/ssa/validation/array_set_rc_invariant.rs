@@ -47,7 +47,7 @@ use crate::{
             cfg::ControlFlowGraph,
             dom::DominatorTree,
             function::Function,
-            instruction::{Instruction, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
             value::{Value, ValueId},
         },
@@ -81,6 +81,7 @@ impl Function {
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let inc_rc_locations = collect_inc_rc_locations(self);
+        let array_params_by_block = collect_array_params_by_block(self);
 
         for block_id in self.reachable_blocks() {
             for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
@@ -103,9 +104,18 @@ impl Function {
                 ) {
                     continue;
                 }
-                // The expensive reachable-use walk lands in step 4. Until then,
-                // we don't error — only the alias-walk and dominance check are
-                // exercised.
+
+                // Expensive: forward CFG walk looking for an aliased read.
+                // Step 5 will gate `Err` on this; for now we just exercise the
+                // function.
+                let _has_use = has_reachable_aliased_use(
+                    self,
+                    &array_params_by_block,
+                    &alias_set,
+                    *instruction_id,
+                    block_id,
+                    idx,
+                );
             }
         }
         Ok(())
@@ -158,6 +168,123 @@ fn some_inc_rc_dominates(
             } else if dom_tree.dominates(inc_block, array_set_block) {
                 return true;
             }
+        }
+    }
+    false
+}
+
+/// For each block, the set of its array-typed parameters. The reachable-use
+/// walk uses this to "kill" alias-set members from the live use-set when the
+/// walk crosses into a block where the member is a parameter — the parameter
+/// is re-bound by the predecessor's terminator argument, so the *name* refers
+/// to a different value in this block (and its dominated descendants) than to
+/// the array_set's pre-mutation source.
+fn collect_array_params_by_block(
+    function: &Function,
+) -> HashMap<BasicBlockId, im::HashSet<ValueId>> {
+    let mut out: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
+    for block_id in function.reachable_blocks() {
+        let mut set = im::HashSet::new();
+        for &param in function.dfg.block_parameters(block_id) {
+            if function.dfg.type_of_value(param).contains_an_array() {
+                set.insert(param);
+            }
+        }
+        if !set.is_empty() {
+            out.insert(block_id, set);
+        }
+    }
+    out
+}
+
+/// Forward CFG walk from after the `array_set` looking for a non-terminator
+/// instruction that reads a value still in the alias use-set.
+///
+/// **Use-set evolution.** Starts as `alias_set` and only shrinks: when the
+/// walk crosses *into* a block where an alias-set member is a parameter, that
+/// member is dropped from the use-set for this path onward. This models the
+/// re-binding that happens at block boundaries — a `jmp b(v_new)` to a block
+/// whose parameter is in our alias-set means the parameter's name now refers
+/// to `v_new` in that block (and its dominated descendants), not to the
+/// array_set's source.
+///
+/// **What counts as a use.** Only non-terminator operands. Terminator
+/// arguments are the legitimate threading mechanism the invariant relies on:
+/// `jmp b(v_alias)` is how the post-mutation value reaches the next block
+/// where it is re-bound to that block's parameter. Flagging this would defeat
+/// the invariant's whole purpose.
+///
+/// The original `array_set` itself is also skipped, in case a cycle re-enters
+/// its block — it is, by construction, a use of its own source, not a hazard.
+///
+/// **Cycle detection.** Re-visiting a block with a use-set that is a subset
+/// of what we already explored at that block adds no new information. We
+/// record the *largest* use-set seen per block and skip on subset matches.
+fn has_reachable_aliased_use(
+    function: &Function,
+    array_params_by_block: &HashMap<BasicBlockId, im::HashSet<ValueId>>,
+    alias_set: &im::HashSet<ValueId>,
+    array_set_id: InstructionId,
+    array_set_block: BasicBlockId,
+    array_set_idx: usize,
+) -> bool {
+    let mut visited: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
+
+    // (block, start_idx, use_set_on_entry)
+    //
+    // `start_idx > 0` denotes the very first frame, where we continue inside
+    // the array_set's own block past the array_set instruction itself. Block
+    // kills are not applied on that frame because we are mid-block (kills
+    // would have already been applied when the array_set's block was first
+    // entered from a predecessor; we are picking up after that point).
+    let mut worklist: Vec<(BasicBlockId, usize, im::HashSet<ValueId>)> =
+        vec![(array_set_block, array_set_idx + 1, alias_set.clone())];
+
+    while let Some((block, start_idx, mut use_set)) = worklist.pop() {
+        if start_idx == 0
+            && let Some(kills) = array_params_by_block.get(&block)
+        {
+            use_set = use_set.relative_complement(kills.clone());
+        }
+
+        // No live aliases on this path: the instruction scan can't hit and
+        // propagating the empty set to successors is wasted work.
+        if use_set.is_empty() {
+            continue;
+        }
+
+        // Cycle/redundancy check + bookkeeping only applies to *full* block
+        // entries (start_idx == 0). The very first frame of the walk starts
+        // mid-block (just after the array_set) and only covers a suffix of
+        // the block — recording it here would incorrectly let a later
+        // back-edge entry to the same block skip the unexplored prefix.
+        if start_idx == 0 {
+            if let Some(prev) = visited.get(&block)
+                && use_set.is_subset(prev)
+            {
+                continue;
+            }
+            // Track the union so a later "subset of prev" check covers
+            // everything we've ever explored this block with.
+            let merged = visited.get(&block).cloned().unwrap_or_default().union(use_set.clone());
+            visited.insert(block, merged);
+        }
+
+        for inst_id in function.dfg[block].instructions().iter().skip(start_idx) {
+            if *inst_id == array_set_id {
+                continue;
+            }
+            let mut hit = false;
+            function.dfg[*inst_id].for_each_value(|v| {
+                hit |= use_set.contains(&v);
+            });
+            if hit {
+                return true;
+            }
+        }
+
+        for succ in function.dfg[block].successors() {
+            worklist.push((succ, 0, use_set.clone()));
         }
     }
     false
@@ -476,6 +603,116 @@ mod tests {
                 "{label}: expected dominates={expected}, got {dominates}"
             );
         }
+    }
+
+    /// Well-formed example: in-loop `array_get v2` is fine because `v2`
+    /// is a block parameter that is re-bound each iteration to the
+    /// `array_set`'s result via the back-edge. The forward walk should kill
+    /// `v2` from the use-set on entry to `b1`, and the `array_get v2` in `b2`
+    /// (reached via cycle) is no longer aliased.
+    #[test]
+    fn reachable_use_walk_kills_block_param_on_entry() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0)
+              b1(v2: [u32; 2], v3: u32):
+                v5 = lt v3, v1
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v6 = array_get v2, index u32 0 -> u32
+                v8 = eq v3, u32 1
+                jmpif v8 then: b4(), else: b5()
+              b3():
+                return
+              b4():
+                v10 = eq v6, u32 99
+                constrain v6 == u32 99
+                jmp b5()
+              b5():
+                v11 = array_set v2, index u32 0, value u32 99
+                v12 = add v3, u32 1
+                jmp b1(v11, v12)
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let array_params_by_block = super::collect_array_params_by_block(function);
+        let (block, idx, _source, alias_set, inst_id) =
+            find_array_set_with_id(function, &cfg).expect("array_set present");
+
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_params_by_block,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
+        assert!(
+            !has_use,
+            "well-formed loop: array_get v2 is reached via cycle but v2 is rebound at b1; no aliased use should be found"
+        );
+    }
+
+    /// PR-12671 malformed repro: the in-loop `array_get v0` reads the
+    /// pre-header value `v0` directly, which is in the alias-set of the
+    /// `array_set`'s source `v2`. `v0` is *not* a parameter of any block on the
+    /// cycle, so it stays live in the use-set, and the walk flags the read.
+    #[test]
+    fn reachable_use_walk_detects_unprotected_predecessor_read() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0, u32 0)
+              b1(v2: [u32; 2], v3: u32, v4: u32):
+                v7 = lt v4, v1
+                jmpif v7 then: b2(), else: b3()
+              b2():
+                v6 = array_get v0, index u32 0 -> u32
+                v10 = add v3, v6
+                v12 = array_set v2, index u32 0, value u32 99
+                v14 = add v4, u32 1
+                jmp b1(v12, v10, v14)
+              b3():
+                return v3
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let array_params_by_block = super::collect_array_params_by_block(function);
+        let (block, idx, _source, alias_set, inst_id) =
+            find_array_set_with_id(function, &cfg).expect("array_set present");
+
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_params_by_block,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
+        assert!(
+            has_use,
+            "malformed loop: array_get v0 reads the pre-header value, which aliases the array_set's source via b1's pre-header jmp"
+        );
+    }
+
+    fn find_array_set_with_id(
+        function: &Function,
+        cfg: &super::ControlFlowGraph,
+    ) -> Option<(super::BasicBlockId, usize, ValueId, im::HashSet<ValueId>, super::InstructionId)>
+    {
+        for block_id in function.reachable_blocks() {
+            for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction_id] {
+                    let [result] = function.dfg.instruction_result(*instruction_id);
+                    let alias_set = super::compute_alias_set(function, cfg, array, result);
+                    return Some((block_id, idx, array, alias_set, *instruction_id));
+                }
+            }
+        }
+        None
     }
 
     fn find_array_sets(
