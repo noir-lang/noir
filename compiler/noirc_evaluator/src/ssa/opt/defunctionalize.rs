@@ -2535,9 +2535,8 @@ mod tests {
         ";
 
         let args = vec![Value::bool(true)];
-        let (_, result) =
-            assert_pass_does_not_affect_execution(ssa, args, Ssa::defunctionalize);
-            
+        let (_, result) = assert_pass_does_not_affect_execution(ssa, args, Ssa::defunctionalize);
+
         let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
         assert_eq!(result, expected);
     }
