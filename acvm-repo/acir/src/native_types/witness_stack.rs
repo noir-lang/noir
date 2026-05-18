@@ -76,7 +76,7 @@ impl<F> WitnessStack<F> {
     }
 }
 
-impl<F: AcirField + Serialize> WitnessStack<F> {
+impl<F: AcirField + Serialize + MsgpackTagged> WitnessStack<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessStackError> {
         let format = SerializationFormat::from_env()
@@ -102,7 +102,7 @@ impl<F: AcirField + Serialize> WitnessStack<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> WitnessStack<F> {
+impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> WitnessStack<F> {
     /// Decompress and deserialize.
     pub fn deserialize(buf: &[u8]) -> Result<Self, WitnessStackError> {
         let mut deflater = GzDecoder::new(buf);

@@ -313,7 +313,7 @@ impl<F: AcirField> Circuit<F> {
     }
 }
 
-impl<F: Serialize + AcirField> Program<F> {
+impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     /// Compress a serialized [Program].
     fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
         let mut compressed: Vec<u8> = Vec::new();
@@ -348,7 +348,7 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> Program<F> {
     /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
@@ -503,6 +503,7 @@ mod tests {
     use super::{Circuit, Compression};
     use crate::circuit::Program;
     use acir_field::{AcirField, FieldElement};
+    use msgpack_tagged::MsgpackTagged;
     use serde::{Deserialize, Serialize};
 
     #[test]
@@ -517,7 +518,7 @@ mod tests {
         let circuit = Circuit::from_str(src).unwrap();
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
-        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField>(
+        fn read_write<F: Serialize + for<'a> Deserialize<'a> + AcirField + MsgpackTagged>(
             program: Program<F>,
         ) -> (Program<F>, Program<F>) {
             let bytes = Program::serialize_program(&program);
@@ -604,13 +605,14 @@ mod tests {
     /// choosing a particular `F`.
     #[test]
     fn ensure_program_is_msgpack_tagged() {
-        fn assert_impl<T: msgpack_tagged::MsgpackTagged>() {}
+        fn assert_impl<T: MsgpackTagged>() {}
         assert_impl::<Program<FieldElement>>();
     }
 
     /// Property based testing for serialization
     mod props {
         use acir_field::FieldElement;
+        use msgpack_tagged::MsgpackTagged;
         use proptest::prelude::*;
         use proptest::test_runner::{TestCaseResult, TestRunner};
 
@@ -642,6 +644,11 @@ mod tests {
             }
         }
 
+        impl MsgpackTagged for TestField {
+            const TAGGED: msgpack_tagged::Tagged = msgpack_tagged::Tagged::empty_product();
+            fn register_into(_reg: &mut msgpack_tagged::TagRegistry) {}
+        }
+
         /// Override the maximum size of collections created by `proptest`.
         #[allow(unsafe_code)]
         fn run_with_max_size_range<T, F>(cases: u32, f: F)
@@ -668,11 +675,15 @@ mod tests {
             result.unwrap();
         }
 
+        /// Round-trip a `Program` through each `Format` variant chosen
+        /// arbitrarily. Uses `serialize_with_format` + `deserialize_any_format`
+        /// so the framing-byte dispatch is exercised too — picks the right
+        /// encoder/decoder pair per format under one test name.
         #[test]
-        fn prop_program_msgpack_roundtrip() {
-            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
-                let bz = msgpack_serialize(&program, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_program_arb_roundtrip() {
+            run_with_max_size_range(100, |(program, format): (Program<TestField>, Format)| {
+                let bz = serialize_with_format(&program, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -689,10 +700,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_stack_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_stack_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessStack<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -709,10 +720,10 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_map_msgpack_roundtrip() {
-            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
-                let bz = msgpack_serialize(&witness, compact)?;
-                let de = msgpack_deserialize(&bz)?;
+        fn prop_witness_map_arb_roundtrip() {
+            run_with_max_size_range(10, |(witness, format): (WitnessMap<TestField>, Format)| {
+                let bz = serialize_with_format(&witness, format)?;
+                let de = deserialize_any_format(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

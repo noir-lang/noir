@@ -1,5 +1,6 @@
 //! Serialization formats we consider using for the bytecode and the witness stack.
 
+use msgpack_tagged::{MsgpackTagged, msgpack_tagged_deserialize, msgpack_tagged_serialize};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -9,6 +10,7 @@ const FORMAT_ENV_VAR: &str = "NOIR_SERIALIZATION_FORMAT";
 
 /// A marker byte for the serialization format.
 #[derive(Debug, Default, Clone, Copy, IntoPrimitive, TryFromPrimitive, EnumString, PartialEq, Eq)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub enum Format {
@@ -17,6 +19,11 @@ pub enum Format {
     /// Msgpack with tuple structs.
     #[default]
     MsgpackCompact = 3,
+    /// Msgpack with int-keyed tag maps via the `msgpack_tagged` wrapper —
+    /// compact (single-byte field/variant tags) and schema-evolution-friendly
+    /// (retiring a field/variant + `#[tagged(reserved(...))]` keeps old data
+    /// decodable). Requires `T: MsgpackTagged`.
+    MsgpackTagged = 4,
 }
 
 impl Format {
@@ -79,7 +86,7 @@ pub(crate) fn msgpack_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 /// Deserialize any of the supported formats.
 pub(crate) fn deserialize_any_format<T>(buf: &[u8]) -> std::io::Result<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: for<'a> Deserialize<'a> + MsgpackTagged,
 {
     let Some(format_byte) = buf.first() else {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "empty buffer"));
@@ -87,18 +94,20 @@ where
 
     match Format::try_from(*format_byte) {
         Ok(Format::Msgpack) | Ok(Format::MsgpackCompact) => msgpack_deserialize(&buf[1..]),
+        Ok(Format::MsgpackTagged) => msgpack_tagged_deserialize(&buf[1..]),
         Err(msg) => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg.to_string())),
     }
 }
 
 pub(crate) fn serialize_with_format<T>(value: &T, format: Format) -> std::io::Result<Vec<u8>>
 where
-    T: Serialize,
+    T: Serialize + MsgpackTagged,
 {
     // It would be more efficient to skip having to create a vector here, and use a std::io::Writer instead.
     let mut buf = match format {
         Format::Msgpack => msgpack_serialize(value, false)?,
         Format::MsgpackCompact => msgpack_serialize(value, true)?,
+        Format::MsgpackTagged => msgpack_tagged_serialize(value)?,
     };
     let mut res = vec![format.into()];
     res.append(&mut buf);
@@ -311,5 +320,30 @@ mod tests {
     #[test]
     fn format_from_str() {
         assert_eq!(Format::from_str("msgpack-compact").unwrap(), Format::MsgpackCompact);
+        assert_eq!(Format::from_str("msgpack-tagged").unwrap(), Format::MsgpackTagged);
+    }
+
+    /// `Format::MsgpackTagged` round-trips a value through `msgpack_tagged`'s
+    /// int-keyed-map encoder/decoder, with the `Format` byte prepended so
+    /// `deserialize_any_format` can route to the right decoder. The fixture
+    /// type derives `MsgpackTagged` so the bound on the dispatch functions
+    /// is satisfied.
+    #[test]
+    fn msgpack_tagged_format_roundtrip() {
+        use msgpack_tagged::MsgpackTagged;
+
+        #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Eq, Debug)]
+        struct Foo {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: bool,
+        }
+
+        let value = Foo { a: 7, b: true };
+        let bytes = super::serialize_with_format(&value, Format::MsgpackTagged).unwrap();
+        assert_eq!(bytes[0], Format::MsgpackTagged as u8);
+        let decoded: Foo = super::deserialize_any_format(&bytes).unwrap();
+        assert_eq!(decoded, value);
     }
 }
