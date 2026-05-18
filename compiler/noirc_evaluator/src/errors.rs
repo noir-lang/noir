@@ -93,6 +93,16 @@ pub enum RuntimeError {
     },
     #[error("SSA validation failed: {message}")]
     SsaValidationError { message: String, call_stack: CallStack },
+    #[error("{message}")]
+    ArraySetAliasViolation {
+        message: String,
+        /// Location of the `array_set` that may mutate in place.
+        call_stack: CallStack,
+        /// Location of the downstream instruction that reads the same
+        /// storage through an alias. Rendered as a secondary diagnostic
+        /// label so the user can see both the write and the read.
+        aliased_use_call_stack: CallStack,
+    },
     #[error(
         "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
     )]
@@ -149,6 +159,7 @@ impl RuntimeError {
             | RuntimeError::RecursionLimit { call_stack, .. }
             | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
             | RuntimeError::SsaValidationError { call_stack, .. }
+            | RuntimeError::ArraySetAliasViolation { call_stack, .. }
             | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
         }
     }
@@ -194,6 +205,26 @@ impl RuntimeError {
                         location,
                     )
                 }
+            }
+            RuntimeError::ArraySetAliasViolation {
+                message,
+                call_stack,
+                aliased_use_call_stack,
+            } => {
+                let primary = call_stack.last_or_dummy();
+                let secondary = aliased_use_call_stack.last_or_dummy();
+                let mut diagnostic = CustomDiagnostic::simple_error(
+                    message,
+                    "array_set that may mutate in place".to_string(),
+                    primary,
+                );
+                if !secondary.is_dummy() {
+                    diagnostic.add_secondary(
+                        "aliased read of the same storage".to_string(),
+                        secondary,
+                    );
+                }
+                diagnostic
             }
             RuntimeError::UnknownLoopBound { .. } => {
                 let primary_message = self.to_string();

@@ -107,6 +107,8 @@ impl Function {
                     ctx.find_reachable_aliased_use(&alias_set, *instruction_id, block_id, idx)
                 {
                     let call_stack = self.dfg.get_instruction_call_stack(*instruction_id);
+                    let aliased_use_call_stack =
+                        self.dfg.get_instruction_call_stack(hit.instruction);
                     let message = format!(
                         "array_set in function {} on array {array} has an aliased read of {} \
                          on a forward path with no preceding `inc_rc`; the in-place mutation \
@@ -114,11 +116,11 @@ impl Function {
                         self.name(),
                         hit.value,
                     );
-                    // `hit.instruction` is the instruction that observes
-                    // the alias; not yet plumbed into the diagnostic as a
-                    // secondary location.
-                    let _ = hit.instruction;
-                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                    return Err(RuntimeError::ArraySetAliasViolation {
+                        message,
+                        call_stack,
+                        aliased_use_call_stack,
+                    });
                 }
             }
         }
@@ -626,8 +628,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
         assert!(
-            matches!(err, crate::errors::RuntimeError::SsaValidationError { .. }),
-            "expected SsaValidationError, got {err:?}"
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}"
         );
     }
 
