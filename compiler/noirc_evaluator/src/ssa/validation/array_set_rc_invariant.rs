@@ -83,6 +83,7 @@ impl Function {
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let inc_rc_locations = collect_inc_rc_locations(self);
         let value_aliases = collect_value_aliases(self);
+        let array_operand_uses = collect_array_operand_uses(self);
 
         for block_id in self.reachable_blocks() {
             for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
@@ -109,12 +110,51 @@ impl Function {
                 // Expensive: forward CFG walk looking for an aliased read.
                 // Step 5 will gate `Err` on this; for now we just exercise the
                 // function.
-                let _has_use =
-                    has_reachable_aliased_use(self, &alias_set, *instruction_id, block_id, idx);
+                let _has_use = has_reachable_aliased_use(
+                    self,
+                    &array_operand_uses,
+                    &alias_set,
+                    *instruction_id,
+                    block_id,
+                    idx,
+                );
             }
         }
         Ok(())
     }
+}
+
+/// A non-terminator instruction's reference to an array-typed value.
+///
+/// One entry per (instruction, array-typed operand) pair — an instruction
+/// with two array operands contributes two entries. Tuples are
+/// `(instruction-index-within-block, instruction-id, operand-value)`.
+type ArrayOperandUse = (usize, InstructionId, ValueId);
+
+/// For each block, list every (non-terminator) array-typed operand used by
+/// some instruction in the block, in source order. The reachable-use walk
+/// uses this to skip over instructions that can't be hits (most arithmetic
+/// and control-flow instructions don't reference any array value).
+///
+/// Terminator operands are deliberately excluded — they are the legitimate
+/// threading mechanism the invariant relies on and are handled by the
+/// per-arg kill rule in [`succ_use_set`].
+fn collect_array_operand_uses(function: &Function) -> HashMap<BasicBlockId, Vec<ArrayOperandUse>> {
+    let mut out: HashMap<BasicBlockId, Vec<ArrayOperandUse>> = HashMap::default();
+    for block_id in function.reachable_blocks() {
+        let mut uses: Vec<ArrayOperandUse> = Vec::new();
+        for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+            function.dfg[*instruction_id].for_each_value(|v| {
+                if function.dfg.type_of_value(v).contains_an_array() {
+                    uses.push((idx, *instruction_id, v));
+                }
+            });
+        }
+        if !uses.is_empty() {
+            out.insert(block_id, uses);
+        }
+    }
+    out
 }
 
 /// Indexes every `inc_rc v` instruction in the function by `v`, recording its
@@ -197,6 +237,7 @@ fn some_inc_rc_dominates(
 /// on subset matches.
 fn has_reachable_aliased_use(
     function: &Function,
+    array_operand_uses: &HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
     alias_set: &im::HashSet<ValueId>,
     array_set_id: InstructionId,
     array_set_block: BasicBlockId,
@@ -235,16 +276,17 @@ fn has_reachable_aliased_use(
             visited.insert(block, merged);
         }
 
-        for inst_id in function.dfg[block].instructions().iter().skip(start_idx) {
-            if *inst_id == array_set_id {
-                continue;
-            }
-            let mut hit = false;
-            function.dfg[*inst_id].for_each_value(|v| {
-                hit |= use_set.contains(&v);
-            });
-            if hit {
-                return true;
+        // Only iterate non-terminator instructions that have an array-typed
+        // operand — most arithmetic / branching instructions can't be a hit,
+        // so iterating them is wasted work. Entries are pre-sorted by `idx`.
+        if let Some(uses) = array_operand_uses.get(&block) {
+            for &(idx, inst_id, operand) in uses.iter().skip_while(|(idx, _, _)| *idx < start_idx) {
+                if inst_id == array_set_id {
+                    continue;
+                }
+                if use_set.contains(&operand) {
+                    return true;
+                }
             }
         }
 
@@ -657,7 +699,15 @@ mod tests {
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(
             !has_use,
             "well-formed loop: array_get v2 is reached via cycle but v2 is rebound at b1; no aliased use should be found"
@@ -692,7 +742,15 @@ mod tests {
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(
             has_use,
             "malformed loop: array_get v0 reads the pre-header value, which aliases the array_set's source via b1's pre-header jmp"
@@ -735,7 +793,15 @@ mod tests {
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(
             !has_use,
             "no aliased read exists; the walk must terminate and return false despite re-entering b3 with non-overlapping use-sets"
@@ -773,7 +839,15 @@ mod tests {
         assert!(alias_set.contains(&v2_param), "alias-set must include the sibling param v2");
 
         // The forward walk catches `array_get v2` as an aliased read.
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(has_use, "array_get v2 reads a sibling alias of the array_set's source v1");
     }
 
@@ -807,7 +881,15 @@ mod tests {
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(
             has_use,
             "array_get v7 in b3 reads a value (v7 ← v2) that still aliases the array_set's source"
@@ -840,7 +922,15 @@ mod tests {
         let (block, idx, _source, alias_set, inst_id) =
             find_array_set_with_id(function, &value_aliases).expect("array_set present");
 
-        let has_use = super::has_reachable_aliased_use(function, &alias_set, inst_id, block, idx);
+        let array_operand_uses = super::collect_array_operand_uses(function);
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_operand_uses,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
         assert!(
             !has_use,
             "b2's v5 is rebound to v4 (the array_set's result, excluded from alias-set), so it is killed and array_get v5 is not aliased"
