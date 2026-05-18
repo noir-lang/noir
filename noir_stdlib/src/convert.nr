@@ -253,12 +253,12 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
 
             impls = impls.push_back(
                 quote {
-                impl AsPrimitive<$type1> for $type2 {
-                    fn as_(self) -> $type1 {
-                        $body
+                    impl AsPrimitive<$type1> for $type2 {
+                        fn as_(self) -> $type1 {
+                            $body
+                        }
                     }
-                }
-            },
+                },
             );
         }
     }

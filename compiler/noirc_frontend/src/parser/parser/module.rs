@@ -97,4 +97,47 @@ mod tests {
         assert_eq!("foo", parsed_submodule.name.to_string());
         assert_eq!(parsed_submodule.contents.items.len(), 0);
     }
+
+    #[test]
+    fn parse_program_with_utf8_in_line_comment() {
+        // cSpell:disable-next-line
+        let src = "// schön — héllo 🙂\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::ModuleDecl(module) = &module.items[0].kind else {
+            panic!("Expected module declaration");
+        };
+        assert_eq!("foo", module.ident.to_string());
+    }
+
+    #[test]
+    fn parse_program_with_utf8_in_block_comment() {
+        let src = "/* 日本語 in a block comment */\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::ModuleDecl(module) = &module.items[0].kind else {
+            panic!("Expected module declaration");
+        };
+        assert_eq!("foo", module.ident.to_string());
+    }
+
+    #[test]
+    fn parse_program_with_utf8_in_doc_comment_on_item() {
+        let src = "/// 日本語 doc comment\nmod foo;";
+        let (module, errors) = parse_program_with_dummy_file(src);
+        expect_no_errors(&errors);
+        assert_eq!(module.items.len(), 1);
+        let item = &module.items[0];
+        assert!(!item.doc_comments.is_empty());
+    }
+
+    #[test]
+    fn parse_program_rejects_utf8_in_identifier() {
+        // cSpell:disable-next-line
+        let src = "fn schön() {}";
+        let (_module, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty(), "Expected parser errors for non-ASCII identifier");
+    }
 }

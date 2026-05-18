@@ -963,12 +963,18 @@ pub fn compile_no_check(
         monomorphize_debug(
             main_function,
             &mut context.def_interner,
+            context.file_manager.as_file_map(),
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
-        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
+        monomorphize(
+            main_function,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            force_unconstrained,
+        )?
     };
 
     if options.show_monomorphized {

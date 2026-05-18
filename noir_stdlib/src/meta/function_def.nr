@@ -24,6 +24,11 @@ impl FunctionDefinition {
     pub comptime fn is_unconstrained(self) -> bool {}
     // docs:end:is_unconstrained
 
+    #[builtin(function_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
+
     #[builtin(function_def_module)]
     // docs:start:module
     pub comptime fn module(self) -> Module {}

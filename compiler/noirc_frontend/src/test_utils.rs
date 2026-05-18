@@ -92,7 +92,7 @@ pub fn get_monomorphized_with_options(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, false)
+    monomorphize(main, &mut context.def_interner, context.file_manager.as_file_map(), false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
@@ -285,5 +285,13 @@ pub mod stdlib_src {
     pub const PRINT: &str = "
         #[oracle(print)]
         unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+        unconstrained fn println<T>(input: T) {
+            print_unconstrained(true, input);
+        }
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+            print_oracle(with_newline, input);
+        }
     ";
 }

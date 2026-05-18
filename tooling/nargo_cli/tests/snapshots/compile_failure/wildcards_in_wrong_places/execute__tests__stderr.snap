@@ -37,6 +37,20 @@ error: The placeholder `_` is not allowed in trait bounds
    │                    -
    │
 
+error: The placeholder `_` is not allowed in trait constraints
+   ┌─ src/main.nr:29:9
+   │
+29 │     Gen<_>: Trait2<_>,
+   │         -
+   │
+
+error: The placeholder `_` is not allowed in trait bounds
+   ┌─ src/main.nr:29:20
+   │
+29 │     Gen<_>: Trait2<_>,
+   │                    -
+   │
+
 error: The placeholder `_` is not allowed in function parameter types
    ┌─ src/main.nr:16:25
    │
@@ -63,20 +77,6 @@ error: The placeholder `_` is not allowed in function return types
    │
 16 │     fn trait_method(_: [_; _]) -> [_; _];
    │                                       -
-   │
-
-error: The placeholder `_` is not allowed in trait constraints
-   ┌─ src/main.nr:29:9
-   │
-29 │     Gen<_>: Trait2<_>,
-   │         -
-   │
-
-error: The placeholder `_` is not allowed in trait bounds
-   ┌─ src/main.nr:29:20
-   │
-29 │     Gen<_>: Trait2<_>,
-   │                    -
    │
 
 error: The placeholder `_` is not allowed in function parameter types

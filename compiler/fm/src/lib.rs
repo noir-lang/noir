@@ -7,7 +7,6 @@ mod simple_files;
 pub use file_map::{File, FileId, FileMap, PathString};
 
 use iter_extended::vecmap;
-use itertools::Itertools;
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -118,14 +117,12 @@ impl FileManager {
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
     /// "some_dir/package_name/src/main.nr"
     pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
-        let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
-        let results: Vec<_> = self
-            .path_to_id
-            .iter()
-            .filter(|(path, _id)| {
-                path.components().rev().zip_eq(suffix_path.iter()).all(|(x, y)| &x == y)
-            })
-            .collect();
+        let suffix = Path::new(suffix);
+        if suffix.as_os_str().is_empty() {
+            return Ok(None);
+        }
+        let results: Vec<_> =
+            self.path_to_id.iter().filter(|(path, _id)| path.ends_with(suffix)).collect();
         if results.is_empty() {
             Ok(None)
         } else if results.len() == 1 {
@@ -253,5 +250,64 @@ mod tests {
         );
 
         assert_eq!(file_id, second_file_id);
+    }
+
+    #[test]
+    fn find_by_path_suffix_empty_returns_none() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        add_file(&mut fm, &dir.join("main.nr"));
+
+        assert_eq!(fm.find_by_path_suffix(""), Ok(None));
+    }
+
+    #[test]
+    fn find_by_path_suffix_shorter_suffix_matches() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        let file_id = add_file(&mut fm, &dir.join("foo/bar/main.nr"));
+
+        assert_eq!(fm.find_by_path_suffix("main.nr"), Ok(Some(file_id)));
+        assert_eq!(fm.find_by_path_suffix("bar/main.nr"), Ok(Some(file_id)));
+    }
+
+    #[test]
+    fn find_by_path_suffix_longer_than_path_no_match() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        add_file(&mut fm, &dir.join("main.nr"));
+
+        assert_eq!(fm.find_by_path_suffix("a/b/c/main.nr"), Ok(None));
+    }
+
+    #[test]
+    fn find_by_path_suffix_no_match() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        add_file(&mut fm, &dir.join("main.nr"));
+
+        assert_eq!(fm.find_by_path_suffix("nope.nr"), Ok(None));
+    }
+
+    #[test]
+    fn find_by_path_suffix_multiple_matches() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        add_file(&mut fm, &dir.join("a/main.nr"));
+        add_file(&mut fm, &dir.join("b/main.nr"));
+
+        let result = fm.find_by_path_suffix("main.nr");
+        let mut matches = result.expect_err("expected multiple matches");
+        matches.sort();
+        assert_eq!(matches, vec![PathBuf::from("a/main.nr"), PathBuf::from("b/main.nr")]);
+    }
+
+    #[test]
+    fn find_by_path_suffix_full_path_match() {
+        let dir = PathBuf::new();
+        let mut fm = FileManager::new(&dir);
+        let file_id = add_file(&mut fm, &dir.join("foo.nr"));
+
+        assert_eq!(fm.find_by_path_suffix("foo.nr"), Ok(Some(file_id)));
     }
 }
