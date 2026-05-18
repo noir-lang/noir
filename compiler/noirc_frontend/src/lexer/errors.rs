@@ -40,8 +40,6 @@ pub enum LexerErrorKind {
     InvalidEscape { escaped: char, location: Location },
     #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
     InvalidQuoteDelimiter { delimiter: LocatedToken },
-    #[error("Non-ASCII characters are invalid in comments")]
-    NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
     #[error("Unicode character '{}' looks like space, but is it not", char)]
@@ -81,7 +79,6 @@ impl LexerErrorKind {
             | LexerErrorKind::InvalidFormatString { location, .. }
             | LexerErrorKind::EmptyFormatStringInterpolation { location, .. }
             | LexerErrorKind::InvalidEscape { location, .. }
-            | LexerErrorKind::NonAsciiComment { location, .. }
             | LexerErrorKind::MalformedMustUseAttribute { location }
             | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
                 *location
@@ -177,9 +174,6 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
                 (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
             },
-            LexerErrorKind::NonAsciiComment { location } => {
-                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
-            }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
             }

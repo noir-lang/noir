@@ -182,18 +182,7 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
-            // cSpell:disable
-            Some(ch)
-                if ch.is_whitespace()
-                    // These aren't unicode whitespace but look like '' so they are also misleading
-                    || ch == '\u{180E}'
-                    || ch == '\u{200B}'
-                    || ch == '\u{200C}'
-                    || ch == '\u{200D}'
-                    || ch == '\u{2060}'
-                    || ch == '\u{FEFF}' =>
-            {
-                // cSpell:enable
+            Some(ch) if Self::is_misleading_whitespace(ch) => {
                 let span = Span::from(self.position..self.position + 1);
                 let location = Location::new(span, self.file_id);
                 self.next_char();
@@ -842,11 +831,20 @@ impl<'a> Lexer<'a> {
             }
             _ => None,
         };
-        let comment = self.eat_while(None, |ch| ch != '\n');
 
-        if !comment.is_ascii() {
-            let span = Span::from(start..self.position);
-            return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
+        let mut comment = String::new();
+        while let Some(ch) = self.peek_char() {
+            if ch == '\n' {
+                break;
+            }
+            self.next_char();
+            if Self::is_misleading_whitespace(ch) {
+                return Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot {
+                    char: ch,
+                    location: self.location(Span::single_char(self.position)),
+                });
+            }
+            comment.push(ch);
         }
 
         Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
@@ -885,15 +883,16 @@ impl<'a> Lexer<'a> {
                         break;
                     }
                 }
+                ch if Self::is_misleading_whitespace(ch) => {
+                    return Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot {
+                        char: ch,
+                        location: self.location(Span::single_char(self.position)),
+                    });
+                }
                 ch => content.push(ch),
             }
         }
         if depth == 0 {
-            if !content.is_ascii() {
-                let span = Span::from(start..self.position);
-                return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
-            }
-
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
@@ -904,6 +903,23 @@ impl<'a> Lexer<'a> {
     fn is_code_whitespace(c: char) -> bool {
         c == '\t' || c == '\n' || c == '\r' || c == ' '
     }
+
+    // cSpell:disable
+    /// Returns true for Unicode characters that visually resemble an ASCII space
+    /// but are not `is_code_whitespace`. Rejecting these keeps the lexer's
+    /// whitespace rules ASCII-only and prevents look-alike characters from
+    /// sneaking into source — including inside comments, where they are
+    /// invisible but could still mislead a reader.
+    fn is_misleading_whitespace(ch: char) -> bool {
+        (ch.is_whitespace() && !Self::is_code_whitespace(ch))
+            || ch == '\u{180E}'
+            || ch == '\u{200B}'
+            || ch == '\u{200C}'
+            || ch == '\u{200D}'
+            || ch == '\u{2060}'
+            || ch == '\u{FEFF}'
+    }
+    // cSpell:enable
 
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self, initial_char: char) -> SpannedToken {
@@ -1559,10 +1575,12 @@ mod tests {
 
                             Err(LexerErrorKind::InvalidIntegerLiteral { .. })
                             | Err(LexerErrorKind::UnexpectedCharacter { .. })
-                            | Err(LexerErrorKind::NonAsciiComment { .. })
                             | Err(LexerErrorKind::UnterminatedBlockComment { .. })
                             | Err(LexerErrorKind::UnterminatedStringLiteral { .. })
-                            | Err(LexerErrorKind::InvalidFormatString { .. }) => {
+                            | Err(LexerErrorKind::InvalidFormatString { .. })
+                            | Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot {
+                                ..
+                            }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
@@ -1627,17 +1645,104 @@ mod tests {
     }
 
     #[test]
-    fn test_non_ascii_comments() {
+    fn test_utf8_in_line_comments() {
         // cSpell:disable-next-line
-        let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
+        let cases = vec![
+            ("// 🙂", Token::LineComment(" 🙂".to_string(), None)),
+            // cSpell:disable-next-line
+            ("// schön", Token::LineComment(" schön".to_string(), None)),
+            (
+                "/// 日本語 doc",
+                Token::LineComment(" 日本語 doc".to_string(), Some(DocStyle::Outer)),
+            ),
+            (
+                "//! 日本語 inner doc",
+                Token::LineComment(" 日本語 inner doc".to_string(), Some(DocStyle::Inner)),
+            ),
+        ];
 
-        for source in cases {
-            let mut lexer = Lexer::new_with_dummy_file(source);
-            assert!(
-                lexer.any(|token| matches!(token, Err(LexerErrorKind::NonAsciiComment { .. }))),
-                "Expected NonAsciiComment error"
-            );
+        for (source, expected_token) in cases {
+            let mut lexer = Lexer::new_with_dummy_file(source).skip_comments(false);
+            let token = lexer.next_token().expect("UTF-8 in a comment should lex").into_token();
+            assert_eq!(token, expected_token);
         }
+    }
+
+    #[test]
+    fn test_utf8_in_block_comments() {
+        // cSpell:disable-next-line
+        let cases = vec![
+            ("/* 🙂 */", Token::BlockComment(" 🙂 ".to_string(), None)),
+            // cSpell:disable-next-line
+            (
+                "/* in the middle 🙂 of a comment */",
+                Token::BlockComment(" in the middle 🙂 of a comment ".to_string(), None),
+            ),
+            (
+                "/** outer 日本語 */",
+                Token::BlockComment(" outer 日本語 ".to_string(), Some(DocStyle::Outer)),
+            ),
+            (
+                "/*! inner 日本語 */",
+                Token::BlockComment(" inner 日本語 ".to_string(), Some(DocStyle::Inner)),
+            ),
+        ];
+
+        for (source, expected_token) in cases {
+            let mut lexer = Lexer::new_with_dummy_file(source).skip_comments(false);
+            let token =
+                lexer.next_token().expect("UTF-8 in a block comment should lex").into_token();
+            assert_eq!(token, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_utf8_in_comment_does_not_break_following_tokens() {
+        // The comment contains a multi-byte character; the following `let` keyword
+        // must still be recognized at the right span boundary.
+        // cSpell:disable-next-line
+        let input = "// schön\nlet x = 5;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        let expected = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Ident("x".to_string()),
+            Token::Assign,
+            Token::Int(5_i128.into(), None),
+            Token::Semicolon,
+        ];
+
+        for expected_token in expected {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_utf8_in_identifier_is_invalid_token() {
+        // A non-ASCII letter is not part of an identifier — the lexer emits a
+        // `Token::Invalid` for it (which the parser later turns into an error).
+        // cSpell:disable-next-line
+        let input = "let schön = 5;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+
+        // `let`
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
+        // `sch` is consumed as an identifier (only the ASCII prefix matches)
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Ident("sch".to_string()));
+        // The next char is `ö` — it can't start any token, so it's `Invalid`.
+        match lexer.next_token().unwrap().into_token() {
+            Token::Invalid(ch) => assert_eq!(ch, 'ö'),
+            other => panic!("Expected Token::Invalid('ö'), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_utf8_in_string_literal_is_allowed() {
+        let input = "\"héllo 🙂\"";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        let token = lexer.next_token().unwrap().into_token();
+        assert_eq!(token, Token::Str("héllo 🙂".to_string()));
     }
 
     #[test]
@@ -1648,6 +1753,32 @@ mod tests {
             lexer.next_token(),
             Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
         ));
+    }
+
+    #[test]
+    fn errors_on_misleading_whitespace_in_line_comment() {
+        // U+00A0 NO-BREAK SPACE looks like an ASCII space but isn't one.
+        let input = "// hello\u{00A0}world";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, .. }) => {
+                assert_eq!(char, '\u{00A0}');
+            }
+            other => panic!("Expected UnicodeCharacterLooksLikeSpaceButIsItNot, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn errors_on_misleading_whitespace_in_block_comment() {
+        // U+00A0 NO-BREAK SPACE inside a block comment.
+        let input = "/* hello\u{00A0}world */";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, .. }) => {
+                assert_eq!(char, '\u{00A0}');
+            }
+            other => panic!("Expected UnicodeCharacterLooksLikeSpaceButIsItNot, got {other:?}"),
+        }
     }
 
     #[test]
