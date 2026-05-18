@@ -698,6 +698,57 @@ mod tests {
         );
     }
 
+    /// Diamond-with-back-edges CFG: two predecessors of the array_set's
+    /// block (`b3`) each kill a *different* alias-set member (`b1` kills
+    /// `v3`, `b2` kills `v4`). The forward walk re-enters `b3` via
+    /// `b3 → b4 → b1 → b3` with use-set `{v4, v0, v1}` and via
+    /// `b3 → b4 → b2 → b3` with `{v3, v0, v1}` — neither a subset of the
+    /// other. The bookkeeping must record the **union** of explored
+    /// use-sets at `b3` so the cycle terminates.
+    ///
+    /// No aliased read exists; the walk should return `false`. A bug in the
+    /// merge logic would surface either as non-termination or as a false
+    /// positive on the array_set's own source `v5` (re-killed on each cycle
+    /// entry).
+    #[test]
+    fn reachable_use_walk_merges_use_sets_across_paths() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: [u32; 2], v2: u1):
+                jmpif v2 then: b1(v0), else: b2(v1)
+              b1(v3: [u32; 2]):
+                jmp b3(v3)
+              b2(v4: [u32; 2]):
+                jmp b3(v4)
+              b3(v5: [u32; 2]):
+                v8 = array_set v5, index u32 0, value u32 99
+                jmpif v2 then: b4(), else: b5()
+              b4():
+                jmpif v2 then: b1(v5), else: b2(v5)
+              b5():
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let array_params_by_block = super::collect_array_params_by_block(function);
+        let (block, idx, _source, alias_set, inst_id) =
+            find_array_set_with_id(function, &cfg).expect("array_set present");
+
+        let has_use = super::has_reachable_aliased_use(
+            function,
+            &array_params_by_block,
+            &alias_set,
+            inst_id,
+            block,
+            idx,
+        );
+        assert!(
+            !has_use,
+            "no aliased read exists; the walk must terminate and return false despite re-entering b3 with non-overlapping use-sets"
+        );
+    }
+
     fn find_array_set_with_id(
         function: &Function,
         cfg: &super::ControlFlowGraph,
