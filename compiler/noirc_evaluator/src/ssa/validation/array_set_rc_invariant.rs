@@ -366,17 +366,24 @@ fn collect_value_aliases(function: &Function) -> HashMap<ValueId, im::HashSet<Va
         }
     }
 
+    // Materialize the keys so the subsequent `find` calls can apply path
+    // compression (`find` is `&mut self`; iterating `uf.keys()` borrows
+    // `&self`, so the two cannot interleave directly).
+    let keys: Vec<ValueId> = uf.keys().collect();
+
     // Group every value in the union-find by its class representative.
     let mut class_of_rep: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for v in uf.keys() {
-        let rep = uf.find_immutable(v).expect("v is a key in the union-find");
+    for &v in &keys {
+        let rep = uf.find(v);
         class_of_rep.entry(rep).or_default().insert(v);
     }
 
     // Map each value directly to its class for O(1) per-array_set lookups.
+    // The trees were just flattened by the loop above, so this pass's
+    // `find` calls are amortized O(1).
     let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for v in uf.keys() {
-        let rep = uf.find_immutable(v).expect("v is a key in the union-find");
+    for v in keys {
+        let rep = uf.find(v);
         if let Some(class) = class_of_rep.get(&rep) {
             result.insert(v, class.clone());
         }
