@@ -41,6 +41,8 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use std::cmp::Ordering;
 
+use acvm::FieldElement;
+
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
@@ -84,7 +86,9 @@ impl Function {
 
         for block_id in self.reachable_blocks() {
             for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
-                let Instruction::ArraySet { array, .. } = self.dfg[*instruction_id] else {
+                let Instruction::ArraySet { array, index: write_index, .. } =
+                    self.dfg[*instruction_id]
+                else {
                     continue;
                 };
 
@@ -99,13 +103,23 @@ impl Function {
                     continue;
                 }
 
+                // The array_set's index, if constant — lets the walk skip
+                // `array_get`s on disjoint constant indices (the
+                // pedersen-style pattern). A dynamic write index means we
+                // must conservatively flag every aliased read.
+                let write_index_const = self.dfg.get_numeric_constant(write_index);
+
                 // Expensive: forward CFG walk looking for an aliased read.
                 // A hit means the `array_set` may mutate storage in place
                 // (RC=1) and a downstream instruction will observe the
                 // pre-mutation contents through an aliased name.
-                if let Some(hit) =
-                    ctx.find_reachable_aliased_use(&alias_set, *instruction_id, block_id, idx)
-                {
+                if let Some(hit) = ctx.find_reachable_aliased_use(
+                    &alias_set,
+                    *instruction_id,
+                    block_id,
+                    idx,
+                    write_index_const,
+                ) {
                     let call_stack = self.dfg.get_instruction_call_stack(*instruction_id);
                     let aliased_use_call_stack =
                         self.dfg.get_instruction_call_stack(hit.instruction);
@@ -334,6 +348,17 @@ impl<'f> Context<'f> {
     /// re-enters its block — it is, by construction, a use of its own
     /// source, not a hazard.
     ///
+    /// **Index-aware filtering.** `write_index_const` is the `array_set`'s
+    /// index when it is a constant. When both the write and a candidate
+    /// `array_get` on the aliased operand have constant indices that
+    /// differ, the access is at a disjoint position from the in-place
+    /// mutation — runtime contents at the read index are unaffected by
+    /// the write — so we skip the candidate. Conservative whenever
+    /// either side is dynamic, and applied only to `array_get` (other
+    /// instruction kinds that use an alias-set operand are always
+    /// flagged, since the SSA-vs-runtime divergence isn't index-local
+    /// for them).
+    ///
     /// **Cycle detection.** Re-visiting a block with a use-set that is a
     /// subset of what we already explored at that block adds no new
     /// information. We record the *union* of use-sets seen per block and
@@ -344,6 +369,7 @@ impl<'f> Context<'f> {
         array_set_id: InstructionId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
+        write_index_const: Option<FieldElement>,
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, im::HashSet<ValueId>> = HashMap::default();
 
@@ -385,9 +411,22 @@ impl<'f> Context<'f> {
                     if inst_id == array_set_id {
                         continue;
                     }
-                    if use_set.contains(&operand) {
-                        return Some(AliasedUse { instruction: inst_id, value: operand });
+                    if !use_set.contains(&operand) {
+                        continue;
                     }
+                    // Index-disjoint filter: if both the array_set and a
+                    // candidate `array_get` use constant indices that
+                    // don't match, the read is at a position the write
+                    // didn't touch — skip.
+                    if let Some(write_idx) = write_index_const
+                        && let Instruction::ArrayGet { index: read_idx, .. } =
+                            self.function.dfg[inst_id]
+                        && let Some(read_idx) = self.function.dfg.get_numeric_constant(read_idx)
+                        && write_idx != read_idx
+                    {
+                        continue;
+                    }
+                    return Some(AliasedUse { instruction: inst_id, value: operand });
                 }
             }
 
@@ -413,6 +452,7 @@ impl<'f> Context<'f> {
                 | TerminatorInstruction::Unreachable { .. } => (),
             }
         }
+
         None
     }
 
@@ -659,6 +699,110 @@ mod tests {
         assert!(ssa.verify_array_set_rc_invariant().is_ok());
     }
 
+    /// Index-aware filter: a constant-index `array_set` followed by a
+    /// constant-index `array_get` on the same alias at a **different**
+    /// index is safe. In-place mutation at one position doesn't affect
+    /// reads at another, so the verifier should accept.
+    #[test]
+    fn end_to_end_array_set_array_get_disjoint_constant_indices_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_get v0, index u32 1 -> u32
+                return v5
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(
+            ssa.verify_array_set_rc_invariant().is_ok(),
+            "array_set at idx 0 + array_get at idx 1 access disjoint positions; not a hazard"
+        );
+    }
+
+    /// Counterpart to the disjoint case: matching constant indices mean
+    /// the read observes the in-place mutation, so the verifier must
+    /// reject.
+    #[test]
+    fn end_to_end_array_set_array_get_matching_constant_indices_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_get v0, index u32 0 -> u32
+                return v5
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}"
+        );
+    }
+
+    /// A **dynamic** write index could touch any position, so the filter
+    /// can't prove disjointness; the verifier must conservatively reject
+    /// any aliased read (even one at a known disjoint-looking constant
+    /// index).
+    #[test]
+    fn end_to_end_array_set_dynamic_index_with_array_get_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                v3 = array_set v0, index v1, value u32 99
+                v5 = array_get v0, index u32 1 -> u32
+                return v5
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}"
+        );
+    }
+
+    /// Symmetric to the previous case: write index is constant but the
+    /// read's index is dynamic. The runtime read could land on the
+    /// write's position, so the verifier conservatively rejects.
+    #[test]
+    fn end_to_end_array_set_constant_with_dynamic_array_get_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_get v0, index v1 -> u32
+                return v5
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}"
+        );
+    }
+
+    /// The index filter applies *only* to `array_get`. A non-`array_get`
+    /// use of the alias (here a second `array_set` on the same source
+    /// with a different constant index) is still flagged conservatively,
+    /// because the SSA-vs-runtime divergence isn't local to the read
+    /// index for those use kinds.
+    #[test]
+    fn end_to_end_array_set_followed_by_another_array_set_on_alias_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2]):
+                v3 = array_set v0, index u32 0, value u32 99
+                v5 = array_set v0, index u32 1, value u32 88
+                v7 = array_get v5, index u32 0 -> u32
+                return v7
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}"
+        );
+    }
+
     /// End-to-end regression for the pattern in stdlib's `compute_root`
     /// (`array_dynamic_blackbox_input`). The loop body has *two* chained
     /// `array_set`s — the back-edge threads the second one's result back
@@ -763,7 +907,7 @@ mod tests {
         let function = ssa.main();
         let ctx = Context::new(function);
 
-        let (_block, _idx, _inst_id, source, alias_set) =
+        let ArraySetSite { source, alias_set, .. } =
             last_array_set(function, &ctx).expect("array_set present");
 
         // Only the source itself — no walking into the upstream chain links
@@ -814,7 +958,7 @@ mod tests {
         let function = ssa.main();
         let ctx = Context::new(function);
 
-        let (_block, _idx, _inst_id, source, alias_set) =
+        let ArraySetSite { source, alias_set, .. } =
             last_array_set(function, &ctx).expect("array_set present");
 
         // Expect `{v2, v0}`: the source itself plus the function's array
@@ -876,8 +1020,8 @@ mod tests {
         let array_sets = find_array_sets(function, &ctx);
         assert_eq!(array_sets.len(), 5, "five array_set instructions expected");
 
-        for (block_id, idx, _inst_id, source, alias_set) in &array_sets {
-            let precedes = ctx.some_inc_rc_precedes(alias_set, *block_id, *idx);
+        for ArraySetSite { block, idx, source, alias_set, .. } in &array_sets {
+            let precedes = ctx.some_inc_rc_precedes(alias_set, *block, *idx);
             let (expected, label) = if *source == v0 {
                 (true, "v0: same-block earlier inc_rc")
             } else if *source == v1 {
@@ -927,10 +1071,12 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, _source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(
             !has_use,
             "well-formed loop: array_get v2 is reached via cycle but v2 is rebound at b1; no aliased use should be found"
@@ -962,10 +1108,12 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, _source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(
             has_use,
             "malformed loop: array_get v0 reads the pre-header value, which aliases the array_set's source via b1's pre-header jmp"
@@ -1005,10 +1153,12 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, _source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(
             !has_use,
             "no aliased read exists; the walk must terminate and return false despite re-entering b3 with non-overlapping use-sets"
@@ -1034,7 +1184,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, source, alias_set, write_index_const } =
             first_array_set(function, &ctx).expect("array_set present");
 
         // alias_set should include v0 (function param), v1 (= source), and
@@ -1046,7 +1196,9 @@ mod tests {
         assert!(alias_set.contains(&v2_param), "alias-set must include the sibling param v2");
 
         // The forward walk catches `array_get v2` as an aliased read.
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(has_use, "array_get v2 reads a sibling alias of the array_set's source v1");
     }
 
@@ -1077,10 +1229,12 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, _source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(
             has_use,
             "array_get v7 in b3 reads a value (v7 ← v2) that still aliases the array_set's source"
@@ -1110,28 +1264,47 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let function = ssa.main();
         let ctx = Context::new(function);
-        let (block, idx, inst_id, _source, alias_set) =
+        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
             first_array_set(function, &ctx).expect("array_set present");
 
-        let has_use = ctx.find_reachable_aliased_use(&alias_set, inst_id, block, idx).is_some();
+        let has_use = ctx
+            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
+            .is_some();
         assert!(
             !has_use,
             "b2's v5 is rebound to v4 (the array_set's result, excluded from alias-set), so it is killed and array_get v5 is not aliased"
         );
     }
 
-    /// `(block, idx-within-block, instruction-id, source-operand, alias-set)`
-    /// for each `array_set` instruction in `function`, in source order.
-    type ArraySetSite =
-        (super::BasicBlockId, usize, super::InstructionId, ValueId, im::HashSet<ValueId>);
+    /// A located `array_set` plus everything the per-array_set verifier
+    /// checks would need. Returned by [`find_array_sets`] / [`first_array_set`]
+    /// / [`last_array_set`] so each test reads one struct rather than a
+    /// six-element tuple.
+    struct ArraySetSite {
+        block: super::BasicBlockId,
+        idx: usize,
+        instruction_id: super::InstructionId,
+        source: ValueId,
+        alias_set: im::HashSet<ValueId>,
+        /// The `array_set`'s index when it is a numeric constant. `None`
+        /// indicates a dynamic index, in which case the verifier
+        /// conservatively flags every aliased use.
+        write_index_const: Option<super::FieldElement>,
+    }
 
     fn find_array_sets(function: &Function, ctx: &Context<'_>) -> Vec<ArraySetSite> {
         let mut out = Vec::new();
         for block_id in function.reachable_blocks() {
             for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
-                if let Instruction::ArraySet { array, .. } = function.dfg[*instruction_id] {
-                    let alias_set = ctx.alias_set_for(array);
-                    out.push((block_id, idx, *instruction_id, array, alias_set));
+                if let Instruction::ArraySet { array, index, .. } = function.dfg[*instruction_id] {
+                    out.push(ArraySetSite {
+                        block: block_id,
+                        idx,
+                        instruction_id: *instruction_id,
+                        source: array,
+                        alias_set: ctx.alias_set_for(array),
+                        write_index_const: function.dfg.get_numeric_constant(index),
+                    });
                 }
             }
         }
