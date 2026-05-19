@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[brillig_block_mutable_reference_regression] Circuit output: [1, 2, 3]
