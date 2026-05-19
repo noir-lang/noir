@@ -321,6 +321,21 @@ impl<'f> Context<'f> {
     ///    that block; the same-block case never gets that chance because
     ///    the walk starts mid-block past the array_set.
     ///
+    /// 3. **Inc_rc'd-global filter.** Drop globals that have any
+    ///    `inc_rc` somewhere in the function. Well-formed SSA contains
+    ///    no `DecrementRc`, so once an `inc_rc` on a global has fired
+    ///    at any runtime moment, the global's RC stays ≥ 2 for the
+    ///    remainder of the program — every later `array_set` on that
+    ///    global's storage is forced to allocate fresh. Globals are
+    ///    distinct top-level allocations (separate from caller storage
+    ///    and from other globals), so if the source's UF class contains
+    ///    such a global through pure block-parameter threading, the
+    ///    global cannot be the *mutated* storage the verifier needs to
+    ///    flag aliased reads of. The source-itself rule keeps a global
+    ///    in the alias set when it *is* the array_set's direct operand,
+    ///    so a hazardous `array_set g; … array_get g` with no preceding
+    ///    `inc_rc` is still caught by the precedence check.
+    ///
     /// The source itself is kept even when it happens to be filtered by
     /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
     /// `v_a` is *this* check's source, so its forward uses are exactly
@@ -347,6 +362,9 @@ impl<'f> Context<'f> {
                     && def_block == array_set_block
                     && def_idx > array_set_idx
                 {
+                    return false;
+                }
+                if self.function.dfg.is_global(v) && self.inc_rc_locations.contains_key(&v) {
                     return false;
                 }
                 true
@@ -910,6 +928,52 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: a
+    /// loop body that mutates the loop-variable (an `array_set` whose
+    /// source is the loop-header parameter) and then re-seeds the
+    /// loop variable with a global on the back-edge — the user-source
+    /// equivalent of `for _ { a[i] = …; a = G_A }`. The UF unifies the
+    /// loop param with the function arg (forward edge into the
+    /// header) AND with the global (back-edge into the header), so a
+    /// post-loop `array_get` on the loop param appears as an aliased
+    /// read of the function arg's storage. At runtime the loop param
+    /// at the loop exit is always the global (last back-edge binding),
+    /// and the global has been `inc_rc`'d, so its `RC ≥ 2` from iter
+    /// 1+ and the array_set never mutates it; iter 0's mutation hits
+    /// the function arg's caller-side storage, which is no longer
+    /// referenced after iter 0's back-edge re-bind. The inc_rc'd-global
+    /// filter drops the global from the alias-set, the per-arg kill on
+    /// the back-edge then drops the loop param, and the walk
+    /// terminates without flagging.
+    #[test]
+    fn end_to_end_loop_reseeded_with_inc_rcd_global_is_accepted() {
+        let src = r#"
+            g0 = u32 10
+            g1 = u32 20
+            g2 = u32 30
+            g3 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
+
+            brillig(inline) fn main f0 {
+              b0(v4: [u32; 3]):
+                jmp b1(u32 0, v4)
+              b1(v8: u32, v19: [u32; 3]):
+                v9 = lt v8, u32 3
+                jmpif v9 then: b2(), else: b3()
+              b2():
+                v14 = array_set v19, index u32 1, value u32 40
+                inc_rc g3
+                v16 = unchecked_add v8, u32 1
+                jmp b1(v16, g3)
+              b3():
+                v18 = array_get v19, index u32 1 -> u32
+                return v18
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge re-seeds the loop variable with an inc_rc'd global, so the post-loop read sees the global's pristine storage — not the function arg's caller-side storage that iter 0's array_set may have mutated",
+        );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered pattern: two
