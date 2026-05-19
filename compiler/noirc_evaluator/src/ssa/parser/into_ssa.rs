@@ -1,4 +1,3 @@
-use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
@@ -223,12 +222,7 @@ impl Translator {
         for parsed_call_data in parsed_data_bus.call_data {
             let call_data_id = parsed_call_data.call_data_id;
             let array_id = self.translate_value(parsed_call_data.array)?;
-            let mut index_map = FxHashMap::default();
-            for (value, index) in parsed_call_data.index_map {
-                let value_id = self.translate_value(value)?;
-                index_map.insert(value_id, index);
-            }
-            let call_data = CallData { call_data_id, array_id, index_map };
+            let call_data = CallData { call_data_id, array_id };
             call_data_vec.push(call_data);
         }
 

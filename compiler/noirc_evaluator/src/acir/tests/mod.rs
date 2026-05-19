@@ -403,7 +403,7 @@ fn databus_deduplicate_call_and_return_data() {
     // call_data and return_data are the same
     let src = "
     acir(inline) pure fn main f0 {
-    call_data(0): array: v1, indices: []
+    call_data(0): array: v1
     return_data: v1
     b0(v0: Field):
         v1 = make_array [v0] : [Field; 1]

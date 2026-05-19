@@ -16,7 +16,6 @@ use acvm::{
 };
 use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
-use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -32,21 +31,13 @@ pub(crate) enum DatabusVisibility {
 #[derive(Clone, Debug)]
 pub(crate) struct DataBusBuilder {
     pub(crate) values: im::Vector<ValueId>,
-    index: usize,
-    pub(crate) map: HashMap<ValueId, usize>,
     pub(crate) databus: Option<ValueId>,
     call_data_id: Option<u32>,
 }
 
 impl DataBusBuilder {
     pub(crate) fn new() -> DataBusBuilder {
-        DataBusBuilder {
-            index: 0,
-            map: HashMap::default(),
-            databus: None,
-            values: im::Vector::new(),
-            call_data_id: None,
-        }
+        DataBusBuilder { databus: None, values: im::Vector::new(), call_data_id: None }
     }
 
     /// Generates a vector telling which flattened parameters from the given function signature
@@ -71,19 +62,8 @@ impl DataBusBuilder {
 pub(crate) struct CallData {
     /// The id to this calldata assigned by the user
     pub(crate) call_data_id: u32,
-    /// The array to read from, when reading from a value in `index_map`
+    /// The aggregated call_data array
     pub(crate) array_id: ValueId,
-    /// When reading from a value in `index_map`, read it instead fom `array_id` at the offset
-    /// given by the value in the map.
-    ///
-    /// For example, if the call data is:
-    ///
-    /// ```ssa
-    /// call_data(0): array: v16, indexes: [v2: 1]
-    /// ```
-    ///
-    /// then when reading from `v2`, read from `v16` but with an offset of 1.
-    pub(crate) index_map: HashMap<ValueId, usize>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -98,17 +78,7 @@ impl DataBus {
         let call_data = self
             .call_data
             .iter()
-            .map(|cd| {
-                let mut call_data_map = HashMap::default();
-                for (k, v) in &cd.index_map {
-                    call_data_map.insert(f(*k), *v);
-                }
-                CallData {
-                    array_id: f(cd.array_id),
-                    index_map: call_data_map,
-                    call_data_id: cd.call_data_id,
-                }
-            })
+            .map(|cd| CallData { array_id: f(cd.array_id), call_data_id: cd.call_data_id })
             .collect();
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
@@ -123,9 +93,6 @@ impl DataBus {
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         for cd in &mut self.call_data {
             cd.array_id = f(cd.array_id);
-
-            // Can't mutate a hashmap's keys so we need to collect into a new one.
-            cd.index_map = cd.index_map.iter().map(|(k, v)| (f(*k), *v)).collect();
         }
 
         if let Some(data) = self.return_data.as_mut() {
@@ -147,7 +114,7 @@ impl DataBus {
             let Some(array_id) = call_data_item.databus else { continue };
             let call_data_id =
                 call_data_item.call_data_id.expect("Call data should have a user id");
-            call_data_args.push(CallData { array_id, call_data_id, index_map: call_data_item.map });
+            call_data_args.push(CallData { array_id, call_data_id });
         }
 
         DataBus { call_data: call_data_args, return_data: return_data.databus }
@@ -167,11 +134,8 @@ impl FunctionBuilder {
                     self.insert_cast(value, NumericType::NativeField)
                 };
                 databus.values.push_back(value);
-                databus.index += 1;
             }
             Type::Array(typ, len) => {
-                databus.map.insert(value, databus.index);
-
                 let mut index = 0;
                 for _i in 0..len.0 {
                     for subitem_typ in typ.iter() {
@@ -226,13 +190,7 @@ impl FunctionBuilder {
             self.insert_make_array(databus.values, array_type)
         });
 
-        DataBusBuilder {
-            index: 0,
-            map: databus.map,
-            databus: array,
-            values: im::Vector::new(),
-            call_data_id,
-        }
+        DataBusBuilder { databus: array, values: im::Vector::new(), call_data_id }
     }
 
     /// Generate the data bus for call-data, based on the parameters of the entry block

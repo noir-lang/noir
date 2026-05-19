@@ -541,29 +541,6 @@ impl Context<'_> {
         }
     }
 
-    /// Returns the acir value at the provided databus offset
-    fn get_from_call_data(
-        &mut self,
-        offset: &mut AcirVar,
-        call_data_block: BlockId,
-        typ: &Type,
-    ) -> Result<AcirValue, RuntimeError> {
-        match typ {
-            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
-            Type::Array(arc, len) => {
-                let mut result = im::Vector::new();
-                for _i in 0..len.0 {
-                    for sub_type in arc.iter() {
-                        let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
-                        result.push_back(element);
-                    }
-                }
-                Ok(AcirValue::Array(result))
-            }
-            _ => unimplemented!("Unsupported type in databus"),
-        }
-    }
-
     /// Generates a read opcode for the array.
     ///
     /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array.
@@ -571,67 +548,21 @@ impl Context<'_> {
         &mut self,
         instruction: InstructionId,
         array: ValueId,
-        var_index: AcirVar,
+        mut var_index: AcirVar,
         dfg: &DataFlowGraph,
         index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-        let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
+        debug_assert!(
+            !self.data_bus.call_data.iter().any(|cd| cd.array_id == array),
+            "ICE: cannot read call data arrays"
+        );
+        let value = self.array_get_value(&res_typ, block_id, &mut var_index)?;
         let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
         self.define_result(dfg, instruction, value);
         Ok(())
-    }
-
-    /// Loads a value either from call-data bus or from memory.
-    fn load_array_value(
-        &mut self,
-        array: ValueId,
-        block_id: BlockId,
-        mut var_index: AcirVar,
-        res_typ: &Type,
-        dfg: &DataFlowGraph,
-    ) -> Result<AcirValue, RuntimeError> {
-        // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        let call_data_info = self
-            .data_bus
-            .call_data
-            .iter()
-            .find_map(|cd| cd.index_map.get(&array).map(|idx| (cd.array_id, *idx)));
-        if let Some((array_id, bus_index)) = call_data_info {
-            // Get the length of the array we want to read:
-            let array_typ = dfg.type_of_value(array);
-            let flattened_len = array_typ.flattened_size();
-            // Get the total call_data array length
-            let call_data_typ = dfg.type_of_value(array_id);
-            let call_data_len = call_data_typ.flattened_size();
-            let is_last_in_call_data =
-                bus_index + flattened_len.0 as usize == call_data_len.0 as usize;
-
-            // Check index for out of bounds in the call_data because
-            // the databus aggregates them into the call_data array.
-            // This is not needed when we access the last element, because
-            // we can benefit from the out-of-bound on call data.
-            if !is_last_in_call_data {
-                let length_var =
-                    self.acir_context.add_constant(FieldElement::from(i128::from(flattened_len.0)));
-                // Compute out-of-bounds value:
-                let in_bound = self.acir_context.less_than_var(var_index, length_var, 32)?;
-                // Add the out-of-bounds check:
-                let assert_message = "Index out of bounds".to_string();
-                let one = self.acir_context.add_constant(FieldElement::one());
-                let message = self.acir_context.generate_assertion_message_payload(assert_message);
-                self.acir_context.assert_eq_var(in_bound, one, Some(message))?;
-            }
-
-            let call_data_block = self.ensure_array_is_initialized(array_id, dfg)?;
-            let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
-            let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            self.get_from_call_data(&mut current_index, call_data_block, res_typ)
-        } else {
-            self.array_get_value(res_typ, block_id, &mut var_index)
-        }
     }
 
     /// Applies predication logic on the result in case the read under a false predicate

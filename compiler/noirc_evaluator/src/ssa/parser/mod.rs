@@ -312,41 +312,12 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::RightParen)?;
         self.eat_or_error(Token::Colon)?;
 
-        // array: value,
+        // array: value
         self.eat_keyword_or_error(Keyword::Array)?;
         self.eat_or_error(Token::Colon)?;
         let array = self.parse_value_or_error()?;
-        self.eat_or_error(Token::Comma)?;
 
-        let mut index_map = Vec::new();
-
-        // indexes: [value: id, ...]
-        self.eat_keyword_or_error(Keyword::Indices)?;
-        self.eat_or_error(Token::Colon)?;
-        self.eat_or_error(Token::LeftBracket)?;
-
-        if !self.eat(Token::RightBracket)? {
-            loop {
-                let value = self.parse_value_or_error()?;
-                self.eat_or_error(Token::Colon)?;
-                let index_span = self.token.span();
-                let index = self.eat_int_or_error()?;
-                let Some(index) = index.try_into_u128().and_then(|x| usize::try_from(x).ok())
-                else {
-                    return Err(ParserError::ExpectedUSize { found: index, span: index_span });
-                };
-                index_map.push((value, index));
-
-                if self.eat(Token::Comma)? {
-                    continue;
-                }
-
-                self.eat_or_error(Token::RightBracket)?;
-                break;
-            }
-        }
-
-        Ok(Some(ParsedCallData { call_data_id, array, index_map }))
+        Ok(Some(ParsedCallData { call_data_id, array }))
     }
 
     fn parse_return_data(&mut self) -> ParseResult<Option<ParsedValue>> {
@@ -1312,8 +1283,6 @@ pub(crate) enum ParserError {
     ExpectedGlobalValue { found: Token, span: Span },
     #[error("Expected a u32, found '{found}'")]
     ExpectedU32 { found: FieldElement, span: Span },
-    #[error("Expected a usize, found '{found}'")]
-    ExpectedUSize { found: FieldElement, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
     #[error("Unexpected integer value for array_get offset")]
@@ -1338,7 +1307,6 @@ impl ParserError {
             | ParserError::ExpectedValue { span, .. }
             | ParserError::ExpectedGlobalValue { span, .. }
             | ParserError::ExpectedU32 { span, .. }
-            | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
             | ParserError::InvalidInteger { span, .. } => *span,
 

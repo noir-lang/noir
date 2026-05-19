@@ -104,19 +104,12 @@ fn display_function(
 
 fn display_databus(data_bus: &DataBus, dfg: &DataFlowGraph, f: &mut Formatter) -> Result {
     for call_data in &data_bus.call_data {
-        write!(
+        writeln!(
             f,
-            "  call_data({}): array: {}, indices: [",
+            "  call_data({}): array: {}",
             call_data.call_data_id,
             value(dfg, call_data.array_id),
         )?;
-        for (i, (value_id, index)) in call_data.index_map.iter().enumerate() {
-            if i != 0 {
-                write!(f, ", ")?;
-            }
-            write!(f, "{}: {}", value(dfg, *value_id), index)?;
-        }
-        writeln!(f, "]")?;
     }
     if let Some(return_data) = data_bus.return_data {
         writeln!(f, "  return_data: {}", value(dfg, return_data))?;

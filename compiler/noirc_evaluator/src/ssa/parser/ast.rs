@@ -56,7 +56,6 @@ pub(crate) struct ParsedDataBus {
 pub(crate) struct ParsedCallData {
     pub(crate) call_data_id: u32,
     pub(crate) array: ParsedValue,
-    pub(crate) index_map: Vec<(ParsedValue, usize)>,
 }
 
 #[derive(Debug)]

@@ -724,7 +724,7 @@ fn acir_function_with_databus_array_input() {
 
     assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
-      call_data(0): array: v7, indices: [v0: 0]
+      call_data(0): array: v7
       b0(v0: [Field; 3]):
         v2 = array_get v0, index u32 0 -> Field
         v4 = array_get v0, index u32 1 -> Field
