@@ -79,7 +79,7 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext.into_iter())
+                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext)
                         {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
@@ -301,9 +301,7 @@ pub fn validate_witness<F: AcirField>(
                             *it = lane.unwrap();
                         }
                         let output_state = keccakf1600(state)?;
-                        for (output_witness, value) in
-                            outputs.iter().zip_eq(output_state.into_iter())
-                        {
+                        for (output_witness, value) in outputs.iter().zip_eq(output_state) {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             if witness_value != F::from(u128::from(value)) {
                                 return Err(unsatisfied_constraint(
@@ -323,7 +321,7 @@ pub fn validate_witness<F: AcirField>(
                             &witness_map,
                             inputs,
                         )?;
-                        for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
@@ -344,7 +342,7 @@ pub fn validate_witness<F: AcirField>(
                             hash_values,
                         )?;
 
-                        for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
+                        for (output_witness, value) in outputs.iter().zip_eq(state) {
                             let witness_value = witness_map
                                 .get(output_witness)
                                 .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
