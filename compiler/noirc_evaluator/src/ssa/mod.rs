@@ -52,10 +52,19 @@ pub use artifact::{SsaCircuitArtifact, SsaProgramArtifact};
 use builder::time;
 pub use builder::{SsaBuilder, SsaPass};
 
-/// Environment variable that, when set, causes the SSA to be printed to stderr
-/// when a validation pass rejects it. See [`SsaPass::new_validate`] and
-/// [`SsaPass::and_then_validate`].
+/// Environment variable that, when set to a truthy value (`1`/`true`/`yes`),
+/// causes the SSA to be printed to stderr when a validation pass rejects it.
+/// See [`SsaPass::new_validate`] and [`SsaPass::and_then_validate`].
 pub const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
+/// Whether [`SHOW_INVALID_SSA_ENV_KEY`] is currently set to a truthy value.
+///
+/// `1`/`true`/`yes` count as on; `0`/`false`/`no` and anything else
+/// (including unset) count as off — so users can disable it explicitly
+/// with e.g. `NOIR_SHOW_INVALID_SSA=0` rather than having to `unset` it.
+pub fn should_show_invalid_ssa() -> bool {
+    matches!(std::env::var(SHOW_INVALID_SSA_ENV_KEY).as_deref(), Ok("1" | "true" | "yes"))
+}
 
 mod artifact;
 mod builder;

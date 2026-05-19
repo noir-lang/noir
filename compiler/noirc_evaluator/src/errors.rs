@@ -12,7 +12,7 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
 use thiserror::Error;
 
-use crate::ssa::{SHOW_INVALID_SSA_ENV_KEY, ir::types::NumericType};
+use crate::ssa::{SHOW_INVALID_SSA_ENV_KEY, ir::types::NumericType, should_show_invalid_ssa};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
 
@@ -194,7 +194,7 @@ impl RuntimeError {
                         &format!("SSA validation error: {message}"),
                         location.file
                     );
-                    if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_err()  {
+                    if !should_show_invalid_ssa() {
                         diagnostic.notes.push(format!("Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."));
                     }
                     diagnostic

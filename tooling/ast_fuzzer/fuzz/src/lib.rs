@@ -13,7 +13,7 @@ use noirc_frontend::monomorphization::ast::Program;
 pub mod targets;
 
 fn bool_from_env(key: &str) -> bool {
-    std::env::var(key).map(|s| s == "1" || s == "true").unwrap_or_default()
+    std::env::var(key).map(|s| matches!(s.as_str(), "1" | "true" | "yes")).unwrap_or_default()
 }
 
 /// Show all SSA passes during compilation.

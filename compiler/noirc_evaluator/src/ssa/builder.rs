@@ -9,7 +9,7 @@ use noirc_frontend::monomorphization::ast::Program;
 use crate::errors::{RtResult, RuntimeError};
 
 use super::ssa_gen::generate_ssa;
-use super::{SHOW_INVALID_SSA_ENV_KEY, Ssa, SsaLogging};
+use super::{SHOW_INVALID_SSA_ENV_KEY, Ssa, SsaLogging, should_show_invalid_ssa};
 
 type SsaPassResult = RtResult<Ssa>;
 
@@ -110,7 +110,7 @@ impl<'a> SsaPass<'a> {
     {
         let result = f(ssa);
         if result.is_err() {
-            if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+            if should_show_invalid_ssa() {
                 eprintln!("--- The SSA failed to validate:\n{ssa}\n");
             } else {
                 eprintln!(
