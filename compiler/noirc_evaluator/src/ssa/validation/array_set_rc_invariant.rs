@@ -93,7 +93,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
                 continue;
             };
 
-            let alias_set = ctx.alias_set_for(array);
+            let alias_set = ctx.alias_set_for(array, block_id, idx);
 
             // Cheap check first: if any `inc_rc` on an alias-set member
             // precedes this `array_set` in flow order, treat the aliasing
@@ -153,10 +153,12 @@ struct Context<'f> {
     /// full equivalence class. Values absent from this map have an implicit
     /// singleton class `{v}` — handled by [`Context::alias_set_for`].
     value_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
-    /// For each array-typed value defined by an instruction, the block where
-    /// the defining instruction lives. Used by the kill-on-re-entry rule
-    /// inside [`Context::succ_use_set`].
-    array_value_defs: HashMap<ValueId, BasicBlockId>,
+    /// For each array-typed value defined by an instruction, the
+    /// `(block, instruction-position-within-block)` of the defining
+    /// instruction. The block half is used by the kill-on-re-entry rule
+    /// inside [`Context::succ_use_set`]; the position half by the
+    /// post-array_set filter in [`Context::alias_set_for`].
+    array_value_defs: HashMap<ValueId, (BasicBlockId, usize)>,
     /// Every array-typed value that does **not** carry the pre-mutation
     /// aliasing of an `array_set`'s source forward through SSA. Filtered
     /// out of every alias-set (except when the value is the `array_set`'s
@@ -189,7 +191,7 @@ impl<'f> Context<'f> {
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
             HashMap::default();
-        let mut array_value_defs: HashMap<ValueId, BasicBlockId> = HashMap::default();
+        let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
 
@@ -209,7 +211,7 @@ impl<'f> Context<'f> {
                     matches!(instruction, Instruction::ArraySet { .. } | Instruction::Call { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
-                        array_value_defs.insert(result, block_id);
+                        array_value_defs.insert(result, (block_id, idx));
                         if is_non_aliasing {
                             non_aliasing_array_values.insert(result);
                         }
@@ -269,34 +271,73 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Look up `source`'s alias-equivalence class and filter out every
-    /// non-aliasing array value (`array_set` and `Call` results) *except*
-    /// the source itself.
+    /// Look up `source`'s alias-equivalence class and filter out values
+    /// that can't represent the pre-mutation storage of the `array_set`
+    /// at `(array_set_block, array_set_idx)`. The source itself is always
+    /// kept.
     ///
-    /// - **`array_set` result** represents a *post*-mutation value of its
-    ///   source. Uses of it (or of any name it gets re-bound to through
-    ///   block-parameter threading) are intentional reads of the mutated
-    ///   storage, not hazards. Keeping them in the alias-set would defeat
-    ///   the per-arg kill rule in [`Context::succ_use_set`]: a back-edge
-    ///   `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and
-    ///   refuse to kill the receiving param, letting the alias leak past
-    ///   the loop.
-    /// - **`Call` result** is typically a fresh array allocated by the
-    ///   callee, so it isn't a real alias of the array_set's source.
-    ///   This is a heuristic — a function that returns its input *would*
-    ///   create a real alias, and we'd miss that. In practice the
-    ///   frontend's array-returning functions allocate fresh storage.
+    /// Two filters apply:
     ///
-    /// The source itself is kept even when it happens to be one of these
-    /// (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`): `v_a`
-    /// is *this* check's source, so its forward uses are exactly what we
-    /// want to look for.
-    fn alias_set_for(&self, source: ValueId) -> im::HashSet<ValueId> {
+    /// 1. **Non-aliasing-result filter.** Drop values produced by an
+    ///    `array_set` or `Call`:
+    ///    - **`array_set` result** represents a *post*-mutation value of its
+    ///      source. Uses of it (or of any name it gets re-bound to through
+    ///      block-parameter threading) are intentional reads of the mutated
+    ///      storage, not hazards. Keeping them in the alias-set would defeat
+    ///      the per-arg kill rule in [`Context::succ_use_set`]: a back-edge
+    ///      `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and
+    ///      refuse to kill the receiving param, letting the alias leak past
+    ///      the loop.
+    ///    - **`Call` result** is typically a fresh array allocated by the
+    ///      callee, so it isn't a real alias of the array_set's source.
+    ///      This is a heuristic — a function that returns its input *would*
+    ///      create a real alias, and we'd miss that. In practice the
+    ///      frontend's array-returning functions allocate fresh storage.
+    ///
+    /// 2. **Post-array_set-in-same-block filter.** Drop values whose
+    ///    defining instruction is in `array_set_block` at an index
+    ///    *greater than* `array_set_idx`. Such a value hasn't been
+    ///    computed yet when the `array_set` executes, so it can't be the
+    ///    storage that the `array_set` might mutate in place — it's a
+    ///    fresh later-defined name that the union-find only unified
+    ///    with the source because some downstream block parameter
+    ///    receives it on a back-edge. The cross-block case (the value's
+    ///    defining block is *not* the array_set's block) is handled by
+    ///    the existing kill-on-def-block-entry rule in
+    ///    [`Context::succ_use_set`], which fires when the walk reaches
+    ///    that block; the same-block case never gets that chance because
+    ///    the walk starts mid-block past the array_set.
+    ///
+    /// The source itself is kept even when it happens to be filtered by
+    /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
+    /// `v_a` is *this* check's source, so its forward uses are exactly
+    /// what we want to look for. Rule (2) can never fire on the source
+    /// because the source's def must precede the array_set's use of it.
+    fn alias_set_for(
+        &self,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
         class
             .into_iter()
-            .filter(|&v| v == source || !self.non_aliasing_array_values.contains(&v))
+            .filter(|&v| {
+                if v == source {
+                    return true;
+                }
+                if self.non_aliasing_array_values.contains(&v) {
+                    return false;
+                }
+                if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
+                    && def_block == array_set_block
+                    && def_idx > array_set_idx
+                {
+                    return false;
+                }
+                true
+            })
             .collect()
     }
 
@@ -528,7 +569,7 @@ impl<'f> Context<'f> {
         // def-block is `dest` (re-execution on cycle re-entry produces a
         // fresh value).
         for &v in use_set {
-            if self.array_value_defs.get(&v) == Some(&dest) {
+            if self.array_value_defs.get(&v).map(|(b, _)| *b) == Some(dest) {
                 result.remove(&v);
             }
         }
@@ -864,6 +905,49 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "`inc_rc v1` after the array_set is a ref-count op, not a read of array contents",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered shape: a
+    /// `make_array` defined in the same block as (and *after*) the
+    /// `array_set`, whose result feeds a downstream block parameter that
+    /// is also the back-edge re-entry target for the loop containing
+    /// the `array_set`. Without the post-array_set filter, the
+    /// union-find merges the post-array_set `make_array` result into
+    /// the source's class, the per-arg kill at the back-edge keeps the
+    /// loop-header parameter alive (because the merged value is still in
+    /// the use-set at edge-crossing time), and the walk re-enters the
+    /// array_set's block and flags an instruction that precedes the
+    /// array_set in source order — even though at runtime the value the
+    /// parameter holds on re-entry is a fresh `make_array` allocation
+    /// from the previous iteration, not the mutated storage. The fix
+    /// drops the post-array_set `make_array` from the alias-set up front
+    /// so the per-arg kill correctly drops the parameter on the
+    /// back-edge.
+    #[test]
+    fn end_to_end_loop_back_edge_with_post_array_set_make_array_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 4]):
+                jmp b1(v0, u32 0)
+              b1(v1: [u32; 4], v2: u32):
+                jmpif u1 1 then: b3(), else: b2()
+              b2():
+                return
+              b3():
+                call f1(v1)
+                v6 = array_set v1, index u32 3, value u32 0
+                v7 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32; 4]
+                v9 = add v2, u32 1
+                jmp b1(v7, v9)
+            }
+            brillig(inline) fn observer f1 {
+              b0(v0: [u32; 4]):
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v7 (make_array) is defined after the array_set in the same block — it can't represent the mutated storage, and the loop-header param v1 is bound to v7 on the back-edge",
         );
     }
 
@@ -1408,7 +1492,7 @@ mod tests {
                         idx,
                         instruction_id: *instruction_id,
                         source: array,
-                        alias_set: ctx.alias_set_for(array),
+                        alias_set: ctx.alias_set_for(array, block_id, idx),
                         write_index_const: function.dfg.get_numeric_constant(index),
                     });
                 }
