@@ -81,6 +81,38 @@ example:
 
 #include_code to_be_bytes_example noir_stdlib/src/field/mod.nr rust
 
+### from_le_bytes
+
+Parses a Little Endian byte array into a field element. If the byte array represents a value
+greater than or equal to the field modulus then the result will silently wrap around. Use
+[`from_le_bytes_checked`](#from_le_bytes_checked) when canonical inputs are required.
+
+#include_code from_le_bytes noir_stdlib/src/field/mod.nr rust
+
+### from_be_bytes
+
+Parses a Big Endian byte array into a field element. If the byte array represents a value
+greater than or equal to the field modulus then the result will silently wrap around. Use
+[`from_be_bytes_checked`](#from_be_bytes_checked) when canonical inputs are required.
+
+#include_code from_be_bytes noir_stdlib/src/field/mod.nr rust
+
+### from_le_bytes_checked
+
+Like [`from_le_bytes`](#from_le_bytes) but asserts that the input is a canonical representation,
+i.e. that the value encoded by `bytes` is strictly less than the field modulus. Triggers a
+constraint failure otherwise.
+
+#include_code from_le_bytes_checked noir_stdlib/src/field/mod.nr rust
+
+### from_be_bytes_checked
+
+Like [`from_be_bytes`](#from_be_bytes) but asserts that the input is a canonical representation,
+i.e. that the value encoded by `bytes` is strictly less than the field modulus. Triggers a
+constraint failure otherwise.
+
+#include_code from_be_bytes_checked noir_stdlib/src/field/mod.nr rust
+
 ### pow_32
 
 Returns the value to the power of the specified exponent

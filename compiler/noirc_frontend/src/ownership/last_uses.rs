@@ -442,13 +442,16 @@ impl LastUseContext {
 
 /// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),
 /// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
-/// and return the `LocalId` of the base variable, if it is a local variable.
+/// and any enclosing blocks (the tail expression of a block is what the reference
+/// ultimately captures) and return the `LocalId` of the base variable, if it is
+/// a local variable.
 ///
 /// For example:
-/// - `&mut x`         → `Some(x_id)`
-/// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
-/// - `&mut x.a.b`     → `Some(x_id)`
-/// - `&mut some_call()` → `None`
+/// - `&mut x`              → `Some(x_id)`
+/// - `&mut x.field`        → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
+/// - `&mut x.a.b`          → `Some(x_id)`
+/// - `&mut { stmt; x }`    → `Some(x_id)`  (block tail is `x`)
+/// - `&mut some_call()`    → `None`
 fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
     match expr {
         Expression::Ident(ident) => {
@@ -459,6 +462,7 @@ fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
             }
         }
         Expression::ExtractTupleField(inner, _) => base_ident_of_field_access(inner),
+        Expression::Block(exprs) => exprs.last().and_then(base_ident_of_field_access),
         _ => None,
     }
 }
