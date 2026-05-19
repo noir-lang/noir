@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779195359557,
+  "lastUpdate": 1779195362434,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49508,105 +49508,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f08f27b3763c0a8a015ade50ce04a596b91f1ac2",
-          "message": "fix(elaborator): simplify re-borrowing expressions (#12599)",
-          "timestamp": "2026-05-11T15:22:04Z",
-          "tree_id": "8a6249e1848e06366c1d166a2a7683986a903266",
-          "url": "https://github.com/noir-lang/noir/commit/f08f27b3763c0a8a015ade50ce04a596b91f1ac2"
-        },
-        "date": 1778515813025,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.046,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.052,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.184,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.55,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.694,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.564,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.552,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.528,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.588,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.132,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.145,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -54451,6 +54352,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.149,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fa88ae9dfa21238fbd2f338f07bf9815a2c2f84",
+          "message": "chore: add more tests to the stdlib (#12650)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-05-19T12:15:11Z",
+          "tree_id": "68420e012f5a2490bfb5275bbd27a51d1f2777cf",
+          "url": "https://github.com/noir-lang/noir/commit/4fa88ae9dfa21238fbd2f338f07bf9815a2c2f84"
+        },
+        "date": 1779195292680,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.192,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.692,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.81,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.744,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.69,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.788,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.722,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.654,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.732,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.237,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.227,
             "unit": "s"
           }
         ]
