@@ -597,6 +597,39 @@ mod tests {
         ssa_gen::Ssa,
     };
 
+    /// Parse `src`, run the verifier, and require it to accept the SSA.
+    /// Panics with the unexpected error otherwise.
+    fn assert_verifier_accepts(src: &str) {
+        assert_verifier_accepts_because(src, "");
+    }
+
+    /// Same as [`assert_verifier_accepts`] but includes `reason` in the
+    /// panic message — useful for documenting why the SSA is *expected*
+    /// to be accepted (e.g. "loop exit reads a rebound block-param").
+    fn assert_verifier_accepts_because(src: &str, reason: &str) {
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        if let Err(err) = ssa.verify_array_set_rc_invariant() {
+            if reason.is_empty() {
+                panic!("expected the verifier to accept, but it rejected: {err:?}");
+            } else {
+                panic!("expected the verifier to accept ({reason}), but it rejected: {err:?}");
+            }
+        }
+    }
+
+    /// Parse `src`, run the verifier, and require it to reject the SSA
+    /// with an [`crate::errors::RuntimeError::ArraySetAliasViolation`].
+    /// Panics on any other outcome.
+    fn assert_verifier_rejects(src: &str) {
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        let err =
+            ssa.verify_array_set_rc_invariant().err().expect("expected the verifier to reject");
+        assert!(
+            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
+            "expected ArraySetAliasViolation, got {err:?}",
+        );
+    }
+
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
     #[test]
@@ -608,8 +641,7 @@ mod tests {
                 v5 = array_get v0, index u32 0 -> u32
                 return v5
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(ssa.verify_array_set_rc_invariant().is_ok());
+        assert_verifier_accepts(src);
     }
 
     /// End-to-end: the user's well-formed example from the design
@@ -640,8 +672,7 @@ mod tests {
                 v12 = add v3, u32 1
                 jmp b1(v11, v12)
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(ssa.verify_array_set_rc_invariant().is_ok());
+        assert_verifier_accepts(src);
     }
 
     /// End-to-end: PR-12671 malformed repro. `array_get v0` reads the
@@ -665,12 +696,7 @@ mod tests {
               b3():
                 return v3
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
-        assert!(
-            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
-            "expected ArraySetAliasViolation, got {err:?}"
-        );
+        assert_verifier_rejects(src);
     }
 
     /// End-to-end: same PR-12671 SSA but with an `inc_rc v0` placed in the
@@ -695,8 +721,7 @@ mod tests {
               b3():
                 return v3
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(ssa.verify_array_set_rc_invariant().is_ok());
+        assert_verifier_accepts(src);
     }
 
     /// Index-aware filter: a constant-index `array_set` followed by a
@@ -712,10 +737,9 @@ mod tests {
                 v5 = array_get v0, index u32 1 -> u32
                 return v5
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(
-            ssa.verify_array_set_rc_invariant().is_ok(),
-            "array_set at idx 0 + array_get at idx 1 access disjoint positions; not a hazard"
+        assert_verifier_accepts_because(
+            src,
+            "array_set at idx 0 + array_get at idx 1 access disjoint positions; not a hazard",
         );
     }
 
@@ -731,12 +755,7 @@ mod tests {
                 v5 = array_get v0, index u32 0 -> u32
                 return v5
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
-        assert!(
-            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
-            "expected ArraySetAliasViolation, got {err:?}"
-        );
+        assert_verifier_rejects(src);
     }
 
     /// A **dynamic** write index could touch any position, so the filter
@@ -752,12 +771,7 @@ mod tests {
                 v5 = array_get v0, index u32 1 -> u32
                 return v5
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
-        assert!(
-            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
-            "expected ArraySetAliasViolation, got {err:?}"
-        );
+        assert_verifier_rejects(src);
     }
 
     /// Symmetric to the previous case: write index is constant but the
@@ -772,12 +786,7 @@ mod tests {
                 v5 = array_get v0, index v1 -> u32
                 return v5
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
-        assert!(
-            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
-            "expected ArraySetAliasViolation, got {err:?}"
-        );
+        assert_verifier_rejects(src);
     }
 
     /// The index filter applies *only* to `array_get`. A non-`array_get`
@@ -795,12 +804,7 @@ mod tests {
                 v7 = array_get v5, index u32 0 -> u32
                 return v7
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let err = ssa.verify_array_set_rc_invariant().err().expect("expected an error");
-        assert!(
-            matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
-            "expected ArraySetAliasViolation, got {err:?}"
-        );
+        assert_verifier_rejects(src);
     }
 
     /// End-to-end regression for the pattern in stdlib's `compute_root`
@@ -832,10 +836,9 @@ mod tests {
                 v15 = array_get v2, index u32 0 -> u32
                 return v15
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(
-            ssa.verify_array_set_rc_invariant().is_ok(),
-            "loop exit reads `v2`, which is rebound on the back-edge to the chained array_set's result; not a hazard"
+        assert_verifier_accepts_because(
+            src,
+            "loop exit reads `v2`, which is rebound on the back-edge to the chained array_set's result; not a hazard",
         );
     }
 
@@ -868,10 +871,9 @@ mod tests {
               b3():
                 return
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert!(
-            ssa.verify_array_set_rc_invariant().is_ok(),
-            "load result is re-executed each iteration; the cycle's array_get is not a hazard"
+        assert_verifier_accepts_because(
+            src,
+            "load result is re-executed each iteration; the cycle's array_get is not a hazard",
         );
     }
 
