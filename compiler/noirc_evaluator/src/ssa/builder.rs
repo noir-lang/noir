@@ -7,10 +7,9 @@ use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::errors::{RtResult, RuntimeError};
-use crate::ssa::ssa_gen::SHOW_INVALID_SSA_ENV_KEY;
 
 use super::ssa_gen::generate_ssa;
-use super::{Ssa, SsaLogging};
+use super::{SHOW_INVALID_SSA_ENV_KEY, Ssa, SsaLogging};
 
 type SsaPassResult = RtResult<Ssa>;
 
@@ -41,7 +40,7 @@ impl<'a> SsaPass<'a> {
 
     /// Execute a read-only validation step which might fail with a [RuntimeError].
     ///
-    /// If the validation fails, it prints the SSA if [SHOW_INVALID_SSA_ENV_KEY] is set.
+    /// If the validation fails, it prints the SSA if [`SHOW_INVALID_SSA_ENV_KEY`] is set.
     pub fn new_validate<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(&Ssa) -> RtResult<()> + 'a,
@@ -91,7 +90,7 @@ impl<'a> SsaPass<'a> {
 
     /// Similar to `new_validate` but meant to quietly follow up a "real" pass.
     ///
-    /// If the validation fails, it prints the SSA if [SHOW_INVALID_SSA_ENV_KEY] is set.
+    /// If the validation fails, it prints the SSA if [`SHOW_INVALID_SSA_ENV_KEY`] is set.
     pub fn and_then_validate<F>(self, f: F) -> Self
     where
         F: Fn(&Ssa) -> RtResult<()> + 'a,

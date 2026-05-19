@@ -12,7 +12,7 @@ use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
 use thiserror::Error;
 
-use crate::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
+use crate::ssa::{SHOW_INVALID_SSA_ENV_KEY, ir::types::NumericType};
 
 pub type RtResult<T> = Result<T, RuntimeError>;
 

@@ -37,6 +37,7 @@ use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::validation::validate_function;
 use super::{
+    SHOW_INVALID_SSA_ENV_KEY,
     function_builder::data_bus::DataBus,
     ir::{
         function::RuntimeType,
@@ -45,8 +46,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 

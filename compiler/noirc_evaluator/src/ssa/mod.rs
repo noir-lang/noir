@@ -52,6 +52,11 @@ pub use artifact::{SsaCircuitArtifact, SsaProgramArtifact};
 use builder::time;
 pub use builder::{SsaBuilder, SsaPass};
 
+/// Environment variable that, when set, causes the SSA to be printed to stderr
+/// when a validation pass rejects it. See [`SsaPass::new_validate`] and
+/// [`SsaPass::and_then_validate`].
+pub const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
 mod artifact;
 mod builder;
 pub mod checks;
