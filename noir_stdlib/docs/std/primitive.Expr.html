@@ -51,7 +51,6 @@
 <li><a href="#has_semicolon">has_semicolon</a></li>
 <li><a href="#is_break">is_break</a></li>
 <li><a href="#is_continue">is_continue</a></li>
-<li><a href="#modify">modify</a></li>
 <li><a href="#quoted">quoted</a></li>
 <li><a href="#resolve">resolve</a></li>
 </ul>
@@ -91,6 +90,7 @@
 <li><a href="primitive.i32.html">i32</a></div></li>
 <li><a href="primitive.i64.html">i64</a></div></li>
 <li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Location.html">Location</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
@@ -334,15 +334,6 @@ return each statement inside in a vector.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is <code>continue</code>.</p>
-</div>
-</div><code id="modify" class="code-header">pub comptime fn <a href="#modify"><span class="fn">modify</span></a>&lt;Env&gt;(self, f: fn[Env](Self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;) -> Self</code>
-
-<div class="padded-description"><div class="comments">
-<p>Applies a mapping function to this expression and to all of its sub-expressions.
-<code>f</code> will be applied to each sub-expression first, then applied to the expression itself.</p>
-<p>This happens recursively for every expression within <code>self</code>.</p>
-<p>For example, calling <code>modify</code> on <code>(@[1], @[2, 3])</code> with an <code>f</code> that returns <code>Option::some</code>
-for expressions that are integers, doubling them, would return <code>(@[2], @[4, 6])</code>.</p>
 </div>
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted"><span class="fn">quoted</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 

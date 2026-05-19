@@ -198,7 +198,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let modifiers = self.elaborator.interner.function_modifiers(&function).clone();
+        let meta = self.elaborator.function_meta(function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -215,7 +216,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Don't change the current function scope if we're in a #[use_callers_scope] function.
         // This will affect where `Expression::resolve`, `Quoted::as_type`, and similar functions resolve.
         let old_function = self.current_function;
-        let modifiers = self.elaborator.interner.function_modifiers(&function);
         if !modifiers.attributes.has_use_callers_scope() {
             self.current_function = Some(function);
         }
@@ -238,7 +238,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let meta = self.elaborator.function_meta(function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -267,11 +267,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Afterwards, if the function's body is still not known or the function is still
     /// in a Resolving state we issue an error.
     fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
-        let meta = self.elaborator.interner.function_meta(&function);
+        let body_is_unresolved = matches!(
+            self.elaborator.function_meta(function).function_body,
+            FunctionBody::Unresolved(..)
+        );
         match self.elaborator.interner.function(&function).try_as_expr() {
             Some(body) => Ok(body),
             None => {
-                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                if body_is_unresolved {
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
@@ -718,8 +721,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::ErrorNodeEncountered { location })
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
         self.evaluation_depth -= 1;
@@ -830,6 +833,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
+
+        // `resolve_trait_item` (and the `bind_trait_impl_func_generics_*` helper
+        // it calls) reads `function_meta` directly on both the trait method and
+        // the matching trait impl method. We need to have them resolved first.
+        self.elaborator.resolve_trait_method_metas_for(item.id().trait_id);
+
         match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
@@ -1363,7 +1372,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
             }
-            HirStatement::Error | HirStatement::TraitAssociatedConstant => {
+            HirStatement::Error => {
+                self.elaborator.comptime_evaluation_halted = true;
+                Err(InterpreterError::SkippedDueToEarlierErrors)
+            }
+            HirStatement::TraitAssociatedConstant => {
                 let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
@@ -1383,8 +1396,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                let message =
-                    message.map(|value| value.display(self.elaborator.interner).to_string());
+                let message = message.map(|value| {
+                    value.display(self.elaborator.interner, self.elaborator.files).to_string()
+                });
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
@@ -1766,7 +1780,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut output = output.borrow_mut();
 
         let print_newline = arguments[0].0 == Value::Bool(true);
-        let contents = arguments[1].0.display(self.elaborator.interner);
+        let contents = arguments[1].0.display(self.elaborator.interner, self.elaborator.files);
         if self.elaborator.interner.is_in_lsp_mode() {
             // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output

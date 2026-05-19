@@ -93,6 +93,13 @@ Returns true if this type has a built-in attribute with the given name.
 Unlike `has_named_attribute`, this ignores user-written tag attributes and
 applied comptime macros.
 
+### location
+
+#include_code location noir_stdlib/src/meta/type_def.nr rust
+
+Returns the source [`Location`](./location.md) where this type is defined.
+This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagnostic to the type.
+
 ### module
 
 #include_code module noir_stdlib/src/meta/type_def.nr rust

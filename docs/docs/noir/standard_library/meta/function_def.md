@@ -74,6 +74,13 @@ identifier with a built-in does not produce a false positive.
 
 Returns true if this function is unconstrained.
 
+### location
+
+#include_code location noir_stdlib/src/meta/function_def.nr rust
+
+Returns the source [`Location`](./location.md) where the function is defined.
+This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagnostic to the function.
+
 ### module
 
 #include_code module noir_stdlib/src/meta/function_def.nr rust

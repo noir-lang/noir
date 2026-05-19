@@ -5,7 +5,7 @@ struct Signature {
     signature: [u8; 64],
 }
 
-fn main(invalid_signatures: [Signature; 3]) {
+fn main(invalid_signatures: [Signature; 9]) {
     for signature in invalid_signatures {
         let is_valid = std::ecdsa_secp256k1::verify_signature(
             signature.pub_key_x,
