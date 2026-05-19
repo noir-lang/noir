@@ -342,8 +342,9 @@ impl FunctionBuilder {
                     } else {
                         // Range-check provides the "provably safe" condition that
                         // SSA validation requires for narrowing Field → numeric casts.
-                        // The Field came from a numeric_type-typed param that
-                        // `add_to_data_bus` widened to Field, so it already fits.
+                        // We know the Field already fits `numeric_type` because
+                        // it comes from a param and was widened to Field.
+                        // The range-check is redundant and only required by SSA validation.
                         let bit_size = numeric_type.bit_size::<FieldElement>();
                         self.insert_range_check(read, bit_size, None);
                         self.insert_cast(read, numeric_type)
