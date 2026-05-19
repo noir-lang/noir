@@ -127,6 +127,11 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Current evaluation depth.
     evaluation_depth: usize,
+
+    /// Whether we are inside an unconstrained context. This is set to true when entering
+    /// an unconstrained function, and it keeps being true in nested calls regardless of
+    /// them being constrained or unconstrained.
+    in_unconstrained: bool,
 }
 
 impl<'local, 'interner> Interpreter<'local, 'interner> {
@@ -134,12 +139,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         current_function: Option<FuncId>,
     ) -> Self {
+        let in_unconstrained = current_function.is_some_and(|function| {
+            elaborator.interner.function_meta(&function).is_unconstrained()
+        });
+
         Self {
             elaborator,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
             evaluation_depth: 0,
+            in_unconstrained,
         }
     }
 
@@ -210,8 +220,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.current_function = Some(function);
         }
 
+        let previous_in_unconstrained = self.in_unconstrained;
+        self.in_unconstrained |= meta.is_unconstrained();
+
         let result = self.call_user_defined_function(function, arguments, location);
+
         self.current_function = old_function;
+        self.in_unconstrained = previous_in_unconstrained;
+
         result
     }
 

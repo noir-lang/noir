@@ -358,12 +358,6 @@ pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
     __field_less_than(x, y)
 }
 
-// Convert a 32 byte array to a field element by modding
-#[deprecated("Use `Field::from_be_bytes::<32>` instead")]
-pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
-    Field::from_be_bytes(bytes32)
-}
-
 fn lt_fallback(x: Field, y: Field) -> bool {
     if is_unconstrained() {
         // Safety: unconstrained context

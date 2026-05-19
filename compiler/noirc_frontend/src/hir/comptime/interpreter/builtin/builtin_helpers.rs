@@ -612,6 +612,7 @@ fn secondary_attribute_name(
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
         SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
         SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        SecondaryAttributeKind::Pure => Some("pure".to_string()),
     }
 }
 

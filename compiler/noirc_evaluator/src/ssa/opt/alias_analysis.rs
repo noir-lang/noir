@@ -777,7 +777,7 @@ impl AliasAnalysisContext {
                             assert!(!Self::intrinsic_may_alias(intrinsic));
                         }
                         // Foreign calls cannot call Noir functions, so we do not mark them as recursive
-                        (Value::ForeignFunction(_), _) => {
+                        (Value::ForeignFunction { .. }, _) => {
                             self.unresolved_call(function, arguments, results);
                         }
                         // Fallthrough for unresolved functions whose function body
