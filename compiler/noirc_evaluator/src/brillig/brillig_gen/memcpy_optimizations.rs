@@ -263,9 +263,9 @@ fn is_index_base_plus_offset(
 }
 
 impl MemcpyOptimizations {
-    /// Build the [SyntheticUses][SyntheticUses] entries that
-    /// liveness needs to keep memcpy operands alive at the `MakeArray` they get folded
-    /// into. `MakeArray`'s SSA operands are the per-element values; the memcpy codegen
+    /// Build the [SyntheticUses] entries that liveness needs to keep
+    /// memcpy operands alive at the `MakeArray` they get folded into.
+    /// `MakeArray`'s SSA operands are the per-element values; the memcpy codegen
     /// instead reads `source_array` and `base_index` at the same site, so we register
     /// them as extra operands of the `MakeArray`.
     pub(crate) fn synthetic_uses(&self) -> SyntheticUses {
