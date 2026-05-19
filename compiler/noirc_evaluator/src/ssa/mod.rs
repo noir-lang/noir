@@ -193,17 +193,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
             .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
-            .and_then(Ssa::remove_redundant_params),
-        // Debug-only sanity check on the mem2reg-transformed Brillig SSA.
-        // Separate pass so that if it flags an error we can see the preceding SSA with `--show-ssa`
-        SsaPass::new_try(
-            |ssa| {
+            .and_then(Ssa::remove_redundant_params)
+            .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
                 validation::array_set_rc_invariant::verify_array_set_rc_invariant(&ssa)?;
-                Ok(ssa)
-            },
-            "Verify array_set RC invariant",
-        ),
+                Ok(())
+            }),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,

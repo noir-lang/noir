@@ -6,12 +6,13 @@ use std::{collections::HashMap, path::PathBuf};
 use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
-use crate::errors::RuntimeError;
+use crate::errors::{RtResult, RuntimeError};
+use crate::ssa::ssa_gen::SHOW_INVALID_SSA_ENV_KEY;
 
 use super::ssa_gen::generate_ssa;
 use super::{Ssa, SsaLogging};
 
-type SsaPassResult = Result<Ssa, RuntimeError>;
+type SsaPassResult = RtResult<Ssa>;
 
 /// An SSA pass reified as a construct we can put into a list,
 /// which facilitates equivalence testing between different
@@ -22,6 +23,7 @@ pub struct SsaPass<'a> {
 }
 
 impl<'a> SsaPass<'a> {
+    /// Execute a pass which cannot fail.
     pub fn new<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Ssa + 'a,
@@ -29,11 +31,28 @@ impl<'a> SsaPass<'a> {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
+    /// Execute a pass which might fail with a [RuntimeError].
     pub fn new_try<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> SsaPassResult + 'a,
     {
         Self { msg, run: Box::new(f) }
+    }
+
+    /// Execute a read-only validation step which might fail with a [RuntimeError].
+    ///
+    /// If the validation fails, it prints the SSA if [SHOW_INVALID_SSA_ENV_KEY] is set.
+    pub fn new_validate<F>(f: F, msg: &'static str) -> Self
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        Self::new_try(
+            move |ssa| {
+                Self::print_on_err(&ssa, &f)?;
+                Ok(ssa)
+            },
+            msg,
+        )
     }
 
     pub fn msg(&self) -> &str {
@@ -68,6 +87,39 @@ impl<'a> SsaPass<'a> {
                 Ok(ssa)
             }),
         }
+    }
+
+    /// Similar to `new_validate` but meant to quietly follow up a "real" pass.
+    ///
+    /// If the validation fails, it prints the SSA if [SHOW_INVALID_SSA_ENV_KEY] is set.
+    pub fn and_then_validate<F>(self, f: F) -> Self
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        self.and_then_try(move |ssa| {
+            Self::print_on_err(&ssa, &f)?;
+            Ok(ssa)
+        })
+    }
+
+    /// Run some SSA validation function; if it returns an error then either
+    /// show the SSA, if the [SHOW_INVALID_SSA_ENV_KEY] key is on, or hint
+    /// at the existence of turning on this option.
+    fn print_on_err<F>(ssa: &Ssa, f: &F) -> RtResult<()>
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        let result = f(ssa);
+        if result.is_err() {
+            if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+                eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+            } else {
+                eprintln!(
+                    "--- The SSA failed to validate: Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."
+                );
+            }
+        }
+        result
     }
 }
 
