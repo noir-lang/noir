@@ -181,23 +181,25 @@ struct Context<'f> {
     /// instruction. Lets the reachable-use walk skip over instructions that
     /// have no array operand.
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
-    /// Values that:
-    /// - appear as a back-edge arg to some loop header's block parameter,
-    /// - never appear as a forward-edge arg to any block parameter, and
-    /// - have an `inc_rc` somewhere in the function.
+    /// Equivalence classes built from the same `(param, arg)` pairs as
+    /// [`Context::value_aliases`], but **only** on forward edges (edges
+    /// where the destination does not dominate the source). For each
+    /// value `v`, its forward-only class is the set of values that
+    /// share storage with `v` *through forward edges alone*.
     ///
-    /// Such a value `v` can only enter a block parameter's runtime value
-    /// on iterations ≥ 1 of a loop (never via the loop's forward entry),
-    /// and once any `inc_rc v` has fired its RC stays ≥ 2 (well-formed
-    /// SSA has no `DecrementRc`). So in every iteration where `v` *is*
-    /// the runtime value of some block parameter (and therefore could
-    /// be the storage that an array_set on that parameter mutates), the
-    /// array_set is forced to allocate fresh — `v`'s storage is never
-    /// mutated, even when the source's UF class contains `v` transitively
-    /// through other block-param threading. [`Context::alias_set_for`]
-    /// uses this set to drop `v` from every alias-set (the source itself
-    /// is exempt).
-    back_edge_only_inc_rcd: HashSet<ValueId>,
+    /// Used by [`Context::alias_set_for`] to identify alias-set members
+    /// that reach the source only via back-edges: such a member, if
+    /// `inc_rc`'d, has `RC ≥ 2` by the time it can be the source's
+    /// runtime storage (any iteration ≥ 1 of the loop carrying that
+    /// back-edge), so the array_set is forced to allocate fresh and the
+    /// member's storage is never mutated.
+    ///
+    /// The per-source granularity matters when a value is a forward-edge
+    /// arg in some unrelated control-flow region but reaches *this*
+    /// source only via back-edges — e.g. an entry param threaded onto
+    /// an outer loop's back-edge to reach an inner-loop array_set, while
+    /// also forward-threaded into a separate early-return branch.
+    forward_only_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
 }
 
 impl<'f> Context<'f> {
@@ -206,12 +208,25 @@ impl<'f> Context<'f> {
         let post_order = PostOrder::with_cfg(&cfg);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
+        // Loop back-edges so we can build a forward-only union-find
+        // alongside the regular one. Back-edges are the only place where
+        // a block parameter can be re-bound to a different value across
+        // iterations, so excluding them gives us a per-source view of
+        // "aliases reachable through forward control flow only."
+        let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
+            Loops::find_all(function, LoopOrder::InsideOut)
+                .yet_to_unroll
+                .iter()
+                .map(|l| (l.back_edge_start, l.header))
+                .collect();
+
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
             HashMap::default();
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
+        let mut forward_only_uf: UnionFind<ValueId> = UnionFind::new();
 
         // Single pass over every reachable block. Each iteration populates
         // all per-instruction indices plus the union-find from the
@@ -260,6 +275,14 @@ impl<'f> Context<'f> {
                 match terminator {
                     TerminatorInstruction::Jmp { destination, arguments, .. } => {
                         union_param_args(function, &mut uf, *destination, arguments);
+                        if !back_edges.contains(&(block_id, *destination)) {
+                            union_param_args(
+                                function,
+                                &mut forward_only_uf,
+                                *destination,
+                                arguments,
+                            );
+                        }
                     }
                     TerminatorInstruction::JmpIf {
                         then_destination,
@@ -270,6 +293,22 @@ impl<'f> Context<'f> {
                     } => {
                         union_param_args(function, &mut uf, *then_destination, then_arguments);
                         union_param_args(function, &mut uf, *else_destination, else_arguments);
+                        if !back_edges.contains(&(block_id, *then_destination)) {
+                            union_param_args(
+                                function,
+                                &mut forward_only_uf,
+                                *then_destination,
+                                then_arguments,
+                            );
+                        }
+                        if !back_edges.contains(&(block_id, *else_destination)) {
+                            union_param_args(
+                                function,
+                                &mut forward_only_uf,
+                                *else_destination,
+                                else_arguments,
+                            );
+                        }
                     }
                     _ => (),
                 }
@@ -277,9 +316,7 @@ impl<'f> Context<'f> {
         }
 
         let value_aliases = materialize_value_aliases(uf);
-
-        let back_edge_only_inc_rcd =
-            compute_back_edge_only_inc_rcd_values(function, &inc_rc_locations);
+        let forward_only_aliases = materialize_value_aliases(forward_only_uf);
 
         Self {
             function,
@@ -289,7 +326,7 @@ impl<'f> Context<'f> {
             non_aliasing_array_values,
             inc_rc_locations,
             array_operand_uses,
-            back_edge_only_inc_rcd,
+            forward_only_aliases,
         }
     }
 
@@ -330,29 +367,28 @@ impl<'f> Context<'f> {
     ///    that block; the same-block case never gets that chance because
     ///    the walk starts mid-block past the array_set.
     ///
-    /// 3. **Back-edge-only-with-`inc_rc` filter.** Drop values in
-    ///    [`Context::back_edge_only_inc_rcd`] — values that appear as a
-    ///    back-edge arg to some loop header's block parameter, never
-    ///    appear as a forward-edge arg to any block parameter, and have
-    ///    an `inc_rc` somewhere in the function. Such a value `v`:
-    ///    - is never the iter-0 runtime value of any block parameter
-    ///      (it doesn't enter via any forward edge), so it cannot be the
-    ///      source's iter-0 storage no matter where source sits in the
-    ///      class;
-    ///    - on iter ≥ 1, has `RC ≥ 2` thanks to the iter-0 `inc_rc`
-    ///      (well-formed SSA contains no `DecrementRc`, so once
-    ///      `inc_rc` fires the bump persists), so the array_set on `v`
-    ///      allocates fresh and `v`'s storage isn't mutated.
+    /// 3. **Back-edge-only-with-`inc_rc` filter.** For each `v` in the
+    ///    source's UF class, check whether `v` reaches the source via
+    ///    *forward edges only*: that is, whether `v` is in
+    ///    [`Context::forward_only_aliases`]`[source]`. If `v` is in the
+    ///    full UF class but *not* in the forward-only class, then `v`
+    ///    can only be the source's runtime storage on iterations ≥ 1
+    ///    of some loop carrying it through a back-edge. If additionally
+    ///    `v` has an `inc_rc` somewhere, drop it: the iter-0 `inc_rc`
+    ///    makes `RC(v) ≥ 2` for every iteration where `v` could be the
+    ///    source's storage, so the array_set on `v` allocates fresh and
+    ///    `v`'s storage isn't mutated. (Well-formed SSA contains no
+    ///    `DecrementRc`, so once `inc_rc` fires the bump persists.)
     ///
-    ///    This is a *global* (not source-specific) filter, so it also
-    ///    drops values that are transitively in the source's UF class
-    ///    via intermediate block parameters — e.g., an inner loop's
-    ///    source unifies with an outer loop header param, which in turn
-    ///    has a back-edge-only `inc_rc`'d entry param. Concretely covers
-    ///    patterns like `c = b` at the end of a loop body (entry param
-    ///    `b` on the back-edge), `a = G_A` (global `G_A` on the
-    ///    back-edge), and re-seeding with a function arg captured for
-    ///    re-use, even when the array_set lives in a nested loop.
+    ///    The per-source lookup keeps the filter precise when a value
+    ///    is a forward-edge arg in some unrelated control-flow region
+    ///    but reaches *this* source only via back-edges. Concretely
+    ///    covers patterns like `c = b` at the end of a loop body,
+    ///    `a = G_A` (global on the back-edge), and re-seeding with a
+    ///    function arg captured for re-use across loop iterations —
+    ///    including nested-loop cases where the inc_rc'd value sits on
+    ///    an outer loop's back-edge while the array_set lives in an
+    ///    inner loop.
     ///
     /// The source itself is kept even when it happens to be filtered by
     /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
@@ -368,6 +404,7 @@ impl<'f> Context<'f> {
     ) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
+        let source_forward_class = self.forward_only_aliases.get(&source);
         class
             .into_iter()
             .filter(|&v| {
@@ -383,7 +420,11 @@ impl<'f> Context<'f> {
                 {
                     return false;
                 }
-                if self.back_edge_only_inc_rcd.contains(&v) {
+                // Back-edge-only reachable from source AND inc_rc'd:
+                // see rule (3) in this function's doc comment.
+                let is_forward_reachable =
+                    source_forward_class.as_ref().is_some_and(|cls| cls.contains(&v));
+                if !is_forward_reachable && self.inc_rc_locations.contains_key(&v) {
                     return false;
                 }
                 true
@@ -686,66 +727,6 @@ struct AliasedUse {
     /// The alias-set member that was used. Names *which* alias triggered
     /// the flag — useful when the alias-set has more than one member.
     value: ValueId,
-}
-
-/// Compute the set of values that:
-/// - appear as a back-edge arg to some loop header's block parameter,
-/// - never appear as a forward-edge arg to any block parameter, and
-/// - have an `inc_rc` somewhere in the function.
-///
-/// See [`Context::back_edge_only_inc_rcd`] for the soundness argument
-/// and how the resulting set is used to filter alias-sets.
-///
-/// Back-edges are identified by [`Loops::find_all`]: each loop yields a
-/// `(header, back_edge_start)` pair where `back_edge_start → header` is
-/// the back-edge.
-fn compute_back_edge_only_inc_rcd_values(
-    function: &Function,
-    inc_rc_locations: &HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
-) -> HashSet<ValueId> {
-    let loops = Loops::find_all(function, LoopOrder::InsideOut);
-
-    // The set of (src, dst) edges that are loop back-edges.
-    let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
-        loops.yet_to_unroll.iter().map(|l| (l.back_edge_start, l.header)).collect();
-
-    // Pass over every terminator's outgoing edges, partitioning its
-    // args into forward vs back appearances.
-    let mut appears_as_forward_arg: HashSet<ValueId> = HashSet::default();
-    let mut appears_as_back_arg: HashSet<ValueId> = HashSet::default();
-
-    let mut record_edge_args = |src: BasicBlockId, dest: BasicBlockId, args: &[ValueId]| {
-        let is_back = back_edges.contains(&(src, dest));
-        let target = if is_back { &mut appears_as_back_arg } else { &mut appears_as_forward_arg };
-        for &arg in args {
-            target.insert(arg);
-        }
-    };
-
-    for block_id in function.reachable_blocks() {
-        let Some(terminator) = function.dfg[block_id].terminator() else { continue };
-        match terminator {
-            TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                record_edge_args(block_id, *destination, arguments);
-            }
-            TerminatorInstruction::JmpIf {
-                then_destination,
-                then_arguments,
-                else_destination,
-                else_arguments,
-                ..
-            } => {
-                record_edge_args(block_id, *then_destination, then_arguments);
-                record_edge_args(block_id, *else_destination, else_arguments);
-            }
-            _ => {}
-        }
-    }
-
-    appears_as_back_arg
-        .into_iter()
-        .filter(|v| !appears_as_forward_arg.contains(v) && inc_rc_locations.contains_key(v))
-        .collect()
 }
 
 /// For each parameter of `dest`, union it with the corresponding argument
@@ -1128,7 +1109,54 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v0 is in the inner source's class transitively (via outer header v21's back-edge), is `inc_rc`'d, and never appears as a forward-edge arg anywhere; the global back-edge-only-inc_rc'd filter drops it so the apparent next-outer-iter read of v21 isn't flagged",
+            "v0 is in the inner source's class transitively (via outer header v21's back-edge) and has an `inc_rc`; v0 is not in the inner source's forward-only class, so the back-edge-only-with-inc_rc filter drops it and the apparent next-outer-iter read of v21 isn't flagged",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: a
+    /// function arg that's *both* forward-threaded into an unrelated
+    /// early-return branch *and* back-edge-threaded into the outer loop
+    /// that carries an inner-loop array_set. A global "never appears as
+    /// a forward-edge arg" filter would miss this because the arg does
+    /// appear as a forward arg — just on a control-flow path that never
+    /// reaches the array_set. The per-source forward-only-UF lookup
+    /// catches it: in the inner source's forward-only class, the arg is
+    /// absent (it reaches the source only through the outer loop's
+    /// back-edge), and the `inc_rc` in the outer-loop body guarantees
+    /// `RC ≥ 2` by the time the inner source actually equals it at
+    /// runtime, so the array_set on it is forced to allocate fresh.
+    #[test]
+    fn end_to_end_inc_rcd_arg_forward_in_unrelated_branch_and_back_to_outer_loop_is_accepted() {
+        let src = r#"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [u1; 3], v1: [u1; 3], v2: u1):
+                jmpif v2 then: b1(), else: b2()
+              b1():
+                jmp b_join(v0, v1)
+              b_join(v_a: [u1; 3], v_b: [u1; 3]):
+                jmp b_exit()
+              b_exit():
+                return
+              b2():
+                jmp b_outer(u32 0, v1)
+              b_outer(v5: u32, v_outer_param: [u1; 3]):
+                jmpif u1 1 then: b_outer_body(), else: b_exit()
+              b_outer_body():
+                jmp b_inner(u32 0, v_outer_param)
+              b_inner(v6: u32, v_inner_param: [u1; 3]):
+                jmpif u1 1 then: b_inner_body(), else: b_outer_tail()
+              b_inner_body():
+                v_set = array_set v_inner_param, index u32 0, value u1 0
+                v7 = unchecked_add v6, u32 1
+                jmp b_inner(v7, v_set)
+              b_outer_tail():
+                inc_rc v0
+                v8 = unchecked_add v5, u32 1
+                jmp b_outer(v8, v0)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v0 is a forward arg to b_early_exit (unrelated region) and a back-edge arg to the outer loop; for the inner array_set's source, v0 is in the full UF class but not in the forward-only class, and has an `inc_rc` — so the back-edge-only-with-inc_rc filter drops it",
         );
     }
 
