@@ -846,157 +846,166 @@
 <a href=#846 id=846 data-nosnippet>846</a>        ident: HirIdent,
 <a href=#847 id=847 data-nosnippet>847</a>        location: Location,
 <a href=#848 id=848 data-nosnippet>848</a>    ) -&gt; (HirLValue, Type, bool, Vec&lt;StmtId&gt;) {
-<a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#850 id=850 data-nosnippet>850</a>        <span class="kw">let </span>mutable = definition.mutable;
-<a href=#851 id=851 data-nosnippet>851</a>
-<a href=#852 id=852 data-nosnippet>852</a>        <span class="kw">if </span>definition.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
-<a href=#853 id=853 data-nosnippet>853</a>            <span class="self">self</span>.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-<a href=#854 id=854 data-nosnippet>854</a>                name: definition.name.clone(),
-<a href=#855 id=855 data-nosnippet>855</a>                location: ident.location,
-<a href=#856 id=856 data-nosnippet>856</a>            });
+<a href=#849 id=849 data-nosnippet>849</a>        <span class="comment">// Mirror the rvalue path: if this identifier refers to a global whose
+<a href=#850 id=850 data-nosnippet>850</a>        // initializer hasn't been elaborated yet, lazy-resolve it now so its
+<a href=#851 id=851 data-nosnippet>851</a>        // recorded type is the real annotated type rather than `Type::Error`.
+<a href=#852 id=852 data-nosnippet>852</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">if let </span>DefinitionKind::Global(global_id) = definition.kind {
+<a href=#854 id=854 data-nosnippet>854</a>            <span class="kw">let _ </span>= definition;
+<a href=#855 id=855 data-nosnippet>855</a>            <span class="self">self</span>.elaborate_global_if_unresolved(<span class="kw-2">&amp;</span>global_id);
+<a href=#856 id=856 data-nosnippet>856</a>            definition = <span class="self">self</span>.interner.definition(ident.id);
 <a href=#857 id=857 data-nosnippet>857</a>        }
 <a href=#858 id=858 data-nosnippet>858</a>
-<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id).instantiate(<span class="self">self</span>.interner).<span class="number">0</span>;
-<a href=#860 id=860 data-nosnippet>860</a>        <span class="kw">let </span>typ = typ.follow_bindings();
-<a href=#861 id=861 data-nosnippet>861</a>
-<a href=#862 id=862 data-nosnippet>862</a>        <span class="self">self</span>.interner.add_local_reference(ident.id, location);
-<a href=#863 id=863 data-nosnippet>863</a>
-<a href=#864 id=864 data-nosnippet>864</a>        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
-<a href=#865 id=865 data-nosnippet>865</a>    }
-<a href=#866 id=866 data-nosnippet>866</a>
-<a href=#867 id=867 data-nosnippet>867</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#868 id=868 data-nosnippet>868</a>    </span><span class="kw">fn </span>fresh_definition_for_side_effect_extraction(
-<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#870 id=870 data-nosnippet>870</a>        expr: ExprId,
-<a href=#871 id=871 data-nosnippet>871</a>        typ: Type,
-<a href=#872 id=872 data-nosnippet>872</a>        location: Location,
-<a href=#873 id=873 data-nosnippet>873</a>        name_prefix: <span class="kw-2">&amp;</span>str,
-<a href=#874 id=874 data-nosnippet>874</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(StmtId, ExprId)&gt; {
-<a href=#875 id=875 data-nosnippet>875</a>        <span class="comment">// If the original expression trivially cannot have side-effects, don't bother cluttering
-<a href=#876 id=876 data-nosnippet>876</a>        // the output with a let binding. Note that array literals can have side-effects but these
-<a href=#877 id=877 data-nosnippet>877</a>        // would produce type errors anyway.
-<a href=#878 id=878 data-nosnippet>878</a>        </span><span class="kw">if </span>!<span class="self">self</span>.expression_could_have_side_effects(expr) {
-<a href=#879 id=879 data-nosnippet>879</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#880 id=880 data-nosnippet>880</a>        }
-<a href=#881 id=881 data-nosnippet>881</a>
-<a href=#882 id=882 data-nosnippet>882</a>        <span class="kw">let </span>counter = <span class="self">self</span>.next_lvalue_index_counter();
-<a href=#883 id=883 data-nosnippet>883</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_definition(
-<a href=#884 id=884 data-nosnippet>884</a>            <span class="macro">format!</span>(<span class="string">"{name_prefix}_{counter}"</span>),
-<a href=#885 id=885 data-nosnippet>885</a>            <span class="bool-val">false</span>,
-<a href=#886 id=886 data-nosnippet>886</a>            <span class="bool-val">false</span>,
-<a href=#887 id=887 data-nosnippet>887</a>            DefinitionKind::Local(<span class="prelude-val">None</span>),
-<a href=#888 id=888 data-nosnippet>888</a>            location,
-<a href=#889 id=889 data-nosnippet>889</a>        );
-<a href=#890 id=890 data-nosnippet>890</a>        <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
-<a href=#891 id=891 data-nosnippet>891</a>        <span class="kw">let </span>ident_expr = HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>);
-<a href=#892 id=892 data-nosnippet>892</a>
-<a href=#893 id=893 data-nosnippet>893</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.interner.push_expr_full(ident_expr, location, typ.clone());
-<a href=#894 id=894 data-nosnippet>894</a>
-<a href=#895 id=895 data-nosnippet>895</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(ident);
-<a href=#896 id=896 data-nosnippet>896</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-<a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
-<a href=#898 id=898 data-nosnippet>898</a>        <span class="prelude-val">Some</span>((let_, ident_id))
-<a href=#899 id=899 data-nosnippet>899</a>    }
-<a href=#900 id=900 data-nosnippet>900</a>
-<a href=#901 id=901 data-nosnippet>901</a>    <span class="doccomment">/// Returns `true` if the given expression could potentially have side-effects.
-<a href=#902 id=902 data-nosnippet>902</a>    /// Returns `false` if the expression is guaranteed to not have side-effects.
-<a href=#903 id=903 data-nosnippet>903</a>    </span><span class="kw">fn </span>expression_could_have_side_effects(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; bool {
-<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression_ref(<span class="kw-2">&amp;</span>expr) {
-<a href=#905 id=905 data-nosnippet>905</a>            HirExpression::Ident(..) =&gt; <span class="bool-val">false</span>,
-<a href=#906 id=906 data-nosnippet>906</a>            HirExpression::Literal(hir_literal) =&gt; <span class="kw">match </span>hir_literal {
-<a href=#907 id=907 data-nosnippet>907</a>                HirLiteral::Bool(<span class="kw">_</span>)
-<a href=#908 id=908 data-nosnippet>908</a>                | HirLiteral::Integer(..)
-<a href=#909 id=909 data-nosnippet>909</a>                | HirLiteral::Str(<span class="kw">_</span>)
-<a href=#910 id=910 data-nosnippet>910</a>                | HirLiteral::Unit =&gt; <span class="bool-val">false</span>,
-<a href=#911 id=911 data-nosnippet>911</a>                HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) =&gt; <span class="bool-val">true</span>,
-<a href=#912 id=912 data-nosnippet>912</a>            },
-<a href=#913 id=913 data-nosnippet>913</a>            HirExpression::Prefix(hir_prefix_expression) =&gt; {
-<a href=#914 id=914 data-nosnippet>914</a>                <span class="comment">// Something like `-x` can't have side effects if `x` is numeric
-<a href=#915 id=915 data-nosnippet>915</a>                </span><span class="kw">if </span>hir_prefix_expression.trait_method_id.is_some()
-<a href=#916 id=916 data-nosnippet>916</a>                    &amp;&amp; !<span class="self">self</span>.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
-<a href=#917 id=917 data-nosnippet>917</a>                {
-<a href=#918 id=918 data-nosnippet>918</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#919 id=919 data-nosnippet>919</a>                }
-<a href=#920 id=920 data-nosnippet>920</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_prefix_expression.rhs)
-<a href=#921 id=921 data-nosnippet>921</a>            }
-<a href=#922 id=922 data-nosnippet>922</a>            HirExpression::Infix(hir_infix_expression) =&gt; {
-<a href=#923 id=923 data-nosnippet>923</a>                <span class="comment">// Something like `x + y` can't have side effects if `x` is numeric
-<a href=#924 id=924 data-nosnippet>924</a>                </span><span class="kw">if </span>hir_infix_expression.trait_method_id.is_some()
-<a href=#925 id=925 data-nosnippet>925</a>                    &amp;&amp; !<span class="self">self</span>.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">let </span>mutable = definition.mutable;
+<a href=#860 id=860 data-nosnippet>860</a>
+<a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">if </span>definition.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+<a href=#862 id=862 data-nosnippet>862</a>            <span class="self">self</span>.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+<a href=#863 id=863 data-nosnippet>863</a>                name: definition.name.clone(),
+<a href=#864 id=864 data-nosnippet>864</a>                location: ident.location,
+<a href=#865 id=865 data-nosnippet>865</a>            });
+<a href=#866 id=866 data-nosnippet>866</a>        }
+<a href=#867 id=867 data-nosnippet>867</a>
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id).instantiate(<span class="self">self</span>.interner).<span class="number">0</span>;
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">let </span>typ = typ.follow_bindings();
+<a href=#870 id=870 data-nosnippet>870</a>
+<a href=#871 id=871 data-nosnippet>871</a>        <span class="self">self</span>.interner.add_local_reference(ident.id, location);
+<a href=#872 id=872 data-nosnippet>872</a>
+<a href=#873 id=873 data-nosnippet>873</a>        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
+<a href=#874 id=874 data-nosnippet>874</a>    }
+<a href=#875 id=875 data-nosnippet>875</a>
+<a href=#876 id=876 data-nosnippet>876</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#877 id=877 data-nosnippet>877</a>    </span><span class="kw">fn </span>fresh_definition_for_side_effect_extraction(
+<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#879 id=879 data-nosnippet>879</a>        expr: ExprId,
+<a href=#880 id=880 data-nosnippet>880</a>        typ: Type,
+<a href=#881 id=881 data-nosnippet>881</a>        location: Location,
+<a href=#882 id=882 data-nosnippet>882</a>        name_prefix: <span class="kw-2">&amp;</span>str,
+<a href=#883 id=883 data-nosnippet>883</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(StmtId, ExprId)&gt; {
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="comment">// If the original expression trivially cannot have side-effects, don't bother cluttering
+<a href=#885 id=885 data-nosnippet>885</a>        // the output with a let binding. Note that array literals can have side-effects but these
+<a href=#886 id=886 data-nosnippet>886</a>        // would produce type errors anyway.
+<a href=#887 id=887 data-nosnippet>887</a>        </span><span class="kw">if </span>!<span class="self">self</span>.expression_could_have_side_effects(expr) {
+<a href=#888 id=888 data-nosnippet>888</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#889 id=889 data-nosnippet>889</a>        }
+<a href=#890 id=890 data-nosnippet>890</a>
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="kw">let </span>counter = <span class="self">self</span>.next_lvalue_index_counter();
+<a href=#892 id=892 data-nosnippet>892</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_definition(
+<a href=#893 id=893 data-nosnippet>893</a>            <span class="macro">format!</span>(<span class="string">"{name_prefix}_{counter}"</span>),
+<a href=#894 id=894 data-nosnippet>894</a>            <span class="bool-val">false</span>,
+<a href=#895 id=895 data-nosnippet>895</a>            <span class="bool-val">false</span>,
+<a href=#896 id=896 data-nosnippet>896</a>            DefinitionKind::Local(<span class="prelude-val">None</span>),
+<a href=#897 id=897 data-nosnippet>897</a>            location,
+<a href=#898 id=898 data-nosnippet>898</a>        );
+<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>ident_expr = HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>);
+<a href=#901 id=901 data-nosnippet>901</a>
+<a href=#902 id=902 data-nosnippet>902</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.interner.push_expr_full(ident_expr, location, typ.clone());
+<a href=#903 id=903 data-nosnippet>903</a>
+<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(ident);
+<a href=#905 id=905 data-nosnippet>905</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
+<a href=#906 id=906 data-nosnippet>906</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
+<a href=#907 id=907 data-nosnippet>907</a>        <span class="prelude-val">Some</span>((let_, ident_id))
+<a href=#908 id=908 data-nosnippet>908</a>    }
+<a href=#909 id=909 data-nosnippet>909</a>
+<a href=#910 id=910 data-nosnippet>910</a>    <span class="doccomment">/// Returns `true` if the given expression could potentially have side-effects.
+<a href=#911 id=911 data-nosnippet>911</a>    /// Returns `false` if the expression is guaranteed to not have side-effects.
+<a href=#912 id=912 data-nosnippet>912</a>    </span><span class="kw">fn </span>expression_could_have_side_effects(<span class="kw-2">&amp;</span><span class="self">self</span>, expr: ExprId) -&gt; bool {
+<a href=#913 id=913 data-nosnippet>913</a>        <span class="kw">match </span><span class="self">self</span>.interner.expression_ref(<span class="kw-2">&amp;</span>expr) {
+<a href=#914 id=914 data-nosnippet>914</a>            HirExpression::Ident(..) =&gt; <span class="bool-val">false</span>,
+<a href=#915 id=915 data-nosnippet>915</a>            HirExpression::Literal(hir_literal) =&gt; <span class="kw">match </span>hir_literal {
+<a href=#916 id=916 data-nosnippet>916</a>                HirLiteral::Bool(<span class="kw">_</span>)
+<a href=#917 id=917 data-nosnippet>917</a>                | HirLiteral::Integer(..)
+<a href=#918 id=918 data-nosnippet>918</a>                | HirLiteral::Str(<span class="kw">_</span>)
+<a href=#919 id=919 data-nosnippet>919</a>                | HirLiteral::Unit =&gt; <span class="bool-val">false</span>,
+<a href=#920 id=920 data-nosnippet>920</a>                HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) =&gt; <span class="bool-val">true</span>,
+<a href=#921 id=921 data-nosnippet>921</a>            },
+<a href=#922 id=922 data-nosnippet>922</a>            HirExpression::Prefix(hir_prefix_expression) =&gt; {
+<a href=#923 id=923 data-nosnippet>923</a>                <span class="comment">// Something like `-x` can't have side effects if `x` is numeric
+<a href=#924 id=924 data-nosnippet>924</a>                </span><span class="kw">if </span>hir_prefix_expression.trait_method_id.is_some()
+<a href=#925 id=925 data-nosnippet>925</a>                    &amp;&amp; !<span class="self">self</span>.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
 <a href=#926 id=926 data-nosnippet>926</a>                {
 <a href=#927 id=927 data-nosnippet>927</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#928 id=928 data-nosnippet>928</a>                }
-<a href=#929 id=929 data-nosnippet>929</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_infix_expression.lhs)
-<a href=#930 id=930 data-nosnippet>930</a>                    || <span class="self">self</span>.expression_could_have_side_effects(hir_infix_expression.rhs)
-<a href=#931 id=931 data-nosnippet>931</a>            }
-<a href=#932 id=932 data-nosnippet>932</a>            HirExpression::Index(hir_index_expression) =&gt; {
-<a href=#933 id=933 data-nosnippet>933</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_index_expression.collection)
-<a href=#934 id=934 data-nosnippet>934</a>                    || <span class="self">self</span>.expression_could_have_side_effects(hir_index_expression.index)
-<a href=#935 id=935 data-nosnippet>935</a>            }
-<a href=#936 id=936 data-nosnippet>936</a>            HirExpression::Constructor(hir_constructor_expression) =&gt; {
-<a href=#937 id=937 data-nosnippet>937</a>                !hir_constructor_expression.fields.is_empty()
-<a href=#938 id=938 data-nosnippet>938</a>            }
-<a href=#939 id=939 data-nosnippet>939</a>            HirExpression::EnumConstructor(hir_enum_constructor_expression) =&gt; {
-<a href=#940 id=940 data-nosnippet>940</a>                !hir_enum_constructor_expression.arguments.is_empty()
-<a href=#941 id=941 data-nosnippet>941</a>            }
-<a href=#942 id=942 data-nosnippet>942</a>            HirExpression::MemberAccess(hir_member_access) =&gt; {
-<a href=#943 id=943 data-nosnippet>943</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_member_access.lhs)
+<a href=#929 id=929 data-nosnippet>929</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_prefix_expression.rhs)
+<a href=#930 id=930 data-nosnippet>930</a>            }
+<a href=#931 id=931 data-nosnippet>931</a>            HirExpression::Infix(hir_infix_expression) =&gt; {
+<a href=#932 id=932 data-nosnippet>932</a>                <span class="comment">// Something like `x + y` can't have side effects if `x` is numeric
+<a href=#933 id=933 data-nosnippet>933</a>                </span><span class="kw">if </span>hir_infix_expression.trait_method_id.is_some()
+<a href=#934 id=934 data-nosnippet>934</a>                    &amp;&amp; !<span class="self">self</span>.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+<a href=#935 id=935 data-nosnippet>935</a>                {
+<a href=#936 id=936 data-nosnippet>936</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#937 id=937 data-nosnippet>937</a>                }
+<a href=#938 id=938 data-nosnippet>938</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_infix_expression.lhs)
+<a href=#939 id=939 data-nosnippet>939</a>                    || <span class="self">self</span>.expression_could_have_side_effects(hir_infix_expression.rhs)
+<a href=#940 id=940 data-nosnippet>940</a>            }
+<a href=#941 id=941 data-nosnippet>941</a>            HirExpression::Index(hir_index_expression) =&gt; {
+<a href=#942 id=942 data-nosnippet>942</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_index_expression.collection)
+<a href=#943 id=943 data-nosnippet>943</a>                    || <span class="self">self</span>.expression_could_have_side_effects(hir_index_expression.index)
 <a href=#944 id=944 data-nosnippet>944</a>            }
-<a href=#945 id=945 data-nosnippet>945</a>            HirExpression::Call(..) =&gt; <span class="bool-val">true</span>,
-<a href=#946 id=946 data-nosnippet>946</a>            HirExpression::Constrain(..) =&gt; <span class="bool-val">true</span>,
-<a href=#947 id=947 data-nosnippet>947</a>            HirExpression::Cast(hir_cast_expression) =&gt; {
-<a href=#948 id=948 data-nosnippet>948</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_cast_expression.lhs)
-<a href=#949 id=949 data-nosnippet>949</a>            }
-<a href=#950 id=950 data-nosnippet>950</a>            HirExpression::If(..)
-<a href=#951 id=951 data-nosnippet>951</a>            | HirExpression::Match(..)
-<a href=#952 id=952 data-nosnippet>952</a>            | HirExpression::Tuple(..)
-<a href=#953 id=953 data-nosnippet>953</a>            | HirExpression::Lambda(..)
-<a href=#954 id=954 data-nosnippet>954</a>            | HirExpression::Quote(..)
-<a href=#955 id=955 data-nosnippet>955</a>            | HirExpression::Unquote(..)
-<a href=#956 id=956 data-nosnippet>956</a>            | HirExpression::Unsafe(..)
-<a href=#957 id=957 data-nosnippet>957</a>            | HirExpression::Block(..)
-<a href=#958 id=958 data-nosnippet>958</a>            | HirExpression::Error =&gt; <span class="bool-val">true</span>,
-<a href=#959 id=959 data-nosnippet>959</a>        }
-<a href=#960 id=960 data-nosnippet>960</a>    }
-<a href=#961 id=961 data-nosnippet>961</a>
-<a href=#962 id=962 data-nosnippet>962</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#963 id=963 data-nosnippet>963</a>    </span><span class="kw">fn </span>elaborate_comptime_statement(
-<a href=#964 id=964 data-nosnippet>964</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#965 id=965 data-nosnippet>965</a>        statement: Statement,
-<a href=#966 id=966 data-nosnippet>966</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#967 id=967 data-nosnippet>967</a>    ) -&gt; (HirStatement, Type) {
-<a href=#968 id=968 data-nosnippet>968</a>        <span class="kw">let </span>location = statement.location;
-<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>hir_statement = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
-<a href=#970 id=970 data-nosnippet>970</a>            <span class="kw">let </span>(hir_statement, typ) = this.elaborate_statement(statement);
-<a href=#971 id=971 data-nosnippet>971</a>
-<a href=#972 id=972 data-nosnippet>972</a>            <span class="comment">// If the comptime statement is expected to return a specific type, unify their types.
-<a href=#973 id=973 data-nosnippet>973</a>            // This for example allows this code to compile:
-<a href=#974 id=974 data-nosnippet>974</a>            //
-<a href=#975 id=975 data-nosnippet>975</a>            // ```
-<a href=#976 id=976 data-nosnippet>976</a>            // fn foo() -&gt; u8 {
-<a href=#977 id=977 data-nosnippet>977</a>            //   comptime { 1 }
-<a href=#978 id=978 data-nosnippet>978</a>            // }
-<a href=#979 id=979 data-nosnippet>979</a>            // ```
-<a href=#980 id=980 data-nosnippet>980</a>            //
-<a href=#981 id=981 data-nosnippet>981</a>            // If we don't do this, "1" will end up with the default integer or field type,
-<a href=#982 id=982 data-nosnippet>982</a>            // which is Field.
-<a href=#983 id=983 data-nosnippet>983</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
-<a href=#984 id=984 data-nosnippet>984</a>                this.unify_or_type_mismatch(<span class="kw-2">&amp;</span>typ, target_type, location);
-<a href=#985 id=985 data-nosnippet>985</a>            }
-<a href=#986 id=986 data-nosnippet>986</a>
-<a href=#987 id=987 data-nosnippet>987</a>            hir_statement
-<a href=#988 id=988 data-nosnippet>988</a>        });
-<a href=#989 id=989 data-nosnippet>989</a>
-<a href=#990 id=990 data-nosnippet>990</a>        <span class="comment">// Run the interpreter - it will check if execution has been halted
-<a href=#991 id=991 data-nosnippet>991</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
-<a href=#992 id=992 data-nosnippet>992</a>        <span class="kw">let </span>value = interpreter.evaluate_statement(hir_statement);
-<a href=#993 id=993 data-nosnippet>993</a>
-<a href=#994 id=994 data-nosnippet>994</a>        <span class="kw">let </span>from_macro_call = <span class="bool-val">false</span>;
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span>(expr, typ) = <span class="self">self</span>.inline_comptime_value(value, location, from_macro_call);
-<a href=#996 id=996 data-nosnippet>996</a>
-<a href=#997 id=997 data-nosnippet>997</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(hir_statement);
-<a href=#998 id=998 data-nosnippet>998</a>        <span class="self">self</span>.debug_comptime(location, |interner, <span class="kw">_</span>| expr.to_display_ast(interner).kind);
-<a href=#999 id=999 data-nosnippet>999</a>
-<a href=#1000 id=1000 data-nosnippet>1000</a>        (HirStatement::Expression(expr), typ)
-<a href=#1001 id=1001 data-nosnippet>1001</a>    }
-<a href=#1002 id=1002 data-nosnippet>1002</a>}</code></pre></div></section></main></body></html>
+<a href=#945 id=945 data-nosnippet>945</a>            HirExpression::Constructor(hir_constructor_expression) =&gt; {
+<a href=#946 id=946 data-nosnippet>946</a>                !hir_constructor_expression.fields.is_empty()
+<a href=#947 id=947 data-nosnippet>947</a>            }
+<a href=#948 id=948 data-nosnippet>948</a>            HirExpression::EnumConstructor(hir_enum_constructor_expression) =&gt; {
+<a href=#949 id=949 data-nosnippet>949</a>                !hir_enum_constructor_expression.arguments.is_empty()
+<a href=#950 id=950 data-nosnippet>950</a>            }
+<a href=#951 id=951 data-nosnippet>951</a>            HirExpression::MemberAccess(hir_member_access) =&gt; {
+<a href=#952 id=952 data-nosnippet>952</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_member_access.lhs)
+<a href=#953 id=953 data-nosnippet>953</a>            }
+<a href=#954 id=954 data-nosnippet>954</a>            HirExpression::Call(..) =&gt; <span class="bool-val">true</span>,
+<a href=#955 id=955 data-nosnippet>955</a>            HirExpression::Constrain(..) =&gt; <span class="bool-val">true</span>,
+<a href=#956 id=956 data-nosnippet>956</a>            HirExpression::Cast(hir_cast_expression) =&gt; {
+<a href=#957 id=957 data-nosnippet>957</a>                <span class="self">self</span>.expression_could_have_side_effects(hir_cast_expression.lhs)
+<a href=#958 id=958 data-nosnippet>958</a>            }
+<a href=#959 id=959 data-nosnippet>959</a>            HirExpression::If(..)
+<a href=#960 id=960 data-nosnippet>960</a>            | HirExpression::Match(..)
+<a href=#961 id=961 data-nosnippet>961</a>            | HirExpression::Tuple(..)
+<a href=#962 id=962 data-nosnippet>962</a>            | HirExpression::Lambda(..)
+<a href=#963 id=963 data-nosnippet>963</a>            | HirExpression::Quote(..)
+<a href=#964 id=964 data-nosnippet>964</a>            | HirExpression::Unquote(..)
+<a href=#965 id=965 data-nosnippet>965</a>            | HirExpression::Unsafe(..)
+<a href=#966 id=966 data-nosnippet>966</a>            | HirExpression::Block(..)
+<a href=#967 id=967 data-nosnippet>967</a>            | HirExpression::Error =&gt; <span class="bool-val">true</span>,
+<a href=#968 id=968 data-nosnippet>968</a>        }
+<a href=#969 id=969 data-nosnippet>969</a>    }
+<a href=#970 id=970 data-nosnippet>970</a>
+<a href=#971 id=971 data-nosnippet>971</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#972 id=972 data-nosnippet>972</a>    </span><span class="kw">fn </span>elaborate_comptime_statement(
+<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#974 id=974 data-nosnippet>974</a>        statement: Statement,
+<a href=#975 id=975 data-nosnippet>975</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#976 id=976 data-nosnippet>976</a>    ) -&gt; (HirStatement, Type) {
+<a href=#977 id=977 data-nosnippet>977</a>        <span class="kw">let </span>location = statement.location;
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">let </span>hir_statement = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
+<a href=#979 id=979 data-nosnippet>979</a>            <span class="kw">let </span>(hir_statement, typ) = this.elaborate_statement(statement);
+<a href=#980 id=980 data-nosnippet>980</a>
+<a href=#981 id=981 data-nosnippet>981</a>            <span class="comment">// If the comptime statement is expected to return a specific type, unify their types.
+<a href=#982 id=982 data-nosnippet>982</a>            // This for example allows this code to compile:
+<a href=#983 id=983 data-nosnippet>983</a>            //
+<a href=#984 id=984 data-nosnippet>984</a>            // ```
+<a href=#985 id=985 data-nosnippet>985</a>            // fn foo() -&gt; u8 {
+<a href=#986 id=986 data-nosnippet>986</a>            //   comptime { 1 }
+<a href=#987 id=987 data-nosnippet>987</a>            // }
+<a href=#988 id=988 data-nosnippet>988</a>            // ```
+<a href=#989 id=989 data-nosnippet>989</a>            //
+<a href=#990 id=990 data-nosnippet>990</a>            // If we don't do this, "1" will end up with the default integer or field type,
+<a href=#991 id=991 data-nosnippet>991</a>            // which is Field.
+<a href=#992 id=992 data-nosnippet>992</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
+<a href=#993 id=993 data-nosnippet>993</a>                this.unify_or_type_mismatch(<span class="kw-2">&amp;</span>typ, target_type, location);
+<a href=#994 id=994 data-nosnippet>994</a>            }
+<a href=#995 id=995 data-nosnippet>995</a>
+<a href=#996 id=996 data-nosnippet>996</a>            hir_statement
+<a href=#997 id=997 data-nosnippet>997</a>        });
+<a href=#998 id=998 data-nosnippet>998</a>
+<a href=#999 id=999 data-nosnippet>999</a>        <span class="comment">// Run the interpreter - it will check if execution has been halted
+<a href=#1000 id=1000 data-nosnippet>1000</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
+<a href=#1001 id=1001 data-nosnippet>1001</a>        <span class="kw">let </span>value = interpreter.evaluate_statement(hir_statement);
+<a href=#1002 id=1002 data-nosnippet>1002</a>
+<a href=#1003 id=1003 data-nosnippet>1003</a>        <span class="kw">let </span>from_macro_call = <span class="bool-val">false</span>;
+<a href=#1004 id=1004 data-nosnippet>1004</a>        <span class="kw">let </span>(expr, typ) = <span class="self">self</span>.inline_comptime_value(value, location, from_macro_call);
+<a href=#1005 id=1005 data-nosnippet>1005</a>
+<a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(hir_statement);
+<a href=#1007 id=1007 data-nosnippet>1007</a>        <span class="self">self</span>.debug_comptime(location, |interner, <span class="kw">_</span>| expr.to_display_ast(interner).kind);
+<a href=#1008 id=1008 data-nosnippet>1008</a>
+<a href=#1009 id=1009 data-nosnippet>1009</a>        (HirStatement::Expression(expr), typ)
+<a href=#1010 id=1010 data-nosnippet>1010</a>    }
+<a href=#1011 id=1011 data-nosnippet>1011</a>}</code></pre></div></section></main></body></html>
