@@ -641,8 +641,7 @@ mod tests {
     fn assert_verifier_rejects(src: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
         let err = super::verify_array_set_rc_invariant(&ssa)
-            .err()
-            .expect("expected the verifier to reject");
+            .expect_err("expected the verifier to reject");
         assert!(
             matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
             "expected ArraySetAliasViolation, got {err:?}",

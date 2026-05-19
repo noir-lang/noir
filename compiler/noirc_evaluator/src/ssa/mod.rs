@@ -196,7 +196,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(&ssa)?;
+                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
                 Ok(())
             }),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
@@ -380,20 +380,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-            .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new_try(
-            Ssa::verify_no_dynamic_indices_to_references,
-            "Verifying no dynamic array indices to reference value elements",
-        ),
+            .and_then(Ssa::remove_unreachable_functions)
+            .and_then_validate(
+                validation::dynamic_array_indices::verify_no_dynamic_indices_to_references,
+            ),
         SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
-            .and_then(|ssa| {
-                // Sanity check at the end of the pipeline: ACIR should be free of memory ops
-                // (Load/Store/Allocate). Mem2reg + flatten_cfg own that; this asserts the
-                // invariant so a regression upstream surfaces here, not as a panic in a
-                // later pass that assumes the invariant.
+            .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::validate_no_acir_memory_ops(&ssa);
-                ssa
+                validation::validate_no_acir_memory_ops(ssa)?;
+                Ok(())
             }),
     ]
 }
