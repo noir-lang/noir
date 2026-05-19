@@ -195,6 +195,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
         // Debug-only sanity check on the mem2reg-transformed Brillig SSA.
+        // Separate pass so that if it flags an error we can see the preceding SSA with `--show-ssa`
         SsaPass::new_try(
             |ssa| {
                 #[cfg(debug_assertions)]
