@@ -173,6 +173,24 @@ struct Context<'f> {
     ///   documented gap. In practice the frontend's array-returning
     ///   functions allocate fresh storage.
     non_aliasing_array_values: HashSet<ValueId>,
+    /// `MakeArray` results that appear on at least one loop back-edge
+    /// (i.e., they're members of [`Context::back_edge_args`]). Such a
+    /// `make_array` re-executes on every loop iteration and represents
+    /// fresh storage per iteration, so the back-edge UF unification that
+    /// puts it in the loop-header parameter's class is conflating
+    /// distinct runtime storages across iterations. Filtered out of the
+    /// alias-set on lookup — see [`Context::alias_set_for`].
+    ///
+    /// `MakeArray` results that are *not* back-edge args are kept in the
+    /// alias-set: they represent a one-time allocation whose storage
+    /// the array_set may mutate in place. Dropping them would lose a
+    /// real hazard — the
+    /// `end_to_end_make_array_aliased_via_forward_block_param_with_forward_read_is_rejected`
+    /// test guards this distinction.
+    ///
+    /// Aliasing through *nested-array elements* of a `make_array` is a
+    /// documented gap — see the module-level docs.
+    iteration_local_make_arrays: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
@@ -214,6 +232,7 @@ impl<'f> Context<'f> {
             HashMap::default();
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
+        let mut make_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
 
@@ -231,11 +250,15 @@ impl<'f> Context<'f> {
 
                 let is_non_aliasing =
                     matches!(instruction, Instruction::ArraySet { .. } | Instruction::Call { .. });
+                let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
                         array_value_defs.insert(result, (block_id, idx));
                         if is_non_aliasing {
                             non_aliasing_array_values.insert(result);
+                        }
+                        if is_make_array {
+                            make_array_values.insert(result);
                         }
                     }
                 }
@@ -291,12 +314,21 @@ impl<'f> Context<'f> {
 
         let value_aliases = materialize_value_aliases(uf);
 
+        // A `make_array` is iteration-local iff its result appears on a
+        // loop back-edge: that's the signal that it re-executes each
+        // iteration, so the storage the loop-header parameter receives
+        // through the back-edge is freshly allocated rather than the
+        // same storage the array_set may mutate in place.
+        let iteration_local_make_arrays: HashSet<ValueId> =
+            make_array_values.intersection(&back_edge_args).copied().collect();
+
         Self {
             function,
             dom_tree,
             value_aliases,
             array_value_defs,
             non_aliasing_array_values,
+            iteration_local_make_arrays,
             inc_rc_locations,
             array_operand_uses,
             back_edge_args,
@@ -325,6 +357,19 @@ impl<'f> Context<'f> {
     ///      This is a heuristic — a function that returns its input *would*
     ///      create a real alias, and we'd miss that. In practice the
     ///      frontend's array-returning functions allocate fresh storage.
+    ///
+    ///    Also drop **iteration-local `MakeArray` results** — those that
+    ///    appear on at least one loop back-edge ([`Context::iteration_local_make_arrays`]).
+    ///    A `make_array` on a back-edge re-executes each iteration and
+    ///    allocates fresh storage, so the loop-header parameter it feeds
+    ///    on the back-edge holds a *different* allocation in the next
+    ///    iteration than the one this iteration's `array_set` may have
+    ///    mutated. UF would unify them; dropping the back-edge make_array
+    ///    from the alias-set restores that distinction. **Non-back-edge
+    ///    `MakeArray` results stay in the alias-set** — they represent a
+    ///    one-time allocation whose storage the array_set can mutate in
+    ///    place, and a forward read of them through the alias is a real
+    ///    hazard.
     ///
     /// 2. **Post-array_set-in-same-block filter.** Drop values whose
     ///    defining instruction is in `array_set_block` at an index
@@ -365,6 +410,9 @@ impl<'f> Context<'f> {
                     return true;
                 }
                 if self.non_aliasing_array_values.contains(&v) {
+                    return false;
+                }
+                if self.iteration_local_make_arrays.contains(&v) {
                     return false;
                 }
                 if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
@@ -939,6 +987,47 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
+    /// Direct shape that the `MakeArray`-non-aliasing filter must NOT
+    /// silence: the array_set's *source* is itself a `make_array` result,
+    /// and the same `make_array` is read forward via `array_get`. The
+    /// source-self-preservation rule in [`Context::alias_set_for`] keeps
+    /// the source in its own alias-set regardless of the filter, so the
+    /// walk still finds the aliased read and flags.
+    #[test]
+    fn end_to_end_array_set_on_make_array_with_forward_read_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 1, u32 2, u32 3] : [u32; 3]
+                v3 = array_set v1, index u32 0, value u32 99
+                v5 = array_get v1, index u32 0 -> u32
+                return v5
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Aliased shape that the `MakeArray`-non-aliasing filter must NOT
+    /// silence: a `make_array` is threaded forward into a block parameter
+    /// via a *forward* edge (no loop), the parameter is the array_set's
+    /// source, and the original `make_array` value is read forward. The
+    /// `make_array` represents the same one-time allocation that the
+    /// `array_set` may mutate in place at runtime — so dropping it from
+    /// the alias-set would lose the hazard.
+    #[test]
+    fn end_to_end_make_array_aliased_via_forward_block_param_with_forward_read_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 1, u32 2, u32 3] : [u32; 3]
+                jmp b1(v1)
+              b1(v2: [u32; 3]):
+                v4 = array_set v2, index u32 0, value u32 99
+                v6 = array_get v1, index u32 0 -> u32
+                return v6
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered pattern: a
     /// loop body that mutates the loop-variable (an `array_set` whose
     /// source is the loop-header parameter) and then re-seeds the
@@ -1287,6 +1376,66 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "v7 (make_array) is defined after the array_set in the same block — it can't represent the mutated storage, and the loop-header param v1 is bound to v7 on the back-edge",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered shape: a
+    /// `make_array` defined in the outer-loop body *before* the inner
+    /// loop's `array_set`, whose result is threaded back to the outer
+    /// loop's header on the back-edge. Because the outer header's
+    /// parameter is in the same union-find class as the inner array_set's
+    /// source (via the chain header → inner-header param → array_set
+    /// source), the `make_array` result lands in the alias-set. The
+    /// per-arg kill on the outer back-edge then sees the `make_array` in
+    /// the use-set and refuses to kill the outer header parameter,
+    /// letting the walk reach an earlier-in-source `array_get` of the
+    /// outer header parameter — which is read in *this* iteration's prefix,
+    /// not the storage the array_set mutated. At runtime the outer
+    /// parameter is rebound to a fresh `make_array` on every back-edge
+    /// crossing, so the iteration-aliasing is illusory.
+    ///
+    /// The fix drops `MakeArray` results from the alias-set: a
+    /// `make_array` always allocates fresh top-level storage, so it
+    /// can't represent the pre-mutation storage of any array_set source.
+    /// (Aliasing through *nested-array elements* of a `make_array` is a
+    /// documented gap — see the module-level docs.)
+    #[test]
+    fn end_to_end_nested_loop_outer_back_edge_with_pre_array_set_make_array_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u64; 1]):
+                jmp b1(v0, u32 0)
+              b1(v22: [u64; 1], v23: u32):
+                v5 = eq v23, u32 0
+                jmpif v5 then: b3(), else: b4()
+              b2():
+                return
+              b3():
+                jmp b2()
+              b4():
+                v8 = add v23, u32 1
+                v11 = array_get v22, index u32 0 -> u64
+                v12 = make_array [v11] : [u64; 1]
+                jmp b6(v22, u32 0)
+              b5():
+                jmp b1(v12, v8)
+              b6(v24: [u64; 1], v25: u32):
+                v16 = eq v25, u32 3
+                jmpif v16 then: b8(), else: b9()
+              b7():
+                jmp b5()
+              b8():
+                jmp b7()
+              b9():
+                v18 = add v25, u32 1
+                v21 = array_set v24, index u32 0, value u64 0
+                jmp b10()
+              b10():
+                jmp b6(v21, v18)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v12 (make_array) on the outer back-edge to v22 is fresh storage by construction; the outer parameter v22 is rebound to v12 each outer iteration, so reading v22 in the next iteration's b4 observes the fresh array, not the inner array_set's mutated storage",
         );
     }
 
