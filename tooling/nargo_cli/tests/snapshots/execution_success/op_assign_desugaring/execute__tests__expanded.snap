@@ -21,4 +21,23 @@ fn main() {
     p.x = p.x + 5_Field;
     assert(p.x == 15_Field);
     assert(p.y == 20_Field);
+    let mut arr: [i32; 2] = [10_i32, 20_i32];
+    let mut i: u32 = 0_u32;
+    {
+        let op_rhs_1: i32 = {
+            i = 1_u32;
+            5_i32
+        };
+        arr[i] = arr[i] + op_rhs_1;
+    };
+    assert(arr == [10_i32, 25_i32]);
+    let mut i: Field = 0_Field;
+    {
+        let op_rhs_2: Field = {
+            i = 10_Field;
+            1_Field
+        };
+        i = i + op_rhs_2;
+    };
+    assert(i == 11_Field);
 }

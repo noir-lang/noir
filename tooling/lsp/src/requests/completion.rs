@@ -1287,12 +1287,16 @@ impl Visitor for NodeFinder<'_> {
             self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
         }
 
+        // We are entering a child module so we shouldn't modify imports from a parent module
+        let previous_use_segment_positions = std::mem::take(&mut self.use_segment_positions);
+
         parsed_sub_module.accept_children(self);
 
         // Restore the old module before continuing
         self.module_id = previous_module_id;
         self.nesting -= 1;
         self.auto_import_line = old_auto_import_line;
+        self.use_segment_positions = previous_use_segment_positions;
 
         false
     }
