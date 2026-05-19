@@ -48,7 +48,7 @@ pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
         | Value::NumericConstant { .. }
         | Value::Global(_) => true,
         // Functions are not variables in a defunctionalized SSA. Only constant function values should appear.
-        Value::ForeignFunction(_) | Value::Function(_) | Value::Intrinsic(..) => false,
+        Value::ForeignFunction { .. } | Value::Function(_) | Value::Intrinsic(..) => false,
     }
 }
 

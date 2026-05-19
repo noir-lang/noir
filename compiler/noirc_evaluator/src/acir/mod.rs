@@ -691,7 +691,7 @@ impl<'a> Context<'a> {
                 let id = self.acir_context.add_constant(function_id.to_u32());
                 AcirValue::Var(id, NumericType::NativeField)
             }
-            Value::ForeignFunction(_) => unimplemented!(
+            Value::ForeignFunction { .. } => unimplemented!(
                 "Oracle calls directly in constrained functions are not yet available."
             ),
             Value::Instruction { .. } | Value::Param { .. } => {
