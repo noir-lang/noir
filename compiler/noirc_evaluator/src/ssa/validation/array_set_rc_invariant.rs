@@ -216,11 +216,21 @@ impl<'f> Context<'f> {
                     }
                 }
 
-                instruction.for_each_value(|v| {
-                    if function.dfg.type_of_value(v).contains_an_array() {
-                        operand_uses.push((idx, *instruction_id, v));
-                    }
-                });
+                // `inc_rc` / `dec_rc` are ref-count bumps, not reads of the
+                // array contents, so their operands aren't "aliased reads" of
+                // pre-mutation storage. `inc_rc` is already accounted for
+                // separately by `inc_rc_locations` / `some_inc_rc_precedes`.
+                let is_rc_op = matches!(
+                    instruction,
+                    Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
+                );
+                if !is_rc_op {
+                    instruction.for_each_value(|v| {
+                        if function.dfg.type_of_value(v).contains_an_array() {
+                            operand_uses.push((idx, *instruction_id, v));
+                        }
+                    });
+                }
             }
             if !operand_uses.is_empty() {
                 array_operand_uses.insert(block_id, operand_uses);
@@ -823,6 +833,38 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: an
+    /// `array_set v0` in one branch is followed in the same block by an
+    /// `inc_rc w` of a *different* value `w` that the union-find places
+    /// in `v0`'s alias-set (because both `v0` and `w` are threaded into
+    /// the same `b3` block parameter from two branches). The `inc_rc` is
+    /// a ref-count bump, not a content read, and is also not protecting
+    /// `v0` (it postdates the array_set and refers to a different
+    /// runtime allocation), so the walk must skip it. Symmetric to the
+    /// `Instruction::ArraySet`/`Call` "non-aliasing-result" filter: an
+    /// instruction whose semantics don't read pre-mutation storage is
+    /// not a hazard.
+    #[test]
+    fn end_to_end_array_set_followed_by_inc_rc_of_aliased_param_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 1], v1: [u32; 1]):
+                jmpif u1 1 then: b1(), else: b2()
+              b1():
+                jmp b3(v0)
+              b2():
+                v5 = array_set v0, index u32 0, value u32 99
+                inc_rc v1
+                jmp b3(v1)
+              b3(v6: [u32; 1]):
+                return v6
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "`inc_rc v1` after the array_set is a ref-count op, not a read of array contents",
+        );
     }
 
     /// End-to-end regression for the pattern in stdlib's `compute_root`
