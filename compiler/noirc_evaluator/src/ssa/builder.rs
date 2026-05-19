@@ -47,7 +47,7 @@ impl<'a> SsaPass<'a> {
     {
         Self::new_try(
             move |ssa| {
-                Self::print_on_err(&ssa, &f)?;
+                Self::print_on_err(&ssa, &f, msg)?;
                 Ok(ssa)
             },
             msg,
@@ -95,8 +95,9 @@ impl<'a> SsaPass<'a> {
     where
         F: Fn(&Ssa) -> RtResult<()> + 'a,
     {
+        let msg = self.msg;
         self.and_then_try(move |ssa| {
-            Self::print_on_err(&ssa, &f)?;
+            Self::print_on_err(&ssa, &f, msg)?;
             Ok(ssa)
         })
     }
@@ -104,17 +105,17 @@ impl<'a> SsaPass<'a> {
     /// Run some SSA validation function; if it returns an error then either
     /// show the SSA, if the [SHOW_INVALID_SSA_ENV_KEY] key is on, or hint
     /// at the existence of turning on this option.
-    fn print_on_err<F>(ssa: &Ssa, f: &F) -> RtResult<()>
+    fn print_on_err<F>(ssa: &Ssa, f: &F, msg: &str) -> RtResult<()>
     where
         F: Fn(&Ssa) -> RtResult<()> + 'a,
     {
         let result = f(ssa);
         if result.is_err() {
             if should_show_invalid_ssa() {
-                eprintln!("--- The SSA failed to validate:\n{ssa}\n");
+                eprintln!("--- The SSA failed to validate after '{msg}':\n{ssa}\n");
             } else {
                 eprintln!(
-                    "--- The SSA failed to validate: Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."
+                    "--- The SSA failed to validate after '{msg}': Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."
                 );
             }
         }
