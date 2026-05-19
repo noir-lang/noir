@@ -584,6 +584,12 @@ impl Elaborator<'_> {
                 &mut parameter_names_in_list,
             );
 
+            if is_entry_point && !is_identifier_pattern(&pattern) {
+                self.push_err(TypeCheckError::InvalidPatternForEntryPoint {
+                    location: pattern.location(),
+                });
+            }
+
             parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -783,5 +789,15 @@ impl Elaborator<'_> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+    }
+}
+
+/// Whether a pattern binds the whole value to a single name. ABI generation requires this for
+/// entry point parameters since each parameter is keyed by a single name.
+fn is_identifier_pattern(pattern: &HirPattern) -> bool {
+    match pattern {
+        HirPattern::Identifier(_) => true,
+        HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
