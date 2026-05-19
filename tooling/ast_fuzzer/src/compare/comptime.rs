@@ -127,8 +127,37 @@ impl CompareComptime {
         let (res2, print2) =
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
+        // The comptime `interpret` function uses a bare context without stdlib.
+        // Inline the definitions the generated code may call.
+        let stdlib_stubs = r#"
+#[oracle(print)]
+unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+    print_oracle(with_newline, input);
+}
+pub fn println<T>(input: T) { unsafe { print_unconstrained(true, input); } }
+pub fn print<T>(input: T) { unsafe { print_unconstrained(false, input); } }
+
+impl<T> [T] {
+    #[builtin(array_len)]
+    pub fn len(self) -> u32 {}
+    #[builtin(vector_push_back)]
+    pub fn push_back(self, elem: T) -> Self {}
+    #[builtin(vector_push_front)]
+    pub fn push_front(self, elem: T) -> Self {}
+    #[builtin(vector_pop_back)]
+    pub fn pop_back(self) -> (Self, T) {}
+    #[builtin(vector_pop_front)]
+    pub fn pop_front(self) -> (T, Self) {}
+    #[builtin(vector_insert)]
+    pub fn insert(self, index: u32, elem: T) -> Self {}
+    #[builtin(vector_remove)]
+    pub fn remove(self, index: u32) -> (Self, T) {}
+}
+"#;
+
         // Add comptime modifier for main
-        let source = format!("comptime {}{}", self.source, STDLIB_STUBS);
+        let source = format!("comptime {}{}", self.source, stdlib_stubs);
         let output = Rc::new(RefCell::new(Vec::new()));
 
         // Take the printed output.

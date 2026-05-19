@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn run() -> [Field; 5] {
+    let s: [Field] = @[1_Field, 2_Field, 3_Field];
+    let s: [Field] = s.push_back(4_Field);
+    let (first, s): (Field, [Field]) = s.pop_front();
+    let s: [Field] = s.push_front(10_Field);
+    let (s, last): ([Field], Field) = s.pop_back();
+    let s: [Field] = s.insert(1_u32, 20_Field);
+    let (s, removed): ([Field], Field) = s.remove(0_u32);
+    [first, last, removed, s[0_u32], s.len() as Field]
+}
+
+fn main() {
+    let expected: [Field; 5] = [1_Field, 4_Field, 10_Field, 20_Field, 3_Field];
+    // Safety: comment added by `nargo expand`
+    let result: [Field; 5] = unsafe { run() };
+    assert(result == expected);
+}

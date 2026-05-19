@@ -1,0 +1,6 @@
+[package]
+name = "comptime_slice_operations"
+type = "bin"
+authors = [""]
+
+[dependencies]
