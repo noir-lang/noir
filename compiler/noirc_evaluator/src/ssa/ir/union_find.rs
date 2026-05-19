@@ -55,6 +55,7 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
     /// (either explicitly via [`make_set`] / [`union`] or implicitly via
     /// [`find`]). Useful for grouping values into their equivalence classes
     /// without maintaining a parallel set of touched values.
+    #[cfg(debug_assertions)]
     pub(crate) fn keys(&self) -> impl Iterator<Item = K> + '_ {
         self.parent.keys().copied()
     }

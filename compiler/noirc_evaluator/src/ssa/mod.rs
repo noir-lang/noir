@@ -194,7 +194,20 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params),
-        SsaPass::new_try(Ssa::verify_array_set_rc_invariant, "Verify array_set RC invariant"),
+        // Debug-only sanity check on the just-cleaned Brillig SSA: every
+        // `array_set` must have its aliasing protected by an `inc_rc` or
+        // by block-parameter threading. The closure body is `#[cfg]`-out
+        // in release, and the verifier module itself is gated, so this
+        // pass becomes a trivial identity in release builds.
+        SsaPass::new_try(
+            |ssa| {
+                #[cfg(debug_assertions)]
+                return ssa.verify_array_set_rc_invariant();
+                #[cfg(not(debug_assertions))]
+                Ok(ssa)
+            },
+            "Verify array_set RC invariant",
+        ),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(
             Ssa::lower_refs_at_acir_brillig_boundary,

@@ -64,10 +64,11 @@ impl Ssa {
     /// Verifies the `array_set` / `inc_rc` aliasing invariant on every Brillig
     /// function. See the module-level docs for details.
     ///
-    /// Compiled to a no-op in release builds — this is a sanity check on
-    /// frontend codegen, not a hot-path safety net.
+    /// The entire module containing this method is gated behind
+    /// `#[cfg(debug_assertions)]`, so this is a no-op (and absent at the
+    /// linker level) in release builds — see the pipeline wiring in
+    /// [`crate::ssa::primary_passes`].
     pub(crate) fn verify_array_set_rc_invariant(self) -> RtResult<Ssa> {
-        #[cfg(debug_assertions)]
         for function in self.functions.values() {
             function.verify_array_set_rc_invariant()?;
         }
@@ -76,7 +77,6 @@ impl Ssa {
 }
 
 impl Function {
-    #[cfg(debug_assertions)]
     pub(crate) fn verify_array_set_rc_invariant(&self) -> RtResult<()> {
         if !self.runtime().is_brillig() {
             return Ok(());
