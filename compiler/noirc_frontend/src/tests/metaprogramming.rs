@@ -1744,3 +1744,40 @@ fn trait_impl_generated_with_constraint_does_not_drop_constraint() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn inline_bound_on_quoted_generic_is_preserved() {
+    let stdlib = r#"
+        pub enum Option<T> { None, Some(T) }
+        impl TypeDefinition {
+            #[builtin(type_def_generics)]
+            pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
+        }
+    "#;
+    let src = r#"
+    pub trait Constraint {}
+    pub trait Target { fn run(self); }
+    pub struct Wrapper<T> { inner: T }
+    impl Constraint for i32 {}
+
+    #[generate_impl]
+    pub struct Marker<T> {}
+
+    comptime fn generate_impl(s: TypeDefinition) -> Quoted {
+        let t = s.generics()[0].0;
+        quote {
+            impl<$t: Constraint> Target for Wrapper<$t> {
+                fn run(_self: Self) { }
+            }
+        }
+    }
+
+    fn main() {
+        let w = Wrapper { inner: false };
+        w.run();
+        ^^^^^ No matching impl found for `bool: Constraint`
+        ~~~~~ No impl for `bool: Constraint`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}

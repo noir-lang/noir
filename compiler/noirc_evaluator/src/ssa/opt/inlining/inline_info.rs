@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
-        call_graph::{CallGraph, called_functions},
+        call_graph::{CallGraph, called_functions_partial},
         dfg::DataFlowGraph,
         function::FunctionId,
         instruction::{Instruction, Intrinsic},
@@ -117,7 +117,7 @@ pub(crate) fn compute_inline_infos(
         }
 
         // Any Brillig function called from ACIR is an entry into the Brillig VM.
-        for called_func_id in called_functions(function) {
+        for called_func_id in called_functions_partial(function) {
             if ssa.functions[&called_func_id].runtime().is_brillig() {
                 inline_infos.entry(called_func_id).or_default().is_brillig_entry_point = true;
             }

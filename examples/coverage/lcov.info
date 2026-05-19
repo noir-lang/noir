@@ -9,6 +9,8 @@ FN:52,<u64 as Quadruple>::quadrupled
 FN:52,Quadruple::quadrupled
 FN:58,<u32 as Quadruple>::doubled
 FN:64,<u64 as Quadruple>::doubled
+FN:76,First::new
+FN:86,Second::new
 FNDA:0,double
 FNDA:0,add
 FNDA:0,moo::triple
@@ -18,7 +20,9 @@ FNDA:0,<u64 as Quadruple>::quadrupled
 FNDA:0,Quadruple::quadrupled
 FNDA:0,<u32 as Quadruple>::doubled
 FNDA:0,<u64 as Quadruple>::doubled
-FNF:9
+FNDA:0,First::new
+FNDA:0,Second::new
+FNF:11
 FNH:0
 DA:1,0
 DA:2,0
@@ -44,7 +48,11 @@ DA:58,0
 DA:59,0
 DA:64,0
 DA:65,0
-LF:24
+DA:76,0
+DA:77,0
+DA:86,0
+DA:87,0
+LF:28
 LH:0
 end_of_record
 TN:test_add
@@ -68,6 +76,21 @@ DA:1,1
 DA:2,3
 LF:2
 LH:2
+end_of_record
+TN:test_inherent_news
+SF:src/lib.nr
+FN:76,First::new
+FN:86,Second::new
+FNDA:1,First::new
+FNDA:1,Second::new
+FNF:2
+FNH:2
+DA:76,1
+DA:77,2
+DA:86,1
+DA:87,2
+LF:4
+LH:4
 end_of_record
 TN:test_quadrupled
 SF:src/lib.nr

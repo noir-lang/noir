@@ -35,7 +35,10 @@ use registers::{RegisterAllocator, ScratchSpace};
 use crate::brillig::assert_u32;
 
 pub use self::registers::LayoutConfig;
-pub use self::registers::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES};
+pub use self::registers::{
+    MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
+    NUM_STACK_FRAMES,
+};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -95,6 +98,14 @@ impl ReservedRegisters {
     pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
         let start = ScratchSpace::start();
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
+    }
+
+    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// to hold a value across the load → cmov → store sequence. Disjoint from
+    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// can be reused by the inner load/store without clobbering the value.
+    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
     }
 }
 

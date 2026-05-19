@@ -636,6 +636,7 @@ fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'
         SecondaryAttributeKind::Allow(_) => Some("allow"),
         SecondaryAttributeKind::MustUse(_) => Some("must_use"),
         SecondaryAttributeKind::Tag(_) | SecondaryAttributeKind::Meta(_) => None,
+        SecondaryAttributeKind::Pure => Some("pure"),
     }
 }
 

@@ -331,6 +331,11 @@ impl FunctionBuilder {
         rhs: ValueId,
         assert_message: Option<ConstrainError>,
     ) {
+        let lhs_type = self.type_of_value(lhs);
+        assert!(
+            matches!(lhs_type, Type::Numeric(_)),
+            "Constrain operands must be numeric, got {lhs_type}"
+        );
         self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 
@@ -483,8 +488,8 @@ impl FunctionBuilder {
 
     /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
     /// into the current function if it was not already, and returns that ID.
-    pub fn import_foreign_function(&mut self, function: &str) -> ValueId {
-        self.current_function.dfg.import_foreign_function(function)
+    pub fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
+        self.current_function.dfg.import_foreign_function(function, pure)
     }
 
     /// Retrieve a value reference to the given intrinsic operation.
