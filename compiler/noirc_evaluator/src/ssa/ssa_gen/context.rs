@@ -201,6 +201,26 @@ impl<'a> FunctionContext<'a> {
         self.definitions.insert(parameter_id, parameter_value);
     }
 
+    /// Rebind each *scalar* databus call_data parameter to the aggregated calldata array
+    pub(super) fn wire_scalar_databus_params(
+        &mut self,
+        call_data: &[crate::ssa::function_builder::data_bus::DataBusBuilder],
+    ) {
+        // Inverse the definitions map, to do 'value to local' in O(1) afterwards.
+        let mut value_to_local: HashMap<ValueId, LocalId> = HashMap::default();
+        for (local_id, values) in &self.definitions {
+            values.clone().for_each(|value| {
+                if let Value::Normal(v) = value {
+                    value_to_local.insert(v, *local_id);
+                }
+            });
+        }
+        let new_mappings = self.builder.bind_scalar_databus_params(call_data, &value_to_local);
+        for (local_id, value_id) in new_mappings {
+            self.definitions.insert(local_id, Tree::Leaf(Value::Normal(value_id)));
+        }
+    }
+
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {

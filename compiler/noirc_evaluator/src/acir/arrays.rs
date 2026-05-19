@@ -301,6 +301,21 @@ impl Context<'_> {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
+        // Shortcut for call_data array in order to preserve databus MemoryOp::Read operations.
+        // We do not apply the optimization for the call_data itself or array-get on arrays referenced by the call_data, i.e:
+        // 1. `array` is the call_data: cd.array_id == array, OR
+        // 2. `array` is a databus param AND the call_data has been processed
+        // The later check is needed because the databus construction requires to read the call-data arrays.
+        let is_databus_read = store_value.is_none()
+            && self.data_bus.call_data.iter().any(|cd| {
+                cd.array_id == array
+                    || (cd.index_map.contains_key(&array)
+                        && self.ssa_values.contains_key(&cd.array_id))
+            });
+        if is_databus_read {
+            return Ok(false);
+        }
+
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
                 Err(RuntimeError::InternalError(InternalError::Unexpected {

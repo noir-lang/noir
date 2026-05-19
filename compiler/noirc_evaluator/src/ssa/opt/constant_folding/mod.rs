@@ -895,8 +895,18 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        Binary(_) | ArrayGet { .. } => {
+        Binary(_) => {
             if instruction.requires_acir_gen_predicate(dfg) {
+                CanBeDeduplicated::UnderSamePredicate
+            } else {
+                CanBeDeduplicated::Always
+            }
+        }
+        ArrayGet { array, .. } => {
+            // Disable optimization for arrays with call_data attribute.
+            if dfg.data_bus.call_data.iter().any(|cd| cd.index_map.contains_key(array)) {
+                CanBeDeduplicated::Never
+            } else if instruction.requires_acir_gen_predicate(dfg) {
                 CanBeDeduplicated::UnderSamePredicate
             } else {
                 CanBeDeduplicated::Always
@@ -1160,6 +1170,43 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants(MIN_ITER);
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn array_get_on_call_data_param_is_not_deduplicated() {
+        // When the array operand is a call_data param, CSE must not dedup its reads.
+        // The non-call_data case is covered by `constant_index_array_access_deduplication`.
+        let src = "
+            acir(inline) fn main f0 {
+              call_data(0): array: v3, indices: [v0: 0]
+              b0(v0: [Field; 2]):
+                v1 = array_get v0, index u32 0 -> Field
+                v2 = array_get v0, index u32 1 -> Field
+                v3 = make_array [v1, v2] : [Field; 2]
+                v4 = array_get v0, index u32 0 -> Field
+                v5 = array_get v0, index u32 0 -> Field
+                v6 = add v4, v5
+                return v6
+            }
+            ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        // Both user-visible reads (v4, v5) must survive — neither merges with the
+        // other nor with the bus-construction read v1.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          call_data(0): array: v5, indices: [v0: 0]
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            v4 = array_get v0, index u32 1 -> Field
+            v5 = make_array [v2, v4] : [Field; 2]
+            v6 = array_get v0, index u32 0 -> Field
+            v7 = array_get v0, index u32 0 -> Field
+            v8 = add v6, v7
+            return v8
+        }
+        ");
     }
 
     // Regression for #4600

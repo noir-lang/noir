@@ -80,6 +80,10 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
+    // Rebind scalar databus params so every use reads from the calldata array
+    // rather than referencing the param witness directly.
+    // Must be done after call_data_bus.
+    function_context.wire_scalar_databus_params(&call_data);
 
     function_context.codegen_function_body(&main.body)?;
 

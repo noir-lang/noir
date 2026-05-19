@@ -425,6 +425,84 @@ fn databus_deduplicate_call_and_return_data() {
 }
 
 #[test]
+fn constant_index_read_on_call_data() {
+    let src = "
+    acir(inline) fn main f0 {
+        call_data(0): array: v3, indices: [v0: 0]
+        b0(v0: [Field; 2]):
+            v1 = array_get v0, index u32 0 -> Field
+            v2 = array_get v0, index u32 1 -> Field
+            v3 = make_array [v1, v2] : [Field; 2]       // Call data
+            v4 = array_get v0, index u32 0 -> Field     // Reads on v0, which is inside the call_data v3
+            return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // The `array_get v0, 0` user read materializes as a READ from the
+    // CALLDATA block (`b1[w?]`), not a direct reference to w0/w1.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    INIT CALLDATA 0 b1 = [w0, w1]
+    ASSERT w3 = 0
+    READ w4 = b1[w3]
+    ASSERT w2 = w4
+    ");
+}
+
+#[test]
+fn dynamic_index_read_on_call_data() {
+    // Same as `constant_index_read_on_call_data`, but with a dynamic read instead.
+    let src = "
+    acir(inline) fn main f0 {
+        call_data(0): array: v4, indices: [v0: 0]
+        b0(v0: [Field; 2], v1: u32):
+            v2 = array_get v0, index u32 0 -> Field
+            v3 = array_get v0, index u32 1 -> Field
+            v4 = make_array [v2, v3] : [Field; 2]
+            v5 = array_get v0, index v1 -> Field
+            return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: [w3]
+    INIT CALLDATA 0 b1 = [w0, w1]
+    READ w4 = b1[w2]
+    ASSERT w3 = w4
+    ");
+}
+
+#[test]
+fn read_on_non_call_data_param() {
+    // Similar to `constant_index_read_on_call_data`, but without call_data.
+    // Constant index read is properly folded.
+    let src = "
+    acir(inline) fn main f0 {
+        b0(v0: [Field; 2]):
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    ASSERT w2 = w0
+    ");
+}
+
+#[test]
 fn blake3_slice_regression() {
     // Sanity check for blake3 black box call brillig codegen.
     let src = "
