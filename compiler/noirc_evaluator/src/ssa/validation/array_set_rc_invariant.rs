@@ -1459,6 +1459,79 @@ mod tests {
         );
     }
 
+    /// **Documents a known false positive.** This test pins down a
+    /// scenario where the verifier rejects an SSA that is actually safe
+    /// at runtime — kept as working documentation of the precision gap.
+    /// If a future change makes the analysis precise enough to accept
+    /// this shape, flip the assertion to [`assert_verifier_accepts`].
+    ///
+    /// # The SSA
+    ///
+    /// The same shape as
+    /// [`end_to_end_inc_rc_on_forward_edge_participant_alias_is_accepted`]
+    /// with the `inc_rc g0` stripped: the codegen threads the global `g0`
+    /// from one branch and the function arg `v0` from the other into the
+    /// join's block parameter `v5`. The `array_set v0` lives only on the
+    /// branch that subsequently passes `g0` (not `v0`) to the join.
+    ///
+    /// # Why it's actually safe
+    ///
+    /// On *every* runtime path:
+    /// - **then-branch (b0 → b1 → b2):** `array_set v0` may mutate `v0`'s
+    ///   storage in place. The forward jump rebinds `v5 := g0`, so the
+    ///   downstream reads of `v5` hit `g0`'s storage, not the mutated
+    ///   `v0`.
+    /// - **else-branch (b0 → b2):** `v0` is never mutated. `v5 := v0`,
+    ///   reads of `v5` see the original `v0`.
+    ///
+    /// On the path where the mutation happens, the value threaded
+    /// forward into `v5` is *not* the one that got mutated. UF doesn't
+    /// know this — it unifies `v0 ≈ v5 ≈ g0` globally — and none of the
+    /// existing acceptance heuristics catch the case (only one array
+    /// entry param, `g0` isn't on a back-edge, `MakeArray`-iteration-local
+    /// doesn't apply, no inc_rc anywhere).
+    ///
+    /// # The structural fix (not implemented)
+    ///
+    /// Path-sensitive UF: restrict unifying edges to the subgraph
+    /// reachable forward from the `array_set`'s block. From b1, only the
+    /// `b1 → b2(g0)` edge is reachable, so `v5 ≈ g0` only — the
+    /// `v5 ≈ v0` union from `b0 → b2(v0)` (a sibling edge) is excluded
+    /// because b0 is *not* reachable from b1. `v0`'s alias-set then
+    /// collapses to `{v0}` and the read of `v5` no longer flags.
+    ///
+    /// # Why we live with it for now
+    ///
+    /// The Noir frontend's ownership pass appears to emit `inc_rc`
+    /// conservatively whenever block-parameter threading could
+    /// syntactically alias a mutated value, regardless of whether
+    /// path-sensitive reasoning would show it safe. So the typical
+    /// real-world output is the inc_rc'd shape — accepted by the
+    /// jmp-arg-participant relaxation — rather than this one. If the
+    /// frontend ever evolves to a path-aware ownership pass that skips
+    /// the unnecessary `inc_rc`, this test will start producing a real
+    /// false positive on real code and the structural fix will become
+    /// necessary.
+    #[test]
+    fn end_to_end_forward_edge_sibling_join_without_inc_rc_is_false_positive() {
+        let src = r#"
+            g0 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
+
+            brillig(inline) fn main f0 {
+              b0(v0: [u1; 4]):
+                v2 = array_get v0, index u32 0 -> u1
+                jmpif v2 then: b1(), else: b2(v0)
+              b1():
+                v4 = array_set v0, index u32 0, value u1 1
+                jmp b2(g0)
+              b2(v5: [u1; 4]):
+                v7 = array_get v5, index u32 1 -> u1
+                v9 = array_set v5, index u32 0, value u1 1
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered pattern: an
     /// `array_set v0` in one branch is followed in the same block by an
     /// `inc_rc w` of a *different* value `w` that the union-find places
