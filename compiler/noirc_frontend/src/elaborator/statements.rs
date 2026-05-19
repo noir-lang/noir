@@ -846,7 +846,16 @@ impl Elaborator<'_> {
         ident: HirIdent,
         location: Location,
     ) -> (HirLValue, Type, bool, Vec<StmtId>) {
-        let definition = self.interner.definition(ident.id);
+        // Mirror the rvalue path: if this identifier refers to a global whose
+        // initializer hasn't been elaborated yet, lazy-resolve it now so its
+        // recorded type is the real annotated type rather than `Type::Error`.
+        let mut definition = self.interner.definition(ident.id);
+        if let DefinitionKind::Global(global_id) = definition.kind {
+            let _ = definition;
+            self.elaborate_global_if_unresolved(&global_id);
+            definition = self.interner.definition(ident.id);
+        }
+
         let mutable = definition.mutable;
 
         if definition.comptime && !self.in_comptime_context() {
