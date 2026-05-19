@@ -108,6 +108,8 @@ needless_borrows_for_generic_args = "warn"
 redundant_field_names = "warn"
 while_let_loop = "warn"
 for_kv_map = "warn"
+iter_kv_map = "warn"
+unnecessary_sort_by = "warn"
 useless_conversion = "warn"
 
 [workspace.dependencies]

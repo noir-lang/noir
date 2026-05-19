@@ -168,8 +168,8 @@ impl<'cfg> Context<'cfg> {
     /// * The parent of `b9` is `b8`, which already has `b15` as a pending end, which checks out, so we can "complete" `b8`.
     /// * Then we follow up the chain: the parent level of `b8` is `b0`; `b15` is followed by `b4`; `b0` already has `b4` as pending end, so we can "complete" that as well.
     fn complete_parents(&mut self, mut branch: BasicBlockId, mut join: BasicBlockId) {
-        // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
         while let Some(parent) = self.branch_parents.get(&branch).copied() {
+            // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
             match self.find_next_point(join, true) {
                 Point::Join(next) => {
                     // If it's a second join point, then we went back to the parent level. Try to complete it.

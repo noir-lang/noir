@@ -62,7 +62,7 @@ impl ConstantAllocation {
     /// Collect all constants allocated in a given block.
     pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
         self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
-            allocations.iter().flat_map(|(_, constants)| constants).copied().collect()
+            allocations.values().flatten().copied().collect()
         })
     }
 

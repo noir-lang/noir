@@ -1105,9 +1105,9 @@ impl<'a> NodeFinder<'a> {
             let stub = stub.strip_prefix("fn ").unwrap();
 
             let label = if func_meta.parameters.is_empty() {
-                format!("fn {}()", &name)
+                format!("fn {name}()")
             } else {
-                format!("fn {}(..)", &name)
+                format!("fn {name}(..)")
             };
 
             let completion_item = trait_impl_method_completion_item(label, stub);

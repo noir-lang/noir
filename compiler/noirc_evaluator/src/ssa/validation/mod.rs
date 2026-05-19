@@ -244,8 +244,7 @@ impl<'f> Validator<'f> {
                             SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
                         if elements_length != array_semi_flattened_length {
                             panic!(
-                                "MakeArray returns an array of flattened length {}, but it has {} elements",
-                                array_semi_flattened_length, elements_length
+                                "MakeArray returns an array of flattened length {array_semi_flattened_length}, but it has {elements_length} elements"
                             );
                         }
                         composite_type
@@ -278,8 +277,7 @@ impl<'f> Validator<'f> {
                     let expected_type = &composite_type[index % composite_type_len];
                     if &*element_type != expected_type {
                         panic!(
-                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
-                            expected_type, element_type
+                            "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
                     }
                 }
@@ -293,8 +291,7 @@ impl<'f> Validator<'f> {
                 let value_type = dfg.type_of_value(*value);
                 if **address_value_type != *value_type {
                     panic!(
-                        "Store address type {} does not match value type {}",
-                        address_value_type, value_type
+                        "Store address type {address_value_type} does not match value type {value_type}"
                     );
                 }
             }

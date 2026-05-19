@@ -79,7 +79,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             artifact_path.to_str().unwrap(),
             &function_name,
             &Path::new(&output_path)
-                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
+                .join(Path::new(&format!("{function_name}_acir_opcodes.svg"))),
         )?;
     }
 
