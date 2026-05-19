@@ -60,86 +60,85 @@ use crate::{
     },
 };
 
-impl Ssa {
-    /// Verifies the `array_set` / `inc_rc` aliasing invariant on every Brillig
-    /// function. See the module-level docs for details.
-    ///
-    /// The entire module containing this method is gated behind
-    /// `#[cfg(debug_assertions)]`, so this is a no-op (and absent at the
-    /// linker level) in release builds — see the pipeline wiring in
-    /// [`crate::ssa::primary_passes`].
-    pub(crate) fn verify_array_set_rc_invariant(self) -> RtResult<Ssa> {
-        for function in self.functions.values() {
-            function.verify_array_set_rc_invariant()?;
-        }
-        Ok(self)
+/// Verifies the `array_set` / `inc_rc` aliasing invariant on every Brillig
+/// function in `ssa`. See the module-level docs for details.
+///
+/// The entire module containing this function is gated behind
+/// `#[cfg(debug_assertions)]`, so it is a no-op (and absent at the linker
+/// level) in release builds — see the pipeline wiring in
+/// [`crate::ssa::primary_passes`].
+pub(crate) fn verify_array_set_rc_invariant(ssa: &Ssa) -> RtResult<()> {
+    for function in ssa.functions.values() {
+        verify_function(function)?;
     }
+    Ok(())
 }
 
-impl Function {
-    pub(crate) fn verify_array_set_rc_invariant(&self) -> RtResult<()> {
-        if !self.runtime().is_brillig() {
-            return Ok(());
-        }
+/// Per-function entry point. Skips ACIR functions (the invariant only
+/// applies to Brillig, where `array_set` may mutate in place) and runs the
+/// alias / dominance / reachable-use checks for every `array_set` in the
+/// function.
+fn verify_function(function: &Function) -> RtResult<()> {
+    if !function.runtime().is_brillig() {
+        return Ok(());
+    }
 
-        let ctx = Context::new(self);
+    let ctx = Context::new(function);
 
-        for block_id in self.reachable_blocks() {
-            for (idx, instruction_id) in self.dfg[block_id].instructions().iter().enumerate() {
-                let Instruction::ArraySet { array, index: write_index, .. } =
-                    self.dfg[*instruction_id]
-                else {
-                    continue;
-                };
+    for block_id in function.reachable_blocks() {
+        for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
+            let Instruction::ArraySet { array, index: write_index, .. } =
+                function.dfg[*instruction_id]
+            else {
+                continue;
+            };
 
-                let alias_set = ctx.alias_set_for(array);
+            let alias_set = ctx.alias_set_for(array);
 
-                // Cheap check first: if any `inc_rc` on an alias-set member
-                // precedes this `array_set` in flow order, treat the
-                // aliasing as already protected. See `some_inc_rc_precedes`
-                // for the rationale (relaxed from dominance to RPO
-                // precedence).
-                if ctx.some_inc_rc_precedes(&alias_set, block_id, idx) {
-                    continue;
-                }
+            // Cheap check first: if any `inc_rc` on an alias-set member
+            // precedes this `array_set` in flow order, treat the aliasing
+            // as already protected. See `some_inc_rc_precedes` for the
+            // rationale (relaxed from dominance to RPO precedence).
+            if ctx.some_inc_rc_precedes(&alias_set, block_id, idx) {
+                continue;
+            }
 
-                // The array_set's index, if constant — lets the walk skip
-                // `array_get`s on disjoint constant indices (the
-                // pedersen-style pattern). A dynamic write index means we
-                // must conservatively flag every aliased read.
-                let write_index_const = self.dfg.get_numeric_constant(write_index);
+            // The array_set's index, if constant — lets the walk skip
+            // `array_get`s on disjoint constant indices (the pedersen-style
+            // pattern). A dynamic write index means we must conservatively
+            // flag every aliased read.
+            let write_index_const = function.dfg.get_numeric_constant(write_index);
 
-                // Expensive: forward CFG walk looking for an aliased read.
-                // A hit means the `array_set` may mutate storage in place
-                // (RC=1) and a downstream instruction will observe the
-                // pre-mutation contents through an aliased name.
-                if let Some(hit) = ctx.find_reachable_aliased_use(
-                    &alias_set,
-                    *instruction_id,
-                    block_id,
-                    idx,
-                    write_index_const,
-                ) {
-                    let call_stack = self.dfg.get_instruction_call_stack(*instruction_id);
-                    let aliased_use_call_stack =
-                        self.dfg.get_instruction_call_stack(hit.instruction);
-                    let message = format!(
-                        "array_set in function {} on array {array} has an aliased read of {} \
-                         on a forward path with no preceding `inc_rc`; the in-place mutation \
-                         would be observable through that alias",
-                        self.name(),
-                        hit.value,
-                    );
-                    return Err(RuntimeError::ArraySetAliasViolation {
-                        message,
-                        call_stack,
-                        aliased_use_call_stack,
-                    });
-                }
+            // Expensive: forward CFG walk looking for an aliased read.
+            // A hit means the `array_set` may mutate storage in place
+            // (RC=1) and a downstream instruction will observe the
+            // pre-mutation contents through an aliased name.
+            if let Some(hit) = ctx.find_reachable_aliased_use(
+                &alias_set,
+                *instruction_id,
+                block_id,
+                idx,
+                write_index_const,
+            ) {
+                let call_stack = function.dfg.get_instruction_call_stack(*instruction_id);
+                let aliased_use_call_stack =
+                    function.dfg.get_instruction_call_stack(hit.instruction);
+                let message = format!(
+                    "array_set in function {} on array {array} has an aliased read of {} on a \
+                     forward path with no preceding `inc_rc`; the in-place mutation would be \
+                     observable through that alias",
+                    function.name(),
+                    hit.value,
+                );
+                return Err(RuntimeError::ArraySetAliasViolation {
+                    message,
+                    call_stack,
+                    aliased_use_call_stack,
+                });
             }
         }
-        Ok(())
     }
+    Ok(())
 }
 
 /// Pre-computed indices over a Brillig function, built in a single pass over
@@ -627,7 +626,7 @@ mod tests {
     /// to be accepted (e.g. "loop exit reads a rebound block-param").
     fn assert_verifier_accepts_because(src: &str, reason: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
-        if let Err(err) = ssa.verify_array_set_rc_invariant() {
+        if let Err(err) = super::verify_array_set_rc_invariant(&ssa) {
             if reason.is_empty() {
                 panic!("expected the verifier to accept, but it rejected: {err:?}");
             } else {
@@ -641,8 +640,9 @@ mod tests {
     /// Panics on any other outcome.
     fn assert_verifier_rejects(src: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
-        let err =
-            ssa.verify_array_set_rc_invariant().err().expect("expected the verifier to reject");
+        let err = super::verify_array_set_rc_invariant(&ssa)
+            .err()
+            .expect("expected the verifier to reject");
         assert!(
             matches!(err, crate::errors::RuntimeError::ArraySetAliasViolation { .. }),
             "expected ArraySetAliasViolation, got {err:?}",
