@@ -56,6 +56,7 @@ use crate::{
             union_find::UnionFind,
             value::ValueId,
         },
+        opt::{LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
@@ -198,7 +199,7 @@ impl<'f> Context<'f> {
     fn new(function: &'f Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
@@ -272,7 +273,7 @@ impl<'f> Context<'f> {
 
         let value_aliases = materialize_value_aliases(uf);
 
-        let back_edge_only_args = compute_back_edge_only_args(function, &cfg, &mut dom_tree);
+        let back_edge_only_args = compute_back_edge_only_args(function);
 
         Self {
             function,
@@ -687,36 +688,63 @@ struct AliasedUse {
 /// args at `p`'s position that come *only* from back-edge predecessors
 /// of `p`'s block — i.e., args that contribute aliasing to `p` only
 /// in iterations ≥ 1 of the surrounding loop, never on the forward
-/// entry into the loop. A back-edge is detected as an edge whose
-/// target dominates its source.
+/// entry into the loop.
+///
+/// Back-edges are identified by [`Loops::find_all`]: each loop yields a
+/// `(header, back_edge_start)` pair where `back_edge_start → header` is
+/// the back-edge.
 ///
 /// Values absent from the resulting map have an implicit empty
 /// back-edge-only set: either the param has no back-edge predecessor,
 /// or every back-edge arg also appears on some forward edge.
-fn compute_back_edge_only_args(
-    function: &Function,
-    cfg: &ControlFlowGraph,
-    dom_tree: &mut DominatorTree,
-) -> HashMap<ValueId, im::HashSet<ValueId>> {
+fn compute_back_edge_only_args(function: &Function) -> HashMap<ValueId, im::HashSet<ValueId>> {
+    let loops = Loops::find_all(function, LoopOrder::InsideOut);
+
+    // Group back-edge predecessors by the loop header they target.
+    // Only loop headers can have back-edge predecessors, so any block
+    // absent from this map contributes nothing to the result.
+    let mut back_edges_by_header: HashMap<BasicBlockId, HashSet<BasicBlockId>> = HashMap::default();
+    for l in &loops.yet_to_unroll {
+        back_edges_by_header.entry(l.header).or_default().insert(l.back_edge_start);
+    }
+
     let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
 
-    for block_id in function.reachable_blocks() {
-        let params = function.dfg.block_parameters(block_id);
+    for (header, back_edges) in &back_edges_by_header {
+        let params = function.dfg.block_parameters(*header);
         if params.is_empty() {
             continue;
         }
 
+        // For each parameter position, the set of args bound to that
+        // position by some forward-edge predecessor.
         let mut forward_args_per_pos: Vec<HashSet<ValueId>> =
             vec![HashSet::default(); params.len()];
+        // Same shape, but for back-edge predecessors. A value is
+        // "back-edge-only" iff it appears here but not in
+        // `forward_args_per_pos` at the same position.
         let mut back_args_per_pos: Vec<HashSet<ValueId>> = vec![HashSet::default(); params.len()];
 
-        for pred in cfg.predecessors(block_id) {
+        for pred in loops.cfg.predecessors(*header) {
             let Some(terminator) = function.dfg[pred].terminator() else { continue };
-            let args: &[ValueId] = match terminator {
+            let is_back_edge = back_edges.contains(&pred);
+            let mut record_args = |args: &[ValueId]| {
+                for (i, &arg) in args.iter().enumerate() {
+                    if i >= params.len() {
+                        break;
+                    }
+                    if is_back_edge {
+                        back_args_per_pos[i].insert(arg);
+                    } else {
+                        forward_args_per_pos[i].insert(arg);
+                    }
+                }
+            };
+            match terminator {
                 TerminatorInstruction::Jmp { destination, arguments, .. }
-                    if *destination == block_id =>
+                    if destination == header =>
                 {
-                    arguments
+                    record_args(arguments);
                 }
                 TerminatorInstruction::JmpIf {
                     then_destination,
@@ -725,27 +753,13 @@ fn compute_back_edge_only_args(
                     else_arguments,
                     ..
                 } => {
-                    if *then_destination == block_id {
-                        then_arguments
-                    } else if *else_destination == block_id {
-                        else_arguments
-                    } else {
-                        continue;
+                    if then_destination == header {
+                        record_args(then_arguments);
+                    } else if else_destination == header {
+                        record_args(else_arguments);
                     }
                 }
-                _ => continue,
-            };
-
-            let is_back_edge = dom_tree.dominates(block_id, pred);
-            for (i, &arg) in args.iter().enumerate() {
-                if i >= params.len() {
-                    break;
-                }
-                if is_back_edge {
-                    back_args_per_pos[i].insert(arg);
-                } else {
-                    forward_args_per_pos[i].insert(arg);
-                }
+                _ => {}
             }
         }
 
