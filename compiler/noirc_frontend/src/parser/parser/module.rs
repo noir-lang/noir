@@ -135,9 +135,34 @@ mod tests {
 
     #[test]
     fn parse_program_rejects_utf8_in_identifier() {
+        use crate::lexer::errors::LexerErrorKind;
+        use crate::parser::ParserErrorReason;
+
         // cSpell:disable-next-line
         let src = "fn schön() {}";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert!(!errors.is_empty(), "Expected parser errors for non-ASCII identifier");
+        let (module, errors) = parse_program_with_dummy_file(src);
+
+        let non_warning_errors: Vec<_> =
+            errors.iter().filter(|error| !error.is_warning()).collect();
+        assert_eq!(
+            non_warning_errors.len(),
+            1,
+            "Expected exactly one error, got: {non_warning_errors:?}",
+        );
+        match non_warning_errors[0].reason() {
+            Some(ParserErrorReason::Lexer(LexerErrorKind::NonAsciiIdentifier {
+                found, ..
+            })) => {
+                assert_eq!(found, "schön");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+
+        // The parser still recognised the function declaration, with the original name.
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(func) = &module.items[0].kind else {
+            panic!("Expected function declaration");
+        };
+        assert_eq!(func.def.name.to_string(), "schön");
     }
 }

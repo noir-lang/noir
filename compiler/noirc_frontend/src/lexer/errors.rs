@@ -48,6 +48,8 @@ pub enum LexerErrorKind {
     BidiControlCharacter { char: char, location: Location },
     #[error("Unicode tag character '\\u{{{:x}}}' is not allowed", *char as u32)]
     TagCharacter { char: char, location: Location },
+    #[error("Identifier '{found}' contains non-ASCII characters")]
+    NonAsciiIdentifier { found: String, location: Location },
     #[error(
         "Invalid form of the `must_use` attribute. Valid forms are `#[must_use]` and `#[must_use = \"message\"]`"
     )]
@@ -86,7 +88,8 @@ impl LexerErrorKind {
             | LexerErrorKind::MalformedMustUseAttribute { location }
             | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. }
             | LexerErrorKind::BidiControlCharacter { location, .. }
-            | LexerErrorKind::TagCharacter { location, .. } => *location,
+            | LexerErrorKind::TagCharacter { location, .. }
+            | LexerErrorKind::NonAsciiIdentifier { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
@@ -224,6 +227,13 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedMustUseAttribute { location } => {
                 ("Invalid syntax for `must_use` attribute".to_string(), "Valid syntaxes are: `#[must_use]` and `#[must_use = \"message\"]`".to_string(), *location)
             },
+            LexerErrorKind::NonAsciiIdentifier { found, location } => {
+                let primary = format!("Identifier '{found}' contains non-ASCII characters");
+                let secondary =
+                    "Identifiers are restricted to ASCII letters, digits, and underscore"
+                        .to_string();
+                (primary, secondary, *location)
+            }
             LexerErrorKind::TagCharacter { char, location } => {
                 let primary = format!(
                     "Unicode tag character not allowed: \\u{{{:x}}}",

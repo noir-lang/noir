@@ -188,7 +188,19 @@ impl<'a> Lexer<'a> {
                 self.next_char();
                 Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
             }
-            Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
+            Some(ch) if Self::is_bidi_control(ch) => Err(LexerErrorKind::BidiControlCharacter {
+                char: ch,
+                location: self.location(Span::single_char(self.position)),
+            }),
+            Some(ch) if Self::is_tag_character(ch) => Err(LexerErrorKind::TagCharacter {
+                char: ch,
+                location: self.location(Span::single_char(self.position)),
+            }),
+            Some(ch)
+                if ch.is_alphanumeric() || ch == '_' || (!ch.is_ascii() && !ch.is_whitespace()) =>
+            {
+                self.eat_alpha_numeric(ch)
+            }
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
                 // avoid reporting the error twice. See the note on Token::Invalid's documentation for details.
@@ -329,14 +341,22 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
-        match initial_char {
-            'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            '0'..='9' => self.eat_digits(Some(initial_char), false),
-            _ => Err(LexerErrorKind::UnexpectedCharacter {
+        if initial_char.is_ascii_digit() {
+            self.eat_digits(Some(initial_char), false)
+        } else if initial_char.is_alphabetic()
+            || initial_char == '_'
+            || (!initial_char.is_ascii() && !initial_char.is_whitespace())
+        {
+            // Non-ASCII non-whitespace chars (emoji, Unicode symbols) are accepted as
+            // identifier starts here purely so `eat_word` can consume the whole token
+            // and emit one `NonAsciiIdentifier` error instead of fragmenting it.
+            self.eat_word(initial_char)
+        } else {
+            Err(LexerErrorKind::UnexpectedCharacter {
                 location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
-            }),
+            })
         }
     }
 
@@ -373,16 +393,24 @@ impl<'a> Lexer<'a> {
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
         let (start, word, end) = self.lex_word(initial_char);
+        if !word.is_ascii() {
+            return Err(LexerErrorKind::NonAsciiIdentifier {
+                found: word,
+                location: self.location(Span::inclusive(start, end)),
+            });
+        }
         self.lookup_word_token(word, start, end)
     }
 
-    /// Lex the next word in the input stream. Returns (start position, word, end position)
+    /// Lex the next word in the input stream. Returns (start position, word, end position).
     fn lex_word(&mut self, initial_char: char) -> (Position, String, Position) {
         let start = self.position;
         let word = self.eat_while(Some(initial_char), |ch| {
-            ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
+            ch.is_alphanumeric() || ch == '_' || (!ch.is_ascii() && !ch.is_whitespace())
         });
-        (start, word, self.position)
+        let last_char_len = word.chars().next_back().map_or(1, |c| c.len_utf8() as u32);
+        let end = self.position + last_char_len - 1;
+        (start, word, end)
     }
 
     fn lookup_word_token(
@@ -1679,7 +1707,8 @@ mod tests {
                                 ..
                             })
                             | Err(LexerErrorKind::BidiControlCharacter { .. })
-                            | Err(LexerErrorKind::TagCharacter { .. }) => {
+                            | Err(LexerErrorKind::TagCharacter { .. })
+                            | Err(LexerErrorKind::NonAsciiIdentifier { .. }) => {
                                 expected_token_found = true;
                             }
                             Err(err) => {
@@ -1818,22 +1847,101 @@ mod tests {
     }
 
     #[test]
-    fn test_utf8_in_identifier_is_invalid_token() {
-        // A non-ASCII letter is not part of an identifier — the lexer emits a
-        // `Token::Invalid` for it (which the parser later turns into an error).
+    fn test_non_ascii_identifier_is_single_lexer_error() {
+        // A non-ASCII letter does not split the identifier any more: the whole word is
+        // lexed as one unit and a single `NonAsciiIdentifier` error is reported.
+        // Recovery is clean — the next real token is the `=`, with no token cascade.
         // cSpell:disable-next-line
         let input = "let schön = 5;";
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        // `let`
         assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
-        // `sch` is consumed as an identifier (only the ASCII prefix matches)
-        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Ident("sch".to_string()));
-        // The next char is `ö` — it can't start any token, so it's `Invalid`.
-        match lexer.next_token().unwrap().into_token() {
-            Token::Invalid(ch) => assert_eq!(ch, 'ö'),
-            other => panic!("Expected Token::Invalid('ö'), got {other:?}"),
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, .. }) => {
+                assert_eq!(found, "schön");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
         }
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Assign);
+    }
+
+    #[test]
+    fn test_non_ascii_identifier_starting_with_non_ascii() {
+        // The identifier starts with a non-ASCII letter.
+        let input = "日本語_var";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, .. }) => {
+                assert_eq!(found, "日本語_var");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_non_ascii_identifier_span_includes_full_last_char() {
+        // The span end is the offset of the byte JUST PAST the last char so that
+        // the byte range covers the whole identifier. LSP byte→UTF-16 conversion
+        // requires the offset to land on a char boundary; if the span ended in
+        // the middle of a multi-byte char, conversions for tools like inlay hints
+        // would silently fail.
+        let input = "let xé = 1;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        let _ = lexer.next_token(); // `let`
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, location }) => {
+                assert_eq!(found, "xé");
+                // 'x' is at byte 4, 'é' is 2 bytes starting at 5, so the span
+                // should be 4..7 (exclusive end past the 'é').
+                assert_eq!(location.span.start(), 4);
+                assert_eq!(location.span.end(), 7);
+                assert!(input.is_char_boundary(location.span.end() as usize));
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_emoji_inside_identifier_is_consumed_as_one_unit() {
+        // Emoji aren't is_alphanumeric, but to give a single clean error we want
+        // them consumed as part of the identifier rather than fragmenting it.
+        let input = "let x🙂y = 5;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, .. }) => {
+                assert_eq!(found, "x🙂y");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Assign);
+    }
+
+    #[test]
+    fn test_emoji_at_start_of_identifier_is_non_ascii_identifier() {
+        // A leading emoji is now treated as the start of a (bad) identifier and the
+        // whole word is reported as one NonAsciiIdentifier error — matching the
+        // mid-identifier case.
+        let input = "🙂x = 5;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        match lexer.next_token() {
+            Err(LexerErrorKind::NonAsciiIdentifier { found, .. }) => {
+                assert_eq!(found, "🙂x");
+            }
+            other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
+        }
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Assign);
+    }
+
+    #[test]
+    fn test_ascii_identifier_still_lexes_normally() {
+        let input = "let foo_bar_42 = 1;";
+        let mut lexer = Lexer::new_with_dummy_file(input);
+        assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
+        assert_eq!(
+            lexer.next_token().unwrap().into_token(),
+            Token::Ident("foo_bar_42".to_string()),
+        );
     }
 
     #[test]
@@ -2008,18 +2116,18 @@ mod tests {
 
     #[test]
     fn errors_on_bidi_control_character_outside_comments_and_strings() {
-        // At the top level a BIDI control char falls into the `Token::Invalid` path
-        // (no token starts with it) — that's the parser's territory. This test pins
-        // that no BIDI control char ever becomes part of a valid token's text.
-        // We pick U+2066 (LRI) here to exercise a different codepoint than the others.
+        // A BIDI control char at the top level produces the specific BIDI error
+        // (rather than getting absorbed into a NonAsciiIdentifier), so the user
+        // sees the precise reason — "Trojan Source" — instead of a generic
+        // non-ASCII identifier message.
         let input = "let \u{2066}x = 1;";
         let mut lexer = Lexer::new_with_dummy_file(input);
-        // `let`
         assert_eq!(lexer.next_token().unwrap().into_token(), Token::Keyword(Keyword::Let));
-        // The LRI char becomes a Token::Invalid (it's not whitespace, not an ident start).
-        match lexer.next_token().unwrap().into_token() {
-            Token::Invalid(ch) => assert_eq!(ch, '\u{2066}'),
-            other => panic!("Expected Token::Invalid('\\u{{2066}}'), got {other:?}"),
+        match lexer.next_token() {
+            Err(LexerErrorKind::BidiControlCharacter { char, .. }) => {
+                assert_eq!(char, '\u{2066}');
+            }
+            other => panic!("Expected BidiControlCharacter, got {other:?}"),
         }
     }
 
