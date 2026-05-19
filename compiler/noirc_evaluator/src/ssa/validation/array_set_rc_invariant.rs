@@ -206,14 +206,17 @@ struct Context<'f> {
     /// instruction. Lets the reachable-use walk skip over instructions that
     /// have no array operand.
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
-    /// Values that appear at least once as a jmp/jmpif arg on a
-    /// loop back-edge. Used by [`Context::some_inc_rc_precedes`] as one
-    /// half of the "the frontend is managing loop-iteration RC" signal:
-    /// an `inc_rc` on a back-edge participant (other than the source
-    /// itself) suggests the codegen is aware of the loop aliasing and
-    /// inserted the bump deliberately, even if the bump's program
-    /// point doesn't dominate the array_set in flow order.
-    back_edge_args: HashSet<ValueId>,
+    /// Values that appear at least once as a jmp/jmpif arg on **any**
+    /// edge (forward or back). Used by [`Context::some_inc_rc_precedes`]
+    /// as the broader "the frontend is managing aliasing introduced by
+    /// block-parameter threading" signal: an `inc_rc` on a non-source
+    /// alias that's also threaded through a block parameter suggests
+    /// the codegen is aware of the aliasing and inserted the bump
+    /// deliberately, even if the bump's program point doesn't dominate
+    /// the array_set in flow order. Generalizes the previous back-edge-
+    /// only signal to forward edges (e.g., re-seeding a value with a
+    /// global on a non-loop branch).
+    jmp_args: HashSet<ValueId>,
     /// Array-typed parameters of the function's entry block. Used by
     /// [`Context::multi_entry_param_alias_acceptance`] to recognize
     /// path-merge over-approximations: when an alias-set contains two
@@ -248,6 +251,7 @@ impl<'f> Context<'f> {
         let mut make_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
+        let mut jmp_args: HashSet<ValueId> = HashSet::default();
 
         // Single pass over every reachable block. Each iteration populates
         // all per-instruction indices plus the union-find from the
@@ -300,6 +304,7 @@ impl<'f> Context<'f> {
                 match terminator {
                     TerminatorInstruction::Jmp { destination, arguments, .. } => {
                         union_param_args(function, &mut uf, *destination, arguments);
+                        jmp_args.extend(arguments.iter().copied());
                         if back_edges.contains(&(block_id, *destination)) {
                             back_edge_args.extend(arguments.iter().copied());
                         }
@@ -313,6 +318,8 @@ impl<'f> Context<'f> {
                     } => {
                         union_param_args(function, &mut uf, *then_destination, then_arguments);
                         union_param_args(function, &mut uf, *else_destination, else_arguments);
+                        jmp_args.extend(then_arguments.iter().copied());
+                        jmp_args.extend(else_arguments.iter().copied());
                         if back_edges.contains(&(block_id, *then_destination)) {
                             back_edge_args.extend(then_arguments.iter().copied());
                         }
@@ -354,7 +361,7 @@ impl<'f> Context<'f> {
             iteration_local_make_arrays,
             inc_rc_locations,
             array_operand_uses,
-            back_edge_args,
+            jmp_args,
             array_entry_params,
         }
     }
@@ -509,7 +516,7 @@ impl<'f> Context<'f> {
     /// frontend doesn't appear to produce that shape in practice; a
     /// fuzzer might.
     ///
-    /// # Back-edge-participant relaxation
+    /// # Jmp-arg-participant relaxation
     ///
     /// In addition to RPO precedence, an `inc_rc` is also accepted when
     /// it lives on an alias-set member that:
@@ -518,15 +525,17 @@ impl<'f> Context<'f> {
     ///   source itself, *after* the array_set, doesn't protect that
     ///   array_set — it would be suspicious frontend output rather
     ///   than a signal); and
-    /// - appears as a jmp arg on a loop **back-edge** somewhere in the
-    ///   function ([`Context::back_edge_args`]).
+    /// - appears as a jmp/jmpif arg on **any** edge somewhere in the
+    ///   function ([`Context::jmp_args`]) — forward or back.
     ///
     /// The intuition: the frontend doesn't bother emitting `inc_rc` on
     /// a non-source alias unless it's deliberately managing the
-    /// aliasing introduced by some loop's back-edge thread-back —
-    /// regardless of where exactly that `inc_rc` is placed in flow
-    /// order. Such an `inc_rc` is treated as a signal that the codegen
-    /// is RC-aware, similar to the existing RPO relaxation.
+    /// aliasing introduced by threading the value through a block
+    /// parameter — whether that's a loop's back-edge thread-back or a
+    /// non-loop forward edge that re-seeds a value with (say) a global.
+    /// Either way, the `inc_rc`'s presence is a signal that the codegen
+    /// is RC-aware, regardless of where exactly the bump is placed in
+    /// flow order.
     ///
     /// Well-formed SSA contains no `DecrementRc`, so we don't need to
     /// worry about a `dec_rc` intervening between the `inc_rc` and the
@@ -542,10 +551,10 @@ impl<'f> Context<'f> {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
             };
-            // Back-edge-participant relaxation: an `inc_rc` on a
-            // non-source alias that's also a back-edge arg is a
-            // codegen signal regardless of program-point order.
-            if *value != source && self.back_edge_args.contains(value) {
+            // Jmp-arg-participant relaxation: an `inc_rc` on a non-source
+            // alias that's also a jmp/jmpif arg (forward or back-edge) is
+            // a codegen signal regardless of program-point order.
+            if *value != source && self.jmp_args.contains(value) {
                 return true;
             }
             for &(inc_block, inc_idx) in locations {
@@ -1398,6 +1407,55 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "v0 and v1 are both array-typed function entry params unified into b3.v20's class via the if-else sibling join; at runtime they point at distinct caller-side storage, so the cross-arg aliasing through UF is not a real hazard",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: an
+    /// `array_set` whose source is unified with a *global* through a
+    /// forward (non-loop) sibling-join, and the codegen emits an `inc_rc`
+    /// on the global right before the forward jump that threads the
+    /// global into the join's block parameter. There is no loop, no
+    /// back-edge, and only one array entry parameter (so the multi-entry
+    /// heuristic doesn't apply). The `inc_rc` postdates the array_set in
+    /// the same block, so the RPO-precedence check doesn't fire either.
+    /// Source-level shape:
+    ///
+    /// ```ignore
+    /// fn func_1(mut b: [[bool; 3]; 4]) {
+    ///     if b[0][0] {
+    ///         b[0] = b[3];
+    ///         b = G_A;       // re-seed `b` with a global
+    ///     }
+    ///     b[0] = b[1];
+    /// }
+    /// ```
+    ///
+    /// The codegen's `inc_rc g_a` before the `jmp b_join(g_a)` is the
+    /// signal we trust — the frontend is deliberately managing the
+    /// aliasing introduced by threading `g_a` forward into the join's
+    /// block parameter. The relaxation that already accepts this for
+    /// loop back-edges should also accept forward-edge participants.
+    #[test]
+    fn end_to_end_inc_rc_on_forward_edge_participant_alias_is_accepted() {
+        let src = r#"
+            g0 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
+
+            brillig(inline) fn main f0 {
+              b0(v0: [u1; 4]):
+                v2 = array_get v0, index u32 0 -> u1
+                jmpif v2 then: b1(), else: b2(v0)
+              b1():
+                v4 = array_set v0, index u32 0, value u1 1
+                inc_rc g0
+                jmp b2(g0)
+              b2(v5: [u1; 4]):
+                v7 = array_get v5, index u32 1 -> u1
+                v9 = array_set v5, index u32 0, value u1 1
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc g0 sits on an alias-set member that's threaded into v5 via a forward jump — a codegen signal that the frontend is deliberately managing the aliasing, analogous to the existing back-edge-participant relaxation but for forward edges",
         );
     }
 
