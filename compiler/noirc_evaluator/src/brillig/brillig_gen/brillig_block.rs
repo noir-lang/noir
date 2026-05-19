@@ -1003,7 +1003,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
                 new_variable
             }
-            Value::Intrinsic(_) | Value::ForeignFunction(_) => {
+            Value::Intrinsic(_) | Value::ForeignFunction { .. } => {
                 unreachable!("ICE: Cannot convert value to Brillig: {value:?}")
             }
         }

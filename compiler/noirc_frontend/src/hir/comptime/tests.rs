@@ -19,7 +19,8 @@ use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
-/// The stdlib is not made available as a dependency.
+/// The given source is considered the root crate and also the stdlib, in case
+/// builtins need to be tested.
 pub(crate) fn with_interpreter<T>(
     src: &str,
     f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
@@ -42,7 +43,7 @@ pub(crate) fn with_interpreter<T>(
     let mut context = Context::new(file_manager, parsed_files);
     context.def_interner.populate_dummy_operator_traits();
 
-    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+    let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
     let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);

@@ -109,7 +109,15 @@ impl LayoutConfig {
 
 // These constants represent expert chosen defaults that are appropriate for the majority of programs
 pub const NUM_STACK_FRAMES: usize = 16;
+
+/// Smallest `max_stack_frame_size` value that reliably fits the per-frame prologue plus
+/// enough user-addressable slots to compile minimal programs.
+pub const MIN_STACK_FRAME_SIZE: usize = 8;
 pub const MAX_STACK_FRAME_SIZE: usize = 2048;
+
+/// Smallest `max_scratch_space` value that reliably fits the scratch slots used by the
+/// procedures emitted for minimal programs (e.g. `CheckMaxStackDepth`).
+pub const MIN_SCRATCH_SPACE: usize = 2;
 pub const MAX_SCRATCH_SPACE: usize = 64;
 
 impl Default for LayoutConfig {

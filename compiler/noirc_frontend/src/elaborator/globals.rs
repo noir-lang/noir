@@ -150,7 +150,9 @@ impl Elaborator<'_> {
                     .lookup_id(definition_id, location)
                     .expect("The global should be defined since evaluate_let did not error");
 
-                self.debug_comptime(location, |interner| value.display(interner).to_string());
+                self.debug_comptime(location, |interner, file_manager| {
+                    value.display(interner, file_manager).to_string()
+                });
 
                 // Store the resolved value so it can be used later
                 self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);

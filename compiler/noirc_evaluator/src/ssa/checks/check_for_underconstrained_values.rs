@@ -288,7 +288,7 @@ impl Context {
                                 self.uf.union_all(instruction_values);
                             }
                         },
-                        Value::ForeignFunction(..) => {
+                        Value::ForeignFunction { .. } => {
                             panic!(
                                 "Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
                                 function.name()
