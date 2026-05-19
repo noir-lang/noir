@@ -182,9 +182,7 @@ pub struct Monomorphizer<'interner> {
 /// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
 ///   -> Map (Canonical Instantiation Bindings) -> monomorphized FuncId
 ///
-/// The bindings key distinguishes calls sharing `(FuncId, function_type, turbofish)`
-/// whose bodies must be monomorphized under different `TypeBindings` — e.g. a
-/// generic trait impl whose impl-level generic appears only in the method body.
+/// The bindings key distinguishes calls with the same type but under different impl generics.
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, HashMap<CanonicalBindings, FuncId>>>,
