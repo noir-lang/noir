@@ -643,9 +643,9 @@ mod cmp_tests {
                 quote { u16 },
                 quote { i16 },
                 quote { u32 },
-                quote { i32},
-                quote { u64},
-                quote { i64},
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
                 quote { u128 },
                 quote { Field },
             ] {
@@ -675,8 +675,8 @@ mod cmp_tests {
                 tuple2 = tuple2.push_back(quote { 1 });
                 let tuple1 = tuple1.join(quote { , });
                 let tuple2 = tuple2.join(quote { , });
-                let tuple1 = quote { ($tuple1,)};
-                let tuple2 = quote { ($tuple2,)};
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
                 unquote!(
                     quote {
                     assert($tuple1.eq($tuple1));
@@ -709,10 +709,10 @@ mod cmp_tests {
                 quote { u16 },
                 quote { i16 },
                 quote { u32 },
-                quote {i32},
-                quote {u64},
-                quote {i64},
-                quote {u128 },
+                quote { i32 },
+                quote { u64 },
+                quote { i64 },
+                quote { u128 },
             ] {
                 let one = f"1_{typ}".quoted_contents();
                 let two = f"2_{typ}".quoted_contents();
@@ -741,8 +741,8 @@ mod cmp_tests {
                 tuple2 = tuple2.push_back(quote { 1_u8 });
                 let tuple1 = tuple1.join(quote { , });
                 let tuple2 = tuple2.join(quote { , });
-                let tuple1 = quote { ($tuple1,)};
-                let tuple2 = quote { ($tuple2,)};
+                let tuple1 = quote { ($tuple1,) };
+                let tuple2 = quote { ($tuple2,) };
                 unquote!(
                     quote {
                     assert_eq($tuple1.cmp($tuple1), Ordering::equal());
