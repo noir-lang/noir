@@ -79,8 +79,7 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext)
-                        {
+                        for (output_witness, value) in outputs.iter().zip_eq(ciphertext) {
                             let witness_value = witness_value(output_witness, &witness_map)?;
                             let output_value = F::from(u128::from(value));
                             if witness_value != output_value {
