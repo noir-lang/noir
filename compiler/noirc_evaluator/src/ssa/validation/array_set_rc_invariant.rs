@@ -158,10 +158,19 @@ struct Context<'f> {
     /// the defining instruction lives. Used by the kill-on-re-entry rule
     /// inside [`Context::succ_use_set`].
     array_value_defs: HashMap<ValueId, BasicBlockId>,
-    /// Every value that is the result of an `array_set` instruction.
-    /// Filtered out of every alias-set (except when the value is the
-    /// `array_set`'s own source) — see [`Context::alias_set_for`].
-    array_set_results: HashSet<ValueId>,
+    /// Every array-typed value that does **not** carry the pre-mutation
+    /// aliasing of an `array_set`'s source forward through SSA. Filtered
+    /// out of every alias-set (except when the value is the `array_set`'s
+    /// own source) — see [`Context::alias_set_for`]. Includes:
+    /// - `array_set` results: represent the *post*-mutation value of the
+    ///   source. Uses of them (or anything threaded from them through
+    ///   block params) are intentional reads, not hazards.
+    /// - `Call` results: typically fresh arrays allocated by the callee.
+    ///   Heuristic — a function that returns its input *is* a real
+    ///   alias, and filtering would miss those cases; that's a
+    ///   documented gap. In practice the frontend's array-returning
+    ///   functions allocate fresh storage.
+    non_aliasing_array_values: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
     inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>>,
@@ -182,7 +191,7 @@ impl<'f> Context<'f> {
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
             HashMap::default();
         let mut array_value_defs: HashMap<ValueId, BasicBlockId> = HashMap::default();
-        let mut array_set_results: HashSet<ValueId> = HashSet::default();
+        let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
 
         // Single pass over every reachable block. Each iteration populates
@@ -197,12 +206,13 @@ impl<'f> Context<'f> {
                     inc_rc_locations.entry(*value).or_default().push((block_id, idx));
                 }
 
-                let is_array_set = matches!(instruction, Instruction::ArraySet { .. });
+                let is_non_aliasing =
+                    matches!(instruction, Instruction::ArraySet { .. } | Instruction::Call { .. });
                 for &result in function.dfg.instruction_results(*instruction_id) {
                     if function.dfg.type_of_value(result).contains_an_array() {
                         array_value_defs.insert(result, block_id);
-                        if is_array_set {
-                            array_set_results.insert(result);
+                        if is_non_aliasing {
+                            non_aliasing_array_values.insert(result);
                         }
                     }
                 }
@@ -244,32 +254,41 @@ impl<'f> Context<'f> {
             dom_tree,
             value_aliases,
             array_value_defs,
-            array_set_results,
+            non_aliasing_array_values,
             inc_rc_locations,
             array_operand_uses,
         }
     }
 
     /// Look up `source`'s alias-equivalence class and filter out every
-    /// `array_set` result *except* the source itself.
+    /// non-aliasing array value (`array_set` and `Call` results) *except*
+    /// the source itself.
     ///
-    /// Every `array_set` result represents a post-mutation value — uses
-    /// of it (or of any name it gets re-bound to through block-parameter
-    /// threading) are intentional reads of the mutated storage, not
-    /// hazards. Keeping them in the alias-set would defeat the per-arg
-    /// kill rule in [`Context::succ_use_set`]: a back-edge
-    /// `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and refuse
-    /// to kill the receiving param, letting the alias leak past the loop.
+    /// - **`array_set` result** represents a *post*-mutation value of its
+    ///   source. Uses of it (or of any name it gets re-bound to through
+    ///   block-parameter threading) are intentional reads of the mutated
+    ///   storage, not hazards. Keeping them in the alias-set would defeat
+    ///   the per-arg kill rule in [`Context::succ_use_set`]: a back-edge
+    ///   `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and
+    ///   refuse to kill the receiving param, letting the alias leak past
+    ///   the loop.
+    /// - **`Call` result** is typically a fresh array allocated by the
+    ///   callee, so it isn't a real alias of the array_set's source.
+    ///   This is a heuristic — a function that returns its input *would*
+    ///   create a real alias, and we'd miss that. In practice the
+    ///   frontend's array-returning functions allocate fresh storage.
     ///
-    /// The source itself is kept even when it happens to be an
-    /// `array_set` result (e.g. a chain
-    /// `v_a = array_set _ ; v_b = array_set v_a`): `v_a` is *this*
-    /// check's source, so its forward uses are exactly what we want to
-    /// look for.
+    /// The source itself is kept even when it happens to be one of these
+    /// (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`): `v_a`
+    /// is *this* check's source, so its forward uses are exactly what we
+    /// want to look for.
     fn alias_set_for(&self, source: ValueId) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
-        class.into_iter().filter(|&v| v == source || !self.array_set_results.contains(&v)).collect()
+        class
+            .into_iter()
+            .filter(|&v| v == source || !self.non_aliasing_array_values.contains(&v))
+            .collect()
     }
 
     /// Returns `true` if some `inc_rc r` for an `r ∈ alias_set` exists at a
@@ -839,6 +858,50 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "loop exit reads `v2`, which is rebound on the back-edge to the chained array_set's result; not a hazard",
+        );
+    }
+
+    /// End-to-end: the poseidon-style "array_set then call returning a
+    /// fresh array threaded back via the loop's back-edge". Reduced from
+    /// `bench_2_to_17` (stdlib's `poseidon2::hash_internal`):
+    ///
+    /// - `v8 = array_set v2, idx 0, …` in the loop body.
+    /// - `v9 = call permute(v8)` returns a *fresh* array.
+    /// - Back-edge `jmp b1(v9, …)` threads the fresh call result back to
+    ///   `v2` for the next iteration.
+    /// - After the loop, `array_get v2, idx 0` reads the final loop state.
+    ///
+    /// Without the call-result filter, the union-find unifies `v2` with
+    /// `v9` (the call result), the per-arg kill at the back-edge sees `v9`
+    /// still in the use-set, and the loop-exit `array_get v2` is flagged
+    /// as an aliased read. The call-result filter drops `v9` from the
+    /// alias-set, so the per-arg kill fires and the walk doesn't reach
+    /// the post-loop read.
+    #[test]
+    fn end_to_end_loop_array_set_then_call_returning_fresh_array_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 2], v1: u32):
+                jmp b1(v0, u32 0)
+              b1(v2: [u32; 2], v3: u32):
+                v5 = lt v3, v1
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                v8 = array_set v2, index u32 0, value u32 99
+                v9 = call f1(v8) -> [u32; 2]
+                v11 = add v3, u32 1
+                jmp b1(v9, v11)
+              b3():
+                v13 = array_get v2, index u32 0 -> u32
+                return v13
+            }
+            brillig(inline) fn permute f1 {
+              b0(v0: [u32; 2]):
+                return v0
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "loop exit reads `v2` but the back-edge threads a fresh call result, breaking the alias chain at the call boundary",
         );
     }
 
