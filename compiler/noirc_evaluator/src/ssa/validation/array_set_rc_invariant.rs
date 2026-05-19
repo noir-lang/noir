@@ -100,7 +100,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // precedes this `array_set` in flow order, treat the aliasing
             // as already protected. See `some_inc_rc_precedes` for the
             // rationale (relaxed from dominance to RPO precedence).
-            if ctx.some_inc_rc_precedes(&alias_set, block_id, idx) {
+            if ctx.some_inc_rc_precedes(&alias_set, array, block_id, idx) {
                 continue;
             }
 
@@ -200,6 +200,14 @@ struct Context<'f> {
     /// an outer loop's back-edge to reach an inner-loop array_set, while
     /// also forward-threaded into a separate early-return branch.
     forward_only_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
+    /// Values that appear at least once as a jmp/jmpif arg on a
+    /// loop back-edge. Used by [`Context::some_inc_rc_precedes`] as one
+    /// half of the "the frontend is managing loop-iteration RC" signal:
+    /// an `inc_rc` on a back-edge participant (other than the source
+    /// itself) suggests the codegen is aware of the loop aliasing and
+    /// inserted the bump deliberately, even if the bump's program
+    /// point doesn't dominate the array_set in flow order.
+    back_edge_args: HashSet<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -227,6 +235,7 @@ impl<'f> Context<'f> {
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
         let mut forward_only_uf: UnionFind<ValueId> = UnionFind::new();
+        let mut back_edge_args: HashSet<ValueId> = HashSet::default();
 
         // Single pass over every reachable block. Each iteration populates
         // all per-instruction indices plus the union-find from the
@@ -275,13 +284,16 @@ impl<'f> Context<'f> {
                 match terminator {
                     TerminatorInstruction::Jmp { destination, arguments, .. } => {
                         union_param_args(function, &mut uf, *destination, arguments);
-                        if !back_edges.contains(&(block_id, *destination)) {
+                        let is_back_edge = back_edges.contains(&(block_id, *destination));
+                        if !is_back_edge {
                             union_param_args(
                                 function,
                                 &mut forward_only_uf,
                                 *destination,
                                 arguments,
                             );
+                        } else {
+                            back_edge_args.extend(arguments.iter().copied());
                         }
                     }
                     TerminatorInstruction::JmpIf {
@@ -293,21 +305,27 @@ impl<'f> Context<'f> {
                     } => {
                         union_param_args(function, &mut uf, *then_destination, then_arguments);
                         union_param_args(function, &mut uf, *else_destination, else_arguments);
-                        if !back_edges.contains(&(block_id, *then_destination)) {
+                        let then_is_back = back_edges.contains(&(block_id, *then_destination));
+                        if !then_is_back {
                             union_param_args(
                                 function,
                                 &mut forward_only_uf,
                                 *then_destination,
                                 then_arguments,
                             );
+                        } else {
+                            back_edge_args.extend(then_arguments.iter().copied());
                         }
-                        if !back_edges.contains(&(block_id, *else_destination)) {
+                        let else_is_back = back_edges.contains(&(block_id, *else_destination));
+                        if !else_is_back {
                             union_param_args(
                                 function,
                                 &mut forward_only_uf,
                                 *else_destination,
                                 else_arguments,
                             );
+                        } else {
+                            back_edge_args.extend(else_arguments.iter().copied());
                         }
                     }
                     _ => (),
@@ -327,6 +345,7 @@ impl<'f> Context<'f> {
             inc_rc_locations,
             array_operand_uses,
             forward_only_aliases,
+            back_edge_args,
         }
     }
 
@@ -462,12 +481,32 @@ impl<'f> Context<'f> {
     /// frontend doesn't appear to produce that shape in practice; a
     /// fuzzer might.
     ///
+    /// # Back-edge-participant relaxation
+    ///
+    /// In addition to RPO precedence, an `inc_rc` is also accepted when
+    /// it lives on an alias-set member that:
+    ///
+    /// - is **not** the array_set's own source (an `inc_rc` on the
+    ///   source itself, *after* the array_set, doesn't protect that
+    ///   array_set — it would be suspicious frontend output rather
+    ///   than a signal); and
+    /// - appears as a jmp arg on a loop **back-edge** somewhere in the
+    ///   function ([`Context::back_edge_args`]).
+    ///
+    /// The intuition: the frontend doesn't bother emitting `inc_rc` on
+    /// a non-source alias unless it's deliberately managing the
+    /// aliasing introduced by some loop's back-edge thread-back —
+    /// regardless of where exactly that `inc_rc` is placed in flow
+    /// order. Such an `inc_rc` is treated as a signal that the codegen
+    /// is RC-aware, similar to the existing RPO relaxation.
+    ///
     /// Well-formed SSA contains no `DecrementRc`, so we don't need to
     /// worry about a `dec_rc` intervening between the `inc_rc` and the
     /// `array_set`.
     fn some_inc_rc_precedes(
         &self,
         alias_set: &im::HashSet<ValueId>,
+        source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> bool {
@@ -475,6 +514,12 @@ impl<'f> Context<'f> {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
             };
+            // Back-edge-participant relaxation: an `inc_rc` on a
+            // non-source alias that's also a back-edge arg is a
+            // codegen signal regardless of program-point order.
+            if *value != source && self.back_edge_args.contains(value) {
+                return true;
+            }
             for &(inc_block, inc_idx) in locations {
                 if inc_block == array_set_block {
                     if inc_idx < array_set_idx {
@@ -1160,6 +1205,52 @@ mod tests {
         );
     }
 
+    /// End-to-end regression for an AST-fuzzer-discovered pattern:
+    /// `..=` (inclusive range) generates an extra `array_set v_loop`
+    /// in a post-loop block, which forward-threads the back-edge value
+    /// (`v0`) into a downstream block param (`v25`). The walk reaches
+    /// a `array_get v25` and would flag it because UF unifies `v25`
+    /// with the source `v24` via the post-loop forward edge.
+    ///
+    /// At runtime `v25` is always `v0` (or only `v1` on a path where
+    /// the array_set never fired), and the `inc_rc v0` inside the
+    /// loop body ensures `RC(v0) ≥ 2` for every iteration where the
+    /// array_set is on `v0`. The verifier doesn't reason path-
+    /// sensitively, but `inc_rc v0` *is* on an alias (`v0 != v24`)
+    /// that participates in the loop's back-edge — that's a deliberate
+    /// codegen signal that aliasing is being managed. The
+    /// back-edge-participant relaxation in `some_inc_rc_precedes`
+    /// accepts on that basis.
+    #[test]
+    fn end_to_end_inc_rc_on_back_edge_participant_alias_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u1; 3], v1: [u1; 3]):
+                jmp b1(i16 -9421, v1)
+              b1(v5: i16, v24: [u1; 3]):
+                v8 = lt v5, i16 -9417
+                jmpif v8 then: b2(), else: b3()
+              b2():
+                v14 = array_set v24, index u32 0, value u1 0
+                inc_rc v0
+                v16 = unchecked_add v5, i16 1
+                jmp b1(v16, v0)
+              b3():
+                jmpif u1 1 then: b4(), else: b5(v24)
+              b4():
+                v21 = array_set v24, index u32 0, value u1 0
+                inc_rc v0
+                jmp b5(v0)
+              b5(v25: [u1; 3]):
+                v23 = array_get v25, index u32 0 -> u1
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "inc_rc v0 is on an alias of the source v24 (not v24 itself) that's also a back-edge arg to v24 via the b2->b1 back-edge — a codegen signal that loop aliasing is being managed",
+        );
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered pattern: two
     /// array-typed function entry parameters get unified into the same
     /// alias class by the UF because they both flow into the same
@@ -1532,7 +1623,7 @@ mod tests {
         assert_eq!(array_sets.len(), 5, "five array_set instructions expected");
 
         for ArraySetSite { block, idx, source, alias_set, .. } in &array_sets {
-            let precedes = ctx.some_inc_rc_precedes(alias_set, *block, *idx);
+            let precedes = ctx.some_inc_rc_precedes(alias_set, *source, *block, *idx);
             let (expected, label) = if *source == v0 {
                 (true, "v0: same-block earlier inc_rc")
             } else if *source == v1 {
