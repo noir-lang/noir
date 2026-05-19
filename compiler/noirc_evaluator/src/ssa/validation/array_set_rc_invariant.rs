@@ -180,18 +180,25 @@ struct Context<'f> {
     /// instruction. Lets the reachable-use walk skip over instructions that
     /// have no array operand.
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
-    /// Array-typed parameters of the function's entry block. Treated as
-    /// having a virtual `inc_rc` at function entry by
-    /// [`Context::some_inc_rc_precedes`], reflecting Brillig's calling
-    /// convention that array args have their RC bumped per pass.
-    function_entry_array_params: HashSet<ValueId>,
+    /// For each array-typed block parameter `p`, the set of direct args
+    /// at `p`'s position that arrive *only* from back-edge predecessors
+    /// of `p`'s block — i.e., args that contribute aliasing to `p` only
+    /// on iterations ≥ 1 of the surrounding loop, not on the
+    /// forward-edge entry into the loop. Used by [`Context::alias_set_for`]
+    /// to filter such args when they are also `inc_rc`'d somewhere: an
+    /// inc_rc in the loop body fires in iter 0, raising the value's RC to
+    /// ≥ 2 by iter 1, so subsequent array_sets on it are forced to
+    /// allocate fresh — and iter 0's array_set isn't on that value at all
+    /// (the forward-edge arg is a different SSA value), so iter 0's
+    /// mutation can't reach the back-edge arg's storage either.
+    back_edge_only_args: HashMap<ValueId, im::HashSet<ValueId>>,
 }
 
 impl<'f> Context<'f> {
     fn new(function: &'f Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
         let mut inc_rc_locations: HashMap<ValueId, Vec<(BasicBlockId, usize)>> = HashMap::default();
         let mut array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>> =
@@ -265,12 +272,7 @@ impl<'f> Context<'f> {
 
         let value_aliases = materialize_value_aliases(uf);
 
-        let function_entry_array_params: HashSet<ValueId> = function
-            .parameters()
-            .iter()
-            .copied()
-            .filter(|v| function.dfg.type_of_value(*v).contains_an_array())
-            .collect();
+        let back_edge_only_args = compute_back_edge_only_args(function, &cfg, &mut dom_tree);
 
         Self {
             function,
@@ -280,7 +282,7 @@ impl<'f> Context<'f> {
             non_aliasing_array_values,
             inc_rc_locations,
             array_operand_uses,
-            function_entry_array_params,
+            back_edge_only_args,
         }
     }
 
@@ -321,26 +323,34 @@ impl<'f> Context<'f> {
     ///    that block; the same-block case never gets that chance because
     ///    the walk starts mid-block past the array_set.
     ///
-    /// 3. **Inc_rc'd-global filter.** Drop globals that have any
-    ///    `inc_rc` somewhere in the function. Well-formed SSA contains
-    ///    no `DecrementRc`, so once an `inc_rc` on a global has fired
-    ///    at any runtime moment, the global's RC stays ≥ 2 for the
-    ///    remainder of the program — every later `array_set` on that
-    ///    global's storage is forced to allocate fresh. Globals are
-    ///    distinct top-level allocations (separate from caller storage
-    ///    and from other globals), so if the source's UF class contains
-    ///    such a global through pure block-parameter threading, the
-    ///    global cannot be the *mutated* storage the verifier needs to
-    ///    flag aliased reads of. The source-itself rule keeps a global
-    ///    in the alias set when it *is* the array_set's direct operand,
-    ///    so a hazardous `array_set g; … array_get g` with no preceding
-    ///    `inc_rc` is still caught by the precedence check.
+    /// 3. **Back-edge-only-with-`inc_rc` filter.** When `source` is a
+    ///    block parameter, drop values that arrive at `source`'s
+    ///    parameter position *only* from back-edge predecessors of
+    ///    `source`'s block (never from any forward edge) **and** have
+    ///    an `inc_rc` somewhere in the function. Such a value `v`:
+    ///    - is never the array_set's source storage on iteration 0
+    ///      (iter 0's source comes from a forward edge, which `v` is
+    ///      absent from);
+    ///    - on iteration ≥ 1, has `RC ≥ 2` thanks to the iter-0
+    ///      `inc_rc` (well-formed SSA contains no `DecrementRc`, so
+    ///      once `inc_rc` fires the bump persists), so the array_set
+    ///      on `v` allocates fresh and `v`'s storage isn't mutated.
+    ///
+    ///    Concretely covers patterns where the frontend emits an
+    ///    `inc_rc` in the loop body right before the back-edge,
+    ///    signalling "this value is being threaded back as the loop
+    ///    variable's next-iteration storage, so its RC is bumped to
+    ///    keep the in-place-mutation path from kicking in." Examples
+    ///    include `c = b` at the end of a loop body (entry param `b`
+    ///    on the back-edge), `a = G_A` (global `G_A` on the back-edge),
+    ///    and re-seeding with a function arg captured for re-use.
     ///
     /// The source itself is kept even when it happens to be filtered by
     /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
     /// `v_a` is *this* check's source, so its forward uses are exactly
     /// what we want to look for. Rule (2) can never fire on the source
     /// because the source's def must precede the array_set's use of it.
+    /// Rule (3) only filters non-source values.
     fn alias_set_for(
         &self,
         source: ValueId,
@@ -349,6 +359,7 @@ impl<'f> Context<'f> {
     ) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
+        let back_only = self.back_edge_only_args.get(&source);
         class
             .into_iter()
             .filter(|&v| {
@@ -364,7 +375,10 @@ impl<'f> Context<'f> {
                 {
                     return false;
                 }
-                if self.function.dfg.is_global(v) && self.inc_rc_locations.contains_key(&v) {
+                if let Some(back_only) = back_only
+                    && back_only.contains(&v)
+                    && self.inc_rc_locations.contains_key(&v)
+                {
                     return false;
                 }
                 true
@@ -411,29 +425,6 @@ impl<'f> Context<'f> {
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> bool {
-        // Multiple array-typed entry parameters in the same alias-set
-        // are an over-approximation artifact: the UF unifies them
-        // because they get threaded into the same downstream block
-        // parameter from different predecessors (e.g. a forward edge
-        // carries one entry param into the loop-header, a back-edge
-        // carries the other from a body-block whose own param came from
-        // the second entry param). The frontend trusts that *distinct*
-        // entry parameters refer to distinct caller-side storage — if
-        // a caller wants to share, it must wrap the share in a
-        // construct that bumps RC. The verifier mirrors that trust:
-        // it does not treat cross-arg aliasing of entry parameters as
-        // a real-runtime hazard. The single-arg case is NOT exempted:
-        // self-aliasing of a sole entry parameter through threading
-        // could still be an RC=1 in-place mutation visible through the
-        // same SSA name (especially in `main`, whose VM caller does
-        // not bump RC), so it remains a real hazard the verifier must
-        // flag.
-        let entry_param_aliases =
-            alias_set.iter().filter(|v| self.function_entry_array_params.contains(v)).count();
-        if entry_param_aliases >= 2 {
-            return true;
-        }
-
         for value in alias_set {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
@@ -690,6 +681,87 @@ struct AliasedUse {
     /// The alias-set member that was used. Names *which* alias triggered
     /// the flag — useful when the alias-set has more than one member.
     value: ValueId,
+}
+
+/// For each array-typed block parameter `p`, compute the set of direct
+/// args at `p`'s position that come *only* from back-edge predecessors
+/// of `p`'s block — i.e., args that contribute aliasing to `p` only
+/// in iterations ≥ 1 of the surrounding loop, never on the forward
+/// entry into the loop. A back-edge is detected as an edge whose
+/// target dominates its source.
+///
+/// Values absent from the resulting map have an implicit empty
+/// back-edge-only set: either the param has no back-edge predecessor,
+/// or every back-edge arg also appears on some forward edge.
+fn compute_back_edge_only_args(
+    function: &Function,
+    cfg: &ControlFlowGraph,
+    dom_tree: &mut DominatorTree,
+) -> HashMap<ValueId, im::HashSet<ValueId>> {
+    let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
+
+    for block_id in function.reachable_blocks() {
+        let params = function.dfg.block_parameters(block_id);
+        if params.is_empty() {
+            continue;
+        }
+
+        let mut forward_args_per_pos: Vec<HashSet<ValueId>> =
+            vec![HashSet::default(); params.len()];
+        let mut back_args_per_pos: Vec<HashSet<ValueId>> = vec![HashSet::default(); params.len()];
+
+        for pred in cfg.predecessors(block_id) {
+            let Some(terminator) = function.dfg[pred].terminator() else { continue };
+            let args: &[ValueId] = match terminator {
+                TerminatorInstruction::Jmp { destination, arguments, .. }
+                    if *destination == block_id =>
+                {
+                    arguments
+                }
+                TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                } => {
+                    if *then_destination == block_id {
+                        then_arguments
+                    } else if *else_destination == block_id {
+                        else_arguments
+                    } else {
+                        continue;
+                    }
+                }
+                _ => continue,
+            };
+
+            let is_back_edge = dom_tree.dominates(block_id, pred);
+            for (i, &arg) in args.iter().enumerate() {
+                if i >= params.len() {
+                    break;
+                }
+                if is_back_edge {
+                    back_args_per_pos[i].insert(arg);
+                } else {
+                    forward_args_per_pos[i].insert(arg);
+                }
+            }
+        }
+
+        for (i, &param) in params.iter().enumerate() {
+            if !function.dfg.type_of_value(param).contains_an_array() {
+                continue;
+            }
+            let back_only: im::HashSet<ValueId> =
+                back_args_per_pos[i].difference(&forward_args_per_pos[i]).copied().collect();
+            if !back_only.is_empty() {
+                result.insert(param, back_only);
+            }
+        }
+    }
+
+    result
 }
 
 /// For each parameter of `dest`, union it with the corresponding argument
@@ -973,6 +1045,52 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "the back-edge re-seeds the loop variable with an inc_rc'd global, so the post-loop read sees the global's pristine storage — not the function arg's caller-side storage that iter 0's array_set may have mutated",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: a
+    /// callee receives an array argument, makes a *fresh* `make_array`
+    /// copy that's threaded into the loop header on the forward edge,
+    /// mutates the loop variable inside the body, and then re-seeds the
+    /// loop variable with the *original* argument on the back-edge.
+    /// The original argument has its `inc_rc` emitted in the loop body
+    /// (right before the back-edge), so iter 1+ sees `RC ≥ 2` on it
+    /// and the array_set allocates fresh. Iter 0's array_set mutates
+    /// the fresh local copy, which is no longer referenced after the
+    /// back-edge re-bind — so the apparent post-array_set read of the
+    /// loop variable (the next iteration's `array_get` on the loop
+    /// header param) is actually reading the original argument's
+    /// pristine storage. The back-edge-only-with-`inc_rc` filter drops
+    /// the original arg from the alias-set, the per-arg kill on the
+    /// back-edge then drops the loop param, and the walk terminates
+    /// without flagging.
+    #[test]
+    fn end_to_end_loop_reseeded_with_inc_rcd_entry_param_is_accepted() {
+        let src = r#"
+            brillig(inline_never) fn func_1 f0 {
+              b0(v0: [[u8; 3]; 4]):
+                v5 = array_get v0, index u32 0 -> [u8; 3]
+                inc_rc v5
+                inc_rc v5
+                v6 = make_array [v5, v5, v5, v5] : [[u8; 3]; 4]
+                jmp b1(u32 0, v6)
+              b1(v9: u32, v24: [[u8; 3]; 4]):
+                v10 = lt v9, u32 3
+                jmpif v10 then: b2(), else: b3()
+              b2():
+                v13 = array_get v24, index u32 3 -> [u8; 3]
+                inc_rc v13
+                v20 = make_array b"XDR"
+                v25 = array_set v24, index u32 3, value v20
+                inc_rc v0
+                v23 = unchecked_add v9, u32 1
+                jmp b1(v23, v0)
+              b3():
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v0 (the function arg) is on the back-edge to v24 only, and it has an inc_rc in the loop body, so iter 1+'s array_set on v0 allocates fresh; iter 0's array_set mutates v6 (the fresh forward-edge make_array), which is no longer referenced after the back-edge re-bind",
         );
     }
 
