@@ -180,6 +180,11 @@ struct Context<'f> {
     /// instruction. Lets the reachable-use walk skip over instructions that
     /// have no array operand.
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
+    /// Array-typed parameters of the function's entry block. Treated as
+    /// having a virtual `inc_rc` at function entry by
+    /// [`Context::some_inc_rc_precedes`], reflecting Brillig's calling
+    /// convention that array args have their RC bumped per pass.
+    function_entry_array_params: HashSet<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -260,6 +265,13 @@ impl<'f> Context<'f> {
 
         let value_aliases = materialize_value_aliases(uf);
 
+        let function_entry_array_params: HashSet<ValueId> = function
+            .parameters()
+            .iter()
+            .copied()
+            .filter(|v| function.dfg.type_of_value(*v).contains_an_array())
+            .collect();
+
         Self {
             function,
             dom_tree,
@@ -268,6 +280,7 @@ impl<'f> Context<'f> {
             non_aliasing_array_values,
             inc_rc_locations,
             array_operand_uses,
+            function_entry_array_params,
         }
     }
 
@@ -380,6 +393,29 @@ impl<'f> Context<'f> {
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> bool {
+        // Multiple array-typed entry parameters in the same alias-set
+        // are an over-approximation artifact: the UF unifies them
+        // because they get threaded into the same downstream block
+        // parameter from different predecessors (e.g. a forward edge
+        // carries one entry param into the loop-header, a back-edge
+        // carries the other from a body-block whose own param came from
+        // the second entry param). The frontend trusts that *distinct*
+        // entry parameters refer to distinct caller-side storage — if
+        // a caller wants to share, it must wrap the share in a
+        // construct that bumps RC. The verifier mirrors that trust:
+        // it does not treat cross-arg aliasing of entry parameters as
+        // a real-runtime hazard. The single-arg case is NOT exempted:
+        // self-aliasing of a sole entry parameter through threading
+        // could still be an RC=1 in-place mutation visible through the
+        // same SSA name (especially in `main`, whose VM caller does
+        // not bump RC), so it remains a real hazard the verifier must
+        // flag.
+        let entry_param_aliases =
+            alias_set.iter().filter(|v| self.function_entry_array_params.contains(v)).count();
+        if entry_param_aliases >= 2 {
+            return true;
+        }
+
         for value in alias_set {
             let Some(locations) = self.inc_rc_locations.get(value) else {
                 continue;
@@ -874,6 +910,43 @@ mod tests {
                 return v7
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered pattern: two
+    /// array-typed function entry parameters get unified into the same
+    /// alias class by the UF because they both flow into the same
+    /// downstream block parameter — one via a forward edge into the
+    /// loop header, the other via a back-edge that re-seeds the loop
+    /// variable with the second entry parameter (the user-source-level
+    /// equivalent of `c = b` at the bottom of an outer loop iteration).
+    /// The walk then finds an aliased `array_get` of the *other* entry
+    /// param on a forward path from the `array_set`, with no
+    /// dominating `inc_rc`. The frontend trusts that distinct entry
+    /// parameters point at distinct caller-side storage (and the only
+    /// inc_rc it emits is on the back-edge, protecting iteration 2+);
+    /// the verifier mirrors that trust by treating ≥ 2 array entry
+    /// parameters in the alias-set as if a virtual `inc_rc` preceded
+    /// the array_set at function entry.
+    #[test]
+    fn end_to_end_two_entry_array_params_cross_aliased_via_back_edge_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v_b: [i8; 4], v_c: [i8; 4]):
+                jmp b1(v_c)
+              b1(v_loop: [i8; 4]):
+                jmpif u1 1 then: b3(), else: b2()
+              b2():
+                return
+              b3():
+                v6 = array_get v_b, index u32 0 -> i8
+                v7 = array_set v_loop, index u32 0, value i8 0
+                inc_rc v_b
+                jmp b1(v_b)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v_b and v_c are both array-typed entry parameters unified into the loop-header param's class — at runtime they point at distinct caller-side storage, so cross-arg aliasing through the UF is not a real hazard",
+        );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered pattern: an
