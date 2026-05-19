@@ -255,11 +255,6 @@ impl Field {
     // docs:start:from_le_bytes_checked
     pub fn from_le_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
         // docs:end:from_le_bytes_checked
-        static_assert(
-            N <= modulus_le_bytes().len(),
-            "N must be less than or equal to modulus_le_bytes().len()",
-        );
-
         let p = modulus_le_bytes();
         let mut ok = N != p.len();
         for i in 0..N {
@@ -274,14 +269,7 @@ impl Field {
             }
         }
         assert(ok, "input bytes are not a canonical field representation");
-
-        let mut v = 1;
-        let mut result = 0;
-        for i in 0..N {
-            result += (bytes[i] as Field) * v;
-            v = v * 256;
-        }
-        result
+        Field::from_le_bytes(bytes)
     }
 
     /// Convert a big endian byte array to a field element, asserting that the input is a
@@ -293,11 +281,6 @@ impl Field {
     // docs:start:from_be_bytes_checked
     pub fn from_be_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
         // docs:end:from_be_bytes_checked
-        static_assert(
-            N <= modulus_be_bytes().len(),
-            "N must be less than or equal to modulus_be_bytes().len()",
-        );
-
         let p = modulus_be_bytes();
         let mut ok = N != p.len();
         for i in 0..N {
@@ -309,14 +292,7 @@ impl Field {
             }
         }
         assert(ok, "input bytes are not a canonical field representation");
-
-        let mut v = 1;
-        let mut result = 0;
-        for i in 0..N {
-            result += (bytes[N - 1 - i] as Field) * v;
-            v = v * 256;
-        }
-        result
+        Field::from_be_bytes(bytes)
     }
 }
 
@@ -383,19 +359,9 @@ pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
 }
 
 // Convert a 32 byte array to a field element by modding
+#[deprecated("Use `Field::from_be_bytes::<32>` instead")]
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
-    // Convert it to a field element
-    let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
-
-    for i in 0..16 {
-        high = high + (bytes32[15 - i] as Field) * v;
-        low = low + (bytes32[16 + 15 - i] as Field) * v;
-        v = v * 256;
-    }
-    // Abuse that a % p + b % p = (a + b) % p and that low < p
-    low + high * v
+    Field::from_be_bytes(bytes32)
 }
 
 fn lt_fallback(x: Field, y: Field) -> bool {
