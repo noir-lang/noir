@@ -12,6 +12,7 @@ use crate::{
     },
     parser::ParserError,
     usage_tracker::UnusedItem,
+    validity::InvalidType,
 };
 
 use super::import::PathResolutionError;
@@ -72,6 +73,8 @@ pub enum ResolverError {
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
+    #[error("Globals marked with `#[abi(tag)]` must have an ABI-compatible type")]
+    NonAbiTypeInAbiGlobal { invalid_type: InvalidType, location: Location },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
@@ -265,6 +268,7 @@ impl ResolverError {
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
+            | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -536,6 +540,17 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
                 )
+            }
+            ResolverError::NonAbiTypeInAbiGlobal { invalid_type, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    "Globals marked with `#[abi(tag)]` must have an ABI-compatible type"
+                        .to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.secondaries.clear();
+                invalid_type.add_to_abi_diagnostic(*location, &mut diagnostic);
+                diagnostic
             }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),

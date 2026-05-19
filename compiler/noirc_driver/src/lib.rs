@@ -6,7 +6,7 @@ use insta as _;
 
 use std::hash::BuildHasher;
 
-use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+use abi_gen::{abi_type_from_hir_type, value_to_abi_value};
 use acvm::AcirField;
 use acvm::acir::circuit::{ErrorSelector, Program, display_program};
 use clap::Args;
@@ -42,7 +42,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -851,11 +851,14 @@ fn compile_contract_inner(
                 let globals: Vec<AbiValue> = globals
                     .iter()
                     .map(|global_id| {
-                        let let_statement =
-                            context.def_interner.get_global_let_statement(*global_id).unwrap();
-                        let hir_expression =
-                            context.def_interner.expression(&let_statement.expression);
-                        value_from_hir_expression(context, hir_expression)
+                        let GlobalValue::Resolved(value) =
+                            &context.def_interner.get_global(*global_id).value
+                        else {
+                            unreachable!(
+                                "Global with #[abi(tag)] must be resolved at comptime before ABI emission"
+                            );
+                        };
+                        value_to_abi_value(value)
                     })
                     .collect();
                 (tag.clone(), globals)
