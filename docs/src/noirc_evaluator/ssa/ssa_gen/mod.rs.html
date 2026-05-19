@@ -1698,7 +1698,7 @@
 <a href=#1698 id=1698 data-nosnippet>1698</a>
 <a href=#1699 id=1699 data-nosnippet>1699</a><span class="doccomment">/// Return whether the expression refers to a function whose body, after peeling block/semi
 <a href=#1700 id=1700 data-nosnippet>1700</a>/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
-<a href=#1701 id=1701 data-nosnippet>1701</a>/// or another oracle wrapper.
+<a href=#1701 id=1701 data-nosnippet>1701</a>/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
 <a href=#1702 id=1702 data-nosnippet>1702</a>///
 <a href=#1703 id=1703 data-nosnippet>1703</a>/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
 <a href=#1704 id=1704 data-nosnippet>1704</a>/// only read their inputs (values are copied across the runtime boundary), so a wrapper
@@ -1724,19 +1724,56 @@
 <a href=#1724 id=1724 data-nosnippet>1724</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(inner) = peel_to_single_call(<span class="kw-2">&amp;</span>program[<span class="kw-2">*</span>func_id].body) <span class="kw">else </span>{
 <a href=#1725 id=1725 data-nosnippet>1725</a>            <span class="kw">return </span><span class="bool-val">false</span>;
 <a href=#1726 id=1726 data-nosnippet>1726</a>        };
-<a href=#1727 id=1727 data-nosnippet>1727</a>        is_oracle_func(<span class="kw-2">&amp;</span>inner.func) || go(<span class="kw-2">&amp;</span>inner.func, program, depth - <span class="number">1</span>)
-<a href=#1728 id=1728 data-nosnippet>1728</a>    }
-<a href=#1729 id=1729 data-nosnippet>1729</a>
-<a href=#1730 id=1730 data-nosnippet>1730</a>    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
-<a href=#1731 id=1731 data-nosnippet>1731</a>}
+<a href=#1727 id=1727 data-nosnippet>1727</a>        <span class="kw">if </span>!inner.arguments.iter().all(is_side_effect_free_arg) {
+<a href=#1728 id=1728 data-nosnippet>1728</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1729 id=1729 data-nosnippet>1729</a>        }
+<a href=#1730 id=1730 data-nosnippet>1730</a>        is_oracle_func(<span class="kw-2">&amp;</span>inner.func) || go(<span class="kw-2">&amp;</span>inner.func, program, depth - <span class="number">1</span>)
+<a href=#1731 id=1731 data-nosnippet>1731</a>    }
 <a href=#1732 id=1732 data-nosnippet>1732</a>
-<a href=#1733 id=1733 data-nosnippet>1733</a><span class="doccomment">/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
-<a href=#1734 id=1734 data-nosnippet>1734</a>/// [`Call`](ast::Call), return that call. Otherwise return `None`.
-<a href=#1735 id=1735 data-nosnippet>1735</a></span><span class="kw">fn </span>peel_to_single_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ast::Call&gt; {
-<a href=#1736 id=1736 data-nosnippet>1736</a>    <span class="kw">match </span>expr {
-<a href=#1737 id=1737 data-nosnippet>1737</a>        Expression::Call(call) =&gt; <span class="prelude-val">Some</span>(call),
-<a href=#1738 id=1738 data-nosnippet>1738</a>        Expression::Semi(inner) =&gt; peel_to_single_call(inner),
-<a href=#1739 id=1739 data-nosnippet>1739</a>        Expression::Block(stmts) <span class="kw">if </span>stmts.len() == <span class="number">1 </span>=&gt; peel_to_single_call(<span class="kw-2">&amp;</span>stmts[<span class="number">0</span>]),
-<a href=#1740 id=1740 data-nosnippet>1740</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#1741 id=1741 data-nosnippet>1741</a>    }
-<a href=#1742 id=1742 data-nosnippet>1742</a>}</code></pre></div></section></main></body></html>
+<a href=#1733 id=1733 data-nosnippet>1733</a>    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
+<a href=#1734 id=1734 data-nosnippet>1734</a>}
+<a href=#1735 id=1735 data-nosnippet>1735</a>
+<a href=#1736 id=1736 data-nosnippet>1736</a><span class="doccomment">/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
+<a href=#1737 id=1737 data-nosnippet>1737</a>/// [`Call`](ast::Call), return that call. Otherwise return `None`.
+<a href=#1738 id=1738 data-nosnippet>1738</a></span><span class="kw">fn </span>peel_to_single_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ast::Call&gt; {
+<a href=#1739 id=1739 data-nosnippet>1739</a>    <span class="kw">match </span>expr {
+<a href=#1740 id=1740 data-nosnippet>1740</a>        Expression::Call(call) =&gt; <span class="prelude-val">Some</span>(call),
+<a href=#1741 id=1741 data-nosnippet>1741</a>        Expression::Semi(inner) =&gt; peel_to_single_call(inner),
+<a href=#1742 id=1742 data-nosnippet>1742</a>        Expression::Block(stmts) <span class="kw">if </span>stmts.len() == <span class="number">1 </span>=&gt; peel_to_single_call(<span class="kw-2">&amp;</span>stmts[<span class="number">0</span>]),
+<a href=#1743 id=1743 data-nosnippet>1743</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#1744 id=1744 data-nosnippet>1744</a>    }
+<a href=#1745 id=1745 data-nosnippet>1745</a>}
+<a href=#1746 id=1746 data-nosnippet>1746</a>
+<a href=#1747 id=1747 data-nosnippet>1747</a><span class="doccomment">/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
+<a href=#1748 id=1748 data-nosnippet>1748</a>///
+<a href=#1749 id=1749 data-nosnippet>1749</a>/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
+<a href=#1750 id=1750 data-nosnippet>1750</a>/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
+<a href=#1751 id=1751 data-nosnippet>1751</a>/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
+<a href=#1752 id=1752 data-nosnippet>1752</a>/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
+<a href=#1753 id=1753 data-nosnippet>1753</a>/// side-effectful and rejects the wrapper classification.
+<a href=#1754 id=1754 data-nosnippet>1754</a></span><span class="kw">fn </span>is_side_effect_free_arg(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1755 id=1755 data-nosnippet>1755</a>    <span class="kw">match </span>expr {
+<a href=#1756 id=1756 data-nosnippet>1756</a>        Expression::Ident(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#1757 id=1757 data-nosnippet>1757</a>        Expression::Literal(lit) =&gt; <span class="kw">match </span>lit {
+<a href=#1758 id=1758 data-nosnippet>1758</a>            ast::Literal::Array(arr) | ast::Literal::Vector(arr) =&gt; {
+<a href=#1759 id=1759 data-nosnippet>1759</a>                arr.contents.iter().all(is_side_effect_free_arg)
+<a href=#1760 id=1760 data-nosnippet>1760</a>            }
+<a href=#1761 id=1761 data-nosnippet>1761</a>            ast::Literal::Repeated { element, .. } =&gt; is_side_effect_free_arg(element),
+<a href=#1762 id=1762 data-nosnippet>1762</a>            ast::Literal::Integer(..)
+<a href=#1763 id=1763 data-nosnippet>1763</a>            | ast::Literal::Bool(<span class="kw">_</span>)
+<a href=#1764 id=1764 data-nosnippet>1764</a>            | ast::Literal::Unit
+<a href=#1765 id=1765 data-nosnippet>1765</a>            | ast::Literal::Str(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#1766 id=1766 data-nosnippet>1766</a>            ast::Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, inner) =&gt; is_side_effect_free_arg(inner),
+<a href=#1767 id=1767 data-nosnippet>1767</a>        },
+<a href=#1768 id=1768 data-nosnippet>1768</a>        Expression::ExtractTupleField(inner, <span class="kw">_</span>) =&gt; is_side_effect_free_arg(inner),
+<a href=#1769 id=1769 data-nosnippet>1769</a>        Expression::Tuple(items) =&gt; items.iter().all(is_side_effect_free_arg),
+<a href=#1770 id=1770 data-nosnippet>1770</a>        Expression::Index(idx) =&gt; {
+<a href=#1771 id=1771 data-nosnippet>1771</a>            is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.collection) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>idx.index)
+<a href=#1772 id=1772 data-nosnippet>1772</a>        }
+<a href=#1773 id=1773 data-nosnippet>1773</a>        Expression::Cast(cast) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>cast.lhs),
+<a href=#1774 id=1774 data-nosnippet>1774</a>        Expression::Unary(u) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>u.rhs),
+<a href=#1775 id=1775 data-nosnippet>1775</a>        Expression::Binary(b) =&gt; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.lhs) &amp;&amp; is_side_effect_free_arg(<span class="kw-2">&amp;</span>b.rhs),
+<a href=#1776 id=1776 data-nosnippet>1776</a>        Expression::Clone(inner) =&gt; is_side_effect_free_arg(inner),
+<a href=#1777 id=1777 data-nosnippet>1777</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#1778 id=1778 data-nosnippet>1778</a>    }
+<a href=#1779 id=1779 data-nosnippet>1779</a>}</code></pre></div></section></main></body></html>
