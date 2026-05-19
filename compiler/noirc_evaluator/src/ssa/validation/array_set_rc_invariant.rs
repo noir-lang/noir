@@ -181,25 +181,6 @@ struct Context<'f> {
     /// instruction. Lets the reachable-use walk skip over instructions that
     /// have no array operand.
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
-    /// Equivalence classes built from the same `(param, arg)` pairs as
-    /// [`Context::value_aliases`], but **only** on forward edges (edges
-    /// where the destination does not dominate the source). For each
-    /// value `v`, its forward-only class is the set of values that
-    /// share storage with `v` *through forward edges alone*.
-    ///
-    /// Used by [`Context::alias_set_for`] to identify alias-set members
-    /// that reach the source only via back-edges: such a member, if
-    /// `inc_rc`'d, has `RC ≥ 2` by the time it can be the source's
-    /// runtime storage (any iteration ≥ 1 of the loop carrying that
-    /// back-edge), so the array_set is forced to allocate fresh and the
-    /// member's storage is never mutated.
-    ///
-    /// The per-source granularity matters when a value is a forward-edge
-    /// arg in some unrelated control-flow region but reaches *this*
-    /// source only via back-edges — e.g. an entry param threaded onto
-    /// an outer loop's back-edge to reach an inner-loop array_set, while
-    /// also forward-threaded into a separate early-return branch.
-    forward_only_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
     /// Values that appear at least once as a jmp/jmpif arg on a
     /// loop back-edge. Used by [`Context::some_inc_rc_precedes`] as one
     /// half of the "the frontend is managing loop-iteration RC" signal:
@@ -234,7 +215,6 @@ impl<'f> Context<'f> {
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut uf: UnionFind<ValueId> = UnionFind::new();
-        let mut forward_only_uf: UnionFind<ValueId> = UnionFind::new();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
 
         // Single pass over every reachable block. Each iteration populates
@@ -284,15 +264,7 @@ impl<'f> Context<'f> {
                 match terminator {
                     TerminatorInstruction::Jmp { destination, arguments, .. } => {
                         union_param_args(function, &mut uf, *destination, arguments);
-                        let is_back_edge = back_edges.contains(&(block_id, *destination));
-                        if !is_back_edge {
-                            union_param_args(
-                                function,
-                                &mut forward_only_uf,
-                                *destination,
-                                arguments,
-                            );
-                        } else {
+                        if back_edges.contains(&(block_id, *destination)) {
                             back_edge_args.extend(arguments.iter().copied());
                         }
                     }
@@ -305,26 +277,10 @@ impl<'f> Context<'f> {
                     } => {
                         union_param_args(function, &mut uf, *then_destination, then_arguments);
                         union_param_args(function, &mut uf, *else_destination, else_arguments);
-                        let then_is_back = back_edges.contains(&(block_id, *then_destination));
-                        if !then_is_back {
-                            union_param_args(
-                                function,
-                                &mut forward_only_uf,
-                                *then_destination,
-                                then_arguments,
-                            );
-                        } else {
+                        if back_edges.contains(&(block_id, *then_destination)) {
                             back_edge_args.extend(then_arguments.iter().copied());
                         }
-                        let else_is_back = back_edges.contains(&(block_id, *else_destination));
-                        if !else_is_back {
-                            union_param_args(
-                                function,
-                                &mut forward_only_uf,
-                                *else_destination,
-                                else_arguments,
-                            );
-                        } else {
+                        if back_edges.contains(&(block_id, *else_destination)) {
                             back_edge_args.extend(else_arguments.iter().copied());
                         }
                     }
@@ -334,7 +290,6 @@ impl<'f> Context<'f> {
         }
 
         let value_aliases = materialize_value_aliases(uf);
-        let forward_only_aliases = materialize_value_aliases(forward_only_uf);
 
         Self {
             function,
@@ -344,7 +299,6 @@ impl<'f> Context<'f> {
             non_aliasing_array_values,
             inc_rc_locations,
             array_operand_uses,
-            forward_only_aliases,
             back_edge_args,
         }
     }
@@ -386,35 +340,16 @@ impl<'f> Context<'f> {
     ///    that block; the same-block case never gets that chance because
     ///    the walk starts mid-block past the array_set.
     ///
-    /// 3. **Back-edge-only-with-`inc_rc` filter.** For each `v` in the
-    ///    source's UF class, check whether `v` reaches the source via
-    ///    *forward edges only*: that is, whether `v` is in
-    ///    [`Context::forward_only_aliases`]`[source]`. If `v` is in the
-    ///    full UF class but *not* in the forward-only class, then `v`
-    ///    can only be the source's runtime storage on iterations ≥ 1
-    ///    of some loop carrying it through a back-edge. If additionally
-    ///    `v` has an `inc_rc` somewhere, drop it: the iter-0 `inc_rc`
-    ///    makes `RC(v) ≥ 2` for every iteration where `v` could be the
-    ///    source's storage, so the array_set on `v` allocates fresh and
-    ///    `v`'s storage isn't mutated. (Well-formed SSA contains no
-    ///    `DecrementRc`, so once `inc_rc` fires the bump persists.)
-    ///
-    ///    The per-source lookup keeps the filter precise when a value
-    ///    is a forward-edge arg in some unrelated control-flow region
-    ///    but reaches *this* source only via back-edges. Concretely
-    ///    covers patterns like `c = b` at the end of a loop body,
-    ///    `a = G_A` (global on the back-edge), and re-seeding with a
-    ///    function arg captured for re-use across loop iterations —
-    ///    including nested-loop cases where the inc_rc'd value sits on
-    ///    an outer loop's back-edge while the array_set lives in an
-    ///    inner loop.
-    ///
     /// The source itself is kept even when it happens to be filtered by
     /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
     /// `v_a` is *this* check's source, so its forward uses are exactly
     /// what we want to look for. Rule (2) can never fire on the source
     /// because the source's def must precede the array_set's use of it.
-    /// Rule (3) only filters non-source values.
+    ///
+    /// Filtering of back-edge-only-reachable alias members is handled
+    /// not here but in [`Context::some_inc_rc_precedes`], which accepts
+    /// the `array_set` outright when such a member also carries an
+    /// `inc_rc` — see that function's doc for the rationale.
     fn alias_set_for(
         &self,
         source: ValueId,
@@ -423,7 +358,6 @@ impl<'f> Context<'f> {
     ) -> im::HashSet<ValueId> {
         let class =
             self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
-        let source_forward_class = self.forward_only_aliases.get(&source);
         class
             .into_iter()
             .filter(|&v| {
@@ -437,13 +371,6 @@ impl<'f> Context<'f> {
                     && def_block == array_set_block
                     && def_idx > array_set_idx
                 {
-                    return false;
-                }
-                // Back-edge-only reachable from source AND inc_rc'd:
-                // see rule (3) in this function's doc comment.
-                let is_forward_reachable =
-                    source_forward_class.as_ref().is_some_and(|cls| cls.contains(&v));
-                if !is_forward_reachable && self.inc_rc_locations.contains_key(&v) {
                     return false;
                 }
                 true
