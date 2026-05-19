@@ -375,7 +375,7 @@ pub fn validate_witness<F: AcirField>(
                 if existing_block_id.is_some() {
                     return Err(unsatisfied_constraint(
                         opcode_index,
-                        format!("Memory block already initialized for block {:?}", *block_id,),
+                        format!("Attempted reinitialization of memory block {:?}", block_id.0,),
                     ));
                 }
             }
@@ -923,7 +923,7 @@ mod tests {
         assert_unsatisfied_constraint(
             validate_witness(&backend, witness_map, &circuit),
             1,
-            "Memory block already initialized for block BlockId(0)",
+            format!("Attempted reinitialization of memory block {}", block_id.0).as_str(),
         );
     }
 }
