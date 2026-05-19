@@ -402,6 +402,37 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+fn impl_generic_in_body_only_distinct_monomorphizations() {
+    // When an impl-level generic is referenced only in the method body (not
+    // in the signature, not in the method turbofish), the monomorphization
+    // cache must produce a distinct specialization per impl instantiation
+    // rather than aliasing all callsites to the first-queued body.
+    let src = r#"
+    trait Guard<let N: u32> {
+        fn check(x: Field);
+    }
+
+    struct S {}
+
+    impl<let N: u32> Guard<N> for S {
+        fn check(x: Field) {
+            for _ in 0..N {
+                assert(x == 0);
+            }
+        }
+    }
+
+    pub fn main(x: Field) {
+        <S as Guard<0>>::check(x);
+        <S as Guard<2>>::check(x);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program);
+}
+
+#[test]
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
