@@ -104,6 +104,13 @@ fn verify_function(function: &Function) -> RtResult<()> {
                 continue;
             }
 
+            // Two or more entry parameters in the alias-set means UF
+            // conflated distinct caller-side storages through a
+            // downstream join — see `multi_entry_param_alias_acceptance`.
+            if ctx.multi_entry_param_alias_acceptance(&alias_set) {
+                continue;
+            }
+
             // The array_set's index, if constant — lets the walk skip
             // `array_get`s on disjoint constant indices (the pedersen-style
             // pattern). A dynamic write index means we must conservatively
@@ -207,6 +214,12 @@ struct Context<'f> {
     /// inserted the bump deliberately, even if the bump's program
     /// point doesn't dominate the array_set in flow order.
     back_edge_args: HashSet<ValueId>,
+    /// Array-typed parameters of the function's entry block. Used by
+    /// [`Context::multi_entry_param_alias_acceptance`] to recognize
+    /// path-merge over-approximations: when an alias-set contains two
+    /// or more entry params, they're distinct caller-side storages
+    /// conflated by UF through a downstream join, not real aliasing.
+    array_entry_params: HashSet<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -322,6 +335,16 @@ impl<'f> Context<'f> {
         let iteration_local_make_arrays: HashSet<ValueId> =
             make_array_values.intersection(&back_edge_args).copied().collect();
 
+        // Array-typed parameters of the entry block — pinned to distinct
+        // caller-side storages by the Brillig calling convention.
+        let array_entry_params: HashSet<ValueId> = function
+            .dfg
+            .block_parameters(function.entry_block())
+            .iter()
+            .copied()
+            .filter(|&v| function.dfg.type_of_value(v).contains_an_array())
+            .collect();
+
         Self {
             function,
             dom_tree,
@@ -332,7 +355,37 @@ impl<'f> Context<'f> {
             inc_rc_locations,
             array_operand_uses,
             back_edge_args,
+            array_entry_params,
         }
+    }
+
+    /// Returns `true` if the `alias_set` contains two or more array-typed
+    /// **entry parameters** of the function. Distinct entry parameters
+    /// are guaranteed to point at distinct caller-side storage by the
+    /// Brillig calling convention, so their UF unification via a
+    /// downstream block-parameter join is a path-merge over-approximation
+    /// rather than real runtime aliasing. The walk can flag an aliased
+    /// read of one entry param against an `array_set` on the other —
+    /// even before the join where the conflation actually happens — and
+    /// that flag is spurious.
+    ///
+    /// Treated as a virtual `inc_rc` at function entry: any program point
+    /// reachable inside `f` already sees `RC ≥ 2` on each entry param the
+    /// caller is still referencing, so the `array_set` cannot mutate the
+    /// other entry param's storage in place even on the runtime path that
+    /// happens to bind the join param to it.
+    ///
+    /// **Soundness caveat.** If the frontend emits an `array_set` whose
+    /// alias-set ends up containing two entry params via a path on which
+    /// the array_set *does* mutate one of them and a downstream read sees
+    /// the mutation, this heuristic suppresses the flag — a false
+    /// negative. We accept that trade-off because (1) the frontend's
+    /// ownership pass is the authoritative source of `inc_rc`s and the
+    /// invariant we're verifying is downstream of it, and (2) the
+    /// alternative — path-sensitive UF restricted to edges reachable
+    /// from the array_set — is a substantially larger change.
+    fn multi_entry_param_alias_acceptance(&self, alias_set: &im::HashSet<ValueId>) -> bool {
+        alias_set.iter().filter(|v| self.array_entry_params.contains(v)).take(2).count() >= 2
     }
 
     /// Look up `source`'s alias-equivalence class and filter out values
@@ -1301,6 +1354,50 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "v_b and v_c are both array-typed entry parameters unified into the loop-header param's class — at runtime they point at distinct caller-side storage, so cross-arg aliasing through the UF is not a real hazard",
+        );
+    }
+
+    /// End-to-end regression for an AST-fuzzer-discovered minimal shape:
+    /// two array-typed function entry parameters are unified into the
+    /// same alias class by a *forward* if-else sibling join (no loops,
+    /// no inc_rc anywhere). The walk flags an `array_get` of the other
+    /// entry param inside the array_set's own block — *before* the walk
+    /// reaches the join where the UF conflation actually happens.
+    /// Source-level shape:
+    ///
+    /// ```ignore
+    /// fn main(a, mut b, c) -> Field {
+    ///     if c == 0 { b[1] = b[0]; b[0] = 20; b = a; b[1] }
+    ///     else { c }
+    /// }
+    /// ```
+    ///
+    /// Distinct entry parameters point at distinct caller-side storage by
+    /// Brillig calling convention; their conflation through a downstream
+    /// join is a UF over-approximation, not a real hazard. The verifier
+    /// recognizes this by accepting any `array_set` whose alias-set
+    /// contains two or more array-typed entry parameters.
+    #[test]
+    fn end_to_end_two_entry_array_params_cross_aliased_via_forward_sibling_join_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [Field; 2], v1: [Field; 2], v3: Field):
+                v5 = eq v3, Field 0
+                jmpif v5 then: b1(), else: b2()
+              b1():
+                v11 = array_get v1, index u32 0 -> Field
+                v13 = array_set v1, index u32 1, value v11
+                v16 = array_set v13, index u32 0, value Field 20
+                v18 = array_get v0, index u32 1 -> Field
+                jmp b3(v18, v0)
+              b2():
+                jmp b3(v3, v1)
+              b3(v19: Field, v20: [Field; 2]):
+                return v19
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v0 and v1 are both array-typed function entry params unified into b3.v20's class via the if-else sibling join; at runtime they point at distinct caller-side storage, so the cross-arg aliasing through UF is not a real hazard",
         );
     }
 
