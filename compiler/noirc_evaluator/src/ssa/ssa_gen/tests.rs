@@ -338,6 +338,32 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 }
 
 #[test]
+fn oracle_wrapper_with_mutating_arg_keeps_clone() {
+    let src = "
+    unconstrained fn main(seed: Field, idx: u32) -> pub Field {
+        let array: [Field; 3] = [seed, seed + 1, seed + 2];
+        mutating_print_wrapper(array);
+        array[idx]
+    }
+
+    unconstrained fn mutating_print_wrapper(mut array: [Field; 3]) {
+        println({
+            array[0] = 9;
+            array
+        });
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+
+    let results = ssa
+        .interpret(vec![InterpreterValue::field(FieldElement::one()), InterpreterValue::u32(0)])
+        .unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::one())]);
+}
+
+#[test]
 fn for_loop_exclusive() {
     let assert_src = "
     fn main() -> pub u32 {

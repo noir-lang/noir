@@ -1005,6 +1005,32 @@ fn clones_non_moved_variable_because_of_reference() {
 }
 
 #[test]
+fn clones_non_moved_variable_because_of_reference_through_block() {
+    let src = "
+    unconstrained fn main(mut arr: [u32; 3], idx: u32) {
+        let z: &mut [u32; 3] = &mut {
+            let _ = 0;
+            arr
+        };
+        let y = arr;
+        (*z)[idx] = 100;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
+        let z$l3 = (&mut {
+            let _$l2 = 0;
+            arr$l0
+        });
+        let y$l4 = arr$l0.clone();
+        (*z$l3)[idx$l1] = 100
+    }
+    ");
+}
+
+#[test]
 fn clone_inserted_on_index_then_collection() {
     let src = "
     unconstrained fn main() {
