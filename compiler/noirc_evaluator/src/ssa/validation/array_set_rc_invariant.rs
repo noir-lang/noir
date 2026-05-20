@@ -30,7 +30,13 @@
 //!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
 //!    by the values that flow *into* `vX`'s binding is included — not the full
 //!    UF closure, which would over-approximate by also conflating sibling
-//!    parameters that share an arg through a downstream join.
+//!    parameters that share an arg through a downstream join. Filtered to
+//!    drop values that can't represent pre-mutation storage: `array_set` /
+//!    `Call` results (always fresh), iteration-local `MakeArray`s (back-edge
+//!    args), and instruction results defined in the array_set's own block at
+//!    an index after the array_set (they can land in the backward set
+//!    through a forward-then-back round-trip, but don't exist as storage
+//!    at the array_set's program point yet).
 //! 2. **inc_rc precedence / jmp-arg-participant.** If some `inc_rc` on an
 //!    alias-set member either RPO-precedes the array_set or sits on a
 //!    non-source alias that's also a jmp/jmpif arg, accept — the frontend is
@@ -123,7 +129,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
                 continue;
             };
 
-            let alias_set = ctx.alias_set_for(array);
+            let alias_set = ctx.alias_set_for(array, block_id, idx);
 
             // Cheap check first: if any `inc_rc` on an alias-set member
             // precedes this `array_set` in flow order, treat the aliasing
@@ -393,8 +399,9 @@ impl<'f> Context<'f> {
     }
 
     /// Look up `source`'s backward alias-set and filter out values that
-    /// can't represent the pre-mutation storage of an `array_set` on
-    /// `source`. The source itself is always kept.
+    /// can't represent the pre-mutation storage of the `array_set` at
+    /// `(array_set_block, array_set_idx)`. The source itself is always
+    /// kept.
     ///
     /// **Non-aliasing-result filter.** Drop values produced by an
     /// `array_set` or `Call`:
@@ -423,11 +430,29 @@ impl<'f> Context<'f> {
     /// they represent a one-time allocation whose storage the
     /// array_set can mutate in place.
     ///
+    /// **Post-array_set-in-same-block filter.** Drop instruction
+    /// results whose defining position is in `array_set_block` at an
+    /// index *greater than* `array_set_idx`. Such a value doesn't exist
+    /// at the array_set's program point yet — it's literally about to
+    /// be allocated on a later instruction — so it can't represent the
+    /// storage the array_set might mutate. It can land in the backward
+    /// set through a round-trip: `make_array → forward-arg → block
+    /// param → back-edge → source's param`. Dropping it at lookup time
+    /// makes the per-arg kill in [`Context::succ_use_set`] correctly
+    /// fire on the forward edge where the future-value is passed.
+    ///
     /// The source itself is kept even when it happens to be filtered
     /// (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`): `v_a`
     /// is *this* check's source, so its forward uses are exactly what
-    /// we want to look for.
-    fn alias_set_for(&self, source: ValueId) -> im::HashSet<ValueId> {
+    /// we want to look for. The post-array_set filter can't fire on the
+    /// source because the source must be defined before the array_set
+    /// that uses it.
+    fn alias_set_for(
+        &self,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> im::HashSet<ValueId> {
         let class = self
             .backward_aliases
             .get(&source)
@@ -443,6 +468,12 @@ impl<'f> Context<'f> {
                     return false;
                 }
                 if self.iteration_local_make_arrays.contains(&v) {
+                    return false;
+                }
+                if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
+                    && def_block == array_set_block
+                    && def_idx > array_set_idx
+                {
                     return false;
                 }
                 true
@@ -1583,6 +1614,96 @@ mod tests {
         );
     }
 
+    /// End-to-end regression for an AST-fuzzer-discovered shape that
+    /// exposed a subtle bug in the original backward-aliases-only
+    /// formulation: a `make_array` defined *after* an `array_set` in the
+    /// same block (`b13`) gets threaded forward to a different block
+    /// (`b14`) and from there *back* to the array_set's source's
+    /// parameter (`v29`) via a loop back-edge `b8 → b4`. Without the
+    /// post-array_set-in-same-block filter, that round-trip would pull
+    /// the make_array (`v24`) into the source's backward set, the
+    /// per-arg kill on the `b13 → b14(v24, _)` edge would see
+    /// `v24 ∈ use_set` and refuse to kill `v26`, the next
+    /// `b8 → b4(v26)` would see `v26 ∈ use_set` and refuse to kill
+    /// `v29`, and the walk would flag the loop-header's `array_get v29`
+    /// as an aliased read — even though at runtime `v24` is fresh
+    /// storage that didn't exist at the array_set's program point and
+    /// can't carry pre-mutation aliasing forward.
+    ///
+    /// Source-level shape:
+    ///
+    /// ```ignore
+    /// fn func_3(mut a: [bool; 1]) {
+    ///     for _ in 0..3 {
+    ///         while (a[0]) {
+    ///             loop {
+    ///                 a = if a[0] {
+    ///                     a[0] = if a[0] { !a[0] } else { a[0] };
+    ///                     [a[0]]
+    ///                 } else { a };
+    ///                 break;
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// The post-array_set-in-same-block filter in
+    /// [`Context::alias_set_for`] drops `v24` from `v29`'s alias-set up
+    /// front, so the per-arg kill correctly fires on `b13 → b14` and
+    /// the rest of the walk terminates without flagging.
+    #[test]
+    fn end_to_end_post_array_set_make_array_round_tripped_through_loop_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u1; 1]):
+                jmp b1(u32 0, v0)
+              b1(v4: u32, v28: [u1; 1]):
+                v5 = lt v4, u32 3
+                jmpif v5 then: b2(), else: b3()
+              b2():
+                jmp b4(v28)
+              b3():
+                return
+              b4(v29: [u1; 1]):
+                v9 = array_get v29, index u32 0 -> u1
+                jmpif v9 then: b5(), else: b6()
+              b5():
+                jmp b7()
+              b6():
+                v27 = unchecked_add v4, u32 1
+                jmp b1(v27, v29)
+              b7():
+                v11 = array_get v29, index u32 0 -> u1
+                jmpif v11 then: b9(), else: b10()
+              b8():
+                jmp b4(v26)
+              b9():
+                v13 = array_get v29, index u32 0 -> u1
+                jmpif v13 then: b11(), else: b12()
+              b10():
+                jmp b14(v29, v29)
+              b11():
+                v15 = array_get v29, index u32 0 -> u1
+                v16 = not v15
+                jmp b13(v16)
+              b12():
+                v18 = array_get v29, index u32 0 -> u1
+                jmp b13(v18)
+              b13(v19: u1):
+                v21 = array_set v29, index u32 0, value v19
+                v23 = array_get v21, index u32 0 -> u1
+                v24 = make_array [v23] : [u1; 1]
+                jmp b14(v24, v21)
+              b14(v26: [u1; 1], v30: [u1; 1]):
+                jmp b8()
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v24 (make_array) is defined in b13 after the array_set on v29; it can't carry v29's pre-mutation aliasing, even though the backward walk reaches it via the round-trip v24 → b14(v24,_) → v26 → b4(v26,_) → v29. The post-array_set-in-same-block filter drops v24, so the per-arg kill on b13 → b14 fires and the walk terminates without flagging.",
+        );
+    }
+
     /// End-to-end regression for an AST-fuzzer-discovered shape: a
     /// `make_array` defined in the outer-loop body *before* the inner
     /// loop's `array_set`, whose result is threaded back to the outer
@@ -2175,7 +2296,7 @@ mod tests {
                         idx,
                         instruction_id: *instruction_id,
                         source: array,
-                        alias_set: ctx.alias_set_for(array),
+                        alias_set: ctx.alias_set_for(array, block_id, idx),
                         write_index_const: function.dfg.get_numeric_constant(index),
                     });
                 }
