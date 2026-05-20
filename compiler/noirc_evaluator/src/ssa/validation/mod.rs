@@ -165,6 +165,32 @@ impl<'f> Validator<'f> {
         }
     }
 
+    /// `enable_side_effects` is only introduced once a function has been reduced to a
+    /// single block by `flatten_cfg`; encountering one alongside any branching control
+    /// flow indicates a malformed SSA.
+    fn validate_enable_side_effects_only_without_control_flow(&self) {
+        let reachable_blocks = self.function.reachable_blocks();
+        if reachable_blocks.len() <= 1 {
+            return;
+        }
+
+        for block in &reachable_blocks {
+            for instruction in self.function.dfg[*block].instructions() {
+                if matches!(
+                    self.function.dfg[*instruction],
+                    Instruction::EnableSideEffectsIf { .. }
+                ) {
+                    panic!(
+                        "Function {} contains an enable_side_effects instruction but has {} blocks; \
+                         enable_side_effects is only valid in functions with no control flow",
+                        self.function.id(),
+                        reachable_blocks.len(),
+                    );
+                }
+            }
+        }
+    }
+
     /// Validates that the instruction has the expected types associated with the values in each instruction
     fn type_check_instruction(&self, instruction: InstructionId) {
         let dfg = &self.function.dfg;
@@ -1148,6 +1174,7 @@ impl<'f> Validator<'f> {
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
+        self.validate_enable_side_effects_only_without_control_flow();
 
         for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
@@ -2291,6 +2318,75 @@ mod tests {
         acir(inline) pure fn main f0 {
           b0(v0: u32):
             enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn enable_side_effects_in_single_block_function_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_in_function_with_control_flow_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_inside_non_entry_block_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            enable_side_effects v0
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn multi_block_function_without_enable_side_effects_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
             return
         }
         ";
