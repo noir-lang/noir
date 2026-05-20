@@ -106,6 +106,10 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
+        // Validate the inputs against the ABI the same way `nargo execute` does, so that
+        // mismatches surface as clean errors instead of panicking inside the SSA conversion.
+        abi.encode(&prover_input, return_value.clone())?;
+
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
 

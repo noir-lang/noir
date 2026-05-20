@@ -57,6 +57,11 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
         InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
+
+    // Validate the inputs against the ABI the same way `nargo execute` does, so that
+    // mismatches surface as clean errors instead of panicking inside the SSA conversion.
+    abi.encode(&input_map, return_value.clone())?;
+
     let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
 
     let ssa_return =
