@@ -157,13 +157,7 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_vector {
-                if formatter.is_at(Token::DeprecatedVectorStart) {
-                    // Support the old vector syntax `&[1, 2, 3]`
-                    formatter.bump();
-                    formatter.write("@");
-                } else {
-                    formatter.write_token(Token::At);
-                }
+                formatter.write_token(Token::At);
             }
             formatter.write_left_bracket();
         }));

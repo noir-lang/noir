@@ -391,7 +391,6 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Bang
             | Token::DollarSign
             | Token::At
-            | Token::DeprecatedVectorStart
             | Token::EOF
             | Token::Whitespace(_)
             | Token::UnquoteMarker(_)

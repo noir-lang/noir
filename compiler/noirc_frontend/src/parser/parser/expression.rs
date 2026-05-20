@@ -961,9 +961,7 @@ impl Parser<'_> {
 
     /// VectorExpression = '@' ArrayLiteral
     fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !((self.at(Token::At) || self.at(Token::DeprecatedVectorStart))
-            && self.next_is(Token::LeftBracket))
-        {
+        if !(self.at(Token::At) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
