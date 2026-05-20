@@ -286,7 +286,10 @@ impl FunctionBuilder {
         // Set `Value::Param.visibility` for the function parameters belonging to call data.
         for call_data in &data_bus.call_data {
             for (&param_value_id, _) in &call_data.index_map {
-                if matches!(&self.current_function.dfg[param_value_id], crate::ssa::ir::value::Value::Param { .. }) {
+                if matches!(
+                    &self.current_function.dfg[param_value_id],
+                    crate::ssa::ir::value::Value::Param { .. }
+                ) {
                     self.current_function.dfg.set_param_visibility(
                         param_value_id,
                         DatabusVisibility::CallData(call_data.call_data_id),
