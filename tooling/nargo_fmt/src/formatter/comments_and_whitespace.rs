@@ -180,15 +180,26 @@ impl Formatter<'_> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
+                    // If this comment is trailing-inline (no newline came before it and we
+                    // aren't at the start of the file), keep it isolated. Subsequent
+                    // standalone `//` comments on the following lines belong to the next
+                    // "block" of comments, not to this one — they would arrive in a
+                    // separate `skip_comments_and_whitespace_impl` call in normal flow,
+                    // but here they'd get swallowed by the group loop. The buffer check
+                    // alone isn't enough because chunk construction runs us against a
+                    // fresh sub-buffer, so we rely on `number_of_newlines` instead.
+                    let first_is_trailing_inline = number_of_newlines == 0 && !at_beginning;
+
                     let mut group = vec![comment];
                     self.bump();
                     let mut group_count = 1;
 
                     // Extend the group with consecutive `//` line comments at the same
                     // indentation, so that reflow can treat them as one paragraph. We
-                    // never group across blank lines, ignore directives, or doc-style
-                    // changes (`///` and `//!` arrive as separate token variants).
-                    if self.config.wrap_comments && !self.ignore_next {
+                    // never group across blank lines, ignore directives, doc-style
+                    // changes (`///` and `//!` arrive as separate token variants), or
+                    // when the leading comment is attached to code on its own line.
+                    if self.config.wrap_comments && !self.ignore_next && !first_is_trailing_inline {
                         loop {
                             let Token::Whitespace(ws) = &self.token else { break };
                             let newlines = ws.chars().filter(|c| *c == '\n').count();
@@ -265,8 +276,13 @@ impl Formatter<'_> {
     /// group. The bodies arrive with the per-line `//` prefix already stripped (i.e. they
     /// are the lexer's comment body strings). The caller is responsible for having written
     /// any leading indentation for the first comment.
+    ///
+    /// While inside a chunk's sub-buffer we don't yet know the rendered position of the
+    /// emitted text, so we don't reflow here — we just emit each body verbatim. The
+    /// chunks layer (`write_chunk_lines`) does the actual reflow once we're back in the
+    /// main buffer and the budget is known.
     pub(crate) fn write_line_comment_group(&mut self, bodies: &[String], prefix: &str) {
-        if self.ignore_next || !self.config.wrap_comments {
+        if self.ignore_next || !self.config.wrap_comments || self.in_chunk {
             for (index, body) in bodies.iter().enumerate() {
                 if index > 0 {
                     self.start_new_line();
@@ -1258,6 +1274,16 @@ fn foo() {}
 }
 ";
         assert_format_wrapping_comments(src, expected, 30);
+    }
+
+    #[test]
+    fn trailing_inline_comment_not_merged_with_following_standalone_comment() {
+        let src = "fn foo() {
+    let x = 1; // Some comment
+    // This is something else
+}
+";
+        assert_format_wrapping_comments(src, src, 80);
     }
 
     #[test]

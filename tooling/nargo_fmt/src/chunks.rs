@@ -1142,7 +1142,14 @@ impl<'a> Formatter<'a> {
 
                 // Collect the longest run of consecutive `//` lines (matching neither
                 // `///` nor `//!`, and not separated by blank lines) starting at `index`
-                // and reflow them as one paragraph-aware group.
+                // and reflow them as one paragraph-aware group. When the first line is
+                // attached to code on its own line, keep that first line isolated — a
+                // trailing inline comment must not be merged into the standalone comments
+                // that follow it. We detect this by comparing the current column against
+                // the formatter's structural indent: if we're past it, real code precedes
+                // this comment on the same rendered line.
+                let indent_col = (self.indentation.max(0) as usize) * self.config.tab_spaces;
+                let first_is_trailing_inline = index == 0 && self.current_line_width() > indent_col;
                 let mut group_bodies: Vec<String> = Vec::new();
                 let mut peek = index;
                 while peek < lines.len() {
@@ -1157,6 +1164,9 @@ impl<'a> Formatter<'a> {
                     let body = trimmed.strip_prefix("//").unwrap_or(trimmed).to_string();
                     group_bodies.push(body);
                     peek += 1;
+                    if first_is_trailing_inline && peek == index + 1 {
+                        break;
+                    }
                 }
 
                 self.write_line_comment_group(&group_bodies, "//");
