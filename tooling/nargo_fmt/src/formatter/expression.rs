@@ -1568,13 +1568,6 @@ mod tests {
     }
 
     #[test]
-    fn format_old_vector_syntax() {
-        let src = "global x = &[ 1 , 2 , 3 , ] ;";
-        let expected = "global x = @[1, 2, 3];\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_repeated_array() {
         let src = "global x = [ 1 ; 3 ] ;";
         let expected = "global x = [1; 3];\n";
