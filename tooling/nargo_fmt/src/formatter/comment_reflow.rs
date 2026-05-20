@@ -385,13 +385,16 @@ fn emit_blocks(blocks: &[Block], first_budget: usize, cont_budget: usize) -> Vec
                 }
             }
             Block::Paragraph { words } => {
-                let fb = if output.is_empty() { first_budget } else { cont_budget };
-                let wrapped = wrap_words(words, fb, cont_budget);
+                // Only the engine's very first emitted line uses the original `first_budget`;
+                // once anything has been pushed, the rendered position has moved past the
+                // trailing-inline column and we're back on a fresh line at the indent.
+                let first_budget = if output.is_empty() { first_budget } else { cont_budget };
+                let wrapped = wrap_words(words, first_budget, cont_budget);
                 output.extend(wrapped);
             }
             Block::ListItem { marker, hanging_indent, words } => {
-                let fb = if output.is_empty() { first_budget } else { cont_budget };
-                let first_word_budget = fb.saturating_sub(*hanging_indent);
+                let first_budget = if output.is_empty() { first_budget } else { cont_budget };
+                let first_word_budget = first_budget.saturating_sub(*hanging_indent);
                 let cont_word_budget = cont_budget.saturating_sub(*hanging_indent);
                 let wrapped = wrap_words(words, first_word_budget, cont_word_budget);
                 let marker_len = marker.chars().count();
@@ -409,8 +412,8 @@ fn emit_blocks(blocks: &[Block], first_budget: usize, cont_budget: usize) -> Vec
                 }
             }
             Block::BlockQuote { words } => {
-                let fb = if output.is_empty() { first_budget } else { cont_budget };
-                let first_word_budget = fb.saturating_sub(2);
+                let first_budget = if output.is_empty() { first_budget } else { cont_budget };
+                let first_word_budget = first_budget.saturating_sub(2);
                 let cont_word_budget = cont_budget.saturating_sub(2);
                 let wrapped = wrap_words(words, first_word_budget, cont_word_budget);
                 for line in wrapped {
