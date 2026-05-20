@@ -423,38 +423,20 @@ mod tests {
 
     #[test]
     fn does_not_resolve_array_get_across_blocks() {
-        // The `array_set` is in `b1` and the `array_get` reads it in `b2`. The side-effects
-        // predicate is tracked per block (reset at each block entry), so a value written in one
-        // block must not be carried into another block's read by the cache.
+        // The cache is scoped to a single block, so an `array_set` in one block is not folded into
+        // an `array_get` in another: the side-effects predicate recorded for each write is only
+        // meaningful relative to the start of its block, so views must not be reused across blocks.
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3], v1: u1):
-            enable_side_effects v1
+          b0(v0: [Field; 3]):
+            v1 = array_set v0, index u32 0, value Field 1
             jmp b1()
           b1():
-            v3 = array_set v0, index u32 0, value Field 1
-            jmp b2()
-          b2():
-            v5 = array_get v3, index u32 0 -> Field
-            return v5
+            v2 = array_get v1, index u32 0 -> Field
+            return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_get_optimization();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 3], v1: u1):
-            enable_side_effects v1
-            jmp b1()
-          b1():
-            v4 = array_set v0, index u32 0, value Field 1
-            jmp b2()
-          b2():
-            v5 = array_get v4, index u32 0 -> Field
-            return v5
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
     }
 
     #[test]
