@@ -23,22 +23,71 @@
 ///
 /// Returns one String per output line. The caller adds the prefix and any
 /// indent to each line.
-pub(crate) fn reflow_comment(
+/// `format_code` is invoked for each fenced code block.
+/// It receives the joined fence body and the language tag (`None` for untagged fences).
+/// Returning `Some(formatted)` replaces the inner lines of the fence; returning `None`
+/// leaves the original content untouched.
+pub(crate) fn reflow_comment_with_code_formatter<F>(
     lines: &[&str],
     first_budget: usize,
     cont_budget: usize,
-) -> Vec<String> {
-    let blocks = parse_blocks(lines);
+    format_code: F,
+) -> Vec<String>
+where
+    F: Fn(&str, Option<&str>) -> Option<String>,
+{
+    let mut blocks = parse_blocks(lines);
+    apply_code_formatter(&mut blocks, &format_code);
     emit_blocks(&blocks, first_budget, cont_budget)
+}
+
+fn apply_code_formatter<F>(blocks: &mut [Block], format_code: &F)
+where
+    F: Fn(&str, Option<&str>) -> Option<String>,
+{
+    for block in blocks {
+        if let Block::CodeFence { lang, inner_lines, .. } = block {
+            let lang_opt = if lang.is_empty() { None } else { Some(lang.as_str()) };
+            let source = inner_lines.join("\n");
+            if let Some(formatted) = format_code(&source, lang_opt) {
+                *inner_lines = formatted
+                    .strip_suffix('\n')
+                    .unwrap_or(&formatted)
+                    .lines()
+                    .map(String::from)
+                    .collect();
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 enum Block {
-    Paragraph { words: Vec<String> },
-    ListItem { marker: String, hanging_indent: usize, words: Vec<String> },
-    BlockQuote { words: Vec<String> },
-    Passthrough { raw_lines: Vec<String> },
+    Paragraph {
+        words: Vec<String>,
+    },
+    ListItem {
+        marker: String,
+        hanging_indent: usize,
+        words: Vec<String>,
+    },
+    BlockQuote {
+        words: Vec<String>,
+    },
+    Passthrough {
+        raw_lines: Vec<String>,
+    },
+    /// A fenced code block. `lang` is the info string after the opening fence (empty for
+    /// untagged fences). `fence_open` / `fence_close` are the raw delimiter lines as
+    /// they appeared in the source so we can re-emit them verbatim. `inner_lines` is the
+    /// fence body, which may be replaced by a code-formatter callback before emit.
+    CodeFence {
+        lang: String,
+        fence_open: String,
+        fence_close: String,
+        inner_lines: Vec<String>,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -165,14 +214,22 @@ fn contains_url_or_reference(line: &str) -> bool {
 fn parse_blocks(lines: &[&str]) -> Vec<Block> {
     let mut blocks: Vec<Block> = Vec::new();
     let mut in_fence = false;
+    let mut fence_open: String = String::new();
+    let mut fence_lang: String = String::new();
     let mut fence_lines: Vec<String> = Vec::new();
 
     for &line in lines {
         if in_fence {
-            fence_lines.push(line.to_string());
             if matches!(classify(line), LineKind::FenceToggle) {
                 in_fence = false;
-                blocks.push(Block::Passthrough { raw_lines: std::mem::take(&mut fence_lines) });
+                blocks.push(Block::CodeFence {
+                    lang: std::mem::take(&mut fence_lang),
+                    fence_open: std::mem::take(&mut fence_open),
+                    fence_close: line.to_string(),
+                    inner_lines: std::mem::take(&mut fence_lines),
+                });
+            } else {
+                fence_lines.push(line.to_string());
             }
             continue;
         }
@@ -181,7 +238,8 @@ fn parse_blocks(lines: &[&str]) -> Vec<Block> {
         match kind {
             LineKind::FenceToggle => {
                 in_fence = true;
-                fence_lines.push(line.to_string());
+                fence_open = line.to_string();
+                fence_lang = extract_fence_lang(line);
             }
             LineKind::Blank => {
                 blocks.push(Block::Passthrough { raw_lines: vec![String::new()] });
@@ -246,11 +304,31 @@ fn parse_blocks(lines: &[&str]) -> Vec<Block> {
         }
     }
 
-    if in_fence && !fence_lines.is_empty() {
-        blocks.push(Block::Passthrough { raw_lines: fence_lines });
+    if in_fence {
+        let mut raw_lines = Vec::new();
+        if !fence_open.is_empty() {
+            raw_lines.push(fence_open);
+        }
+        raw_lines.extend(fence_lines);
+        if !raw_lines.is_empty() {
+            blocks.push(Block::Passthrough { raw_lines });
+        }
     }
 
     blocks
+}
+
+/// Returns the language tag of a fence opener (the info string after the leading ` ``` `
+/// or `~~~`). Empty string for untagged fences.
+fn extract_fence_lang(line: &str) -> String {
+    let trimmed = line.trim_start();
+    let marker = if trimmed.starts_with("```") { "```" } else { "~~~" };
+    let after = trimmed.strip_prefix(marker).unwrap_or("");
+    let mut after = after;
+    while let Some(rest) = after.strip_prefix('`').or_else(|| after.strip_prefix('~')) {
+        after = rest;
+    }
+    after.trim().to_string()
 }
 
 fn collect_words(content: &str) -> Vec<String> {
@@ -300,6 +378,13 @@ fn emit_blocks(blocks: &[Block], first_budget: usize, cont_budget: usize) -> Vec
                     output.push(format!("> {line}"));
                 }
             }
+            Block::CodeFence { fence_open, fence_close, inner_lines, .. } => {
+                output.push(fence_open.clone());
+                for line in inner_lines {
+                    output.push(line.clone());
+                }
+                output.push(fence_close.clone());
+            }
         }
     }
 
@@ -346,7 +431,7 @@ mod tests {
     use super::*;
 
     fn reflow(lines: &[&str], first: usize, cont: usize) -> Vec<String> {
-        reflow_comment(lines, first, cont)
+        reflow_comment_with_code_formatter(lines, first, cont, |_, _| None)
     }
 
     #[test]

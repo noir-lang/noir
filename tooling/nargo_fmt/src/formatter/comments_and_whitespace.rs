@@ -2,11 +2,30 @@ use noirc_frontend::{parser::block_comment_has_all_leading_stars, token::Token};
 
 use super::Formatter;
 use super::comment_reflow;
+use crate::Config;
 
 #[cfg(windows)]
 const NEWLINE: &str = "\r\n";
 #[cfg(not(windows))]
 const NEWLINE: &str = "\n";
+
+/// Recursively formats a Noir code snippet pulled from a doc-comment fenced block.
+/// Returns `None` when the snippet should be left alone — either the fence has a
+/// non-Noir language tag, the body is empty, or the snippet fails to parse cleanly.
+fn format_noir_snippet(source: &str, lang: Option<&str>, config: &Config) -> Option<String> {
+    let lang_ok = match lang {
+        None => true,
+        Some(l) => l.eq_ignore_ascii_case("noir"),
+    };
+    if !lang_ok || source.trim().is_empty() {
+        return None;
+    }
+    let (parsed, errors) = noirc_frontend::parse_program_with_dummy_file(source);
+    if errors.into_iter().any(|e| !e.is_warning()) {
+        return None;
+    }
+    Some(crate::format(source, parsed, config))
+}
 
 impl Formatter<'_> {
     /// Writes a single space, skipping any whitespace and comments.
@@ -251,7 +270,13 @@ impl Formatter<'_> {
             comment_width.saturating_sub(self.current_line_width()).saturating_sub(prefix_cols);
         let cont_budget = comment_width.saturating_sub(indent_cols).saturating_sub(prefix_cols);
 
-        let outputs = comment_reflow::reflow_comment(&lines, first_budget, cont_budget);
+        let config = self.config;
+        let outputs = comment_reflow::reflow_comment_with_code_formatter(
+            &lines,
+            first_budget,
+            cont_budget,
+            |source, lang| format_noir_snippet(source, lang, config),
+        );
 
         for (index, content) in outputs.iter().enumerate() {
             if index > 0 {
@@ -355,7 +380,13 @@ impl Formatter<'_> {
             let first_budget = comment_width.saturating_sub(first_used);
             let cont_budget = comment_width.saturating_sub(cont_used);
 
-            let outputs = comment_reflow::reflow_comment(&line_refs, first_budget, cont_budget);
+            let config = self.config;
+            let outputs = comment_reflow::reflow_comment_with_code_formatter(
+                &line_refs,
+                first_budget,
+                cont_budget,
+                |source, lang| format_noir_snippet(source, lang, config),
+            );
 
             if has_leading_space {
                 self.write(" ");
@@ -379,7 +410,13 @@ impl Formatter<'_> {
 
         let prefix_used = if all_stars { 3 } else { 0 };
         let content_budget = comment_width.saturating_sub(indent_cols + prefix_used);
-        let outputs = comment_reflow::reflow_comment(&line_refs, content_budget, content_budget);
+        let config = self.config;
+        let outputs = comment_reflow::reflow_comment_with_code_formatter(
+            &line_refs,
+            content_budget,
+            content_budget,
+            |source, lang| format_noir_snippet(source, lang, config),
+        );
 
         self.start_new_line_no_indentation();
         for content in &outputs {
@@ -1203,7 +1240,9 @@ fn foo() {}
     Example:
 
     ```
-    fn inner() { x + y + z + a + b + c + d + e + f }
+    fn inner() {
+        x + y + z + a + b + c + d + e + f
+    }
     ```
 
     After the fence.
@@ -1220,7 +1259,9 @@ fn foo() {}
     // Example:
     //
     // ```
-    // fn inner() { x + y + z + a + b + c + d + e + f }
+    // fn inner() {
+    //     x + y + z + a + b + c + d + e + f
+    // }
     // ```
     //
     // After the fence.

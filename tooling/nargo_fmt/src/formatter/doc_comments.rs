@@ -266,7 +266,9 @@ global x: Field = 1;
     #[test]
     fn does_not_wrap_fenced_code_block_in_outer_doc_comment() {
         let src = "/// ```
-/// fn foo() { x + y + z + a + b + c + d + e + f }
+/// fn foo() {
+///     x + y + z + a + b + c + d + e + f
+/// }
 /// ```
 fn bar() {}
 ";
@@ -278,7 +280,9 @@ fn bar() {}
         let src = "/// Example below.
 ///
 /// ```
-/// fn foo() { x + y + z + a + b + c + d + e + f }
+/// fn foo() {
+///     x + y + z + a + b + c + d + e + f
+/// }
 /// ```
 ///
 /// After the fence.
@@ -293,7 +297,9 @@ fn bar() {}
  * Example below.
  *
  * ```
- * fn foo() { x + y + z + a + b + c + d + e + f }
+ * fn foo() {
+ *     x + y + z + a + b + c + d + e + f
+ * }
  * ```
  *
  * After the fence.
@@ -306,10 +312,87 @@ fn bar() {}
     #[test]
     fn does_not_wrap_fenced_code_block_in_inner_doc_comment() {
         let src = "//! ```
-//! fn foo() { x + y + z + a + b + c + d + e + f }
+//! fn foo() {
+//!     x + y + z + a + b + c + d + e + f
+//! }
 //! ```
 ";
         assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn formats_noir_code_in_untagged_fence() {
+        let src = "/// ```
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        let expected = "/// ```
+/// fn foo() {
+///     1
+/// }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
+    }
+
+    #[test]
+    fn formats_noir_code_in_noir_tagged_fence() {
+        let src = "/// ```noir
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        let expected = "/// ```noir
+/// fn foo() {
+///     1
+/// }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
+    }
+
+    #[test]
+    fn does_not_format_code_in_non_noir_tagged_fence() {
+        let src = "/// ```rust
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn leaves_unparseable_fence_content_verbatim() {
+        let src = "/// ```
+/// this is not valid Noir at all -- !!! ???
+/// ```
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn formats_noir_code_in_block_doc_comment_fence() {
+        let src = "/**
+ * ```
+ * fn   foo()   {  1  }
+ * ```
+ */
+fn bar() {}
+";
+        let expected = "/**
+ * ```
+ * fn foo() {
+ *     1
+ * }
+ * ```
+ */
+fn bar() {}
+";
+        assert_format_wrapping_comments(src, expected, 80);
     }
 
     #[test]
