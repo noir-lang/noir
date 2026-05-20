@@ -50,20 +50,27 @@ Tags are `u8` (so they stay in msgpack's `fixint` range at the 1-byte
 encoding). Field names never appear on the wire. Adding, removing, or
 reordering fields is safe as long as tag values stay stable.
 
-The `Serializer` will support three encoding strategies, all driven by the
+The `Serializer` will support two encoding strategies, both driven by the
 *same* `Tagged` metadata:
 
-| strategy | wire shape | when |
+| strategy | wire shape (struct) | when |
 |---|---|---|
-| **Tagged** | int-keyed map | top-level types where field churn is expected (`Program`, `Circuit`) |
-| **Array** | positional msgpack array | small leaf types where size matters more than evolvability |
-| **Named** | string-keyed map | falls back to `rmp_serde` defaults |
+| **Tagged** | int-keyed `fixmap` `{0: a, 1: b, …}` | top-level types where field churn is expected (`Program`, `Circuit`) |
+| **Array** | positional `fixarray` `[a, b, …]` | leaf types instantiated at scale where the per-field tag byte adds up |
 
-Strategy is per-type and picked by the serializer, not by the macro — every
-`#[derive(MsgpackTagged)]` type works under all three. Decode is
-shape-agnostic (peek at the next msgpack token, dispatch to the right
-reader), so a single binary can read all three formats without a
-configuration switch.
+Strategy is per-type and picked by the serializer (builder API on
+`Serializer::new` + `with_default_strategy` / `with_strategy`), not by
+the macro — every `#[derive(MsgpackTagged)]` type works under both.
+Enum variants are always emitted int-keyed regardless of strategy;
+strategy only affects struct shape.
+
+The decoder is **not** shape-agnostic. The outer `Format` byte
+(`Format::MsgpackTagged`) routes to the tagged reader, and that reader
+only handles the two shapes this crate emits — `fixmap` for `Tagged`,
+`fixarray` for `Array`. Legacy formats (`Format::Msgpack`,
+`Format::MsgpackCompact`) have their own format bytes and go through
+`rmp_serde` directly; the tagged decoder never sees them. The C++ side
+*does* probe — see the design doc for why the asymmetry is justified.
 
 ## The data model
 
@@ -273,6 +280,32 @@ Decoders processing legacy wire bytes will hit the retired tag. Without
 Pick based on whether dropping the field could change application
 semantics.
 
+**Interaction with `Array` strategy.** Under `Array` the wire is
+positional and only carries active fields, but the decoder walks a
+merged-sorted `(active + reserved)` layout so legacy `Array` data (V1,
+written before the retirement) still decodes — the reserved slot drains
+the now-orphaned V1 value silently. That alignment is fragile in one
+direction: if a reserved tag has any active tag *after* it in tag
+order, a V2-on-V2 round-trip under `Array` would drain the wire byte the
+encoder wrote for the next active field. To keep this safe the encoder
+**auto-downgrades** the product to `Tagged` whenever it detects a
+non-strictly-trailing reserved tag — the int-keyed-map shape is
+self-describing per entry, so alignment isn't at risk. The downgrade is
+silent and local to that product; other types in the same serializer
+keep their configured strategy.
+
+```text
+fields: [(0, "a"), (2, "c")]   reserved: [1]    →  reserved is interleaved → Array auto-downgrades to Tagged
+fields: [(0, "a"), (1, "b")]   reserved: [9]    →  reserved is strictly trailing → Array preserved
+```
+
+In the trailing case the wire stays compact (a `fixarray` of the active
+values) and a later V3 that adds a new field at a tag higher than the
+reserved one — paired with `#[serde(default)]` — picks up the missing
+value via serde-derive's standard short-wire fill. If you need a
+middle-of-shape retirement and still want compact wire bytes, the
+practical move is to keep the type on `Tagged` going forward.
+
 ### Retiring a variant (enum)
 
 `reserved` on a sum type works the same way for *variant* tags, but the
@@ -337,3 +370,31 @@ output regardless of how the user laid out the fields. `BTreeMap` /
 `BTreeSet` are the only blanket-impl'd associative containers; `HashMap`
 / `HashSet` are deliberately omitted because their iteration order is
 non-deterministic.
+
+### Reordering has a hidden encode-time cost
+
+The encoder takes a fast path when a type's source-declaration order is
+already tag-ascending (the common case — newly-added types, types using
+implicit positional tags, types with `#[tag(N)]` values in source
+order): each field streams straight through to the output, no per-field
+allocation.
+
+When source order *doesn't* match tag order — typically because the
+type has been schema-evolved (a tag retired and re-added at a higher
+number, fields reshuffled for readability, etc.) — the encoder falls
+back to a buffer-and-sort path: each field's bytes go into a
+per-field `Vec<u8>`, then the entries are sorted by tag and flushed in
+canonical order at the end of the struct. This preserves the
+tag-ascending wire-order promise above, but the per-field allocation
+is an O(field-count) cost paid on every value of that type.
+
+Practically: **if you reorder fields to make the source readable, you
+opt into a per-field allocation at encode time**. For a hot leaf type
+instantiated thousands of times in a single program, that adds up. The
+fix is either to keep `#[tag(N)]` annotations in source order (the
+encoder then takes the fast path), or to accept the cost in exchange
+for the source-layout flexibility. The `Array` strategy *requires* the
+buffer for correctness on reordered types — it's not optional there —
+but `Tagged` types pay it only for the byte-determinism guarantee, so
+if you've got a Tagged type where cross-implementation byte-equivalence
+isn't load-bearing, keeping the source ordered avoids the cost.

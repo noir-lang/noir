@@ -10,7 +10,12 @@
 
 #![allow(dead_code)]
 
-use msgpack_tagged::{MsgpackTagged, msgpack_tagged_deserialize, msgpack_tagged_serialize};
+use msgpack_tagged::{
+    EncodingStrategy, MsgpackTagged, Serializer, TagRegistry, msgpack_tagged_deserialize,
+    msgpack_tagged_serialize,
+};
+use serde::Serialize as _;
+use test_case::test_matrix;
 
 /// Round-trip `value` through `msgpack_tagged_serialize` then
 /// `msgpack_tagged_deserialize` and assert it survives unchanged. The
@@ -22,6 +27,23 @@ where
     let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
     let decoded: T = msgpack_tagged_deserialize(&bytes).expect("deserialize succeeds");
     assert_eq!(decoded, value);
+}
+
+/// Encode `value` under a specific [`EncodingStrategy`]. Used by the
+/// schema-evolution tests below to exercise both Tagged (int-keyed map)
+/// and Array (positional array) wire shapes from a single test body via
+/// `#[test_matrix(...)]`. The decoder doesn't take a strategy — it
+/// dispatches on the peeked wire marker — so the V2/V1 read side is the
+/// same call regardless of which strategy produced the bytes.
+fn encode_with_strategy<T>(value: &T, strategy: EncodingStrategy) -> Vec<u8>
+where
+    T: ?Sized + serde::Serialize + MsgpackTagged,
+{
+    let registry = TagRegistry::from_type::<T>();
+    let mut buf = Vec::new();
+    let mut s = Serializer::new(&mut buf, &registry).with_default_strategy(strategy);
+    value.serialize(&mut s).expect("serialize succeeds");
+    buf
 }
 
 /// Sequence of primitives — basic round-trip through both
@@ -468,10 +490,10 @@ mod v1_to_v2_remove_field_with_reserved {
         a: u32,
     }
 
-    #[test]
-    fn skip_retired_tag_on_decode() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn skip_retired_tag_on_decode(strategy: EncodingStrategy) {
         let v1 = FooV1 { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2 { a: 7 });
     }
@@ -501,10 +523,10 @@ mod v1_to_v2_add_field_with_default {
         b: Vec<u8>,
     }
 
-    #[test]
-    fn missing_tag_uses_default() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn missing_tag_uses_default(strategy: EncodingStrategy) {
         let v1 = FooV1 { a: 7 };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2 { a: 7, b: Vec::default() });
     }
@@ -531,14 +553,15 @@ mod v1_to_v2_add_new_required_field {
         b: bool,
     }
 
-    #[test]
-    fn missing_required_tag_errors() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn missing_required_tag_errors(strategy: EncodingStrategy) {
         let v1 = FooV1 { a: 7 };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let err = msgpack_tagged_deserialize::<FooV2>(&bytes).expect_err("decode should fail");
         // serde-derive emits `missing field` for the absent required field;
         // accept any error mentioning the missing field name to stay
-        // robust to wording changes.
+        // robust to wording changes. Both Tagged and Array bottom out in
+        // the same serde-derive error site.
         let msg = err.to_string();
         assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
     }
@@ -568,10 +591,10 @@ mod v1_to_v2_reorder_fields {
         a: u32,
     }
 
-    #[test]
-    fn reorder_only_roundtrips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn reorder_only_roundtrips(strategy: EncodingStrategy) {
         let v1 = FooV1 { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2 { a: 7, b: true });
     }
@@ -598,10 +621,10 @@ mod v2_to_v1_required_field_missing {
         a: u32,
     }
 
-    #[test]
-    fn v1_required_field_missing_errors() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn v1_required_field_missing_errors(strategy: EncodingStrategy) {
         let v2 = FooV2 { a: 7 };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
@@ -630,10 +653,10 @@ mod v2_to_v1_extra_field_with_allow_unknown {
         b: bool,
     }
 
-    #[test]
-    fn unknown_tag_skipped_when_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_tag_skipped_when_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2 { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1 { a: 7 });
     }
@@ -660,13 +683,27 @@ mod v2_to_v1_extra_field_without_allow_unknown {
         b: bool,
     }
 
-    #[test]
-    fn unknown_tag_errors_when_not_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_tag_errors_when_not_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2 { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
-        assert!(msg.contains("unknown wire tag"), "got: {msg}");
+        // The two strategies error out via different paths:
+        //   * Tagged: the per-tag scan in `buffer_and_validate_int_keyed_map`
+        //     reports the offending wire tag.
+        //   * Array: the cap check in `deserialize_struct` reports that
+        //     the wire is longer than the type's merged layout.
+        // Both messages mention `at most {N}` so the test asserts on that.
+        match strategy {
+            EncodingStrategy::Tagged => assert!(msg.contains("unknown wire tag"), "got: {msg}"),
+            EncodingStrategy::Array => {
+                assert!(
+                    msg.contains("positional entries") && msg.contains("at most 1"),
+                    "got: {msg}",
+                );
+            }
+        }
     }
 }
 
@@ -692,10 +729,10 @@ mod v1_to_v2_rename_field {
         renamed_a: u32,
     }
 
-    #[test]
-    fn rename_keeping_same_tag_roundtrips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn rename_keeping_same_tag_roundtrips(strategy: EncodingStrategy) {
         let v1 = FooV1 { field_a: 7 };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2 { renamed_a: 7 });
     }
@@ -725,10 +762,10 @@ mod v2_to_v1_reorder_fields {
         a: u32,
     }
 
-    #[test]
-    fn reorder_only_roundtrips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn reorder_only_roundtrips(strategy: EncodingStrategy) {
         let v2 = FooV2 { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1 { a: 7, b: true });
     }
@@ -766,10 +803,10 @@ mod v1_to_v2_tuple_add_trailing_default {
         Vec<u8>,
     );
 
-    #[test]
-    fn missing_trailing_position_uses_default() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn missing_trailing_position_uses_default(strategy: EncodingStrategy) {
         let v1 = FooV1(7, true);
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2(7, true, Vec::default()));
     }
@@ -790,10 +827,10 @@ mod v2_to_v1_tuple_extra_with_allow_unknown {
     #[serde(rename = "Foo")]
     struct FooV2(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8);
 
-    #[test]
-    fn extra_trailing_position_skipped_when_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn extra_trailing_position_skipped_when_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2(7, true, 42);
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1(7, true));
     }
@@ -813,13 +850,15 @@ mod v2_to_v1_tuple_extra_without_allow_unknown {
     #[serde(rename = "Foo")]
     struct FooV2(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8);
 
-    #[test]
-    fn extra_trailing_position_errors_when_not_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn extra_trailing_position_errors_when_not_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2(7, true, 42);
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
-        assert!(msg.contains("wire has 3 entries") && msg.contains("at most 2"), "got: {msg}",);
+        // Tagged: "wire has 3 entries"; Array: "wire has 3 positional entries".
+        // Match on the shared `at most 2` and the wire-length number.
+        assert!(msg.contains("3") && msg.contains("at most 2"), "got: {msg}");
     }
 }
 
@@ -839,10 +878,10 @@ mod v1_to_v2_tuple_remove_field_with_reserved {
     #[tagged(reserved(1))]
     struct FooV2(#[tag(0)] u32, #[tag(2)] u8);
 
-    #[test]
-    fn skip_retired_tuple_tag_on_decode() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn skip_retired_tuple_tag_on_decode(strategy: EncodingStrategy) {
         let v1 = FooV1(7, true, 42);
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2(7, 42));
     }
@@ -870,10 +909,10 @@ mod v2_to_v1_tuple_variant_extra_with_allow_unknown {
         Carry(#[tag(0)] u32, #[tag(1)] bool, #[tag(2)] u8),
     }
 
-    #[test]
-    fn extra_payload_position_skipped_when_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn extra_payload_position_skipped_when_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2::Carry(7, true, 42);
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::Carry(7, true));
     }
@@ -901,10 +940,10 @@ mod v1_to_v2_tuple_variant_remove_field_with_reserved {
         Carry(#[tag(0)] u32, #[tag(2)] u8),
     }
 
-    #[test]
-    fn skip_retired_payload_position_on_decode() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn skip_retired_payload_position_on_decode(strategy: EncodingStrategy) {
         let v1 = FooV1::Carry(7, true, 42);
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Carry(7, 42));
     }
@@ -947,10 +986,10 @@ mod v1_to_v2_struct_variant_add_field_with_default {
         },
     }
 
-    #[test]
-    fn missing_payload_field_uses_default() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn missing_payload_field_uses_default(strategy: EncodingStrategy) {
         let v1 = FooV1::Carry { a: 7 };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Carry { a: 7, b: Vec::default() });
     }
@@ -986,10 +1025,10 @@ mod v1_to_v2_struct_variant_reorder_fields {
         },
     }
 
-    #[test]
-    fn reorder_only_roundtrips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn reorder_only_roundtrips(strategy: EncodingStrategy) {
         let v1 = FooV1::Carry { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Carry { a: 7, b: true });
     }
@@ -1021,10 +1060,10 @@ mod v1_to_v2_struct_variant_rename_field {
         },
     }
 
-    #[test]
-    fn rename_keeping_same_tag_roundtrips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn rename_keeping_same_tag_roundtrips(strategy: EncodingStrategy) {
         let v1 = FooV1::Carry { field_a: 7 };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Carry { renamed_a: 7 });
     }
@@ -1057,10 +1096,10 @@ mod v2_to_v1_struct_variant_required_field_missing {
         },
     }
 
-    #[test]
-    fn required_payload_field_missing_errors() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn required_payload_field_missing_errors(strategy: EncodingStrategy) {
         let v2 = FooV2::Carry { a: 7 };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("missing field") || msg.contains("`b`"), "got: {msg}");
@@ -1095,10 +1134,10 @@ mod v2_to_v1_struct_variant_extra_field_with_allow_unknown {
         },
     }
 
-    #[test]
-    fn unknown_payload_field_skipped_when_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_payload_field_skipped_when_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2::Carry { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::Carry { a: 7 });
     }
@@ -1131,13 +1170,24 @@ mod v2_to_v1_struct_variant_extra_field_without_allow_unknown {
         },
     }
 
-    #[test]
-    fn unknown_payload_field_errors_when_not_allowed() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_payload_field_errors_when_not_allowed(strategy: EncodingStrategy) {
         let v2 = FooV2::Carry { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
-        assert!(msg.contains("unknown wire tag"), "got: {msg}");
+        // See `unknown_tag_errors_when_not_allowed` in the named-struct
+        // counterpart: the two strategies surface this through different
+        // error paths.
+        match strategy {
+            EncodingStrategy::Tagged => assert!(msg.contains("unknown wire tag"), "got: {msg}"),
+            EncodingStrategy::Array => {
+                assert!(
+                    msg.contains("positional entries") && msg.contains("at most 1"),
+                    "got: {msg}",
+                );
+            }
+        }
     }
 }
 
@@ -1172,10 +1222,10 @@ mod v1_to_v2_struct_variant_remove_field_with_reserved {
         },
     }
 
-    #[test]
-    fn skip_retired_payload_tag_on_decode() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn skip_retired_payload_tag_on_decode(strategy: EncodingStrategy) {
         let v1 = FooV1::Carry { a: 7, b: true };
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Carry { a: 7 });
     }
@@ -1214,20 +1264,20 @@ mod v2_to_v1_enum_add_variant_with_on_unknown {
         B(u32, bool),
     }
 
-    #[test]
-    fn new_variant_decoded_as_fallback() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn new_variant_decoded_as_fallback(strategy: EncodingStrategy) {
         let v2 = FooV2::B(7, true);
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::Unknown);
     }
 
     /// And the known variants still decode as themselves — the fallback
     /// only fires for unknown tags.
-    #[test]
-    fn known_variant_still_round_trips() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn known_variant_still_round_trips(strategy: EncodingStrategy) {
         let v2 = FooV2::A;
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let v1: FooV1 = msgpack_tagged_deserialize(&bytes).expect("decode V1");
         assert_eq!(v1, FooV1::A);
     }
@@ -1255,10 +1305,10 @@ mod v2_to_v1_enum_add_variant_without_on_unknown {
         B,
     }
 
-    #[test]
-    fn unknown_variant_errors_when_no_marker() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_variant_errors_when_no_marker(strategy: EncodingStrategy) {
         let v2 = FooV2::B;
-        let bytes = msgpack_tagged_serialize(&v2).expect("encode V2");
+        let bytes = encode_with_strategy(&v2, strategy);
         let err = msgpack_tagged_deserialize::<FooV1>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("unknown variant tag 1"), "got: {msg}");
@@ -1291,10 +1341,10 @@ mod v1_to_v2_enum_retire_variant_with_on_reserved {
         Retired,
     }
 
-    #[test]
-    fn retired_variant_decoded_as_fallback() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn retired_variant_decoded_as_fallback(strategy: EncodingStrategy) {
         let v1 = FooV1::B;
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode V2");
         assert_eq!(v2, FooV2::Retired);
     }
@@ -1326,10 +1376,10 @@ mod v1_to_v2_enum_unknown_not_in_reserved_still_errors_with_on_reserved_only {
         Retired,
     }
 
-    #[test]
-    fn unknown_tag_outside_reserved_errors() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_tag_outside_reserved_errors(strategy: EncodingStrategy) {
         let v1 = FooV1::Bogus;
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let err = msgpack_tagged_deserialize::<FooV2>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("unknown variant tag 2"), "got: {msg}");
@@ -1362,10 +1412,10 @@ mod v1_to_v2_enum_reserved_tag_not_routed_to_on_unknown {
         Unknown,
     }
 
-    #[test]
-    fn reserved_tag_errors_when_only_on_unknown_is_marked() {
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn reserved_tag_errors_when_only_on_unknown_is_marked(strategy: EncodingStrategy) {
         let v1 = FooV1::B;
-        let bytes = msgpack_tagged_serialize(&v1).expect("encode V1");
+        let bytes = encode_with_strategy(&v1, strategy);
         let err = msgpack_tagged_deserialize::<FooV2>(&bytes).expect_err("decode should fail");
         let msg = err.to_string();
         assert!(msg.contains("unknown variant tag 1"), "got: {msg}");
@@ -1407,18 +1457,281 @@ mod unified_fallback_with_both_markers {
         Future,
     }
 
-    #[test]
-    fn retired_tag_lands_on_unified_fallback() {
-        let bytes = msgpack_tagged_serialize(&FooV1Retired::Retired).expect("encode");
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn retired_tag_lands_on_unified_fallback(strategy: EncodingStrategy) {
+        let bytes = encode_with_strategy(&FooV1Retired::Retired, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
         assert_eq!(v2, FooV2::Other);
     }
 
-    #[test]
-    fn unknown_tag_lands_on_unified_fallback() {
-        let bytes = msgpack_tagged_serialize(&FooV3New::Future).expect("encode");
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn unknown_tag_lands_on_unified_fallback(strategy: EncodingStrategy) {
+        let bytes = encode_with_strategy(&FooV3New::Future, strategy);
         let v2: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
         assert_eq!(v2, FooV2::Other);
+    }
+}
+
+// ============================================================================
+// "Replace a field with `()` to skip it" — a portable forward-compat tool.
+//
+// The wrapper's `deserialize_unit` consumes whatever single msgpack value
+// sits at this position (not just `nil`), so a sibling DTO can share the
+// tag layout of the producer's type but ignore a slice of the payload by
+// retyping that field as `()`. The C++ side achieves the same with
+// `std::monostate`; the canonical Rust example is
+// `ProgramWithoutBrillig` in `acvm-repo/acir/src/lib.rs`, which reads
+// the ACIR `functions` field and discards `unconstrained_functions`.
+//
+// Tests below confirm both wire shapes (Tagged + Array) and all three
+// product-shaped decode sites (named struct, tuple struct, struct
+// variant) honor the `()` skip.
+// ============================================================================
+
+/// Named struct: the producer's middle field carries a `Vec<u8>` of
+/// arbitrary content; the consumer keeps the surrounding fields at the
+/// same tags but retypes the middle as `()`. Decode should swallow the
+/// wire bytes silently and yield the unit value.
+mod named_struct_middle_field_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooFull {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: Vec<u8>,
+        #[tag(2)]
+        c: bool,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooSkipMiddle {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: (),
+        #[tag(2)]
+        c: bool,
+    }
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn middle_field_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull { a: 7, b: vec![1, 2, 3, 4, 5], c: true };
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` field");
+        assert_eq!(skipped, FooSkipMiddle { a: 7, b: (), c: true });
+    }
+}
+
+/// Tuple struct: same idea, addressed positionally. The middle position
+/// carries a nested struct in the producer; the consumer retypes it to
+/// `()`. The merged-layout decode path under Array still aligns the
+/// surrounding active positions correctly because the `()` slot consumes
+/// exactly one msgpack value.
+mod tuple_struct_middle_position_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    struct FooFull(#[tag(0)] u32, #[tag(1)] Pair, #[tag(2)] bool);
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    struct FooSkipMiddle(#[tag(0)] u32, #[tag(1)] (), #[tag(2)] bool);
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn middle_position_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull(7, Pair { first: 99, second: false }, true);
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` position");
+        assert_eq!(skipped, FooSkipMiddle(7, (), true));
+    }
+}
+
+/// Struct-variant payload: the same `()`-as-skip technique applied
+/// inside an enum payload. The variant-tag dispatch is unchanged; only
+/// the variant's inner field gets retyped.
+mod struct_variant_payload_field_replaced_with_unit {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    enum FooFull {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: Vec<u8>,
+            #[tag(2)]
+            c: bool,
+        },
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooSkipMiddle {
+        #[tag(0)]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(1)]
+            b: (),
+            #[tag(2)]
+            c: bool,
+        },
+    }
+
+    #[test_matrix([EncodingStrategy::Tagged, EncodingStrategy::Array])]
+    fn variant_payload_middle_decoded_as_unit(strategy: EncodingStrategy) {
+        let full = FooFull::Carry { a: 7, b: vec![1, 2, 3, 4, 5], c: true };
+        let bytes = encode_with_strategy(&full, strategy);
+        let skipped: FooSkipMiddle =
+            msgpack_tagged_deserialize(&bytes).expect("decode with `()` payload field");
+        assert_eq!(skipped, FooSkipMiddle::Carry { a: 7, b: (), c: true });
+    }
+}
+
+/// Trailing-reserved Array bridge: V1 had three fields; V2 retired the
+/// last one (so `reserved(2)` is strictly greater than all of V2's
+/// active tags); V3 adds a new field at a tag higher than the reserved
+/// one, marked `#[serde(default)]`. Because V2's reserved is strictly
+/// trailing, the encoder keeps `Array` (no auto-downgrade), so V2's wire
+/// is a real msgpack `fixarray` of two values. V3 reads that array via
+/// the merged-layout walk, finds only the first two positions, and lets
+/// serde-derive fill the new field from `Default`.
+///
+/// This is the case that motivates *not* downgrading every Array-with-
+/// reserved product: a strictly-trailing retirement leaves Array's
+/// compactness intact, and the new V3 field rides on top via the
+/// standard short-wire path. The V1 type isn't directly used here — it
+/// only exists to anchor the narrative of how V2 came to carry its
+/// reserved tag.
+mod array_trailing_reserved_v2_to_v3_with_serde_default {
+    use super::*;
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    #[allow(dead_code)]
+    struct FooV1 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+        #[tag(2)]
+        c: u8,
+    }
+
+    #[derive(serde::Serialize, MsgpackTagged)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(2))]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    }
+
+    #[derive(serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(2))]
+    struct FooV3 {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+        #[tag(3)]
+        #[serde(default)]
+        d: Vec<u8>,
+    }
+
+    /// V2's wire under Array is a `fixarray` of exactly the active
+    /// fields — the strictly-trailing reserved tag doesn't take a slot.
+    /// Hand-decode through `rmpv` to lock that in, since this is the
+    /// whole point of the test: Array compactness is preserved.
+    #[test]
+    fn v2_encodes_as_real_array_under_array_strategy() {
+        let bytes = encode_with_strategy(&FooV2 { a: 7, b: true }, EncodingStrategy::Array);
+        let value: rmpv::Value =
+            rmpv::decode::read_value(&mut bytes.as_slice()).expect("valid msgpack");
+        let rmpv::Value::Array(elements) = value else {
+            panic!("expected msgpack array under Array strategy, got {value:?}");
+        };
+        assert_eq!(elements.len(), 2);
+        assert_eq!(elements[0].as_u64(), Some(7));
+        assert_eq!(elements[1].as_bool(), Some(true));
+    }
+
+    /// And the V2 array decodes as V3 — V3 reads the two values it
+    /// recognizes, then serde-derive's `#[serde(default)]` fills the new
+    /// trailing field.
+    #[test]
+    fn v2_array_decodes_as_v3_with_default_for_new_field() {
+        let bytes = encode_with_strategy(&FooV2 { a: 7, b: true }, EncodingStrategy::Array);
+        let v3: FooV3 = msgpack_tagged_deserialize(&bytes).expect("decode V3");
+        assert_eq!(v3, FooV3 { a: 7, b: true, d: Vec::default() });
+    }
+}
+
+/// V2 self-round-trip with a non-trailing reserved tag — the case the
+/// `Array` strategy can't represent positionally. The encoder
+/// auto-downgrades to `Tagged` for this product (see
+/// `downgrade_array_if_unsafe` in the serializer); the decoder's wire-
+/// shape peek lands on the Map path. Without the downgrade, V2's own
+/// decoder would misalign on the wire it just wrote.
+mod v2_self_roundtrip_non_trailing_reserved_under_array {
+    use super::*;
+
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    #[tagged(reserved(1))]
+    struct FooV2 {
+        #[tag(0)]
+        a: u32,
+        #[tag(2)]
+        c: bool,
+    }
+
+    #[test]
+    fn v2_self_round_trip_succeeds_via_downgrade() {
+        let value = FooV2 { a: 7, c: true };
+        let bytes = encode_with_strategy(&value, EncodingStrategy::Array);
+        let decoded: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
+        assert_eq!(decoded, value);
+    }
+}
+
+/// Mirror of the named-struct case but for a struct-variant payload —
+/// the downgrade applies inside variants too. Without it, V2 reading its
+/// own freshly-encoded payload would misalign on the reserved-slot
+/// drain.
+mod v2_self_roundtrip_struct_variant_non_trailing_reserved_under_array {
+    use super::*;
+
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[serde(rename = "Foo")]
+    enum FooV2 {
+        #[tag(0)]
+        #[tagged(reserved(1))]
+        Carry {
+            #[tag(0)]
+            a: u32,
+            #[tag(2)]
+            c: bool,
+        },
+    }
+
+    #[test]
+    fn v2_self_round_trip_succeeds_via_downgrade() {
+        let value = FooV2::Carry { a: 7, c: true };
+        let bytes = encode_with_strategy(&value, EncodingStrategy::Array);
+        let decoded: FooV2 = msgpack_tagged_deserialize(&bytes).expect("decode");
+        assert_eq!(decoded, value);
     }
 }
 
@@ -1444,5 +1757,248 @@ mod fallback_variant_round_trip {
     #[test]
     fn other_known_variant_still_round_trips() {
         assert_roundtrip(WithFallback::Known);
+    }
+}
+
+// ============================================================================
+// `EncodingStrategy::Array` — decoder dispatches on the peeked wire shape
+// (`fixmap` → Tagged path, `fixarray` → new positional Array path).
+// Round-trip tests for each product-shaped decode site, plus a cross-
+// strategy test that proves both shapes coexist in a single buffer.
+// ============================================================================
+
+mod array_strategy {
+    use super::*;
+
+    /// Round-trip a value through the Array encoder + the
+    /// shape-peeking decoder. The decoder doesn't need to know which
+    /// strategy produced the bytes — it inspects the marker.
+    fn assert_array_roundtrip<T>(value: T)
+    where
+        T: serde::Serialize
+            + serde::de::DeserializeOwned
+            + MsgpackTagged
+            + PartialEq
+            + std::fmt::Debug,
+    {
+        let bytes = encode_with_strategy(&value, EncodingStrategy::Array);
+        let decoded: T = msgpack_tagged_deserialize(&bytes).expect("decode Array");
+        assert_eq!(decoded, value);
+    }
+
+    /// Named struct: `Pair { first: u32, second: bool }`. Encodes as
+    /// `[first, second]` under Array, decodes back into the same value.
+    #[test]
+    fn named_struct_array_roundtrips() {
+        assert_array_roundtrip(Pair { first: 7, second: true });
+    }
+
+    /// Tuple struct: encodes as `[a, b, c]`, decodes positionally. The
+    /// existing `PositionalTriple` fixture has implicit tags 0,1,2 so
+    /// source order = tag order here — the simple case.
+    #[test]
+    fn tuple_struct_array_roundtrips() {
+        assert_array_roundtrip(PositionalTriple(7, true, 9));
+    }
+
+    /// Tuple struct with explicit out-of-source-order tags. Under Array
+    /// the wire is in tag-ascending order: wire[0] is the source
+    /// position whose tag is 0 (the bool), wire[1] is tag 1 (the u8),
+    /// wire[2] is tag 2 (the u32). The encoder's buffer-and-sort flush
+    /// in `TaggedSerializeProduct::finish` is what makes round-trip
+    /// work regardless of serde's source-order call sequence.
+    #[test]
+    fn tuple_struct_with_reordered_tags_array_roundtrips() {
+        assert_array_roundtrip(ReorderedTriple(7, true, 9));
+    }
+
+    /// Tuple variant payload: outer `{variant_tag: payload}` stays a
+    /// 1-entry int-keyed map (the discriminator), but the *payload*
+    /// flips to a positional array under Array strategy. Round-trip
+    /// covers both the encode-time payload shape and the decoder's
+    /// shape-peek on the payload.
+    #[test]
+    fn tuple_variant_payload_array_roundtrips() {
+        assert_array_roundtrip(Mixed::Pair(7, true));
+    }
+
+    /// Struct variant payload follows the same rule — payload is an
+    /// `[a, b]` array under Array strategy.
+    #[test]
+    fn struct_variant_payload_array_roundtrips() {
+        assert_array_roundtrip(Mixed::Named { a: 99, b: false });
+    }
+
+    /// Unit / newtype variants don't have a Product payload, so the
+    /// strategy doesn't affect their wire shape. Including them here
+    /// just verifies the round-trip isn't accidentally broken by the
+    /// new decoder dispatch.
+    #[test]
+    fn unit_and_newtype_variants_unaffected_by_array_default() {
+        assert_array_roundtrip(Mixed::Empty);
+        assert_array_roundtrip(Mixed::Wrap(42));
+    }
+
+    /// Cross-strategy: encode `Outer { nested: Pair, flag }` with the
+    /// default Tagged but force `Outer` to Array. The wire has an Array
+    /// `Outer` containing a Tagged `Pair`. The shape-peek dispatches
+    /// per-struct so both decode correctly through the same buffer.
+    #[test]
+    fn outer_array_with_inner_tagged_roundtrips() {
+        let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+        let registry = TagRegistry::from_type::<Outer>();
+        let mut buf = Vec::new();
+        let mut s =
+            Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+        value.serialize(&mut s).expect("encode succeeds");
+        drop(s);
+        let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");
+        assert_eq!(decoded, value);
+    }
+
+    /// Symmetric: encode `Outer` as Tagged but force the inner `Pair`
+    /// to Array. The wire has a Tagged `Outer` containing an Array
+    /// `Pair`. Again the shape-peek does its job per-struct.
+    #[test]
+    fn outer_tagged_with_inner_array_roundtrips() {
+        let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+        let registry = TagRegistry::from_type::<Outer>();
+        let mut buf = Vec::new();
+        let mut s =
+            Serializer::new(&mut buf, &registry).with_strategy::<Pair>(EncodingStrategy::Array);
+        value.serialize(&mut s).expect("encode succeeds");
+        drop(s);
+        let decoded: Outer = msgpack_tagged_deserialize(&buf).expect("decode");
+        assert_eq!(decoded, value);
+    }
+
+    /// Nested tuple variant payload with a tagged inner element — the
+    /// payload-shape dispatch composes correctly with the existing
+    /// nested-tagged-recursion path.
+    #[test]
+    fn tuple_variant_with_nested_tagged_array_roundtrips() {
+        assert_array_roundtrip(TupleVariantWithNested::Carry(Pair { first: 1, second: false }, 5));
+    }
+
+    #[test]
+    fn struct_variant_with_nested_tagged_array_roundtrips() {
+        assert_array_roundtrip(StructVariantWithNested::Carry {
+            inner: Pair { first: 2, second: true },
+            count: 9,
+        });
+    }
+}
+
+// ============================================================================
+// Negative tests for the Array decoder — malformed shapes, gross overflows.
+// ============================================================================
+
+mod array_decode_errors {
+    use super::*;
+
+    /// Anything that isn't a `fixmap` or `fixarray` at a struct-shaped
+    /// decode site is a malformed-bytes error. Hand-build a buffer
+    /// starting with a primitive marker (`u8 fixint`) to trigger the
+    /// "expected fixmap or fixarray" rejection cleanly.
+    #[test]
+    fn unexpected_marker_at_struct_site_errors() {
+        // Single fixint byte — not a map or array header. `Pair` decode
+        // should reject with the shape-peek error.
+        let bytes: [u8; 1] = [0x07];
+        let err = msgpack_tagged_deserialize::<Pair>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("expected fixmap or fixarray"), "got: {msg}",);
+    }
+
+    /// Array wire longer than the type's arity, without
+    /// `allow_unknown_tags`: rejected with a clear cap-overflow error.
+    /// Hand-build a 3-element fixarray to feed into a 2-field `Pair`.
+    #[test]
+    fn struct_array_overflow_without_allow_unknown_tags_errors() {
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 3).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        rmp::encode::write_bool(&mut bytes, true).unwrap();
+        rmp::encode::write_uint(&mut bytes, 99).unwrap(); // extra
+        let err = msgpack_tagged_deserialize::<Pair>(&bytes).expect_err("decode should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("3 positional entries") && msg.contains("at most 2"), "got: {msg}",);
+    }
+
+    /// And with `allow_unknown_tags` on, the same overflow round-trips
+    /// (the extra entries are drained silently).
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug)]
+    #[tagged(allow_unknown_tags)]
+    struct LenientPair {
+        #[tag(2)]
+        first: u32,
+        #[tag(5)]
+        second: bool,
+    }
+
+    #[test]
+    fn struct_array_overflow_with_allow_unknown_tags_drains_extras() {
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 3).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        rmp::encode::write_bool(&mut bytes, true).unwrap();
+        rmp::encode::write_uint(&mut bytes, 99).unwrap();
+        let decoded: LenientPair =
+            msgpack_tagged_deserialize(&bytes).expect("lenient decode succeeds");
+        assert_eq!(decoded, LenientPair { first: 7, second: true });
+    }
+
+    /// Short wire under Array strategy works via `#[serde(default)]` on
+    /// the missing trailing position — the decoder yields `Ok(None)`
+    /// and serde-derive fills the default.
+    #[derive(serde::Serialize, serde::Deserialize, MsgpackTagged, PartialEq, Debug, Default)]
+    struct WithDefaultTrailing {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        #[serde(default)]
+        b: Vec<u8>,
+    }
+
+    #[test]
+    fn struct_array_short_wire_uses_serde_default() {
+        // 1-element fixarray — should fill `b` with `Vec::default()`.
+        let mut bytes = Vec::new();
+        rmp::encode::write_array_len(&mut bytes, 1).unwrap();
+        rmp::encode::write_uint(&mut bytes, 7).unwrap();
+        let decoded: WithDefaultTrailing =
+            msgpack_tagged_deserialize(&bytes).expect("short-wire decode");
+        assert_eq!(decoded, WithDefaultTrailing { a: 7, b: Vec::default() });
+    }
+
+    /// Sanity: same buffer encoded under Tagged decodes the same way.
+    /// Locks in that the shape-peek doesn't accidentally route Tagged
+    /// data through the Array path or vice versa.
+    #[test]
+    fn tagged_encode_array_encode_decode_to_same_value() {
+        let value = Pair { first: 7, second: true };
+        let registry = TagRegistry::from_type::<Pair>();
+
+        // Tagged encode.
+        let mut tagged_buf = Vec::new();
+        let mut s = Serializer::new(&mut tagged_buf, &registry)
+            .with_default_strategy(EncodingStrategy::Tagged);
+        value.serialize(&mut s).unwrap();
+        drop(s);
+
+        // Array encode.
+        let mut array_buf = Vec::new();
+        let mut s = Serializer::new(&mut array_buf, &registry)
+            .with_default_strategy(EncodingStrategy::Array);
+        value.serialize(&mut s).unwrap();
+        drop(s);
+
+        // Different bytes…
+        assert_ne!(tagged_buf, array_buf);
+        // …same decoded value.
+        let from_tagged: Pair = msgpack_tagged_deserialize(&tagged_buf).unwrap();
+        let from_array: Pair = msgpack_tagged_deserialize(&array_buf).unwrap();
+        assert_eq!(from_tagged, from_array);
+        assert_eq!(from_tagged, value);
     }
 }

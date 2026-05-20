@@ -26,7 +26,59 @@ pub use deserializer::{Deserializer, msgpack_tagged_deserialize};
 pub use serializer::{Serializer, msgpack_tagged_serialize};
 
 pub use msgpack_tagged_derive::MsgpackTagged;
-pub use registry::{Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind};
+pub use registry::{
+    Entry, Product, Sum, TagRegistry, Tagged, Variant, VariantKind, type_name_basename,
+};
+
+/// On-wire shape for product types (structs, tuple structs, enum-variant
+/// payloads). Picked per-type on the [`Serializer`] (see
+/// [`Serializer::new`] / [`Serializer::with_strategy`]). Enum variants
+/// are *always* int-keyed under `MsgpackTagged` regardless of strategy —
+/// the strategy only affects struct shape.
+///
+/// * [`EncodingStrategy::Tagged`] (default) — int-keyed `fixmap`
+///   `{0: a, 1: b, …}`. Schema-evolution friendly: identification is by
+///   tag, so fields can be added, removed (via `#[tagged(reserved(...))]`),
+///   or reordered freely. Costs one byte per field for the tag.
+/// * [`EncodingStrategy::Array`] — positional `fixarray` `[a, b, …]`,
+///   fields emitted in tag-ascending order. Minimum overhead. Identification
+///   is by position, so evolvability is limited to *trailing* changes:
+///   - **Adding a trailing field** is backward-compat when the field is
+///     marked `#[serde(default)]` — V1 wire (shorter) decodes into V2
+///     type, the default fills the new position.
+///   - **Removing a trailing field** is forward-compat when the type
+///     opts into `#[tagged(allow_unknown_tags)]` — V2 wire (longer)
+///     decodes into V1 type, the extra trailing position is ignored.
+///   - Anything else (middle insert/remove, reorder, type change) is
+///     wire-breaking. Pick this strategy for small leaf types where size
+///     wins over flexibility and the type is unlikely to need
+///     middle-of-shape edits.
+///
+/// **Auto-downgrade to Tagged.** If a type has `#[tagged(reserved(N))]`
+/// where `N` falls *between* (or before) the active tags, requesting
+/// `Array` for it would corrupt round-trips: V2's positional wire only
+/// carries active values, but the decoder walks a merged-sorted layout
+/// of `(active + reserved)` tags and would drain a wire byte at the
+/// reserved slot intended for a later active field. The encoder detects
+/// this and silently switches to `Tagged` for that product only — other
+/// types in the same serializer keep their configured strategy.
+/// Strictly-trailing reserved tags (every reserved tag greater than
+/// every active tag) keep `Array`: the decoder hits `wire_remaining == 0`
+/// before reaching the trailing reserved slot, so positional alignment
+/// holds. The migration guide in the crate README walks through both
+/// cases with examples.
+///
+/// The decoder probes the wire shape (`fixmap` vs. `fixarray`) per struct
+/// at decode time, so a single buffer can mix both strategies across
+/// nested types freely.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EncodingStrategy {
+    /// Int-keyed map. Default — most backward/forward compatible.
+    #[default]
+    Tagged,
+    /// Positional array. Smaller; not schema-evolvable.
+    Array,
+}
 
 /// The integer tag used as a wire-level identifier for struct fields and enum
 /// variants. `u8` keeps tags inside msgpack's `fixint` range (0–127) at the
@@ -74,6 +126,7 @@ mod tests {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
             allow_unknown_tags: true,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }

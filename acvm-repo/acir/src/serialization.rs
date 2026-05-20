@@ -1,6 +1,9 @@
 //! Serialization formats we consider using for the bytecode and the witness stack.
 
-use msgpack_tagged::{MsgpackTagged, msgpack_tagged_deserialize, msgpack_tagged_serialize};
+use msgpack_tagged::{
+    EncodingStrategy, MsgpackTagged, Serializer as TaggedSerializer, TagRegistry,
+    msgpack_tagged_deserialize,
+};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -107,11 +110,44 @@ where
     let mut buf = match format {
         Format::Msgpack => msgpack_serialize(value, false)?,
         Format::MsgpackCompact => msgpack_serialize(value, true)?,
-        Format::MsgpackTagged => msgpack_tagged_serialize(value)?,
+        Format::MsgpackTagged => msgpack_tagged_serialize_acir(value)?,
     };
     let mut res = vec![format.into()];
     res.append(&mut buf);
     Ok(res)
+}
+
+/// Serialize a value through the `msgpack_tagged` wrapper with the ACIR
+/// policy applied: by default everything reachable from `value` rides on
+/// `EncodingStrategy::Array` (the compact positional shape), and the
+/// top-level container types (`Program`, `Circuit`, `BrilligBytecode`)
+/// flip to `EncodingStrategy::Tagged` so they stay schema-evolvable. The
+/// overrides use `with_strategy_for_name`, which never asserts on a
+/// registry miss — so the same call works when `value` doesn't reach
+/// any of those containers (e.g. a `WitnessMap` or a bare leaf type):
+/// unreachable names get a stray override entry that's never looked up
+/// at encode time.
+///
+/// Targeting types by *serde name* rather than Rust type matches the
+/// wire identity directly: it doesn't matter which field flavor
+/// (`FieldElement`, `GenericFieldElement<X>`, …) the caller is using —
+/// every `Program<_>` registers as `"Program"`. The shadow-DTO pattern
+/// (`Circuit<F>` delegates to `CircuitWire<F>` which registers under
+/// `"Circuit"` via `#[serde(rename = "Circuit")]`) is likewise
+/// transparent here.
+pub(crate) fn msgpack_tagged_serialize_acir<T>(value: &T) -> std::io::Result<Vec<u8>>
+where
+    T: ?Sized + Serialize + MsgpackTagged,
+{
+    let registry = TagRegistry::from_type::<T>();
+    let mut buf = Vec::new();
+    let mut serializer = TaggedSerializer::new(&mut buf, &registry)
+        .with_default_strategy(EncodingStrategy::Array)
+        .with_strategy_for_name("Program", EncodingStrategy::Tagged)
+        .with_strategy_for_name("Circuit", EncodingStrategy::Tagged)
+        .with_strategy_for_name("BrilligBytecode", EncodingStrategy::Tagged);
+    value.serialize(&mut serializer).map_err(std::io::Error::other)?;
+    Ok(buf)
 }
 
 #[cfg(test)]
@@ -345,5 +381,100 @@ mod tests {
         assert_eq!(bytes[0], Format::MsgpackTagged as u8);
         let decoded: Foo = super::deserialize_any_format(&bytes).unwrap();
         assert_eq!(decoded, value);
+    }
+
+    /// `msgpack_tagged_serialize_acir` applies the ACIR policy:
+    /// `Program` / `Circuit` use the `Tagged` (`fixmap`) shape — they're
+    /// the top-level schema-evolution surface — while every other reachable
+    /// type defaults to `Array` (`fixarray`). This test exercises both
+    /// halves: the outer `Program` byte should be a fixmap marker, and a
+    /// nested leaf like `Expression` (reached via `Opcode::AssertZero`)
+    /// should be a fixarray.
+    #[test]
+    fn msgpack_tagged_acir_policy_program_tagged_expression_array() {
+        use crate::circuit::{Circuit, Opcode, Program};
+        use crate::native_types::Expression;
+        use acir_field::FieldElement;
+        use rmpv::Value;
+
+        let expr: Expression<FieldElement> = Expression {
+            mul_terms: vec![],
+            linear_combinations: vec![],
+            q_c: FieldElement::from(1u128),
+        };
+        let circuit: Circuit<FieldElement> = Circuit {
+            function_name: "main".to_string(),
+            opcodes: vec![Opcode::AssertZero(expr)],
+            ..Circuit::default()
+        };
+        let program =
+            Program::<FieldElement> { functions: vec![circuit], unconstrained_functions: vec![] };
+
+        let bytes = super::msgpack_tagged_serialize_acir(&program).expect("encode succeeds");
+        let value = rmpv::decode::read_value(&mut bytes.as_slice()).expect("valid msgpack");
+
+        // Outer Program is fixmap (Tagged): the function asked for `Array`
+        // by default, but the override flipped Program/Circuit back to
+        // Tagged.
+        let Value::Map(program_entries) = &value else {
+            panic!("expected fixmap for Program under the ACIR policy, got {value:?}");
+        };
+        // Both Program tags (0: functions, 1: unconstrained_functions) on
+        // the wire, int-keyed.
+        assert_eq!(program_entries.len(), 2);
+        assert!(program_entries.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+
+        // Drill into the first function (a Circuit) — also fixmap.
+        let functions = program_entries
+            .iter()
+            .find(|(k, _)| k.as_u64() == Some(0))
+            .map(|(_, v)| v)
+            .expect("functions tag present");
+        let Value::Array(functions) = functions else {
+            panic!("functions field should be a msgpack array, got {functions:?}");
+        };
+        let Value::Map(circuit_entries) = &functions[0] else {
+            panic!("expected fixmap for Circuit, got {:?}", functions[0]);
+        };
+        assert!(circuit_entries.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+
+        // Drill into the opcodes and pull the AssertZero variant payload —
+        // that payload is the bare `Expression`. Expression has no
+        // override, so it should land on Array → fixarray.
+        let opcodes_value = circuit_entries
+            .iter()
+            .find(|(k, _)| k.as_u64() == Some(2))
+            .map(|(_, v)| v)
+            .expect("opcodes tag present on Circuit wire");
+        let Value::Array(opcodes) = opcodes_value else {
+            panic!("opcodes should be a msgpack array, got {opcodes_value:?}");
+        };
+        // Each opcode is a `{variant_tag: payload}` map; AssertZero's
+        // payload is the Expression value, which under the ACIR policy
+        // should be a fixarray.
+        let Value::Map(opcode) = &opcodes[0] else {
+            panic!("opcode should be a 1-entry map, got {:?}", opcodes[0]);
+        };
+        assert_eq!(opcode.len(), 1);
+        let expression_value = &opcode[0].1;
+        assert!(
+            matches!(expression_value, Value::Array(_)),
+            "expected fixarray for nested Expression under default Array policy, got \
+             {expression_value:?}",
+        );
+    }
+
+    /// Sanity: the policy round-trips correctly through `Format::MsgpackTagged`.
+    /// Catches alignment bugs between the encode-side policy and the
+    /// shape-peeking decoder.
+    #[test]
+    fn msgpack_tagged_acir_policy_program_roundtrips_through_format() {
+        use crate::circuit::Program;
+        use acir_field::FieldElement;
+
+        let program = Program::<FieldElement>::default();
+        let bytes = super::serialize_with_format(&program, Format::MsgpackTagged).unwrap();
+        let decoded: Program<FieldElement> = super::deserialize_any_format(&bytes).unwrap();
+        assert_eq!(decoded, program);
     }
 }

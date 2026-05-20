@@ -36,6 +36,7 @@
 //!   tightened, but only inside the four product-shaped methods. New
 //!   shapes that join the family should add the same assert.
 
+use std::collections::HashMap;
 use std::io::Write;
 
 use rmp_serde::Serializer as RmpSerializer;
@@ -47,20 +48,56 @@ use serde::ser::{
     SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 
-use crate::{MsgpackTagged, TagRegistry};
+use crate::{EncodingStrategy, MsgpackTagged, TagRegistry, type_name_basename};
 
 /// Tagged-map msgpack serializer.
 ///
-/// Constructed internally by [`msgpack_tagged_serialize`]. Exposed as `pub`
-/// so it can be named from rustdoc; the only stable entry point is still
-/// the free function. A builder for strategy customization will land later.
+/// Borrows a caller-owned [`TagRegistry`] and carries per-encode-session
+/// policy (default strategy + per-type overrides). The registry stays pure
+/// type metadata — strategy state lives only on the serializer. Typical
+/// usage:
+///
+/// ```ignore
+/// let registry = TagRegistry::from_type::<Program<F>>();
+/// let mut buf = Vec::new();
+/// let mut s = msgpack_tagged::Serializer::new(&mut buf, &registry)
+///     .with_default_strategy(EncodingStrategy::Array)
+///     .with_strategy::<Program<F>>(EncodingStrategy::Tagged)
+///     .with_strategy::<Circuit<F>>(EncodingStrategy::Tagged);
+/// program.serialize(&mut s)?;
+/// ```
+///
+/// `new` defaults the strategy to [`EncodingStrategy::Tagged`] (the most
+/// evolution-friendly shape); `with_default_strategy` swaps it, and
+/// `with_strategy::<U>` overrides for individual types (panicking on a
+/// registry miss). Policy sites that target types by string name —
+/// possibly without knowing whether the type is reachable — use
+/// `with_strategy_for_name` instead.
 pub struct Serializer<'a, W: Write> {
     inner: RmpSerializer<W>,
     registry: &'a TagRegistry,
+    default_strategy: EncodingStrategy,
+    /// Per-type strategy overrides keyed by **serde name** (the name
+    /// `#[serde(rename = "...")]` resolves to, or the bare type ident when
+    /// no rename is set). Keying by name — not [`std::any::TypeId`] — lets
+    /// `with_strategy::<Foo<F>>` apply uniformly across field flavors
+    /// (`Foo<FieldElement>` and `Foo<OtherF>` share the name "Foo") and
+    /// across shadow DTOs (a public `Circuit<F>` with
+    /// `#[tagged(via(CircuitWire<F>))]` reaches the same "Circuit"
+    /// override that CircuitWire registers under via `#[serde(rename)]`).
+    /// See [`type_name_basename`] for the derivation rule.
+    overrides: HashMap<&'static str, EncodingStrategy>,
 }
 
 impl<'a, W: Write> Serializer<'a, W> {
-    fn new(writer: W, registry: &'a TagRegistry) -> Self {
+    /// Construct a serializer over `writer` borrowing the caller-built
+    /// `registry`. The default per-type strategy is
+    /// [`EncodingStrategy::Tagged`].
+    ///
+    /// Build the registry up front via `TagRegistry::from_type::<T>()` for
+    /// the top-level type being serialized — the registration walk seeds
+    /// every nested tagged type.
+    pub fn new(writer: W, registry: &'a TagRegistry) -> Self {
         // We intentionally use rmp_serde's default config (no
         // `with_struct_map`): every tagged type's `serialize_struct` /
         // variant call routes through our interception layer below, which
@@ -69,23 +106,88 @@ impl<'a, W: Write> Serializer<'a, W> {
         // the registry's bound chain — primitives and containers don't go
         // through `serialize_struct`, and any type that does is expected to
         // be in the registry.
-        Self { inner: RmpSerializer::new(writer), registry }
+        Self {
+            inner: RmpSerializer::new(writer),
+            registry,
+            default_strategy: EncodingStrategy::Tagged,
+            overrides: HashMap::new(),
+        }
+    }
+
+    /// Change the default strategy applied to types without a per-type
+    /// override.
+    pub fn with_default_strategy(mut self, strategy: EncodingStrategy) -> Self {
+        self.default_strategy = strategy;
+        self
+    }
+
+    /// Set the encoding strategy for a specific type `T`. Overrides the
+    /// default for this type only; later calls for the same `T` win.
+    /// Resolves `T`'s serde name via [`type_name_basename`] and inserts
+    /// the override under that name.
+    ///
+    /// **Panics** if `T`'s name isn't in the registry — setting a
+    /// strategy for an unreachable type is almost always a bug (the
+    /// override would silently never fire). Use this at call sites where
+    /// the override targets a type the caller *knows* should be
+    /// reachable (typically tests, or a producer that just registered
+    /// the type up front). Policy sites that configure overrides for a
+    /// fixed catalog of potentially-top-level types — where the caller's
+    /// `T` might not reach all of them — should use
+    /// [`Self::with_strategy_for_name`] instead.
+    pub fn with_strategy<T: MsgpackTagged>(mut self, strategy: EncodingStrategy) -> Self {
+        let name = type_name_basename::<T>();
+        assert!(
+            self.registry.contains(name),
+            "Serializer::with_strategy: serde name {name:?} (from type {full_name}) is \
+             not in the registry — the top-level type's `register_into` walk didn't \
+             reach it. Build the registry from a type that transitively visits T, use \
+             `with_strategy_for_name` for policy sites that tolerate unreachable names, \
+             or remove the override.",
+            full_name = std::any::type_name::<T>(),
+        );
+        self.overrides.insert(name, strategy);
+        self
+    }
+
+    /// Set the encoding strategy for the type registered under serde
+    /// `name`. Never asserts — names not in the registry get a stray
+    /// override entry that's never looked up at encode time (harmless).
+    /// Sibling of [`Self::with_strategy`] for *policy* sites that
+    /// configure overrides for a fixed catalog of potentially-top-level
+    /// types but don't know which ones the caller will actually
+    /// serialize.
+    ///
+    /// For tests or producer call sites that want to fail fast on a
+    /// registry miss, use [`Self::with_strategy`] instead.
+    pub fn with_strategy_for_name(
+        mut self,
+        name: &'static str,
+        strategy: EncodingStrategy,
+    ) -> Self {
+        self.overrides.insert(name, strategy);
+        self
+    }
+
+    /// Look up the effective encoding strategy for the registered type
+    /// `T`. Returns the per-type override if one was set; otherwise the
+    /// default strategy. Used by the encode-time dispatch and exposed for
+    /// tests.
+    pub fn strategy_for<T: MsgpackTagged>(&self) -> EncodingStrategy {
+        self.strategy_for_name(type_name_basename::<T>())
     }
 }
 
 /// Build the tag registry from `T::register_into`, then serialize `value`
-/// through a [`Serializer`] into a freshly-allocated `Vec<u8>`.
-///
-/// All tagged types currently encode in **Tagged** strategy (int-keyed maps);
-/// per-type strategy customization will land as a follow-up. Untagged types
-/// are forwarded to `rmp_serde`'s default encoding (with `with_struct_map`
-/// applied for consistency).
+/// through a [`Serializer`] into a freshly-allocated `Vec<u8>`. Uses the
+/// default [`EncodingStrategy::Tagged`] for all types. For strategy
+/// customization, build the registry and serializer directly and use the
+/// builder methods.
 pub fn msgpack_tagged_serialize<T>(value: &T) -> std::io::Result<Vec<u8>>
 where
     T: ?Sized + Serialize + MsgpackTagged,
 {
     let registry = TagRegistry::from_type::<T>();
-
     let mut buf = Vec::new();
     let mut serializer = Serializer::new(&mut buf, &registry);
     value.serialize(&mut serializer).map_err(std::io::Error::other)?;
@@ -101,7 +203,7 @@ type RmpError = rmp_serde::encode::Error;
 // shapes) are intercepted to emit int-keyed maps via the registry.
 // ============================================================================
 
-impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
+impl<'ser, 'a, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
     type Ok = ();
     type Error = RmpError;
 
@@ -244,22 +346,28 @@ impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        // Same shape as a named struct on the wire — the registered `Product`
-        // just uses positional wire-names ("0", "1", …) instead of field
-        // idents. The adapter handles both via different trait impls on the
-        // same struct.
-        let product = self.product_for(name);
-        assert_field_count_matches(name, len, product.fields.len());
-        write_map_header(self.inner.get_mut(), product.fields.len())?;
-        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
+        // Same on-wire shape as a named struct — the registered `Product`
+        // uses positional wire-names ("0", "1", …) instead of field idents.
+        // Both shapes share the same adapter; the trait impl that fires is
+        // chosen by serde based on which `serialize_*` call landed.
+        self.begin_product(name, len)
+    }
+
+    fn serialize_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        self.begin_product(name, len)
     }
 
     // -------- sum shapes: every variant becomes `{<variant_tag>: <payload>}`,
     // with the payload shape determined by `VariantKind`. Each branch looks
     // up the `Sum`, resolves the variant by name, writes a 1-entry outer map
     // header (variant tag → payload), then emits the payload appropriate to
-    // the kind: `nil` for unit, the inner value pass-through for newtype, an
-    // int-keyed payload map for tuple/struct.
+    // the kind: `nil` for unit, the inner value pass-through for newtype, or
+    // a `Product`-shaped payload for tuple/struct (whose shape follows the
+    // enclosing enum's strategy).
 
     fn serialize_unit_variant(
         self,
@@ -295,10 +403,7 @@ impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        let v = self.write_variant_header(name, variant)?;
-        assert_field_count_matches(variant, len, v.payload.fields.len());
-        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
-        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
+        self.begin_variant_payload(name, variant, len)
     }
 
     fn serialize_struct_variant(
@@ -308,36 +413,93 @@ impl<'a, 'ser, W: Write> ser::Serializer for &'ser mut Serializer<'a, W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        let v = self.write_variant_header(name, variant)?;
-        assert_field_count_matches(variant, len, v.payload.fields.len());
-        write_map_header(self.inner.get_mut(), v.payload.fields.len())?;
-        Ok(TaggedSerializeProduct { product: v.payload, parent: self, next_position: 0 })
-    }
-
-    // -------- product shapes (named struct + multi-element tuple struct) ---
-
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStruct, Self::Error> {
-        let product = self.product_for(name);
-        assert_field_count_matches(name, len, product.fields.len());
-
-        // Write the msgpack map header directly to the underlying writer via
-        // `rmp::encode`. We deliberately bypass `inner.serialize_map(...)` —
-        // that returns a `SerializeMap` that owns the inner serializer for
-        // its lifetime, which would prevent us from re-routing each value
-        // back through *this* wrapper. Routing field *values* (not just the
-        // top-level struct) through the wrapper is what makes nested tagged
-        // types decode the same way as top-level ones.
-        write_map_header(self.inner.get_mut(), product.fields.len())?;
-
-        Ok(TaggedSerializeProduct { product, parent: self, next_position: 0 })
+        self.begin_variant_payload(name, variant, len)
     }
 }
 
 impl<'a, W: Write> Serializer<'a, W> {
+    /// Shared body of `serialize_struct` / `serialize_tuple_struct`.
+    /// Resolves the product + strategy, writes the strategy-appropriate
+    /// resolves the product + strategy, returns a configured
+    /// `TaggedSerializeProduct`. The two trait methods are identical at
+    /// this level — only the trait impl fired on the returned adapter
+    /// differs (which serde picks based on the caller's `serialize_*`
+    /// choice).
+    ///
+    /// **Buffering policy.** Per-field bytes are buffered into the
+    /// adapter and flushed in tag-ascending order at `end()` whenever
+    /// the user's source-declaration order has been deliberately
+    /// reordered relative to the tags
+    /// (`!product.tag_order_matches_source`). This is what makes both
+    /// strategies emit canonical (tag-ascending) wire order:
+    ///
+    /// * Under `Array` it's a *correctness* requirement — the decoder
+    ///   reads positionally and would otherwise see fields in the wrong
+    ///   slots.
+    /// * Under `Tagged` it's a *byte-determinism* requirement — the
+    ///   decoder doesn't care about order (every wire entry carries its
+    ///   tag), but consumers reading the bytes do: cross-implementation
+    ///   compatibility, hashing, cryptographic commitments. The design
+    ///   doc's "TAGS define the canonical field order" promise applies
+    ///   here.
+    ///
+    /// Types whose source-declaration order is already tag-ascending
+    /// (the common case — newly-added types and types using implicit
+    /// positional tags) skip the buffer entirely: the outer header is
+    /// written upfront and each field streams through to the parent
+    /// directly, saving the per-field `Vec<u8>` allocation. The cost is
+    /// paid only by types whose tags have drifted out of source order
+    /// — typically schema-evolved types with retired-and-re-added
+    /// fields. **If you reorder fields, you're opting into a per-field
+    /// allocation at encode time.**
+    fn begin_product<'ser>(
+        &'ser mut self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+        let (product, strategy) = self.product_and_strategy_for(name);
+        assert_field_count_matches(name, len, product.fields.len());
+        let strategy = downgrade_array_if_unsafe(&product, strategy);
+        begin_product_payload(self, product, strategy)
+    }
+
+    /// Shared body of `serialize_tuple_variant` / `serialize_struct_variant`.
+    /// Writes the outer 1-entry `{variant_tag: ...}` discriminator map
+    /// (always Tagged — variant identification is by integer tag under
+    /// `MsgpackTagged`); same buffering policy as `begin_product` for the
+    /// payload itself.
+    fn begin_variant_payload<'ser>(
+        &'ser mut self,
+        name: &'static str,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+        let v = self.write_variant_header(name, variant)?;
+        assert_field_count_matches(variant, len, v.payload.fields.len());
+        let strategy = self.strategy_for_name(name);
+        let strategy = downgrade_array_if_unsafe(&v.payload, strategy);
+        begin_product_payload(self, v.payload, strategy)
+    }
+
+    /// Spawn a sub-serializer over a fresh `Vec<u8>` buffer, inheriting
+    /// this serializer's registry + per-type strategy config. Used by
+    /// [`TaggedSerializeProduct::serialize_tag_and_value`] to encode each
+    /// field's bytes into a temp buffer before flushing in tag-ascending
+    /// order at `end()`. Cloning the `overrides` map is cheap in practice
+    /// — it's tiny (a few entries) and only walked per top-level value's
+    /// field count.
+    fn sub_serializer_into<'sub>(
+        &self,
+        writer: &'sub mut Vec<u8>,
+    ) -> Serializer<'a, &'sub mut Vec<u8>> {
+        Serializer {
+            inner: RmpSerializer::new(writer),
+            registry: self.registry,
+            default_strategy: self.default_strategy,
+            overrides: self.overrides.clone(),
+        }
+    }
+
     /// Resolve a registered `Product` by serde name. Used by both
     /// `serialize_struct` and `serialize_tuple_struct`. A registry miss or a
     /// sum-shaped entry signals a real bug — `register_into` should have
@@ -357,6 +519,23 @@ impl<'a, W: Write> Serializer<'a, W> {
         entry.tagged().as_product().unwrap_or_else(|| {
             panic!("registry entry for {name:?} is sum-shaped but a product shape was expected")
         })
+    }
+
+    /// Resolve a registered `Product` *and* the effective encoding strategy
+    /// for the type registered under `name`. Used only on the top-level
+    /// struct paths — variant payloads are forced Tagged at their
+    /// construction sites.
+    fn product_and_strategy_for(&self, name: &'static str) -> (crate::Product, EncodingStrategy) {
+        (self.product_for(name), self.strategy_for_name(name))
+    }
+
+    /// Resolve the effective encoding strategy for the type registered
+    /// under serde `name`. Overrides are keyed by the same serde-name
+    /// string the caller passes here, so it's a single hash lookup with
+    /// no registry indirection. Absent any override the per-serializer
+    /// `default_strategy` applies.
+    fn strategy_for_name(&self, name: &str) -> EncodingStrategy {
+        self.overrides.get(name).copied().unwrap_or(self.default_strategy)
     }
 
     /// Resolve a registered `Variant` by enum-type name + variant name. Used
@@ -413,6 +592,67 @@ fn write_array_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpErr
     Ok(())
 }
 
+/// Auto-downgrade `Array` → `Tagged` for products where the positional
+/// shape can't safely round-trip the type's own writes.
+///
+/// **The hazard.** Under `Array` the encoder only writes active fields
+/// (in tag-ascending order); the decoder walks a merged-sorted layout of
+/// `(active + reserved)` tags so it can drain reserved slots from
+/// *legacy* wires (V1 wrote a value at a tag that V2 has since retired).
+/// That works fine when reserved tags are all *strictly greater* than
+/// every active tag: the merged layout puts them at the tail, and the
+/// decoder hits `wire_remaining == 0` before visiting them. But if any
+/// reserved tag has an active tag *after* it in tag order, the merged
+/// layout interleaves a reserved slot in the middle. A round-trip of the
+/// type's own write would then drain a wire byte the encoder intended
+/// for the next active field, corrupting the decode.
+///
+/// **The fix.** When that interleaving is possible, the strategy
+/// silently flips to `Tagged` for this product — the int-keyed-map shape
+/// is self-describing on the wire (each entry carries its own tag) so
+/// the decoder doesn't need positional alignment. The wire is slightly
+/// larger but the type is now round-trip-safe.
+///
+/// **Why a silent downgrade rather than an error.** A bulk
+/// `with_default_strategy(Array)` is the common config — flipping it to
+/// an error per type would force callers to add a `with_strategy::<T>(Tagged)`
+/// override for every schema-evolved leaf, which is noise. The downgrade
+/// is local to the call and doesn't affect other types in the same
+/// serializer. Documented in the crate README under the migration guide.
+fn downgrade_array_if_unsafe(
+    product: &crate::Product,
+    strategy: EncodingStrategy,
+) -> EncodingStrategy {
+    if strategy != EncodingStrategy::Array || product.reserved.is_empty() {
+        return strategy;
+    }
+    let max_active = product.fields.iter().map(|(t, _)| *t).max();
+    let min_reserved = product.reserved.iter().copied().min();
+    match (max_active, min_reserved) {
+        // Some reserved tag falls at or before some active tag — the
+        // unsafe interleaving case. Downgrade.
+        (Some(active), Some(reserved)) if reserved <= active => EncodingStrategy::Tagged,
+        // Either no active fields (the product is empty so nothing
+        // round-trips through Array anyway) or reserved is strictly
+        // trailing — Array is safe.
+        _ => strategy,
+    }
+}
+
+/// Write the outer Product header in the shape required by `strategy`:
+/// `Tagged` → int-keyed `fixmap`, `Array` → positional `fixarray`. Used
+/// by both top-level struct paths and variant-payload paths.
+fn write_strategy_header<W: Write>(
+    writer: &mut W,
+    len: usize,
+    strategy: EncodingStrategy,
+) -> Result<(), RmpError> {
+    match strategy {
+        EncodingStrategy::Tagged => write_map_header(writer, len),
+        EncodingStrategy::Array => write_array_header(writer, len),
+    }
+}
+
 /// Assert that serde's reported field count matches the registered
 /// `Product`'s — both should drop the same skipped fields, so they should
 /// always agree. A mismatch is a real misconfiguration: the most common
@@ -454,30 +694,117 @@ fn write_map_header<W: Write>(writer: &mut W, len: usize) -> Result<(), RmpError
 ///
 /// `next_position` is only consulted by the [`SerializeTupleStruct`] impl;
 /// the [`SerializeStruct`] impl ignores it.
+///
+/// `strategy` drives the per-field emission: under `Tagged` each entry is
+/// `(tag, value)` on the wire, under `Array` each entry is just `value`.
+///
+/// Behavior splits on the `buffer` flag, decided at `begin_product` time:
+///
+/// * `buffer = false` (the common path): the outer header is written
+///   upfront and each `serialize_field` writes through the parent stream
+///   immediately. Used when reordering can't change the wire (`Tagged`
+///   with any source order, or `Array` whose source order is already
+///   tag-ascending). The `entries` field stays empty.
+/// * `buffer = true`: the outer header is *deferred* and `serialize_field`
+///   encodes the value into a fresh `Vec<u8>` through a sub-serializer
+///   that shares the parent's registry + strategy, then pushes
+///   `(tag, bytes)` to `entries`. The `finish` flush at `end()` sorts by
+///   tag and dumps in canonical order to the parent. Only reached for
+///   `Array`-strategy types whose source-declaration order doesn't match
+///   tag-ascending order.
 pub struct TaggedSerializeProduct<'ser, 'a, W: Write> {
     product: crate::Product,
     parent: &'ser mut Serializer<'a, W>,
     next_position: usize,
+    strategy: EncodingStrategy,
+    buffer: bool,
+    entries: Vec<(u8, Vec<u8>)>,
+}
+
+/// Decide whether to buffer + flush in tag-ascending order, write the
+/// outer header upfront in the direct case, and return the configured
+/// adapter. Shared by [`Serializer::begin_product`] (top-level) and
+/// [`Serializer::begin_variant_payload`] (enum payload).
+fn begin_product_payload<'ser, 'a, W: Write>(
+    parent: &'ser mut Serializer<'a, W>,
+    product: crate::Product,
+    strategy: EncodingStrategy,
+) -> Result<TaggedSerializeProduct<'ser, 'a, W>, RmpError> {
+    // Buffer iff serde's call order won't naturally produce
+    // tag-ascending output — i.e. whenever the user's source-declaration
+    // order has been deliberately reordered relative to the tags. Both
+    // strategies benefit from canonical wire order (Array for correctness,
+    // Tagged for byte-determinism — cross-implementation compat, hashing
+    // / commitment use cases). Types whose source order *is* monotonic
+    // (the vast majority) pay no allocation regardless of strategy.
+    let buffer = !product.tag_order_matches_source;
+    if !buffer {
+        write_strategy_header(parent.inner.get_mut(), product.fields.len(), strategy)?;
+    }
+    Ok(TaggedSerializeProduct {
+        // Capacity matters only on the buffered path; on the direct path
+        // entries stays empty and the heap allocation is skipped.
+        entries: if buffer { Vec::with_capacity(product.fields.len()) } else { Vec::new() },
+        product,
+        parent,
+        next_position: 0,
+        strategy,
+        buffer,
+    })
 }
 
 impl<'ser, 'a, W: Write> TaggedSerializeProduct<'ser, 'a, W> {
-    /// Emit one `(tag, value)` map entry through the parent serializer. The
-    /// outer map header was written upfront in the corresponding
-    /// `serialize_*` method, so each entry is just two more values appended
-    /// back-to-back: the integer tag (the map key) followed by the field
-    /// value. Routing the value through `&mut *self.parent` keeps any
-    /// nested tagged types in `value` recursing through the wrapper.
-    fn serialize_tagged<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
+    /// Emit one field's wire contribution. Direct path (the common case):
+    /// write `(tag, value)` under Tagged or just `value` under Array,
+    /// straight to the parent stream. Buffered path (Array with
+    /// non-monotonic source order): encode the value into a temp
+    /// `Vec<u8>` through a sub-serializer that shares the parent's
+    /// registry + strategy and push `(tag, bytes)` to `entries` for
+    /// later flushing in `finish`. Either path keeps nested tagged
+    /// types recursing through the wrapper.
+    fn serialize_tag_and_value<T>(&mut self, tag: u8, value: &T) -> Result<(), RmpError>
     where
         T: ?Sized + Serialize,
     {
-        // TODO: emit entries in tag-ascending order per the design doc;
-        // currently each call writes immediately, so on-wire ordering is
-        // serde's call-order = source-declaration order.
-        // This is most relevant when paired with the ARRAY encoding strategy:
-        // it would allow us to reorder the fields without breaking.
-        ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
-        value.serialize(&mut *self.parent)
+        if self.buffer {
+            let mut buf = Vec::new();
+            {
+                let mut sub = self.parent.sub_serializer_into(&mut buf);
+                value.serialize(&mut sub)?;
+            }
+            self.entries.push((tag, buf));
+        } else {
+            if matches!(self.strategy, EncodingStrategy::Tagged) {
+                ser::Serializer::serialize_u8(&mut *self.parent, tag)?;
+            }
+            value.serialize(&mut *self.parent)?;
+        }
+        Ok(())
+    }
+
+    /// Flush the deferred state: under the direct path the header and
+    /// every value have already been written, so this is a no-op. Under
+    /// the buffered path, sort entries by tag, write the strategy-
+    /// appropriate header, then emit each `(tag-prefix?, value-bytes)`
+    /// pair to the parent.
+    fn finish(mut self) -> Result<(), RmpError> {
+        if !self.buffer {
+            return Ok(());
+        }
+        // Stable sort because tags are unique within a Product (macro
+        // guarantees no duplicate tags), so any stability quirk would be
+        // a registry bug, not a serialization bug.
+        self.entries.sort_by_key(|(tag, _)| *tag);
+        write_strategy_header(self.parent.inner.get_mut(), self.entries.len(), self.strategy)?;
+        for (tag, bytes) in &self.entries {
+            if matches!(self.strategy, EncodingStrategy::Tagged) {
+                ser::Serializer::serialize_u8(&mut *self.parent, *tag)?;
+            }
+            self.parent.inner.get_mut().write_all(bytes).map_err(|e| {
+                RmpError::custom(format!("failed to flush buffered field bytes: {e}"))
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -500,12 +827,11 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W>
                  disagree on field names (check `#[serde(rename = ...)]`)",
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        // msgpack maps are length-prefixed, not terminated.
-        Ok(())
+        self.finish()
     }
 }
 
@@ -517,14 +843,8 @@ impl<'ser, 'a, W: Write> SerializeStruct for TaggedSerializeProduct<'ser, 'a, W>
 /// position lets `#[tag(N)]`-reordered tuple structs (e.g.
 /// `struct Triple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8)`) emit each
 /// field under the right wire tag even though the calls arrive in source
-/// order.
-///
-/// Note on wire ordering: entries are emitted in serde's *call order*, which
-/// is source-declaration order — not necessarily tag-ascending. Same as the
-/// `SerializeStruct` impl above. Tightening to tag-ascending for
-/// determinism is a known follow-up that affects both impls and would
-/// require buffering field bytes; doing it consistently for both shapes is
-/// out of scope for this commit.
+/// order — and the buffer-and-flush in `finish` then writes them on the
+/// wire in tag-ascending order.
 impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, 'a, W> {
     type Ok = ();
     type Error = RmpError;
@@ -548,20 +868,20 @@ impl<'ser, 'a, W: Write> SerializeTupleStruct for TaggedSerializeProduct<'ser, '
                  trying to serialize"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(())
+        self.finish()
     }
 }
 
 /// Tuple variant payload (`enum E { ... Pair(u32, bool) }`). Same payload
 /// shape and tag-resolution rule as a top-level tuple struct — the variant's
-/// `payload` `Product` uses positional names (`"0"`, `"1"`, …) and the inner
-/// payload map header was written upfront in `serialize_tuple_variant`. The
-/// outer `{variant_tag: ...}` map's only entry is the payload, so end() just
-/// finishes the inner map; nothing else needs writing.
+/// `payload` `Product` uses positional names (`"0"`, `"1"`, …). The outer
+/// `{variant_tag: ...}` map (1-entry discriminator) was written upfront in
+/// `serialize_tuple_variant`; the payload's header is deferred to
+/// `finish()` along with every other product's.
 impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 'a, W> {
     type Ok = ();
     type Error = RmpError;
@@ -579,11 +899,11 @@ impl<'ser, 'a, W: Write> SerializeTupleVariant for TaggedSerializeProduct<'ser, 
                  Variant payload"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(())
+        self.finish()
     }
 }
 
@@ -604,11 +924,11 @@ impl<'ser, 'a, W: Write> SerializeStructVariant for TaggedSerializeProduct<'ser,
                  field names (check `#[serde(rename = ...)]`)"
             ))
         })?;
-        self.serialize_tagged(tag, value)
+        self.serialize_tag_and_value(tag, value)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(())
+        self.finish()
     }
 }
 
@@ -692,5 +1012,116 @@ impl<'ser, 'a, W: Write> SerializeMap for TaggedSerializeViaParent<'ser, 'a, W> 
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod builder_tests {
+    //! Tests for `Serializer::new` + `with_default_strategy` +
+    //! `with_strategy`. Phase 1 — the strategy state is configured but the
+    //! encoder doesn't yet branch on it; these tests verify the *state* is
+    //! recorded correctly via `Serializer::strategy_for`. Phase 2 will add
+    //! encode-side dispatch and tests for the actual wire shape.
+
+    use super::*;
+    use crate::Tagged;
+
+    struct Foo;
+    impl MsgpackTagged for Foo {
+        const TAGGED: Tagged = Tagged::empty_product();
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("Foo");
+        }
+    }
+
+    struct Bar;
+    impl MsgpackTagged for Bar {
+        const TAGGED: Tagged = Tagged::empty_product();
+        fn register_into(reg: &mut TagRegistry) {
+            reg.try_insert::<Self>("Bar");
+        }
+    }
+
+    /// Build a registry that contains every type passed in. Test-local
+    /// helper — production registries are built via
+    /// `TagRegistry::from_type::<T>()` which seeds the walk from one
+    /// top-level type.
+    fn registry_of<F: FnOnce(&mut TagRegistry)>(f: F) -> TagRegistry {
+        let mut reg = TagRegistry::new();
+        f(&mut reg);
+        reg
+    }
+
+    #[test]
+    fn default_strategy_is_tagged() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    #[test]
+    fn with_default_strategy_changes_default() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Array);
+    }
+
+    #[test]
+    fn per_type_override_beats_default() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    #[test]
+    fn per_type_overrides_are_independent() {
+        let registry = registry_of(|r| {
+            Foo::register_into(r);
+            Bar::register_into(r);
+        });
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        // Bar has no override; falls back to the (changed) default.
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Bar>(), EncodingStrategy::Array);
+    }
+
+    #[test]
+    fn last_with_strategy_wins() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_strategy::<Foo>(EncodingStrategy::Array)
+            .with_strategy::<Foo>(EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Tagged);
+    }
+
+    /// Setting a strategy for a type the registry never saw is almost
+    /// always a type-graph miss bug — the override would silently never
+    /// fire. `with_strategy` panics so the misuse surfaces at config
+    /// time.
+    #[test]
+    #[should_panic(expected = "is not in the registry")]
+    fn with_strategy_panics_on_unregistered_type() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let _ = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_strategy::<Bar>(EncodingStrategy::Array);
+    }
+
+    /// `with_strategy_for_name` is the policy-site sibling — never
+    /// asserts. Inserting an override for a name the registry doesn't
+    /// know about is a no-op at encode time (the name never matches any
+    /// `serialize_struct` call), so `strategy_for::<Foo>` still resolves
+    /// the configured default.
+    #[test]
+    fn with_strategy_for_name_does_not_assert_registration() {
+        let registry = TagRegistry::from_type::<Foo>();
+        let s = Serializer::new(Vec::<u8>::new(), &registry)
+            .with_default_strategy(EncodingStrategy::Array)
+            .with_strategy_for_name("Bar", EncodingStrategy::Tagged);
+        assert_eq!(s.strategy_for::<Foo>(), EncodingStrategy::Array);
     }
 }

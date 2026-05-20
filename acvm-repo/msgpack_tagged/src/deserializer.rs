@@ -69,13 +69,40 @@ pub struct Deserializer<'a, 'de> {
     registry: &'a TagRegistry,
 }
 
+impl<'a, 'de> Deserializer<'a, 'de> {
+    /// Construct a deserializer over `bytes` borrowing the caller-built
+    /// `registry`. Symmetric with [`crate::Serializer::new`].
+    pub fn new(bytes: &'de [u8], registry: &'a TagRegistry) -> Self {
+        Self { inner: RmpDeserializer::new(bytes), registry }
+    }
+
+    /// Read a msgpack map header (`fixmap` / `map16` / `map32`) and return
+    /// its length as `usize`. Thin wrapper over `rmp::decode::read_map_len`
+    /// that bakes in our error-formatting + the `u32 → usize` cast every
+    /// caller wants.
+    fn read_map_len(&mut self) -> Result<usize, RmpError> {
+        rmp::decode::read_map_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))
+            .map(|n| n as usize)
+    }
+
+    /// Read a msgpack array header (`fixarray` / `array16` / `array32`)
+    /// and return its length as `usize`. Sibling of [`Self::read_map_len`].
+    fn read_array_len(&mut self) -> Result<usize, RmpError> {
+        rmp::decode::read_array_len(self.inner.get_mut())
+            .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))
+            .map(|n| n as usize)
+    }
+}
+
 /// Build the tag registry from `T::register_into`, then deserialize a value
 /// of type `T` from `bytes` through a [`Deserializer`].
 ///
-/// All tagged types are expected to be encoded in the **Tagged** strategy
-/// (int-keyed maps) produced by
-/// [`crate::serializer::msgpack_tagged_serialize`]. Strategy decoding (Array,
-/// Named) and per-type strategy selection are follow-ups.
+/// All tagged types are expected to be encoded under `Format::MsgpackTagged`
+/// (int-keyed maps for [`crate::EncodingStrategy::Tagged`], positional
+/// arrays for [`crate::EncodingStrategy::Array`] — the decoder probes the
+/// wire shape per struct). Other formats route through their own decoders
+/// upstream via the `Format` byte (defined in the `acir` crate).
 pub fn msgpack_tagged_deserialize<'de, T>(bytes: &'de [u8]) -> std::io::Result<T>
 where
     T: Deserialize<'de> + MsgpackTagged,
@@ -92,7 +119,7 @@ where
 // translated back to serde field/variant names.
 // ============================================================================
 
-impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
+impl<'a, 'de> de::Deserializer<'de> for &mut Deserializer<'a, 'de> {
     type Error = RmpError;
 
     // TODO: when used with self-describing visitors (e.g. `serde_json::Value`,
@@ -201,7 +228,26 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
     }
 
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        (&mut self.inner).deserialize_unit(visitor)
+        // Lenient on purpose: consume whatever single msgpack value sits at
+        // this position and hand `()` to the visitor. Plain serde requires
+        // the wire to carry `nil` to satisfy a `()` field; our wrapper
+        // relaxes that so a `()` field can act as a portable "skip this
+        // position" placeholder.
+        //
+        // Use case: a stripped-down DTO that wants to ignore part of the
+        // wire while keeping the surrounding tag layout intact. The
+        // canonical example is `ProgramWithoutBrillig` in
+        // `acvm-repo/acir/src/lib.rs` — same tag layout as `Program`,
+        // but `unconstrained_functions: ()` discards the brillig payload
+        // so the C++ codegen consumer can read just the ACIR section.
+        // The C++ side achieves the same effect with `std::monostate`;
+        // this hook keeps Rust-side decoding symmetric.
+        //
+        // Unit-variant payloads (encoded as a literal `nil`) flow through
+        // here too and still work — `IgnoredAny` reads the nil byte and
+        // we visit `()` exactly as before.
+        de::IgnoredAny::deserialize(&mut *self)?;
+        visitor.visit_unit()
     }
 
     fn deserialize_unit_struct<V: Visitor<'de>>(
@@ -243,9 +289,8 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         // The adapter then yields each element via `&mut *self.parent`
         // so any tagged element inside the sequence recurses through
         // this wrapper.
-        let len = rmp::decode::read_array_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))?;
-        visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len as usize })
+        let len = self.read_array_len()?;
+        visitor.visit_seq(TaggedAccessViaParent { parent: self, remaining: len })
     }
 
     fn deserialize_tuple<V: Visitor<'de>>(
@@ -259,9 +304,8 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         // visitor reads exactly `len` elements and stops, so a wire that
         // claims more would silently leave trailing bytes in the stream
         // and corrupt subsequent reads.
-        let actual = rmp::decode::read_array_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack array length: {e:?}")))?;
-        if actual as usize != len {
+        let actual = self.read_array_len()?;
+        if actual != len {
             return Err(RmpError::custom(format!(
                 "tuple length mismatch: type expects {len} elements, wire has {actual}",
             )));
@@ -278,24 +322,30 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         _len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        // Top-level tuple structs (`struct Pair(u32, bool)`) are encoded
-        // as int-keyed maps on the wire — same shape as named structs —
-        // but the `Deserialize` impl calls `next_element_seed` (positional)
-        // instead of `next_key_seed` (by name). We buffer every wire entry
-        // as a `(tag, value-bytes)` pair upfront, then dispatch by tag in
-        // `next_element_seed` via `Product.tag_for("0")`,
-        // `tag_for("1")`, … so reconstruction is robust to whatever order
-        // the serializer emits entries in.
-        // See `TaggedTupleStructAccess`'s doc for the why.
+        // Top-level tuple structs (`struct Pair(u32, bool)`) come in two
+        // wire shapes:
+        //   * `Map` (Tagged): int-keyed `{tag → value}` pairs. Each
+        //     entry's tag is read from the wire; we buffer
+        //     `(tag, value-bytes)` and dispatch by tag in
+        //     `next_element_seed` so reconstruction is robust to whatever
+        //     order the serializer emits entries in.
+        //   * `Array` (positional): bare `[v0, v1, …]`. Each entry's tag
+        //     is synthesized from `product.fields[wire_pos]` (the wire is
+        //     in tag-ascending order). The downstream
+        //     `TaggedTupleStructAccess` dispatch is identical to the Map
+        //     case once the buffer is materialized.
+        let context = || format!("tuple-struct {name:?}");
         let product = self.product_for(name);
-        let wire_len = rmp::decode::read_map_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        let wire_len = wire_len as usize;
-        let entries = self.buffer_and_validate_int_keyed_map(
-            wire_len,
-            &product,
-            &format!("tuple-struct {name:?}"),
-        )?;
+        let entries = match self.peek_wire_shape()? {
+            WireShape::Map => {
+                let wire_len = self.read_map_len()?;
+                self.buffer_and_validate_int_keyed_map(wire_len, &product, context)?
+            }
+            WireShape::Array => {
+                let wire_len = self.read_array_len()?;
+                self.buffer_positional_array(wire_len, &product, context)?
+            }
+        };
         visitor.visit_seq(TaggedTupleStructAccess {
             parent: self,
             product,
@@ -307,9 +357,8 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         // Same shape as `deserialize_seq` — read the length-prefixed
         // header, then yield each entry's key+value through the parent.
-        let len = rmp::decode::read_map_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        visitor.visit_map(TaggedAccessViaParent { parent: self, remaining: len as usize })
+        let len = self.read_map_len()?;
+        visitor.visit_map(TaggedAccessViaParent { parent: self, remaining: len })
     }
 
     fn deserialize_struct<V: Visitor<'de>>(
@@ -319,22 +368,54 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         // Look up the type's `Product` in the registry — it carries the
-        // tag → field-name mapping we need to feed the visitor. Read the
-        // msgpack map length, then hand off to `TaggedProductMapAccess`
-        // which yields each entry's key as the registered field name
-        // (translated from the integer wire tag) and routes each value
-        // through `&mut *self.parent`. Wire-tolerance for missing tags is
-        // serde-derive's job via `#[serde(default)]` — this layer stays
-        // focused on tag↔name translation.
+        // tag ↔ field-name mapping we need to feed the visitor — then peek
+        // the wire shape to dispatch:
+        //   * `Map` → existing `TaggedProductMapAccess`, reading tags from
+        //     the wire and translating to field names.
+        //   * `Array` → `ArrayProductMapAccess`, walking `product.fields`
+        //     positionally and synthesizing the field-name keys.
+        // In either case the visitor receives `(field_name, value)` pairs
+        // via `visit_map` — that's how serde-derive's `Deserialize` for
+        // named structs is driven — and serde-derive's `#[serde(default)]`
+        // machinery covers any missing trailing positions on short wires.
         let product = self.product_for(name);
-        let len = rmp::decode::read_map_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        visitor.visit_map(TaggedProductMapAccess {
-            parent: self,
-            product,
-            type_name: name,
-            remaining: len as usize,
-        })
+        match self.peek_wire_shape()? {
+            WireShape::Map => {
+                let len = self.read_map_len()?;
+                visitor.visit_map(TaggedProductMapAccess {
+                    parent: self,
+                    product,
+                    type_name: name,
+                    remaining: len,
+                })
+            }
+            WireShape::Array => {
+                let wire_len = self.read_array_len()?;
+                let layout = merged_wire_layout(&product);
+                // Cap check: extras past the merged (active + reserved)
+                // layout are only allowed when `allow_unknown_tags` is set.
+                // Reserved slots inside the cap are drained silently inside
+                // `ArrayProductMapAccess`.
+                if !product.allow_unknown_tags && wire_len > layout.len() {
+                    return Err(RmpError::custom(format!(
+                        "struct {name:?}: wire has {wire_len} positional entries but the \
+                         type accepts at most {} under Array strategy ({} active + {} \
+                         reserved); opt into `#[tagged(allow_unknown_tags)]` to \
+                         silently skip extras",
+                        layout.len(),
+                        product.fields.len(),
+                        product.reserved.len(),
+                    )));
+                }
+                visitor.visit_map(ArrayProductMapAccess {
+                    parent: self,
+                    product,
+                    layout,
+                    wire_remaining: wire_len,
+                    next_position: 0,
+                })
+            }
+        }
     }
 
     // Outer wire shape: a 1-entry msgpack map `{u8 variant_tag: payload}`,
@@ -355,8 +436,7 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         let sum = self.sum_for(name);
-        let outer_len = rmp::decode::read_map_len(self.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
+        let outer_len = self.read_map_len()?;
         if outer_len != 1 {
             return Err(RmpError::custom(format!(
                 "MsgpackTagged: enum {name:?} expects a 1-entry outer map, got {outer_len}",
@@ -425,14 +505,6 @@ impl<'de, 'a, 'der> de::Deserializer<'de> for &'der mut Deserializer<'a, 'de> {
 }
 
 impl<'a, 'de> Deserializer<'a, 'de> {
-    /// Create a deserializer over some byte slice with a given registry.
-    ///
-    /// Uses the default configuration for the inner msgpack deserializer.
-    fn new(bytes: &'de [u8], registry: &'a TagRegistry) -> Self {
-        let inner = RmpDeserializer::new(bytes);
-        Self { inner, registry }
-    }
-
     /// Resolve a registered `Product` by serde name. Used by
     /// `deserialize_struct` (and, once it lands, `deserialize_tuple_struct`).
     /// Mirrors `Serializer::product_for` — a registry miss or sum-shaped
@@ -485,21 +557,24 @@ impl<'a, 'de> Deserializer<'a, 'de> {
     /// before we walk the bytes. The per-tag scan after buffering catches
     /// the within-bounds-but-still-unknown case.
     ///
-    /// `context` is a caller-supplied label (e.g. `"tuple-struct \"Foo\""`
-    /// or `"tuple variant \"Carry\""`) that gets embedded in error messages.
+    /// `context` is a caller-supplied closure producing a label (e.g.
+    /// `"tuple-struct \"Foo\""` or `"tuple variant \"Carry\""`) that gets
+    /// embedded in error messages. It's a closure so the `String` is only
+    /// allocated on the error path — the happy path skips the format call.
     fn buffer_and_validate_int_keyed_map<'der>(
         &'der mut self,
         wire_len: usize,
         product: &crate::Product,
-        context: &str,
+        context: impl FnOnce() -> String,
     ) -> Result<IntKeyedEntries<'de>, RmpError> {
         if !product.allow_unknown_tags {
             let cap = product.fields.len() + product.reserved.len();
             if wire_len > cap {
                 return Err(RmpError::custom(format!(
-                    "{context}: wire has {wire_len} entries but the type accepts \
+                    "{}: wire has {wire_len} entries but the type accepts \
                      at most {cap} ({} active + {} reserved); opt into \
                      `#[tagged(allow_unknown_tags)]` to silently skip extras",
+                    context(),
                     product.fields.len(),
                     product.reserved.len(),
                 )));
@@ -518,14 +593,141 @@ impl<'a, 'de> Deserializer<'a, 'de> {
             for (tag, _) in &entries {
                 if product.field_for(*tag).is_none() && !product.is_reserved(*tag) {
                     return Err(RmpError::custom(format!(
-                        "MsgpackTagged: unknown wire tag {tag} for {context} \
+                        "MsgpackTagged: unknown wire tag {tag} for {} \
                          and `allow_unknown_tags` is false",
+                        context(),
                     )));
                 }
             }
         }
         Ok(entries)
     }
+
+    /// Read `wire_len` positional `value-bytes` entries from the inner
+    /// reader (the `Array`-strategy wire shape — `fixarray` of values, no
+    /// per-entry tag) and return them as an `IntKeyedEntries` with the tag
+    /// for each entry *synthesized* from the merged-sorted (active +
+    /// reserved) tag layout. This lets the downstream
+    /// `TaggedTupleStructAccess` dispatch by tag uniformly across both
+    /// wire strategies; for tuple structs / tuple variants the access
+    /// reuses the same tag-driven path.
+    ///
+    /// **Reserved-tag handling under Array.** When a V2 schema retires a
+    /// field with `#[tagged(reserved(N))]`, the V1 wire (produced before
+    /// the retirement) still carries a value at the slot that used to
+    /// hold tag `N`. The merged layout tells us which wire positions
+    /// correspond to retired tags so we can drain them silently without
+    /// confusing them with the active slots that come after.
+    ///
+    /// Cap check: `wire_len > active_count + reserved_count` is only
+    /// accepted under `allow_unknown_tags`. Entries beyond that arity
+    /// get consumed-and-discarded so the outer stream stays aligned, but
+    /// they're not pushed to the returned buffer.
+    fn buffer_positional_array<'der>(
+        &'der mut self,
+        wire_len: usize,
+        product: &crate::Product,
+        context: impl FnOnce() -> String,
+    ) -> Result<IntKeyedEntries<'de>, RmpError> {
+        let layout = merged_wire_layout(product);
+        if !product.allow_unknown_tags && wire_len > layout.len() {
+            return Err(RmpError::custom(format!(
+                "{}: wire has {wire_len} positional entries but the type accepts \
+                 at most {} under Array strategy ({} active + {} reserved); opt \
+                 into `#[tagged(allow_unknown_tags)]` to silently skip extras",
+                context(),
+                layout.len(),
+                product.fields.len(),
+                product.reserved.len(),
+            )));
+        }
+        let mut entries: IntKeyedEntries<'de> =
+            SmallVec::with_capacity(wire_len.min(product.fields.len()));
+        for wire_pos in 0..wire_len {
+            let before: &'de [u8] = self.inner.get_mut();
+            de::IgnoredAny::deserialize(&mut *self)?;
+            let after: &'de [u8] = self.inner.get_mut();
+            let consumed = before.len() - after.len();
+            match layout.get(wire_pos) {
+                // Active slot: push the value-bytes under the corresponding
+                // tag so the downstream tag-driven access can find it.
+                Some(&(tag, true)) => entries.push((tag, &before[..consumed])),
+                // Reserved slot: V2 doesn't have an active field here; the
+                // wire entry was V1's value at the retired position. Drain
+                // silently — the value bytes are already consumed by
+                // `IgnoredAny` above, and we don't push to the buffer.
+                Some(&(_, false)) => {}
+                // Trailing entry past `active + reserved`; cap check above
+                // only lets us reach here under `allow_unknown_tags`.
+                None => {}
+            }
+        }
+        Ok(entries)
+    }
+
+    /// Peek the next msgpack marker without advancing the reader and
+    /// classify it as a Tagged-strategy map header or an Array-strategy
+    /// array header. Used at every product-shaped decode site
+    /// (`deserialize_struct`, `deserialize_tuple_struct`,
+    /// `TaggedEnumAccess::tuple_variant` / `struct_variant`) to dispatch
+    /// to the right reader.
+    ///
+    /// Any other marker is a malformed-bytes error under
+    /// `Format::MsgpackTagged` — legacy `Msgpack` / `MsgpackCompact` data
+    /// has its own format byte and never reaches this wrapper, so
+    /// string-keyed maps and other shapes are not expected here.
+    fn peek_wire_shape(&mut self) -> Result<WireShape, RmpError> {
+        let bytes: &'de [u8] = self.inner.get_mut();
+        let first = *bytes.first().ok_or_else(|| {
+            RmpError::custom("expected fixmap or fixarray under MsgpackTagged, got end-of-stream")
+        })?;
+        match Marker::from_u8(first) {
+            Marker::FixMap(_) | Marker::Map16 | Marker::Map32 => Ok(WireShape::Map),
+            Marker::FixArray(_) | Marker::Array16 | Marker::Array32 => Ok(WireShape::Array),
+            m => Err(RmpError::custom(format!(
+                "expected fixmap or fixarray under MsgpackTagged, got {m:?}"
+            ))),
+        }
+    }
+}
+
+/// Wire shape of a product value under `Format::MsgpackTagged`. Picked per
+/// struct at decode time by peeking the next msgpack marker — the
+/// `Serializer` choice of `EncodingStrategy` is not communicated through a
+/// separate channel (and doesn't need to be: the shape is self-describing
+/// at the msgpack-header level).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WireShape {
+    /// `fixmap` / `map16` / `map32` — Tagged: int-keyed map.
+    Map,
+    /// `fixarray` / `array16` / `array32` — Array: positional.
+    Array,
+}
+
+/// Merge `product.fields` and `product.reserved` into a single
+/// tag-ascending list of `(tag, is_active)` pairs.
+///
+/// The Array-strategy encoder emits wire positions in tag-ascending order
+/// across both active and reserved tags (a V1 writer that still carries a
+/// value at a now-retired tag sorts that tag in alongside the live ones).
+/// So decoding by wire position requires the same merged ordering: position
+/// `i` on the wire corresponds to the i-th tag in the merged list, and the
+/// `is_active` flag tells the decoder whether to push the value bytes into
+/// the buffered entries (active) or drain them silently (reserved).
+///
+/// Inline capacity 8 fits the typical ACIR product without spilling; larger
+/// products transparently fall back to the heap.
+fn merged_wire_layout(product: &crate::Product) -> SmallVec<[(u8, bool); 8]> {
+    let mut layout: SmallVec<[(u8, bool); 8]> =
+        SmallVec::with_capacity(product.fields.len() + product.reserved.len());
+    for &(tag, _) in product.fields {
+        layout.push((tag, true));
+    }
+    for &tag in product.reserved {
+        layout.push((tag, false));
+    }
+    layout.sort_by_key(|(tag, _)| *tag);
+    layout
 }
 
 /// Shared access adapter routing each yielded value through the parent
@@ -668,6 +870,105 @@ impl<'de, 'der, 'a> MapAccess<'de> for TaggedProductMapAccess<'der, 'a, 'de> {
     }
 }
 
+/// `MapAccess` adapter for named structs decoded from the **Array**
+/// strategy wire shape (positional `fixarray` of values). Unlike
+/// `TaggedProductMapAccess` the wire carries no tags; we synthesize the
+/// keys yielded to the visitor by walking the merged (active + reserved)
+/// wire layout — see [`merged_wire_layout`] for why the merge is needed.
+/// The visitor still receives `(field_name, value)` pairs — that's how
+/// serde-derive's `Deserialize` for named structs is driven — but the
+/// field-name source is the registry, not the wire.
+///
+/// Reserved slots inside the layout are drained transparently: the wire
+/// position is consumed (so the outer stream stays aligned), but no
+/// `(field_name, value)` pair is yielded to the visitor.
+///
+/// Short wires (`wire_remaining < active count`) yield `Ok(None)` once
+/// exhausted; serde-derive's `#[serde(default)]` machinery fills in any
+/// missing trailing positions, same fallback as the Tagged path.
+///
+/// Long wires (`wire_remaining > layout.len()`) only reach this adapter
+/// when `allow_unknown_tags` is set — the cap check at the call site
+/// bails on the strict default. Extras past the layout get consumed-and-
+/// discarded inside `next_key_seed`'s loop before reporting exhaustion.
+struct ArrayProductMapAccess<'der, 'a, 'de> {
+    parent: &'der mut Deserializer<'a, 'de>,
+    product: crate::Product,
+    /// Merged (active + reserved) wire layout, tag-ascending. Drives the
+    /// per-position dispatch between "yield to visitor" (active) and
+    /// "drain silently" (reserved).
+    layout: SmallVec<[(u8, bool); 8]>,
+    /// Wire entries left to consume.
+    wire_remaining: usize,
+    /// Next position in the merged layout to consider.
+    next_position: usize,
+}
+
+impl<'de, 'der, 'a> MapAccess<'de> for ArrayProductMapAccess<'der, 'a, 'de> {
+    type Error = RmpError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        loop {
+            // Wire exhausted: serde-derive's `#[serde(default)]` covers
+            // any trailing active positions the type still expects.
+            if self.wire_remaining == 0 {
+                return Ok(None);
+            }
+            match self.layout.get(self.next_position) {
+                // Reserved slot: discard the value bytes and advance both
+                // counters, then look at the next position.
+                Some(&(_, false)) => {
+                    de::IgnoredAny::deserialize(&mut *self.parent)?;
+                    self.wire_remaining -= 1;
+                    self.next_position += 1;
+                }
+                // Active slot: synthesize the field-name key and hand it
+                // to the visitor. The matching `next_value_seed` call
+                // below advances the counters.
+                Some(&(tag, true)) => {
+                    let field_name = self
+                        .product
+                        .field_for(tag)
+                        .expect("active layout entry must resolve to a field name");
+                    let key_deserializer =
+                        de::value::BorrowedStrDeserializer::<RmpError>::new(field_name);
+                    return seed.deserialize(key_deserializer).map(Some);
+                }
+                // Past the merged layout (only reachable under
+                // `allow_unknown_tags`). Drain remaining wire entries
+                // silently — never yield to the visitor.
+                None => {
+                    de::IgnoredAny::deserialize(&mut *self.parent)?;
+                    self.wire_remaining -= 1;
+                }
+            }
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let value = seed.deserialize(&mut *self.parent)?;
+        self.wire_remaining -= 1;
+        self.next_position += 1;
+        Ok(value)
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        // Upper bound: active positions still pending in the layout, capped
+        // by how many wire entries remain.
+        let active_remaining = self.layout[self.next_position.min(self.layout.len())..]
+            .iter()
+            .filter(|(_, active)| *active)
+            .count();
+        Some(active_remaining.min(self.wire_remaining))
+    }
+}
+
 /// `SeqAccess` adapter for top-level tuple structs (multi-element
 /// `struct Pair(u32, bool)` shapes). Decoded by tag, not by wire order:
 /// every wire entry is buffered as `(tag, value-bytes)` upfront, and on
@@ -733,9 +1034,10 @@ impl<'de, 'der, 'a> SeqAccess<'de> for TaggedTupleStructAccess<'der, 'a, 'de> {
         };
 
         // Sub-wrapper over the value's bytes. Sharing the parent's
-        // registry keeps nested tagged-type lookups consistent. The
-        // sub-deserializer's reader state starts fresh at the value's
-        // first byte, so its own `marker` buffer is empty as expected.
+        // registry (via `Arc::clone`) keeps nested tagged-type lookups
+        // consistent. The sub-deserializer's reader state starts fresh at
+        // the value's first byte, so its own `marker` buffer is empty as
+        // expected.
         let mut sub_deserializer = Deserializer::new(value_bytes, self.parent.registry);
         seed.deserialize(&mut sub_deserializer).map(Some)
     }
@@ -814,19 +1116,27 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
     where
         V: Visitor<'de>,
     {
-        // Same int-keyed-map wire shape as a top-level tuple struct, just
-        // sitting under a 1-entry outer variant map. Validation policy
-        // (active/reserved/allow_unknown) is shared via the helper —
-        // including the upfront cap check so a grossly oversized payload
-        // errors before we walk its bytes.
-        let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        let wire_len = wire_len as usize;
-        let entries = self.parent.buffer_and_validate_int_keyed_map(
-            wire_len,
-            &self.variant.payload,
-            &format!("tuple variant {:?}", self.variant.name),
-        )?;
+        // Same dispatch as the top-level tuple-struct path: peek the
+        // payload's wire shape, buffer into `IntKeyedEntries` either by
+        // reading wire tags (Tagged) or by synthesizing them from the
+        // payload's `Product.fields` (Array), then hand off to the
+        // shared `TaggedTupleStructAccess`.
+        let variant_name = self.variant.name;
+        let context = || format!("tuple variant {variant_name:?}");
+        let entries = match self.parent.peek_wire_shape()? {
+            WireShape::Map => {
+                let wire_len = self.parent.read_map_len()?;
+                self.parent.buffer_and_validate_int_keyed_map(
+                    wire_len,
+                    &self.variant.payload,
+                    context,
+                )?
+            }
+            WireShape::Array => {
+                let wire_len = self.parent.read_array_len()?;
+                self.parent.buffer_positional_array(wire_len, &self.variant.payload, context)?
+            }
+        };
         visitor.visit_seq(TaggedTupleStructAccess {
             parent: self.parent,
             product: self.variant.payload,
@@ -843,13 +1153,41 @@ impl<'de, 'der, 'a> VariantAccess<'de> for TaggedEnumAccess<'der, 'a, 'de> {
     where
         V: Visitor<'de>,
     {
-        let wire_len = rmp::decode::read_map_len(self.parent.inner.get_mut())
-            .map_err(|e| RmpError::custom(format!("failed to read msgpack map length: {e:?}")))?;
-        visitor.visit_map(TaggedProductMapAccess {
-            parent: self.parent,
-            product: self.variant.payload,
-            type_name: self.variant.name,
-            remaining: wire_len as usize,
-        })
+        // Mirror of `Deserializer::deserialize_struct`'s dispatch, on the
+        // variant payload's `Product`.
+        match self.parent.peek_wire_shape()? {
+            WireShape::Map => {
+                let wire_len = self.parent.read_map_len()?;
+                visitor.visit_map(TaggedProductMapAccess {
+                    parent: self.parent,
+                    product: self.variant.payload,
+                    type_name: self.variant.name,
+                    remaining: wire_len,
+                })
+            }
+            WireShape::Array => {
+                let wire_len = self.parent.read_array_len()?;
+                let layout = merged_wire_layout(&self.variant.payload);
+                if !self.variant.payload.allow_unknown_tags && wire_len > layout.len() {
+                    return Err(RmpError::custom(format!(
+                        "struct variant {:?}: wire has {wire_len} positional entries but the \
+                         payload accepts at most {} under Array strategy ({} active + {} \
+                         reserved); opt into `#[tagged(allow_unknown_tags)]` to silently \
+                         skip extras",
+                        self.variant.name,
+                        layout.len(),
+                        self.variant.payload.fields.len(),
+                        self.variant.payload.reserved.len(),
+                    )));
+                }
+                visitor.visit_map(ArrayProductMapAccess {
+                    parent: self.parent,
+                    product: self.variant.payload,
+                    layout,
+                    wire_remaining: wire_len,
+                    next_position: 0,
+                })
+            }
+        }
     }
 }

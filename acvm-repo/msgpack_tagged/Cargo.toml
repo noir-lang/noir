@@ -22,4 +22,5 @@ smallvec.workspace = true
 
 [dev-dependencies]
 rmpv.workspace = true
+test-case.workspace = true
 trybuild.workspace = true

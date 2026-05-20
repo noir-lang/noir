@@ -72,11 +72,21 @@ impl Tagged {
 /// `T::default()` when this tag is missing") is **not** modeled here — it's
 /// expressed on the user side via serde-derive's `#[serde(default)]`, which
 /// is what actually performs the substitution at decode time.
+///
+/// `tag_order_matches_source` says the user's source-declaration order is
+/// already tag-ascending — i.e. the order serde-derive will call
+/// `serialize_field` in matches the canonical wire order. Set by the macro
+/// at derive time. The encoder uses it to skip the buffer-and-sort flush
+/// under the `Array` strategy when source order is already correct, saving
+/// a per-field `Vec<u8>` allocation. Under `Tagged` the encoder always
+/// writes direct (no canonical-byte-order promise), so this flag is
+/// unused there.
 #[derive(Clone, Copy, Debug)]
 pub struct Product {
     pub fields: &'static [(Tag, &'static str)],
     pub reserved: &'static [Tag],
     pub allow_unknown_tags: bool,
+    pub tag_order_matches_source: bool,
 }
 
 impl Product {
@@ -101,7 +111,13 @@ impl Product {
 
     /// Empty [Product] used for primitives and _newtypes_.
     pub const fn empty() -> Self {
-        Self { fields: &[], reserved: &[], allow_unknown_tags: false }
+        // No fields ⇒ trivially monotonic (no order to violate).
+        Self {
+            fields: &[],
+            reserved: &[],
+            allow_unknown_tags: false,
+            tag_order_matches_source: true,
+        }
     }
 }
 
@@ -202,6 +218,39 @@ impl Entry {
     pub fn tagged(&self) -> Tagged {
         self.tagged
     }
+
+    /// The registered Rust type's [`TypeId`]. Used by the serializer to
+    /// bridge serde's `&str` name (received at `serialize_struct` time)
+    /// to the `TypeId`-keyed per-type strategy overrides.
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+}
+
+/// The basename component of `std::any::type_name::<T>()` — module path
+/// stripped, generic parameters dropped. Used by the strategy-override
+/// machinery to look up registered types by the same serde name that
+/// `#[serde(rename = "...")]` (or the bare type ident) maps to.
+///
+/// Examples (illustrative — actual results depend on the compiler):
+/// * `Circuit<FieldElement>` → `"Circuit"`
+/// * `acir::circuit::Program<acir_field::FieldElement>` → `"Program"`
+/// * `Vec<u32>` → `"Vec"`
+/// * `u32` → `"u32"`
+///
+/// Caveat: a shadow-DTO type with `#[serde(rename = "Public")]` has
+/// `type_name` = `"…::PublicWire"` (the Rust type) but registers under
+/// `"Public"` (the serde name). The public type that delegates via
+/// `#[tagged(via(PublicWire<F>))]` has `type_name` = `"…::Public"`,
+/// which lines up. So passing the public type to
+/// `with_strategy::<Public<F>>` works; passing the wire DTO directly
+/// (`with_strategy::<PublicWire<F>>`) would silently miss.
+pub fn type_name_basename<T: ?Sized>() -> &'static str {
+    let full: &'static str = std::any::type_name::<T>();
+    // Strip generic parameters: everything from the first `<` onward.
+    let no_generics: &'static str = full.split_once('<').map_or(full, |(head, _)| head);
+    // Strip module path: everything before and including the last `::`.
+    no_generics.rsplit_once("::").map_or(no_generics, |(_, tail)| tail)
 }
 
 /// A registry of types participating in tagged-map serialization.
@@ -229,6 +278,19 @@ impl TagRegistry {
         let mut reg = Self::new();
         T::register_into(&mut reg);
         reg
+    }
+
+    /// Whether `name` corresponds to a registered serde name. Used by
+    /// [`crate::Serializer::with_strategy`] to fail fast when a strategy
+    /// override targets a name the registry never saw — almost always a
+    /// type-graph miss bug. Pair with [`type_name_basename`] when starting
+    /// from a Rust type:
+    ///
+    /// ```ignore
+    /// registry.contains(type_name_basename::<Circuit<F>>())
+    /// ```
+    pub fn contains(&self, name: &str) -> bool {
+        self.entries.contains_key(name)
     }
 
     /// Register a type under its serde name.
@@ -287,6 +349,7 @@ mod tests {
             fields: &[(0, "a"), (1, "b")],
             reserved: &[3],
             allow_unknown_tags: true,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -298,6 +361,7 @@ mod tests {
             fields: &[(0, "x")],
             reserved: &[],
             allow_unknown_tags: false,
+            tag_order_matches_source: true,
         });
         fn register_into(_reg: &mut TagRegistry) {}
     }
@@ -322,6 +386,7 @@ mod tests {
                         fields: &[(0, "a"), (2, "b")],
                         reserved: &[],
                         allow_unknown_tags: false,
+                        tag_order_matches_source: true,
                     },
                 },
             ],

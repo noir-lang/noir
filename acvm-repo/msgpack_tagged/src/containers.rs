@@ -100,6 +100,7 @@ mod tests {
             fields: &[(0, "x")],
             reserved: &[],
             allow_unknown_tags: false,
+            tag_order_matches_source: true,
         });
         fn register_into(reg: &mut TagRegistry) {
             reg.try_insert::<Foo>("Foo");
@@ -113,6 +114,7 @@ mod tests {
             fields: &[(0, "y")],
             reserved: &[],
             allow_unknown_tags: false,
+            tag_order_matches_source: true,
         });
         fn register_into(reg: &mut TagRegistry) {
             reg.try_insert::<Bar>("Bar");

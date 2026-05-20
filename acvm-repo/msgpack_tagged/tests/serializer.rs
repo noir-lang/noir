@@ -482,3 +482,335 @@ fn struct_variant_payload_recurses_through_wrapper() {
     };
     assert!(nested.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
 }
+
+// ============================================================================
+// `EncodingStrategy::Array` — top-level struct/tuple-struct shape flips to
+// `fixarray`; variant payloads stay int-keyed regardless.
+// ============================================================================
+
+use msgpack_tagged::{EncodingStrategy, Serializer, TagRegistry};
+use serde::Serialize as _;
+
+/// Serialize `value` through a `Serializer` configured with the given
+/// default strategy. Helper to keep the encoding-strategy tests concise.
+fn encode_with_default_strategy<T>(value: &T, strategy: EncodingStrategy) -> Vec<u8>
+where
+    T: ?Sized + serde::Serialize + MsgpackTagged,
+{
+    let registry = TagRegistry::from_type::<T>();
+    let mut buf = Vec::new();
+    let mut s = Serializer::new(&mut buf, &registry).with_default_strategy(strategy);
+    value.serialize(&mut s).expect("serialize succeeds");
+    buf
+}
+
+/// Under `Array` strategy a named struct emits as a positional `fixarray`,
+/// fields in registered (tag-ascending) order, with no per-field tag byte.
+#[test]
+fn named_struct_under_array_strategy_emits_fixarray() {
+    let value = Pair { first: 7, second: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array under Array strategy, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+}
+
+/// Under `Array`, a tuple struct also emits as a positional `fixarray`.
+/// Same shape as a named struct — the strategy is about wire shape, not
+/// about which serde call lands.
+#[derive(serde::Serialize, MsgpackTagged)]
+struct ArrayStrategyTriple(u32, bool, u8);
+
+#[test]
+fn tuple_struct_under_array_strategy_emits_fixarray() {
+    let value = ArrayStrategyTriple(7, true, 9);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array under Array strategy, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 3);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+    assert_eq!(elements[2].as_u64(), Some(9));
+}
+
+/// Array bytes are strictly smaller than Tagged bytes for the same value —
+/// no per-field tag prefix. Locks in the size-saving property the strategy
+/// is meant to deliver.
+#[test]
+fn array_strategy_is_smaller_than_tagged_for_the_same_value() {
+    let value = ArrayStrategyTriple(7, true, 9);
+    let tagged = encode_with_default_strategy(&value, EncodingStrategy::Tagged);
+    let array = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    assert!(
+        array.len() < tagged.len(),
+        "Array ({}) should be smaller than Tagged ({})",
+        array.len(),
+        tagged.len(),
+    );
+}
+
+/// `ReorderedTriple(#[tag(2)] u32, #[tag(0)] bool, #[tag(1)] u8)` —
+/// source order ≠ tag order. Under Array the wire must be in
+/// *tag-ascending* order regardless of serde's source-order calls:
+/// `[bool, u8, u32]`. The encoder buffers per-field bytes and flushes
+/// sorted by tag in `TaggedSerializeProduct::finish` to make this hold.
+#[test]
+fn array_strategy_emits_in_tag_ascending_order_not_source_order() {
+    let value = ReorderedTriple(7, true, 9);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected msgpack array, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 3);
+    // Tag 0 (bool true) emitted first — *not* the source-position-0 u32.
+    assert_eq!(elements[0].as_bool(), Some(true));
+    // Tag 1 (u8 9) emitted next.
+    assert_eq!(elements[1].as_u64(), Some(9));
+    // Tag 2 (u32 7) emitted last.
+    assert_eq!(elements[2].as_u64(), Some(7));
+}
+
+/// Under Tagged the encoder also emits in canonical (tag-ascending)
+/// order whenever source order doesn't match — the byte-determinism the
+/// design doc's "TAGS define the canonical field order" section
+/// promises. The decoder is order-agnostic (every wire entry carries
+/// its explicit tag), but consumers reading the bytes downstream
+/// (cross-implementation compatibility, hashing, cryptographic
+/// commitments) rely on this property. The cost is a per-field
+/// `Vec<u8>` allocation paid only for types whose tags have been
+/// deliberately reordered relative to source.
+#[test]
+fn tagged_strategy_emits_in_tag_ascending_order_not_source_order() {
+    let value = ReorderedTriple(7, true, 9);
+    let bytes = msgpack_tagged_serialize(&value).expect("serialize succeeds");
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(entries) = decoded else {
+        panic!("expected msgpack map, got {decoded:?}");
+    };
+    assert_eq!(entries.len(), 3);
+    // Tag-ascending order: 0 (bool), 1 (u8), 2 (u32) — not source order.
+    let tags: Vec<u64> = entries.iter().map(|(k, _)| k.as_u64().expect("integer tag")).collect();
+    assert_eq!(tags, vec![0, 1, 2], "tags should be flushed in ascending order");
+}
+
+/// Per-type overrides win over the default — a top-level type can be
+/// `Array` while every nested type stays `Tagged`. Verifies the
+/// override scoping.
+#[test]
+fn per_type_override_beats_default_strategy() {
+    let value = Outer { nested: Pair { first: 1, second: false }, flag: 9 };
+
+    // Default = Tagged, override Outer to Array. Outer's outer shape should
+    // be an array; its inner Pair field stays Tagged (no override).
+    let registry = TagRegistry::from_type::<Outer>();
+    let mut buf = Vec::new();
+    let mut s =
+        Serializer::new(&mut buf, &registry).with_strategy::<Outer>(EncodingStrategy::Array);
+    value.serialize(&mut s).expect("serialize succeeds");
+    drop(s);
+
+    let decoded = decode_msgpack(&buf);
+    let Value::Array(elements) = decoded else {
+        panic!("Outer should be array under override, got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    // First element is the nested Pair, still Tagged → int-keyed map.
+    let Value::Map(inner) = &elements[0] else {
+        panic!("nested Pair should remain int-keyed under default Tagged, got {:?}", elements[0]);
+    };
+    assert!(inner.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+    // Second element is the bare flag.
+    assert_eq!(elements[1].as_u64(), Some(9));
+}
+
+/// Variant payloads follow the enclosing enum's strategy — under `Array`
+/// the payload becomes a positional array. The *outer*
+/// `{variant_tag: payload}` 1-entry map stays int-keyed regardless,
+/// because variant identification is always by integer tag.
+#[derive(serde::Serialize, MsgpackTagged)]
+enum MixedForArray {
+    #[tag(3)]
+    Pair(u32, bool),
+    #[tag(4)]
+    Named {
+        #[tag(0)]
+        a: u32,
+        #[tag(1)]
+        b: bool,
+    },
+}
+
+#[test]
+fn tuple_variant_payload_follows_array_default() {
+    let value = MixedForArray::Pair(7, true);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    // Outer: 1-entry int-keyed map {variant_tag → payload} (discriminator).
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    assert_eq!(outer[0].0.as_u64(), Some(3));
+    // Payload: positional array under Array strategy.
+    let Value::Array(inner) = &outer[0].1 else {
+        panic!(
+            "tuple-variant payload should be a fixarray under Array default, got {:?}",
+            outer[0].1
+        );
+    };
+    assert_eq!(inner.len(), 2);
+    assert_eq!(inner[0].as_u64(), Some(7));
+    assert_eq!(inner[1].as_bool(), Some(true));
+}
+
+#[test]
+fn struct_variant_payload_follows_array_default() {
+    let value = MixedForArray::Named { a: 99, b: false };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Array(inner) = &outer[0].1 else {
+        panic!(
+            "struct-variant payload should be a fixarray under Array default, got {:?}",
+            outer[0].1
+        );
+    };
+    assert_eq!(inner.len(), 2);
+    assert_eq!(inner[0].as_u64(), Some(99));
+    assert_eq!(inner[1].as_bool(), Some(false));
+}
+
+/// And the default Tagged path keeps variant payloads as int-keyed maps —
+/// nothing changed for the default-strategy case.
+#[test]
+fn tuple_variant_payload_stays_int_keyed_under_tagged_default() {
+    let value = MixedForArray::Pair(7, true);
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Tagged);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Map(inner) = &outer[0].1 else {
+        panic!("tuple-variant payload should be a map under Tagged default, got {:?}", outer[0].1);
+    };
+    assert!(inner.iter().all(|(k, _)| matches!(k, Value::Integer(_))));
+}
+
+// ============================================================================
+// Auto-downgrade: `Array` → `Tagged` when a product has a non-trailing
+// reserved tag. Under Array the wire only carries active values
+// positionally; a reserved tag with an active tag after it in tag order
+// would leave the decoder misaligned on its own V2-on-V2 round-trip. The
+// encoder detects this and silently flips to Tagged for the affected
+// product, leaving every other type in the same serializer on its
+// configured strategy.
+// ============================================================================
+
+/// Non-trailing reserved tag (1 is between active 0 and 2). Requesting
+/// `Array` for this type must auto-downgrade to `Tagged` — otherwise a
+/// V2-encoded buffer would not round-trip through V2's own decoder.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "AutoDowngrade")]
+#[tagged(reserved(1))]
+struct NonTrailingReservedForDowngrade {
+    #[tag(0)]
+    a: u32,
+    #[tag(2)]
+    c: bool,
+}
+
+#[test]
+fn array_strategy_downgrades_when_reserved_is_not_trailing() {
+    let value = NonTrailingReservedForDowngrade { a: 7, c: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(entries) = decoded else {
+        panic!("expected fixmap from auto-downgrade, got {decoded:?}");
+    };
+    // Both active values present, keyed by their integer tags.
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].0.as_u64(), Some(0));
+    assert_eq!(entries[0].1.as_u64(), Some(7));
+    assert_eq!(entries[1].0.as_u64(), Some(2));
+    assert_eq!(entries[1].1.as_bool(), Some(true));
+}
+
+/// Strictly-trailing reserved (reserved tag is greater than every active
+/// tag) keeps the requested `Array` strategy. The merged-layout decoder
+/// stops at `wire_remaining == 0` before reaching the trailing reserved
+/// slot, so positional alignment isn't at risk.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "TrailingReservedKeepsArray")]
+#[tagged(reserved(9))]
+struct TrailingReservedKeepsArray {
+    #[tag(0)]
+    a: u32,
+    #[tag(1)]
+    b: bool,
+}
+
+#[test]
+fn array_strategy_preserved_when_reserved_is_strictly_trailing() {
+    let value = TrailingReservedKeepsArray { a: 7, b: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Array(elements) = decoded else {
+        panic!("expected fixarray (Array preserved), got {decoded:?}");
+    };
+    assert_eq!(elements.len(), 2);
+    assert_eq!(elements[0].as_u64(), Some(7));
+    assert_eq!(elements[1].as_bool(), Some(true));
+}
+
+/// The downgrade applies inside variant payloads too — the variant's
+/// `payload` `Product` is consulted at `begin_variant_payload`.
+#[derive(serde::Serialize, MsgpackTagged)]
+#[serde(rename = "AutoDowngradeEnum")]
+enum AutoDowngradeEnum {
+    #[tag(0)]
+    #[tagged(reserved(1))]
+    Carry {
+        #[tag(0)]
+        a: u32,
+        #[tag(2)]
+        c: bool,
+    },
+}
+
+#[test]
+fn array_strategy_downgrades_variant_payload_with_non_trailing_reserved() {
+    let value = AutoDowngradeEnum::Carry { a: 7, c: true };
+    let bytes = encode_with_default_strategy(&value, EncodingStrategy::Array);
+    let decoded = decode_msgpack(&bytes);
+
+    let Value::Map(outer) = decoded else {
+        panic!("variant outer should stay a map, got {decoded:?}");
+    };
+    assert_eq!(outer.len(), 1);
+    let Value::Map(payload) = &outer[0].1 else {
+        panic!("variant payload should be a fixmap (downgrade kicked in), got {:?}", outer[0].1,);
+    };
+    assert_eq!(payload.len(), 2);
+    assert_eq!(payload[0].0.as_u64(), Some(0));
+    assert_eq!(payload[1].0.as_u64(), Some(2));
+}
