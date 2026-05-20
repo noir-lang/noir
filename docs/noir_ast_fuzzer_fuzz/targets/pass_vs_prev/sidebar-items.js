@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["clone_ssa","fuzz","run_pass_or_die"]};
+window.SIDEBAR_ITEMS = {"fn":["clone_ssa","fuzz","run_pass_or_die","step_msg"]};
