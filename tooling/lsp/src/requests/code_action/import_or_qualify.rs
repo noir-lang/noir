@@ -290,6 +290,46 @@ fn foo(x: SomeTypeInBar) {}"#;
     }
 
     #[test]
+    async fn test_import_code_action_for_struct_does_not_insert_into_existing_use_from_a_different_module()
+     {
+        let title = "Import crate::moo::StructTwo";
+
+        let src = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        fn foo() {
+            StructT>|<wo
+        }
+    }
+}"#;
+
+        let expected = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        use crate::moo::StructTwo;
+
+        fn foo() {
+            StructTwo
+        }
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
     async fn test_import_via_reexport() {
         let title = "Import aztec::protocol_types::SomeStruct";
 

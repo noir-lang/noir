@@ -113,15 +113,12 @@ impl Parser<'_> {
         let mut segments = Vec::new();
 
         if self.at_ident_token() {
-            loop {
-                // In `parsing_quote_body` mode we may enter this iteration after
-                // optimistically committing to a `::` whose follow token is `$` (we
-                // only have one token of lookahead). If it turns out to be `$(...)`
-                // instead of `$ident`, `eat_ident` returns None and we bail out
-                // here rather than panicking.
-                let Some(ident) = self.eat_ident() else {
-                    break;
-                };
+            // In `parsing_quote_body` mode we may enter this iteration after
+            // optimistically committing to a `::` whose follow token is `$` (we
+            // only have one token of lookahead). If it turns out to be `$(...)`
+            // instead of `$ident`, `eat_ident` returns None and we bail out
+            // here rather than panicking.
+            while let Some(ident) = self.eat_ident() {
                 let location = ident.location();
 
                 let generics = if allow_turbofish

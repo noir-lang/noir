@@ -265,7 +265,8 @@ fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &F
         let trait_impl = interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let trait_def = interner.get_trait(trait_impl.trait_id);
-        format!("<{} as {}>::{}", trait_impl.typ, trait_def.name, name)
+        let trait_generics = interner.get_trait_generics_for_impl(trait_impl_id);
+        format!("<{} as {}{}>::{}", trait_impl.typ, trait_def.name, trait_generics, name)
     } else if meta.trait_id.is_some() {
         // Trait function (inside `trait { ... }`): `self_type` here is `Self`, an
         // unbound type variable that would render as `_`. Skip the type prefix — the

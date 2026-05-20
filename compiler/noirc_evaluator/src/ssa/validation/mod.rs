@@ -244,8 +244,7 @@ impl<'f> Validator<'f> {
                             SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
                         if elements_length != array_semi_flattened_length {
                             panic!(
-                                "MakeArray returns an array of flattened length {}, but it has {} elements",
-                                array_semi_flattened_length, elements_length
+                                "MakeArray returns an array of flattened length {array_semi_flattened_length}, but it has {elements_length} elements"
                             );
                         }
                         composite_type
@@ -278,8 +277,7 @@ impl<'f> Validator<'f> {
                     let expected_type = &composite_type[index % composite_type_len];
                     if &*element_type != expected_type {
                         panic!(
-                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
-                            expected_type, element_type
+                            "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
                     }
                 }
@@ -293,8 +291,7 @@ impl<'f> Validator<'f> {
                 let value_type = dfg.type_of_value(*value);
                 if **address_value_type != *value_type {
                     panic!(
-                        "Store address type {} does not match value type {}",
-                        address_value_type, value_type
+                        "Store address type {address_value_type} does not match value type {value_type}"
                     );
                 }
             }
@@ -1074,7 +1071,12 @@ impl<'f> Validator<'f> {
         let entry_block = self.function.entry_block();
         match terminator {
             TerminatorInstruction::JmpIf {
-                condition, then_destination, else_destination, ..
+                condition,
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                call_stack: _,
             } => {
                 let condition_type = self.function.dfg.type_of_value(*condition);
                 assert_ne!(
@@ -1090,23 +1092,20 @@ impl<'f> Validator<'f> {
                     Type::bool(),
                     "JmpIf conditions should have boolean type"
                 );
+                self.check_jump_arguments_match_block_parameters(
+                    *then_destination,
+                    then_arguments,
+                    "jmpif then branch",
+                );
+                self.check_jump_arguments_match_block_parameters(
+                    *else_destination,
+                    else_arguments,
+                    "jmpif else branch",
+                );
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
-                let block_parameters = self.function.dfg.block_parameters(*destination);
-                assert_eq!(
-                    arguments.len(),
-                    block_parameters.len(),
-                    "Number of arguments in jmp must match number of block parameters"
-                );
-                for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
-                    let argument_type = self.function.dfg.type_of_value(*argument);
-                    let parameter_type = self.function.dfg.type_of_value(*parameter);
-                    assert!(
-                        types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
-                        "Argument type in jmp must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
-                    );
-                }
+                self.check_jump_arguments_match_block_parameters(*destination, arguments, "jmp");
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
@@ -1118,6 +1117,28 @@ impl<'f> Validator<'f> {
                 }
             }
             TerminatorInstruction::Unreachable { .. } => (),
+        }
+    }
+
+    fn check_jump_arguments_match_block_parameters(
+        &self,
+        destination: BasicBlockId,
+        arguments: &[ValueId],
+        kind: &str,
+    ) {
+        let block_parameters = self.function.dfg.block_parameters(destination);
+        assert_eq!(
+            arguments.len(),
+            block_parameters.len(),
+            "Number of arguments in {kind} must match number of block parameters"
+        );
+        for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
+            let argument_type = self.function.dfg.type_of_value(*argument);
+            let parameter_type = self.function.dfg.type_of_value(*parameter);
+            assert!(
+                types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
+                "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
+            );
         }
     }
 
@@ -2358,6 +2379,115 @@ mod tests {
             store v0 at v1
             jmp b1(v1)
           b1(v2: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn jmpif_allows_matching_block_arguments_per_branch() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(u32 1), else: b2(Field 2)
+          b1(v1: u32):
+            jmp b3()
+          b2(v2: Field):
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Number of arguments in jmpif then branch must match number of block parameters"
+    )]
+    fn jmpif_then_branch_incorrect_arguments_length() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1(v1: u32):
+            jmp b2()
+          b2():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Number of arguments in jmpif else branch must match number of block parameters"
+    )]
+    fn jmpif_else_branch_incorrect_arguments_length() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2(v1: u32):
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument type in jmpif then branch must match block parameter type")]
+    fn jmpif_then_branch_incorrect_argument_type() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(u8 0), else: b2()
+          b1(v1: u32):
+            jmp b2()
+          b2():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument type in jmpif else branch must match block parameter type")]
+    fn jmpif_else_branch_incorrect_argument_type() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2(u8 0)
+          b1():
+            jmp b3()
+          b2(v1: u32):
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn jmpif_allows_reference_mutability_mismatch() {
+        // As with jmp, reference mutability is a frontend-only concern, so a
+        // `&mut T` jmpif edge argument is accepted by a `&T` block parameter.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u32
+            jmpif v0 then: b1(v1), else: b2(v1)
+          b1(v2: &u32):
+            jmp b3()
+          b2(v3: &mut u32):
+            jmp b3()
+          b3():
             return
         }
         ";

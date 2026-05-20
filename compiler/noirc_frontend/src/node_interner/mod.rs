@@ -162,6 +162,9 @@ pub struct NodeInterner {
     // Indexed by TraitImplIds
     pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
 
+    /// For each trait, the list of impls that implement it.
+    pub(crate) trait_implementations_by_trait_id: HashMap<TraitId, Vec<TraitImplId>>,
+
     next_trait_implementation_id: usize,
 
     /// The ordered generics and associated types for each trait impl.
@@ -500,6 +503,7 @@ impl Default for NodeInterner {
             trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
+            trait_implementations_by_trait_id: HashMap::default(),
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
@@ -1137,6 +1141,40 @@ impl NodeInterner {
         }
     }
 
+    /// Returns every `FuncId` registered as either a direct or trait-impl method
+    /// under `method_name` for the given type's method key, without filtering by
+    /// type compatibility. Used by the elaborator to lazily resolve candidate
+    /// metas before delegating to the type-aware `lookup_*` methods.
+    pub fn method_candidate_ids(&self, typ: &Type, method_name: &str) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods
+            .direct
+            .iter()
+            .map(|m| m.method)
+            .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+            .collect()
+    }
+
+    /// Same as [Self::method_candidate_ids] but for `impl<T>`-style generic
+    /// trait impls keyed under `TypeMethodKey::Generic`.
+    pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| {
+                methods
+                    .direct
+                    .iter()
+                    .map(|m| m.method)
+                    .chain(methods.trait_impl_methods.iter().map(|m| m.method))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`
     pub fn lookup_generic_methods(
         &self,
@@ -1714,7 +1752,7 @@ impl NodeInterner {
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
         for methods in self.methods.values_mut() {
-            for (_name, methods) in methods.iter_mut() {
+            for methods in methods.values_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
                     self.func_meta.get(&func_id).unwrap().location.file != file

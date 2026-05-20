@@ -3,6 +3,7 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
 use acvm::FieldElement;
+use fm::FileMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -358,7 +359,11 @@ impl Value {
                 }))
             }
             value @ Value::Enum(..) => {
-                let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
+                let hir = value.into_runtime_hir_expression(
+                    elaborator.interner,
+                    elaborator.files,
+                    location,
+                )?;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
@@ -396,7 +401,8 @@ impl Value {
                             .expect("there is at least one error");
                         let error = Box::new(error);
                         let rule = "an expression";
-                        let tokens = tokens_to_string(&tokens, elaborator.interner);
+                        let tokens =
+                            tokens_to_string(&tokens, elaborator.interner, elaborator.files);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
                     }
                 };
@@ -407,7 +413,7 @@ impl Value {
                 // We first do whatever needs a reference to `expr` to avoid partially moving `self`.
                 if matches!(expr.as_ref(), ExprValue::Pattern(_)) {
                     let typ = Type::Quoted(QuotedType::Expr);
-                    let value = self.display(elaborator.interner).to_string();
+                    let value = self.display(elaborator.interner, elaborator.files).to_string();
                     return Err(InterpreterError::CannotInlineMacro { typ, value, location });
                 }
 
@@ -439,7 +445,7 @@ impl Value {
             | Value::ModuleDefinition(_)
             | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(elaborator.interner).to_string();
+                let value = self.display(elaborator.interner, elaborator.files).to_string();
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -479,6 +485,7 @@ impl Value {
     pub(crate) fn into_runtime_hir_expression(
         self,
         interner: &mut NodeInterner,
+        files: &FileMap,
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
@@ -498,8 +505,9 @@ impl Value {
                             new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } => {
-                            let expr_id =
-                                value.clone().into_runtime_hir_expression(interner, location)?;
+                            let expr_id = value
+                                .clone()
+                                .into_runtime_hir_expression(interner, files, location)?;
                             captures.push(expr_id);
                             new_fragments
                                 .push(FmtStrFragment::Interpolation(name.clone(), location));
@@ -519,7 +527,7 @@ impl Value {
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Tuple(fields)
             }
@@ -537,8 +545,9 @@ impl Value {
                             "Expected struct value to have all fields set, missing field `{name}`"
                         );
                     };
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    let field = field
+                        .unwrap_or_clone()
+                        .into_runtime_hir_expression(interner, files, location)?;
                     ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
@@ -555,8 +564,9 @@ impl Value {
                     return Err(InterpreterError::NonEnumInConstructor { typ, location });
                 };
 
-                let arguments =
-                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))?;
+                let arguments = try_vecmap(args, |arg| {
+                    arg.into_runtime_hir_expression(interner, files, location)
+                })?;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -566,13 +576,13 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_runtime_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_runtime_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
@@ -580,7 +590,9 @@ impl Value {
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
             Value::Pointer(element, true, _) => {
-                return element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
+                return element
+                    .unwrap_or_clone()
+                    .into_runtime_hir_expression(interner, files, location);
             }
             Value::CtString(..)
             | Value::Quoted(..)
@@ -598,7 +610,7 @@ impl Value {
             | Value::ModuleDefinition(_)
             | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(interner).to_string();
+                let value = self.display(interner, files).to_string();
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
@@ -614,6 +626,7 @@ impl Value {
     pub(crate) fn into_tokens(
         self,
         interner: &mut NodeInterner,
+        files: &FileMap,
         location: Location,
     ) -> IResult<Vec<LocatedToken>> {
         let tokens: Vec<Token> = match self {
@@ -678,11 +691,13 @@ impl Value {
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
-                let string = fragments_to_string(&fragments, interner);
+                let string = fragments_to_string(&fragments, interner, files);
                 vec![Token::Str(string)]
             }
             other => {
-                vec![Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)?)]
+                vec![Token::UnquoteMarker(
+                    other.into_runtime_hir_expression(interner, files, location)?,
+                )]
             }
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
@@ -755,7 +770,7 @@ impl Value {
             }
             _ => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(elaborator.interner).to_string();
+                let value = self.display(elaborator.interner, elaborator.files).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
@@ -813,7 +828,7 @@ where
         Err(errors) => {
             let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
             let error = Box::new(error);
-            let tokens = tokens_to_string(&tokens, elaborator.interner);
+            let tokens = tokens_to_string(&tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }

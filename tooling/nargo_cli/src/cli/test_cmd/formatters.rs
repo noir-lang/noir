@@ -122,7 +122,7 @@ impl Formatter for PrettyFormatter {
             }
         };
 
-        write!(writer, "[{}] Testing {} ... ", &test_result.package_name, &test_result.name)?;
+        write!(writer, "[{}] Testing {} ... ", test_result.package_name, test_result.name)?;
         writer.flush()?;
 
         match &test_result.status {
