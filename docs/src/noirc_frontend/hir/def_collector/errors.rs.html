@@ -158,164 +158,162 @@
 <a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DefCollectorErrorKind) -&gt; Diagnostic {
 <a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">match </span>error {
 <a href=#160 id=160 data-nosnippet>160</a>            DefCollectorErrorKind::Duplicate { typ, first_def, second_def } =&gt; {
-<a href=#161 id=161 data-nosnippet>161</a>                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(
-<a href=#162 id=162 data-nosnippet>162</a>                    <span class="string">"Duplicate definitions of {} with name {} found"</span>,
-<a href=#163 id=163 data-nosnippet>163</a>                    <span class="kw-2">&amp;</span>typ, first_def
-<a href=#164 id=164 data-nosnippet>164</a>                );
-<a href=#165 id=165 data-nosnippet>165</a>                {
-<a href=#166 id=166 data-nosnippet>166</a>                    <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#167 id=167 data-nosnippet>167</a>                        primary_message,
-<a href=#168 id=168 data-nosnippet>168</a>                        <span class="macro">format!</span>(<span class="string">"Second {} found here"</span>, <span class="kw-2">&amp;</span>typ),
-<a href=#169 id=169 data-nosnippet>169</a>                        second_def.location(),
-<a href=#170 id=170 data-nosnippet>170</a>                    );
-<a href=#171 id=171 data-nosnippet>171</a>                    diag.add_secondary(<span class="macro">format!</span>(<span class="string">"First {} found here"</span>, <span class="kw-2">&amp;</span>typ), first_def.location());
-<a href=#172 id=172 data-nosnippet>172</a>                    diag
-<a href=#173 id=173 data-nosnippet>173</a>                }
-<a href=#174 id=174 data-nosnippet>174</a>            }
-<a href=#175 id=175 data-nosnippet>175</a>            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } =&gt; {
-<a href=#176 id=176 data-nosnippet>176</a>                Diagnostic::simple_error(
-<a href=#177 id=177 data-nosnippet>177</a>                    <span class="macro">format!</span>(<span class="string">"No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"</span>),
-<a href=#178 id=178 data-nosnippet>178</a>                    String::new(),
-<a href=#179 id=179 data-nosnippet>179</a>                    mod_name.location(),
-<a href=#180 id=180 data-nosnippet>180</a>                )
-<a href=#181 id=181 data-nosnippet>181</a>            }
-<a href=#182 id=182 data-nosnippet>182</a>            DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } =&gt; {
-<a href=#183 id=183 data-nosnippet>183</a>                Diagnostic::simple_error(
-<a href=#184 id=184 data-nosnippet>184</a>                    <span class="macro">format!</span>(<span class="string">"Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"</span>),
-<a href=#185 id=185 data-nosnippet>185</a>                    String::new(),
-<a href=#186 id=186 data-nosnippet>186</a>                    mod_name.location(),
-<a href=#187 id=187 data-nosnippet>187</a>                )
-<a href=#188 id=188 data-nosnippet>188</a>            }
-<a href=#189 id=189 data-nosnippet>189</a>            DefCollectorErrorKind::PathResolutionError(error) =&gt; error.into(),
-<a href=#190 id=190 data-nosnippet>190</a>            DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} =&gt; {
-<a href=#191 id=191 data-nosnippet>191</a>                Diagnostic::simple_error(
-<a href=#192 id=192 data-nosnippet>192</a>                    <span class="macro">format!</span>(<span class="string">"cannot re-export {item_name} because it has less visibility than this use statement"</span>),
-<a href=#193 id=193 data-nosnippet>193</a>                    <span class="macro">format!</span>(<span class="string">"consider marking {item_name} as {desired_visibility}"</span>),
-<a href=#194 id=194 data-nosnippet>194</a>                    item_name.location())
-<a href=#195 id=195 data-nosnippet>195</a>            }
-<a href=#196 id=196 data-nosnippet>196</a>            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =&gt;{
-<a href=#197 id=197 data-nosnippet>197</a>                <span class="kw">if </span><span class="kw-2">*</span>is_primitive {
-<a href=#198 id=198 data-nosnippet>198</a>                    Diagnostic::simple_error(
-<a href=#199 id=199 data-nosnippet>199</a>                        <span class="string">"Cannot define inherent `impl` for primitive types"</span>.into(),
-<a href=#200 id=200 data-nosnippet>200</a>                        <span class="string">"Primitive types can only have implementation methods defined in the standard library"</span>.into(),
-<a href=#201 id=201 data-nosnippet>201</a>                        <span class="kw-2">*</span>location,
-<a href=#202 id=202 data-nosnippet>202</a>                    )
-<a href=#203 id=203 data-nosnippet>203</a>                }<span class="kw">else</span>{
-<a href=#204 id=204 data-nosnippet>204</a>                    Diagnostic::simple_error(
-<a href=#205 id=205 data-nosnippet>205</a>                        <span class="string">"Non-enum, non-struct type used in impl"</span>.into(),
-<a href=#206 id=206 data-nosnippet>206</a>                        <span class="string">"Only enum and struct types may have implementation methods"</span>.into(),
-<a href=#207 id=207 data-nosnippet>207</a>                        <span class="kw-2">*</span>location,
-<a href=#208 id=208 data-nosnippet>208</a>                    )
-<a href=#209 id=209 data-nosnippet>209</a>                }
-<a href=#210 id=210 data-nosnippet>210</a>            }
-<a href=#211 id=211 data-nosnippet>211</a>            DefCollectorErrorKind::ReferenceInTraitImpl { is_alias, location } =&gt; {
-<a href=#212 id=212 data-nosnippet>212</a>                <span class="kw">let </span>alias_str = <span class="kw">if </span><span class="kw-2">*</span>is_alias {
-<a href=#213 id=213 data-nosnippet>213</a>                    <span class="string">"aliases to "
-<a href=#214 id=214 data-nosnippet>214</a>                </span>} <span class="kw">else </span>{
-<a href=#215 id=215 data-nosnippet>215</a>                    <span class="string">""
-<a href=#216 id=216 data-nosnippet>216</a>                </span>};
-<a href=#217 id=217 data-nosnippet>217</a>                Diagnostic::simple_error(
-<a href=#218 id=218 data-nosnippet>218</a>                    <span class="macro">format!</span>(<span class="string">"Trait impls are not allowed on {alias_str}reference types"</span>),
-<a href=#219 id=219 data-nosnippet>219</a>                    <span class="string">"Try using a struct or enum type here instead"</span>.into(),
-<a href=#220 id=220 data-nosnippet>220</a>                    <span class="kw-2">*</span>location,
-<a href=#221 id=221 data-nosnippet>221</a>                )
-<a href=#222 id=222 data-nosnippet>222</a>            }
-<a href=#223 id=223 data-nosnippet>223</a>            DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } =&gt; {
-<a href=#224 id=224 data-nosnippet>224</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
-<a href=#225 id=225 data-nosnippet>225</a>                    <span class="macro">format!</span>(<span class="string">"Impl for type `{typ}` overlaps with existing impl"</span>),
-<a href=#226 id=226 data-nosnippet>226</a>                    <span class="string">"Overlapping impl"</span>.into(),
-<a href=#227 id=227 data-nosnippet>227</a>                    <span class="kw-2">*</span>location,
-<a href=#228 id=228 data-nosnippet>228</a>                );
-<a href=#229 id=229 data-nosnippet>229</a>                diagnostic.add_secondary(<span class="string">"Previous impl defined here"</span>.into(), <span class="kw-2">*</span>prev_location);
-<a href=#230 id=230 data-nosnippet>230</a>                diagnostic
-<a href=#231 id=231 data-nosnippet>231</a>            }
-<a href=#232 id=232 data-nosnippet>232</a>            DefCollectorErrorKind::ForeignImpl { location, type_name } =&gt; Diagnostic::simple_error(
-<a href=#233 id=233 data-nosnippet>233</a>                <span class="string">"Cannot `impl` a type that was defined outside the current crate"</span>.into(),
-<a href=#234 id=234 data-nosnippet>234</a>                <span class="macro">format!</span>(<span class="string">"{type_name} was defined outside the current crate"</span>),
-<a href=#235 id=235 data-nosnippet>235</a>                <span class="kw-2">*</span>location,
-<a href=#236 id=236 data-nosnippet>236</a>            ),
-<a href=#237 id=237 data-nosnippet>237</a>            DefCollectorErrorKind::TraitNotFound { trait_path } =&gt; Diagnostic::simple_error(
-<a href=#238 id=238 data-nosnippet>238</a>                <span class="macro">format!</span>(<span class="string">"Trait {trait_path} not found"</span>),
-<a href=#239 id=239 data-nosnippet>239</a>                <span class="string">""</span>.to_string(),
-<a href=#240 id=240 data-nosnippet>240</a>                trait_path.location,
-<a href=#241 id=241 data-nosnippet>241</a>            ),
-<a href=#242 id=242 data-nosnippet>242</a>            DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } =&gt; {
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(<span class="string">"Method with name `{impl_method}` is not part of trait `{trait_name}`, therefore it can't be implemented"</span>);
-<a href=#244 id=244 data-nosnippet>244</a>                Diagnostic::simple_error(primary_message, <span class="string">""</span>.to_owned(), impl_method.location())
-<a href=#245 id=245 data-nosnippet>245</a>            }
-<a href=#246 id=246 data-nosnippet>246</a>            DefCollectorErrorKind::TraitMissingMethod {
-<a href=#247 id=247 data-nosnippet>247</a>                trait_name,
-<a href=#248 id=248 data-nosnippet>248</a>                method_name,
-<a href=#249 id=249 data-nosnippet>249</a>                trait_impl_location,
-<a href=#250 id=250 data-nosnippet>250</a>            } =&gt; {
-<a href=#251 id=251 data-nosnippet>251</a>                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(
-<a href=#252 id=252 data-nosnippet>252</a>                    <span class="string">"Method `{method_name}` from trait `{trait_name}` is not implemented"
-<a href=#253 id=253 data-nosnippet>253</a>                </span>);
-<a href=#254 id=254 data-nosnippet>254</a>                Diagnostic::simple_error(
-<a href=#255 id=255 data-nosnippet>255</a>                    primary_message,
-<a href=#256 id=256 data-nosnippet>256</a>                    <span class="macro">format!</span>(<span class="string">"Please implement {method_name} here"</span>),
-<a href=#257 id=257 data-nosnippet>257</a>                    <span class="kw-2">*</span>trait_impl_location,
-<a href=#258 id=258 data-nosnippet>258</a>                )
-<a href=#259 id=259 data-nosnippet>259</a>            }
-<a href=#260 id=260 data-nosnippet>260</a>            DefCollectorErrorKind::NotATrait { not_a_trait_name } =&gt; {
-<a href=#261 id=261 data-nosnippet>261</a>                <span class="kw">let </span>location = not_a_trait_name.location;
-<a href=#262 id=262 data-nosnippet>262</a>                Diagnostic::simple_error(
-<a href=#263 id=263 data-nosnippet>263</a>                    <span class="macro">format!</span>(<span class="string">"{not_a_trait_name} is not a trait, therefore it can't be implemented"</span>),
-<a href=#264 id=264 data-nosnippet>264</a>                    String::new(),
-<a href=#265 id=265 data-nosnippet>265</a>                    location,
-<a href=#266 id=266 data-nosnippet>266</a>                )
-<a href=#267 id=267 data-nosnippet>267</a>            }
-<a href=#268 id=268 data-nosnippet>268</a>            DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, location } =&gt; {
-<a href=#269 id=269 data-nosnippet>269</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Module '{mod_name}' is already part of the crate"</span>);
-<a href=#270 id=270 data-nosnippet>270</a>                <span class="kw">let </span>secondary = String::new();
-<a href=#271 id=271 data-nosnippet>271</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
-<a href=#272 id=272 data-nosnippet>272</a>            }
-<a href=#273 id=273 data-nosnippet>273</a>            DefCollectorErrorKind::ModuleOriginallyDefined { mod_name, location } =&gt; {
-<a href=#274 id=274 data-nosnippet>274</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Note: {mod_name} was originally declared here"</span>);
-<a href=#275 id=275 data-nosnippet>275</a>                <span class="kw">let </span>secondary = String::new();
-<a href=#276 id=276 data-nosnippet>276</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
-<a href=#277 id=277 data-nosnippet>277</a>            }
-<a href=#278 id=278 data-nosnippet>278</a>            DefCollectorErrorKind::TraitImplOrphaned { location } =&gt; Diagnostic::simple_error(
-<a href=#279 id=279 data-nosnippet>279</a>                <span class="string">"Orphaned trait implementation"</span>.into(),
-<a href=#280 id=280 data-nosnippet>280</a>                <span class="string">"Either the type or the trait must be from the same crate as the trait implementation"</span>.into(),
-<a href=#281 id=281 data-nosnippet>281</a>                <span class="kw-2">*</span>location,
-<a href=#282 id=282 data-nosnippet>282</a>            ),
-<a href=#283 id=283 data-nosnippet>283</a>            DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } =&gt; {
-<a href=#284 id=284 data-nosnippet>284</a>                <span class="kw">let </span>constraint = <span class="macro">format!</span>(<span class="string">"{constraint_name}{constraint_generics}"</span>);
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#287 id=287 data-nosnippet>287</a>                    <span class="string">"impl has stricter requirements than trait"</span>.to_string(),
-<a href=#288 id=288 data-nosnippet>288</a>                    <span class="macro">format!</span>(<span class="string">"impl has extra requirement `{constraint_typ}: {constraint}`"</span>),
-<a href=#289 id=289 data-nosnippet>289</a>                    <span class="kw-2">*</span>constraint_location,
-<a href=#290 id=290 data-nosnippet>290</a>                );
-<a href=#291 id=291 data-nosnippet>291</a>                diag.add_secondary(<span class="macro">format!</span>(<span class="string">"definition of `{trait_method_name}` from trait"</span>), <span class="kw-2">*</span>trait_method_location);
-<a href=#292 id=292 data-nosnippet>292</a>                diag
-<a href=#293 id=293 data-nosnippet>293</a>            }
-<a href=#294 id=294 data-nosnippet>294</a>            DefCollectorErrorKind::TestOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
-<a href=#295 id=295 data-nosnippet>295</a>                <span class="string">"The `#[test]` attribute is disallowed on `impl` methods"</span>.into(),
-<a href=#296 id=296 data-nosnippet>296</a>                String::new(),
-<a href=#297 id=297 data-nosnippet>297</a>                <span class="kw-2">*</span>location,
-<a href=#298 id=298 data-nosnippet>298</a>            ),
-<a href=#299 id=299 data-nosnippet>299</a>            DefCollectorErrorKind::ExportOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
-<a href=#300 id=300 data-nosnippet>300</a>                <span class="string">"The `#[export]` attribute is disallowed on `impl` methods"</span>.into(),
-<a href=#301 id=301 data-nosnippet>301</a>                String::new(),
-<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw-2">*</span>location,
-<a href=#303 id=303 data-nosnippet>303</a>            ),
-<a href=#304 id=304 data-nosnippet>304</a>            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } =&gt; Diagnostic::simple_error(
-<a href=#305 id=305 data-nosnippet>305</a>                <span class="string">"The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"</span>.into(),
-<a href=#306 id=306 data-nosnippet>306</a>                String::new(),
-<a href=#307 id=307 data-nosnippet>307</a>                <span class="kw-2">*</span>location,
-<a href=#308 id=308 data-nosnippet>308</a>            ),
-<a href=#309 id=309 data-nosnippet>309</a>            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; Diagnostic::simple_error(
-<a href=#310 id=310 data-nosnippet>310</a>                <span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>.into(),
-<a href=#311 id=311 data-nosnippet>311</a>                String::new(),
-<a href=#312 id=312 data-nosnippet>312</a>                <span class="kw-2">*</span>location,
-<a href=#313 id=313 data-nosnippet>313</a>            ),
-<a href=#314 id=314 data-nosnippet>314</a>            DefCollectorErrorKind::EntryPointWithGenerics { name, location } =&gt; Diagnostic::simple_error(
-<a href=#315 id=315 data-nosnippet>315</a>                <span class="macro">format!</span>(<span class="string">"`{name}` entry-point function is not allowed to have generic parameters"</span>),
-<a href=#316 id=316 data-nosnippet>316</a>                String::new(),
-<a href=#317 id=317 data-nosnippet>317</a>                <span class="kw-2">*</span>location,
-<a href=#318 id=318 data-nosnippet>318</a>            ),
-<a href=#319 id=319 data-nosnippet>319</a>        }
-<a href=#320 id=320 data-nosnippet>320</a>    }
-<a href=#321 id=321 data-nosnippet>321</a>}</code></pre></div></section></main></body></html>
+<a href=#161 id=161 data-nosnippet>161</a>                <span class="kw">let </span>primary_message =
+<a href=#162 id=162 data-nosnippet>162</a>                    <span class="macro">format!</span>(<span class="string">"Duplicate definitions of {typ} with name {first_def} found"</span>);
+<a href=#163 id=163 data-nosnippet>163</a>                {
+<a href=#164 id=164 data-nosnippet>164</a>                    <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#165 id=165 data-nosnippet>165</a>                        primary_message,
+<a href=#166 id=166 data-nosnippet>166</a>                        <span class="macro">format!</span>(<span class="string">"Second {typ} found here"</span>),
+<a href=#167 id=167 data-nosnippet>167</a>                        second_def.location(),
+<a href=#168 id=168 data-nosnippet>168</a>                    );
+<a href=#169 id=169 data-nosnippet>169</a>                    diag.add_secondary(<span class="macro">format!</span>(<span class="string">"First {typ} found here"</span>), first_def.location());
+<a href=#170 id=170 data-nosnippet>170</a>                    diag
+<a href=#171 id=171 data-nosnippet>171</a>                }
+<a href=#172 id=172 data-nosnippet>172</a>            }
+<a href=#173 id=173 data-nosnippet>173</a>            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } =&gt; {
+<a href=#174 id=174 data-nosnippet>174</a>                Diagnostic::simple_error(
+<a href=#175 id=175 data-nosnippet>175</a>                    <span class="macro">format!</span>(<span class="string">"No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"</span>),
+<a href=#176 id=176 data-nosnippet>176</a>                    String::new(),
+<a href=#177 id=177 data-nosnippet>177</a>                    mod_name.location(),
+<a href=#178 id=178 data-nosnippet>178</a>                )
+<a href=#179 id=179 data-nosnippet>179</a>            }
+<a href=#180 id=180 data-nosnippet>180</a>            DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } =&gt; {
+<a href=#181 id=181 data-nosnippet>181</a>                Diagnostic::simple_error(
+<a href=#182 id=182 data-nosnippet>182</a>                    <span class="macro">format!</span>(<span class="string">"Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"</span>),
+<a href=#183 id=183 data-nosnippet>183</a>                    String::new(),
+<a href=#184 id=184 data-nosnippet>184</a>                    mod_name.location(),
+<a href=#185 id=185 data-nosnippet>185</a>                )
+<a href=#186 id=186 data-nosnippet>186</a>            }
+<a href=#187 id=187 data-nosnippet>187</a>            DefCollectorErrorKind::PathResolutionError(error) =&gt; error.into(),
+<a href=#188 id=188 data-nosnippet>188</a>            DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} =&gt; {
+<a href=#189 id=189 data-nosnippet>189</a>                Diagnostic::simple_error(
+<a href=#190 id=190 data-nosnippet>190</a>                    <span class="macro">format!</span>(<span class="string">"cannot re-export {item_name} because it has less visibility than this use statement"</span>),
+<a href=#191 id=191 data-nosnippet>191</a>                    <span class="macro">format!</span>(<span class="string">"consider marking {item_name} as {desired_visibility}"</span>),
+<a href=#192 id=192 data-nosnippet>192</a>                    item_name.location())
+<a href=#193 id=193 data-nosnippet>193</a>            }
+<a href=#194 id=194 data-nosnippet>194</a>            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =&gt;{
+<a href=#195 id=195 data-nosnippet>195</a>                <span class="kw">if </span><span class="kw-2">*</span>is_primitive {
+<a href=#196 id=196 data-nosnippet>196</a>                    Diagnostic::simple_error(
+<a href=#197 id=197 data-nosnippet>197</a>                        <span class="string">"Cannot define inherent `impl` for primitive types"</span>.into(),
+<a href=#198 id=198 data-nosnippet>198</a>                        <span class="string">"Primitive types can only have implementation methods defined in the standard library"</span>.into(),
+<a href=#199 id=199 data-nosnippet>199</a>                        <span class="kw-2">*</span>location,
+<a href=#200 id=200 data-nosnippet>200</a>                    )
+<a href=#201 id=201 data-nosnippet>201</a>                }<span class="kw">else</span>{
+<a href=#202 id=202 data-nosnippet>202</a>                    Diagnostic::simple_error(
+<a href=#203 id=203 data-nosnippet>203</a>                        <span class="string">"Non-enum, non-struct type used in impl"</span>.into(),
+<a href=#204 id=204 data-nosnippet>204</a>                        <span class="string">"Only enum and struct types may have implementation methods"</span>.into(),
+<a href=#205 id=205 data-nosnippet>205</a>                        <span class="kw-2">*</span>location,
+<a href=#206 id=206 data-nosnippet>206</a>                    )
+<a href=#207 id=207 data-nosnippet>207</a>                }
+<a href=#208 id=208 data-nosnippet>208</a>            }
+<a href=#209 id=209 data-nosnippet>209</a>            DefCollectorErrorKind::ReferenceInTraitImpl { is_alias, location } =&gt; {
+<a href=#210 id=210 data-nosnippet>210</a>                <span class="kw">let </span>alias_str = <span class="kw">if </span><span class="kw-2">*</span>is_alias {
+<a href=#211 id=211 data-nosnippet>211</a>                    <span class="string">"aliases to "
+<a href=#212 id=212 data-nosnippet>212</a>                </span>} <span class="kw">else </span>{
+<a href=#213 id=213 data-nosnippet>213</a>                    <span class="string">""
+<a href=#214 id=214 data-nosnippet>214</a>                </span>};
+<a href=#215 id=215 data-nosnippet>215</a>                Diagnostic::simple_error(
+<a href=#216 id=216 data-nosnippet>216</a>                    <span class="macro">format!</span>(<span class="string">"Trait impls are not allowed on {alias_str}reference types"</span>),
+<a href=#217 id=217 data-nosnippet>217</a>                    <span class="string">"Try using a struct or enum type here instead"</span>.into(),
+<a href=#218 id=218 data-nosnippet>218</a>                    <span class="kw-2">*</span>location,
+<a href=#219 id=219 data-nosnippet>219</a>                )
+<a href=#220 id=220 data-nosnippet>220</a>            }
+<a href=#221 id=221 data-nosnippet>221</a>            DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } =&gt; {
+<a href=#222 id=222 data-nosnippet>222</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+<a href=#223 id=223 data-nosnippet>223</a>                    <span class="macro">format!</span>(<span class="string">"Impl for type `{typ}` overlaps with existing impl"</span>),
+<a href=#224 id=224 data-nosnippet>224</a>                    <span class="string">"Overlapping impl"</span>.into(),
+<a href=#225 id=225 data-nosnippet>225</a>                    <span class="kw-2">*</span>location,
+<a href=#226 id=226 data-nosnippet>226</a>                );
+<a href=#227 id=227 data-nosnippet>227</a>                diagnostic.add_secondary(<span class="string">"Previous impl defined here"</span>.into(), <span class="kw-2">*</span>prev_location);
+<a href=#228 id=228 data-nosnippet>228</a>                diagnostic
+<a href=#229 id=229 data-nosnippet>229</a>            }
+<a href=#230 id=230 data-nosnippet>230</a>            DefCollectorErrorKind::ForeignImpl { location, type_name } =&gt; Diagnostic::simple_error(
+<a href=#231 id=231 data-nosnippet>231</a>                <span class="string">"Cannot `impl` a type that was defined outside the current crate"</span>.into(),
+<a href=#232 id=232 data-nosnippet>232</a>                <span class="macro">format!</span>(<span class="string">"{type_name} was defined outside the current crate"</span>),
+<a href=#233 id=233 data-nosnippet>233</a>                <span class="kw-2">*</span>location,
+<a href=#234 id=234 data-nosnippet>234</a>            ),
+<a href=#235 id=235 data-nosnippet>235</a>            DefCollectorErrorKind::TraitNotFound { trait_path } =&gt; Diagnostic::simple_error(
+<a href=#236 id=236 data-nosnippet>236</a>                <span class="macro">format!</span>(<span class="string">"Trait {trait_path} not found"</span>),
+<a href=#237 id=237 data-nosnippet>237</a>                <span class="string">""</span>.to_string(),
+<a href=#238 id=238 data-nosnippet>238</a>                trait_path.location,
+<a href=#239 id=239 data-nosnippet>239</a>            ),
+<a href=#240 id=240 data-nosnippet>240</a>            DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } =&gt; {
+<a href=#241 id=241 data-nosnippet>241</a>                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(<span class="string">"Method with name `{impl_method}` is not part of trait `{trait_name}`, therefore it can't be implemented"</span>);
+<a href=#242 id=242 data-nosnippet>242</a>                Diagnostic::simple_error(primary_message, <span class="string">""</span>.to_owned(), impl_method.location())
+<a href=#243 id=243 data-nosnippet>243</a>            }
+<a href=#244 id=244 data-nosnippet>244</a>            DefCollectorErrorKind::TraitMissingMethod {
+<a href=#245 id=245 data-nosnippet>245</a>                trait_name,
+<a href=#246 id=246 data-nosnippet>246</a>                method_name,
+<a href=#247 id=247 data-nosnippet>247</a>                trait_impl_location,
+<a href=#248 id=248 data-nosnippet>248</a>            } =&gt; {
+<a href=#249 id=249 data-nosnippet>249</a>                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(
+<a href=#250 id=250 data-nosnippet>250</a>                    <span class="string">"Method `{method_name}` from trait `{trait_name}` is not implemented"
+<a href=#251 id=251 data-nosnippet>251</a>                </span>);
+<a href=#252 id=252 data-nosnippet>252</a>                Diagnostic::simple_error(
+<a href=#253 id=253 data-nosnippet>253</a>                    primary_message,
+<a href=#254 id=254 data-nosnippet>254</a>                    <span class="macro">format!</span>(<span class="string">"Please implement {method_name} here"</span>),
+<a href=#255 id=255 data-nosnippet>255</a>                    <span class="kw-2">*</span>trait_impl_location,
+<a href=#256 id=256 data-nosnippet>256</a>                )
+<a href=#257 id=257 data-nosnippet>257</a>            }
+<a href=#258 id=258 data-nosnippet>258</a>            DefCollectorErrorKind::NotATrait { not_a_trait_name } =&gt; {
+<a href=#259 id=259 data-nosnippet>259</a>                <span class="kw">let </span>location = not_a_trait_name.location;
+<a href=#260 id=260 data-nosnippet>260</a>                Diagnostic::simple_error(
+<a href=#261 id=261 data-nosnippet>261</a>                    <span class="macro">format!</span>(<span class="string">"{not_a_trait_name} is not a trait, therefore it can't be implemented"</span>),
+<a href=#262 id=262 data-nosnippet>262</a>                    String::new(),
+<a href=#263 id=263 data-nosnippet>263</a>                    location,
+<a href=#264 id=264 data-nosnippet>264</a>                )
+<a href=#265 id=265 data-nosnippet>265</a>            }
+<a href=#266 id=266 data-nosnippet>266</a>            DefCollectorErrorKind::ModuleAlreadyPartOfCrate { mod_name, location } =&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Module '{mod_name}' is already part of the crate"</span>);
+<a href=#268 id=268 data-nosnippet>268</a>                <span class="kw">let </span>secondary = String::new();
+<a href=#269 id=269 data-nosnippet>269</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+<a href=#270 id=270 data-nosnippet>270</a>            }
+<a href=#271 id=271 data-nosnippet>271</a>            DefCollectorErrorKind::ModuleOriginallyDefined { mod_name, location } =&gt; {
+<a href=#272 id=272 data-nosnippet>272</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Note: {mod_name} was originally declared here"</span>);
+<a href=#273 id=273 data-nosnippet>273</a>                <span class="kw">let </span>secondary = String::new();
+<a href=#274 id=274 data-nosnippet>274</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+<a href=#275 id=275 data-nosnippet>275</a>            }
+<a href=#276 id=276 data-nosnippet>276</a>            DefCollectorErrorKind::TraitImplOrphaned { location } =&gt; Diagnostic::simple_error(
+<a href=#277 id=277 data-nosnippet>277</a>                <span class="string">"Orphaned trait implementation"</span>.into(),
+<a href=#278 id=278 data-nosnippet>278</a>                <span class="string">"Either the type or the trait must be from the same crate as the trait implementation"</span>.into(),
+<a href=#279 id=279 data-nosnippet>279</a>                <span class="kw-2">*</span>location,
+<a href=#280 id=280 data-nosnippet>280</a>            ),
+<a href=#281 id=281 data-nosnippet>281</a>            DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } =&gt; {
+<a href=#282 id=282 data-nosnippet>282</a>                <span class="kw">let </span>constraint = <span class="macro">format!</span>(<span class="string">"{constraint_name}{constraint_generics}"</span>);
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#285 id=285 data-nosnippet>285</a>                    <span class="string">"impl has stricter requirements than trait"</span>.to_string(),
+<a href=#286 id=286 data-nosnippet>286</a>                    <span class="macro">format!</span>(<span class="string">"impl has extra requirement `{constraint_typ}: {constraint}`"</span>),
+<a href=#287 id=287 data-nosnippet>287</a>                    <span class="kw-2">*</span>constraint_location,
+<a href=#288 id=288 data-nosnippet>288</a>                );
+<a href=#289 id=289 data-nosnippet>289</a>                diag.add_secondary(<span class="macro">format!</span>(<span class="string">"definition of `{trait_method_name}` from trait"</span>), <span class="kw-2">*</span>trait_method_location);
+<a href=#290 id=290 data-nosnippet>290</a>                diag
+<a href=#291 id=291 data-nosnippet>291</a>            }
+<a href=#292 id=292 data-nosnippet>292</a>            DefCollectorErrorKind::TestOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
+<a href=#293 id=293 data-nosnippet>293</a>                <span class="string">"The `#[test]` attribute is disallowed on `impl` methods"</span>.into(),
+<a href=#294 id=294 data-nosnippet>294</a>                String::new(),
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw-2">*</span>location,
+<a href=#296 id=296 data-nosnippet>296</a>            ),
+<a href=#297 id=297 data-nosnippet>297</a>            DefCollectorErrorKind::ExportOnAssociatedFunction { location } =&gt; Diagnostic::simple_error(
+<a href=#298 id=298 data-nosnippet>298</a>                <span class="string">"The `#[export]` attribute is disallowed on `impl` methods"</span>.into(),
+<a href=#299 id=299 data-nosnippet>299</a>                String::new(),
+<a href=#300 id=300 data-nosnippet>300</a>                <span class="kw-2">*</span>location,
+<a href=#301 id=301 data-nosnippet>301</a>            ),
+<a href=#302 id=302 data-nosnippet>302</a>            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } =&gt; Diagnostic::simple_error(
+<a href=#303 id=303 data-nosnippet>303</a>                <span class="string">"The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"</span>.into(),
+<a href=#304 id=304 data-nosnippet>304</a>                String::new(),
+<a href=#305 id=305 data-nosnippet>305</a>                <span class="kw-2">*</span>location,
+<a href=#306 id=306 data-nosnippet>306</a>            ),
+<a href=#307 id=307 data-nosnippet>307</a>            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } =&gt; Diagnostic::simple_error(
+<a href=#308 id=308 data-nosnippet>308</a>                <span class="string">"The `#[fuzz]` attribute may only be used on functions with parameters"</span>.into(),
+<a href=#309 id=309 data-nosnippet>309</a>                String::new(),
+<a href=#310 id=310 data-nosnippet>310</a>                <span class="kw-2">*</span>location,
+<a href=#311 id=311 data-nosnippet>311</a>            ),
+<a href=#312 id=312 data-nosnippet>312</a>            DefCollectorErrorKind::EntryPointWithGenerics { name, location } =&gt; Diagnostic::simple_error(
+<a href=#313 id=313 data-nosnippet>313</a>                <span class="macro">format!</span>(<span class="string">"`{name}` entry-point function is not allowed to have generic parameters"</span>),
+<a href=#314 id=314 data-nosnippet>314</a>                String::new(),
+<a href=#315 id=315 data-nosnippet>315</a>                <span class="kw-2">*</span>location,
+<a href=#316 id=316 data-nosnippet>316</a>            ),
+<a href=#317 id=317 data-nosnippet>317</a>        }
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>}</code></pre></div></section></main></body></html>

@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>                <span class="kw-2">*</span>it = lane.unwrap();
 <a href=#107 id=107 data-nosnippet>107</a>            }
 <a href=#108 id=108 data-nosnippet>108</a>            <span class="kw">let </span>output_state = keccakf1600(state)<span class="question-mark">?</span>;
-<a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(output_state.into_iter()) {
+<a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(output_state) {
 <a href=#110 id=110 data-nosnippet>110</a>                insert_value(output_witness, F::from(u128::from(value)), initial_witness)<span class="question-mark">?</span>;
 <a href=#111 id=111 data-nosnippet>111</a>            }
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="prelude-val">Ok</span>(())

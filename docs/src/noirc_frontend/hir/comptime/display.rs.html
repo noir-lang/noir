@@ -554,7 +554,7 @@
 <a href=#554 id=554 data-nosnippet>554</a>            }
 <a href=#555 id=555 data-nosnippet>555</a>            Value::ModuleDefinition(module_id) =&gt; {
 <a href=#556 id=556 data-nosnippet>556</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(attributes) = <span class="self">self</span>.interner.try_module_attributes(<span class="kw-2">*</span>module_id) {
-<a href=#557 id=557 data-nosnippet>557</a>                    <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="kw-2">&amp;</span>attributes.name)
+<a href=#557 id=557 data-nosnippet>557</a>                    <span class="macro">write!</span>(f, <span class="string">"{}"</span>, attributes.name)
 <a href=#558 id=558 data-nosnippet>558</a>                } <span class="kw">else </span>{
 <a href=#559 id=559 data-nosnippet>559</a>                    <span class="macro">write!</span>(f, <span class="string">"(crate root)"</span>)
 <a href=#560 id=560 data-nosnippet>560</a>                }

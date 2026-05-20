@@ -268,7 +268,7 @@
 <a href=#268 id=268 data-nosnippet>268</a>            <span class="kw">if </span>inputs.len() != <span class="number">16 </span>{
 <a href=#269 id=269 data-nosnippet>269</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
 <a href=#270 id=270 data-nosnippet>270</a>                    BlackBoxFunc::Sha256Compression,
-<a href=#271 id=271 data-nosnippet>271</a>                    <span class="macro">format!</span>(<span class="string">"Expected 16 inputs but encountered {}"</span>, <span class="kw-2">&amp;</span>inputs.len()),
+<a href=#271 id=271 data-nosnippet>271</a>                    <span class="macro">format!</span>(<span class="string">"Expected 16 inputs but encountered {}"</span>, inputs.len()),
 <a href=#272 id=272 data-nosnippet>272</a>                ));
 <a href=#273 id=273 data-nosnippet>273</a>            }
 <a href=#274 id=274 data-nosnippet>274</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>input) <span class="kw">in </span>inputs.iter().enumerate() {
@@ -279,7 +279,7 @@
 <a href=#279 id=279 data-nosnippet>279</a>            <span class="kw">if </span>values.len() != <span class="number">8 </span>{
 <a href=#280 id=280 data-nosnippet>280</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
 <a href=#281 id=281 data-nosnippet>281</a>                    BlackBoxFunc::Sha256Compression,
-<a href=#282 id=282 data-nosnippet>282</a>                    <span class="macro">format!</span>(<span class="string">"Expected 8 values but encountered {}"</span>, <span class="kw-2">&amp;</span>values.len()),
+<a href=#282 id=282 data-nosnippet>282</a>                    <span class="macro">format!</span>(<span class="string">"Expected 8 values but encountered {}"</span>, values.len()),
 <a href=#283 id=283 data-nosnippet>283</a>                ));
 <a href=#284 id=284 data-nosnippet>284</a>            }
 <a href=#285 id=285 data-nosnippet>285</a>            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>value) <span class="kw">in </span>values.iter().enumerate() {

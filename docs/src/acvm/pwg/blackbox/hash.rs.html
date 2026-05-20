@@ -72,7 +72,7 @@
 <a href=#72 id=72 data-nosnippet>72</a>    outputs: <span class="kw-2">&amp;</span>[Witness; <span class="number">32</span>],
 <a href=#73 id=73 data-nosnippet>73</a>    digest: [u8; <span class="number">32</span>],
 <a href=#74 id=74 data-nosnippet>74</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(digest.into_iter()) {
+<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(digest) {
 <a href=#76 id=76 data-nosnippet>76</a>        insert_value(output_witness, F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>[value]), initial_witness)<span class="question-mark">?</span>;
 <a href=#77 id=77 data-nosnippet>77</a>    }
 <a href=#78 id=78 data-nosnippet>78</a>
@@ -103,7 +103,7 @@
 <a href=#103 id=103 data-nosnippet>103</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
 <a href=#104 id=104 data-nosnippet>104</a>    <span class="kw">let </span>state = execute_sha_256_permutation_opcode(initial_witness, inputs, hash_values)<span class="question-mark">?</span>;
 <a href=#105 id=105 data-nosnippet>105</a>
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(state.into_iter()) {
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(state) {
 <a href=#107 id=107 data-nosnippet>107</a>        insert_value(output_witness, F::from(u128::from(value)), initial_witness)<span class="question-mark">?</span>;
 <a href=#108 id=108 data-nosnippet>108</a>    }
 <a href=#109 id=109 data-nosnippet>109</a>
@@ -143,7 +143,7 @@
 <a href=#143 id=143 data-nosnippet>143</a>    <span class="kw">let </span>state = execute_poseidon2_permutation_opcode(backend, initial_witness, inputs)<span class="question-mark">?</span>;
 <a href=#144 id=144 data-nosnippet>144</a>
 <a href=#145 id=145 data-nosnippet>145</a>    <span class="comment">// Write witness assignments
-<a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(state.into_iter()) {
+<a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(state) {
 <a href=#147 id=147 data-nosnippet>147</a>        insert_value(output_witness, value, initial_witness)<span class="question-mark">?</span>;
 <a href=#148 id=148 data-nosnippet>148</a>    }
 <a href=#149 id=149 data-nosnippet>149</a>    <span class="prelude-val">Ok</span>(())

@@ -120,9 +120,9 @@
 <a href=#120 id=120 data-nosnippet>120</a><span class="kw">fn </span>use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: usize) -&gt; String {
 <a href=#121 id=121 data-nosnippet>121</a>    <span class="comment">// We are going to use the formatter to format the use tree
 <a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">let </span>source = <span class="kw">if </span>visibility == ItemVisibility::Private {
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="macro">format!</span>(<span class="string">"use {};"</span>, <span class="kw-2">&amp;</span>use_tree)
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="macro">format!</span>(<span class="string">"use {use_tree};"</span>)
 <a href=#124 id=124 data-nosnippet>124</a>    } <span class="kw">else </span>{
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="macro">format!</span>(<span class="string">"{} use {};"</span>, visibility, <span class="kw-2">&amp;</span>use_tree)
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="macro">format!</span>(<span class="string">"{visibility} use {use_tree};"</span>)
 <a href=#126 id=126 data-nosnippet>126</a>    };
 <a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">let </span>parsed_module = ParsedModule {
 <a href=#128 id=128 data-nosnippet>128</a>        items: <span class="macro">vec!</span>[Item {

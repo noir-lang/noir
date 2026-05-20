@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">let </span>ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)<span class="question-mark">?</span>;
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="comment">// Write witness assignments
-<a href=#23 id=23 data-nosnippet>23</a>    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(ciphertext.into_iter()) {
+<a href=#23 id=23 data-nosnippet>23</a>    </span><span class="kw">for </span>(output_witness, value) <span class="kw">in </span>outputs.iter().zip_eq(ciphertext) {
 <a href=#24 id=24 data-nosnippet>24</a>        insert_value(output_witness, F::from(u128::from(value)), initial_witness)<span class="question-mark">?</span>;
 <a href=#25 id=25 data-nosnippet>25</a>    }
 <a href=#26 id=26 data-nosnippet>26</a>

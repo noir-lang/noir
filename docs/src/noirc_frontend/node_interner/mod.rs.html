@@ -1752,7 +1752,7 @@
 <a href=#1752 id=1752 data-nosnippet>1752</a>    </span><span class="kw">pub fn </span>clear_in_file(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file: FileId) {
 <a href=#1753 id=1753 data-nosnippet>1753</a>        <span class="comment">// Clear in methods
 <a href=#1754 id=1754 data-nosnippet>1754</a>        </span><span class="kw">for </span>methods <span class="kw">in </span><span class="self">self</span>.methods.values_mut() {
-<a href=#1755 id=1755 data-nosnippet>1755</a>            <span class="kw">for </span>(_name, methods) <span class="kw">in </span>methods.iter_mut() {
+<a href=#1755 id=1755 data-nosnippet>1755</a>            <span class="kw">for </span>methods <span class="kw">in </span>methods.values_mut() {
 <a href=#1756 id=1756 data-nosnippet>1756</a>                methods.direct.retain(|method| {
 <a href=#1757 id=1757 data-nosnippet>1757</a>                    <span class="kw">let </span>func_id = method.method;
 <a href=#1758 id=1758 data-nosnippet>1758</a>                    <span class="self">self</span>.func_meta.get(<span class="kw-2">&amp;</span>func_id).unwrap().location.file != file

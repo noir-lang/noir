@@ -257,7 +257,7 @@
 <a href=#257 id=257 data-nosnippet>257</a>
 <a href=#258 id=258 data-nosnippet>258</a>            ctx.codegen_usize_op_in_place(<span class="kw-2">*</span>current_error_data_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
 <a href=#259 id=259 data-nosnippet>259</a>            <span class="kw">for </span>(error_variable, error_param) <span class="kw">in
-<a href=#260 id=260 data-nosnippet>260</a>                </span>error_data_items.into_iter().zip_eq(error_data_types.into_iter())
+<a href=#260 id=260 data-nosnippet>260</a>                </span>error_data_items.into_iter().zip_eq(error_data_types)
 <a href=#261 id=261 data-nosnippet>261</a>            {
 <a href=#262 id=262 data-nosnippet>262</a>                <span class="kw">let </span>flattened_size = error_param.flattened_size();
 <a href=#263 id=263 data-nosnippet>263</a>                <span class="kw">match </span>error_param {
