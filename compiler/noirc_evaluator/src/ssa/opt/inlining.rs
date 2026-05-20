@@ -20,7 +20,7 @@ use itertools::Itertools;
 use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::ssa::{
-    function_builder::FunctionBuilder,
+    function_builder::{FunctionBuilder, data_bus::DatabusVisibility},
     ir::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
@@ -391,7 +391,16 @@ impl<'function> PerFunctionContext<'function> {
         let original_parameters = self.source_function.dfg.block_parameters(source_block);
         for parameter in original_parameters {
             let typ = self.source_function.dfg.type_of_value(*parameter).into_owned();
-            let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
+            let visibility = match &self.source_function.dfg[*parameter] {
+                Value::Param { visibility, .. } => *visibility,
+                _ => DatabusVisibility::None,
+            };
+            let new_parameter = self
+                .context
+                .builder
+                .current_function
+                .dfg
+                .add_block_parameter_with_visibility(target_block, typ, visibility);
             self.values.insert(*parameter, new_parameter);
         }
     }
@@ -1941,5 +1950,30 @@ mod simple_functions {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    /// Ensure that [`DatabusVisibility`] is propagated through inlining so that the `array_get` is not simplified.
+    #[test]
+    fn inlining_preserves_databus_visibility_on_main_entry_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          call_data(0): array: v2, indices: [v0: 0]
+          b0(v0: Field, v1: Field):
+            v2 = make_array [v0, v1] : [Field; 2]
+            v4 = array_get v2, index u32 0 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_simple_functions().unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          call_data(0): array: v2, indices: [v0: 0]
+          b0(v0: Field, v1: Field):
+            v2 = make_array [v0, v1] : [Field; 2]
+            v4 = array_get v2, index u32 0 -> Field
+            return v4
+        }
+        ");
     }
 }

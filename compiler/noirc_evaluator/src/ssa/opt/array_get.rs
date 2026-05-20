@@ -252,12 +252,17 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: _ } => {
-                    // Disable the optimization for the call_data aggregated arrays.
-                    if dfg.data_bus.call_data.iter().any(|cd| cd.array_id == array_id) {
-                        return None;
-                    }
                     let index = target_index_u32 as usize;
                     if index < array.len() {
+                        // Disable the optimization for databus parameters.
+                        if let Value::Param {
+                            visibility:
+                                crate::ssa::function_builder::data_bus::DatabusVisibility::CallData(_),
+                            ..
+                        } = &dfg[array[index]]
+                        {
+                            return None;
+                        }
                         return Some(ArrayGetOptimizationResult::Value(array[index]));
                     }
                 }

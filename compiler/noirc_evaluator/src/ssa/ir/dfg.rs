@@ -4,7 +4,7 @@ use crate::{
     brillig::assert_u32,
     ssa::{
         RuntimeError,
-        function_builder::data_bus::DataBus,
+        function_builder::data_bus::{DataBus, DatabusVisibility},
         ir::function::Function,
         ir::instruction::ArrayOffset,
         opt::pure::{FunctionPurities, Purity},
@@ -206,7 +206,11 @@ impl DataFlowGraph {
 
         let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
             let typ = self.values[*param].get_type().into_owned();
-            self.values.insert(Value::Param { block: new_block, position, typ })
+            let visibility = match &self.values[*param] {
+                Value::Param { visibility, .. } => *visibility,
+                _ => DatabusVisibility::None,
+            };
+            self.values.insert(Value::Param { block: new_block, position, typ, visibility })
         });
 
         self.blocks[new_block].set_parameters(parameters);
@@ -619,11 +623,38 @@ impl DataFlowGraph {
 
     /// Add a parameter to the given block
     pub(crate) fn add_block_parameter(&mut self, block_id: BasicBlockId, typ: Type) -> ValueId {
+        self.add_block_parameter_with_visibility(block_id, typ, DatabusVisibility::None)
+    }
+
+    /// Like [`Self::add_block_parameter`] but tags the parameter with a databus visibility.
+    /// Only entry-block parameters of `main` should ever carry a non-`None` visibility.
+    pub(crate) fn add_block_parameter_with_visibility(
+        &mut self,
+        block_id: BasicBlockId,
+        typ: Type,
+        visibility: DatabusVisibility,
+    ) -> ValueId {
         let block = &mut self.blocks[block_id];
         let position = block.parameters().len();
-        let parameter = self.values.insert(Value::Param { block: block_id, position, typ });
+        let parameter =
+            self.values.insert(Value::Param { block: block_id, position, typ, visibility });
         block.add_parameter(parameter);
         parameter
+    }
+
+    /// Stamp a [`DatabusVisibility`] on an existing [`Value::Param`].
+    /// Used by paths that build params before they know the function's databus layout
+    /// (currently the SSA text parser, which sees the `call_data(_)` header only after
+    /// parsing the block parameters).
+    pub(crate) fn set_param_visibility(
+        &mut self,
+        value_id: ValueId,
+        visibility: DatabusVisibility,
+    ) {
+        match &mut self.values[value_id] {
+            Value::Param { visibility: existing, .. } => *existing = visibility,
+            other => panic!("set_param_visibility on non-param value: {other:?}"),
+        }
     }
 
     /// Returns the field element represented by this value if it is a numeric constant.

@@ -167,6 +167,17 @@ impl FunctionBuilder {
         self.current_function.dfg.add_block_parameter(entry, typ)
     }
 
+    /// Like [`Self::add_parameter`] but tags the new parameter with a databus visibility.
+    /// Only used for entry-block parameters of `main`; everywhere else uses [`Self::add_parameter`].
+    pub fn add_parameter_with_visibility(
+        &mut self,
+        typ: Type,
+        visibility: data_bus::DatabusVisibility,
+    ) -> ValueId {
+        let entry = self.current_function.entry_block();
+        self.current_function.dfg.add_block_parameter_with_visibility(entry, typ, visibility)
+    }
+
     /// Insert a numeric constant into the current function
     pub fn numeric_constant(
         &mut self,

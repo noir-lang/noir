@@ -9,6 +9,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::{
+    function_builder::data_bus::DatabusVisibility,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
@@ -178,7 +179,12 @@ impl IdMaps {
             let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
                 let typ = old_function.dfg.type_of_value(old_parameter).into_owned();
-                let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
+                let visibility = match &old_function.dfg[old_parameter] {
+                    Value::Param { visibility, .. } => *visibility,
+                    _ => DatabusVisibility::None,
+                };
+                let new_parameter =
+                    new_function.dfg.add_block_parameter_with_visibility(new_id, typ, visibility);
                 self.values.insert(old_parameter, new_parameter);
             }
         }
@@ -226,6 +232,69 @@ impl IdMaps {
             Value::Global(_) => {
                 unreachable!("Should have handled the global case already");
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::FieldElement;
+
+    use crate::ssa::{
+        function_builder::{FunctionBuilder, data_bus::DatabusVisibility},
+        ir::{function::FunctionId, types::Type, value::Value},
+    };
+
+    /// Check`call_data` visibility is preserved when
+    /// rebuilding a function in `normalize_ids`.
+    #[test]
+    fn normalize_ids_preserves_databus_visibility_on_main_entry_params() {
+        let main_id = FunctionId::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        // Entry-block param is a call_data(0)
+        let param =
+            builder.add_parameter_with_visibility(Type::field(), DatabusVisibility::CallData(0));
+        let other = builder.add_parameter(Type::field());
+
+        // make_array [call_data_param, other] : [Field; 2]
+        // (mirrors how the databus aggregator builds the call_data)
+        let arr_typ = Type::Array(
+            std::sync::Arc::new(vec![Type::field()]),
+            acvm::acir::brillig::lengths::SemanticLength(2),
+        );
+        let arr = builder.insert_make_array(im::vector![param, other], arr_typ);
+        // array_get arr, 0 -> Field:
+        let zero = builder.length_constant(FieldElement::from(0_u128));
+        let read = builder.insert_array_get(arr, zero, Type::field());
+        builder.terminate_with_return(vec![read]);
+
+        let mut ssa = builder.finish();
+        ssa.normalize_ids();
+
+        let main = ssa.main();
+        let entry_params = main.dfg.block_parameters(main.entry_block());
+        assert_eq!(entry_params.len(), 2, "expected two entry-block params");
+
+        match &main.dfg[entry_params[0]] {
+            Value::Param { visibility, .. } => {
+                assert_eq!(
+                    *visibility,
+                    DatabusVisibility::CallData(0),
+                    "normalize_ids dropped the call_data visibility on the entry-block param",
+                );
+            }
+            other => panic!("entry-block param was not a Value::Param: {other:?}"),
+        }
+        match &main.dfg[entry_params[1]] {
+            Value::Param { visibility, .. } => {
+                assert_eq!(
+                    *visibility,
+                    DatabusVisibility::None,
+                    "non-databus param visibility should remain None after normalize_ids",
+                );
+            }
+            other => panic!("entry-block param was not a Value::Param: {other:?}"),
         }
     }
 }

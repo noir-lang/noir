@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DatabusVisibility {
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub enum DatabusVisibility {
     None,
     CallData(u32),
     ReturnData,
@@ -136,6 +136,7 @@ impl DataBus {
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
+
     /// Construct a databus from call_data and return_data data bus builders
     pub(crate) fn get_data_bus(
         call_data: Vec<DataBusBuilder>,
@@ -282,6 +283,17 @@ impl FunctionBuilder {
 
     /// Forcefully sets the databus of the current function.
     pub(crate) fn set_data_bus(&mut self, data_bus: DataBus) {
+        // Set `Value::Param.visibility` for the function parameters belonging to call data.
+        for call_data in &data_bus.call_data {
+            for (&param_value_id, _) in &call_data.index_map {
+                if matches!(&self.current_function.dfg[param_value_id], crate::ssa::ir::value::Value::Param { .. }) {
+                    self.current_function.dfg.set_param_visibility(
+                        param_value_id,
+                        DatabusVisibility::CallData(call_data.call_data_id),
+                    );
+                }
+            }
+        }
         self.current_function.dfg.data_bus = data_bus;
     }
 
@@ -326,7 +338,6 @@ impl FunctionBuilder {
         param_to_local: &HashMap<ValueId, LocalId>,
     ) -> HashMap<LocalId, ValueId> {
         let mut result = HashMap::default();
-
         for bus in call_data {
             let Some(make_array_id) = bus.databus else { continue };
             for (&param_value_id, &offset) in &bus.map {

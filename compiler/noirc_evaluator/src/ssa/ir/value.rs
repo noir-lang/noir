@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use acvm::FieldElement;
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::function_builder::data_bus::DatabusVisibility;
 use crate::ssa::ir::basic_block::BasicBlockId;
 
 use super::{
@@ -35,7 +36,9 @@ pub enum Value {
     /// are also represented as block parameters, this includes function parameters as well.
     ///
     /// position -- the index of this Value in the block parameters list
-    Param { block: BasicBlockId, position: usize, typ: Type },
+    /// visibility -- databus visibility for `main` entry-block parameters;
+    /// `DatabusVisibility::None` everywhere else.
+    Param { block: BasicBlockId, position: usize, typ: Type, visibility: DatabusVisibility },
 
     /// This Value originates from a numeric constant
     NumericConstant { constant: FieldElement, typ: NumericType },

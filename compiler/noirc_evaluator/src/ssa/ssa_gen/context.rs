@@ -14,6 +14,7 @@ use noirc_frontend::shared::Signedness;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
+use crate::ssa::function_builder::data_bus::DatabusVisibility;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -172,8 +173,15 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, _, typ, _visibility) in parameters {
-            self.add_parameter_to_scope(*id, typ, *mutable);
+        for (id, mutable, _, typ, visibility) in parameters {
+            let databus_visibility = match visibility {
+                noirc_frontend::shared::Visibility::CallData(id) => {
+                    DatabusVisibility::CallData(*id)
+                }
+                noirc_frontend::shared::Visibility::ReturnData => DatabusVisibility::ReturnData,
+                _ => DatabusVisibility::None,
+            };
+            self.add_parameter_to_scope(*id, typ, *mutable, databus_visibility);
         }
     }
 
@@ -186,10 +194,11 @@ impl<'a> FunctionContext<'a> {
         parameter_id: LocalId,
         parameter_type: &ast::Type,
         mutable: bool,
+        visibility: DatabusVisibility,
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
         let parameter_value = Self::map_type(parameter_type, |typ| {
-            let value = self.builder.add_parameter(typ);
+            let value = self.builder.add_parameter_with_visibility(typ, visibility);
             if mutable {
                 // This will wrap any `mut var: T` in a reference
                 self.new_mutable_variable(value)
