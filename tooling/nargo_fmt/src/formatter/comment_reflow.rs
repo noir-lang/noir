@@ -274,18 +274,21 @@ fn emit_blocks(blocks: &[Block], first_budget: usize, cont_budget: usize) -> Vec
             }
             Block::ListItem { marker, hanging_indent, words } => {
                 let fb = if output.is_empty() { first_budget } else { cont_budget };
-                let first_word_budget = fb.saturating_sub(marker.chars().count());
+                let first_word_budget = fb.saturating_sub(*hanging_indent);
                 let cont_word_budget = cont_budget.saturating_sub(*hanging_indent);
                 let wrapped = wrap_words(words, first_word_budget, cont_word_budget);
+                let marker_len = marker.chars().count();
+                let leading_indent = hanging_indent.saturating_sub(marker_len);
+                let leading_pad: String = " ".repeat(leading_indent);
                 let mut iter = wrapped.into_iter();
                 if let Some(first) = iter.next() {
-                    output.push(format!("{marker}{first}"));
+                    output.push(format!("{leading_pad}{marker}{first}"));
                 } else {
-                    output.push(marker.trim_end().to_string());
+                    output.push(format!("{leading_pad}{}", marker.trim_end()));
                 }
-                let pad: String = std::iter::repeat_n(' ', *hanging_indent).collect();
+                let cont_pad: String = " ".repeat(*hanging_indent);
                 for cont in iter {
-                    output.push(format!("{pad}{cont}"));
+                    output.push(format!("{cont_pad}{cont}"));
                 }
             }
             Block::BlockQuote { words } => {
@@ -420,6 +423,34 @@ mod tests {
     fn ordered_list_marker() {
         let out = reflow(&["1. first ordered item that wraps"], 18, 18);
         assert_eq!(out, vec!["1. first ordered".to_string(), "   item that wraps".to_string()]);
+    }
+
+    #[test]
+    fn nested_list_item_preserves_leading_indent() {
+        let out = reflow(&["- Parent", "  - Child"], 80, 80);
+        assert_eq!(out, vec!["- Parent".to_string(), "  - Child".to_string()]);
+    }
+
+    #[test]
+    fn nested_list_item_with_wrap() {
+        let out = reflow(&["- Parent", "  - Child item that is long enough to wrap"], 20, 20);
+        assert_eq!(
+            out,
+            vec![
+                "- Parent".to_string(),
+                "  - Child item that".to_string(),
+                "    is long enough".to_string(),
+                "    to wrap".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn idempotent_nested_list() {
+        let once = reflow(&["- Parent", "  - Child item that is long enough to wrap"], 20, 20);
+        let refs: Vec<&str> = once.iter().map(String::as_str).collect();
+        let twice = reflow(&refs, 20, 20);
+        assert_eq!(once, twice);
     }
 
     #[test]

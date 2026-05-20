@@ -344,14 +344,19 @@ impl Formatter<'_> {
         let line_refs: Vec<&str> = content_lines.iter().map(String::as_str).collect();
 
         if !body_opens_with_newline {
-            let first_used = self.current_line_width() + 1;
+            let has_leading_space = comment.starts_with(' ') || comment.starts_with('\t');
+            let has_trailing_space = comment.ends_with(' ') || comment.ends_with('\t');
+
+            let first_used = self.current_line_width() + if has_leading_space { 1 } else { 0 };
             let cont_used = indent_cols + 3;
             let first_budget = comment_width.saturating_sub(first_used);
             let cont_budget = comment_width.saturating_sub(cont_used);
 
             let outputs = comment_reflow::reflow_comment(&line_refs, first_budget, cont_budget);
 
-            self.write(" ");
+            if has_leading_space {
+                self.write(" ");
+            }
             if let Some((first, rest)) = outputs.split_first() {
                 self.write(first);
                 for line in rest {
@@ -362,7 +367,10 @@ impl Formatter<'_> {
                     self.write(line);
                 }
             }
-            self.write(" */");
+            if has_trailing_space {
+                self.write(" ");
+            }
+            self.write("*/");
             return;
         }
 
@@ -1098,6 +1106,33 @@ global x = 1;
 global x = 1;
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn tight_block_comment_preserves_no_spaces() {
+        let src = "fn foo(/*static=*/ x: Field) {}\n";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn block_comment_with_only_leading_space_preserved() {
+        let src = "fn foo(/* leading_only*/ x: Field) {}\n";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn block_comment_with_only_trailing_space_preserved() {
+        let src = "fn foo(/*trailing_only */ x: Field) {}\n";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn nested_list_in_outer_doc_comment() {
+        let src = "/// - Parent
+///   - Child
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
     }
 
     #[test]
