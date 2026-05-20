@@ -153,18 +153,21 @@ impl Formatter<'_> {
                             if newlines != 1 {
                                 break;
                             }
-                            self.bump();
-                            if let Token::LineComment(next_body, None) = &self.token {
-                                let next_body = next_body.clone();
-                                if next_body.trim() == "noir-fmt:ignore" {
-                                    break;
+                            let extends = match self.peek_next_token() {
+                                Token::LineComment(next_body, None) => {
+                                    next_body.trim() != "noir-fmt:ignore"
                                 }
-                                group.push(next_body);
-                                self.bump();
-                                group_count += 1;
-                            } else {
+                                _ => false,
+                            };
+                            if !extends {
                                 break;
                             }
+                            self.bump();
+                            let Token::LineComment(next_body, None) = self.bump() else {
+                                unreachable!("peek confirmed a plain line comment")
+                            };
+                            group.push(next_body);
+                            group_count += 1;
                         }
                     }
 

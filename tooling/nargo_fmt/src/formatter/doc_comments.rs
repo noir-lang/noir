@@ -71,15 +71,18 @@ impl Formatter<'_> {
             if newlines != 1 {
                 break;
             }
-            self.bump();
-            if let Token::LineComment(next_body, Some(next_style)) = &self.token
-                && *next_style == style
-            {
-                bodies.push(next_body.clone());
-                self.bump();
-            } else {
+            let extends = matches!(
+                self.peek_next_token(),
+                Token::LineComment(_, Some(next_style)) if *next_style == style
+            );
+            if !extends {
                 break;
             }
+            self.bump();
+            let Token::LineComment(next_body, Some(_)) = self.bump() else {
+                unreachable!("peek confirmed a matching doc line comment")
+            };
+            bodies.push(next_body);
         }
         bodies
     }
@@ -218,6 +221,32 @@ global x: Field = 1;
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn outer_doc_comment_not_merged_with_following_plain_comment() {
+        let src = "/// Hello
+// world
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn inner_doc_comment_not_merged_with_following_plain_comment() {
+        let src = "//! Hello
+// world
+";
+        assert_format_wrapping_comments(src, src, 80);
+    }
+
+    #[test]
+    fn plain_comment_not_merged_with_following_outer_doc_comment() {
+        let src = "// plain
+/// outer doc
+fn foo() {}
+";
+        assert_format_wrapping_comments(src, src, 80);
     }
 
     #[test]

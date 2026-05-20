@@ -81,6 +81,11 @@ pub(crate) struct Formatter<'a> {
 
     /// Is the formatter inside a chunk?
     pub(crate) in_chunk: bool,
+
+    /// One-token lookahead buffer. When `Some`, the next `bump` consumes this
+    /// instead of advancing the lexer. Used by grouping logic that needs to look
+    /// past a whitespace to see what kind of token follows.
+    peeked: Option<SpannedToken>,
 }
 
 impl<'a> Formatter<'a> {
@@ -100,6 +105,7 @@ impl<'a> Formatter<'a> {
             max_width: config.max_width,
             buffer: Buffer::default(),
             in_chunk: false,
+            peeked: None,
         };
         formatter.bump();
         formatter
@@ -340,7 +346,8 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
-        let next_token = self.read_token_internal();
+        let next_token =
+            if let Some(peeked) = self.peeked.take() { peeked } else { self.read_token_internal() };
 
         // Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
         if !matches!(
@@ -364,5 +371,15 @@ impl<'a> Formatter<'a> {
         } else {
             SpannedToken::new(Token::EOF, Default::default())
         }
+    }
+
+    /// Returns the token that would become current after the next `bump`, without consuming it.
+    /// Used by grouping logic that needs to look past a whitespace to decide whether to extend
+    /// a comment group.
+    pub(crate) fn peek_next_token(&mut self) -> &Token {
+        if self.peeked.is_none() {
+            self.peeked = Some(self.read_token_internal());
+        }
+        self.peeked.as_ref().unwrap().token()
     }
 }
