@@ -28,9 +28,7 @@
 //! 1. **Backward alias-set.** Compute the set of values that may share `vX`'s
 //!    storage *at the array_set's program point* by walking block-parameter →
 //!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
-//!    by the values that flow *into* `vX`'s binding is included — not the full
-//!    UF closure, which would over-approximate by also conflating sibling
-//!    parameters that share an arg through a downstream join. Filtered to
+//!    by the values that flow *into* `vX`'s binding is included. Filtered to
 //!    drop values that can't represent pre-mutation storage: `array_set` /
 //!    `Call` results (always fresh), iteration-local `MakeArray`s (back-edge
 //!    args), and instruction results defined in the array_set's own block at
@@ -65,10 +63,7 @@
 //!   parameter's backward set includes `v` but not the other parameter. The
 //!   `end_to_end_sibling_args_to_same_value_is_false_negative` and
 //!   `end_to_end_sibling_args_across_jmp_is_false_negative` tests pin this
-//!   down as documented false negatives. A previous version of this pass
-//!   used a full union-find that caught these cases at the cost of
-//!   path-merge over-approximation at downstream joins; the backward
-//!   walk trades the sibling-detection for the precision.
+//!   down as documented false negatives.
 //! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
 //!   `Call` returns**, **`Store`/`Load` on ineligible (nested-ref)
 //!   allocates** — same as before.
@@ -192,13 +187,12 @@ struct Context<'f> {
     /// `{v}` (typically instruction results that aren't passed as args
     /// anywhere they'd matter — handled in [`Context::alias_set_for`]).
     ///
-    /// This is the *backward* alias-set, not the full union-find closure
-    /// over all `(param, arg)` pairs. The difference matters at joins:
-    /// two values that flow into different parameters of the same block
-    /// are *not* siblings of each other under backward aliasing, because
-    /// neither is reachable from the other along param→arg edges. This
-    /// avoids the path-merge over-approximation a full UF would
-    /// introduce.
+    /// The walk follows the directed `param ← arg` edges, so two values
+    /// that flow into different parameters of the same block are *not*
+    /// siblings of each other under backward aliasing — neither is
+    /// reachable from the other along param→arg edges. This is what
+    /// keeps path-merge over-approximation at join points out of the
+    /// alias-set.
     backward_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
     /// For each array-typed value defined by an instruction, the
     /// `(block, instruction-position-within-block)` of the defining
@@ -715,8 +709,8 @@ impl<'f> Context<'f> {
     ///    - **Add.** If the param is not in `use_set` but the arg is,
     ///      this edge introduces a fresh alias: the param at `dest`'s
     ///      entry shares storage with an alias-set member, so add it.
-    ///      This is what makes alias propagation accurate at joins and
-    ///      loop back-edges without needing a full path-insensitive UF.
+    ///      This keeps alias propagation accurate at joins and loop
+    ///      back-edges.
     ///    - Otherwise (both in or both out), no change.
     ///    Only array-typed params participate.
     ///
@@ -783,15 +777,15 @@ impl<'f> Context<'f> {
 /// converges in 1 pass for loop-free code and 2-3 for typical
 /// loops — versus O(chain-depth) passes under arbitrary block order.
 ///
-/// # Why backward, not full union-find
+/// # Why the walk is directed (param ← arg), not symmetric
 ///
-/// A full UF over `(param, arg)` pairs is symmetric: two sibling args
-/// passed to the same block end up in the same class via the shared
+/// A symmetric closure over `(param, arg)` pairs would put two sibling
+/// args passed to the same block in the same class via the shared
 /// parameter, even though at runtime they never refer to the same
-/// storage (each runtime path takes only one of them). The backward
-/// walk follows the directed param-←-arg edges, so sibling parameters
-/// don't co-mingle in each other's sets — only the predecessors that
-/// flow *into* a given parameter do.
+/// storage (each runtime path takes only one of them). Following the
+/// directed `param ← arg` edges instead means sibling parameters don't
+/// co-mingle in each other's sets — only the predecessors that flow
+/// *into* a given parameter do.
 ///
 /// # Why we deliberately do **not** chase past `array_set` results
 ///
@@ -1149,19 +1143,18 @@ mod tests {
     /// loop body that mutates the loop-variable (an `array_set` whose
     /// source is the loop-header parameter) and then re-seeds the
     /// loop variable with a global on the back-edge — the user-source
-    /// equivalent of `for _ { a[i] = …; a = G_A }`. The UF unifies the
-    /// loop param with the function arg (forward edge into the
-    /// header) AND with the global (back-edge into the header), so a
-    /// post-loop `array_get` on the loop param appears as an aliased
-    /// read of the function arg's storage. At runtime the loop param
-    /// at the loop exit is always the global (last back-edge binding),
-    /// and the global has been `inc_rc`'d, so its `RC ≥ 2` from iter
-    /// 1+ and the array_set never mutates it; iter 0's mutation hits
-    /// the function arg's caller-side storage, which is no longer
-    /// referenced after iter 0's back-edge re-bind. The inc_rc'd-global
-    /// filter drops the global from the alias-set, the per-arg kill on
-    /// the back-edge then drops the loop param, and the walk
-    /// terminates without flagging.
+    /// equivalent of `for _ { a[i] = …; a = G_A }`. The loop-header
+    /// param's backward set pulls in both the function arg (forward
+    /// edge into the header) AND the global (back-edge into the
+    /// header), so a post-loop `array_get` on the loop param appears
+    /// as an aliased read of the function arg's storage. At runtime
+    /// the loop param at the loop exit is always the global (last
+    /// back-edge binding), and the global has been `inc_rc`'d, so its
+    /// `RC ≥ 2` from iter 1+ and the array_set never mutates it; iter
+    /// 0's mutation hits the function arg's caller-side storage,
+    /// which is no longer referenced after iter 0's back-edge re-bind.
+    /// The back-edge-participant relaxation accepts the SSA: the global
+    /// is a non-source alias with an `inc_rc` and is a back-edge arg.
     #[test]
     fn end_to_end_loop_reseeded_with_inc_rcd_global_is_accepted() {
         let src = r#"
@@ -1336,8 +1329,9 @@ mod tests {
     /// `..=` (inclusive range) generates an extra `array_set v_loop`
     /// in a post-loop block, which forward-threads the back-edge value
     /// (`v0`) into a downstream block param (`v25`). The walk reaches
-    /// a `array_get v25` and would flag it because UF unifies `v25`
-    /// with the source `v24` via the post-loop forward edge.
+    /// a `array_get v25` and would flag it because the backward set
+    /// pulls `v25` into the source `v24`'s alias-set via the
+    /// post-loop forward edge.
     ///
     /// At runtime `v25` is always `v0` (or only `v1` on a path where
     /// the array_set never fired), and the `inc_rc v0` inside the
@@ -1379,20 +1373,18 @@ mod tests {
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered pattern: two
-    /// array-typed function entry parameters get unified into the same
-    /// alias class by the UF because they both flow into the same
+    /// array-typed function entry parameters both flow into the same
     /// downstream block parameter — one via a forward edge into the
     /// loop header, the other via a back-edge that re-seeds the loop
     /// variable with the second entry parameter (the user-source-level
     /// equivalent of `c = b` at the bottom of an outer loop iteration).
-    /// The walk then finds an aliased `array_get` of the *other* entry
-    /// param on a forward path from the `array_set`, with no
-    /// dominating `inc_rc`. The frontend trusts that distinct entry
-    /// parameters point at distinct caller-side storage (and the only
-    /// inc_rc it emits is on the back-edge, protecting iteration 2+);
-    /// the verifier mirrors that trust by treating ≥ 2 array entry
-    /// parameters in the alias-set as if a virtual `inc_rc` preceded
-    /// the array_set at function entry.
+    /// The loop-header param's backward set therefore contains both
+    /// entry params, and the walk would find an aliased `array_get` of
+    /// the *other* entry param on a forward path from the `array_set`.
+    /// The codegen emits `inc_rc v_b` inside the loop body (right
+    /// before the back-edge), which is the signal that loop-iteration
+    /// aliasing is being managed: `v_b` is a non-source alias and a
+    /// back-edge arg, so the back-edge-participant relaxation accepts.
     #[test]
     fn end_to_end_two_entry_array_params_cross_aliased_via_back_edge_is_accepted() {
         let src = r#"
@@ -1411,17 +1403,14 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v_b and v_c are both array-typed entry parameters unified into the loop-header param's class — at runtime they point at distinct caller-side storage, so cross-arg aliasing through the UF is not a real hazard",
+            "v_b and v_c both flow into the loop-header param's backward set, but at runtime they're distinct caller-side storages; the inc_rc v_b on the back-edge is the codegen signal the back-edge-participant relaxation accepts on",
         );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered minimal shape:
-    /// two array-typed function entry parameters are unified into the
-    /// same alias class by a *forward* if-else sibling join (no loops,
-    /// no inc_rc anywhere). The walk flags an `array_get` of the other
-    /// entry param inside the array_set's own block — *before* the walk
-    /// reaches the join where the UF conflation actually happens.
-    /// Source-level shape:
+    /// two array-typed function entry parameters flow into the same
+    /// downstream block parameter via a *forward* if-else sibling join
+    /// (no loops, no inc_rc anywhere). Source-level shape:
     ///
     /// ```ignore
     /// fn main(a, mut b, c) -> Field {
@@ -1430,11 +1419,11 @@ mod tests {
     /// }
     /// ```
     ///
-    /// Distinct entry parameters point at distinct caller-side storage by
-    /// Brillig calling convention; their conflation through a downstream
-    /// join is a UF over-approximation, not a real hazard. The verifier
-    /// recognizes this by accepting any `array_set` whose alias-set
-    /// contains two or more array-typed entry parameters.
+    /// Distinct entry parameters point at distinct caller-side storage
+    /// by Brillig calling convention. The backward walk keeps them
+    /// apart — from `v1`'s perspective (an entry param) its backward
+    /// set is just `{v1}`, so `v0` never enters the alias-set and no
+    /// flag fires on the cross-arg `array_get`.
     #[test]
     fn end_to_end_two_entry_array_params_cross_aliased_via_forward_sibling_join_is_accepted() {
         let src = r#"
@@ -1455,7 +1444,7 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v0 and v1 are both array-typed function entry params unified into b3.v20's class via the if-else sibling join; at runtime they point at distinct caller-side storage, so the cross-arg aliasing through UF is not a real hazard",
+            "v0 and v1 are both array-typed function entry params flowing into b3.v20 via the if-else sibling join. The backward walk from v1 (an entry param) doesn't pull v0 into the alias-set, so the cross-arg array_get isn't flagged.",
         );
     }
 
@@ -1476,15 +1465,12 @@ mod tests {
     /// }
     /// ```
     ///
-    /// Under the original full-UF formulation this needed a special
-    /// "jmp-arg-participant" relaxation to accept the `inc_rc g0` as a
-    /// codegen signal. With [`Context::backward_aliases`], the global
-    /// `g0` simply isn't in `v0`'s backward set in the first place
-    /// (v0 is an entry param with no predecessors), so the alias-set
-    /// stays `{v0}` and the walk never touches `v5` or `g0` — no
-    /// relaxation needed. The test is kept as a regression for this
-    /// shape: if the alias analysis ever loses precision, this test
-    /// will start failing.
+    /// [`Context::backward_aliases`] doesn't pull `g0` into `v0`'s
+    /// alias-set (v0 is an entry param with no predecessors), so the
+    /// alias-set stays `{v0}` and the walk never touches `v5` or `g0`.
+    /// Kept as a precision regression: if the alias analysis ever
+    /// loses precision on forward-edge sibling joins, this test will
+    /// start failing.
     #[test]
     fn end_to_end_inc_rc_on_forward_edge_participant_alias_is_accepted() {
         let src = r#"
@@ -1528,16 +1514,14 @@ mod tests {
     /// On the path where the mutation happens, the value threaded
     /// forward into `v5` is *not* the one that got mutated.
     ///
-    /// # Why the backward-alias-set analysis catches this
+    /// # Why the analysis accepts this
     ///
-    /// The full UF would unify `v0 ≈ v5 ≈ g0` and incorrectly flag
-    /// `array_get v5` as an aliased read of `v0`. The backward walk
-    /// follows param←arg edges directionally: from `v0`'s perspective
-    /// (an entry param with no predecessors), the backward set is just
-    /// `{v0}`. The forward walk's add-on-edge rule then watches for
-    /// `v0` to be threaded into a downstream param — but the b1→b2
-    /// edge passes `g0`, not `v0`, so no param gets added. The walk
-    /// terminates without flagging.
+    /// The backward walk follows `param ← arg` edges directionally:
+    /// from `v0`'s perspective (an entry param with no predecessors),
+    /// the backward set is just `{v0}`. The forward walk's add-on-edge
+    /// rule then watches for `v0` to be threaded into a downstream
+    /// param — but the b1→b2 edge passes `g0`, not `v0`, so no param
+    /// gets added. The walk terminates without flagging.
     #[test]
     fn end_to_end_forward_edge_sibling_join_without_inc_rc_is_accepted() {
         let src = r#"
@@ -1628,20 +1612,20 @@ mod tests {
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered shape that
-    /// exposed a subtle bug in the original backward-aliases-only
-    /// formulation: a `make_array` defined *after* an `array_set` in the
-    /// same block (`b13`) gets threaded forward to a different block
-    /// (`b14`) and from there *back* to the array_set's source's
-    /// parameter (`v29`) via a loop back-edge `b8 → b4`. Without the
-    /// post-array_set-in-same-block filter, that round-trip would pull
-    /// the make_array (`v24`) into the source's backward set, the
-    /// per-arg kill on the `b13 → b14(v24, _)` edge would see
-    /// `v24 ∈ use_set` and refuse to kill `v26`, the next
-    /// `b8 → b4(v26)` would see `v26 ∈ use_set` and refuse to kill
-    /// `v29`, and the walk would flag the loop-header's `array_get v29`
-    /// as an aliased read — even though at runtime `v24` is fresh
-    /// storage that didn't exist at the array_set's program point and
-    /// can't carry pre-mutation aliasing forward.
+    /// exercises the post-array_set-in-same-block filter via a
+    /// forward-then-back round-trip: a `make_array` defined *after* an
+    /// `array_set` in the same block (`b13`) gets threaded forward to
+    /// a different block (`b14`) and from there *back* to the
+    /// array_set's source's parameter (`v29`) via a loop back-edge
+    /// `b8 → b4`. Without the filter, that round-trip would pull the
+    /// make_array (`v24`) into the source's backward set, the per-arg
+    /// kill on the `b13 → b14(v24, _)` edge would see `v24 ∈ use_set`
+    /// and refuse to kill `v26`, the next `b8 → b4(v26)` would see
+    /// `v26 ∈ use_set` and refuse to kill `v29`, and the walk would
+    /// flag the loop-header's `array_get v29` as an aliased read —
+    /// even though at runtime `v24` is fresh storage that didn't exist
+    /// at the array_set's program point and can't carry pre-mutation
+    /// aliasing forward.
     ///
     /// Source-level shape:
     ///
@@ -2252,17 +2236,10 @@ mod tests {
     /// and `array_get v2` would observe the mutation. The verifier should
     /// flag this, but it doesn't.
     ///
-    /// The previous full-UF formulation caught this case (sibling args
-    /// land in the same equivalence class via the shared parameter), but
-    /// at the cost of conflating distinct caller-side storages at join
-    /// points, which produced several fuzzer-found false positives. The
-    /// trade-off — give up sibling-same-value detection to avoid
-    /// path-merge over-approximation — is documented in the module-level
-    /// docs.
-    ///
-    /// This test pins down the current behavior. If a future change
-    /// makes the analysis precise enough to catch this shape, flip the
-    /// assertion to `assert_verifier_rejects`.
+    /// Pinning the current behavior down: if a future change makes the
+    /// analysis precise enough to catch this shape, flip the assertion
+    /// to `assert_verifier_rejects`. See the module-level docs for
+    /// where this gap sits in the precision/recall trade-off.
     #[test]
     fn end_to_end_sibling_args_to_same_value_is_false_negative() {
         let src = r#"
