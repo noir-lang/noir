@@ -442,7 +442,8 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let mut module_id = self.module_id();
+        let importing_module = self.module_id();
+        let mut starting_module = importing_module;
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain
@@ -457,7 +458,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            module_id = datatype.id.module_id();
+            starting_module = datatype.id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
@@ -467,7 +468,14 @@ impl Elaborator<'_> {
             .last()
             .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
 
-        let result = self.resolve_path_in_module(path, module_id, intermediate_item, target, mode);
+        let result = self.resolve_path_in_module(
+            path,
+            starting_module,
+            importing_module,
+            intermediate_item,
+            target,
+            mode,
+        );
         let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
             return result;
         };
@@ -504,13 +512,16 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Resolves a [TypedPath].
+    /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// This method first checks the path's kind and resolves it accordingly.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_in_module(
         &mut self,
         path: TypedPath,
+        starting_module: ModuleId,
         importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
@@ -520,7 +531,7 @@ impl Elaborator<'_> {
             self.interner.is_in_lsp_mode().then(|| ReferencesTracker::new(self.interner));
 
         let res =
-            resolve_path_kind(path.clone(), importing_module, self.def_maps, references_tracker);
+            resolve_path_kind(path.clone(), starting_module, self.def_maps, references_tracker);
 
         match res {
             Ok((path, module_id, _)) => self.resolve_name_in_module(
@@ -546,6 +557,8 @@ impl Elaborator<'_> {
     /// Resolves a [TypedPath] assuming it is inside `starting_module`.
     ///
     /// `importing_module` is the module where the lookup originally started.
+    ///
+    /// This method does not check the path kind, it just checks its segments.
     ///
     /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
     /// Pushes errors if segments refer to private items.
