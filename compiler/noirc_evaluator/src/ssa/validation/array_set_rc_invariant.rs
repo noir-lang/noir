@@ -180,13 +180,13 @@ struct Context<'f> {
     ///   documented gap. In practice the frontend's array-returning
     ///   functions allocate fresh storage.
     non_aliasing_array_values: HashSet<ValueId>,
-    /// `MakeArray` results that appear on at least one loop back-edge
-    /// (i.e., they're members of [`Context::back_edge_args`]). Such a
-    /// `make_array` re-executes on every loop iteration and represents
-    /// fresh storage per iteration, so the back-edge UF unification that
-    /// puts it in the loop-header parameter's class is conflating
-    /// distinct runtime storages across iterations. Filtered out of the
-    /// alias-set on lookup — see [`Context::alias_set_for`].
+    /// `MakeArray` results that appear as a jmp/jmpif arg on at least one
+    /// loop back-edge. Such a `make_array` re-executes on every loop
+    /// iteration and represents fresh storage per iteration, so the
+    /// back-edge UF unification that puts it in the loop-header
+    /// parameter's class is conflating distinct runtime storages across
+    /// iterations. Filtered out of the alias-set on lookup — see
+    /// [`Context::alias_set_for`].
     ///
     /// `MakeArray` results that are *not* back-edge args are kept in the
     /// alias-set: they represent a one-time allocation whose storage
@@ -231,11 +231,11 @@ impl<'f> Context<'f> {
         let post_order = PostOrder::with_cfg(&cfg);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
 
-        // Loop back-edges so we can build a forward-only union-find
-        // alongside the regular one. Back-edges are the only place where
-        // a block parameter can be re-bound to a different value across
-        // iterations, so excluding them gives us a per-source view of
-        // "aliases reachable through forward control flow only."
+        // Loop back-edges so we can recognize iteration-local
+        // `make_array` results (those passed as args on a back-edge),
+        // which represent fresh-per-iteration storage and so don't
+        // carry the array_set's pre-mutation aliasing forward through
+        // the loop header.
         let back_edges: HashSet<(BasicBlockId, BasicBlockId)> =
             Loops::find_all(function, LoopOrder::InsideOut)
                 .yet_to_unroll
@@ -451,10 +451,12 @@ impl<'f> Context<'f> {
     /// what we want to look for. Rule (2) can never fire on the source
     /// because the source's def must precede the array_set's use of it.
     ///
-    /// Filtering of back-edge-only-reachable alias members is handled
-    /// not here but in [`Context::some_inc_rc_precedes`], which accepts
-    /// the `array_set` outright when such a member also carries an
-    /// `inc_rc` — see that function's doc for the rationale.
+    /// Aliasing introduced by block-parameter threading is *not*
+    /// filtered here — that's the entire point of `value_aliases`.
+    /// What `some_inc_rc_precedes` does on top is a separate decision:
+    /// if any non-source alias-set member that's also a jmp/jmpif arg
+    /// carries an `inc_rc`, the array_set is accepted as RC-protected
+    /// by codegen intent.
     fn alias_set_for(
         &self,
         source: ValueId,
@@ -508,13 +510,9 @@ impl<'f> Context<'f> {
     /// frontend signalling "I'm aware of this aliasing and have handled
     /// it." Absence of any such `inc_rc` *combined* with a forward aliased
     /// read (checked separately) still flags as a hazard, which is the
-    /// shape PR-12671 had.
-    ///
-    /// **Known weakness:** this accepts SSAs where an `inc_rc` is placed
-    /// on a different branch than the `array_set` (e.g.
-    /// `b0: jmpif then b1{inc_rc v0} else b2{v_ = array_set v0}`). The
-    /// frontend doesn't appear to produce that shape in practice; a
-    /// fuzzer might.
+    /// shape PR-12671 had. The jmp-arg-participant relaxation below
+    /// widens this further to cover `inc_rc`s placed after the
+    /// array_set or on sibling branches.
     ///
     /// # Jmp-arg-participant relaxation
     ///
@@ -1148,10 +1146,11 @@ mod tests {
     /// back-edge re-bind — so the apparent post-array_set read of the
     /// loop variable (the next iteration's `array_get` on the loop
     /// header param) is actually reading the original argument's
-    /// pristine storage. The back-edge-only-with-`inc_rc` filter drops
-    /// the original arg from the alias-set, the per-arg kill on the
-    /// back-edge then drops the loop param, and the walk terminates
-    /// without flagging.
+    /// pristine storage. The jmp-arg-participant relaxation in
+    /// [`Context::some_inc_rc_precedes`] accepts this: the original arg
+    /// is a non-source alias with an `inc_rc`, and it appears as a
+    /// back-edge arg — a codegen signal that the frontend is
+    /// deliberately managing the loop aliasing.
     #[test]
     fn end_to_end_loop_reseeded_with_inc_rcd_entry_param_is_accepted() {
         let src = r#"
@@ -1178,7 +1177,7 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v0 (the function arg) is on the back-edge to v24 only, and it has an inc_rc in the loop body, so iter 1+'s array_set on v0 allocates fresh; iter 0's array_set mutates v6 (the fresh forward-edge make_array), which is no longer referenced after the back-edge re-bind",
+            "v0 (the function arg) is a back-edge arg with an inc_rc in the loop body, so iter 1+'s array_set on v0 allocates fresh; iter 0's array_set mutates v6 (the fresh forward-edge make_array), which is no longer referenced after the back-edge re-bind. The jmp-arg-participant relaxation accepts the inc_rc on v0 as the codegen signal.",
         );
     }
 
@@ -1189,14 +1188,12 @@ mod tests {
     /// back-edge — not directly on the inner loop's back-edge. The
     /// inner source's UF class still contains `v0` transitively, via
     /// the chain `inner_param ↔ outer_param` (forward edge into the
-    /// inner loop) and `outer_param ↔ v0` (outer back-edge). The
-    /// per-source back-edge-only filter doesn't see this — it only
-    /// looks at direct args to the *source's* block param — so the
-    /// fix is a global filter: any value that is a back-edge arg
-    /// somewhere, never a forward-edge arg anywhere, and `inc_rc`'d
-    /// can be dropped from every alias-set (it cannot be the iter-0
-    /// runtime value of any block parameter, and from iter 1+ its
-    /// RC ≥ 2 forces the array_set to allocate fresh).
+    /// inner loop) and `outer_param ↔ v0` (outer back-edge).
+    ///
+    /// The current jmp-arg-participant relaxation in
+    /// [`Context::some_inc_rc_precedes`] handles this uniformly: `v0` is
+    /// a non-source alias with an `inc_rc` and appears as a jmp arg
+    /// (on the outer back-edge), so the array_set is accepted.
     #[test]
     fn end_to_end_nested_loop_outer_back_edge_inc_rcd_arg_filtered_for_inner_source() {
         let src = r#"
@@ -1232,22 +1229,17 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v0 is in the inner source's class transitively (via outer header v21's back-edge) and has an `inc_rc`; v0 is not in the inner source's forward-only class, so the back-edge-only-with-inc_rc filter drops it and the apparent next-outer-iter read of v21 isn't flagged",
+            "v0 is in the inner source's class transitively (via outer header v21's back-edge) and has an `inc_rc`. The jmp-arg-participant relaxation accepts: v0 ≠ source and v0 is a jmp arg (on the outer back-edge), so the inc_rc on v0 is taken as the codegen signal that loop aliasing is being managed.",
         );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered pattern: a
     /// function arg that's *both* forward-threaded into an unrelated
     /// early-return branch *and* back-edge-threaded into the outer loop
-    /// that carries an inner-loop array_set. A global "never appears as
-    /// a forward-edge arg" filter would miss this because the arg does
-    /// appear as a forward arg — just on a control-flow path that never
-    /// reaches the array_set. The per-source forward-only-UF lookup
-    /// catches it: in the inner source's forward-only class, the arg is
-    /// absent (it reaches the source only through the outer loop's
-    /// back-edge), and the `inc_rc` in the outer-loop body guarantees
-    /// `RC ≥ 2` by the time the inner source actually equals it at
-    /// runtime, so the array_set on it is forced to allocate fresh.
+    /// that carries an inner-loop array_set. The inc_rc in the
+    /// outer-loop body guarantees `RC ≥ 2` by the time the inner source
+    /// actually equals the arg at runtime, so the array_set on it is
+    /// forced to allocate fresh.
     #[test]
     fn end_to_end_inc_rcd_arg_forward_in_unrelated_branch_and_back_to_outer_loop_is_accepted() {
         let src = r#"
@@ -1279,7 +1271,7 @@ mod tests {
             }"#;
         assert_verifier_accepts_because(
             src,
-            "v0 is a forward arg to b_early_exit (unrelated region) and a back-edge arg to the outer loop; for the inner array_set's source, v0 is in the full UF class but not in the forward-only class, and has an `inc_rc` — so the back-edge-only-with-inc_rc filter drops it",
+            "v0 is a forward arg to b_early_exit (unrelated region) and a back-edge arg to the outer loop, and carries an inc_rc. The jmp-arg-participant relaxation accepts: v0 ≠ source, v0 ∈ jmp_args, and has inc_rc — taken as the codegen signal regardless of which edge the inc_rc-bearing arg was passed on.",
         );
     }
 
