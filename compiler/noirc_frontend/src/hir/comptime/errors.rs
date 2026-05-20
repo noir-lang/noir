@@ -440,7 +440,7 @@ impl InterpreterError {
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. }
             | InterpreterError::FunctionNotVisible { location, .. } => *location,
-            | InterpreterError::UserDefinedError { location, .. }
+            InterpreterError::UserDefinedError { location, .. }
             | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),

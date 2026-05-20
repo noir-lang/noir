@@ -2432,11 +2432,11 @@ fn expr_resolve(
                     let (expr_id, _) = elaborator.elaborate_expression(expression);
                     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
                 } else {
-                let expression = Value::pattern(pattern)
-                    .display(elaborator.interner, elaborator.files)
-                    .to_string();
-                let location = self_argument_location;
-                Err(InterpreterError::CannotResolveExpression { location, expression })
+                    let expression = Value::pattern(pattern)
+                        .display(elaborator.interner, elaborator.files)
+                        .to_string();
+                    let location = self_argument_location;
+                    Err(InterpreterError::CannotResolveExpression { location, expression })
                 }
             }
         }
