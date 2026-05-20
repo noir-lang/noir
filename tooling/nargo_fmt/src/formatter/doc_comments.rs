@@ -375,6 +375,37 @@ fn bar() {}
     }
 
     #[test]
+    fn fence_snippet_respects_narrower_width_inside_doc_comment() {
+        let src = "/// ```
+/// fn foo() { call(aaa, bbb, ccc, ddd, eee, fff, ggg, hhh) }
+/// ```
+fn bar() {}
+";
+        // At max_width=50 the inner call would fit on a single line if the inner
+        // formatter saw the full 50-column budget. With the fix it sees
+        // max_width = 50 - 4 (for `/// `), forcing the call to wrap so the rendered
+        // doc-comment lines all stay within the configured 50 columns.
+        let expected = "/// ```
+/// fn foo() {
+///     call(
+///         aaa,
+///         bbb,
+///         ccc,
+///         ddd,
+///         eee,
+///         fff,
+///         ggg,
+///         hhh,
+///     )
+/// }
+/// ```
+fn bar() {}
+";
+        let config = Config { wrap_comments: true, max_width: 50, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
     fn formats_noir_code_in_block_doc_comment_fence() {
         let src = "/**
  * ```

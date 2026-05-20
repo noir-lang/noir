@@ -12,7 +12,18 @@ const NEWLINE: &str = "\n";
 /// Recursively formats a Noir code snippet pulled from a doc-comment fenced block.
 /// Returns `None` when the snippet should be left alone — either the fence has a
 /// non-Noir language tag, the body is empty, or the snippet fails to parse cleanly.
-fn format_noir_snippet(source: &str, lang: Option<&str>, config: &Config) -> Option<String> {
+///
+/// `available_width` is how many columns the rendered fence body actually gets — the
+/// parent's `max_width` minus the comment-line prefix (e.g. `/// `) and any outer
+/// indentation. The inner formatter's `max_width` and related single-line thresholds
+/// are tightened to this so output that lands inside the prefix still respects the
+/// configured maximum.
+fn format_noir_snippet(
+    source: &str,
+    lang: Option<&str>,
+    config: &Config,
+    available_width: usize,
+) -> Option<String> {
     let lang_ok = match lang {
         None => true,
         Some(l) => l.eq_ignore_ascii_case("noir"),
@@ -24,7 +35,19 @@ fn format_noir_snippet(source: &str, lang: Option<&str>, config: &Config) -> Opt
     if errors.into_iter().any(|e| !e.is_warning()) {
         return None;
     }
-    Some(crate::format(source, parsed, config))
+
+    // Floor at 20 so deeply-indented or very tight comment positions still produce
+    // legible output rather than degenerate one-token-per-line wrapping.
+    let inner_width = available_width.max(20);
+    let mut snippet_config = config.clone();
+    snippet_config.max_width = inner_width;
+    snippet_config.fn_call_width = config.fn_call_width.min(inner_width);
+    snippet_config.array_width = config.array_width.min(inner_width);
+    snippet_config.single_line_if_else_max_width =
+        config.single_line_if_else_max_width.min(inner_width);
+    snippet_config.comment_width = config.comment_width.min(inner_width);
+
+    Some(crate::format(source, parsed, &snippet_config))
 }
 
 impl Formatter<'_> {
@@ -271,11 +294,13 @@ impl Formatter<'_> {
         let cont_budget = comment_width.saturating_sub(indent_cols).saturating_sub(prefix_cols);
 
         let config = self.config;
+        let snippet_width =
+            self.config.max_width.saturating_sub(indent_cols).saturating_sub(prefix_cols);
         let outputs = comment_reflow::reflow_comment_with_code_formatter(
             &lines,
             first_budget,
             cont_budget,
-            |source, lang| format_noir_snippet(source, lang, config),
+            |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
         for (index, content) in outputs.iter().enumerate() {
@@ -381,11 +406,12 @@ impl Formatter<'_> {
             let cont_budget = comment_width.saturating_sub(cont_used);
 
             let config = self.config;
+            let snippet_width = self.config.max_width.saturating_sub(cont_used);
             let outputs = comment_reflow::reflow_comment_with_code_formatter(
                 &line_refs,
                 first_budget,
                 cont_budget,
-                |source, lang| format_noir_snippet(source, lang, config),
+                |source, lang| format_noir_snippet(source, lang, config, snippet_width),
             );
 
             if has_leading_space {
@@ -411,11 +437,12 @@ impl Formatter<'_> {
         let prefix_used = if all_stars { 3 } else { 0 };
         let content_budget = comment_width.saturating_sub(indent_cols + prefix_used);
         let config = self.config;
+        let snippet_width = self.config.max_width.saturating_sub(indent_cols + prefix_used);
         let outputs = comment_reflow::reflow_comment_with_code_formatter(
             &line_refs,
             content_budget,
             content_budget,
-            |source, lang| format_noir_snippet(source, lang, config),
+            |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
         self.start_new_line_no_indentation();

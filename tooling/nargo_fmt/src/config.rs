@@ -6,6 +6,7 @@ use crate::errors::ConfigError;
 
 macro_rules! config {
     ($($field_name:ident: $field_ty:ty, $default_value:expr_2021, $description:expr_2021 );+ $(;)*) => (
+        #[derive(Clone)]
         pub struct Config {
             $(
                 #[doc = $description]
