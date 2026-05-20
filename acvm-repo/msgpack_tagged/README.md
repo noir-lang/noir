@@ -398,3 +398,88 @@ buffer for correctness on reordered types — it's not optional there —
 but `Tagged` types pay it only for the byte-determinism guarantee, so
 if you've got a Tagged type where cross-implementation byte-equivalence
 isn't load-bearing, keeping the source ordered avoids the cost.
+
+## Consuming from C++
+
+The ACIR crate generates C++ `msgpack_unpack` methods for every wire
+type, used by Barretenberg to deserialize ACIR / Witness payloads. The
+generator (`acvm-repo/acir/src/lib.rs`, `serde_acir_cpp_codegen` /
+`serde_witness_map_cpp_codegen`) emits a four-way dispatch per
+struct:
+
+| `o.type` / first key | format(s) that produce it |
+|---|---|
+| `MAP`, first key is `POSITIVE_INTEGER` | `MsgpackTagged` (Tagged variant header; Tagged-strategy struct) |
+| `MAP`, first key is `STR` | legacy `Msgpack` (string-keyed structs and enum variants) |
+| `STR` (top-level) | legacy `MsgpackCompact` unit variant (bare variant name) |
+| `ARRAY` | legacy `MsgpackCompact` struct **and** `MsgpackTagged::Array` struct |
+
+The last row is the one to watch.
+
+### The `ARRAY` ambiguity
+
+Both `Format::MsgpackCompact` and `Format::MsgpackTagged` with the
+`Array` strategy produce a bare `fixarray` of field values on the
+wire — identical shapes, no per-element metadata. They differ only in
+**order**:
+
+* `MsgpackCompact` emits fields in *source-declaration* order
+  (`rmp_serde::with_struct_tuple()` behavior).
+* `MsgpackTagged::Array` emits fields in *tag-ascending* order
+  (`Serializer::with_default_strategy(Array)`).
+
+The Rust side knows which format is being decoded because the outer
+`Format` byte is consumed before dispatch lands in `msgpack_unpack`. The
+C++ side **doesn't** — `msgpack_unpack(msgpack::object const& o)`
+receives the parsed inner object with no surviving reference to the
+format byte. Both shapes look like `msgpack::type::ARRAY` to it.
+
+### The fix: source order must equal tag order
+
+The generated C++ assumes `ARRAY` means *tag-ascending* — that's the
+only positional decode the codegen emits. For this to also be correct
+under `MsgpackCompact`, the producing Rust type's
+**source-declaration order must be tag-ascending** as well. The two
+orders then agree, both wires are byte-identical, and the C++ decoder
+parses them with the same logic.
+
+The codegen enforces this at test time: `serde_acir_cpp_codegen` panics
+if any type reachable from `Program` / `Circuit` / `WitnessMap` /
+`WitnessStack` has `tag_order_matches_source == false`. Reorder the
+Rust fields so `#[tag(N)]` values increase in source order, or drop the
+type from the C++ wire types.
+
+### Workaround: reorder in the model via shadow DTO
+
+If the Rust-side type really needs a different field order than the
+wire — typically for ergonomics, accessor placement, or aligning with
+unrelated traits — wrap the wire identity in a shadow DTO. The public
+type's source layout is yours to choose; the DTO carries the canonical
+tag-ascending order, and `#[tagged(via(WireType))]` redirects the
+serialization path through it:
+
+```rust
+#[derive(Serialize, Deserialize, MsgpackTagged)]
+#[tagged(via(FooWire))]
+pub struct Foo {
+    // Order whatever way reads best for callers.
+    pub b: bool,
+    pub a: u32,
+}
+
+#[derive(Serialize, Deserialize, MsgpackTagged)]
+#[serde(rename = "Foo")]
+struct FooWire {
+    // Stays tag-ascending: matches `MsgpackCompact`'s source-order
+    // output and the C++ codegen's positional-array assumption.
+    #[tag(0)] a: u32,
+    #[tag(1)] b: bool,
+}
+```
+
+The codegen-time order check sees `FooWire` (registered under the same
+serde name `"Foo"` thanks to `#[serde(rename)]`), so the invariant
+holds and C++ generation succeeds — even though `Foo`'s source layout
+isn't tag-ascending. See the
+[Shadow-DTO via `#[tagged(via(WireType))]`](#shadow-dto-via-taggedviawiretype)
+section above for the pattern's general form and trade-offs.
