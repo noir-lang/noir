@@ -1139,10 +1139,35 @@ impl<'a> Formatter<'a> {
                 if starts_with_space && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
-                self.write_comment_with_prefix(
-                    line.trim_start().strip_prefix("//").unwrap_or(line),
-                    "//",
-                );
+
+                // Collect the longest run of consecutive `//` lines (matching neither
+                // `///` nor `//!`, and not separated by blank lines) starting at `index`
+                // and reflow them as one paragraph-aware group.
+                let mut group_bodies: Vec<String> = Vec::new();
+                let mut peek = index;
+                while peek < lines.len() {
+                    let candidate = lines[peek];
+                    let trimmed = candidate.trim_start();
+                    let is_plain_line_comment = trimmed.starts_with("//")
+                        && !trimmed.starts_with("///")
+                        && !trimmed.starts_with("//!");
+                    if !is_plain_line_comment {
+                        break;
+                    }
+                    let body = trimmed.strip_prefix("//").unwrap_or(trimmed).to_string();
+                    group_bodies.push(body);
+                    peek += 1;
+                }
+
+                self.write_line_comment_group(&group_bodies, "//");
+
+                index = peek;
+                // Handle the run of blank lines that may follow the group.
+                while index < lines.len() && lines[index].is_empty() {
+                    self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                    index += 1;
+                }
+                continue;
             } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
                 // Only append a space if it's the start of a block comment (no leading spaces in following lines)
                 if starts_with_space && is_block_comment && !self.buffer.ends_with_space() {

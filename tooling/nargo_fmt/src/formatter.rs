@@ -13,6 +13,7 @@ use crate::chunks::ChunkGroup;
 mod alias;
 mod attribute;
 mod buffer;
+mod comment_reflow;
 mod comments_and_whitespace;
 mod doc_comments;
 mod enums;
