@@ -17,11 +17,9 @@ pub(super) fn simplify_cast(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     use SimplifyResult::*;
-    assert!(
-        dfg.type_of_value(value).is_numeric(),
-        "Can only cast numeric types, got {:?}",
-        dfg.type_of_value(value)
-    );
+    if !dfg.type_of_value(value).is_numeric() {
+        return None;
+    }
 
     if Type::Numeric(dst_typ) == *dfg.type_of_value(value) {
         return SimplifiedTo(value);
@@ -269,6 +267,22 @@ mod tests {
             return i8 4
         }
         ");
+    }
+
+    #[test]
+    fn cast_on_non_numeric_type_does_not_panic() {
+        // Regression: a cast on a non-numeric value (e.g. str<0> flowing into
+        // a cast during inlining) must not ICE. simplify_cast should return
+        // None so the instruction is kept as-is.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [u8 0] : [u8; 1]
+            v1 = cast v0 as Field
+            return v1
+        }
+        ";
+        let _ssa = Ssa::from_str_simplifying(src);
     }
 
     #[test]
