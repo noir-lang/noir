@@ -19,7 +19,11 @@
 ///
 /// `first_budget` is the maximum characters allowed for content on the first
 /// output line. `cont_budget` is the maximum characters for subsequent lines.
-/// Budgets exclude the per-line prefix the caller will add.
+/// Budgets exclude the per-line prefix the caller will add. They differ when
+/// the comment starts trailing-inline after code (e.g. `let x = 1; // ...`):
+/// the first line shares column space with whatever is already on the rendered
+/// line, while continuations start fresh at the formatter's indent. When the
+/// comment opens on its own line, callers pass `first_budget == cont_budget`.
 ///
 /// Returns one String per output line. The caller adds the prefix and any
 /// indent to each line.
@@ -70,43 +74,70 @@ where
 #[derive(Debug, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 enum Block {
-    Paragraph {
-        words: Vec<String>,
-    },
-    ListItem {
-        marker: String,
-        hanging_indent: usize,
-        words: Vec<String>,
-    },
-    BlockQuote {
-        words: Vec<String>,
-    },
-    Passthrough {
-        raw_lines: Vec<String>,
-    },
+    /// A plain prose paragraph. `words` is the flat list of whitespace-separated tokens
+    /// from one or more input lines (merged together when `reflow_paragraphs` is `true`),
+    /// to be greedy-wrapped on emit. Internal whitespace runs are normalized to single
+    /// spaces — callers that need to preserve verbatim spacing bypass the engine.
+    Paragraph { words: Vec<String> },
+    /// A markdown list item (bullet or ordered). `marker` is the literal marker text with
+    /// its trailing space (e.g. `"- "`, `"1. "`). `hanging_indent` is the column under
+    /// which continuation lines align — it includes both the leading indent of the marker
+    /// line and the marker's own width, so nested items stay nested. `words` are the
+    /// post-marker tokens, again merged across continuation lines when `reflow_paragraphs`
+    /// is `true`.
+    ListItem { marker: String, hanging_indent: usize, words: Vec<String> },
+    /// A markdown blockquote (`> ...`). `words` are the post-`>` tokens, optionally
+    /// merged across consecutive `>` lines when reflowing. On emit every output line is
+    /// re-prefixed with `> `.
+    BlockQuote { words: Vec<String> },
+    /// Lines that must be emitted verbatim, with no wrapping or merging. Used for
+    /// markdown headers (`# ...`), table rows (`| ... |`), URL-bearing lines,
+    /// Javadoc-style `@tag` lines that don't start a paragraph, and blank lines (where
+    /// `raw_lines` is `vec![String::new()]`). Multiple raw lines are emitted in order.
+    Passthrough { raw_lines: Vec<String> },
     /// A fenced code block. `lang` is the info string after the opening fence (empty for
     /// untagged fences). `fence_open` / `fence_close` are the raw delimiter lines as
     /// they appeared in the source so we can re-emit them verbatim. `inner_lines` is the
     /// fence body, which may be replaced by a code-formatter callback before emit.
-    CodeFence {
-        lang: String,
-        fence_open: String,
-        fence_close: String,
-        inner_lines: Vec<String>,
-    },
+    CodeFence { lang: String, fence_open: String, fence_close: String, inner_lines: Vec<String> },
 }
 
+/// Classification of a single input line, used by `parse_blocks` to decide which
+/// `Block` to open or extend. The classifier is intentionally heuristic — it doesn't
+/// run a full markdown parser, just enough pattern matching to recognize the line
+/// shapes that should *not* be reflowed as prose.
 #[derive(Debug, PartialEq, Eq)]
 enum LineKind<'a> {
+    /// Empty or whitespace-only line. Becomes a paragraph break in the emit.
     Blank,
+    /// Markdown ATX header, i.e. a line whose first non-whitespace char is `#`.
+    /// Emitted verbatim — never merged or wrapped.
     Header,
+    /// Javadoc-style tag like `@param`, `@return`, `@dev`. Starts a fresh paragraph
+    /// so it doesn't get glued to prose above it.
     JavadocTag,
+    /// Bullet list item (`* `, `- `, `+ `). `marker_len` is the byte length of the
+    /// marker + its trailing space, so the caller can split the line into marker
+    /// and content.
     BulletItem { marker_len: usize },
+    /// Ordered list item (`1. `, `99) `, etc.). `marker_len` covers digits + the
+    /// `. ` or `) ` suffix.
     OrderedItem { marker_len: usize },
+    /// Markdown blockquote line (`> ...`).
     BlockQuote,
+    /// Line containing a URL or a reference-style link definition. Kept on its own
+    /// line so we don't try to wrap inside a link.
     UrlLine,
+    /// Markdown table row — `| ... |` shape. Verbatim passthrough.
     TableLine,
+    /// Triple-backtick / triple-tilde line opening or closing a fenced code block.
+    /// `parse_blocks` uses this both to enter fence mode (capturing the lang tag from
+    /// the opener) and to detect the closer.
     FenceToggle,
+    /// Anything else — ordinary prose. `indent` is the line's leading whitespace
+    /// width in chars and `content` is the line with that leading whitespace
+    /// stripped. The indent is what lets list-item continuation logic detect
+    /// "this Plain line is indented under the open list item, fold it in."
     Plain { indent: usize, content: &'a str },
 }
 
