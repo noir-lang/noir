@@ -210,24 +210,31 @@ impl<'a> FunctionContext<'a> {
         self.definitions.insert(parameter_id, parameter_value);
     }
 
-    /// Rebind each *scalar* databus call_data parameter to the aggregated calldata array
+    /// Rebind each *scalar* databus call_data parameter to the aggregated calldata array.
+    ///
+    /// For each scalar call_data param, an `array_get` from the aggregated calldata array
+    /// is inserted in the `definitions` map so subsequent body codegen uses the read.
     pub(super) fn wire_scalar_databus_params(
         &mut self,
         call_data: &[crate::ssa::function_builder::data_bus::DataBusBuilder],
     ) {
-        // Inverse the definitions map, to do 'value to local' in O(1) afterwards.
-        let mut value_to_local: HashMap<ValueId, LocalId> = HashMap::default();
-        for (local_id, values) in &self.definitions {
-            values.clone().for_each(|value| {
-                if let Value::Normal(v) = value {
-                    value_to_local.insert(v, *local_id);
-                }
-            });
+        let replacements = self.builder.bind_scalar_databus_params(call_data);
+        if replacements.is_empty() {
+            return;
         }
-        let new_mappings = self.builder.bind_scalar_databus_params(call_data, &value_to_local);
-        for (local_id, value_id) in new_mappings {
-            self.definitions.insert(local_id, Tree::Leaf(Value::Normal(value_id)));
-        }
+        let definitions = std::mem::take(&mut self.definitions);
+        self.definitions = definitions
+            .into_iter()
+            .map(|(local_id, tree)| {
+                let new_tree = tree.map(|value| match value {
+                    Value::Normal(v) if replacements.contains_key(&v) => {
+                        Tree::Leaf(Value::Normal(replacements[&v]))
+                    }
+                    other => Tree::Leaf(other),
+                });
+                (local_id, new_tree)
+            })
+            .collect();
     }
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.

@@ -14,7 +14,7 @@ use acvm::{
     FieldElement,
     acir::brillig::lengths::{FlattenedLength, SemanticLength},
 };
-use noirc_frontend::monomorphization::ast::{LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
@@ -285,7 +285,7 @@ impl FunctionBuilder {
     pub(crate) fn set_data_bus(&mut self, data_bus: DataBus) {
         // Set `Value::Param.visibility` for the function parameters belonging to call data.
         for call_data in &data_bus.call_data {
-            for (&param_value_id, _) in &call_data.index_map {
+            for &param_value_id in call_data.index_map.keys() {
                 if matches!(
                     &self.current_function.dfg[param_value_id],
                     crate::ssa::ir::value::Value::Param { .. }
@@ -330,44 +330,38 @@ impl FunctionBuilder {
         is_ssa_params_databus
     }
 
-    /// Helper function to map each *scalar* databus call_data parameter against
-    /// the aggregated calldata array rather than the original param witness directly.
-    /// This creates array read instructions and redundant range-checks (required by SSA validation).
-    /// `param_to_local` maps the original param witness to its local variable
-    /// The `result` provides the mapping between the local variables and values read from the aggregated calldata array
+    /// Build a replacement map for *scalar* databus call_data parameter values:
+    /// each entry pairs an original param `ValueId` with a freshly-inserted
+    /// `array_get` (plus range-check and cast for non-Field numeric types) that reads
+    /// the param's value from the aggregated calldata array.
     pub(crate) fn bind_scalar_databus_params(
         &mut self,
         call_data: &[DataBusBuilder],
-        param_to_local: &HashMap<ValueId, LocalId>,
-    ) -> HashMap<LocalId, ValueId> {
+    ) -> HashMap<ValueId, ValueId> {
         let mut result = HashMap::default();
         for bus in call_data {
             let Some(make_array_id) = bus.databus else { continue };
             for (&param_value_id, &offset) in &bus.map {
-                if let Some(&local_id) = param_to_local.get(&param_value_id) {
-                    let Type::Numeric(numeric_type) = self.type_of_value(param_value_id) else {
-                        continue;
-                    };
-                    let offset_const =
-                        self.numeric_constant(offset as u128, NumericType::length_type());
-                    let read = self.insert_array_get(make_array_id, offset_const, Type::field());
-                    let bound = if numeric_type.is_field() {
-                        read
-                    } else {
-                        // Range-check provides the "provably safe" condition that
-                        // SSA validation requires for narrowing Field → numeric casts.
-                        // We know the Field already fits `numeric_type` because
-                        // it comes from a param and was widened to Field.
-                        // The range-check is redundant and only required by SSA validation.
-                        let bit_size = numeric_type.bit_size::<FieldElement>();
-                        self.insert_range_check(read, bit_size, None);
-                        self.insert_cast(read, numeric_type)
-                    };
+                let Type::Numeric(numeric_type) = self.type_of_value(param_value_id) else {
+                    continue;
+                };
+                let offset_const =
+                    self.numeric_constant(offset as u128, NumericType::length_type());
+                let read = self.insert_array_get(make_array_id, offset_const, Type::field());
+                let bound = if numeric_type.is_field() {
+                    read
+                } else {
+                    // Range-check provides the "provably safe" condition that
+                    // SSA validation requires for narrowing Field → numeric casts.
+                    // We know the Field already fits `numeric_type` because
+                    // it comes from a param and was widened to Field.
+                    // The range-check is redundant and only required by SSA validation.
+                    let bit_size = numeric_type.bit_size::<FieldElement>();
+                    self.insert_range_check(read, bit_size, None);
+                    self.insert_cast(read, numeric_type)
+                };
 
-                    let duplicate = result.insert(local_id, bound).is_some();
-                    // Sanity check
-                    debug_assert!(!duplicate, "local variable mapped to multiple databus values");
-                }
+                result.insert(param_value_id, bound);
             }
         }
         result

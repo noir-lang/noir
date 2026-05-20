@@ -735,6 +735,22 @@ fn acir_function_with_databus_array_input() {
     ");
 }
 
+///  `definitions` tree structure in case of struct call_data parameters must be preserved
+#[test]
+fn struct_call_data_param_rebind_does_not_collapse_tree() {
+    let src = "
+    struct S { a: Field, b: Field }
+
+    fn use_struct(s: S) -> Field { s.a + s.b }
+
+    fn main(s: call_data(0) S) -> pub Field {
+        use_struct(s)
+    }
+    ";
+    let result = get_initial_ssa(src);
+    assert!(result.is_ok(), "{:?}", result.err(),);
+}
+
 #[test]
 fn repeated_nested_array() {
     let src = "
