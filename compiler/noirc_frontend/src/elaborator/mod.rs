@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::UnresolvedGenerics,
+    ast::{Ident, UnresolvedGenerics},
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -114,6 +114,7 @@ mod variable;
 mod visibility;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+use fm::FileMap;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -236,6 +237,7 @@ pub struct Elaborator<'context> {
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
+    pub(crate) files: &'context FileMap,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
     pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
 
@@ -385,6 +387,42 @@ pub struct Elaborator<'context> {
     /// constants don't depend on source order. Any entries left after lazy resolution
     /// has played out are drained at the end of [Self::elaborate_items].
     unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
+
+    /// Bookkeeping for trait-related work that has to wait until the
+    /// post-attribute drain has resolved the involved metas. See
+    /// [PendingTraitWork] for what each list is for.
+    pending_trait_work: PendingTraitWork,
+}
+
+#[derive(Default)]
+struct PendingTraitWork {
+    /// Trait method declarations registered with deferred meta resolution. These need
+    /// their `TraitFunction` records (in `the_trait.methods`) populated after the
+    /// post-attribute drain, since the records are filled with stub types up-front so
+    /// `collect_trait_impl` can do name-based matching while the real signatures are
+    /// still pending. Each entry is `(trait_id, func_id, name)`.
+    records: Vec<(TraitId, FuncId, Ident)>,
+
+    /// Trait method declarations without a body whose signature still needs the
+    /// `elaborate_function` step run after their meta is defined. We can't run it at
+    /// registration time because the meta is deferred.
+    no_body_func_ids: Vec<FuncId>,
+
+    /// Pending where-clause-against-trait checks deferred from `collect_trait_impl_methods`
+    /// so they run after the post-attribute drain (when both the trait method's and the
+    /// impl method's metas are fully resolved).
+    where_clause_checks: Vec<PendingWhereClauseCheck>,
+}
+
+#[derive(Clone)]
+struct PendingWhereClauseCheck {
+    impl_method_func_id: FuncId,
+    trait_id: TraitId,
+    impl_id: TraitImplId,
+    module_id: LocalModuleId,
+    trait_method_name: String,
+    trait_impl_where_clause: Vec<TraitConstraint>,
+    ordered_generics: Vec<Type>,
 }
 
 #[derive(Copy, Clone)]
@@ -416,6 +454,7 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
+        files: &'context FileMap,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -432,6 +471,7 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
+            files,
             interpreter_output,
             evaluation_tracker,
             required_unstable_features,
@@ -463,6 +503,7 @@ impl<'context> Elaborator<'context> {
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
+            pending_trait_work: PendingTraitWork::default(),
         }
     }
 
@@ -489,6 +530,7 @@ impl<'context> Elaborator<'context> {
             &mut context.def_maps,
             &mut context.usage_tracker,
             &context.crate_graph,
+            context.file_manager.as_file_map(),
             &context.interpreter_output,
             context.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
@@ -525,11 +567,31 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
+        // When `elaborate_items` runs recursively (from within an attribute that
+        // generated new items), the parent's still-deferred metas live in the same
+        // `unresolved_function_metas` map. Snapshot them so we exclude them from
+        // every drain in this call: they must remain pending for the parent's own
+        // post-attribute drain. They stay in the map (so lazy resolution from
+        // generated bodies can still pull them out on demand), we just don't
+        // unconditionally resolve them here.
+        let outer_pending: HashSet<FuncId> =
+            self.unresolved_function_metas.keys().copied().collect();
+
+        // Scope the pending trait-method bookkeeping to this call so that a
+        // recursive `elaborate_items` (from a comptime attribute that generated
+        // new items) doesn't consume the outer call's entries. We restore the
+        // outer state on exit so the outer call can process them when its own
+        // post-attribute drain runs.
+        let outer_pending_trait_work = std::mem::take(&mut self.pending_trait_work);
+
         self.set_unresolved_globals_ordering(items.globals);
 
         for (alias_id, alias) in items.type_aliases {
             self.define_type_alias(alias_id, alias);
         }
+
+        // Check for type aliases cycles
+        self.push_errors(self.interner.check_for_dependency_cycles());
 
         // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
@@ -558,13 +620,15 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl(trait_impl);
         }
 
-        // Resolve any function metas that weren't pulled in by a forward reference
-        // during the collect-* phases above. Doing this before global elaboration
-        // means a global's RHS can call user-defined functions, while doing it after
-        // `collect_trait_impl` means meta resolution sees fully-bound trait
-        // associated constants. Globals referenced from a meta still elaborate
-        // lazily during the drain.
-        self.drain_unresolved_function_metas();
+        // In the case of the stdlib we eagerly resolve function metas as these are
+        // needed in some globals initializers regarding built-in trait methods
+        // like Add, Ord, etc. Trying to define these lazily is a lot of work compared
+        // to just not supporting it in the stdlib. The stdlib right now doesn't generate
+        // types that are used in other function signatures and we can always extend
+        // with the stdlib with this small restriction in place.
+        if self.crate_id.is_stdlib() {
+            self.resolve_unresolved_function_metas_skipping(&outer_pending);
+        }
 
         // We must wait to resolve non-literal globals until after we resolve structs since struct
         // globals will need to reference the struct type they're initialized to ensure they are valid.
@@ -578,6 +642,20 @@ impl<'context> Elaborator<'context> {
             &items.functions,
             &items.module_attributes,
         );
+
+        // Drain the remaining metas now that attributes have run. Items generated
+        // by attributes (such as new structs) are now in scope, so a signature
+        // like `fn bar(_: Generated)` can finally resolve. Outer-pending metas are
+        // still skipped — only this call's metas are drained.
+        self.resolve_unresolved_function_metas_skipping(&outer_pending);
+
+        // Now that trait method metas are defined, fill in the stub
+        // `TraitFunction` records on each trait, and run the empty-body /
+        // signature checks for trait methods declared without a body. Then run
+        // any deferred where-clause-against-trait checks for trait impls.
+        self.populate_resolved_trait_method_records();
+        self.elaborate_pending_no_body_trait_methods();
+        self.run_pending_where_clause_checks();
 
         // Check for dependency cycles before elaborating function bodies.
         // This breaks cyclic type aliases (replacing them with Type::Error) so that
@@ -597,6 +675,13 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
+
+        // Restore the outer call's pending bookkeeping so it can be processed
+        // when the outer `elaborate_items` runs its own post-drain phases.
+        let inner = std::mem::replace(&mut self.pending_trait_work, outer_pending_trait_work);
+        self.pending_trait_work.records.extend(inner.records);
+        self.pending_trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
+        self.pending_trait_work.where_clause_checks.extend(inner.where_clause_checks);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1156,15 +1241,24 @@ pub mod test_utils {
         ) {
             Err(e) => return Err(ElaboratorError::Interpret(e)),
             Ok(value) => {
-                match value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                match value.into_runtime_hir_expression(
+                    elaborator.interner,
+                    elaborator.files,
+                    Location::dummy(),
+                ) {
                     Err(e) => return Err(ElaboratorError::HIRConvert(e)),
                     Ok(expr_id) => expr_id,
                 }
             }
         };
 
-        let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
+        let mut monomorphizer = Monomorphizer::new(
+            elaborator.interner,
+            elaborator.files,
+            DebugTypeTracker::default(),
+            None,
+            false,
+        );
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

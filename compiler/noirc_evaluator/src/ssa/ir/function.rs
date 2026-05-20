@@ -223,7 +223,7 @@ impl Function {
         let returns = vecmap(self.returns().unwrap_or_default(), |ret| {
             self.dfg.type_of_value(*ret).into_owned()
         });
-        Signature { params, returns }
+        Signature::new(params, returns)
     }
 
     /// Finds the block of the function with the Return instruction
@@ -367,6 +367,20 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
+}
+
+impl Signature {
+    /// Construct a [Signature] whose parameter and return types have all
+    /// reference mutability canonicalized away. This makes `&T` and `&mut T`
+    /// compare equal when a [Signature] is used as a map key, matching the
+    /// validator's `types_equal_ignoring_reference_mutability` leniency and
+    /// the frontend's `&mut T → &T` coercion.
+    pub(crate) fn new(mut params: Vec<Type>, mut returns: Vec<Type>) -> Self {
+        for typ in params.iter_mut().chain(returns.iter_mut()) {
+            typ.canonicalize_reference_mutability();
+        }
+        Self { params, returns }
+    }
 }
 
 #[test]

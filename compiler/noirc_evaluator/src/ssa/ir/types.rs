@@ -354,6 +354,32 @@ impl Type {
             _ => None,
         }
     }
+
+    /// Recursively rewrite every [Type::Reference] inside `self` to be immutable.
+    ///
+    /// The SSA validator (`types_equal_ignoring_reference_mutability`) and the
+    /// Noir frontend both accept passing `&mut T` where `&T` is expected. To
+    /// make types in those positions compare equal under that same leniency,
+    /// callers that need a canonical form (e.g., map keys in defunctionalize)
+    /// can collapse reference mutability here.
+    pub(crate) fn canonicalize_reference_mutability(&mut self) {
+        match self {
+            Type::Reference(element, mutable) => {
+                *mutable = false;
+                let mut new_element = (**element).clone();
+                new_element.canonicalize_reference_mutability();
+                *element = Arc::new(new_element);
+            }
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                let mut new_elements = (**elements).clone();
+                for inner in &mut new_elements {
+                    inner.canonicalize_reference_mutability();
+                }
+                *elements = Arc::new(new_elements);
+            }
+            Type::Numeric(_) | Type::Function => (),
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.

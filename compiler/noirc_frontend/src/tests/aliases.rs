@@ -1161,3 +1161,40 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test: a pair of mutually-referencing type aliases used to overflow the stack.
+#[test]
+fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+
+        global G: u32 = f();
+
+        fn f() -> u32 {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+            1
+        }
+
+        fn main() {
+            let _ = G;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
+    "#;
+    check_errors(src);
+}

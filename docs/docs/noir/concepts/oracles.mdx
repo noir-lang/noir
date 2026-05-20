@@ -23,3 +23,33 @@ unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
 ```
 
 The timeout for when using an external RPC oracle resolver can be set with the `NARGO_FOREIGN_CALL_TIMEOUT` environment variable. This timeout is in units of milliseconds.
+
+## The `#[pure]` attribute
+
+By default, the compiler treats every oracle call as potentially impure: the return value
+may depend on hidden state, the call may have side effects, and as such two calls with the same
+arguments may produce different results. This forces the compiler to keep every oracle
+call exactly as written.
+
+When you know an oracle's return value is purely a function of its arguments and the call
+has no observable effect on the program, you can mark the declaration with `#[pure]`:
+
+```rust
+#[pure]
+#[oracle(field_inverse)]
+unconstrained fn field_inverse_oracle(x: Field) -> Field {}
+```
+
+`#[pure]` is an unchecked assertion. If you mismark an oracle that secretly reads ambient state
+or has side effects, the optimizer can produce wrong circuits, so use it only when you are certain.
+However, `#[pure]` is compatible with functions that can fail on some inputs (e.g division by zero).
+
+
+### Restrictions
+
+`#[pure]` is rejected on functions that are not `#[oracle(...)]`, and on constrained
+functions.
+
+Do not use `#[pure]` on oracles that read mutable external state (witness maps, RPC
+endpoints that change between calls, etc.) — those are inherently impure even if their
+signatures look pure.

@@ -543,6 +543,16 @@ impl Elaborator<'_> {
             return (rhs, typ);
         }
 
+        // Simplify `&*x` and `&mut *x` to just `x`
+        if let UnaryOp::Reference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && let UnaryOp::Dereference { .. } = inner.operator
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
+            return (rhs, typ);
+        }
+
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
@@ -910,7 +920,7 @@ impl Elaborator<'_> {
 
         self.usage_tracker.mark_impl_function_as_used(&func_id);
 
-        let function_type = self.interner.function_meta(&func_id).typ.clone();
+        let function_type = self.function_meta(func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
         let generics = method_call.generics;
@@ -1729,7 +1739,7 @@ impl Elaborator<'_> {
         let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(id);
-        self.debug_comptime(location, |interner| {
+        self.debug_comptime(location, |interner, _| {
             interner.expression(&id).to_display_ast(interner, location).kind
         });
 

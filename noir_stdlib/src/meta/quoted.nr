@@ -22,6 +22,11 @@ impl Quoted {
     pub comptime fn as_type(self) -> Type {}
     // docs:end:as_type
 
+    #[builtin(quoted_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Option<Location> {}
+    // docs:end:location
+
     #[builtin(quoted_tokens)]
     // docs:start:tokens
     pub comptime fn tokens(self) -> [Quoted] {}
