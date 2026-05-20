@@ -252,11 +252,13 @@ impl Formatter<'_> {
             return;
         }
 
+        let reflow_enabled = reflow_enabled_for_prefix(self.config, prefix);
+
         // With reflow disabled, take the pre-reflow per-line wrap path: each body wraps
         // independently and internal whitespace (e.g. multiple spaces inside the
         // comment) is preserved. The paragraph-aware engine normalizes runs of
         // whitespace via `split_whitespace`, which we don't want here.
-        if !self.config.reflow_comments {
+        if !reflow_enabled {
             for (index, body) in bodies.iter().enumerate() {
                 if index > 0 {
                     self.start_new_line();
@@ -289,7 +291,7 @@ impl Formatter<'_> {
             &lines,
             first_budget,
             cont_budget,
-            self.config.reflow_comments,
+            reflow_enabled,
             |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
@@ -375,10 +377,12 @@ impl Formatter<'_> {
         let indent_cols = (self.indentation.max(0) as usize) * self.config.tab_spaces;
         let comment_width = self.config.comment_width;
 
+        let reflow_enabled = reflow_enabled_for_prefix(self.config, prefix);
+
         // With reflow disabled, take the pre-reflow per-line wrap path: each source
         // line wraps independently and internal whitespace within each line is
         // preserved (the paragraph-aware engine normalizes via `split_whitespace`).
-        if !self.config.reflow_comments {
+        if !reflow_enabled {
             self.write_block_comment_non_reflow(comment, all_stars);
             return;
         }
@@ -446,7 +450,7 @@ impl Formatter<'_> {
                 &line_refs,
                 first_budget,
                 cont_budget,
-                self.config.reflow_comments,
+                reflow_enabled,
                 |source, lang| format_noir_snippet(source, lang, config, snippet_width),
             );
 
@@ -478,7 +482,7 @@ impl Formatter<'_> {
             &line_refs,
             content_budget,
             content_budget,
-            self.config.reflow_comments,
+            reflow_enabled,
             |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
@@ -574,6 +578,16 @@ impl Formatter<'_> {
     }
 }
 
+/// Returns whether paragraph reflow is enabled for the comment kind identified by its
+/// per-line prefix. Plain `//` and `/*` opt in via `reflow_non_doc_comments`; doc-style
+/// `///`, `//!`, `/**`, and `/*!` opt in via `reflow_doc_comments`.
+fn reflow_enabled_for_prefix(config: &Config, prefix: &str) -> bool {
+    match prefix {
+        "//" | "/*" => config.reflow_non_doc_comments,
+        _ => config.reflow_doc_comments,
+    }
+}
+
 /// Recursively formats a Noir code snippet pulled from a doc-comment fenced block.
 /// Returns `None` when the snippet should be left alone — either the fence has a
 /// non-Noir language tag, the body is empty, or the snippet fails to parse cleanly.
@@ -629,7 +643,8 @@ mod tests {
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
         let config = Config {
             wrap_comments: true,
-            reflow_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
             format_code_blocks: true,
             comment_width,
             ..Config::default()
@@ -640,7 +655,8 @@ mod tests {
     fn assert_formatter_changes_wrapping_comments(src: &str, comment_width: usize) {
         let config = Config {
             wrap_comments: true,
-            reflow_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
             format_code_blocks: true,
             comment_width,
             ..Config::default()
@@ -1372,7 +1388,8 @@ fn foo() {}
 ";
         let config = Config {
             wrap_comments: true,
-            reflow_comments: false,
+            reflow_doc_comments: false,
+            reflow_non_doc_comments: false,
             comment_width: 35,
             ..Config::default()
         };
@@ -1389,7 +1406,8 @@ fn main() {}
 ";
         let config = Config {
             wrap_comments: true,
-            reflow_comments: false,
+            reflow_doc_comments: false,
+            reflow_non_doc_comments: false,
             comment_width: 80,
             ..Config::default()
         };
@@ -1403,11 +1421,74 @@ fn main() {}
 ";
         let config = Config {
             wrap_comments: true,
-            reflow_comments: false,
+            reflow_doc_comments: false,
+            reflow_non_doc_comments: false,
             comment_width: 80,
             ..Config::default()
         };
         assert_format_with_config(src, src, config);
+    }
+
+    #[test]
+    fn reflow_doc_comments_only_does_not_merge_plain_comments() {
+        // With `reflow_doc_comments=true` and `reflow_non_doc_comments=false`,
+        // doc-style comments merge but plain `//` comments preserve their line breaks.
+        let src = "/// Hello world, I just realized that this
+/// is a long doc comment
+fn one() {}
+
+// Hello world, I just realized that this
+// is a long plain comment
+fn two() {}
+";
+        let expected = "/// Hello world, I just realized
+/// that this is a long doc comment
+fn one() {}
+
+// Hello world, I just realized
+// that this
+// is a long plain comment
+fn two() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: false,
+            comment_width: 35,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn reflow_non_doc_comments_only_does_not_merge_doc_comments() {
+        // Mirror image: only plain `//` comments merge.
+        let src = "/// Hello world, I just realized that this
+/// is a long doc comment
+fn one() {}
+
+// Hello world, I just realized that this
+// is a long plain comment
+fn two() {}
+";
+        let expected = "/// Hello world, I just realized
+/// that this
+/// is a long doc comment
+fn one() {}
+
+// Hello world, I just realized
+// that this is a long plain
+// comment
+fn two() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_doc_comments: false,
+            reflow_non_doc_comments: true,
+            comment_width: 35,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
     }
 
     #[test]
@@ -1419,7 +1500,8 @@ fn bar() {}
 ";
         let config = Config {
             wrap_comments: true,
-            reflow_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
             format_code_blocks: false,
             comment_width: 80,
             ..Config::default()

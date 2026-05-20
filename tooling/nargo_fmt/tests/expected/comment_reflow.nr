@@ -1,5 +1,6 @@
 // @wrap_comments = true
-// @reflow_comments = true
+// @reflow_doc_comments = true
+// @reflow_non_doc_comments = true
 // @format_code_blocks = true
 // @comment_width = 35
 

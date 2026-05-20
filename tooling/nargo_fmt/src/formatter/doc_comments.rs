@@ -137,7 +137,8 @@ mod tests {
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
         let config = Config {
             wrap_comments: true,
-            reflow_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
             format_code_blocks: true,
             comment_width,
             ..Config::default()
@@ -409,7 +410,8 @@ fn bar() {}
 ";
         let config = Config {
             wrap_comments: true,
-            reflow_comments: true,
+            reflow_doc_comments: true,
+            reflow_non_doc_comments: true,
             format_code_blocks: true,
             max_width: 50,
             ..Config::default()

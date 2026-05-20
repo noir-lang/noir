@@ -56,7 +56,8 @@ config! {
     reorder_imports: bool, true, "Reorder imports alphabetically";
     wrap_comments: bool, false, "Break comments to fit on the line";
     comment_width: usize, 100, "Maximum length of comments. No effect unless `wrap_comments = true`";
-    reflow_comments: bool, false, "Merge consecutive comment lines into paragraphs and reflow to `comment_width`. No effect unless `wrap_comments = true`";
+    reflow_doc_comments: bool, false, "Merge consecutive doc-comment lines (`///`, `//!`, `/**`, `/*!`) into paragraphs and reflow to `comment_width`. Doc comments follow markdown convention, so reflow rarely surprises. No effect unless `wrap_comments = true`";
+    reflow_non_doc_comments: bool, false, "Merge consecutive non-doc-comment lines (`//`, `/*`) into paragraphs and reflow to `comment_width`. Non-doc comments are free-form, so this can collapse intentionally separate lines like `// step 1` / `// step 2`. No effect unless `wrap_comments = true`";
     format_code_blocks: bool, false, "Recursively format Noir code inside markdown fenced code blocks in doc comments (untagged or tagged ```noir```). No effect unless `wrap_comments = true`"
 }
 
