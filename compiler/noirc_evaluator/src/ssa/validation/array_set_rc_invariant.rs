@@ -21,21 +21,51 @@
 //! that one of them is in place for every `array_set` whose source has an
 //! aliased use reachable forward in the CFG.
 //!
+//! # Algorithm
+//!
+//! For each `array_set vX, …`:
+//!
+//! 1. **Backward alias-set.** Compute the set of values that may share `vX`'s
+//!    storage *at the array_set's program point* by walking block-parameter →
+//!    predecessor-arg edges backward to a fixed point. Only aliasing introduced
+//!    by the values that flow *into* `vX`'s binding is included — not the full
+//!    UF closure, which would over-approximate by also conflating sibling
+//!    parameters that share an arg through a downstream join.
+//! 2. **inc_rc precedence / jmp-arg-participant.** If some `inc_rc` on an
+//!    alias-set member either RPO-precedes the array_set or sits on a
+//!    non-source alias that's also a jmp/jmpif arg, accept — the frontend is
+//!    deliberately managing the aliasing.
+//! 3. **Forward walk.** Otherwise, walk the CFG forward from the array_set with
+//!    the alias-set as the initial use-set. At each block-parameter crossing
+//!    we both **kill** params that the predecessor rebinds to a non-alias and
+//!    **add** params whose arg is still an alias (so alias propagation stays
+//!    accurate as the walk crosses joins and loops). A non-terminator
+//!    instruction reading any value still in the use-set is the hazard.
+//!
 //! # Precondition
 //!
-//! Must be run **after `mem2reg_brillig`**. The alias-root walk through
+//! Must be run **after `mem2reg_brillig`**. The alias walk through
 //! block-parameter edges only reflects post-mem2reg aliasing; pre-mem2reg, an
 //! `Allocate`/`Store`/`Load` chain would route aliasing through references that
 //! this pass does not track.
 //!
-//! # Known alias-tracking gaps
+//! # Known limitations
 //!
-//! The verifier walks aliasing *only* through block-parameter edges. Aliasing
-//! introduced via `MakeArray` of nested arrays, `IfElse` on arrays, non-inlined
-//! `Call` returns, or `Store`/`Load` on ineligible (nested-ref) allocates is
-//! **not** tracked. This is intentional for the first cut: the verifier asserts
-//! the common invariant the frontend produces after mem2reg, not a universal
-//! safety property.
+//! The verifier walks aliasing *only* through block-parameter edges. The
+//! following are not tracked and are documented gaps:
+//!
+//! - **Sibling-args-of-same-value.** A `jmp b1(v, v)` makes `b1`'s two
+//!   parameters runtime-equal, but the backward walk doesn't see this — each
+//!   parameter's backward set includes `v` but not the other parameter. The
+//!   `end_to_end_sibling_args_to_same_value_is_false_negative` and
+//!   `end_to_end_sibling_args_across_jmp_is_false_negative` tests pin this
+//!   down as documented false negatives. A previous version of this pass
+//!   used a full union-find that caught these cases at the cost of
+//!   path-merge over-approximation at downstream joins; the backward
+//!   walk trades the sibling-detection for the precision.
+//! - **Nested-array `MakeArray`**, **`IfElse` on arrays**, **non-inlined
+//!   `Call` returns**, **`Store`/`Load` on ineligible (nested-ref)
+//!   allocates** — same as before.
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -53,7 +83,6 @@ use crate::{
             function::Function,
             instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
-            union_find::UnionFind,
             value::ValueId,
         },
         opt::{LoopOrder, Loops},
@@ -94,20 +123,13 @@ fn verify_function(function: &Function) -> RtResult<()> {
                 continue;
             };
 
-            let alias_set = ctx.alias_set_for(array, block_id, idx);
+            let alias_set = ctx.alias_set_for(array);
 
             // Cheap check first: if any `inc_rc` on an alias-set member
             // precedes this `array_set` in flow order, treat the aliasing
             // as already protected. See `some_inc_rc_precedes` for the
             // rationale (relaxed from dominance to RPO precedence).
             if ctx.some_inc_rc_precedes(&alias_set, array, block_id, idx) {
-                continue;
-            }
-
-            // Two or more entry parameters in the alias-set means UF
-            // conflated distinct caller-side storages through a
-            // downstream join — see `multi_entry_param_alias_acceptance`.
-            if ctx.multi_entry_param_alias_acceptance(&alias_set) {
                 continue;
             }
 
@@ -149,28 +171,38 @@ fn verify_function(function: &Function) -> RtResult<()> {
     Ok(())
 }
 
-/// Pre-computed indices over a Brillig function, built in a single pass over
-/// its reachable blocks (plus one finalization pass for the union-find
-/// equivalence classes). The verifier's per-array_set checks read from these
-/// structures rather than re-scanning the function.
+/// Pre-computed indices over a Brillig function. The verifier's per-array_set
+/// checks read from these structures rather than re-scanning the function.
 struct Context<'f> {
     function: &'f Function,
     /// Dominator tree. Mutable because `dominates` populates an internal cache.
     dom_tree: DominatorTree,
-    /// For each value that participates in any alias-equivalence union, its
-    /// full equivalence class. Values absent from this map have an implicit
-    /// singleton class `{v}` — handled by [`Context::alias_set_for`].
-    value_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
+    /// For each array-typed value `V`, the set of values that may share
+    /// `V`'s storage **at `V`'s program point** — the source itself plus
+    /// anything that flows backward into it through block-parameter →
+    /// predecessor-arg chains. Computed to a fixed point.
+    ///
+    /// Values absent from this map have an implicit singleton class
+    /// `{v}` (typically instruction results that aren't passed as args
+    /// anywhere they'd matter — handled in [`Context::alias_set_for`]).
+    ///
+    /// This is the *backward* alias-set, not the full union-find closure
+    /// over all `(param, arg)` pairs. The difference matters at joins:
+    /// two values that flow into different parameters of the same block
+    /// are *not* siblings of each other under backward aliasing, because
+    /// neither is reachable from the other along param→arg edges. This
+    /// avoids the path-merge over-approximation a full UF would
+    /// introduce.
+    backward_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
     /// For each array-typed value defined by an instruction, the
     /// `(block, instruction-position-within-block)` of the defining
-    /// instruction. The block half is used by the kill-on-re-entry rule
-    /// inside [`Context::succ_use_set`]; the position half by the
-    /// post-array_set filter in [`Context::alias_set_for`].
+    /// instruction. Used by the def-block-entry kill rule in
+    /// [`Context::succ_use_set`].
     array_value_defs: HashMap<ValueId, (BasicBlockId, usize)>,
     /// Every array-typed value that does **not** carry the pre-mutation
-    /// aliasing of an `array_set`'s source forward through SSA. Filtered
-    /// out of every alias-set (except when the value is the `array_set`'s
-    /// own source) — see [`Context::alias_set_for`]. Includes:
+    /// aliasing of an `array_set`'s source. Filtered out of every
+    /// alias-set (except when the value is the `array_set`'s own source)
+    /// — see [`Context::alias_set_for`]. Includes:
     /// - `array_set` results: represent the *post*-mutation value of the
     ///   source. Uses of them (or anything threaded from them through
     ///   block params) are intentional reads, not hazards.
@@ -182,21 +214,14 @@ struct Context<'f> {
     non_aliasing_array_values: HashSet<ValueId>,
     /// `MakeArray` results that appear as a jmp/jmpif arg on at least one
     /// loop back-edge. Such a `make_array` re-executes on every loop
-    /// iteration and represents fresh storage per iteration, so the
-    /// back-edge UF unification that puts it in the loop-header
-    /// parameter's class is conflating distinct runtime storages across
-    /// iterations. Filtered out of the alias-set on lookup — see
-    /// [`Context::alias_set_for`].
+    /// iteration and represents fresh storage per iteration, so any
+    /// back-edge that puts it in a loop-header parameter's class is
+    /// conflating distinct runtime storages across iterations. Filtered
+    /// out of the alias-set on lookup — see [`Context::alias_set_for`].
     ///
     /// `MakeArray` results that are *not* back-edge args are kept in the
     /// alias-set: they represent a one-time allocation whose storage
-    /// the array_set may mutate in place. Dropping them would lose a
-    /// real hazard — the
-    /// `end_to_end_make_array_aliased_via_forward_block_param_with_forward_read_is_rejected`
-    /// test guards this distinction.
-    ///
-    /// Aliasing through *nested-array elements* of a `make_array` is a
-    /// documented gap — see the module-level docs.
+    /// the array_set may mutate in place.
     iteration_local_make_arrays: HashSet<ValueId>,
     /// `inc_rc value` instructions indexed by their operand. Each entry is
     /// the `(block, instruction-position-within-block)` of one `inc_rc`.
@@ -208,21 +233,13 @@ struct Context<'f> {
     array_operand_uses: HashMap<BasicBlockId, Vec<ArrayOperandUse>>,
     /// Values that appear at least once as a jmp/jmpif arg on **any**
     /// edge (forward or back). Used by [`Context::some_inc_rc_precedes`]
-    /// as the broader "the frontend is managing aliasing introduced by
+    /// as the "the frontend is managing aliasing introduced by
     /// block-parameter threading" signal: an `inc_rc` on a non-source
     /// alias that's also threaded through a block parameter suggests
     /// the codegen is aware of the aliasing and inserted the bump
     /// deliberately, even if the bump's program point doesn't dominate
-    /// the array_set in flow order. Generalizes the previous back-edge-
-    /// only signal to forward edges (e.g., re-seeding a value with a
-    /// global on a non-loop branch).
+    /// the array_set in flow order.
     jmp_args: HashSet<ValueId>,
-    /// Array-typed parameters of the function's entry block. Used by
-    /// [`Context::multi_entry_param_alias_acceptance`] to recognize
-    /// path-merge over-approximations: when an alias-set contains two
-    /// or more entry params, they're distinct caller-side storages
-    /// conflated by UF through a downstream join, not real aliasing.
-    array_entry_params: HashSet<ValueId>,
 }
 
 impl<'f> Context<'f> {
@@ -230,6 +247,13 @@ impl<'f> Context<'f> {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
         let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+
+        // Cache the reverse-post-order block list once. Used for the
+        // per-instruction setup pass below and (more importantly) by
+        // [`compute_backward_aliases`], whose fixed-point converges in
+        // far fewer passes when blocks are visited in RPO than in the
+        // ID-sorted order `function.reachable_blocks()` returns.
+        let rpo: Vec<BasicBlockId> = post_order.into_vec_reverse();
 
         // Loop back-edges so we can recognize iteration-local
         // `make_array` results (those passed as args on a back-edge),
@@ -249,14 +273,18 @@ impl<'f> Context<'f> {
         let mut array_value_defs: HashMap<ValueId, (BasicBlockId, usize)> = HashMap::default();
         let mut non_aliasing_array_values: HashSet<ValueId> = HashSet::default();
         let mut make_array_values: HashSet<ValueId> = HashSet::default();
-        let mut uf: UnionFind<ValueId> = UnionFind::new();
         let mut back_edge_args: HashSet<ValueId> = HashSet::default();
         let mut jmp_args: HashSet<ValueId> = HashSet::default();
+        // For each destination block, the list of `(predecessor, args)`
+        // pairs collected from terminators. Used to drive the backward
+        // alias-set fixed-point: each block parameter's set is the union
+        // of its arg at that position from every incoming edge.
+        let mut incoming_edges: HashMap<BasicBlockId, Vec<(BasicBlockId, Vec<ValueId>)>> =
+            HashMap::default();
 
-        // Single pass over every reachable block. Each iteration populates
-        // all per-instruction indices plus the union-find from the
-        // terminator's (param, arg) pairs.
-        for block_id in function.reachable_blocks() {
+        // Single pass over every reachable block to populate
+        // per-instruction indices and per-block incoming-edge tables.
+        for &block_id in &rpo {
             let mut operand_uses: Vec<ArrayOperandUse> = Vec::new();
             for (idx, instruction_id) in function.dfg[block_id].instructions().iter().enumerate() {
                 let instruction = &function.dfg[*instruction_id];
@@ -303,7 +331,10 @@ impl<'f> Context<'f> {
             if let Some(terminator) = function.dfg[block_id].terminator() {
                 match terminator {
                     TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                        union_param_args(function, &mut uf, *destination, arguments);
+                        incoming_edges
+                            .entry(*destination)
+                            .or_default()
+                            .push((block_id, arguments.to_vec()));
                         jmp_args.extend(arguments.iter().copied());
                         if back_edges.contains(&(block_id, *destination)) {
                             back_edge_args.extend(arguments.iter().copied());
@@ -316,8 +347,14 @@ impl<'f> Context<'f> {
                         else_arguments,
                         ..
                     } => {
-                        union_param_args(function, &mut uf, *then_destination, then_arguments);
-                        union_param_args(function, &mut uf, *else_destination, else_arguments);
+                        incoming_edges
+                            .entry(*then_destination)
+                            .or_default()
+                            .push((block_id, then_arguments.to_vec()));
+                        incoming_edges
+                            .entry(*else_destination)
+                            .or_default()
+                            .push((block_id, else_arguments.to_vec()));
                         jmp_args.extend(then_arguments.iter().copied());
                         jmp_args.extend(else_arguments.iter().copied());
                         if back_edges.contains(&(block_id, *then_destination)) {
@@ -332,8 +369,6 @@ impl<'f> Context<'f> {
             }
         }
 
-        let value_aliases = materialize_value_aliases(uf);
-
         // A `make_array` is iteration-local iff its result appears on a
         // loop back-edge: that's the signal that it re-executes each
         // iteration, so the storage the loop-header parameter receives
@@ -342,129 +377,62 @@ impl<'f> Context<'f> {
         let iteration_local_make_arrays: HashSet<ValueId> =
             make_array_values.intersection(&back_edge_args).copied().collect();
 
-        // Array-typed parameters of the entry block — pinned to distinct
-        // caller-side storages by the Brillig calling convention.
-        let array_entry_params: HashSet<ValueId> = function
-            .dfg
-            .block_parameters(function.entry_block())
-            .iter()
-            .copied()
-            .filter(|&v| function.dfg.type_of_value(v).contains_an_array())
-            .collect();
+        let backward_aliases = compute_backward_aliases(function, &rpo, &incoming_edges);
 
         Self {
             function,
             dom_tree,
-            value_aliases,
+            backward_aliases,
             array_value_defs,
             non_aliasing_array_values,
             iteration_local_make_arrays,
             inc_rc_locations,
             array_operand_uses,
             jmp_args,
-            array_entry_params,
         }
     }
 
-    /// Returns `true` if the `alias_set` contains two or more array-typed
-    /// **entry parameters** of the function. Distinct entry parameters
-    /// are guaranteed to point at distinct caller-side storage by the
-    /// Brillig calling convention, so their UF unification via a
-    /// downstream block-parameter join is a path-merge over-approximation
-    /// rather than real runtime aliasing. The walk can flag an aliased
-    /// read of one entry param against an `array_set` on the other —
-    /// even before the join where the conflation actually happens — and
-    /// that flag is spurious.
+    /// Look up `source`'s backward alias-set and filter out values that
+    /// can't represent the pre-mutation storage of an `array_set` on
+    /// `source`. The source itself is always kept.
     ///
-    /// Treated as a virtual `inc_rc` at function entry: any program point
-    /// reachable inside `f` already sees `RC ≥ 2` on each entry param the
-    /// caller is still referencing, so the `array_set` cannot mutate the
-    /// other entry param's storage in place even on the runtime path that
-    /// happens to bind the join param to it.
+    /// **Non-aliasing-result filter.** Drop values produced by an
+    /// `array_set` or `Call`:
+    /// - **`array_set` result** represents a *post*-mutation value of its
+    ///   source. Uses of it (or of any name it gets re-bound to through
+    ///   block-parameter threading) are intentional reads of the mutated
+    ///   storage, not hazards. Keeping them in the alias-set would defeat
+    ///   the per-arg kill rule in [`Context::succ_use_set`]: a back-edge
+    ///   `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and
+    ///   refuse to kill the receiving param, letting the alias leak past
+    ///   the loop.
+    /// - **`Call` result** is typically a fresh array allocated by the
+    ///   callee, so it isn't a real alias of the array_set's source.
+    ///   This is a heuristic — a function that returns its input *would*
+    ///   create a real alias, and we'd miss that. In practice the
+    ///   frontend's array-returning functions allocate fresh storage.
     ///
-    /// **Soundness caveat.** If the frontend emits an `array_set` whose
-    /// alias-set ends up containing two entry params via a path on which
-    /// the array_set *does* mutate one of them and a downstream read sees
-    /// the mutation, this heuristic suppresses the flag — a false
-    /// negative. We accept that trade-off because (1) the frontend's
-    /// ownership pass is the authoritative source of `inc_rc`s and the
-    /// invariant we're verifying is downstream of it, and (2) the
-    /// alternative — path-sensitive UF restricted to edges reachable
-    /// from the array_set — is a substantially larger change.
-    fn multi_entry_param_alias_acceptance(&self, alias_set: &im::HashSet<ValueId>) -> bool {
-        alias_set.iter().filter(|v| self.array_entry_params.contains(v)).take(2).count() >= 2
-    }
-
-    /// Look up `source`'s alias-equivalence class and filter out values
-    /// that can't represent the pre-mutation storage of the `array_set`
-    /// at `(array_set_block, array_set_idx)`. The source itself is always
-    /// kept.
+    /// Also drop **iteration-local `MakeArray` results** — those that
+    /// appear on at least one loop back-edge
+    /// ([`Context::iteration_local_make_arrays`]). A `make_array` on a
+    /// back-edge re-executes each iteration and allocates fresh
+    /// storage, so the loop-header parameter it feeds on the back-edge
+    /// holds a *different* allocation in the next iteration than the
+    /// one this iteration's `array_set` may have mutated.
+    /// **Non-back-edge `MakeArray` results stay in the alias-set** —
+    /// they represent a one-time allocation whose storage the
+    /// array_set can mutate in place.
     ///
-    /// Two filters apply:
-    ///
-    /// 1. **Non-aliasing-result filter.** Drop values produced by an
-    ///    `array_set` or `Call`:
-    ///    - **`array_set` result** represents a *post*-mutation value of its
-    ///      source. Uses of it (or of any name it gets re-bound to through
-    ///      block-parameter threading) are intentional reads of the mutated
-    ///      storage, not hazards. Keeping them in the alias-set would defeat
-    ///      the per-arg kill rule in [`Context::succ_use_set`]: a back-edge
-    ///      `jmp b(v_arr_set)` would see `v_arr_set` in the use-set and
-    ///      refuse to kill the receiving param, letting the alias leak past
-    ///      the loop.
-    ///    - **`Call` result** is typically a fresh array allocated by the
-    ///      callee, so it isn't a real alias of the array_set's source.
-    ///      This is a heuristic — a function that returns its input *would*
-    ///      create a real alias, and we'd miss that. In practice the
-    ///      frontend's array-returning functions allocate fresh storage.
-    ///
-    ///    Also drop **iteration-local `MakeArray` results** — those that
-    ///    appear on at least one loop back-edge ([`Context::iteration_local_make_arrays`]).
-    ///    A `make_array` on a back-edge re-executes each iteration and
-    ///    allocates fresh storage, so the loop-header parameter it feeds
-    ///    on the back-edge holds a *different* allocation in the next
-    ///    iteration than the one this iteration's `array_set` may have
-    ///    mutated. UF would unify them; dropping the back-edge make_array
-    ///    from the alias-set restores that distinction. **Non-back-edge
-    ///    `MakeArray` results stay in the alias-set** — they represent a
-    ///    one-time allocation whose storage the array_set can mutate in
-    ///    place, and a forward read of them through the alias is a real
-    ///    hazard.
-    ///
-    /// 2. **Post-array_set-in-same-block filter.** Drop values whose
-    ///    defining instruction is in `array_set_block` at an index
-    ///    *greater than* `array_set_idx`. Such a value hasn't been
-    ///    computed yet when the `array_set` executes, so it can't be the
-    ///    storage that the `array_set` might mutate in place — it's a
-    ///    fresh later-defined name that the union-find only unified
-    ///    with the source because some downstream block parameter
-    ///    receives it on a back-edge. The cross-block case (the value's
-    ///    defining block is *not* the array_set's block) is handled by
-    ///    the existing kill-on-def-block-entry rule in
-    ///    [`Context::succ_use_set`], which fires when the walk reaches
-    ///    that block; the same-block case never gets that chance because
-    ///    the walk starts mid-block past the array_set.
-    ///
-    /// The source itself is kept even when it happens to be filtered by
-    /// rule (1) (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`):
-    /// `v_a` is *this* check's source, so its forward uses are exactly
-    /// what we want to look for. Rule (2) can never fire on the source
-    /// because the source's def must precede the array_set's use of it.
-    ///
-    /// Aliasing introduced by block-parameter threading is *not*
-    /// filtered here — that's the entire point of `value_aliases`.
-    /// What `some_inc_rc_precedes` does on top is a separate decision:
-    /// if any non-source alias-set member that's also a jmp/jmpif arg
-    /// carries an `inc_rc`, the array_set is accepted as RC-protected
-    /// by codegen intent.
-    fn alias_set_for(
-        &self,
-        source: ValueId,
-        array_set_block: BasicBlockId,
-        array_set_idx: usize,
-    ) -> im::HashSet<ValueId> {
-        let class =
-            self.value_aliases.get(&source).cloned().unwrap_or_else(|| im::HashSet::unit(source));
+    /// The source itself is kept even when it happens to be filtered
+    /// (e.g. a chain `v_a = array_set _ ; v_b = array_set v_a`): `v_a`
+    /// is *this* check's source, so its forward uses are exactly what
+    /// we want to look for.
+    fn alias_set_for(&self, source: ValueId) -> im::HashSet<ValueId> {
+        let class = self
+            .backward_aliases
+            .get(&source)
+            .cloned()
+            .unwrap_or_else(|| im::HashSet::unit(source));
         class
             .into_iter()
             .filter(|&v| {
@@ -475,12 +443,6 @@ impl<'f> Context<'f> {
                     return false;
                 }
                 if self.iteration_local_make_arrays.contains(&v) {
-                    return false;
-                }
-                if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&v)
-                    && def_block == array_set_block
-                    && def_idx > array_set_idx
-                {
                     return false;
                 }
                 true
@@ -699,16 +661,21 @@ impl<'f> Context<'f> {
     /// Compute the use-set carried into `dest` when its predecessor jumps
     /// with `arguments`.
     ///
-    /// Two kill rules apply, in order:
+    /// Three rules apply, in order:
     ///
-    /// 1. **Conditional kill — block parameters of `dest`.** For each
-    ///    `dest.params[i]` that is currently in `use_set`, look at the
-    ///    corresponding `arguments[i]`:
-    ///    - If the arg is *also* in `use_set`, the parameter is rebound to
-    ///      a value that still aliases the array_set's source; keep it.
-    ///    - Otherwise (arg is a fresh value — most commonly the
-    ///      array_set's own result, excluded at lookup time), the parameter
-    ///      is rebound to a non-aliased value; drop it.
+    /// 1. **Per-arg propagation — block parameters of `dest`.** For each
+    ///    `dest.params[i]`, look at the corresponding `arguments[i]`:
+    ///    - **Kill.** If the param is in `use_set` and the arg is not, the
+    ///      param is rebound to a value that no longer aliases the
+    ///      array_set's source (most commonly the array_set's own
+    ///      result, excluded at lookup time): drop it.
+    ///    - **Add.** If the param is not in `use_set` but the arg is,
+    ///      this edge introduces a fresh alias: the param at `dest`'s
+    ///      entry shares storage with an alias-set member, so add it.
+    ///      This is what makes alias propagation accurate at joins and
+    ///      loop back-edges without needing a full path-insensitive UF.
+    ///    - Otherwise (both in or both out), no change.
+    ///    Only array-typed params participate.
     ///
     /// 2. **Unconditional kill — instructions defined in `dest`.** For
     ///    each alias-set member whose defining block is `dest`: drop it.
@@ -724,15 +691,22 @@ impl<'f> Context<'f> {
     ) -> im::HashSet<ValueId> {
         let mut result = use_set.clone();
 
-        // (1) Per-arg conditional kill for params of `dest`.
+        // (1) Per-arg propagation for params of `dest`.
         let params = self.function.dfg.block_parameters(dest);
         for (i, &param) in params.iter().enumerate() {
-            if !use_set.contains(&param) {
+            if !self.function.dfg.type_of_value(param).contains_an_array() {
                 continue;
             }
-            let arg_is_alias = arguments.get(i).is_some_and(|arg| use_set.contains(arg));
-            if !arg_is_alias {
-                result.remove(&param);
+            let arg_in_use_set = arguments.get(i).is_some_and(|arg| use_set.contains(arg));
+            let param_in_use_set = use_set.contains(&param);
+            match (param_in_use_set, arg_in_use_set) {
+                (true, false) => {
+                    result.remove(&param);
+                }
+                (false, true) => {
+                    result.insert(param);
+                }
+                _ => {}
             }
         }
 
@@ -749,41 +723,101 @@ impl<'f> Context<'f> {
     }
 }
 
-/// Materialize the union-find into a `value → equivalence-class` map.
+/// Compute, for each array-typed block parameter, the set of values that
+/// may share its storage at the parameter's binding — itself plus every
+/// value that flows into it through some chain of predecessor →
+/// block-parameter edges.
 ///
-/// Two values are in the same class iff they may share storage at runtime
-/// through any chain of `jmp` / `jmpif` argument-to-parameter bindings.
-/// Values absent from the resulting map have an implicit singleton class
-/// `{v}` (they didn't participate in any union).
+/// Runs a fixed-point iteration in reverse-post-order: each block
+/// parameter starts with `{p}`, and each pass unions in `args[p_index]`
+/// (and its own backward set, if it's also a block parameter) for
+/// every incoming edge. The iteration stops when no set grows.
 ///
-/// # Why we deliberately do **not** unify `array_set`'s source and result
+/// Visiting blocks in RPO means each parameter sees its forward-edge
+/// predecessors' sets *already at their fixed point* (RPO orders
+/// predecessor before successor along forward edges), so the only
+/// source of additional passes is loop back-edges. In practice this
+/// converges in 1 pass for loop-free code and 2-3 for typical
+/// loops — versus O(chain-depth) passes under arbitrary block order.
 ///
-/// At runtime the result may or may not alias the source depending on RC.
-/// The verifier's job is to flag the cases where it *might*. We model this
-/// by *excluding* the result from the alias-set at lookup time (in
-/// [`Context::alias_set_for`]) rather than unifying it into the
-/// equivalence class. Otherwise a chain
-/// `v1 = array_set v0 ; v2 = array_set v1 ; v3 = array_set v2` would put
-/// `{v0, v1, v2, v3}` in `v3`'s class, and an `inc_rc v0` that
-/// legitimately protects only `v1`'s array_set would falsely appear to
-/// protect `v3` as well. See `alias_set_does_not_walk_array_set_chains`
-/// for a worked example.
-fn materialize_value_aliases(mut uf: UnionFind<ValueId>) -> HashMap<ValueId, im::HashSet<ValueId>> {
-    let keys: Vec<ValueId> = uf.keys().collect();
-
-    let mut class_of_rep: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for &v in &keys {
-        let rep = uf.find(v);
-        class_of_rep.entry(rep).or_default().insert(v);
-    }
-
+/// # Why backward, not full union-find
+///
+/// A full UF over `(param, arg)` pairs is symmetric: two sibling args
+/// passed to the same block end up in the same class via the shared
+/// parameter, even though at runtime they never refer to the same
+/// storage (each runtime path takes only one of them). The backward
+/// walk follows the directed param-←-arg edges, so sibling parameters
+/// don't co-mingle in each other's sets — only the predecessors that
+/// flow *into* a given parameter do.
+///
+/// # Why we deliberately do **not** chase past `array_set` results
+///
+/// At runtime the result may or may not alias the source depending on
+/// RC. The verifier's job is to flag the cases where it *might*. We
+/// model this by *excluding* the result from each alias-set at lookup
+/// time (in [`Context::alias_set_for`]) rather than refusing to chase
+/// through it here. Otherwise a chain
+/// `v1 = array_set v0 ; v2 = array_set v1 ; v3 = array_set v2` would
+/// pull `v0` into the source of every later array_set, and an
+/// `inc_rc v0` that legitimately protects only `v1`'s array_set would
+/// falsely appear to protect `v3` as well. See
+/// `alias_set_does_not_walk_array_set_chains` for a worked example —
+/// the chain isn't visible to the backward walk anyway because
+/// `v1`, `v2`, `v3` are instruction results (not block parameters),
+/// so there's nothing to chase from `v3`.
+fn compute_backward_aliases(
+    function: &Function,
+    rpo: &[BasicBlockId],
+    incoming_edges: &HashMap<BasicBlockId, Vec<(BasicBlockId, Vec<ValueId>)>>,
+) -> HashMap<ValueId, im::HashSet<ValueId>> {
     let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
-    for v in keys {
-        let rep = uf.find(v);
-        if let Some(class) = class_of_rep.get(&rep) {
-            result.insert(v, class.clone());
+
+    // Seed each array-typed block parameter with `{p}`.
+    for &block_id in rpo {
+        for &param in function.dfg.block_parameters(block_id) {
+            if function.dfg.type_of_value(param).contains_an_array() {
+                result.insert(param, im::HashSet::unit(param));
+            }
         }
     }
+
+    // Fixed-point in RPO: keep iterating until no parameter's set grows.
+    // Each pass folds in args from every incoming edge, transitively
+    // through any predecessor arg that's itself a block parameter.
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for &block_id in rpo {
+            let params = function.dfg.block_parameters(block_id);
+            let Some(incoming) = incoming_edges.get(&block_id) else {
+                continue;
+            };
+            for (i, &param) in params.iter().enumerate() {
+                if !function.dfg.type_of_value(param).contains_an_array() {
+                    continue;
+                }
+                let mut new_set = result.get(&param).cloned().unwrap_or_else(im::HashSet::new);
+                let prev_len = new_set.len();
+                for (_pred, args) in incoming {
+                    if let Some(&arg) = args.get(i) {
+                        // Pull in `arg`'s backward set if it's a block
+                        // parameter; otherwise the arg is an instruction
+                        // result whose backward set is the singleton.
+                        if let Some(arg_set) = result.get(&arg) {
+                            new_set.extend(arg_set.iter().copied());
+                        } else {
+                            new_set.insert(arg);
+                        }
+                    }
+                }
+                if new_set.len() > prev_len {
+                    result.insert(param, new_set);
+                    changed = true;
+                }
+            }
+        }
+    }
+
     result
 }
 
@@ -807,26 +841,6 @@ struct AliasedUse {
     /// The alias-set member that was used. Names *which* alias triggered
     /// the flag — useful when the alias-set has more than one member.
     value: ValueId,
-}
-
-/// For each parameter of `dest`, union it with the corresponding argument
-/// from the calling terminator. Only array-typed parameters participate —
-/// non-array values cannot be in an alias-set anyway, and skipping them
-/// keeps the equivalence-class structure focused.
-fn union_param_args(
-    function: &Function,
-    uf: &mut UnionFind<ValueId>,
-    dest: BasicBlockId,
-    arguments: &[ValueId],
-) {
-    let params = function.dfg.block_parameters(dest);
-    for (i, &arg) in arguments.iter().enumerate() {
-        let Some(&param) = params.get(i) else { continue };
-        if !function.dfg.type_of_value(param).contains_an_array() {
-            continue;
-        }
-        uf.union(param, arg);
-    }
 }
 
 #[cfg(test)]
@@ -1451,24 +1465,15 @@ mod tests {
         );
     }
 
-    /// **Documents a known false positive.** This test pins down a
-    /// scenario where the verifier rejects an SSA that is actually safe
-    /// at runtime — kept as working documentation of the precision gap.
-    /// If a future change makes the analysis precise enough to accept
-    /// this shape, flip the assertion to [`assert_verifier_accepts`].
-    ///
-    /// # The SSA
-    ///
-    /// The same shape as
+    /// Counterpart of
     /// [`end_to_end_inc_rc_on_forward_edge_participant_alias_is_accepted`]
-    /// with the `inc_rc g0` stripped: the codegen threads the global `g0`
+    /// with `inc_rc g0` stripped. The codegen threads the global `g0`
     /// from one branch and the function arg `v0` from the other into the
     /// join's block parameter `v5`. The `array_set v0` lives only on the
     /// branch that subsequently passes `g0` (not `v0`) to the join.
     ///
-    /// # Why it's actually safe
+    /// # Why it's safe at runtime
     ///
-    /// On *every* runtime path:
     /// - **then-branch (b0 → b1 → b2):** `array_set v0` may mutate `v0`'s
     ///   storage in place. The forward jump rebinds `v5 := g0`, so the
     ///   downstream reads of `v5` hit `g0`'s storage, not the mutated
@@ -1477,35 +1482,20 @@ mod tests {
     ///   reads of `v5` see the original `v0`.
     ///
     /// On the path where the mutation happens, the value threaded
-    /// forward into `v5` is *not* the one that got mutated. UF doesn't
-    /// know this — it unifies `v0 ≈ v5 ≈ g0` globally — and none of the
-    /// existing acceptance heuristics catch the case (only one array
-    /// entry param, `g0` isn't on a back-edge, `MakeArray`-iteration-local
-    /// doesn't apply, no inc_rc anywhere).
+    /// forward into `v5` is *not* the one that got mutated.
     ///
-    /// # The structural fix (not implemented)
+    /// # Why the backward-alias-set analysis catches this
     ///
-    /// Path-sensitive UF: restrict unifying edges to the subgraph
-    /// reachable forward from the `array_set`'s block. From b1, only the
-    /// `b1 → b2(g0)` edge is reachable, so `v5 ≈ g0` only — the
-    /// `v5 ≈ v0` union from `b0 → b2(v0)` (a sibling edge) is excluded
-    /// because b0 is *not* reachable from b1. `v0`'s alias-set then
-    /// collapses to `{v0}` and the read of `v5` no longer flags.
-    ///
-    /// # Why we live with it for now
-    ///
-    /// The Noir frontend's ownership pass appears to emit `inc_rc`
-    /// conservatively whenever block-parameter threading could
-    /// syntactically alias a mutated value, regardless of whether
-    /// path-sensitive reasoning would show it safe. So the typical
-    /// real-world output is the inc_rc'd shape — accepted by the
-    /// jmp-arg-participant relaxation — rather than this one. If the
-    /// frontend ever evolves to a path-aware ownership pass that skips
-    /// the unnecessary `inc_rc`, this test will start producing a real
-    /// false positive on real code and the structural fix will become
-    /// necessary.
+    /// The full UF would unify `v0 ≈ v5 ≈ g0` and incorrectly flag
+    /// `array_get v5` as an aliased read of `v0`. The backward walk
+    /// follows param←arg edges directionally: from `v0`'s perspective
+    /// (an entry param with no predecessors), the backward set is just
+    /// `{v0}`. The forward walk's add-on-edge rule then watches for
+    /// `v0` to be threaded into a downstream param — but the b1→b2
+    /// edge passes `g0`, not `v0`, so no param gets added. The walk
+    /// terminates without flagging.
     #[test]
-    fn end_to_end_forward_edge_sibling_join_without_inc_rc_is_false_positive() {
+    fn end_to_end_forward_edge_sibling_join_without_inc_rc_is_accepted() {
         let src = r#"
             g0 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
 
@@ -1521,20 +1511,22 @@ mod tests {
                 v9 = array_set v5, index u32 0, value u1 1
                 return
             }"#;
-        assert_verifier_rejects(src);
+        assert_verifier_accepts_because(
+            src,
+            "backward-alias-set of v0 is {v0}; the b1→b2 edge passes g0 (not v0), so the add-on-edge rule doesn't pull v5 into the use-set; reads of v5 are unrelated to v0's storage",
+        );
     }
 
     /// End-to-end regression for an AST-fuzzer-discovered pattern: an
     /// `array_set v0` in one branch is followed in the same block by an
-    /// `inc_rc w` of a *different* value `w` that the union-find places
-    /// in `v0`'s alias-set (because both `v0` and `w` are threaded into
-    /// the same `b3` block parameter from two branches). The `inc_rc` is
-    /// a ref-count bump, not a content read, and is also not protecting
-    /// `v0` (it postdates the array_set and refers to a different
-    /// runtime allocation), so the walk must skip it. Symmetric to the
-    /// `Instruction::ArraySet`/`Call` "non-aliasing-result" filter: an
-    /// instruction whose semantics don't read pre-mutation storage is
-    /// not a hazard.
+    /// `inc_rc w` of a *different* value `w` that the backward
+    /// alias-set walk places in `v0`'s alias-set (because both `v0` and
+    /// `w` flow into the same `b3` block parameter from two branches).
+    /// The `inc_rc` is a ref-count bump, not a content read — `inc_rc`
+    /// and `dec_rc` operands are excluded from `array_operand_uses`, so
+    /// the walk skips them. Symmetric to the `Instruction::ArraySet` /
+    /// `Call` "non-aliasing-result" filter: an instruction whose
+    /// semantics don't read pre-mutation storage is not a hazard.
     #[test]
     fn end_to_end_array_set_followed_by_inc_rc_of_aliased_param_is_accepted() {
         let src = r#"
@@ -1558,20 +1550,12 @@ mod tests {
 
     /// End-to-end regression for an AST-fuzzer-discovered shape: a
     /// `make_array` defined in the same block as (and *after*) the
-    /// `array_set`, whose result feeds a downstream block parameter that
-    /// is also the back-edge re-entry target for the loop containing
-    /// the `array_set`. Without the post-array_set filter, the
-    /// union-find merges the post-array_set `make_array` result into
-    /// the source's class, the per-arg kill at the back-edge keeps the
-    /// loop-header parameter alive (because the merged value is still in
-    /// the use-set at edge-crossing time), and the walk re-enters the
-    /// array_set's block and flags an instruction that precedes the
-    /// array_set in source order — even though at runtime the value the
-    /// parameter holds on re-entry is a fresh `make_array` allocation
-    /// from the previous iteration, not the mutated storage. The fix
-    /// drops the post-array_set `make_array` from the alias-set up front
-    /// so the per-arg kill correctly drops the parameter on the
-    /// back-edge.
+    /// `array_set`, whose result feeds the loop-header parameter on the
+    /// loop's back-edge. The make_array is iteration-local (back-edge
+    /// arg), so the `iteration_local_make_arrays` filter drops it from
+    /// the alias-set: the per-arg kill at the back-edge then sees the
+    /// arg ∉ use_set and correctly drops the loop-header parameter, so
+    /// the walk terminates without flagging the loop-body reads.
     #[test]
     fn end_to_end_loop_back_edge_with_post_array_set_make_array_is_accepted() {
         let src = r#"
@@ -1602,20 +1586,19 @@ mod tests {
     /// End-to-end regression for an AST-fuzzer-discovered shape: a
     /// `make_array` defined in the outer-loop body *before* the inner
     /// loop's `array_set`, whose result is threaded back to the outer
-    /// loop's header on the back-edge. Because the outer header's
-    /// parameter is in the same union-find class as the inner array_set's
-    /// source (via the chain header → inner-header param → array_set
-    /// source), the `make_array` result lands in the alias-set. The
-    /// per-arg kill on the outer back-edge then sees the `make_array` in
-    /// the use-set and refuses to kill the outer header parameter,
-    /// letting the walk reach an earlier-in-source `array_get` of the
-    /// outer header parameter — which is read in *this* iteration's prefix,
-    /// not the storage the array_set mutated. At runtime the outer
-    /// parameter is rebound to a fresh `make_array` on every back-edge
-    /// crossing, so the iteration-aliasing is illusory.
+    /// loop's header on the back-edge. The outer header's parameter
+    /// would acquire the make_array via the backward chain (outer
+    /// header → outer back-edge → make_array), pulling the make_array
+    /// into the inner array_set's alias-set. The per-arg kill on the
+    /// outer back-edge would then see the `make_array` in the use-set
+    /// and refuse to kill the outer header parameter, letting the
+    /// walk reach an earlier-in-source `array_get` — even though at
+    /// runtime the parameter is rebound to a fresh `make_array` on
+    /// every back-edge crossing, so the iteration-aliasing is illusory.
     ///
-    /// The fix drops `MakeArray` results from the alias-set: a
-    /// `make_array` always allocates fresh top-level storage, so it
+    /// The `iteration_local_make_arrays` filter drops a `make_array`
+    /// result that appears on a loop back-edge: the make_array always
+    /// allocates fresh top-level storage, so it
     /// can't represent the pre-mutation storage of any array_set source.
     /// (Aliasing through *nested-array elements* of a `make_array` is a
     /// documented gap — see the module-level docs.)
@@ -1704,12 +1687,12 @@ mod tests {
     ///   `v2` for the next iteration.
     /// - After the loop, `array_get v2, idx 0` reads the final loop state.
     ///
-    /// Without the call-result filter, the union-find unifies `v2` with
-    /// `v9` (the call result), the per-arg kill at the back-edge sees `v9`
-    /// still in the use-set, and the loop-exit `array_get v2` is flagged
-    /// as an aliased read. The call-result filter drops `v9` from the
-    /// alias-set, so the per-arg kill fires and the walk doesn't reach
-    /// the post-loop read.
+    /// Without the call-result filter, the backward walk would pull `v9`
+    /// into `v2`'s alias-set via the back-edge, the per-arg kill at the
+    /// back-edge would see `v9` still in the use-set, and the loop-exit
+    /// `array_get v2` would be flagged as an aliased read. The
+    /// call-result filter drops `v9` from the alias-set, so the per-arg
+    /// kill fires and the walk doesn't reach the post-loop read.
     #[test]
     fn end_to_end_loop_array_set_then_call_returning_fresh_array_is_accepted() {
         let src = r#"
@@ -1783,12 +1766,13 @@ mod tests {
     /// A use of `v4` after `v6` (the `array_get v4` below) is a real hazard
     /// because no `inc_rc v4` protects it.
     ///
-    /// If we unified each `array_set`'s source and result, `v6`'s alias-set
-    /// would include `v0`, and the dominance check would falsely accept
-    /// `inc_rc v0` as protection — silently missing the hazard. Excluding
-    /// the result at lookup time keeps the alias-set for each link tied to
-    /// its immediate source: `v6`'s alias-set is just `{v4}`, and the
-    /// absence of `inc_rc v4` correctly surfaces the violation.
+    /// `v2`, `v4`, `v6` are instruction results (not block parameters),
+    /// so the backward walk has nothing to chase from `v6` — `v6`'s
+    /// alias-set is just `{v6}`. The walk never reaches `v0` via the
+    /// chain, and the absence of `inc_rc v4` correctly surfaces the
+    /// violation. (Note: this test uses `last_array_set`, whose source
+    /// is `v4`; the third array_set's source is `v4`, whose alias-set
+    /// is `{v4}` — see the assertion below.)
     #[test]
     fn alias_set_does_not_walk_array_set_chains() {
         let src = r#"
@@ -1814,10 +1798,10 @@ mod tests {
     }
 
     /// Two things at once:
-    ///   1. The alias-equivalence classes follow block-parameter edges — for
+    ///   1. The backward alias-set follows block-parameter edges — for
     ///      the `array_set` in `b5`, `v2`'s pre-header source (`v0`) lands
-    ///      in the same class.
-    ///   2. The construction terminates on cycles. `b1`'s parameter `v2` has
+    ///      in the same set.
+    ///   2. The fixed-point terminates on cycles. `b1`'s parameter `v2` has
     ///      two inbound jumps, including the back-edge from `b5` that
     ///      carries the `array_set`'s own result. The result is excluded
     ///      from the alias-set at lookup time so cycles through it don't
@@ -2063,13 +2047,30 @@ mod tests {
         );
     }
 
-    /// When a single jmp passes the same value to multiple parameter
-    /// positions (e.g. `jmp b1(v0, v0)`), the resulting sibling parameters
-    /// alias each other. The union-find equivalence classes unify both
-    /// parameters with `v0` (and so with each other), so an `array_get v2`
-    /// after `array_set v1` is correctly recognized as an aliased use.
+    /// **Documents a known false negative.** When a single jmp passes the
+    /// same value to multiple parameter positions (e.g. `jmp b1(v0, v0)`),
+    /// the resulting sibling parameters refer to the same runtime storage,
+    /// but the backward alias-set walk doesn't see this: it follows each
+    /// param's predecessors directionally, so `v1`'s backward set is
+    /// `{v1, v0}` and `v2`'s is `{v2, v0}` — neither contains the other.
+    ///
+    /// At runtime, `array_set v1` mutates `v0`'s storage in place if RC=1,
+    /// and `array_get v2` would observe the mutation. The verifier should
+    /// flag this, but it doesn't.
+    ///
+    /// The previous full-UF formulation caught this case (sibling args
+    /// land in the same equivalence class via the shared parameter), but
+    /// at the cost of conflating distinct caller-side storages at join
+    /// points, which produced several fuzzer-found false positives. The
+    /// trade-off — give up sibling-same-value detection to avoid
+    /// path-merge over-approximation — is documented in the module-level
+    /// docs.
+    ///
+    /// This test pins down the current behavior. If a future change
+    /// makes the analysis precise enough to catch this shape, flip the
+    /// assertion to `assert_verifier_rejects`.
     #[test]
-    fn alias_set_unifies_sibling_args_to_same_value() {
+    fn end_to_end_sibling_args_to_same_value_is_false_negative() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2]):
@@ -2079,40 +2080,23 @@ mod tests {
                 v7 = array_get v2, index u32 0 -> u32
                 return
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.main();
-        let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, source, alias_set, write_index_const } =
-            first_array_set(function, &ctx).expect("array_set present");
-
-        // alias_set should include v0 (function param), v1 (= source), and
-        // v2 (sibling param threaded the same v0 by b0's jmp).
-        let v0 = function.dfg.block_parameters(function.entry_block())[0];
-        let v2_param = function.dfg.block_parameters(block)[1];
-        assert!(alias_set.contains(&v0), "alias-set must include v0");
-        assert!(alias_set.contains(&source), "alias-set must include the source v1");
-        assert!(alias_set.contains(&v2_param), "alias-set must include the sibling param v2");
-
-        // The forward walk catches `array_get v2` as an aliased read.
-        let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
-            .is_some();
-        assert!(has_use, "array_get v2 reads a sibling alias of the array_set's source v1");
+        assert_verifier_accepts_because(
+            src,
+            "sibling-same-value blind spot: v1 and v2 share storage at runtime (both bound to v0 by b0's jmp), but backward-alias-set walks each param's predecessors directionally and doesn't co-mingle siblings",
+        );
     }
 
-    /// Cross-block sibling aliasing. The array_set is in `b1`; its source
-    /// `v1` aliases its sibling param `v2` (both bound to `v0` by `b0`'s
-    /// `jmp b1(v0, v0)`). The post-array_set jmp threads `v2` forward to
-    /// `b3`'s parameter `v4` — so `v4` is rebound to a value (`v2`) that
-    /// is still in the alias-set, meaning `v4` *stays* aliased to the
-    /// array_set's source.
-    ///
-    /// The forward walk must therefore *not* kill `v4` on entry to `b3`,
-    /// and must flag the `array_get v4` as an aliased read. The
-    /// per-arg kill rule (see [`super::succ_use_set`]) is what makes this
-    /// work: `v4`'s arg `v2` is in `use_set`, so `v4` is preserved.
+    /// **Documents the same known false negative across a block boundary.**
+    /// Same sibling pattern as
+    /// [`end_to_end_sibling_args_to_same_value_is_false_negative`], but
+    /// the aliased read is in a downstream block reached by threading
+    /// the sibling param `v2` forward. The forward walk's add-on-edge
+    /// rule does propagate `v2 → v7` correctly *once `v2` is in the
+    /// use-set*, but `v2` never enters the use-set in the first place
+    /// (it's not in `v1`'s backward alias-set), so the chain doesn't
+    /// fire.
     #[test]
-    fn reachable_use_walk_preserves_aliased_param_across_jmp() {
+    fn end_to_end_sibling_args_across_jmp_is_false_negative() {
         let src = r#"
             brillig(inline) fn main f0 {
               b0(v0: [u32; 2]):
@@ -2124,18 +2108,9 @@ mod tests {
                 v9 = array_get v7, index u32 0 -> u32
                 return
             }"#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.main();
-        let ctx = Context::new(function);
-        let ArraySetSite { block, idx, instruction_id, alias_set, write_index_const, .. } =
-            first_array_set(function, &ctx).expect("array_set present");
-
-        let has_use = ctx
-            .find_reachable_aliased_use(&alias_set, instruction_id, block, idx, write_index_const)
-            .is_some();
-        assert!(
-            has_use,
-            "array_get v7 in b3 reads a value (v7 ← v2) that still aliases the array_set's source"
+        assert_verifier_accepts_because(
+            src,
+            "sibling-same-value blind spot extended across a forward jmp: v2 isn't in v1's backward alias-set, so the add-on-edge rule never pulls v7 into the use-set either",
         );
     }
 
@@ -2200,7 +2175,7 @@ mod tests {
                         idx,
                         instruction_id: *instruction_id,
                         source: array,
-                        alias_set: ctx.alias_set_for(array, block_id, idx),
+                        alias_set: ctx.alias_set_for(array),
                         write_index_const: function.dfg.get_numeric_constant(index),
                     });
                 }
