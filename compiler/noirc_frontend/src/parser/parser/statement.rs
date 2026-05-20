@@ -438,6 +438,23 @@ impl Parser<'_> {
         let attributes = self.validate_secondary_attributes(attributes);
         let pattern = self.parse_pattern_or_error();
         let r#type = self.parse_optional_type_annotation();
+        let r#type = if r#type.is_none()
+            && !self.at(Token::Assign)
+            && !self.at(Token::Semicolon)
+            && !self.at_eof()
+        {
+            if let Some(typ) = self.parse_type_allowing_generics(true) {
+                self.push_error(
+                    ParserErrorReason::MissingColonInLetStatement,
+                    pattern.location().merge(typ.location),
+                );
+                Some(typ)
+            } else {
+                None
+            }
+        } else {
+            r#type
+        };
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
@@ -576,6 +593,26 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
+    }
+
+    #[test]
+    fn recovers_on_missing_colon_in_let_binding() {
+        let src = "
+        let x u64 = 2;
+            ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let statement = parser.parse_statement().unwrap().0;
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "u64");
+        assert_eq!(let_statement.expression.to_string(), "2");
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingColonInLetStatement));
     }
 
     #[test]
