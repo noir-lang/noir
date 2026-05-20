@@ -1974,6 +1974,66 @@ mod tests {
         assert!(alias_set.contains(&entry_v0));
     }
 
+    /// Minimal SSA pinning down the **unique necessity** of the
+    /// [`Context::iteration_local_make_arrays`] filter. The other
+    /// "value can't share storage at the array_set's program point"
+    /// filters — `non_aliasing_array_values` (ArraySet/Call results),
+    /// `post-array_set-in-same-block`, and the walk's `def-block-entry`
+    /// kill — *don't* cover this case.
+    ///
+    /// SSA shape:
+    ///
+    /// ```text
+    /// b0(v0): jmp b1(v0)
+    /// b1(v1):
+    ///   v3 = array_get v1, 0        ← read of v1 reachable forward only via re-entry
+    ///   v4 = make_array [...]       ← make_array in the HEADER (not array_set's block)
+    ///   jmp b2
+    /// b2:
+    ///   v6 = array_set v1, 0, v3    ← array_set on v1
+    ///   jmp b3
+    /// b3:
+    ///   jmp b1(v4)                  ← back-edge with v4 to b1
+    /// ```
+    ///
+    /// **Why neither non-iteration_local filter would suffice:**
+    /// - `non_aliasing_array_values`: only filters `ArraySet`/`Call`
+    ///   results, not `MakeArray`s.
+    /// - `post-array_set-in-same-block`: `v4`'s def-block is `b1`, not
+    ///   the array_set's block `b2`, so this filter never fires.
+    /// - `def-block-entry kill` in [`Context::succ_use_set`]: fires
+    ///   when *entering* the param's def-block. The walk reaches the
+    ///   back-edge `b3 → b1` first, and the kill rule (rule 1) checks
+    ///   `arg ∈ use_set` *before* rule 2 drops `v4`. With `v4` still
+    ///   in use_set, the rule sees the arg as "still an alias" and
+    ///   keeps `v1`. The subsequent `array_get v1` in `b1` then flags.
+    ///
+    /// `iteration_local_make_arrays` filters `v4` at alias-set
+    /// construction time so it's never in the use_set in the first
+    /// place. The kill rule on `b3 → b1` then correctly fires, `v1`
+    /// is dropped, and the walk terminates without flagging.
+    #[test]
+    fn end_to_end_iteration_local_make_array_filter_uniquely_necessary() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u32; 1]):
+                jmp b1(v0)
+              b1(v1: [u32; 1]):
+                v3 = array_get v1, index u32 0 -> u32
+                v4 = make_array [u32 0] : [u32; 1]
+                jmp b2()
+              b2():
+                v6 = array_set v1, index u32 0, value v3
+                jmp b3()
+              b3():
+                jmp b1(v4)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v4 is a make_array on the b3 → b1 back-edge — iteration-local fresh storage. The iteration_local_make_arrays filter drops it from v1's alias-set, enabling the per-arg kill at the back-edge to correctly fire on v1. Without this filter, the walk would falsely flag the b1.array_get v1 on re-entry.",
+        );
+    }
+
     /// Five `inc_rc` placements, each isolated on its own array parameter
     /// so the inc_rcs don't accidentally cover for each other. Tests the
     /// **relaxed** precedence check (any `inc_rc` earlier in RPO suffices;
