@@ -39,7 +39,7 @@ thiserror.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
-tracing-appender = "0.2.3"
+tracing-appender = "0.2.5"
 
 [dev-dependencies]
 noirc_abi.workspace = true

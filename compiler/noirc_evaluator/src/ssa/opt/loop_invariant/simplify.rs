@@ -155,7 +155,7 @@ impl LoopInvariantContext<'_> {
             _ => None,
         }?;
 
-        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
+        let (upper_field, upper_type) = upper.dec()?.into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
 
         let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
@@ -257,6 +257,12 @@ impl LoopInvariantContext<'_> {
             return SimplifyResult::None;
         };
 
+        // All simplifications below assume the induction variable counts upward: lower_bound ≤ i < upper_bound.
+        // If the bounds are inverted the variable is not a proper ascending induction variable, so bail out.
+        if lower_bound > upper_bound {
+            return SimplifyResult::None;
+        }
+
         // Handle arithmetic operations:
         // Check if we can simplify into an unchecked version of the operation.
         // For signed types, overflow can happen in both directions (underflow and overflow),
@@ -322,7 +328,7 @@ impl LoopInvariantContext<'_> {
                 true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
                 // `const < i`
                 false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= constant.inc() => {
+                false if constant.inc().is_some_and(|constant| upper_bound <= constant) => {
                     // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }

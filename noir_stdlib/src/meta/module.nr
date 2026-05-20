@@ -11,6 +11,11 @@ impl Module {
     pub comptime fn is_contract(self) -> bool {}
     // docs:end:is_contract
 
+    #[builtin(module_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
+
     #[builtin(module_functions)]
     // docs:start:functions
     pub comptime fn functions(self) -> [FunctionDefinition] {}

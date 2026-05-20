@@ -158,7 +158,7 @@ pub(super) fn oracle_returns_multiple_vectors(
 
     fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Array(item, _) => vector_count(item, type_recursion_context.recur()),
             Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
             Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
             Type::Tuple(items) => items
@@ -251,6 +251,24 @@ pub(super) fn oracle_returns_reference(
     } else {
         None
     }
+}
+
+/// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
+pub(super) fn pure_attribute_only_on_oracle(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let pure_attr = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .find(|attr| matches!(attr.kind, SecondaryAttributeKind::Pure))?;
+
+    let is_oracle = modifiers.attributes.function().is_some_and(|attr| attr.kind.is_oracle());
+    (!is_oracle).then(|| ResolverError::PureAttributeOnNonOracle {
+        ident: func_meta_name_ident(func, modifiers),
+        location: pure_attr.location,
+    })
 }
 
 /// Oracles cannot return vectors containing nested arrays because
@@ -535,6 +553,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
+            | HirStatement::TraitAssociatedConstant
             | HirStatement::Error => true,
         })
     };

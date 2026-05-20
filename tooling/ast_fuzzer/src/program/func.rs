@@ -1469,7 +1469,7 @@ impl<'a> FunctionContext<'a> {
 
         let print_oracle_ident = Ident {
             location: None,
-            definition: Definition::Oracle("print".to_string()),
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
             typ: Rc::new(Type::Function(

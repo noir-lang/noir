@@ -199,7 +199,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for entry in entries {
             let (key, value) = f(entry.0, entry.1);
-            new_map.insert(key, value);
+            let _ = new_map.insert(key, value);
         }
 
         self._len = new_map._len;
@@ -219,7 +219,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         for entry in entries {
             let (key, value) = (f(entry.0), entry.1);
-            new_map.insert(key, value);
+            let _ = new_map.insert(key, value);
         }
 
         self._len = new_map._len;
@@ -300,8 +300,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     }
 
     /// Insert key-value entry. In case key was already present, value is overridden.
+    ///
+    /// Returns true if the element was newly-inserted. In other words, this returns false
+    /// if the key already has a value in this map.
     // docs:start:insert
-    pub unconstrained fn insert(&mut self, key: K, value: V)
+    pub unconstrained fn insert(&mut self, key: K, value: V) -> bool
     where
         K: Eq + Hash,
         B: BuildHasher,
@@ -348,6 +351,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         if increment_length {
             self._len += 1;
         }
+        increment_length
     }
 
     unconstrained fn try_resize(&mut self)
@@ -360,7 +364,7 @@ impl<K, V, B> UHashMap<K, V, B> {
             let mut new_map = UHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
 
             for entry in self.entries() {
-                new_map.insert(entry.0, entry.1);
+                let _ = new_map.insert(entry.0, entry.1);
             }
             *self = new_map;
         }
@@ -462,7 +466,72 @@ where
 mod test {
     use crate::hash::BuildHasherDefault;
     use crate::hash::poseidon2::Poseidon2Hasher;
+    use crate::option::Option;
     use super::UHashMap;
+
+    #[test]
+    unconstrained fn test_general_usage() {
+        let mut map = UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<Poseidon2Hasher> {},
+            8,
+        );
+
+        assert(map.is_empty());
+        assert(!map.contains_key(5));
+        assert_eq(map.get(5), Option::none());
+
+        let _ = map.insert(5, 10);
+        assert(map.contains_key(5));
+        assert_eq(map.get(5), Option::some(10));
+        assert(!map.is_empty());
+
+        assert_eq(map.len(), 1);
+
+        let _ = map.insert(8, 16);
+
+        assert_eq(map.len(), 2);
+
+        map.iter_mut(|k, v| (k * 2, v * 2));
+        assert_eq(map.get(10), Option::some(20));
+        assert_eq(map.get(16), Option::some(32));
+
+        map.iter_keys_mut(|k| k / 2);
+        assert_eq(map.get(5), Option::some(20));
+        assert_eq(map.get(8), Option::some(32));
+
+        map.iter_values_mut(|v| v * 2);
+        assert_eq(map.get(5), Option::some(40));
+        assert_eq(map.get(8), Option::some(64));
+
+        let mut another_map = UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<Poseidon2Hasher> {},
+            8,
+        );
+        assert(map != another_map);
+        let _ = another_map.insert(5, 40);
+        assert(map != another_map);
+        let _ = another_map.insert(7, 63);
+        assert(map != another_map);
+        another_map.remove(7);
+        let _ = another_map.insert(8, 64);
+        assert_eq(map, another_map);
+
+        map.retain(|k, v| {
+            assert((k == 5) | (k == 8));
+            assert((v == 40) | (v == 64));
+            k == 5
+        });
+
+        assert_eq(map.len(), 1);
+        assert_eq(map.entries(), @[(5, 40)]);
+
+        map.clear();
+        assert(map.is_empty());
+        assert_eq(map.len(), 0);
+        assert_eq(map.values().len(), 0);
+        assert_eq(map.keys().len(), 0);
+        assert_eq(map.entries().len(), 0);
+    }
 
     #[test]
     unconstrained fn test_no_duplicate_keys_after_deletion_and_insertion() {
@@ -471,10 +540,10 @@ mod test {
             BuildHasherDefault::<Poseidon2Hasher> {},
             8,
         );
-        map.insert(5, 5);
-        map.insert(8, 8);
+        assert(map.insert(5, 5));
+        assert(map.insert(8, 8));
         map.remove(5);
-        map.insert(8, 9);
+        assert(!map.insert(8, 9));
 
         assert_eq(map.entries(), @[(8, 9)]);
         assert_eq(map.keys(), @[8]);

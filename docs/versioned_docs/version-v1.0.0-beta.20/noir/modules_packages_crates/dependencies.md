@@ -83,7 +83,7 @@ You can also import only the specific parts of dependency that you want to use, 
 
 ```rust
 use std::hash::blake3;
-use std::scalar_mul::fixed_base_embedded_curve;
+use std::embedded_curve_ops::fixed_base_scalar_mul;
 ```
 
 Lastly, You can import multiple items in the same line by enclosing them in curly braces:

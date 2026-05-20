@@ -3,7 +3,7 @@ title: Option<T> Type
 description: Express presence or absence safely with `Option<T>`—construct, inspect, and transform values without nulls.
 ---
 
-The `Option<T>` type is a way to express that a value might be present (`Some(T))` or absent (`None`). It's a safer way to handle potential absence of values, compared to using nulls in many other languages.
+The `Option<T>` type is a way to express that a value might be present (`Some(T)`) or absent (`None`). It's a safer way to handle potential absence of values, compared to using nulls in many other languages.
 
 ```rust
 struct Option<T> {
@@ -21,7 +21,7 @@ fn main() {
 }
 ```
 
-See [this test](https://github.com/noir-lang/noir/blob/5cbfb9c4a06c8865c98ff2b594464b037d821a5c/crates/nargo_cli/tests/test_data/option/src/main.nr) for a more comprehensive set of examples of each of the methods described below.
+See [this test](https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/test_programs/compile_success_empty/option/src/main.nr) for a more comprehensive set of examples of each of the methods described below.
 
 ## Methods
 
@@ -39,7 +39,7 @@ Returns true if the Option is None.
 
 ### is_some
 
-Returns true of the Option is Some.
+Returns true if the Option is Some.
 
 ### unwrap
 

@@ -142,7 +142,7 @@ comptime fn quote_one() -> Quoted {
         }
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L131-L151" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L131-L151</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L131-L151" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L131-L151</a></sub></sup>
 
 
 For those familiar with quoting from other languages (primarily lisps), Noir's `quote` is actually a _quasiquote_.
@@ -254,7 +254,7 @@ comptime fn concatenate(q1: Quoted, q2: Quoted) -> Quoted {
         }
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L266-L299" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L266-L299</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L266-L299" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L266-L299</a></sub></sup>
 
 
 ### $crate
@@ -332,7 +332,7 @@ trait FieldCount {
         }
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L153-L175" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L153-L175</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L153-L175" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L153-L175</a></sub></sup>
 
 
 ### Calling annotations with additional arguments
@@ -352,7 +352,7 @@ When this is done, these additional arguments are passed to the attribute functi
         assert_eq(fields[0].1, typ);
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L177-L188" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L177-L188</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L177-L188" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L177-L188</a></sub></sup>
 
 
 We can also take any number of arguments by adding the `varargs` attribute:
@@ -368,7 +368,7 @@ We can also take any number of arguments by adding the `varargs` attribute:
         assert_eq(args.len(), 3);
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L190-L200" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L190-L200</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L190-L200" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L190-L200</a></sub></sup>
 
 
 ### Attribute Evaluation Order
@@ -501,7 +501,7 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
     result
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L33-L66" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L33-L66</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L33-L66" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L33-L66</a></sub></sup>
 
 
 Registering a derive function could be done as follows:
@@ -512,7 +512,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     HANDLERS.insert(t, f);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L68-L75" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L68-L75</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L68-L75" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L68-L75</a></sub></sup>
 
 
 ```rust title="big-derive-usage-example" showLineNumbers 
@@ -574,5 +574,5 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
         )
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L202-L260" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L202-L260</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.20/noir_stdlib/src/meta/mod.nr#L202-L260" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L202-L260</a></sub></sup>
 

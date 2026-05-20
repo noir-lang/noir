@@ -162,7 +162,8 @@ fn replace_with_wrapper_call(e: &mut Expression, wrapper_id: FuncId, value_type:
 /// If `expr` is a `print` oracle call, return the value type, newline flag, and type-info arguments.
 fn oracle_print_info(expr: &Expression) -> Option<(&Type, &Expression, &[Expression])> {
     let Expression::Call(Call { func, arguments, .. }) = expr else { return None };
-    let Expression::Ident(Ident { definition: Definition::Oracle(name), typ, .. }) = func.as_ref()
+    let Expression::Ident(Ident { definition: Definition::Oracle { name, .. }, typ, .. }) =
+        func.as_ref()
     else {
         return None;
     };
@@ -194,7 +195,7 @@ fn make_print_wrapper(
 
     let oracle_ident = Ident {
         location: None,
-        definition: Definition::Oracle("print".to_string()),
+        definition: Definition::Oracle { name: "print".to_string(), pure: false },
         mutable: false,
         name: "print_oracle".to_string(),
         typ: Rc::new(Type::Function(

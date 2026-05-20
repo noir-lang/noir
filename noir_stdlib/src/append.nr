@@ -33,3 +33,31 @@ impl Append for Quoted {
         quote { $self $other }
     }
 }
+
+mod tests {
+    use super::Append;
+
+    #[test]
+    fn slice_empty() {
+        assert_eq(<[Field]>::empty(), @[]);
+    }
+
+    #[test]
+    fn slice_append() {
+        assert_eq(Append::append(@[1, 2], [3, 4, 5]), @[1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn quoted_append() {
+        comptime {
+            assert_eq(Append::append(quote { hello }, quote { world }), quote { hello world })
+        }
+    }
+
+    #[test]
+    fn quoted_empty() {
+        comptime {
+            assert_eq(<Quoted>::empty(), quote {});
+        }
+    }
+}

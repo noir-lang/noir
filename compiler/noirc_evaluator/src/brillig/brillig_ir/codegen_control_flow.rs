@@ -257,7 +257,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
             ctx.codegen_usize_op_in_place(*current_error_data_pointer, BrilligBinaryOp::Add, 1);
             for (error_variable, error_param) in
-                error_data_items.into_iter().zip_eq(error_data_types.into_iter())
+                error_data_items.into_iter().zip_eq(error_data_types)
             {
                 let flattened_size = error_param.flattened_size();
                 match error_param {

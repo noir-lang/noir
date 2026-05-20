@@ -216,6 +216,7 @@ impl NodeInterner {
         location: Location,
     ) -> Result<Result<(), Location>, CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
+        self.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when

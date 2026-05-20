@@ -275,7 +275,7 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn visit_type(&mut self, typ: &Type) {
         match typ {
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 self.visit_type(length);
                 self.visit_type(element);
             }

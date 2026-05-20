@@ -445,7 +445,7 @@ fn text_part_with_location(str: String, location: Location, files: &FileMap) -> 
 
 fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &FileMap) {
     match typ {
-        Type::Array(size, typ) => {
+        Type::Array(typ, size) => {
             parts.push(string_part("["));
             push_type_parts(typ, parts, files);
             parts.push(string_part("; "));
@@ -1124,5 +1124,26 @@ mod inlay_hints_tests {
         };
         let label = parts.iter().map(|part| part.value.clone()).collect::<Vec<_>>().join("");
         assert_eq!(label, " bool");
+    }
+
+    #[test]
+    async fn test_type_inlay_hint_for_identifier_ending_in_multi_byte_char() {
+        // Regression: when the identifier's last char was multi-byte the lexer's
+        // span end used to land in the middle of the UTF-8 sequence, breaking the
+        // byte→UTF-16 conversion and silently dropping the inlay hint.
+        // Source: `    let xé = 1;` on line 146 → `xé` ends at UTF-16 character 10.
+        let inlay_hints = get_inlay_hints(145, 147, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 146, character: 10 });
+
+        if let InlayHintLabel::LabelParts(parts) = &inlay_hint.label {
+            assert_eq!(parts.len(), 2);
+            assert_eq!(parts[0].value, ": ");
+            assert_eq!(parts[1].value, "Field");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
     }
 }

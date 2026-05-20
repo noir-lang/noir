@@ -36,9 +36,11 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
-                let length = array.elements.borrow().len();
-                let length = Value::u32(length as u32);
-
+                let typ = array.get_type();
+                let Type::Array(_, length) = typ else {
+                    panic!("Expected array type for argument to as_vector intrinsic, got {typ}");
+                };
+                let length = Value::u32(length.0);
                 let elements = array.elements.borrow().to_vec();
                 let vector = Value::vector(elements, array.element_types);
                 Ok(vec![length, vector])
@@ -839,7 +841,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                 }
                 Value::ArrayOrVector(array_value) => {
                     let length = match vector_length {
-                        Some(length) if array_value.is_vector => {
+                        Some(length) if array_value.is_vector() => {
                             length * array_value.element_types.len()
                         }
                         _ => array_value.elements.borrow().len(),

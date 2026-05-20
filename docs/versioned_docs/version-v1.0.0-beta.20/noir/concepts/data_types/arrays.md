@@ -23,7 +23,7 @@ fn main(x : u64, y : u64) {
 }
 ```
 
-Here, both `my_arr` and `your_arr` are instantiated as an array containing two `Field` elements.
+Here, both `my_arr` and `your_arr` are instantiated as an array containing two `u64` elements.
 
 Array elements can be accessed using indexing:
 
@@ -133,8 +133,8 @@ fn foo(x: Field, array: [Field; 10]) -> Field {
 
 ## Types
 
-You can create arrays of primitive types or structs. There is not yet support for nested arrays
-(arrays of arrays) or arrays of structs that contain arrays.
+You can create arrays of primitive types, structs, nested arrays, and arrays of structs that
+contain arrays. See the multidimensional array example above.
 
 ## Methods
 
