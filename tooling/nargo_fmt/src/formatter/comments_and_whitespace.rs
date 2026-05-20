@@ -9,50 +9,6 @@ const NEWLINE: &str = "\r\n";
 #[cfg(not(windows))]
 const NEWLINE: &str = "\n";
 
-/// Recursively formats a Noir code snippet pulled from a doc-comment fenced block.
-/// Returns `None` when the snippet should be left alone — either the fence has a
-/// non-Noir language tag, the body is empty, or the snippet fails to parse cleanly.
-///
-/// `available_width` is how many columns the rendered fence body actually gets — the
-/// parent's `max_width` minus the comment-line prefix (e.g. `/// `) and any outer
-/// indentation. The inner formatter's `max_width` and related single-line thresholds
-/// are tightened to this so output that lands inside the prefix still respects the
-/// configured maximum.
-fn format_noir_snippet(
-    source: &str,
-    lang: Option<&str>,
-    config: &Config,
-    available_width: usize,
-) -> Option<String> {
-    if !config.format_code_blocks {
-        return None;
-    }
-    let lang_ok = match lang {
-        None => true,
-        Some(l) => l.eq_ignore_ascii_case("noir"),
-    };
-    if !lang_ok || source.trim().is_empty() {
-        return None;
-    }
-    let (parsed, errors) = noirc_frontend::parse_program_with_dummy_file(source);
-    if errors.into_iter().any(|e| !e.is_warning()) {
-        return None;
-    }
-
-    // Floor at 20 so deeply-indented or very tight comment positions still produce
-    // legible output rather than degenerate one-token-per-line wrapping.
-    let inner_width = available_width.max(20);
-    let mut snippet_config = config.clone();
-    snippet_config.max_width = inner_width;
-    snippet_config.fn_call_width = config.fn_call_width.min(inner_width);
-    snippet_config.array_width = config.array_width.min(inner_width);
-    snippet_config.single_line_if_else_max_width =
-        config.single_line_if_else_max_width.min(inner_width);
-    snippet_config.comment_width = config.comment_width.min(inner_width);
-
-    Some(crate::format(source, parsed, &snippet_config))
-}
-
 impl Formatter<'_> {
     /// Writes a single space, skipping any whitespace and comments.
     /// That is, suppose the next token is a big whitespace, possibly with multiple lines.
@@ -618,6 +574,50 @@ impl Formatter<'_> {
     pub(crate) fn trim_comma(&mut self) -> bool {
         self.buffer.trim_comma()
     }
+}
+
+/// Recursively formats a Noir code snippet pulled from a doc-comment fenced block.
+/// Returns `None` when the snippet should be left alone — either the fence has a
+/// non-Noir language tag, the body is empty, or the snippet fails to parse cleanly.
+///
+/// `available_width` is how many columns the rendered fence body actually gets — the
+/// parent's `max_width` minus the comment-line prefix (e.g. `/// `) and any outer
+/// indentation. The inner formatter's `max_width` and related single-line thresholds
+/// are tightened to this so output that lands inside the prefix still respects the
+/// configured maximum.
+fn format_noir_snippet(
+    source: &str,
+    lang: Option<&str>,
+    config: &Config,
+    available_width: usize,
+) -> Option<String> {
+    if !config.format_code_blocks {
+        return None;
+    }
+    let lang_ok = match lang {
+        None => true,
+        Some(l) => l.eq_ignore_ascii_case("noir"),
+    };
+    if !lang_ok || source.trim().is_empty() {
+        return None;
+    }
+    let (parsed, errors) = noirc_frontend::parse_program_with_dummy_file(source);
+    if errors.into_iter().any(|e| !e.is_warning()) {
+        return None;
+    }
+
+    // Floor at 20 so deeply-indented or very tight comment positions still produce
+    // legible output rather than degenerate one-token-per-line wrapping.
+    let inner_width = available_width.max(20);
+    let mut snippet_config = config.clone();
+    snippet_config.max_width = inner_width;
+    snippet_config.fn_call_width = config.fn_call_width.min(inner_width);
+    snippet_config.array_width = config.array_width.min(inner_width);
+    snippet_config.single_line_if_else_max_width =
+        config.single_line_if_else_max_width.min(inner_width);
+    snippet_config.comment_width = config.comment_width.min(inner_width);
+
+    Some(crate::format(source, parsed, &snippet_config))
 }
 
 #[cfg(test)]
