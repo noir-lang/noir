@@ -344,11 +344,6 @@ fn to_be_radix<F: AcirField>(
     );
 
     assert!(
-        num_limbs >= 1 || input.is_zero(),
-        "Input value {input} is not zero but number of limbs is zero."
-    );
-
-    assert!(
         !output_bits || radix == 2u32,
         "Radix {radix} is not equal to 2 and bit mode is activated."
     );
@@ -434,5 +429,18 @@ mod to_be_radix_tests {
             .map(|byte| byte.expect_u8().unwrap())
             .collect();
         assert_eq!(limbs, expected_limbs);
+    }
+
+    #[test]
+    fn rejects_non_zero_field_with_zero_limbs() {
+        let value = FieldElement::from(1u128);
+
+        let error = to_be_radix(value, 256, 0, false).unwrap_err();
+        assert_eq!(
+            error,
+            acvm_blackbox_solver::BlackBoxResolutionError::AssertFailed(
+                "Field failed to decompose into specified 0 limbs".to_string()
+            )
+        );
     }
 }
