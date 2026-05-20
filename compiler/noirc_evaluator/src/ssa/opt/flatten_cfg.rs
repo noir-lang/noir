@@ -214,13 +214,10 @@ impl Ssa {
 /// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, RuntimeType>) {
-    if function.runtime().is_acir() {
-        super::checks::assert_no_loops(function);
-        super::checks::for_each_instruction(function, |instruction, dfg| {
-            super::checks::assert_not_constrain_not_equal(instruction);
-            
-        });
-    }
+    super::checks::assert_no_loops(function);
+    super::checks::for_each_instruction(function, |instruction, dfg| {
+        super::checks::assert_not_constrain_not_equal(instruction);
+    });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
