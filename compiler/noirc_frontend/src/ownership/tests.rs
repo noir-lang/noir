@@ -1703,3 +1703,49 @@ fn no_confirmed_move_for_variable_reassigned_in_loop_in_disabled_if() {
     }
     ");
 }
+
+// Regression for issue https://github.com/noir-lang/noir-claude/issues/1069
+#[test]
+fn closure_captured_array_used_twice_clones_first_use() {
+    let src = "
+    unconstrained fn main(arr: [Field; 3]) {
+        let c = || {
+            let mut a = arr;
+            a[0] = 10;
+            use_var(a);
+            arr
+        };
+        use_var(c());
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // The lambda body reads the captured `arr` (via `env.0`) twice: first to
+    // initialize `a`, and again as the lambda's return value. Only the return
+    // is the last use, so the first read must clone the captured array.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr$l0: [Field; 3]) -> () {
+        let c$l4 = {
+            let closure_variable$l3 = {
+                let env$l1 = (arr$l0);
+                ((env$l1, lambda$f1), (env$l1, lambda$f1))
+            };
+            closure_variable$l3
+        };
+        use_var$f2({
+            let tmp$l5 = c$l4.1;
+            tmp$l5.1(tmp$l5.0)
+        });
+    }
+    unconstrained fn lambda$f1(mut env$l1: ([Field; 3],)) -> [Field; 3] {
+        let mut a$l2 = env$l1.0;
+        a$l2[0] = 10;
+        use_var$f2(a$l2);;
+        env$l1.0
+    }
+    unconstrained fn use_var$f2(_x$l6: [Field; 3]) -> () {
+    }
+    ");
+}
