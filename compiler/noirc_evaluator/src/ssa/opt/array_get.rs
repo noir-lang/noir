@@ -81,11 +81,14 @@
 //! instead of from `v2`, because `v2` is the same as `v1` except for what's in index 1, but
 //! `v3` is getting from index 0.
 //!
-//! The [pass][Function::array_get_optimization] applies all of the above by scanning each function
-//! once and caching the known contents of every array value (an [`ArrayView`]), derived from the
-//! `make_array`/`array_set` that produced it. Resolving an `array_get` at a constant index is then a
-//! lookup into that view rather than a walk back over previous instructions, so a long chain of
-//! `array_set`s no longer makes each read more expensive.
+//! The [pass][Function::array_get_optimization] applies all of the above by scanning each block and
+//! caching the known contents of the array values it writes (an [`ArrayView`]). Resolving an
+//! `array_get` at a constant index is then a lookup into that view rather than a walk back over
+//! previous instructions, so a long chain of `array_set`s no longer makes each read more expensive.
+//! The cache is scoped to a single block: the side-effects predicate recorded for each written
+//! element is only meaningful relative to the start of its block (it is reset per block), so a view
+//! must not be reused across blocks. Reads of arrays defined in earlier blocks still resolve against
+//! their `make_array` elements or a parameter via [`array_view`].
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
 //! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
@@ -101,6 +104,7 @@ use im::OrdMap;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
@@ -124,14 +128,24 @@ impl Ssa {
 
 impl Function {
     fn array_get_optimization(&mut self) {
-        // Caches the known contents of each array value as the function is scanned, so resolving an
+        // Caches the known contents of each array value while scanning a block, so resolving an
         // `array_get` at a constant index is a lookup rather than a walk back through previous
-        // instructions. Entries are keyed by array value id; a value can only be used where its
-        // definition (and the whole `array_set` chain leading to it) dominates the use, so an entry
-        // is always populated before any instruction that reads from it.
+        // instructions.
+        //
+        // The cache is reset between blocks. The side-effects predicate recorded for each written
+        // element is only meaningful relative to the start of the block it was written in (it is
+        // reset per block, see [`Function::simple_optimization`]), so carrying a view into another
+        // block could resolve a read against a predicate from a different block and fold it
+        // incorrectly. Arrays defined in earlier blocks are still handled, via [`array_view`].
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
+        let mut current_block: Option<BasicBlockId> = None;
 
         self.simple_optimization(|context| {
+            if current_block != Some(context.block_id) {
+                current_block = Some(context.block_id);
+                views.clear();
+            }
+
             let instruction_id = context.instruction_id;
 
             match context.instruction() {
@@ -266,9 +280,10 @@ impl ArrayView {
     }
 }
 
-/// Returns the cached view of `array`, seeding one for arrays not produced by an `array_set` in this
-/// function: a `make_array` (local or global) exposes its elements directly, a parameter can be read
-/// from at the same index, and anything else is opaque.
+/// Returns the cached view of `array`, seeding one for arrays not written by an `array_set` earlier
+/// in the current block: a `make_array` (local or global) exposes its elements directly, a parameter
+/// can be read from at the same index, and anything else (including arrays from other blocks) is
+/// opaque.
 fn array_view(
     views: &HashMap<ValueId, ArrayView>,
     dfg: &DataFlowGraph,
@@ -406,96 +421,38 @@ mod tests {
 
     use super::Ssa;
 
-    /// Builds an SSA function that initializes a `[Field; n]` array with `make_array`, overwrites
-    /// every element at a constant index with `array_set`, and finally reads back the first element.
-    ///
-    /// This mirrors the `let mut a: [Field; N] = [0; N]; for i in 0..N { a[i] = ...; } a[0]` pattern
-    /// from <https://github.com/noir-lang/noir/issues/12737>. The source is templated rather than
-    /// written out by hand so the same shape can be scaled to thousands of elements.
-    fn array_set_chain_src(n: usize) -> String {
-        let mut src = String::new();
-        src.push_str("acir(inline) fn main f0 {\n");
-        src.push_str("  b0():\n");
-        let zeros = vec!["Field 0"; n].join(", ");
-        src.push_str(&format!("    v0 = make_array [{zeros}] : [Field; {n}]\n"));
-        for i in 0..n {
-            src.push_str(&format!(
-                "    v{} = array_set v{}, index u32 {}, value Field {}\n",
-                i + 1,
-                i,
-                i,
-                i + 1
-            ));
-        }
-        src.push_str(&format!("    v{} = array_get v{}, index u32 0 -> Field\n", n + 1, n));
-        src.push_str(&format!("    return v{}\n", n + 1));
-        src.push_str("}\n");
-        src
-    }
-
-    /// Like [`array_set_chain_src`] but the array is a function parameter, so there is no
-    /// `make_array` to fold from — reads must resolve through the chain of `array_set`s itself.
-    fn param_set_chain_src(n: usize) -> String {
-        let mut src = String::new();
-        src.push_str(&format!("acir(inline) fn main f0 {{\n  b0(v0: [Field; {n}]):\n"));
-        for i in 0..n {
-            src.push_str(&format!(
-                "    v{} = array_set v{}, index u32 {}, value Field {}\n",
-                i + 1,
-                i,
-                i,
-                i + 1
-            ));
-        }
-        src.push_str(&format!("    v{} = array_get v{}, index u32 0 -> Field\n", n + 1, n));
-        src.push_str(&format!("    return v{}\n}}\n", n + 1));
-        src
-    }
-
     #[test]
-    fn optimizes_array_get_through_chain_longer_than_previous_cap() {
-        // This chain is longer than the fixed walk limit that the optimization used to impose, so
-        // the read of index 0 was previously left untouched. The cached view resolves it directly
-        // to the value written at index 0.
-        let src = param_set_chain_src(6);
-        let ssa = Ssa::from_str(&src).unwrap();
-        let ssa = ssa.array_get_optimization();
-
-        assert_ssa_snapshot!(ssa, @r"
+    fn does_not_resolve_array_get_across_blocks() {
+        // The `array_set` is in `b1` and the `array_get` reads it in `b2`. The side-effects
+        // predicate is tracked per block (reset at each block entry), so a value written in one
+        // block must not be carried into another block's read by the cache.
+        let src = "
         acir(inline) fn main f0 {
-          b0(v0: [Field; 6]):
+          b0(v0: [Field; 3], v1: u1):
+            enable_side_effects v1
+            jmp b1()
+          b1():
             v3 = array_set v0, index u32 0, value Field 1
-            v6 = array_set v3, index u32 1, value Field 2
-            v9 = array_set v6, index u32 2, value Field 3
-            v12 = array_set v9, index u32 3, value Field 4
-            v15 = array_set v12, index u32 4, value Field 5
-            v18 = array_set v15, index u32 5, value Field 6
-            return Field 1
+            jmp b2()
+          b2():
+            v5 = array_get v3, index u32 0 -> Field
+            return v5
         }
-        ");
-    }
-
-    #[test]
-    fn optimizes_array_get_through_long_array_set_chain() {
-        let src = array_set_chain_src(6);
-        let ssa = Ssa::from_str(&src).unwrap();
-
-        // `array_set_optimization` first turns the chain into `make_array` instructions, then
-        // `array_get_optimization` resolves the read of index 0 back to the value set there.
-        let ssa = ssa.array_set_optimization();
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.array_get_optimization();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0():
-            v1 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
-            v3 = make_array [Field 1, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
-            v5 = make_array [Field 1, Field 2, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
-            v7 = make_array [Field 1, Field 2, Field 3, Field 0, Field 0, Field 0] : [Field; 6]
-            v9 = make_array [Field 1, Field 2, Field 3, Field 4, Field 0, Field 0] : [Field; 6]
-            v11 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 0] : [Field; 6]
-            v13 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [Field; 6]
-            return Field 1
+          b0(v0: [Field; 3], v1: u1):
+            enable_side_effects v1
+            jmp b1()
+          b1():
+            v4 = array_set v0, index u32 0, value Field 1
+            jmp b2()
+          b2():
+            v5 = array_get v4, index u32 0 -> Field
+            return v5
         }
         ");
     }
