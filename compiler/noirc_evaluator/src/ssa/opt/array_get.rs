@@ -135,35 +135,25 @@ impl Function {
             let instruction_id = context.instruction_id;
 
             match context.instruction() {
-                Instruction::MakeArray { elements, .. } => {
-                    let view = ArrayView::from_make_array(elements.clone());
-                    let [result] = context.dfg.instruction_result(instruction_id);
-                    views.insert(result, view);
-                }
                 Instruction::ArraySet { array, index, value, .. } => {
                     let array = *array;
-                    let index = *index;
                     let value = *value;
+                    let Some(index) = constant_index(context.dfg, *index) else {
+                        // A dynamic index may write to any element, so nothing is known about the
+                        // result. Leaving it uncached means reads of it resolve as `Unknown`.
+                        return;
+                    };
                     let predicate = context.enable_side_effects;
                     let [result] = context.dfg.instruction_result(instruction_id);
 
-                    let parent = array_view(&views, context.dfg, array);
-                    let view = match constant_u32(context.dfg, index) {
-                        ConstantIndex::U32(index) => {
-                            parent.with_element(index, KnownElement { value, predicate })
-                        }
-                        // A constant index that doesn't fit in a `u32` can't be the target of any
-                        // `array_get` we optimize, so it leaves the rest of the view untouched.
-                        ConstantIndex::OtherConstant => parent,
-                        // A dynamic index may write to any element, so nothing is known afterwards.
-                        ConstantIndex::Dynamic => ArrayView::unknown(),
-                    };
+                    let view = array_view(&views, context.dfg, array)
+                        .with_element(index, KnownElement { value, predicate });
                     views.insert(result, view);
                 }
                 Instruction::ArrayGet { array, index } => {
                     let array = *array;
                     let index = *index;
-                    let ConstantIndex::U32(target_index) = constant_u32(context.dfg, index) else {
+                    let Some(target_index) = constant_index(context.dfg, index) else {
                         return;
                     };
                     let predicate = context.enable_side_effects;
@@ -181,8 +171,8 @@ impl Function {
                         Resolution::Value(value) => {
                             context.replace_value(result, value);
                         }
-                        Resolution::ReadFrom(new_array) => {
-                            let array_get = Instruction::ArrayGet { array: new_array, index };
+                        Resolution::ReadFrom(source) => {
+                            let array_get = Instruction::ArrayGet { array: source, index };
                             let result_typ = context.dfg.type_of_value(result).into_owned();
                             let new_result = context
                                 .insert_instruction(array_get, Some(vec![result_typ]))
@@ -218,7 +208,8 @@ struct KnownElement {
 enum ArrayBase {
     /// Indices not in `elements` come from this `make_array`'s elements.
     MakeArray(im::Vector<ValueId>),
-    /// Indices not in `elements` can be read directly from this array (a function parameter).
+    /// Indices not in `elements` can be read directly from this array (a function parameter), at
+    /// the same index. `length` bounds which indices that is valid for.
     ReadFrom { array: ValueId, length: u32 },
     /// Nothing is known about indices not in `elements`.
     Unknown,
@@ -230,12 +221,6 @@ enum Resolution {
     Value(ValueId),
     /// The `array_get` can read from this array instead, at the same index.
     ReadFrom(ValueId),
-}
-
-enum ConstantIndex {
-    U32(u32),
-    OtherConstant,
-    Dynamic,
 }
 
 impl ArrayView {
@@ -268,22 +253,22 @@ impl ArrayView {
                 .then_some(Resolution::Value(element.value));
         }
 
-        match &self.base {
-            ArrayBase::MakeArray(elements) => {
+        match self.base {
+            ArrayBase::MakeArray(ref elements) => {
                 elements.get(index as usize).copied().map(Resolution::Value)
             }
+            // Reading directly from `array` itself wouldn't be an improvement.
             ArrayBase::ReadFrom { array: source, length } => {
-                // Reading directly from `array` itself wouldn't be an improvement.
-                (index < *length && *source != array).then_some(Resolution::ReadFrom(*source))
+                (index < length && source != array).then_some(Resolution::ReadFrom(source))
             }
             ArrayBase::Unknown => None,
         }
     }
 }
 
-/// Returns the cached view of `array`, seeding one for arrays not produced by a
-/// `make_array`/`array_set` in this function: parameters can be read from directly, globals expose
-/// their `make_array` elements, and anything else is opaque.
+/// Returns the cached view of `array`, seeding one for arrays not produced by an `array_set` in this
+/// function: a `make_array` (local or global) exposes its elements directly, a parameter can be read
+/// from at the same index, and anything else is opaque.
 fn array_view(
     views: &HashMap<ValueId, ArrayView>,
     dfg: &DataFlowGraph,
@@ -309,14 +294,8 @@ fn array_view(
     ArrayView::unknown()
 }
 
-fn constant_u32(dfg: &DataFlowGraph, index: ValueId) -> ConstantIndex {
-    match dfg.get_numeric_constant(index) {
-        Some(constant) => match constant.try_to_u32() {
-            Some(index) => ConstantIndex::U32(index),
-            None => ConstantIndex::OtherConstant,
-        },
-        None => ConstantIndex::Dynamic,
-    }
+fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
+    dfg.get_numeric_constant(index)?.try_to_u32()
 }
 
 /// The result of the array_get optimization.
