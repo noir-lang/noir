@@ -297,10 +297,8 @@ impl Formatter<'_> {
             if index > 0 {
                 self.start_new_line();
             }
-            if content.is_empty() {
-                self.write(prefix);
-            } else {
-                self.write(prefix);
+            self.write(prefix);
+            if !content.is_empty() {
                 self.write(" ");
                 self.write(content);
             }
