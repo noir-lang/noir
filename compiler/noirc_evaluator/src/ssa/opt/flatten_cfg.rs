@@ -217,6 +217,9 @@ fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, Run
     super::checks::assert_no_loops(function);
     super::checks::for_each_instruction(function, |instruction, dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
+        super::checks::assert_no_constant_pure_brillig_calls(instruction, dfg, &|id| {
+            runtimes.get(&id).copied()
+        });
     });
 }
 
