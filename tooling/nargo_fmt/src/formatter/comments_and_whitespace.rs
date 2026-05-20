@@ -216,15 +216,6 @@ impl Formatter<'_> {
         self.ignore_next = ignore_next;
     }
 
-    pub(crate) fn write_line_comment(&mut self, comment: &str, prefix: &str) {
-        if self.ignore_next || !self.config.wrap_comments || self.in_chunk {
-            self.write(prefix);
-            self.write(comment.trim_end());
-            return;
-        }
-        self.write_line_comment_group(&[comment.to_string()], prefix);
-    }
-
     /// Reflow a sequence of consecutive line-comment bodies as a single paragraph-aware
     /// group. The bodies arrive with the per-line `//` prefix already stripped (i.e. they
     /// are the lexer's comment body strings). The caller is responsible for having written
@@ -381,6 +372,10 @@ impl Formatter<'_> {
 
         self.start_new_line_no_indentation();
         for content in &outputs {
+            if content.is_empty() && !all_stars {
+                self.write(NEWLINE);
+                continue;
+            }
             self.write_indentation();
             if all_stars {
                 if content.is_empty() {
@@ -1164,6 +1159,40 @@ global x = 1;
     }
 
     #[test]
+    fn does_not_wrap_fenced_code_block_in_chunks_path_block_comment() {
+        let src = "fn foo() {
+    /*
+    Example:
+
+    ```
+    fn inner() { x + y + z + a + b + c + d + e + f }
+    ```
+
+    After the fence.
+    */
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
+    fn does_not_wrap_fenced_code_block_in_chunks_path_line_comments() {
+        let src = "fn foo() {
+    // Example:
+    //
+    // ```
+    // fn inner() { x + y + z + a + b + c + d + e + f }
+    // ```
+    //
+    // After the fence.
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, src, 30);
+    }
+
+    #[test]
     fn reflow_url_line_passthrough() {
         let src = "fn foo() {
     // See https://example.com/some/very/long/path/that/exceeds for details
@@ -1408,8 +1437,8 @@ global x: Field = 1;
         ";
         let expected = "fn foo() {
     /* This is a long comment
-    that's going to be
-    wrapped. */
+     * that's going to be
+     * wrapped. */
     let x = 1;
 }
 ";
@@ -1419,9 +1448,9 @@ global x: Field = 1;
     #[test]
     fn wraps_mixed_comments_in_statement() {
         let src = "fn foo() {
-        /* 
-        This is a long comment that's going to be wrapped. 
-        This is a long comment that's going to be wrapped. 
+        /*
+        This is a long comment that's going to be wrapped.
+        This is a long comment that's going to be wrapped.
         */
         // This is a long comment that's going to be wrapped.
         /* This is a long comment that's going to be wrapped. */
@@ -1429,19 +1458,19 @@ global x: Field = 1;
     }
         ";
         let expected = "fn foo() {
-    /* This is a long comment
-    that's going to be
-    wrapped.
+    /*
     This is a long comment
     that's going to be
-    wrapped.
+    wrapped. This is a long
+    comment that's going to
+    be wrapped.
     */
     // This is a long comment
     // that's going to be
     // wrapped.
     /* This is a long comment
-    that's going to be
-    wrapped. */
+     * that's going to be
+     * wrapped. */
     let x = 1;
 }
 ";

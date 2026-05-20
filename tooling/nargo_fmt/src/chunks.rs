@@ -1168,16 +1168,63 @@ impl<'a> Formatter<'a> {
                     index += 1;
                 }
                 continue;
-            } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
-                // Only append a space if it's the start of a block comment (no leading spaces in following lines)
-                if starts_with_space && is_block_comment && !self.buffer.ends_with_space() {
+            } else if is_block_comment && self.config.wrap_comments {
+                let trimmed = line.trim_start();
+                let opener = if trimmed.starts_with("/**") {
+                    "/**"
+                } else if trimmed.starts_with("/*!") {
+                    "/*!"
+                } else {
+                    "/*"
+                };
+
+                let mut block_end = index;
+                while block_end < lines.len() && !lines[block_end].trim_end().ends_with("*/") {
+                    block_end += 1;
+                }
+
+                if block_end < lines.len() {
+                    let first_after_open = trimmed.strip_prefix(opener).unwrap_or(trimmed);
+                    let last_line = lines[block_end];
+                    let last_before_close =
+                        last_line.trim_end().strip_suffix("*/").unwrap_or(last_line.trim_end());
+
+                    let body = if index == block_end {
+                        first_after_open.strip_suffix("*/").unwrap_or(first_after_open).to_string()
+                    } else {
+                        let mut parts = vec![first_after_open.to_string()];
+                        for inner_line in &lines[(index + 1)..block_end] {
+                            parts.push(inner_line.to_string());
+                        }
+                        parts.push(last_before_close.to_string());
+                        parts.join("\n")
+                    };
+
+                    if starts_with_space && !self.buffer.ends_with_space() {
+                        self.write(" ");
+                    }
+
+                    let saved_in_chunk = self.in_chunk;
+                    self.in_chunk = false;
+                    self.write_block_comment(&body, opener);
+                    self.in_chunk = saved_in_chunk;
+
+                    index = block_end + 1;
+                    while index < lines.len() && lines[index].is_empty() {
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        index += 1;
+                    }
+                    continue;
+                }
+
+                if starts_with_space && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
                 self.write_comment_with_prefix(line, "");
-                if inside_block_comment {
-                    self.start_new_line();
-                }
                 inside_block_comment = true;
+            } else if inside_block_comment && self.config.wrap_comments {
+                self.write_comment_with_prefix(line, "");
+                self.start_new_line();
             } else if index < lines.len() - 1 {
                 // Trim the end of all lines except the last one, to avoid trailing spaces
                 self.write(line.trim_end());
