@@ -81,15 +81,23 @@
 //! instead of from `v2`, because `v2` is the same as `v1` except for what's in index 1, but
 //! `v3` is getting from index 0.
 //!
+//! The [pass][Function::array_get_optimization] applies all of the above by scanning each function
+//! once and caching the known contents of every array value (an [`ArrayView`]), derived from the
+//! `make_array`/`array_set` that produced it. Resolving an `array_get` at a constant index is then a
+//! lookup into that view rather than a walk back over previous instructions, so a long chain of
+//! `array_set`s no longer makes each read more expensive.
+//!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
 //! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
 //! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous `array_set` with the
 //! same index as the `array_get` cannot be used because we don't know under which side effects var it
 //! happens. However, `array_set` with a different known index can be skipped through to eventually
-//! reach a `make_array` or param.
+//! reach a `make_array` or param. That helper has no cache to consult, so it does a small bounded
+//! walk instead.
 use std::collections::HashMap;
 
 use acvm::{AcirField, FieldElement};
+use im::OrdMap;
 
 use crate::ssa::{
     ir::{
@@ -116,54 +124,69 @@ impl Ssa {
 
 impl Function {
     fn array_get_optimization(&mut self) {
-        // Keeps track of side effect vars associated to each `array_set` instruction.
-        let mut array_set_predicates = HashMap::new();
+        // Caches the known contents of each array value as the function is scanned, so resolving an
+        // `array_get` at a constant index is a lookup rather than a walk back through previous
+        // instructions. Entries are keyed by array value id; a value can only be used where its
+        // definition (and the whole `array_set` chain leading to it) dominates the use, so an entry
+        // is always populated before any instruction that reads from it.
+        let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
 
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
 
             match context.instruction() {
-                Instruction::ArraySet { .. } => {
-                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
+                Instruction::MakeArray { elements, .. } => {
+                    let view = ArrayView::from_make_array(elements.clone());
+                    let [result] = context.dfg.instruction_result(instruction_id);
+                    views.insert(result, view);
                 }
-                Instruction::ArrayGet { array, index } => {
-                    let Some(index_field) = context.dfg.get_numeric_constant(*index) else {
-                        return;
-                    };
+                Instruction::ArraySet { array, index, value, .. } => {
                     let array = *array;
                     let index = *index;
-                    let side_effects = Some(&ArrayGetOptimizationSideEffects {
-                        side_effects_var: context.enable_side_effects,
-                        array_set_predicates: &array_set_predicates,
-                    });
-                    let Some(result) = try_optimize_array_get_from_previous_instructions(
-                        array,
-                        index_field,
-                        context.dfg,
-                        side_effects,
-                    ) else {
+                    let value = *value;
+                    let predicate = context.enable_side_effects;
+                    let [result] = context.dfg.instruction_result(instruction_id);
+
+                    let parent = array_view(&views, context.dfg, array);
+                    let view = match constant_u32(context.dfg, index) {
+                        ConstantIndex::U32(index) => {
+                            parent.with_element(index, KnownElement { value, predicate })
+                        }
+                        // A constant index that doesn't fit in a `u32` can't be the target of any
+                        // `array_get` we optimize, so it leaves the rest of the view untouched.
+                        ConstantIndex::OtherConstant => parent,
+                        // A dynamic index may write to any element, so nothing is known afterwards.
+                        ConstantIndex::Dynamic => ArrayView::unknown(),
+                    };
+                    views.insert(result, view);
+                }
+                Instruction::ArrayGet { array, index } => {
+                    let array = *array;
+                    let index = *index;
+                    let ConstantIndex::U32(target_index) = constant_u32(context.dfg, index) else {
+                        return;
+                    };
+                    let predicate = context.enable_side_effects;
+
+                    let view = array_view(&views, context.dfg, array);
+                    let Some(resolution) =
+                        view.resolve(array, target_index, predicate, context.dfg)
+                    else {
                         return;
                     };
 
                     context.remove_current_instruction();
-
-                    match result {
-                        ArrayGetOptimizationResult::Value(new_value) => {
-                            let [result] = context.dfg.instruction_result(instruction_id);
-                            context.replace_value(result, new_value);
+                    let [result] = context.dfg.instruction_result(instruction_id);
+                    match resolution {
+                        Resolution::Value(value) => {
+                            context.replace_value(result, value);
                         }
-                        ArrayGetOptimizationResult::ArrayGet(new_array) => {
-                            assert_ne!(
-                                new_array, array,
-                                "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
-                            );
-
+                        Resolution::ReadFrom(new_array) => {
                             let array_get = Instruction::ArrayGet { array: new_array, index };
-                            let [result] = context.dfg.instruction_result(instruction_id);
                             let result_typ = context.dfg.type_of_value(result).into_owned();
-                            let ctrl_typevars = Some(vec![result_typ]);
-                            let new_result = context.insert_instruction(array_get, ctrl_typevars);
-                            let new_result = new_result.first();
+                            let new_result = context
+                                .insert_instruction(array_get, Some(vec![result_typ]))
+                                .first();
                             context.replace_value(result, new_result);
                         }
                     }
@@ -171,6 +194,128 @@ impl Function {
                 _ => {}
             }
         });
+    }
+}
+
+/// The known contents of an array value, built up incrementally by
+/// [`Function::array_get_optimization`] as it scans a function.
+#[derive(Clone)]
+struct ArrayView {
+    /// Values known to live at specific constant indices, overriding `base`.
+    elements: OrdMap<u32, KnownElement>,
+    /// Where an index that isn't present in `elements` gets its value from.
+    base: ArrayBase,
+}
+
+#[derive(Clone, Copy)]
+struct KnownElement {
+    value: ValueId,
+    /// The side-effects predicate under which this element was written by an `array_set`.
+    predicate: ValueId,
+}
+
+#[derive(Clone)]
+enum ArrayBase {
+    /// Indices not in `elements` come from this `make_array`'s elements.
+    MakeArray(im::Vector<ValueId>),
+    /// Indices not in `elements` can be read directly from this array (a function parameter).
+    ReadFrom { array: ValueId, length: u32 },
+    /// Nothing is known about indices not in `elements`.
+    Unknown,
+}
+
+/// How an `array_get` at a known index can be resolved against an [`ArrayView`].
+enum Resolution {
+    /// The `array_get` is equal to this value.
+    Value(ValueId),
+    /// The `array_get` can read from this array instead, at the same index.
+    ReadFrom(ValueId),
+}
+
+enum ConstantIndex {
+    U32(u32),
+    OtherConstant,
+    Dynamic,
+}
+
+impl ArrayView {
+    fn from_make_array(elements: im::Vector<ValueId>) -> Self {
+        ArrayView { elements: OrdMap::new(), base: ArrayBase::MakeArray(elements) }
+    }
+
+    fn unknown() -> Self {
+        ArrayView { elements: OrdMap::new(), base: ArrayBase::Unknown }
+    }
+
+    fn with_element(mut self, index: u32, element: KnownElement) -> Self {
+        self.elements.insert(index, element);
+        self
+    }
+
+    fn resolve(
+        &self,
+        array: ValueId,
+        index: u32,
+        predicate: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Option<Resolution> {
+        if let Some(element) = self.elements.get(&index) {
+            // A known element can only be used if it was written unconditionally or under the same
+            // predicate as the `array_get`; otherwise the write might not have happened.
+            let unconditional =
+                dfg.get_numeric_constant(element.predicate).is_some_and(|var| var.is_one());
+            return (unconditional || element.predicate == predicate)
+                .then_some(Resolution::Value(element.value));
+        }
+
+        match &self.base {
+            ArrayBase::MakeArray(elements) => {
+                elements.get(index as usize).copied().map(Resolution::Value)
+            }
+            ArrayBase::ReadFrom { array: source, length } => {
+                // Reading directly from `array` itself wouldn't be an improvement.
+                (index < *length && *source != array).then_some(Resolution::ReadFrom(*source))
+            }
+            ArrayBase::Unknown => None,
+        }
+    }
+}
+
+/// Returns the cached view of `array`, seeding one for arrays not produced by a
+/// `make_array`/`array_set` in this function: parameters can be read from directly, globals expose
+/// their `make_array` elements, and anything else is opaque.
+fn array_view(
+    views: &HashMap<ValueId, ArrayView>,
+    dfg: &DataFlowGraph,
+    array: ValueId,
+) -> ArrayView {
+    if let Some(view) = views.get(&array) {
+        return view.clone();
+    }
+
+    if let Some((Instruction::MakeArray { elements, .. }, _)) =
+        dfg.get_local_or_global_instruction_with_id(array)
+    {
+        return ArrayView::from_make_array(elements.clone());
+    }
+
+    if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array] {
+        return ArrayView {
+            elements: OrdMap::new(),
+            base: ArrayBase::ReadFrom { array, length: length.0 },
+        };
+    }
+
+    ArrayView::unknown()
+}
+
+fn constant_u32(dfg: &DataFlowGraph, index: ValueId) -> ConstantIndex {
+    match dfg.get_numeric_constant(index) {
+        Some(constant) => match constant.try_to_u32() {
+            Some(index) => ConstantIndex::U32(index),
+            None => ConstantIndex::OtherConstant,
+        },
+        None => ConstantIndex::Dynamic,
     }
 }
 
@@ -281,6 +426,100 @@ mod tests {
     use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
+
+    /// Builds an SSA function that initializes a `[Field; n]` array with `make_array`, overwrites
+    /// every element at a constant index with `array_set`, and finally reads back the first element.
+    ///
+    /// This mirrors the `let mut a: [Field; N] = [0; N]; for i in 0..N { a[i] = ...; } a[0]` pattern
+    /// from <https://github.com/noir-lang/noir/issues/12737>. The source is templated rather than
+    /// written out by hand so the same shape can be scaled to thousands of elements.
+    fn array_set_chain_src(n: usize) -> String {
+        let mut src = String::new();
+        src.push_str("acir(inline) fn main f0 {\n");
+        src.push_str("  b0():\n");
+        let zeros = vec!["Field 0"; n].join(", ");
+        src.push_str(&format!("    v0 = make_array [{zeros}] : [Field; {n}]\n"));
+        for i in 0..n {
+            src.push_str(&format!(
+                "    v{} = array_set v{}, index u32 {}, value Field {}\n",
+                i + 1,
+                i,
+                i,
+                i + 1
+            ));
+        }
+        src.push_str(&format!("    v{} = array_get v{}, index u32 0 -> Field\n", n + 1, n));
+        src.push_str(&format!("    return v{}\n", n + 1));
+        src.push_str("}\n");
+        src
+    }
+
+    /// Like [`array_set_chain_src`] but the array is a function parameter, so there is no
+    /// `make_array` to fold from — reads must resolve through the chain of `array_set`s itself.
+    fn param_set_chain_src(n: usize) -> String {
+        let mut src = String::new();
+        src.push_str(&format!("acir(inline) fn main f0 {{\n  b0(v0: [Field; {n}]):\n"));
+        for i in 0..n {
+            src.push_str(&format!(
+                "    v{} = array_set v{}, index u32 {}, value Field {}\n",
+                i + 1,
+                i,
+                i,
+                i + 1
+            ));
+        }
+        src.push_str(&format!("    v{} = array_get v{}, index u32 0 -> Field\n", n + 1, n));
+        src.push_str(&format!("    return v{}\n}}\n", n + 1));
+        src
+    }
+
+    #[test]
+    fn optimizes_array_get_through_chain_longer_than_previous_cap() {
+        // This chain is longer than the fixed walk limit that the optimization used to impose, so
+        // the read of index 0 was previously left untouched. The cached view resolves it directly
+        // to the value written at index 0.
+        let src = param_set_chain_src(6);
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.array_get_optimization();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 6]):
+            v3 = array_set v0, index u32 0, value Field 1
+            v6 = array_set v3, index u32 1, value Field 2
+            v9 = array_set v6, index u32 2, value Field 3
+            v12 = array_set v9, index u32 3, value Field 4
+            v15 = array_set v12, index u32 4, value Field 5
+            v18 = array_set v15, index u32 5, value Field 6
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn optimizes_array_get_through_long_array_set_chain() {
+        let src = array_set_chain_src(6);
+        let ssa = Ssa::from_str(&src).unwrap();
+
+        // `array_set_optimization` first turns the chain into `make_array` instructions, then
+        // `array_get_optimization` resolves the read of index 0 back to the value set there.
+        let ssa = ssa.array_set_optimization();
+        let ssa = ssa.array_get_optimization();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
+            v3 = make_array [Field 1, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
+            v5 = make_array [Field 1, Field 2, Field 0, Field 0, Field 0, Field 0] : [Field; 6]
+            v7 = make_array [Field 1, Field 2, Field 3, Field 0, Field 0, Field 0] : [Field; 6]
+            v9 = make_array [Field 1, Field 2, Field 3, Field 4, Field 0, Field 0] : [Field; 6]
+            v11 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 0] : [Field; 6]
+            v13 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [Field; 6]
+            return Field 1
+        }
+        ");
+    }
 
     #[test]
     fn optimizes_array_get_from_array_set_to_set_value_under_default_predicate() {
