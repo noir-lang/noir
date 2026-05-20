@@ -135,7 +135,13 @@ mod tests {
     use crate::{Config, assert_format, assert_format_with_config};
 
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
-        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: true,
+            format_code_blocks: true,
+            comment_width,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
@@ -401,7 +407,13 @@ fn bar() {}
 /// ```
 fn bar() {}
 ";
-        let config = Config { wrap_comments: true, max_width: 50, ..Config::default() };
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: true,
+            format_code_blocks: true,
+            max_width: 50,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 

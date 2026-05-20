@@ -55,7 +55,9 @@ config! {
     imports_granularity: ImportsGranularity, ImportsGranularity::Preserve, "How imports should be grouped into use statements.";
     reorder_imports: bool, true, "Reorder imports alphabetically";
     wrap_comments: bool, false, "Break comments to fit on the line";
-    comment_width: usize, 100, "Maximum length of comments. No effect unless `wrap_comments = true`"
+    comment_width: usize, 100, "Maximum length of comments. No effect unless `wrap_comments = true`";
+    reflow_comments: bool, false, "Merge consecutive comment lines into paragraphs and reflow to `comment_width`. No effect unless `wrap_comments = true`";
+    format_code_blocks: bool, false, "Recursively format Noir code inside markdown fenced code blocks in doc comments (untagged or tagged ```noir```). No effect unless `wrap_comments = true`"
 }
 
 impl Config {

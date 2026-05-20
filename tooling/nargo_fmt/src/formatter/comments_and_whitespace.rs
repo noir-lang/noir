@@ -24,6 +24,9 @@ fn format_noir_snippet(
     config: &Config,
     available_width: usize,
 ) -> Option<String> {
+    if !config.format_code_blocks {
+        return None;
+    }
     let lang_ok = match lang {
         None => true,
         Some(l) => l.eq_ignore_ascii_case("noir"),
@@ -293,6 +296,20 @@ impl Formatter<'_> {
             return;
         }
 
+        // With reflow disabled, take the pre-reflow per-line wrap path: each body wraps
+        // independently and internal whitespace (e.g. multiple spaces inside the
+        // comment) is preserved. The paragraph-aware engine normalizes runs of
+        // whitespace via `split_whitespace`, which we don't want here.
+        if !self.config.reflow_comments {
+            for (index, body) in bodies.iter().enumerate() {
+                if index > 0 {
+                    self.start_new_line();
+                }
+                self.write_comment_with_prefix(body.trim_end(), prefix);
+            }
+            return;
+        }
+
         let stripped: Vec<String> = bodies
             .iter()
             .map(|body| {
@@ -316,6 +333,7 @@ impl Formatter<'_> {
             &lines,
             first_budget,
             cont_budget,
+            self.config.reflow_comments,
             |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
@@ -351,6 +369,45 @@ impl Formatter<'_> {
         }
     }
 
+    /// Pre-reflow body emit for `write_block_comment`. Each source line wraps
+    /// independently with the same word-by-word logic as `write_comment_with_prefix`,
+    /// preserving internal whitespace. The opening `/*`-style prefix has already been
+    /// written by the caller; we write the body and the closing `*/`.
+    fn write_block_comment_non_reflow(&mut self, comment: &str, all_stars: bool) {
+        if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
+            self.start_new_line_no_indentation();
+        }
+
+        for (index, line) in comment.lines().enumerate() {
+            if index > 0 {
+                self.start_new_line_no_indentation();
+            }
+
+            for word in line.split_inclusive([' ', '\n', '\t']) {
+                if self.current_line_width() + word.trim().chars().count()
+                    > self.config.comment_width
+                {
+                    self.start_new_line();
+                    if all_stars {
+                        self.write(" * ");
+                    }
+                }
+
+                self.write(word);
+            }
+        }
+
+        if comment.ends_with('\n') {
+            self.start_new_line();
+        }
+
+        if self.current_line_width() + 2 > self.config.comment_width {
+            self.start_new_line();
+        }
+
+        self.write("*/");
+    }
+
     pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
 
@@ -363,6 +420,14 @@ impl Formatter<'_> {
         let all_stars = block_comment_has_all_leading_stars(comment);
         let indent_cols = (self.indentation.max(0) as usize) * self.config.tab_spaces;
         let comment_width = self.config.comment_width;
+
+        // With reflow disabled, take the pre-reflow per-line wrap path: each source
+        // line wraps independently and internal whitespace within each line is
+        // preserved (the paragraph-aware engine normalizes via `split_whitespace`).
+        if !self.config.reflow_comments {
+            self.write_block_comment_non_reflow(comment, all_stars);
+            return;
+        }
 
         // A block comment has two emit shapes. We pick based on whether the source
         // body opens with a newline; that decision is idempotent because the wrapped
@@ -427,6 +492,7 @@ impl Formatter<'_> {
                 &line_refs,
                 first_budget,
                 cont_budget,
+                self.config.reflow_comments,
                 |source, lang| format_noir_snippet(source, lang, config, snippet_width),
             );
 
@@ -458,6 +524,7 @@ impl Formatter<'_> {
             &line_refs,
             content_budget,
             content_budget,
+            self.config.reflow_comments,
             |source, lang| format_noir_snippet(source, lang, config, snippet_width),
         );
 
@@ -562,12 +629,24 @@ mod tests {
     use test_case::test_case;
 
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
-        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: true,
+            format_code_blocks: true,
+            comment_width,
+            ..Config::default()
+        };
         assert_format_with_config(src, expected, config);
     }
 
     fn assert_formatter_changes_wrapping_comments(src: &str, comment_width: usize) {
-        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: true,
+            format_code_blocks: true,
+            comment_width,
+            ..Config::default()
+        };
         assert_formatter_changes_with_config(src, config);
     }
 
@@ -1274,6 +1353,81 @@ fn foo() {}
 }
 ";
         assert_format_wrapping_comments(src, expected, 30);
+    }
+
+    #[test]
+    fn reflow_comments_off_preserves_per_line_wrap() {
+        // Two consecutive `//` lines at narrow width: with reflow off they must not
+        // merge into a paragraph. Each line wraps independently.
+        let src = "fn foo() {
+    // Hello world, I just realized that this
+    // is a long comment
+    let x = 1;
+}
+";
+        let expected = "fn foo() {
+    // Hello world, I just realized
+    // that this
+    // is a long comment
+    let x = 1;
+}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: false,
+            comment_width: 35,
+            ..Config::default()
+        };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn reflow_comments_off_preserves_internal_whitespace_in_line_comment() {
+        // Multiple consecutive spaces inside a `//` comment stay verbatim when reflow
+        // is off. Under reflow=true the engine would collapse them via
+        // `split_whitespace`.
+        let src = "// foo  bar    baz
+fn main() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: false,
+            comment_width: 80,
+            ..Config::default()
+        };
+        assert_format_with_config(src, src, config);
+    }
+
+    #[test]
+    fn reflow_comments_off_preserves_internal_whitespace_in_block_comment() {
+        let src = "/* foo  bar    baz */
+fn main() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: false,
+            comment_width: 80,
+            ..Config::default()
+        };
+        assert_format_with_config(src, src, config);
+    }
+
+    #[test]
+    fn format_code_blocks_off_leaves_fence_untouched() {
+        let src = "/// ```
+/// fn   foo()   {  1  }
+/// ```
+fn bar() {}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_comments: true,
+            format_code_blocks: false,
+            comment_width: 80,
+            ..Config::default()
+        };
+        // The fence opener, body, and closer are emitted verbatim.
+        assert_format_with_config(src, src, config);
     }
 
     #[test]

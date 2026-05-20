@@ -27,16 +27,22 @@
 /// It receives the joined fence body and the language tag (`None` for untagged fences).
 /// Returning `Some(formatted)` replaces the inner lines of the fence; returning `None`
 /// leaves the original content untouched.
+///
+/// When `reflow_paragraphs` is `false` the parser does not merge consecutive plain lines
+/// into a single paragraph, list-item continuations don't fold into their parent, and
+/// blockquotes don't span lines. Each input line is wrapped independently, preserving
+/// the pre-reflow per-line wrap behavior.
 pub(crate) fn reflow_comment_with_code_formatter<F>(
     lines: &[&str],
     first_budget: usize,
     cont_budget: usize,
+    reflow_paragraphs: bool,
     format_code: F,
 ) -> Vec<String>
 where
     F: Fn(&str, Option<&str>) -> Option<String>,
 {
-    let mut blocks = parse_blocks(lines);
+    let mut blocks = parse_blocks(lines, reflow_paragraphs);
     apply_code_formatter(&mut blocks, &format_code);
     emit_blocks(&blocks, first_budget, cont_budget)
 }
@@ -211,7 +217,7 @@ fn contains_url_or_reference(line: &str) -> bool {
     false
 }
 
-fn parse_blocks(lines: &[&str]) -> Vec<Block> {
+fn parse_blocks(lines: &[&str], reflow_paragraphs: bool) -> Vec<Block> {
     let mut blocks: Vec<Block> = Vec::new();
     let mut in_fence = false;
     let mut fence_open: String = String::new();
@@ -267,7 +273,9 @@ fn parse_blocks(lines: &[&str]) -> Vec<Block> {
                     .or_else(|| trimmed.strip_prefix('>'))
                     .unwrap_or(trimmed);
                 let words = collect_words(content);
-                if let Some(Block::BlockQuote { words: existing }) = blocks.last_mut() {
+                if reflow_paragraphs
+                    && let Some(Block::BlockQuote { words: existing }) = blocks.last_mut()
+                {
                     existing.extend(words);
                 } else {
                     blocks.push(Block::BlockQuote { words });
@@ -276,7 +284,7 @@ fn parse_blocks(lines: &[&str]) -> Vec<Block> {
             LineKind::Plain { indent, content } => {
                 let new_words = collect_words(content);
                 let mut merged = false;
-                if let Some(last) = blocks.last_mut() {
+                if reflow_paragraphs && let Some(last) = blocks.last_mut() {
                     match last {
                         Block::ListItem { hanging_indent, words, .. } => {
                             if indent >= *hanging_indent {
@@ -431,7 +439,11 @@ mod tests {
     use super::*;
 
     fn reflow(lines: &[&str], first: usize, cont: usize) -> Vec<String> {
-        reflow_comment_with_code_formatter(lines, first, cont, |_, _| None)
+        reflow_comment_with_code_formatter(lines, first, cont, true, |_, _| None)
+    }
+
+    fn reflow_no_merge(lines: &[&str], first: usize, cont: usize) -> Vec<String> {
+        reflow_comment_with_code_formatter(lines, first, cont, false, |_, _| None)
     }
 
     #[test]
@@ -528,6 +540,33 @@ mod tests {
                 "    to wrap".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn reflow_false_does_not_merge_consecutive_plain_lines() {
+        let out = reflow_no_merge(&["foo bar", "baz qux"], 80, 80);
+        assert_eq!(out, vec!["foo bar".to_string(), "baz qux".to_string()]);
+    }
+
+    #[test]
+    fn reflow_false_still_wraps_individual_long_lines() {
+        let out = reflow_no_merge(&["one two three four five six seven"], 12, 12);
+        assert_eq!(
+            out,
+            vec![
+                "one two".to_string(),
+                "three four".to_string(),
+                "five six".to_string(),
+                "seven".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn reflow_false_does_not_merge_list_item_continuations() {
+        let out = reflow_no_merge(&["- first item", "  continuation text"], 80, 80);
+        // The continuation does not fold into the list item; it becomes its own block.
+        assert_eq!(out, vec!["- first item".to_string(), "  continuation text".to_string()]);
     }
 
     #[test]

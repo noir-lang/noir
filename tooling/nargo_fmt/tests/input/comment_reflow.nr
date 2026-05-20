@@ -1,4 +1,6 @@
 //@wrap_comments = true
+//@reflow_comments = true
+//@format_code_blocks = true
 //@comment_width = 35
 
 // Hello world, I just realized that this
