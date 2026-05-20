@@ -1287,26 +1287,49 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Block(definitions))
     }
 
+    /// If `id` names a captured variable in the innermost closure, return its index
+    /// in the env tuple along with a fresh [`ast::Ident`] referencing that env.
+    fn lookup_captured_env_field(
+        &mut self,
+        id: node_interner::DefinitionId,
+    ) -> Option<(ast::Ident, usize)> {
+        let index = self
+            .lambda_envs_stack
+            .last()?
+            .captures
+            .iter()
+            .position(|capture| capture.ident.id == id)?;
+        Some((self.fresh_env_ident(), index))
+    }
+
     /// Find a captured variable in the innermost closure, and construct an expression
-    fn lookup_captured_expr(&self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
-        let ctx = self.lambda_envs_stack.last()?;
-        ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
-            ast::Expression::ExtractTupleField(
-                Box::new(ast::Expression::Ident(ctx.env_ident.clone())),
-                index,
-            )
-        })
+    fn lookup_captured_expr(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
+        let (env_ident, index) = self.lookup_captured_env_field(id)?;
+        Some(ast::Expression::ExtractTupleField(Box::new(ast::Expression::Ident(env_ident)), index))
     }
 
     /// Find a captured variable in the innermost closure construct a LValue
-    fn lookup_captured_lvalue(&self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
-        let ctx = self.lambda_envs_stack.last()?;
-        ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
-            ast::LValue::MemberAccess {
-                object: Box::new(ast::LValue::Ident(ctx.env_ident.clone())),
-                field_index: index,
-            }
+    fn lookup_captured_lvalue(&mut self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
+        let (env_ident, index) = self.lookup_captured_env_field(id)?;
+        Some(ast::LValue::MemberAccess {
+            object: Box::new(ast::LValue::Ident(env_ident)),
+            field_index: index,
         })
+    }
+
+    /// Clone the innermost closure's env [`ast::Ident`] with a freshly generated
+    /// [`ast::IdentId`]. Each textual occurrence of a captured variable must have a
+    /// distinct `IdentId` so that downstream passes — in particular the ownership
+    /// pass's last-use analysis — can tell uses apart and insert clones for non-last
+    /// uses.
+    fn fresh_env_ident(&mut self) -> ast::Ident {
+        let id = self.next_ident_id();
+        let ctx_ident = &self
+            .lambda_envs_stack
+            .last()
+            .expect("fresh_env_ident called outside of a lambda environment context")
+            .env_ident;
+        ast::Ident { id, ..ctx_ident.clone() }
     }
 
     /// A local (ie non-function) ident only
@@ -2649,24 +2672,21 @@ impl<'interner> Monomorphizer<'interner> {
         // Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
         let env_local_id = self.next_local_id();
         let env_name = "env";
-        let env_tuple =
-            ast::Expression::Tuple(try_vecmap(&lambda.captures, |capture| {
-                match capture.transitive_capture_index {
-                    Some(field_index) => {
-                        let lambda_ctx = self.lambda_envs_stack.last().expect(
-                            "Expected to find a parent closure environment, but found none",
-                        );
-
-                        let ident = Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone()));
-                        Ok(ast::Expression::ExtractTupleField(ident, field_index))
-                    }
-                    None => {
-                        let typ = self.interner.definition_type(capture.ident.id);
-                        let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
-                        Ok(ast::Expression::Ident(ident))
-                    }
+        let env_tuple = ast::Expression::Tuple(try_vecmap(&lambda.captures, |capture| {
+            match capture.transitive_capture_index {
+                Some(field_index) => {
+                    // The parent lambda's env is still the innermost one on the stack,
+                    // since the new lambda's env is only pushed below.
+                    let ident = Box::new(ast::Expression::Ident(self.fresh_env_ident()));
+                    Ok(ast::Expression::ExtractTupleField(ident, field_index))
                 }
-            })?);
+                None => {
+                    let typ = self.interner.definition_type(capture.ident.id);
+                    let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
+                    Ok(ast::Expression::Ident(ident))
+                }
+            }
+        })?);
 
         let expr_type = self.interner.id_type(expr);
         let env_typ = if let Type::Function(_, _, function_env_type, _) = expr_type {
@@ -2784,11 +2804,15 @@ impl<'interner> Monomorphizer<'interner> {
             id: self.next_ident_id(),
         });
 
-        let env_expr = ast::Expression::Ident(env_ident);
+        let constrained_env_expr =
+            ast::Expression::Ident(ast::Ident { id: self.next_ident_id(), ..env_ident.clone() });
+        let unconstrained_env_expr =
+            ast::Expression::Ident(ast::Ident { id: self.next_ident_id(), ..env_ident });
 
         let constrained_closure =
-            ast::Expression::Tuple(vec![env_expr.clone(), constrained_fn_ident]);
-        let unconstrained_closure = ast::Expression::Tuple(vec![env_expr, unconstrained_fn_ident]);
+            ast::Expression::Tuple(vec![constrained_env_expr, constrained_fn_ident]);
+        let unconstrained_closure =
+            ast::Expression::Tuple(vec![unconstrained_env_expr, unconstrained_fn_ident]);
 
         let closure_pair = ast::Expression::Tuple(vec![constrained_closure, unconstrained_closure]);
 

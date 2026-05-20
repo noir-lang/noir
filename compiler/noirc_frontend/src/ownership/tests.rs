@@ -1730,7 +1730,7 @@ fn closure_captured_array_used_twice_clones_first_use() {
         let c$l4 = {
             let closure_variable$l3 = {
                 let env$l1 = (arr$l0);
-                ((env$l1, lambda$f1), (env$l1, lambda$f1))
+                ((env$l1.clone(), lambda$f1), (env$l1, lambda$f1))
             };
             closure_variable$l3
         };
@@ -1740,7 +1740,7 @@ fn closure_captured_array_used_twice_clones_first_use() {
         });
     }
     unconstrained fn lambda$f1(mut env$l1: ([Field; 3],)) -> [Field; 3] {
-        let mut a$l2 = env$l1.0;
+        let mut a$l2 = env$l1.0.clone();
         a$l2[0] = 10;
         use_var$f2(a$l2);;
         env$l1.0
