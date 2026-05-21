@@ -162,9 +162,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-#[cfg(debug_assertions)]
-use crate::ssa::ir::dfg::DataFlowGraph;
-
 mod branch_analysis;
 
 impl Ssa {
@@ -217,8 +214,8 @@ fn flatten_cfg_pre_check(function: &Function) {
     });
 }
 
-/// Asserts that no ACIR function reaching flattening still calls a side-effect-free brillig
-/// function with all-constant arguments.
+/// Asserts that no ACIR function reaching flattening still calls a foldable brillig function
+/// with all-constant arguments.
 ///
 /// Such a call has no side effects to preserve and a constant result, so constant folding
 /// should have replaced it with that result before flattening; otherwise the result is
@@ -226,52 +223,37 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// blocking further simplification.
 ///
 /// A brillig call from ACIR is always at most `PureWithPredicate` (ACIRgen returns bogus
-/// values under a disabled predicate), so we cannot use the stored purity directly. Instead
-/// we ask what the callee's purity would be without that floor ([`Ssa::intrinsic_purities`]):
-/// only an entirely pure callee is flagged, so the side effects of any other unconstrained
-/// function (e.g. an `assert` or out-of-bounds index in a hint) are preserved.
+/// values under a disabled predicate), so the stored purity can never be used directly.
+/// Instead [`is_foldable_pure`] asks whether the callee would be entirely pure if it were not
+/// for that floor — transitively side-effect free *and* guaranteed to terminate (no loops, no
+/// recursion). Anything else (an `assert`/out-of-bounds hint, or a non-terminating one like
+/// `regression_9006`) is left in place, matching what constant folding can actually fold.
 ///
-/// The (relatively expensive) intrinsic purity analysis only runs when at least one candidate
-/// call exists, keeping this debug-only check off the hot path for the common case of none.
+/// The foldability check walks only the candidate callee's call-subgraph (memoized), so it
+/// stays cheap on large programs and off the fuzzer's hot path.
 #[cfg(debug_assertions)]
 fn assert_no_pure_constant_brillig_calls(ssa: &Ssa) {
-    use crate::ssa::opt::pure::Purity;
+    let mut foldable_cache: HashMap<FunctionId, bool> = HashMap::default();
 
-    let is_candidate = |instruction: &Instruction, dfg: &DataFlowGraph| -> bool {
-        let Instruction::Call { func, arguments } = instruction else { return false };
-        let Value::Function(callee_id) = &dfg[*func] else { return false };
-        if !ssa.functions.get(callee_id).is_some_and(|f| f.runtime().is_brillig()) {
-            return false;
+    for function in ssa.functions.values() {
+        if function.runtime().is_brillig() {
+            continue;
         }
-        !arguments.is_empty() && arguments.iter().all(|arg| dfg.is_constant(*arg))
-    };
-
-    let acir_functions = || ssa.functions.values().filter(|f| !f.runtime().is_brillig());
-
-    let any_candidate = acir_functions().any(|function| {
-        let dfg = &function.dfg;
-        function.reachable_blocks().into_iter().any(|block| {
-            dfg[block].instructions().iter().any(|inst| is_candidate(&dfg[*inst], dfg))
-        })
-    });
-    if !any_candidate {
-        return;
-    }
-
-    let intrinsic_purities = ssa.intrinsic_purities();
-
-    for function in acir_functions() {
         let dfg = &function.dfg;
         for block in function.reachable_blocks() {
             for inst in dfg[block].instructions() {
-                let instruction = &dfg[*inst];
-                if !is_candidate(instruction, dfg) {
+                let Instruction::Call { func, arguments } = &dfg[*inst] else { continue };
+                let Value::Function(callee_id) = &dfg[*func] else { continue };
+                if !ssa.functions.get(callee_id).is_some_and(|f| f.runtime().is_brillig()) {
                     continue;
                 }
-                let Instruction::Call { func, arguments } = instruction else { continue };
-                let Value::Function(callee_id) = &dfg[*func] else { continue };
+                if arguments.is_empty() || !arguments.iter().all(|arg| dfg.is_constant(*arg)) {
+                    continue;
+                }
+
+                let mut on_stack = HashSet::default();
                 assert!(
-                    intrinsic_purities.get(callee_id) != Some(&Purity::Pure),
+                    !is_foldable_pure(ssa, *callee_id, &mut foldable_cache, &mut on_stack),
                     "Call to pure brillig function {callee_id:?} with all-constant arguments \
                      ({} args) should have been interpreted by constant folding before flattening.",
                     arguments.len(),
@@ -279,6 +261,52 @@ fn assert_no_pure_constant_brillig_calls(ssa: &Ssa) {
             }
         }
     }
+}
+
+/// Returns true if `id` and everything it transitively calls is side-effect free and
+/// guaranteed to terminate (no loops, no recursion) — i.e. a constant-argument call to it is
+/// safe to fold to a constant. Results are memoized in `cache`; `on_stack` detects recursion,
+/// which is treated as not foldable (it may not terminate).
+#[cfg(debug_assertions)]
+fn is_foldable_pure(
+    ssa: &Ssa,
+    id: FunctionId,
+    cache: &mut HashMap<FunctionId, bool>,
+    on_stack: &mut HashSet<FunctionId>,
+) -> bool {
+    use crate::ssa::opt::pure::Purity;
+
+    if let Some(&result) = cache.get(&id) {
+        return result;
+    }
+    if !on_stack.insert(id) {
+        // `id` is already on the current DFS path, so it is (mutually) recursive and may not
+        // terminate. Don't memoize here; its own frame records the final result.
+        return false;
+    }
+
+    let function = &ssa.functions[&id];
+    let mut foldable =
+        function.body_purity(Purity::Pure) == Purity::Pure && !function.contains_loop();
+
+    if foldable {
+        let dfg = &function.dfg;
+        'outer: for block in function.reachable_blocks() {
+            for inst in dfg[block].instructions() {
+                if let Instruction::Call { func, .. } = &dfg[*inst]
+                    && let Value::Function(callee) = &dfg[*func]
+                    && !is_foldable_pure(ssa, *callee, cache, on_stack)
+                {
+                    foldable = false;
+                    break 'outer;
+                }
+            }
+        }
+    }
+
+    on_stack.remove(&id);
+    cache.insert(id, foldable);
+    foldable
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].

@@ -25,6 +25,9 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
+#[cfg(debug_assertions)]
+use crate::ssa::ir::basic_block::BasicBlockId;
+
 impl Ssa {
     /// Analyzes the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
@@ -56,23 +59,6 @@ impl Ssa {
         purity_analysis_post_check(&self);
 
         self
-    }
-
-    /// Computes the purity of every function as if it were ACIR — i.e. ignoring the
-    /// `PureWithPredicate` floor brillig functions receive because ACIRgen returns bogus
-    /// values for them under a disabled predicate. A brillig function is `Pure` here iff it
-    /// (transitively) has no side effects, which is exactly when a constant-argument call to
-    /// it is safe to fold away before flattening.
-    #[cfg(debug_assertions)]
-    pub(crate) fn intrinsic_purities(&self) -> FunctionPurities {
-        let call_graph = CallGraph::from_ssa_partial(self);
-        let (sccs, recursive_functions) = call_graph.sccs();
-        let purities: HashMap<_, _> = self
-            .functions
-            .values()
-            .map(|function| (function.id(), function.purity_ignoring_runtime_floor()))
-            .collect();
-        analyze_call_graph(call_graph, purities, &sccs, &recursive_functions)
     }
 }
 
@@ -140,7 +126,9 @@ impl Function {
     /// Computes the purity of this function's body starting from `start` and only ever
     /// lowering it (`Pure` → `PureWithPredicate` → `Impure`) as side effects are found.
     /// Callers choose `start` to encode the floor that applies to the function's runtime.
-    fn body_purity(&self, start: Purity) -> Purity {
+    /// Calls to other functions are treated as neutral here; callers that need transitive
+    /// purity must follow the call graph themselves.
+    pub(crate) fn body_purity(&self, start: Purity) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -346,27 +334,42 @@ impl Function {
         self.body_purity(start)
     }
 
-    /// Purity of this function's body ignoring the brillig `PureWithPredicate` floor — i.e. the
-    /// purity it would have if it were an ACIR function. This distinguishes a side-effect-free
-    /// brillig hint (safe to constant-fold) from one whose side effects must be preserved.
+    /// Returns true if the function's control-flow graph contains a back-edge (a loop).
     ///
-    /// A function containing a loop is treated as not entirely pure even when it is otherwise
-    /// side-effect free: it may not terminate, so a constant-argument call to it cannot be
-    /// relied on to fold to a constant (constant folding gives up at its step limit and
-    /// legitimately leaves the call in place).
+    /// This is a cheap depth-first search over block successors. Unlike the loop-finding pass it
+    /// does not build a dominator tree, so it is suitable for running on candidate callees during
+    /// the flatten pre-check without weighing down the fuzzer's hot path.
     #[cfg(debug_assertions)]
-    fn purity_ignoring_runtime_floor(&self) -> Purity {
-        let purity = self.body_purity(Purity::Pure);
-        if purity == Purity::Pure && self.contains_loop() {
-            Purity::PureWithPredicate
-        } else {
-            purity
+    pub(crate) fn contains_loop(&self) -> bool {
+        #[derive(Clone, Copy, PartialEq)]
+        enum Color {
+            Gray,
+            Black,
         }
-    }
 
-    #[cfg(debug_assertions)]
-    fn contains_loop(&self) -> bool {
-        !super::Loops::find_all(self, super::LoopOrder::OutsideIn).yet_to_unroll.is_empty()
+        let dfg = &self.dfg;
+        let entry = self.entry_block();
+        let mut color: HashMap<BasicBlockId, Color> = HashMap::default();
+        color.insert(entry, Color::Gray);
+        let mut stack = vec![(entry, dfg[entry].successors().collect::<Vec<_>>())];
+        while let Some((_, successors)) = stack.last_mut() {
+            if let Some(successor) = successors.pop() {
+                match color.get(&successor) {
+                    // An edge back to a block on the current DFS path is a back-edge: a loop.
+                    Some(Color::Gray) => return true,
+                    Some(Color::Black) => {}
+                    None => {
+                        color.insert(successor, Color::Gray);
+                        let next = dfg[successor].successors().collect::<Vec<_>>();
+                        stack.push((successor, next));
+                    }
+                }
+            } else {
+                let (node, _) = stack.pop().expect("stack is non-empty in the loop body");
+                color.insert(node, Color::Black);
+            }
+        }
+        false
     }
 }
 
