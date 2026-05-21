@@ -1313,8 +1313,9 @@ impl<'a> FunctionContext<'a> {
             .filter(|(_, (mutable, _, typ))| {
                 // We banned reassigning variables which contain mutable references in ACIR (#8790)
                 *mutable && (self.unconstrained() || !types::contains_reference(typ))
-                // We can always assign to mutable references via deref.
-                    || matches!(typ, Type::Reference(_, true))
+                // We can always assign to &mut references via deref,
+                // even if they are not themselves mutable.
+                || matches!(typ, Type::Reference(_, true))
             })
             .filter(|(id, (_, _, typ))| {
                 // Preserve the non-dynamic state of references.
@@ -1333,7 +1334,7 @@ impl<'a> FunctionContext<'a> {
 
         // References may have aliases, so we don't want to change their dynamic nature,
         // because the change would not be reflected on the alias. If the value is already
-        // dynamic, we'll keep it as dynamic, even never change it to non-dynamic.
+        // dynamic, we'll keep it as dynamic, and refrain from change it to non-dynamic as well.
         let preserve_non_dynamic = types::is_reference(&typ);
         let no_dynamic = self.in_no_dynamic || preserve_non_dynamic && !self.is_dynamic(&id);
         let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
@@ -1432,7 +1433,8 @@ impl<'a> FunctionContext<'a> {
             }
             Type::Reference(typ, true) if !can_rebind || bool::arbitrary(u)? => {
                 // If the reference itself is not mutable, we cannot rebind it, but we can deref-assign to it.
-                // e.g. `let mut r = &mut 1;` can be re-bound: `r = &mut 2;`, or assigned a value: `*r = 3;`.
+                // eg. `let mut r = &mut 1;` can be re-bound: `r = &mut 2;`, or assigned a value: `*r = 3;`,
+                // but `let r = &mut 1;` can only be assigned to as `*r = 2;`.
                 let typ = typ.as_ref().clone();
                 let deref =
                     LValue::Dereference { reference: Box::new(lvalue), element_type: typ.clone() };
