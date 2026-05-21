@@ -608,7 +608,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
-    string.push_str(&format!("{}", &type_alias.typ));
+    string.push_str(&format!("{}", type_alias.typ));
 
     append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 

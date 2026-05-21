@@ -239,10 +239,8 @@ impl Interpreter<'_, '_> {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
             "type_def_eq" => type_def_eq(arguments, location),
-            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
-            "type_def_fields_as_written" => {
-                type_def_fields_as_written(interner, arguments, location)
-            }
+            "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
+            "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
             "type_def_has_named_attribute" => {
                 type_def_has_named_attribute(interner, arguments, location)
@@ -277,7 +275,14 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location)),
+            "zeroed" => {
+                // Resolve any deferred struct fields or enum variants in the
+                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
+                // instead of an opaque `Value::Zeroed` placeholder when called
+                // before the post-attribute drain.
+                self.elaborator.define_deferred_data_types_in(&return_type);
+                Ok(zeroed(return_type, location))
+            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -615,14 +620,17 @@ fn type_def_has_named_attribute(
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(typ)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let args_location = generic_args.1;
@@ -682,13 +690,16 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_type_id(argument)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let mut fields = Vector::new();

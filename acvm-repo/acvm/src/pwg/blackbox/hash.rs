@@ -72,7 +72,7 @@ fn write_digest_to_outputs<F: AcirField>(
     outputs: &[Witness; 32],
     digest: [u8; 32],
 ) -> Result<(), OpcodeResolutionError<F>> {
-    for (output_witness, value) in outputs.iter().zip_eq(digest.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(digest) {
         insert_value(output_witness, F::from_be_bytes_reduce(&[value]), initial_witness)?;
     }
 
@@ -103,7 +103,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
 ) -> Result<(), OpcodeResolutionError<F>> {
     let state = execute_sha_256_permutation_opcode(initial_witness, inputs, hash_values)?;
 
-    for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(state) {
         insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
     }
 
@@ -143,7 +143,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     let state = execute_poseidon2_permutation_opcode(backend, initial_witness, inputs)?;
 
     // Write witness assignments
-    for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(state) {
         insert_value(output_witness, value, initial_witness)?;
     }
     Ok(())
