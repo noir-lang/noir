@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(mut a: bool) {
+    let _: [&bool; 1] = [&a; 1];
+    let _: &bool = foo(a);
+}
+
+fn foo(mut a: bool) -> &bool {
+    &a
+}
