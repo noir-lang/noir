@@ -10,7 +10,7 @@ use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGeneric, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
@@ -385,18 +385,11 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let impl_generics: Vec<_> = func_meta
-            .all_generics
-            .iter()
-            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-            .cloned()
-            .collect();
-
         let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
 
         string.push('\n');
         string.push_str("    impl");
-        format_generics(&impl_generics, &mut string);
+        format_generics(func_meta.impl_generics(), &mut string);
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
@@ -435,17 +428,12 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("    ");
             string.push_str("impl");
 
-            let impl_generics: Vec<_> = func_meta
-                .all_generics
-                .iter()
-                .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-                .cloned()
-                .collect();
-            format_generics(&impl_generics, &mut string);
+            let impl_generics = func_meta.impl_generics();
+            format_generics(impl_generics, &mut string);
 
             string.push(' ');
             string.push_str(data_type.name.as_str());
-            format_generic_names(&impl_generics, &mut string);
+            format_generic_names(impl_generics, &mut string);
         }
 
         true
@@ -649,21 +637,21 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     }
 }
 
-fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generics(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, false, // only show names
         string,
     );
 }
 
-fn format_generic_names(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generic_names(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, true, // only show names
         string,
     );
 }
 
-fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, string: &mut String) {
+fn format_generics_impl(generics: &[ResolvedGeneric], only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
