@@ -325,6 +325,12 @@ pub(super) fn simplify_call(
                     results.push(vector.remove(index));
                 }
 
+                // The removed elements are reused by `ValueId` from the source vector, so any
+                // array-typed element still aliases the source's memory. Bump the RC to preserve
+                // copy-on-write semantics. See `inc_rc_array_results` for the matching invariant
+                // in `pop_front` / `pop_back`.
+                inc_rc_array_results(&results, dfg, block, call_stack);
+
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 results.insert(0, new_vector);
 
