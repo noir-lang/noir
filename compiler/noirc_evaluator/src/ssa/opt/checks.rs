@@ -15,9 +15,10 @@
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    function::Function,
+    function::{Function, FunctionId, RuntimeType},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
+    value::Value,
 };
 
 // ---------------------------------------------------------------------------
@@ -177,6 +178,44 @@ pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
         !matches!(instruction, Instruction::ArraySet { mutable: true, .. }),
         "Mutable array set instruction found"
     );
+}
+
+/// Panics if the instruction is a call to an entirely pure (`Purity::Pure`) brillig function
+/// where all arguments are constant.
+///
+/// Such a call has no side effects and a constant result, so constant folding should have
+/// replaced it with that result before flattening. Side-effecting unconstrained functions
+/// (`PureWithPredicate`) are intentionally not flagged so their side effects are preserved;
+/// since a brillig call from ACIR is at most `PureWithPredicate` (ACIRgen returns bogus
+/// values under a disabled predicate), this targets only entirely pure callees.
+///
+/// `get_runtime` maps a function id to its runtime type (if known).
+pub(super) fn assert_no_constant_pure_brillig_calls(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+    get_runtime: &impl Fn(FunctionId) -> Option<RuntimeType>,
+) {
+    use crate::ssa::opt::pure::Purity;
+
+    let Instruction::Call { func, arguments } = instruction else { return };
+    let Value::Function(callee_id) = &dfg[*func] else { return };
+
+    let Some(runtime) = get_runtime(*callee_id) else { return };
+    if !runtime.is_brillig() {
+        return;
+    }
+
+    if dfg.purity_of(*callee_id) != Some(Purity::Pure) {
+        return;
+    }
+
+    if !arguments.is_empty() && arguments.iter().all(|arg| dfg.is_constant(*arg)) {
+        panic!(
+            "Call to pure brillig function {callee_id:?} with all-constant arguments ({} args) \
+             should have been interpreted by constant folding before flattening.",
+            arguments.len()
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

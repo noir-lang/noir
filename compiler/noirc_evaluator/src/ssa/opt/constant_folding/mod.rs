@@ -43,8 +43,6 @@ mod interpret;
 mod result_cache;
 mod simplification_cache;
 
-#[cfg(debug_assertions)]
-pub(crate) use interpret::constant_call_evaluates;
 use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
@@ -120,7 +118,7 @@ impl Ssa {
 }
 
 /// Clones all brillig functions stored within `all_functions` returning these in a new map.
-pub(crate) fn clone_brillig_functions(
+fn clone_brillig_functions(
     all_functions: &BTreeMap<FunctionId, Function>,
 ) -> BTreeMap<FunctionId, Function> {
     all_functions
