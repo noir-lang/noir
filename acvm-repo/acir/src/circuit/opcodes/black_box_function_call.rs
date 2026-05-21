@@ -9,16 +9,20 @@ use crate::BlackBoxFunc;
 use crate::native_types::Witness;
 
 use acir_field::AcirField;
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 /// Enumeration for black box function inputs
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum FunctionInput<F> {
     /// A constant field element
+    #[tag(0)]
     Constant(F),
     /// A witness element, representing dynamic inputs
+    #[tag(1)]
     Witness(Witness),
 }
 
@@ -64,7 +68,8 @@ pub struct InvalidInputBitSize {
 /// it is not always efficient.
 /// Some proving systems, can implement several computations more efficiently using
 /// techniques such as custom gates and lookup tables.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 pub enum BlackBoxFuncCall<F> {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.
@@ -72,10 +77,15 @@ pub enum BlackBoxFuncCall<F> {
     /// - iv: initialization vector `[u8; 16]`
     /// - key: user key `[u8; 16]`
     /// - outputs: byte vector `[u8]` of length `input.len() + (16 - input.len() % 16)`
+    #[tag(0)]
     AES128Encrypt {
+        #[tag(0)]
         inputs: Vec<FunctionInput<F>>,
+        #[tag(1)]
         iv: Box<[FunctionInput<F>; 16]>,
+        #[tag(2)]
         key: Box<[FunctionInput<F>; 16]>,
+        #[tag(3)]
         outputs: Vec<Witness>,
     },
     /// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
@@ -84,29 +94,67 @@ pub enum BlackBoxFuncCall<F> {
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs AND rhs, as
     ///   bit_size bit integers
-    AND { lhs: FunctionInput<F>, rhs: FunctionInput<F>, num_bits: u32, output: Witness },
+    #[tag(1)]
+    AND {
+        #[tag(0)]
+        lhs: FunctionInput<F>,
+        #[tag(1)]
+        rhs: FunctionInput<F>,
+        #[tag(2)]
+        num_bits: u32,
+        #[tag(3)]
+        output: Witness,
+    },
     /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
     /// - lhs: (witness, bit_size)
     /// - rhs: (witness, bit_size)
     /// - output: a witness whose value is constrained to be lhs XOR rhs, as
     ///   bit_size bit integers
-    XOR { lhs: FunctionInput<F>, rhs: FunctionInput<F>, num_bits: u32, output: Witness },
+    #[tag(2)]
+    XOR {
+        #[tag(0)]
+        lhs: FunctionInput<F>,
+        #[tag(1)]
+        rhs: FunctionInput<F>,
+        #[tag(2)]
+        num_bits: u32,
+        #[tag(3)]
+        output: Witness,
+    },
     /// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
     /// - input: (witness, bit_size)
-    RANGE { input: FunctionInput<F>, num_bits: u32 },
+    #[tag(3)]
+    RANGE {
+        #[tag(0)]
+        input: FunctionInput<F>,
+        #[tag(1)]
+        num_bits: u32,
+    },
     /// Computes the Blake2s hash of the inputs, as specified in
     /// <https://tools.ietf.org/html/rfc7693>
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e. an array of 32
     ///   (witness, 8), constrained to be the blake2s of the inputs.
-    Blake2s { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
+    #[tag(4)]
+    Blake2s {
+        #[tag(0)]
+        inputs: Vec<FunctionInput<F>>,
+        #[tag(1)]
+        outputs: Box<[Witness; 32]>,
+    },
     /// Computes the Blake3 hash of the inputs
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e an array of 32
     ///   (witness, 8), constrained to be the blake3 of the inputs.
-    Blake3 { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
+    #[tag(5)]
+    Blake3 {
+        #[tag(0)]
+        inputs: Vec<FunctionInput<F>>,
+        #[tag(1)]
+        outputs: Box<[Witness; 32]>,
+    },
     /// Verifies a ECDSA signature over the secp256k1 curve.
     /// - inputs:
     ///     - x coordinate of public key as 32 bytes
@@ -128,31 +176,45 @@ pub enum BlackBoxFuncCall<F> {
     ///    - Otherwise the backend MUST constrain the output to be false.
     /// - The backend MUST constrain the output to be false if `s` is not normalized.
     /// - The backend MUST constrain the output to match the signature's validity.
+    #[tag(6)]
     EcdsaSecp256k1 {
+        #[tag(0)]
         public_key_x: Box<[FunctionInput<F>; 32]>,
+        #[tag(1)]
         public_key_y: Box<[FunctionInput<F>; 32]>,
         #[serde(
             serialize_with = "serialize_big_array",
             deserialize_with = "deserialize_big_array_into_box"
         )]
+        #[tag(2)]
         signature: Box<[FunctionInput<F>; 64]>,
+        #[tag(3)]
         hashed_message: Box<[FunctionInput<F>; 32]>,
+        #[tag(4)]
         predicate: FunctionInput<F>,
+        #[tag(5)]
         output: Witness,
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     ///
     /// Same as EcdsaSecp256k1, but done over another curve.
+    #[tag(7)]
     EcdsaSecp256r1 {
+        #[tag(0)]
         public_key_x: Box<[FunctionInput<F>; 32]>,
+        #[tag(1)]
         public_key_y: Box<[FunctionInput<F>; 32]>,
         #[serde(
             serialize_with = "serialize_big_array",
             deserialize_with = "deserialize_big_array_into_box"
         )]
+        #[tag(2)]
         signature: Box<[FunctionInput<F>; 64]>,
+        #[tag(3)]
         hashed_message: Box<[FunctionInput<F>; 32]>,
+        #[tag(4)]
         predicate: FunctionInput<F>,
+        #[tag(5)]
         output: Witness,
     },
     /// Multiple scalar multiplication (MSM) with a variable base/input point
@@ -177,10 +239,15 @@ pub enum BlackBoxFuncCall<F> {
     /// Coordinates of each point must be all witnesses or all constants.
     /// Similarly, both halves (lo, hi) of each scalar must be all witnesses or
     /// all constants. This is a backend requirement from Barretenberg.
+    #[tag(8)]
     MultiScalarMul {
+        #[tag(0)]
         points: Vec<FunctionInput<F>>,
+        #[tag(1)]
         scalars: Vec<FunctionInput<F>>,
+        #[tag(2)]
         predicate: FunctionInput<F>,
+        #[tag(3)]
         outputs: (Witness, Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined.
@@ -195,16 +262,27 @@ pub enum BlackBoxFuncCall<F> {
     ///
     /// Coordinates of each point must be all witnesses or all constants.
     /// This is a backend requirement from Barretenberg.
+    #[tag(9)]
     EmbeddedCurveAdd {
+        #[tag(0)]
         input1: Box<[FunctionInput<F>; 3]>,
+        #[tag(1)]
         input2: Box<[FunctionInput<F>; 3]>,
+        #[tag(2)]
         predicate: FunctionInput<F>,
+        #[tag(3)]
         outputs: (Witness, Witness, Witness),
     },
     /// Keccak Permutation function of width 1600
     /// - inputs: An array of 25 64-bit Keccak lanes that represent a keccak sponge of 1600 bits
     /// - outputs: The result of a keccak f1600 permutation on the input state. Also an array of 25 Keccak lanes.
-    Keccakf1600 { inputs: Box<[FunctionInput<F>; 25]>, outputs: Box<[Witness; 25]> },
+    #[tag(10)]
+    Keccakf1600 {
+        #[tag(0)]
+        inputs: Box<[FunctionInput<F>; 25]>,
+        #[tag(1)]
+        outputs: Box<[Witness; 25]>,
+    },
     /// Computes a recursive aggregation object when verifying a proof inside
     /// another circuit.
     /// The outputted aggregation object will then be either checked in a
@@ -227,17 +305,22 @@ pub enum BlackBoxFuncCall<F> {
     /// If one of the recursive proofs you verify with the black box function fails to
     /// verify, then the verification of the final proof of the main ACIR program will
     /// ultimately fail.
+    #[tag(11)]
     RecursiveAggregation {
         /// Verification key of the circuit being verified
+        #[tag(0)]
         verification_key: Vec<FunctionInput<F>>,
+        #[tag(1)]
         proof: Vec<FunctionInput<F>>,
         /// These represent the public inputs of the proof we are verifying
         /// They should be checked against in the circuit after construction
         /// of a new aggregation state
+        #[tag(2)]
         public_inputs: Vec<FunctionInput<F>>,
         /// A key hash is used to check the validity of the verification key.
         /// The circuit implementing this opcode can use this hash to ensure that the
         /// key provided to the circuit matches the key produced by the circuit creator
+        #[tag(3)]
         key_hash: FunctionInput<F>,
         /// Backend-specific proof type constant.
         /// The proof field is agnostic and can come from witness inputs.
@@ -245,8 +328,10 @@ pub enum BlackBoxFuncCall<F> {
         /// the circuit construction.
         /// In order for a backend to construct the correct recursive verifier
         /// it expects the user to specify a proof type.
+        #[tag(4)]
         proof_type: u32,
         /// A predicate (true or false) to disable the recursive verification
+        #[tag(5)]
         predicate: FunctionInput<F>,
     },
     /// Applies the Poseidon2 permutation function to the given state,
@@ -257,10 +342,13 @@ pub enum BlackBoxFuncCall<F> {
     /// black box solver is enforced by static assertions, to avoid having a
     /// different outcome between runtimes based on whether the SSA has
     /// been flattened or not.
+    #[tag(12)]
     Poseidon2Permutation {
         /// Input state for the permutation of Poseidon2
+        #[tag(0)]
         inputs: Vec<FunctionInput<F>>,
         /// Permuted state
+        #[tag(1)]
         outputs: Vec<Witness>,
     },
     /// Applies the SHA-256 compression function to the input message
@@ -270,12 +358,16 @@ pub enum BlackBoxFuncCall<F> {
     /// * `inputs` - input message block
     /// * `hash_values` - state from the previous compression
     /// * `outputs` - result of the input compressed into 256 bits
+    #[tag(13)]
     Sha256Compression {
         /// 512 bits of the input message, represented by 16 u32s
+        #[tag(0)]
         inputs: Box<[FunctionInput<F>; 16]>,
         /// Vector of 8 u32s used to compress the input
+        #[tag(1)]
         hash_values: Box<[FunctionInput<F>; 8]>,
         /// Output of the compression, represented by 8 u32s
+        #[tag(2)]
         outputs: Box<[Witness; 8]>,
     },
 }
