@@ -400,7 +400,7 @@ impl<'f> Validator<'f> {
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
-                        if return_type != instruction_result_type {
+                        if !return_type.canonical_eq(&instruction_result_type) {
                             panic!(
                                 "Function call to {} expected return type {}, but got {} (at position {})",
                                 func_id,
