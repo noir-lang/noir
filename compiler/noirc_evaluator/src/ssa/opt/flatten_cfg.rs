@@ -2931,4 +2931,30 @@ mod merge_provenance_tests {
         // Must not panic: the callee has a side effect to preserve.
         let _ = ssa.flatten_cfg();
     }
+
+    #[test]
+    fn flatten_pre_check_preserves_non_terminating_constant_brillig_call() {
+        // `f1` is side-effect free but loops forever for this argument, so constant folding
+        // cannot fold it (it gives up at its step limit) and the call legitimately reaches
+        // flattening. Because the callee contains a loop it is not considered foldable-pure,
+        // so the pre-check must not panic. Mirrors `compile_success_no_bug/regression_9006`.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                call f1(u1 0)
+                return
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u1):
+                jmp b1()
+              b1():
+                jmpif v0 then: b2(), else: b1()
+              b2():
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Must not panic: a looping callee may not terminate, so it is not foldable-pure.
+        let _ = ssa.flatten_cfg();
+    }
 }

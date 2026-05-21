@@ -349,9 +349,24 @@ impl Function {
     /// Purity of this function's body ignoring the brillig `PureWithPredicate` floor — i.e. the
     /// purity it would have if it were an ACIR function. This distinguishes a side-effect-free
     /// brillig hint (safe to constant-fold) from one whose side effects must be preserved.
+    ///
+    /// A function containing a loop is treated as not entirely pure even when it is otherwise
+    /// side-effect free: it may not terminate, so a constant-argument call to it cannot be
+    /// relied on to fold to a constant (constant folding gives up at its step limit and
+    /// legitimately leaves the call in place).
     #[cfg(debug_assertions)]
     fn purity_ignoring_runtime_floor(&self) -> Purity {
-        self.body_purity(Purity::Pure)
+        let purity = self.body_purity(Purity::Pure);
+        if purity == Purity::Pure && self.contains_loop() {
+            Purity::PureWithPredicate
+        } else {
+            purity
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn contains_loop(&self) -> bool {
+        !super::Loops::find_all(self, super::LoopOrder::OutsideIn).yet_to_unroll.is_empty()
     }
 }
 
