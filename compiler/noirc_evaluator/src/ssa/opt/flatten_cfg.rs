@@ -153,7 +153,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::{NumericType, Type},
@@ -161,6 +161,9 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+
+#[cfg(debug_assertions)]
+use crate::ssa::ir::function::RuntimeType;
 
 mod branch_analysis;
 
