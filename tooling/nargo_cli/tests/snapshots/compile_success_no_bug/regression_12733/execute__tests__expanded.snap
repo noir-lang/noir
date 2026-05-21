@@ -5,8 +5,18 @@ expression: expanded_code
 fn main(mut a: bool) {
     let _: [&bool; 1] = [&a; 1];
     let _: &bool = foo(a);
+    let _ref: &bool = &a;
+    let r: &bool = &a;
+    let _r2: &bool = r;
+    let arr: [&bool; 1] = [&a; 1];
+    bar(arr);
+    baz(&a);
 }
 
 fn foo(mut a: bool) -> &bool {
     &a
 }
+
+fn bar(_arr: [&bool; 1]) {}
+
+fn baz(_r: &bool) {}
