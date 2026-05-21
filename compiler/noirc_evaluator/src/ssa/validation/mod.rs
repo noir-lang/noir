@@ -301,7 +301,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &*element_type != expected_type {
+                    if !element_type.canonical_eq(expected_type) {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
@@ -375,9 +375,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if *argument_type != parameter_type
-                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
-                    {
+                    if !argument_type.canonical_eq(&parameter_type) {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -400,7 +398,7 @@ impl<'f> Validator<'f> {
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
-                        if return_type != instruction_result_type {
+                        if !return_type.canonical_eq(&instruction_result_type) {
                             panic!(
                                 "Function call to {} expected return type {}, but got {} (at position {})",
                                 func_id,
@@ -1162,7 +1160,7 @@ impl<'f> Validator<'f> {
             let argument_type = self.function.dfg.type_of_value(*argument);
             let parameter_type = self.function.dfg.type_of_value(*parameter);
             assert!(
-                types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
+                argument_type.canonical_eq(&parameter_type),
                 "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
             );
         }
@@ -1259,34 +1257,6 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
                 );
             }
         }
-    }
-}
-
-/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
-/// A mutable reference is compatible with an immutable reference parameter.
-fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
-    matches!(
-        (arg, param),
-        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
-    )
-}
-
-/// Compares two types, treating mutable and immutable references as equivalent.
-fn types_equal_ignoring_reference_mutability(a: &Type, b: &Type) -> bool {
-    let all_eq = |a: &[Type], b: &[Type]| {
-        a.len() == b.len()
-            && a.iter().zip(b).all(|(a, b)| types_equal_ignoring_reference_mutability(a, b))
-    };
-
-    match (a, b) {
-        (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => {
-            types_equal_ignoring_reference_mutability(a_elem, b_elem)
-        }
-        (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
-            a_len == b_len && all_eq(a_elems, b_elems)
-        }
-        (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
-        _ => a == b,
     }
 }
 
@@ -1827,6 +1797,158 @@ mod tests {
     }
 
     #[test]
+    fn call_allows_argument_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` argument is accepted by a `&Field` parameter
+        // (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` argument is accepted by a `[&Field; 1]` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` argument is accepted by a `&mut &Field` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a callee returning `&mut Field` satisfies a call instruction
+        // declaring `&Field` (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a callee returning `[&mut Field; 1]` satisfies a call declaring
+        // `[&Field; 1]`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&Field; 1]
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a callee returning `&mut &mut Field` satisfies a call declaring
+        // `&mut &Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function f1 has multiple return blocks")]
     fn multiple_return_blocks() {
         let src = "
@@ -1915,6 +2037,67 @@ mod tests {
           b0():
             v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
             return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` element is accepted in a `&Field` composite
+        // slot (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` element is accepted in a `[&Field; 1]` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = make_array [v1] : [[&Field; 1]; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` element is accepted in a `&mut &Field` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v1] : [&mut &Field; 1]
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
