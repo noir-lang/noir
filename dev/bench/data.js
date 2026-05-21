@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779394860994,
+  "lastUpdate": 1779395230708,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23226,48 +23226,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "491cde769d427c68592f160905f2e4d46d888c89",
-          "message": "fix(licm): Insert `inc_rc` after hoisting `array_set`  (#12665)",
-          "timestamp": "2026-05-14T16:49:07Z",
-          "tree_id": "49d569ef7bd03b9e84c486a907e907ead102fb1e",
-          "url": "https://github.com/noir-lang/noir/commit/491cde769d427c68592f160905f2e4d46d888c89"
-        },
-        "date": 1778779168981,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168682,
-            "range": "± 354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137571,
-            "range": "± 415",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650680,
-            "range": "± 4507",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25319,6 +25277,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3046235,
             "range": "± 27626",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e65591d0474f9f12335eff00efa292c1cc9b21e0",
+          "message": "chore: add new failing test to keccak256 (#12759)",
+          "timestamp": "2026-05-21T19:59:58Z",
+          "tree_id": "006dd54755c83715a50f49472b03998077a43f91",
+          "url": "https://github.com/noir-lang/noir/commit/e65591d0474f9f12335eff00efa292c1cc9b21e0"
+        },
+        "date": 1779395152785,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98791,
+            "range": "± 736",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 88025,
+            "range": "± 1585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2359903,
+            "range": "± 1761",
             "unit": "ns/iter"
           }
         ]
