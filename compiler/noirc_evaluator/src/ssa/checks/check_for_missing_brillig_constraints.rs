@@ -871,10 +871,25 @@ fn instruction_arguments(func: &Function, instruction: &Instruction) -> Vec<Valu
 /// trivially "explain" outputs that are actually free for the prover when
 /// `index` happens to point at a different slot.
 fn parent_arguments(func: &Function, instruction: &Instruction) -> Vec<ValueId> {
-    if let Instruction::ArrayGet { index, .. } = instruction
-        && func.dfg.get_numeric_constant(*index).is_none()
-    {
-        return vec![*index];
+    if let Instruction::ArrayGet { array, index } = instruction {
+        if let Some(index) = func.dfg.get_numeric_constant(*index) {
+            if let Some(index) = index.try_to_u32()
+                && let Value::Instruction { instruction: array_instr, .. } = &func.dfg[*array]
+                && let Instruction::MakeArray { elements, .. } = &func.dfg[*array_instr]
+                && let Some(element) = elements.get(index as usize)
+            {
+                // When the index is constant, we can resolve directly to the specific element.
+                let parent = if is_numeric_constant(func, *element) {
+                    // Constants are not part of the parent graph, so a constant element yields no parents.
+                    vec![]
+                } else {
+                    vec![*element]
+                };
+                return parent;
+            }
+        } else {
+            return vec![*index];
+        }
     }
     instruction_arguments(func, instruction)
 }
