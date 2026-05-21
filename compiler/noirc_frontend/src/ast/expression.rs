@@ -584,7 +584,7 @@ impl Display for ConstrainExpression {
                 vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
             ),
             ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
+                write!(f, "constrain {}", self.arguments[0])
             }
         }
     }

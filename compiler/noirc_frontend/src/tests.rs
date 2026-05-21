@@ -96,6 +96,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
         &context.crate_graph,
         &context.def_maps,
         &context.def_interner,
+        context.file_manager.as_file_map(),
     )
 }
 
@@ -248,7 +249,12 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
+        let result = crate::monomorphization::monomorphize(
+            main,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            false,
+        );
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {

@@ -376,7 +376,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids) {
                     self.define_variable(target, value_id)?;
                 }
             }

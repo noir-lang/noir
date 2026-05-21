@@ -8,7 +8,7 @@ use crate::{
     Type, TypeBindings,
     ast::IntegerBitSize,
     monomorphization::{
-        Monomorphizer,
+        CanonicalBindings, Monomorphizer,
         ast::{self, Definition, FuncId, Function, InlineType},
         errors::MonomorphizationError,
     },
@@ -35,13 +35,16 @@ impl Monomorphizer<'_> {
     /// Try to evaluate certain builtin functions (just the function itself) given their type.
     /// All builtins are function types, so the evaluated result will always be a new function or None.
     ///
-    /// Prerequisite: `typ = typ.follow_bindings()`
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
+    /// Prerequisite: `typ = typ.follow_bindings()`,
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
+    ///          and: `bindings_key` was produced by `Monomorphizer::canonicalize_bindings`.
+    #[expect(clippy::too_many_arguments)]
     pub(super) fn try_evaluate_builtin(
         &mut self,
         opcode_string: &str,
         typ: Type,
         turbofish_generics: Vec<Type>,
+        bindings_key: CanonicalBindings,
         is_unconstrained: bool,
         id: node_interner::FuncId,
         location: Location,
@@ -107,7 +110,14 @@ impl Monomorphizer<'_> {
             },
         );
         let typ = Type::Function(parameter_types, return_type, env, unconstrained);
-        self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
+        self.define_function(
+            id,
+            typ,
+            turbofish_generics,
+            bindings_key,
+            is_unconstrained,
+            new_function_id,
+        );
         Ok(Some(new_function_id))
     }
 

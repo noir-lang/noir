@@ -1,6 +1,6 @@
 //! Contains helper functions for performing SSA optimizations.
 
-use std::{collections::HashSet, hash::BuildHasher};
+use std::collections::HashSet;
 
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
@@ -75,10 +75,7 @@ impl Function {
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
                 let instruction = &mut self.dfg[instruction_id];
-                let orig_instruction_hash = rustc_hash::FxBuildHasher.hash_one(&instruction);
-                if !values_to_replace.is_empty() {
-                    instruction.replace_values(&values_to_replace);
-                }
+                let instruction_changed = instruction.replace_values(&values_to_replace);
                 if let Instruction::EnableSideEffectsIf { condition } = instruction {
                     enable_side_effects = *condition;
                 }
@@ -91,7 +88,7 @@ impl Function {
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
                     enable_side_effects,
-                    orig_instruction_hash,
+                    instruction_changed,
                     dirty_values: &mut dirty_values,
                 };
                 f(&mut context)?;
@@ -118,7 +115,10 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     pub(crate) enable_side_effects: ValueId,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
-    orig_instruction_hash: u64,
+    /// Set to `true` whenever the current instruction is mutated, either by the initial
+    /// `replace_values` call at the start of the visit, or by callbacks that explicitly
+    /// replace the instruction. Used to decide whether to re-simplify before re-inserting.
+    instruction_changed: bool,
     dirty_values: &'mapping mut HashSet<ValueId>,
 }
 
@@ -139,10 +139,7 @@ impl SimpleOptimizationContext<'_, '_> {
     /// Check if the instruction has changed relative to its original contents,
     /// e.g. because any of its values have been replaced.
     fn has_instruction_changed(&self) -> bool {
-        // If the instruction changed, then there is a chance that we can (or have to)
-        // simplify it before we insert it back into the block.
-        let instruction_hash = rustc_hash::FxBuildHasher.hash_one(self.instruction());
-        self.orig_instruction_hash != instruction_hash
+        self.instruction_changed
     }
 
     /// Instructs this context to insert the current instruction right away, as opposed
@@ -155,7 +152,8 @@ impl SimpleOptimizationContext<'_, '_> {
         // that we can (or have to) simplify it before we insert it back into the block.
         let instruction_changed = self.has_instruction_changed();
         let simplify = instruction_changed
-            || self.instruction().any_value(|value| self.dirty_values.contains(&value));
+            || (!self.dirty_values.is_empty()
+                && self.instruction().any_value(|value| self.dirty_values.contains(&value)));
 
         if simplify {
             // Based on FunctionInserter::push_instruction_value.
@@ -224,6 +222,7 @@ impl SimpleOptimizationContext<'_, '_> {
     /// it simply reassigns the existing ID with a modified instruction.
     pub(crate) fn replace_current_instruction_with(&mut self, instruction: Instruction) {
         self.dfg[self.instruction_id] = instruction;
+        self.instruction_changed = true;
     }
 }
 

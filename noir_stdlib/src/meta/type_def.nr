@@ -29,6 +29,11 @@ impl TypeDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(type_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
+
     /// Return (type, option<type>) pairs of each generic in this type definition.
     /// If a generic is numeric, the second element of the pair will contain the numeric type.
     #[builtin(type_def_generics)]

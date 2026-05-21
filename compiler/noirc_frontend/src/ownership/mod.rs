@@ -129,23 +129,20 @@ impl Context {
     }
 
     /// Handle the RHS of a `&expr` unary expression.
-    /// Variables and field accesses in these expressions are exempt from clones.
+    /// Variables and field accesses (i.e. place expressions) in these expressions are exempt
+    /// from clones — taking a reference to a place doesn't allocate a fresh value, so we
+    /// don't need a defensive copy at the reference site.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
+    ///
+    /// Value-producing forms like `Block`, `If`, `Match`, `Call`, etc. fall through to
+    /// `handle_expression`. A block in particular materializes a fresh temporary, so its
+    /// contents must be processed in normal cloning context to keep refcounts honest when
+    /// the temporary is retained (e.g. by `&mut { ...; expr }`).
     fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => (),
-            Expression::Block(exprs) => {
-                let len_minus_one = exprs.len().saturating_sub(1);
-                for expr in exprs.iter_mut().take(len_minus_one) {
-                    // In `&{ a; b; ...; z }` we're only taking the reference of `z`.
-                    self.handle_expression(expr);
-                }
-                if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr);
-                }
-            }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
                 self.handle_reference_expression(rhs);
             }

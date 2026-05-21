@@ -235,6 +235,10 @@ Special labels to control CI behavior:
 
   - Use when you think that the PR will result in improvements/degradation of compilation time or memory usage.
 
+### GitHub Actions
+
+Third-party actions in `.github/workflows/` are pinned by full commit SHA with the human-readable version in a trailing comment, e.g. `uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7`. When updating an action, rewrite the reference to the new commit SHA rather than a mutable `@vN` tag, and keep the `# vN` comment in sync.
+
 ### Workflow Reminders
 
 - ✅ Always compile before testing

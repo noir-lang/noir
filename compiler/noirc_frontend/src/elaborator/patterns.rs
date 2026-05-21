@@ -571,9 +571,7 @@ impl Elaborator<'_> {
     ) -> Option<Vec<Type>> {
         resolved_turbofish.map(|mut resolved_turbofish| {
             let direct_generic_kinds =
-                vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
-                    generic.kind()
-                });
+                vecmap(&self.function_meta(*func_id).direct_generics, |generic| generic.kind());
             let expected = direct_generic_kinds.len();
             let actual = resolved_turbofish.len();
 

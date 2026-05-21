@@ -929,7 +929,7 @@ impl Context<'_> {
         if !matches!(&dfg[array_id], Value::Instruction { .. } | Value::Param { .. }) {
             return Err(InternalError::Unexpected {
                 expected: "array or instruction".to_owned(),
-                found: format!("{:?}", &dfg[array_id]),
+                found: format!("{:?}", dfg[array_id]),
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into());
