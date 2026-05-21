@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 381
+expression: expanded_code
+---
+global G_A: [[u32; 3]] = @[[10, 20, 30], [10, 20, 30], [10, 20, 30]];
+
+unconstrained fn main(idx: u32) {
+    for op in 0_u32..3_u32 {
+        let mut idx_a: u32 = 0_u32;
+        loop {
+            if idx_a == 3_u32 {
+                break;
+            } else {
+                idx_a = idx_a + 1_u32;
+                if op == 0_u32 {
+                    let mut b: ([u32; 3], [[u32; 3]]) = G_A.pop_front();
+                    println(b);
+                    b.0[0_u32] = 40_u32;
+                } else if op == 1_u32 {
+                    let mut b: ([[u32; 3]], [u32; 3]) = G_A.pop_back();
+                    println(b);
+                    b.1[0_u32] = 50_u32;
+                } else if op == 2_u32 {
+                    let mut b: ([[u32; 3]], [u32; 3]) = G_A.remove(idx);
+                    println(b);
+                    b.1[0_u32] = 60_u32;
+                }
+            }
+        }
+    }
+}
