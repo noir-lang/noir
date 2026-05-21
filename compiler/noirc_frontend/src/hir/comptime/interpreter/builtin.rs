@@ -2544,7 +2544,7 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let trait_impl_id = interpreter.elaborator.function_meta(&func_id).trait_impl;
+    let trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
 
     // Check visibility for non-trait functions
     if trait_impl_id.is_none() {
