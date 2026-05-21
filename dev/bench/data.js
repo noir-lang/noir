@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779384543841,
+  "lastUpdate": 1779385314526,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9907bdad5d1def2e90801635f5e5a20642ded336",
-          "message": "feat(comptime): Add `Location` type, `location` methods, and `error` and `warn` functions (#12426)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-05-13T21:20:00Z",
-          "tree_id": "18ccb18ef323e4f71dff8d335cb7f1319d452fde",
-          "url": "https://github.com/noir-lang/noir/commit/9907bdad5d1def2e90801635f5e5a20642ded336"
-        },
-        "date": 1778709531700,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.868,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 17.04,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.482,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.008,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.89,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.91,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 294,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 309,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.064,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 18.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.876,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.139,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.632,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.004,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb8c60e4310a9e140d74bab35e9b5155a1f6b5cd",
+          "message": "fix: Add impl bindings to monomorphization definition key (#12725)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-05-21T17:00:01Z",
+          "tree_id": "f65421faed97da70dde5fe7efd42d7bd8480d8b2",
+          "url": "https://github.com/noir-lang/noir/commit/fb8c60e4310a9e140d74bab35e9b5155a1f6b5cd"
+        },
+        "date": 1779385250342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 7.22,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 17.34,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 3.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.958,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.05,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 266,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 270,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 22.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 117.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.192,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.72,
             "unit": "s"
           }
         ]
