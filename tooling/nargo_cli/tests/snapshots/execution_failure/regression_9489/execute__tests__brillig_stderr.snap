@@ -1,8 +1,9 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 237
 expression: stderr
 ---
-error: Assertion failed: Index out of bounds
+error: Assertion failed: Attempt to pop from an empty vector
   ┌─ src/main.nr:3:13
   │
 3 │     let _ = G_A.pop_front().0;

@@ -222,7 +222,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_back(
         &mut self,
@@ -239,8 +239,8 @@ impl Context<'_> {
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
+            // Make sure this code is disabled, or fail with "Attempt to pop from an empty vector".
+            let msg = "Attempt to pop from an empty vector".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 
             // Fill the result with default values.
@@ -375,7 +375,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_front(
         &mut self,
@@ -393,8 +393,8 @@ impl Context<'_> {
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
+            // Make sure this code is disabled, or fail with "Attempt to pop from an empty vector".
+            let msg = "Attempt to pop from an empty vector".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 
             // Fill the result with default values.
@@ -720,7 +720,7 @@ impl Context<'_> {
 
         // Check if we're trying to remove from an empty vector
         if self.has_zero_length(vector_contents, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
+            // Make sure this code is disabled, or fail with "Attempt to pop from an empty vector".
             let msg = "Index out of bounds, vector has size 0".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 

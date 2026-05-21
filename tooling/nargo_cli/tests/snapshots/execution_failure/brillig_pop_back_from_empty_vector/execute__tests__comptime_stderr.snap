@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: vector_pop_back called on empty vector
+   ┌─ src/main.nr:10:20
+   │
+10 │     let (_, val) = v.pop_back();
+   │                    ------------ Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:4:18
+     2: main
+             at src/main.nr:10:20
+
+Error interpreting main function
