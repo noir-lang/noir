@@ -783,6 +783,12 @@ fn simplify_vector_pop_back(
         vector.pop_back();
     }
 
+    // The popped elements still alias the source vector's memory (`array_get` reads a value
+    // without bumping its reference count). Bump the RC for any array-typed element so that a
+    // subsequent mutation through the popped value triggers copy-on-write instead of mutating
+    // the source. See `inc_rc_array_results` for the matching invariant in `pop_front`.
+    inc_rc_array_results(results.make_contiguous(), dfg, block, call_stack);
+
     let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
     results.push_front(new_vector);
 
