@@ -39,12 +39,27 @@ mod formatter;
 
 use formatter::Formatter;
 use noirc_frontend::ParsedModule;
+use noirc_frontend::ast::{Expression, Statement};
 
 pub use config::{Config, ImportsGranularity};
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);
     formatter.format_program(parsed_module);
+    formatter.buffer.contents()
+}
+
+/// Formats a single Noir statement given its source and parsed form.
+pub fn format_statement(source: &str, statement: Statement, config: &Config) -> String {
+    let mut formatter = Formatter::new(source, config);
+    formatter.format_single_statement(statement);
+    formatter.buffer.contents()
+}
+
+/// Formats a single Noir expression given its source and parsed form.
+pub fn format_expression(source: &str, expression: Expression, config: &Config) -> String {
+    let mut formatter = Formatter::new(source, config);
+    formatter.format_single_expression(expression);
     formatter.buffer.contents()
 }
 

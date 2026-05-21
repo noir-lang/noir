@@ -1,0 +1,6 @@
+[package]
+name = "comptime_user_error"
+type = "bin"
+authors = [""]
+
+[dependencies]

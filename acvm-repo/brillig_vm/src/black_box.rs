@@ -268,7 +268,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             if inputs.len() != 16 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
-                    format!("Expected 16 inputs but encountered {}", &inputs.len()),
+                    format!("Expected 16 inputs but encountered {}", inputs.len()),
                 ));
             }
             for (i, &input) in inputs.iter().enumerate() {
@@ -279,7 +279,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             if values.len() != 8 {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::Sha256Compression,
-                    format!("Expected 8 values but encountered {}", &values.len()),
+                    format!("Expected 8 values but encountered {}", values.len()),
                 ));
             }
             for (i, &value) in values.iter().enumerate() {

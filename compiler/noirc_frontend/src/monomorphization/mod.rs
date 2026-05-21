@@ -52,6 +52,7 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
+use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
 use crate::{
@@ -68,6 +69,7 @@ use crate::{
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
+use fm::FileMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -146,6 +148,7 @@ pub struct Monomorphizer<'interner> {
 
     /// Used to reference existing definitions in the HIR.
     interner: &'interner mut NodeInterner,
+    files: &'interner FileMap,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -176,13 +179,19 @@ pub struct Monomorphizer<'interner> {
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 ///
-/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics) -> monomorphized FuncId
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
+///   -> Map (Canonical Instantiation Bindings) -> monomorphized FuncId
+///
+/// The bindings key distinguishes calls with the same type but under different impl generics.
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
-    HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
+    HashMap<HirType, HashMap<Vec<HirType>, HashMap<CanonicalBindings, FuncId>>>,
 >;
 
 type HirType = Type;
+
+/// Sorted, follow-bindings-normalized view of `TypeBindings` for use as a cache key.
+type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
@@ -201,9 +210,17 @@ const MAX_TYPE_COMPLEXITY: usize = 100_000;
 pub fn monomorphize(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
+    monomorphize_debug(
+        main,
+        interner,
+        files,
+        &DebugInstrumenter::default(),
+        None,
+        force_unconstrained,
+    )
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -213,13 +230,19 @@ pub fn monomorphize(
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
     interner: &mut NodeInterner,
+    files: &FileMap,
     debug_instrumenter: &DebugInstrumenter,
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer =
-        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
+    let mut monomorphizer = Monomorphizer::new(
+        interner,
+        files,
+        debug_type_tracker,
+        debug_crate_id,
+        force_unconstrained,
+    );
     monomorphizer.compile_main(main)?;
 
     monomorphizer.process_queue()?;
@@ -229,6 +252,7 @@ pub fn monomorphize_debug(
 impl<'interner> Monomorphizer<'interner> {
     pub fn new(
         interner: &'interner mut NodeInterner,
+        files: &'interner FileMap,
         debug_type_tracker: DebugTypeTracker,
         debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
@@ -245,6 +269,7 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             next_ident_id: 0,
             interner,
+            files,
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
@@ -398,6 +423,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
+        let bindings_key = self
+            .interner
+            .try_get_instantiation_bindings(expr_id)
+            .map(Self::canonicalize_bindings)
+            .unwrap_or_default();
         let is_unconstrained = self.is_unconstrained(id);
 
         let definition = match self
@@ -405,6 +435,7 @@ impl<'interner> Monomorphizer<'interner> {
             .get(&(id, is_unconstrained))
             .and_then(|by_func_type| by_func_type.get(&typ))
             .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
+            .and_then(|by_bindings| by_bindings.get(&bindings_key))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -424,6 +455,7 @@ impl<'interner> Monomorphizer<'interner> {
                                 &opcode,
                                 typ,
                                 turbofish_generics,
+                                bindings_key,
                                 is_unconstrained,
                                 id,
                                 location,
@@ -448,6 +480,7 @@ impl<'interner> Monomorphizer<'interner> {
                                 &opcode,
                                 typ,
                                 turbofish_generics,
+                                bindings_key,
                                 is_unconstrained,
                                 id,
                                 location,
@@ -469,7 +502,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.clone())
+                        Definition::Oracle { name: opcode.clone(), pure: attributes.is_pure() }
                     }
                 }
             }
@@ -487,13 +520,15 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.insert(id, new_id);
     }
 
-    /// Prerequisite: `typ = typ.follow_bindings()`
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
+    /// Prerequisite: `typ = typ.follow_bindings()`,
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
+    ///          and: `bindings_key` came from `canonicalize_bindings`.
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
         typ: HirType,
         turbofish_generics: Vec<HirType>,
+        bindings_key: CanonicalBindings,
         is_unconstrained: bool,
         new_id: FuncId,
     ) {
@@ -502,7 +537,9 @@ impl<'interner> Monomorphizer<'interner> {
             .or_default()
             .entry(typ)
             .or_default()
-            .insert(turbofish_generics, new_id);
+            .entry(turbofish_generics)
+            .or_default()
+            .insert(bindings_key, new_id);
     }
 
     /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
@@ -1539,7 +1576,7 @@ impl<'interner> Monomorphizer<'interner> {
             {
                 let contains_function = value.contains_function_or_closure();
                 let expr = value
-                    .into_runtime_hir_expression(self.interner, global.location)
+                    .into_runtime_hir_expression(self.interner, self.files, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, contains_function)
             } else {
@@ -1586,12 +1623,12 @@ impl<'interner> Monomorphizer<'interner> {
     /// This is roughly the number of "nodes" in the type tree.
     ///
     /// To prevent stack overflow on deeply nested types, we stop recursion when
-    /// accumulated complexity exceeds MAX_TYPE_COMPLEXITY.
+    /// accumulated complexity exceeds [MAX_TYPE_COMPLEXITY].
     fn error_on_complex_type(
         typ: &HirType,
         location: &Location,
     ) -> Result<(), MonomorphizationError> {
-        let complexity = Self::type_complexity_inner(typ, 0);
+        let complexity = Self::type_complexity(typ);
         if complexity > MAX_TYPE_COMPLEXITY {
             return Err(MonomorphizationError::ComplexType {
                 complexity,
@@ -1602,51 +1639,92 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn type_complexity_inner(typ: &HirType, accumulated: usize) -> usize {
-        // Early return if accumulated complexity exceeds the limit,
-        // this avoids stack overflow due to the recursive nature of this computation
-        if accumulated > MAX_TYPE_COMPLEXITY {
-            return accumulated + 1;
+    /// Estimate the complexity of a type by counting all the types in it (with repetition).
+    fn type_complexity(typ: &Type) -> usize {
+        fn go_fold<I, T>(types: I, acc: usize, ctx: TypeRecursionContext) -> usize
+        where
+            I: IntoIterator<Item = T>,
+            T: std::borrow::Borrow<HirType>,
+        {
+            types.into_iter().fold(acc, |acc, t| go(t.borrow(), acc, ctx.clone()))
         }
 
-        let typ = typ.follow_bindings_shallow();
-        match typ.as_ref() {
-            HirType::Tuple(fields) => {
-                let mut complexity = accumulated + 1;
-                for field in fields {
-                    complexity = Self::type_complexity_inner(field, complexity);
+        fn go(typ: &HirType, mut acc: usize, mut ctx: TypeRecursionContext) -> usize {
+            // Every type increases it by one, even if seen already.
+            acc += 1;
+
+            // Early return if acc complexity exceeds the limit,
+            // this avoids stack overflow due to the recursive nature of this computation
+            if acc > MAX_TYPE_COMPLEXITY {
+                return acc;
+            }
+
+            // This will prevent a stack overflow on overly deep and skinny types,
+            // where we might be well below the MAX_TYPE_COMPLEXITY.
+            ctx = ctx.recur();
+
+            let typ = typ.follow_bindings_shallow();
+            match typ.as_ref() {
+                HirType::Tuple(fields) => go_fold(fields, acc, ctx),
+                HirType::Array(elem_typ, len) => {
+                    go_fold([elem_typ.as_ref(), len.as_ref()], acc, ctx)
                 }
-                complexity
-            }
-            HirType::Array(elem_typ, _len) => {
-                Self::type_complexity_inner(elem_typ, accumulated + 1)
-            }
-            HirType::DataType(_def, generics) => {
-                let mut complexity = accumulated + 1;
-                for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                HirType::Vector(elem_typ) => go(elem_typ, acc, ctx),
+                HirType::DataType(def, generics) => {
+                    // We count every type multiple times in the complexity, but if we are dealing
+                    // with a recursive type, we have more specific errors than the inevitable max
+                    // complexity we will hit.
+                    if !ctx.insert_data_type(def.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    if let Some(fields) = def.borrow().get_fields(generics) {
+                        let types = fields.iter().map(|(_, typ, _)| typ);
+                        acc = go_fold(types, acc, ctx.clone());
+                    } else if let Some(variants) = def.borrow().get_variants(generics) {
+                        let types = variants.iter().flat_map(|(_, fields)| fields);
+                        acc = go_fold(types, acc, ctx.clone());
+                    }
+                    go_fold(generics, acc, ctx)
                 }
-                complexity
-            }
-            HirType::Function(args, ret, env, _) => {
-                let mut complexity = accumulated + 1;
-                for arg in args {
-                    complexity = Self::type_complexity_inner(arg, complexity);
+                HirType::Function(args, ret, env, _) => {
+                    let types = [ret.as_ref(), env.as_ref()].into_iter().chain(args);
+                    go_fold(types, acc, ctx)
                 }
-                complexity = Self::type_complexity_inner(ret, complexity);
-                Self::type_complexity_inner(env, complexity)
-            }
-            HirType::Reference(inner, _) => Self::type_complexity_inner(inner, accumulated + 1),
-            HirType::Alias(_, generics) => {
-                let mut complexity = accumulated + 1;
-                for generic in generics {
-                    complexity = Self::type_complexity_inner(generic, complexity);
+                HirType::Reference(inner, _) => go(inner, acc, ctx),
+                HirType::Alias(alias, generics) => {
+                    if !ctx.insert_alias(alias.borrow().id, generics.clone()) {
+                        return acc;
+                    }
+                    let typ = alias.borrow().get_type(generics);
+                    let types = std::iter::once(&typ).chain(generics);
+                    go_fold(types, acc, ctx)
                 }
-                complexity
+                Type::String(len) => go(len, acc, ctx),
+                Type::FmtString(len, args) => go_fold([len.as_ref(), args.as_ref()], acc, ctx),
+
+                Type::TraitAsType(_, _, trait_generics) => {
+                    let generics = trait_generics
+                        .ordered
+                        .iter()
+                        .chain(trait_generics.named.iter().map(|n| &n.typ));
+                    go_fold(generics, acc, ctx)
+                }
+                Type::CheckedCast { from, to } => go_fold([from.as_ref(), to.as_ref()], acc, ctx),
+                Type::Forall(_, typ) => go(typ, acc, ctx),
+                Type::InfixExpr(lhs, _, rhs, _) => go_fold([lhs.as_ref(), rhs.as_ref()], acc, ctx),
+                Type::Constant(..)
+                | Type::Quoted(..)
+                | Type::TypeVariable(..)
+                | Type::NamedGeneric(..)
+                | Type::Unit
+                | Type::FieldElement
+                | Type::Integer(..)
+                | Type::Bool
+                | Type::Error => acc,
             }
-            // Simple types
-            _ => accumulated + 1,
         }
+
+        go(typ, 0, TypeRecursionContext::default())
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
@@ -1654,6 +1732,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: &HirType,
         location: Location,
     ) -> Result<ast::Type, MonomorphizationError> {
+        Self::error_on_complex_type(typ, &location)?;
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
@@ -1671,8 +1750,6 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
         seen_types: &mut HashSet<Type>,
     ) -> Result<ast::Type, MonomorphizationError> {
-        Self::error_on_complex_type(typ, &location)?;
-
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
@@ -2210,7 +2287,7 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure = self.is_closure_type(&func_type);
 
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
-            if let Definition::Oracle(name) = &ident.definition
+            if let Definition::Oracle { name, .. } = &ident.definition
                 && let Some(ForeignCall::Print) = ForeignCall::lookup(name)
             {
                 // Oracle calls are required to be wrapped in an unconstrained function
@@ -2421,8 +2498,16 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> FuncId {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
+        let bindings_key = Self::canonicalize_bindings(&bindings);
 
-        self.define_function(id, function_type, turbofish_generics, is_unconstrained, new_id);
+        self.define_function(
+            id,
+            function_type,
+            turbofish_generics,
+            bindings_key,
+            is_unconstrained,
+            new_id,
+        );
 
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
@@ -2443,6 +2528,18 @@ impl<'interner> Monomorphizer<'interner> {
                 (*id, (var.clone(), kind.clone(), binding2))
             })
             .collect()
+    }
+
+    /// Build the canonical cache-key form of `bindings`: sort by `TypeVariableId`
+    /// and `follow_bindings` each value so that semantically-equivalent inputs
+    /// produce identical outputs.
+    fn canonicalize_bindings(bindings: &TypeBindings) -> CanonicalBindings {
+        let mut canonical: CanonicalBindings = bindings
+            .iter()
+            .map(|(id, (_var, _kind, value))| (*id, value.follow_bindings()))
+            .collect();
+        canonical.sort_by_key(|(id, _)| *id);
+        canonical
     }
 
     fn assign(
@@ -2965,7 +3062,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn special_function_name(definition: &Definition) -> Option<&str> {
     match definition {
         Definition::Builtin(name) if name == "static_assert" => Some(name),
-        Definition::Oracle(name)
+        Definition::Oracle { name, .. }
             if matches!(ForeignCall::lookup(name), Some(ForeignCall::Print)) =>
         {
             Some(name)

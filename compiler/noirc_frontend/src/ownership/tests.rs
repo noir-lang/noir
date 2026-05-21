@@ -343,11 +343,14 @@ fn regression_9907() {
 
 #[test]
 fn handle_reference_expression_cases() {
-    // Each of these cases should delay a clone
+    // Place-expression forms (`*x`, `x.field`, `x[i]`) don't clone at the reference site
+    // because they name an existing storage location. Value-producing forms (`{ a }`,
+    // tuples, array literals, calls) materialize a fresh temporary, so cloning is
+    // expected even though the temporary may be immediately consumed.
     let src = "
         unconstrained fn main(mut a: [Field; 1]) {
-            let _ = { a }[0]; // block
-            let _ = (*&mut a)[0]; // *
+            let _ = { a }[0]; // block — `{ a }` materializes a fresh temporary
+            let _ = (*&mut a)[0]; // * — dereferencing names a place
 
             let tuple = (a, a); // Clones here are expected
             let _ = tuple.0[0];  // but the tuple itself doesn't need to be cloned when getting the
@@ -363,11 +366,10 @@ fn handle_reference_expression_cases() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // There are clones on both bar input and output
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(mut a$l0: [Field; 1]) -> () {
         let _$l1 = {
-            a$l0
+            a$l0.clone()
         }[0];
         let _$l2 = a$l0[0];
         let tuple$l3 = (a$l0.clone(), a$l0.clone());
@@ -1000,6 +1002,67 @@ fn clones_non_moved_variable_because_of_reference() {
         let z$l2 = (&mut arr$l0);
         let y$l3 = arr$l0.clone();
         (*z$l2)[idx$l1] = 100
+    }
+    ");
+}
+
+#[test]
+fn clones_non_moved_variable_because_of_reference_through_block() {
+    // `&mut { ...; arr }` always allocates fresh storage and copies the tail's
+    // value into it. In Brillig that storage shares the array pointer with `arr`,
+    // so the tail must be cloned to keep refcounts honest — otherwise the write
+    // through `z` would mutate `arr` (and thus `y`) in place when the refcount
+    // is still 1.
+    let src = "
+    unconstrained fn main(mut arr: [u32; 3], idx: u32) {
+        let z: &mut [u32; 3] = &mut {
+            let _ = 0;
+            arr
+        };
+        let y = arr;
+        (*z)[idx] = 100;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut arr$l0: [u32; 3], idx$l1: u32) -> () {
+        let z$l3 = (&mut {
+            let _$l2 = 0;
+            arr$l0.clone()
+        });
+        let y$l4 = arr$l0;
+        (*z$l3)[idx$l1] = 100
+    }
+    ");
+}
+
+#[test]
+fn clones_inner_array_when_reference_block_tail_is_index() {
+    // `&mut { x[0] }` extracts an inner array that shares storage with `x`.
+    // Because the block allocates fresh storage and copies the tail's value,
+    // `x[0]` must be cloned — otherwise mutating through `z` would corrupt
+    // `x`'s inner array (and thus `let y = x; y[0]`).
+    let src = "
+    unconstrained fn main(arr: [u32; 3], idx: u32) -> pub [u32; 3] {
+        let x: [[u32; 3]; 1] = [arr];
+        let z: &mut [u32; 3] = &mut { x[0] };
+        let y = x;
+        (*z)[idx] = 100;
+        y[0]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(arr$l0: [u32; 3], idx$l1: u32) -> pub [u32; 3] {
+        let x$l2 = [arr$l0];
+        let z$l3 = (&mut {
+            x$l2[0].clone()
+        });
+        let y$l4 = x$l2;
+        (*z$l3)[idx$l1] = 100;
+        y$l4[0].clone()
     }
     ");
 }
