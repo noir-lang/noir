@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+([10, 20, 30], @[[10, 20, 30]])
+([10, 20, 30], @[[10, 20, 30]])
+([10, 20, 30], @[[10, 20, 30]])
