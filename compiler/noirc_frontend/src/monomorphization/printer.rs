@@ -781,9 +781,8 @@ mod tests {
 
     impl Display for PrintAssign {
         fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-            let mut printer = AstPrinter::default();
-            printer.show_id = false;
-            printer.show_clone_and_drop = false;
+            let mut printer =
+                AstPrinter { show_id: false, show_clone_and_drop: false, ..Default::default() };
             let assign = Expression::Assign(Assign {
                 lvalue: self.0.clone(),
                 expression: Box::new(Expression::Literal(Literal::Bool(true))),
