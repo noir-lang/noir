@@ -946,11 +946,14 @@ impl Elaborator<'_> {
                 Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
             }
             _ => {
-                // Multiple traits in scope have the same constant - ambiguous
-                let traits = vecmap(&in_scope, |(_, trait_id, _)| {
+                // Multiple matching constants - ambiguous. Multiple impls of the same
+                // generic trait can produce duplicate trait names here, so dedupe.
+                let mut traits = vecmap(&in_scope, |(_, trait_id, _)| {
                     let trait_ = self.interner.get_trait(*trait_id);
                     self.fully_qualified_trait_path(trait_)
                 });
+                traits.sort();
+                traits.dedup();
                 Some(Err(PathResolutionError::MultipleTraitsInScope {
                     ident: ident.clone(),
                     traits,
