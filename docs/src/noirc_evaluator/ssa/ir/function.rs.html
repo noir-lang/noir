@@ -372,21 +372,20 @@
 <a href=#372 id=372 data-nosnippet>372</a><span class="kw">impl </span>Signature {
 <a href=#373 id=373 data-nosnippet>373</a>    <span class="doccomment">/// Construct a [Signature] whose parameter and return types have all
 <a href=#374 id=374 data-nosnippet>374</a>    /// reference mutability canonicalized away. This makes `&amp;T` and `&amp;mut T`
-<a href=#375 id=375 data-nosnippet>375</a>    /// compare equal when a [Signature] is used as a map key, matching the
-<a href=#376 id=376 data-nosnippet>376</a>    /// validator's `types_equal_ignoring_reference_mutability` leniency and
-<a href=#377 id=377 data-nosnippet>377</a>    /// the frontend's `&amp;mut T → &amp;T` coercion.
-<a href=#378 id=378 data-nosnippet>378</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(<span class="kw-2">mut </span>params: Vec&lt;Type&gt;, <span class="kw-2">mut </span>returns: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
-<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">for </span>typ <span class="kw">in </span>params.iter_mut().chain(returns.iter_mut()) {
-<a href=#380 id=380 data-nosnippet>380</a>            typ.canonicalize_reference_mutability();
-<a href=#381 id=381 data-nosnippet>381</a>        }
-<a href=#382 id=382 data-nosnippet>382</a>        <span class="self">Self </span>{ params, returns }
-<a href=#383 id=383 data-nosnippet>383</a>    }
-<a href=#384 id=384 data-nosnippet>384</a>}
-<a href=#385 id=385 data-nosnippet>385</a>
-<a href=#386 id=386 data-nosnippet>386</a><span class="attr">#[test]
-<a href=#387 id=387 data-nosnippet>387</a></span><span class="kw">fn </span>sign_smoke() {
-<a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">let </span><span class="kw-2">mut </span>signature = Signature::default();
-<a href=#389 id=389 data-nosnippet>389</a>
-<a href=#390 id=390 data-nosnippet>390</a>    signature.params.push(Type::Numeric(NumericType::NativeField));
-<a href=#391 id=391 data-nosnippet>391</a>    signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
-<a href=#392 id=392 data-nosnippet>392</a>}</code></pre></div></section></main></body></html>
+<a href=#375 id=375 data-nosnippet>375</a>    /// compare equal when a [Signature] is used as a map key, matching
+<a href=#376 id=376 data-nosnippet>376</a>    /// [Type::canonical_eq] leniency and the frontend's `&amp;mut T → &amp;T` coercion.
+<a href=#377 id=377 data-nosnippet>377</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(<span class="kw-2">mut </span>params: Vec&lt;Type&gt;, <span class="kw-2">mut </span>returns: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">for </span>typ <span class="kw">in </span>params.iter_mut().chain(returns.iter_mut()) {
+<a href=#379 id=379 data-nosnippet>379</a>            typ.canonicalize();
+<a href=#380 id=380 data-nosnippet>380</a>        }
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="self">Self </span>{ params, returns }
+<a href=#382 id=382 data-nosnippet>382</a>    }
+<a href=#383 id=383 data-nosnippet>383</a>}
+<a href=#384 id=384 data-nosnippet>384</a>
+<a href=#385 id=385 data-nosnippet>385</a><span class="attr">#[test]
+<a href=#386 id=386 data-nosnippet>386</a></span><span class="kw">fn </span>sign_smoke() {
+<a href=#387 id=387 data-nosnippet>387</a>    <span class="kw">let </span><span class="kw-2">mut </span>signature = Signature::default();
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    signature.params.push(Type::Numeric(NumericType::NativeField));
+<a href=#390 id=390 data-nosnippet>390</a>    signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+<a href=#391 id=391 data-nosnippet>391</a>}</code></pre></div></section></main></body></html>

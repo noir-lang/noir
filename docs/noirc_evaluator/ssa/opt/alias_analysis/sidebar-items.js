@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AllocationLattice","Scope","SignatureTemplate"],"fn":["canonicalize_type","loop_blocks"],"struct":["AliasAnalysis","AliasAnalysisContext","GlobalValueId"]};
+window.SIDEBAR_ITEMS = {"enum":["AllocationLattice","Scope","SignatureTemplate"],"fn":["loop_blocks"],"struct":["AliasAnalysis","AliasAnalysisContext","GlobalValueId"]};
