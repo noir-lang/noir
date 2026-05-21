@@ -548,23 +548,36 @@ mod document_symbol_tests {
 
     #[test]
     async fn test_document_symbol() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
+        let src = r#"fn foo(_x: i32) {
+    let _ = 1;
+}
 
-        let response = on_document_symbol_request(
-            &mut state,
-            DocumentSymbolParams {
-                text_document: TextDocumentIdentifier { uri: noir_text_document },
-                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
-                partial_result_params: PartialResultParams { partial_result_token: None },
-            },
-        )
-        .await
-        .expect("Could not execute on_document_symbol_request")
-        .unwrap();
+struct SomeStruct {
+    field: i32,
+}
 
-        let DocumentSymbolResponse::Nested(symbols) = response else {
-            panic!("Expected response to be nested");
-        };
+impl SomeStruct {
+    fn new() -> SomeStruct {
+        SomeStruct { field: 0 }
+    }
+}
+
+trait SomeTrait<U> {
+    fn some_method(x: U);
+}
+
+impl SomeTrait<i32> for SomeStruct {
+    fn some_method(_x: i32) {
+    }
+}
+
+mod submodule {
+    global SOME_GLOBAL = 1;
+}
+
+impl i32 {}
+"#;
+        let symbols = get_document_symbols(src).await;
 
         assert_eq!(
             symbols,

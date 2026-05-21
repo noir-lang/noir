@@ -30,7 +30,7 @@ mod references_tests {
     use super::*;
     use crate::notifications;
     use crate::notifications::workspace_from_document_uri;
-    use crate::test_utils::{self, search_in_file};
+    use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{
         PartialResultParams, Position, Range, ReferenceContext, TextDocumentIdentifier,
         TextDocumentPositionParams, Url, WorkDoneProgressParams,
@@ -38,17 +38,15 @@ mod references_tests {
     use tokio::test;
 
     async fn check_references_succeeds(
-        directory: &str,
+        src: &str,
         name: &str,
         declaration_index: usize,
         include_declaration: bool,
     ) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        // First we find out all of the occurrences of `name` in the main.nr file.
-        // Note that this only works if that name doesn't show up in other places where we don't
-        // expect a rename, but we craft our tests to avoid that.
-        let ranges = search_in_file(noir_text_document.path(), name);
+        let ranges = search_in_text(src, name);
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
 
         // Test getting references works on any instance of the symbol.
         for target_range in &ranges {
@@ -83,14 +81,24 @@ mod references_tests {
         }
     }
 
+    const ANOTHER_FUNCTION_SRC: &str = r#"fn another_function() -> Field {
+    1
+}
+
+fn main() {
+    another_function();
+    another_function();
+}
+"#;
+
     #[test]
     async fn test_on_references_request_including_declaration() {
-        check_references_succeeds("rename_function", "another_function", 0, true).await;
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, true).await;
     }
 
     #[test]
     async fn test_on_references_request_without_including_declaration() {
-        check_references_succeeds("rename_function", "another_function", 0, false).await;
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, false).await;
     }
 
     // Ignored because making this work slows down everything, so for now things will not work

@@ -247,7 +247,38 @@ mod tests {
 
     #[test]
     async fn test_workspace_symbol() {
-        let (mut state, _) = test_utils::init_lsp_server("document_symbol").await;
+        let src = r#"fn foo(_x: i32) {
+    let _ = 1;
+}
+
+struct SomeStruct {
+    field: i32,
+}
+
+impl SomeStruct {
+    fn new() -> SomeStruct {
+        SomeStruct { field: 0 }
+    }
+}
+
+trait SomeTrait<U> {
+    fn some_method(x: U);
+}
+
+impl SomeTrait<i32> for SomeStruct {
+    fn some_method(_x: i32) {
+    }
+}
+
+mod submodule {
+    global SOME_GLOBAL = 1;
+}
+
+impl i32 {}
+"#;
+        let (mut state, _) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
+                .await;
 
         let response = on_workspace_symbol_request(
             &mut state,
