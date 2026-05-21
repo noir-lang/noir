@@ -50,19 +50,19 @@ pub enum BlackBoxOp {
     Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     /// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.
     ///
-    /// - The value stored at `input` must be a `Field`.
-    /// - The value stored at `radix` must be a `U32` in the range [2, 256].
-    /// - `num_limbs` must be at least one if the value stored at `input` is not zero.
-    /// - `output_bits` specifies whether we should decompose into bits.
-    ///   The value stored at `radix` must be two if `output_bits` is true.
+    /// - The value stored in `radix` must be in the range [2, 256]
+    /// - `num_limbs` must be at least one if the value stored in `input` is not zero.
+    /// - The value stored in `output_bits` must have a `bit_size` of one.
+    ///   That value specifies whether we should decompose into bits. The value stored in
+    ///   the `radix` address must be two if the value stored in `output_bits` is equal to one.
     ///
     /// Native to the Brillig VM and not supported as an ACIR black box function.
     ToRadix {
         input: MemoryAddress,
         radix: MemoryAddress,
         output_pointer: MemoryAddress,
-        num_limbs: u32,
-        output_bits: bool,
+        num_limbs: MemoryAddress,
+        output_bits: MemoryAddress,
     },
 }
 
