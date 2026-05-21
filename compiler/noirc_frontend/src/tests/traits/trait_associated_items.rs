@@ -2141,3 +2141,23 @@ fn trait_associated_constant_duplicate_is_an_error() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn resolves_associated_constant_shorthand_on_generic_trait() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+        let CONST: u32 = 8;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -1561,10 +1561,24 @@ impl NodeInterner {
 
             let trait_id = trait_impl.borrow().trait_id;
 
-            // Check if typ implements the trait
-            // This handles instantiation and unification correctly for generic impls
+            // The trait's ordered generics aren't known at this call site, so mint a fresh
+            // type variable for each. Passing `&[]` would make `lookup_trait_implementation_helper`
+            // panic inside `zip_eq` whenever the trait has any ordered generics.
+            let the_trait = self.get_trait(trait_id);
+            let trait_generics: Vec<Type> = the_trait
+                .generics
+                .iter()
+                .map(|g| self.next_type_variable_with_kind(g.kind()))
+                .collect();
+
             if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
-                .try_lookup_trait_implementation(typ, trait_id, &[], &[], TraitLookupMode::Default)
+                .try_lookup_trait_implementation(
+                    typ,
+                    trait_id,
+                    &trait_generics,
+                    &[],
+                    TraitLookupMode::Default,
+                )
                 && found_impl_id == *impl_id
             {
                 results.push((*def_id, trait_id, *impl_id));
