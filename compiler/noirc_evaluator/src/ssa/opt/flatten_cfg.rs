@@ -163,7 +163,7 @@ use crate::ssa::{
 };
 
 #[cfg(debug_assertions)]
-use crate::ssa::ir::function::RuntimeType;
+use crate::ssa::ir::dfg::DataFlowGraph;
 
 mod branch_analysis;
 
@@ -180,8 +180,7 @@ impl Ssa {
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         #[cfg(debug_assertions)]
-        let runtimes: HashMap<_, _> =
-            self.functions.values().map(|f| (f.id(), f.runtime())).collect();
+        assert_no_pure_constant_brillig_calls(&self);
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
@@ -192,7 +191,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function, &runtimes);
+            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -208,25 +207,78 @@ impl Ssa {
 /// Panics if:
 ///   - The function has at least 1 loop
 ///   - The function has a `ConstrainNotEqual` instruction
-///   - The function calls an entirely pure brillig function with all-constant arguments.
-///     Such a call has no side effects to preserve and a constant result, so it should have
-///     been replaced by its result during constant folding before flattening; otherwise its
-///     result gets multiplied by a predicate during flattening, turning the constant into a
-///     witness and blocking further simplification. Side-effecting unconstrained functions
-///     are intentionally not flagged so their side effects survive flattening — and since a
-///     brillig call from ACIR is at most `PureWithPredicate` (ACIRgen returns bogus values
-///     under a disabled predicate), this targets only entirely pure callees.
 ///
 /// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, RuntimeType>) {
+fn flatten_cfg_pre_check(function: &Function) {
     super::checks::assert_no_loops(function);
-    super::checks::for_each_instruction(function, |instruction, dfg| {
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
-        super::checks::assert_no_constant_pure_brillig_calls(instruction, dfg, &|id| {
-            runtimes.get(&id).copied()
-        });
     });
+}
+
+/// Asserts that no ACIR function reaching flattening still calls a side-effect-free brillig
+/// function with all-constant arguments.
+///
+/// Such a call has no side effects to preserve and a constant result, so constant folding
+/// should have replaced it with that result before flattening; otherwise the result is
+/// multiplied by a predicate during flattening, turning the constant into a witness and
+/// blocking further simplification.
+///
+/// A brillig call from ACIR is always at most `PureWithPredicate` (ACIRgen returns bogus
+/// values under a disabled predicate), so we cannot use the stored purity directly. Instead
+/// we ask what the callee's purity would be without that floor ([`Ssa::intrinsic_purities`]):
+/// only an entirely pure callee is flagged, so the side effects of any other unconstrained
+/// function (e.g. an `assert` or out-of-bounds index in a hint) are preserved.
+///
+/// The (relatively expensive) intrinsic purity analysis only runs when at least one candidate
+/// call exists, keeping this debug-only check off the hot path for the common case of none.
+#[cfg(debug_assertions)]
+fn assert_no_pure_constant_brillig_calls(ssa: &Ssa) {
+    use crate::ssa::opt::pure::Purity;
+
+    let is_candidate = |instruction: &Instruction, dfg: &DataFlowGraph| -> bool {
+        let Instruction::Call { func, arguments } = instruction else { return false };
+        let Value::Function(callee_id) = &dfg[*func] else { return false };
+        if !ssa.functions.get(callee_id).is_some_and(|f| f.runtime().is_brillig()) {
+            return false;
+        }
+        !arguments.is_empty() && arguments.iter().all(|arg| dfg.is_constant(*arg))
+    };
+
+    let acir_functions = || ssa.functions.values().filter(|f| !f.runtime().is_brillig());
+
+    let any_candidate = acir_functions().any(|function| {
+        let dfg = &function.dfg;
+        function.reachable_blocks().into_iter().any(|block| {
+            dfg[block].instructions().iter().any(|inst| is_candidate(&dfg[*inst], dfg))
+        })
+    });
+    if !any_candidate {
+        return;
+    }
+
+    let intrinsic_purities = ssa.intrinsic_purities();
+
+    for function in acir_functions() {
+        let dfg = &function.dfg;
+        for block in function.reachable_blocks() {
+            for inst in dfg[block].instructions() {
+                let instruction = &dfg[*inst];
+                if !is_candidate(instruction, dfg) {
+                    continue;
+                }
+                let Instruction::Call { func, arguments } = instruction else { continue };
+                let Value::Function(callee_id) = &dfg[*func] else { continue };
+                assert!(
+                    intrinsic_purities.get(callee_id) != Some(&Purity::Pure),
+                    "Call to pure brillig function {callee_id:?} with all-constant arguments \
+                     ({} args) should have been interpreted by constant folding before flattening.",
+                    arguments.len(),
+                );
+            }
+        }
+    }
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
@@ -2836,11 +2888,12 @@ mod merge_provenance_tests {
     }
 
     #[test]
-    fn flatten_pre_check_preserves_constant_brillig_call() {
-        // A brillig call from ACIR is at most `PureWithPredicate` (ACIRgen returns bogus
-        // values under a disabled predicate), never entirely pure. The pre-check only flags
-        // entirely pure callees, so a constant brillig call must reach flattening rather than
-        // trip the pre-check — preserving any side effects of the unconstrained function.
+    #[should_panic(expected = "should have been interpreted by constant folding before flattening")]
+    fn flatten_pre_check_flags_side_effect_free_constant_brillig_call() {
+        // `f1` has no side effects, so it would be entirely pure if it were not for the
+        // brillig `PureWithPredicate` floor. A constant-argument call to it has a constant
+        // result and nothing to preserve, so it should have been folded before flattening;
+        // with constant folding skipped the surviving call must trip the pre-check.
         let src = "
             acir(inline) fn main f0 {
               b0():
@@ -2853,12 +2906,29 @@ mod merge_provenance_tests {
                 return v1
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap().purity_analysis();
-        assert_eq!(
-            ssa.main().dfg.purity_of(crate::ssa::ir::function::FunctionId::test_new(1)),
-            Some(crate::ssa::opt::pure::Purity::PureWithPredicate),
-        );
-        // Must not panic: the callee is not entirely pure, so its call is preserved.
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn flatten_pre_check_preserves_side_effecting_constant_brillig_call() {
+        // `f1` contains a `constrain`, so it is only `PureWithPredicate` even ignoring the
+        // brillig floor. Folding it away would drop the constraint, so the pre-check must let
+        // the surviving constant-argument call through rather than panic.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = call f1(u32 0) -> u32
+                return v1
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u32):
+                constrain v0 == u32 1
+                return v0
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Must not panic: the callee has a side effect to preserve.
         let _ = ssa.flatten_cfg();
     }
 }

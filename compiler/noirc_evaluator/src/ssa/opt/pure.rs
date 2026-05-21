@@ -57,6 +57,23 @@ impl Ssa {
 
         self
     }
+
+    /// Computes the purity of every function as if it were ACIR — i.e. ignoring the
+    /// `PureWithPredicate` floor brillig functions receive because ACIRgen returns bogus
+    /// values for them under a disabled predicate. A brillig function is `Pure` here iff it
+    /// (transitively) has no side effects, which is exactly when a constant-argument call to
+    /// it is safe to fold away before flattening.
+    #[cfg(debug_assertions)]
+    pub(crate) fn intrinsic_purities(&self) -> FunctionPurities {
+        let call_graph = CallGraph::from_ssa_partial(self);
+        let (sccs, recursive_functions) = call_graph.sccs();
+        let purities: HashMap<_, _> = self
+            .functions
+            .values()
+            .map(|function| (function.id(), function.purity_ignoring_runtime_floor()))
+            .collect();
+        analyze_call_graph(call_graph, purities, &sccs, &recursive_functions)
+    }
 }
 
 /// Post-check condition for [Ssa::purity_analysis].
@@ -120,7 +137,10 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    /// Computes the purity of this function's body starting from `start` and only ever
+    /// lowering it (`Pure` → `PureWithPredicate` → `Impure`) as side effects are found.
+    /// Callers choose `start` to encode the floor that applies to the function's runtime.
+    fn body_purity(&self, start: Purity) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -154,13 +174,7 @@ impl Function {
         // that have nested arrays.
         let mut brillig_array_input_was_moved = false;
 
-        let mut result = if self.runtime().is_acir() {
-            Purity::Pure
-        } else {
-            // Because we return bogus values when a brillig function is called from acir
-            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
-            Purity::PureWithPredicate
-        };
+        let mut result = start;
 
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
@@ -319,6 +333,25 @@ impl Function {
         }
 
         result
+    }
+
+    fn is_pure(&self) -> Purity {
+        let start = if self.runtime().is_acir() {
+            Purity::Pure
+        } else {
+            // Because we return bogus values when a brillig function is called from acir
+            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
+            Purity::PureWithPredicate
+        };
+        self.body_purity(start)
+    }
+
+    /// Purity of this function's body ignoring the brillig `PureWithPredicate` floor — i.e. the
+    /// purity it would have if it were an ACIR function. This distinguishes a side-effect-free
+    /// brillig hint (safe to constant-fold) from one whose side effects must be preserved.
+    #[cfg(debug_assertions)]
+    fn purity_ignoring_runtime_floor(&self) -> Purity {
+        self.body_purity(Purity::Pure)
     }
 }
 
