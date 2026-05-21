@@ -179,13 +179,19 @@ pub struct Monomorphizer<'interner> {
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 ///
-/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics) -> monomorphized FuncId
+/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
+///   -> Map (Canonical Instantiation Bindings) -> monomorphized FuncId
+///
+/// The bindings key distinguishes calls with the same type but under different impl generics.
 type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
-    HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
+    HashMap<HirType, HashMap<Vec<HirType>, HashMap<CanonicalBindings, FuncId>>>,
 >;
 
 type HirType = Type;
+
+/// Sorted, follow-bindings-normalized view of `TypeBindings` for use as a cache key.
+type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
@@ -417,6 +423,11 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
+        let bindings_key = self
+            .interner
+            .try_get_instantiation_bindings(expr_id)
+            .map(Self::canonicalize_bindings)
+            .unwrap_or_default();
         let is_unconstrained = self.is_unconstrained(id);
 
         let definition = match self
@@ -424,6 +435,7 @@ impl<'interner> Monomorphizer<'interner> {
             .get(&(id, is_unconstrained))
             .and_then(|by_func_type| by_func_type.get(&typ))
             .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
+            .and_then(|by_bindings| by_bindings.get(&bindings_key))
         {
             Some(id) => Definition::Function(*id),
             None => {
@@ -443,6 +455,7 @@ impl<'interner> Monomorphizer<'interner> {
                                 &opcode,
                                 typ,
                                 turbofish_generics,
+                                bindings_key,
                                 is_unconstrained,
                                 id,
                                 location,
@@ -467,6 +480,7 @@ impl<'interner> Monomorphizer<'interner> {
                                 &opcode,
                                 typ,
                                 turbofish_generics,
+                                bindings_key,
                                 is_unconstrained,
                                 id,
                                 location,
@@ -506,13 +520,15 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.insert(id, new_id);
     }
 
-    /// Prerequisite: `typ = typ.follow_bindings()`
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`
+    /// Prerequisite: `typ = typ.follow_bindings()`,
+    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
+    ///          and: `bindings_key` came from `canonicalize_bindings`.
     fn define_function(
         &mut self,
         id: node_interner::FuncId,
         typ: HirType,
         turbofish_generics: Vec<HirType>,
+        bindings_key: CanonicalBindings,
         is_unconstrained: bool,
         new_id: FuncId,
     ) {
@@ -521,7 +537,9 @@ impl<'interner> Monomorphizer<'interner> {
             .or_default()
             .entry(typ)
             .or_default()
-            .insert(turbofish_generics, new_id);
+            .entry(turbofish_generics)
+            .or_default()
+            .insert(bindings_key, new_id);
     }
 
     /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
@@ -2480,8 +2498,16 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> FuncId {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
+        let bindings_key = Self::canonicalize_bindings(&bindings);
 
-        self.define_function(id, function_type, turbofish_generics, is_unconstrained, new_id);
+        self.define_function(
+            id,
+            function_type,
+            turbofish_generics,
+            bindings_key,
+            is_unconstrained,
+            new_id,
+        );
 
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
@@ -2502,6 +2528,18 @@ impl<'interner> Monomorphizer<'interner> {
                 (*id, (var.clone(), kind.clone(), binding2))
             })
             .collect()
+    }
+
+    /// Build the canonical cache-key form of `bindings`: sort by `TypeVariableId`
+    /// and `follow_bindings` each value so that semantically-equivalent inputs
+    /// produce identical outputs.
+    fn canonicalize_bindings(bindings: &TypeBindings) -> CanonicalBindings {
+        let mut canonical: CanonicalBindings = bindings
+            .iter()
+            .map(|(id, (_var, _kind, value))| (*id, value.follow_bindings()))
+            .collect();
+        canonical.sort_by_key(|(id, _)| *id);
+        canonical
     }
 
     fn assign(
