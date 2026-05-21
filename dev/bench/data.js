@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779372768818,
+  "lastUpdate": 1779372771857,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49592,105 +49592,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "8ffd2c4cf9548f075b06f58646f734b4c1c477d8",
-          "message": "feat(fmt): format quote blocks (#12656)",
-          "timestamp": "2026-05-13T18:26:36Z",
-          "tree_id": "4fb75b5461e00ebd236fac639a9ee19b4166bd0b",
-          "url": "https://github.com/noir-lang/noir/commit/8ffd2c4cf9548f075b06f58646f734b4c1c477d8"
-        },
-        "date": 1778699331693,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.564,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.51,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.526,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.482,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.51,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.57,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.172,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.146,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "75e00320237c0980271154483ab4c4356a26c189",
           "message": "chore!: remove Expr::modify (#12653)",
@@ -54526,6 +54427,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.183,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "354282b2a1e2dc8b964a45f3870bce5e4b122bd0",
+          "message": "fix: let `nargo interpret` validate inputs and output (#12744)",
+          "timestamp": "2026-05-21T13:11:28Z",
+          "tree_id": "d2c64caa1a60e8789c9015a59051f90a63f40cbb",
+          "url": "https://github.com/noir-lang/noir/commit/354282b2a1e2dc8b964a45f3870bce5e4b122bd0"
+        },
+        "date": 1779372705432,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.144,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.124,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.142,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.688,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.75,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.05,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.69,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.71,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.678,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.876,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.714,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.724,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.242,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.226,
             "unit": "s"
           }
         ]
