@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::UnresolvedGenerics,
+    ast::{UnresolvedGenerics, UnresolvedTraitConstraint},
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -805,8 +805,16 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
-        for (_, _, functions) in impls {
+    fn elaborate_impls(
+        &mut self,
+        impls: Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
+    ) {
+        for (_, _, _, functions) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }

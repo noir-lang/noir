@@ -134,11 +134,16 @@ impl Elaborator<'_> {
         &mut self,
         self_type: &UnresolvedType,
         local_module: LocalModuleId,
-        function_sets: &mut Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+        function_sets: &mut Vec<(
+            UnresolvedGenerics,
+            Vec<UnresolvedTraitConstraint>,
+            Location,
+            UnresolvedFunctions,
+        )>,
     ) {
         self.local_module = Some(local_module);
 
-        for (generics, _, function_set) in function_sets {
+        for (generics, _, _, function_set) in function_sets {
             // Prepare the impl: adds the impl generics to scope so the self type can
             // reference them, then resolve the self type.
             self.add_generics(generics);

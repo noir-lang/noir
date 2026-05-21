@@ -19,7 +19,10 @@ use noirc_errors::Location;
 
 use crate::{
     Type, TypeBindings,
-    ast::{Documented, Expression, ExpressionKind, TypeImpl, UnresolvedGenerics, UnresolvedType},
+    ast::{
+        Documented, Expression, ExpressionKind, TypeImpl, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType,
+    },
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
@@ -58,6 +61,7 @@ struct AttributeContext {
 struct AttributeImplTarget {
     object_type: UnresolvedType,
     generics: UnresolvedGenerics,
+    where_clause: Vec<UnresolvedTraitConstraint>,
     type_location: Location,
 }
 
@@ -246,20 +250,7 @@ impl<'context> Elaborator<'context> {
         }
 
         self.collect_attributes_on_functions(functions, None, &mut attributes_to_run);
-        for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, type_location, methods) in impls_in_module {
-                let impl_target = AttributeImplTarget {
-                    object_type: object_type.clone(),
-                    generics: generics.clone(),
-                    type_location: *type_location,
-                };
-                self.collect_attributes_on_functions(
-                    std::slice::from_ref(methods),
-                    Some(&impl_target),
-                    &mut attributes_to_run,
-                );
-            }
-        }
+        self.collect_attributes_on_impls(impls, &mut attributes_to_run);
         self.collect_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
         self.sort_attributes_by_run_order(&mut attributes_to_run);
@@ -301,6 +292,29 @@ impl<'context> Elaborator<'context> {
                 None,
                 attributes_to_run,
             );
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_impls(
+        &mut self,
+        impls: &ImplMap,
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        for ((object_type, _impl_module), impls_in_module) in impls {
+            for (generics, where_clause, type_location, methods) in impls_in_module {
+                let impl_target = AttributeImplTarget {
+                    object_type: object_type.clone(),
+                    generics: generics.clone(),
+                    where_clause: where_clause.clone(),
+                    type_location: *type_location,
+                };
+                self.collect_attributes_on_functions(
+                    std::slice::from_ref(methods),
+                    Some(&impl_target),
+                    attributes_to_run,
+                );
+            }
         }
     }
 
@@ -651,7 +665,7 @@ impl<'context> Elaborator<'context> {
                     object_type: target.object_type.clone(),
                     type_location: target.type_location,
                     generics: target.generics.clone(),
-                    where_clause: Vec::new(),
+                    where_clause: target.where_clause.clone(),
                     methods: vec![(Documented::new(function, item.doc_comments), location)],
                 };
                 let module = self.module_id();

@@ -234,6 +234,37 @@ fn generate_function_with_macros_on_impl_method() {
     ");
 }
 
+// Regression for asterite's review on #12649: when an attribute on an impl method
+// generates a new function, the impl's `where_clause` must be carried into the
+// synthetic impl so the generated function can use the bounded generics.
+#[test]
+fn generate_function_with_macros_on_impl_method_carries_where_clause() {
+    let src = "
+    pub trait MyDefault {
+        fn my_default() -> Self;
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Foo<T> where T: MyDefault {
+        #[generate_bar]
+        pub fn foo() {}
+    }
+
+    pub comptime fn generate_bar(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar() -> T {
+                T::my_default()
+            }
+        }
+    }
+
+    fn main() {}
+    ";
+
+    assert_no_errors(src);
+}
+
 #[test]
 fn generate_function_with_macros_on_trait() {
     let src = "
