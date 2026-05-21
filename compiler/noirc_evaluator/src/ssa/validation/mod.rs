@@ -1162,7 +1162,7 @@ impl<'f> Validator<'f> {
             let argument_type = self.function.dfg.type_of_value(*argument);
             let parameter_type = self.function.dfg.type_of_value(*parameter);
             assert!(
-                types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
+                argument_type.canonical_eq(&parameter_type),
                 "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
             );
         }
@@ -1269,25 +1269,6 @@ fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
         (arg, param),
         (Type::Reference(a, true), Type::Reference(b, false)) if a == b
     )
-}
-
-/// Compares two types, treating mutable and immutable references as equivalent.
-fn types_equal_ignoring_reference_mutability(a: &Type, b: &Type) -> bool {
-    let all_eq = |a: &[Type], b: &[Type]| {
-        a.len() == b.len()
-            && a.iter().zip(b).all(|(a, b)| types_equal_ignoring_reference_mutability(a, b))
-    };
-
-    match (a, b) {
-        (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => {
-            types_equal_ignoring_reference_mutability(a_elem, b_elem)
-        }
-        (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
-            a_len == b_len && all_eq(a_elems, b_elems)
-        }
-        (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
-        _ => a == b,
-    }
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
