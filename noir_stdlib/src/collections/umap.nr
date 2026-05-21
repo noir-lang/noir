@@ -556,7 +556,7 @@ mod test {
     unconstrained fn test_with_hasher_and_capacity_zero() {
         let mut m: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
             UHashMap::with_hasher_and_capacity(BuildHasherDefault::<Poseidon2Hasher> {}, 0);
-        m.insert(1, 1); // This used to produce an index out of bounds
+        let _ = m.insert(1, 1); // This used to produce an index out of bounds
     }
 
     struct MaxHasher {
@@ -577,7 +577,7 @@ mod test {
     #[test]
     unconstrained fn test_max_hash() {
         let mut m: UHashMap<Field, Field, BuildHasherDefault<MaxHasher>> = UHashMap::default();
-        m.insert(1, 1);
-        m.insert(2, 2); // This used to produce a math overflow
+        let _ = m.insert(1, 1);
+        let _ = m.insert(2, 2); // This used to produce a math overflow
     }
 }
