@@ -1797,6 +1797,158 @@ mod tests {
     }
 
     #[test]
+    fn call_allows_argument_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` argument is accepted by a `&Field` parameter
+        // (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` argument is accepted by a `[&Field; 1]` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` argument is accepted by a `&mut &Field` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a callee returning `&mut Field` satisfies a call instruction
+        // declaring `&Field` (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a callee returning `[&mut Field; 1]` satisfies a call declaring
+        // `[&Field; 1]`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&Field; 1]
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a callee returning `&mut &mut Field` satisfies a call declaring
+        // `&mut &Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function f1 has multiple return blocks")]
     fn multiple_return_blocks() {
         let src = "
@@ -1885,6 +2037,67 @@ mod tests {
           b0():
             v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
             return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` element is accepted in a `&Field` composite
+        // slot (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` element is accepted in a `[&Field; 1]` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = make_array [v1] : [[&Field; 1]; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` element is accepted in a `&mut &Field` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v1] : [&mut &Field; 1]
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
