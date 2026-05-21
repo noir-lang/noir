@@ -173,12 +173,16 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
+        // Databus is only for ACIR functions
+        let is_acir = self.builder.current_function.runtime().is_acir();
         for (id, mutable, _, typ, visibility) in parameters {
             let databus_visibility = match visibility {
-                noirc_frontend::shared::Visibility::CallData(id) => {
+                noirc_frontend::shared::Visibility::CallData(id) if is_acir => {
                     DatabusVisibility::CallData(*id)
                 }
-                noirc_frontend::shared::Visibility::ReturnData => DatabusVisibility::ReturnData,
+                noirc_frontend::shared::Visibility::ReturnData if is_acir => {
+                    DatabusVisibility::ReturnData
+                }
                 _ => DatabusVisibility::None,
             };
             self.add_parameter_to_scope(*id, typ, *mutable, databus_visibility);
