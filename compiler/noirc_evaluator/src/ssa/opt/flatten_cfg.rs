@@ -183,6 +183,24 @@ impl Ssa {
         let runtimes: HashMap<_, _> =
             self.functions.values().map(|f| (f.id(), f.runtime())).collect();
 
+        // Mirror the interpreter constant folding uses so the pre-check can tell a
+        // genuinely-missed constant fold apart from a call that could never be folded
+        // (its interpretation traps, performs a foreign call, or exceeds the step limit).
+        #[cfg(debug_assertions)]
+        let brillig_functions = super::constant_folding::clone_brillig_functions(&self.functions);
+        #[cfg(debug_assertions)]
+        let mut interpreter = crate::ssa::interpreter::Interpreter::new_from_functions(
+            &brillig_functions,
+            crate::ssa::interpreter::InterpreterOptions {
+                no_foreign_calls: true,
+                step_limit: Some(super::constant_folding::DEFAULT_INTERPRETER_STEP_LIMIT),
+                ..Default::default()
+            },
+            std::io::empty(),
+        );
+        #[cfg(debug_assertions)]
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -192,7 +210,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function, &runtimes);
+            flatten_cfg_pre_check(function, &runtimes, &mut interpreter);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -208,22 +226,31 @@ impl Ssa {
 /// Panics if:
 ///   - Any ACIR function has at least 1 loop
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
-///   - Any ACIR function calls a non-impure brillig function with all-constant arguments.
-///     This is not a correctness issue for flattening itself, but it hints at sub-optimal
-///     simplification: the call could have been interpreted by constant folding before
-///     flattening. After flattening, results get multiplied by a predicate, turning
-///     constants into witnesses and preventing further simplification.
+///   - Any ACIR function calls a non-impure brillig function with all-constant arguments
+///     that the SSA interpreter can fully evaluate. This is not a correctness issue for
+///     flattening itself, but it hints at sub-optimal simplification: the call could have
+///     been interpreted by constant folding before flattening. After flattening, results
+///     get multiplied by a predicate, turning constants into witnesses and preventing
+///     further simplification. Calls whose interpretation cannot complete (e.g. the hint
+///     asserts or indexes out of bounds for these arguments) are not flagged, since
+///     constant folding cannot fold them either.
 ///
 /// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, RuntimeType>) {
+fn flatten_cfg_pre_check(
+    function: &Function,
+    runtimes: &HashMap<FunctionId, RuntimeType>,
+    interpreter: &mut crate::ssa::interpreter::Interpreter<std::io::Empty>,
+) {
     super::checks::assert_no_loops(function);
-    super::checks::for_each_instruction(function, |instruction, dfg| {
+    super::checks::for_each_instruction(function, |instruction, _dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
-        super::checks::assert_no_constant_pure_brillig_calls(instruction, dfg, &|id| {
-            runtimes.get(&id).copied()
-        });
     });
+    super::checks::assert_no_interpretable_constant_pure_brillig_calls(
+        function,
+        interpreter,
+        &|id| runtimes.get(&id).copied(),
+    );
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].

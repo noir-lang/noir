@@ -43,6 +43,8 @@ mod interpret;
 mod result_cache;
 mod simplification_cache;
 
+#[cfg(debug_assertions)]
+pub(crate) use interpret::constant_call_evaluates;
 use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
@@ -52,7 +54,7 @@ pub const DEFAULT_MAX_ITER: usize = 5;
 /// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
 ///
 /// The number is based on some experimentation to limit a tight loop to ~100ms.
-const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
+pub(crate) const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -118,7 +120,7 @@ impl Ssa {
 }
 
 /// Clones all brillig functions stored within `all_functions` returning these in a new map.
-fn clone_brillig_functions(
+pub(crate) fn clone_brillig_functions(
     all_functions: &BTreeMap<FunctionId, Function>,
 ) -> BTreeMap<FunctionId, Function> {
     all_functions

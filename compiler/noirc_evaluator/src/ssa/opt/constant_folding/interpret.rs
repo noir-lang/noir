@@ -35,6 +35,25 @@ pub(super) fn try_interpret_call(
     }
 }
 
+/// Returns `true` if `instruction` is a call to a brillig function with all-constant
+/// arguments whose execution the SSA interpreter can fully evaluate.
+///
+/// This distinguishes a genuinely-missed constant fold (the call could have been replaced
+/// by its result) from a call that constant folding cannot remove because interpreting it
+/// does not complete for the given arguments — e.g. the callee asserts, indexes out of
+/// bounds, performs a foreign call, or exceeds the interpreter step limit.
+#[cfg(debug_assertions)]
+pub(crate) fn constant_call_evaluates(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+    interpreter: &mut Interpreter<Empty>,
+) -> bool {
+    matches!(
+        evaluate_const_argument_call(instruction, interpreter, dfg),
+        EvaluationResult::Evaluated(_)
+    )
+}
+
 /// Result of trying to evaluate an instruction (any instruction) in this pass.
 enum EvaluationResult {
     /// Nothing was done because the instruction wasn't a call to a brillig function,
