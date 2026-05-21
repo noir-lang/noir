@@ -946,18 +946,46 @@ impl Elaborator<'_> {
                 Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
             }
             _ => {
-                // Multiple matching constants - ambiguous. Multiple impls of the same
-                // generic trait can produce duplicate trait names here, so dedupe.
-                let mut traits = vecmap(&in_scope, |(_, trait_id, _)| {
-                    let trait_ = self.interner.get_trait(*trait_id);
-                    self.fully_qualified_trait_path(trait_)
-                });
-                traits.sort();
-                traits.dedup();
-                Some(Err(PathResolutionError::MultipleTraitsInScope {
-                    ident: ident.clone(),
-                    traits,
-                }))
+                // Multiple matching constants - ambiguous. If all candidates are from the
+                // same trait, this is multiple impls of one trait — report it with the
+                // specific impl signatures so the user can see what to disambiguate.
+                let first_trait_id = in_scope[0].1;
+                let same_trait =
+                    in_scope.iter().all(|(_, trait_id, _)| *trait_id == first_trait_id);
+                if same_trait {
+                    let trait_name =
+                        self.fully_qualified_trait_path(self.interner.get_trait(first_trait_id));
+                    let type_name = self_type.to_string();
+                    let impls = vecmap(&in_scope, |(_, _, impl_id)| {
+                        let ordered = &self.interner.get_trait_generics_for_impl(*impl_id).ordered;
+                        let signature = if ordered.is_empty() {
+                            trait_name.clone()
+                        } else {
+                            let args = vecmap(ordered, |t| t.to_string()).join(", ");
+                            format!("{trait_name}<{args}>")
+                        };
+                        let location =
+                            self.interner.get_trait_implementation(*impl_id).borrow().location;
+                        (signature, location)
+                    });
+                    Some(Err(PathResolutionError::MultipleApplicableImpls {
+                        ident: ident.clone(),
+                        trait_name,
+                        type_name,
+                        impls,
+                    }))
+                } else {
+                    let mut traits = vecmap(&in_scope, |(_, trait_id, _)| {
+                        let trait_ = self.interner.get_trait(*trait_id);
+                        self.fully_qualified_trait_path(trait_)
+                    });
+                    traits.sort();
+                    traits.dedup();
+                    Some(Err(PathResolutionError::MultipleTraitsInScope {
+                        ident: ident.clone(),
+                        traits,
+                    }))
+                }
             }
         }
     }

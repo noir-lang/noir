@@ -2172,17 +2172,18 @@ fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_imp
     pub struct Bar {}
 
     impl Foo<u8> for Bar {
+                     ~~~ candidate `Foo<u8>` defined here
         let CONST: u32 = 8;
     }
 
     impl Foo<u16> for Bar {
+                      ~~~ candidate `Foo<u16>` defined here
         let CONST: u32 = 16;
     }
 
     fn main() {
         let _: u32 = Bar::CONST;
-                          ^^^^^ Multiple applicable items in scope
-                          ~~~~~ Multiple traits which provide `CONST` are implemented and in scope: `Foo`
+                          ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
     }
     "#;
     check_errors(src);
