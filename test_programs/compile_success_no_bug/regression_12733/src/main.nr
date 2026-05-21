@@ -22,6 +22,23 @@ fn main(mut a: bool) {
     // Call argument: top-level `&mut → &` (already handled by
     // is_mut_ref_to_immutable_ref).
     baz(&a);
+
+    // Store-into-Allocate path: a mutable unconstrained tuple whose declared
+    // type contains a `&bool` slot is allocated as `&mut &bool`, but `&tup.0`
+    // inside `qux` produces `&mut bool` because `tup.0` lives in the mutable
+    // binding. The SSA validator must accept storing the latter into the
+    // former — same mutability-equivalence rule as the MakeArray / Call /
+    // Block-argument positions above.
+    // safety: no actual unsafety, only exercising unconstrained SSA-gen
+    unsafe {
+        qux(a);
+    }
+}
+
+unconstrained fn qux(a: bool) {
+    let mut tup: (bool, &bool) = (a, &a);
+    let _x = tup.1;
+    tup.1 = &tup.0;
 }
 
 fn foo(mut a: bool) -> &bool {
