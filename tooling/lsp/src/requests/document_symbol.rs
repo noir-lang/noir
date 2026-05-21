@@ -518,7 +518,7 @@ mod document_symbol_tests {
 
     use super::*;
     use async_lsp::lsp_types::{
-        PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
+        PartialResultParams, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
 
@@ -554,28 +554,16 @@ mod document_symbol_tests {
 "#;
         let symbols = get_document_symbols(src).await;
 
-        assert_eq!(
-            symbols,
-            vec![
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "foo".to_string(),
-                    detail: Some("fn foo(_x: i32)".to_string()),
-                    kind: SymbolKind::FUNCTION,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 2, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 0, character: 3 },
-                        end: Position { line: 0, character: 6 },
-                    },
-                    children: None,
-                },
-            ]
-        );
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "foo");
+        assert_eq!(symbol.detail.as_deref(), Some("fn foo(_x: i32)"));
+        assert_eq!(symbol.kind, SymbolKind::FUNCTION);
+        assert!(symbol.children.is_none());
+        // `range` covers the whole function (signature + body).
+        assert_eq!(test_utils::text_at(src, symbol.range), "fn foo(_x: i32) {\n    let _ = 1;\n}");
+        // `selection_range` covers just the function name.
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "foo");
     }
 
     #[test]
@@ -586,46 +574,23 @@ mod document_symbol_tests {
 "#;
         let symbols = get_document_symbols(src).await;
 
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "SomeStruct");
+        assert_eq!(symbol.kind, SymbolKind::STRUCT);
         assert_eq!(
-            symbols,
-            vec![
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "SomeStruct".to_string(),
-                    detail: None,
-                    kind: SymbolKind::STRUCT,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 2, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 0, character: 7 },
-                        end: Position { line: 0, character: 17 },
-                    },
-                    children: Some(vec![
-                        #[allow(deprecated)]
-                        DocumentSymbol {
-                            name: "field".to_string(),
-                            detail: None,
-                            kind: SymbolKind::FIELD,
-                            tags: None,
-                            deprecated: None,
-                            range: Range {
-                                start: Position { line: 1, character: 4 },
-                                end: Position { line: 1, character: 14 },
-                            },
-                            selection_range: Range {
-                                start: Position { line: 1, character: 4 },
-                                end: Position { line: 1, character: 9 },
-                            },
-                            children: None,
-                        },
-                    ],),
-                },
-            ]
+            test_utils::text_at(src, symbol.range),
+            "struct SomeStruct {\n    field: i32,\n}"
         );
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "SomeStruct");
+
+        let children = symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 1);
+        let field = &children[0];
+        assert_eq!(field.name, "field");
+        assert_eq!(field.kind, SymbolKind::FIELD);
+        assert_eq!(test_utils::text_at(src, field.range), "field: i32");
+        assert_eq!(test_utils::text_at(src, field.selection_range), "field");
     }
 
     #[test]
@@ -644,19 +609,10 @@ impl SomeStruct {
         assert_eq!(impl_symbol.name, "SomeStruct");
         assert_eq!(impl_symbol.kind, SymbolKind::NAMESPACE);
         assert_eq!(
-            impl_symbol.range,
-            Range {
-                start: Position { line: 2, character: 0 },
-                end: Position { line: 6, character: 1 },
-            }
+            test_utils::text_at(src, impl_symbol.range),
+            "impl SomeStruct {\n    fn new() -> SomeStruct {\n        SomeStruct {}\n    }\n}"
         );
-        assert_eq!(
-            impl_symbol.selection_range,
-            Range {
-                start: Position { line: 2, character: 5 },
-                end: Position { line: 2, character: 15 },
-            }
-        );
+        assert_eq!(test_utils::text_at(src, impl_symbol.selection_range), "SomeStruct");
 
         let children = impl_symbol.children.as_ref().expect("Expected children");
         assert_eq!(children.len(), 1);
@@ -665,19 +621,10 @@ impl SomeStruct {
         assert_eq!(method.detail.as_deref(), Some("fn new() -> SomeStruct"));
         assert_eq!(method.kind, SymbolKind::FUNCTION);
         assert_eq!(
-            method.range,
-            Range {
-                start: Position { line: 3, character: 4 },
-                end: Position { line: 5, character: 5 },
-            }
+            test_utils::text_at(src, method.range),
+            "fn new() -> SomeStruct {\n        SomeStruct {}\n    }"
         );
-        assert_eq!(
-            method.selection_range,
-            Range {
-                start: Position { line: 3, character: 7 },
-                end: Position { line: 3, character: 10 },
-            }
-        );
+        assert_eq!(test_utils::text_at(src, method.selection_range), "new");
     }
 
     #[test]
@@ -688,46 +635,24 @@ impl SomeStruct {
 "#;
         let symbols = get_document_symbols(src).await;
 
+        assert_eq!(symbols.len(), 1);
+        let trait_symbol = &symbols[0];
+        assert_eq!(trait_symbol.name, "SomeTrait");
+        assert_eq!(trait_symbol.kind, SymbolKind::INTERFACE);
         assert_eq!(
-            symbols,
-            vec![
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "SomeTrait".to_string(),
-                    detail: None,
-                    kind: SymbolKind::INTERFACE,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 2, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 0, character: 6 },
-                        end: Position { line: 0, character: 15 },
-                    },
-                    children: Some(vec![
-                        #[allow(deprecated)]
-                        DocumentSymbol {
-                            name: "some_method".to_string(),
-                            detail: None,
-                            kind: SymbolKind::METHOD,
-                            tags: None,
-                            deprecated: None,
-                            range: Range {
-                                start: Position { line: 1, character: 7 },
-                                end: Position { line: 1, character: 25 },
-                            },
-                            selection_range: Range {
-                                start: Position { line: 1, character: 7 },
-                                end: Position { line: 1, character: 18 },
-                            },
-                            children: None,
-                        },
-                    ],),
-                },
-            ]
+            test_utils::text_at(src, trait_symbol.range),
+            "trait SomeTrait<U> {\n    fn some_method(x: U);\n}"
         );
+        assert_eq!(test_utils::text_at(src, trait_symbol.selection_range), "SomeTrait");
+
+        let children = trait_symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 1);
+        let method = &children[0];
+        assert_eq!(method.name, "some_method");
+        assert_eq!(method.kind, SymbolKind::METHOD);
+        // For a trait method declaration, `range` starts at the method name (not `fn`).
+        assert_eq!(test_utils::text_at(src, method.range), "some_method(x: U);");
+        assert_eq!(test_utils::text_at(src, method.selection_range), "some_method");
     }
 
     #[test]
@@ -751,19 +676,11 @@ impl SomeTrait<i32> for SomeStruct {
         assert_eq!(impl_symbol.name, "impl SomeTrait<i32> for SomeStruct");
         assert_eq!(impl_symbol.kind, SymbolKind::NAMESPACE);
         assert_eq!(
-            impl_symbol.range,
-            Range {
-                start: Position { line: 6, character: 0 },
-                end: Position { line: 9, character: 1 },
-            }
+            test_utils::text_at(src, impl_symbol.range),
+            "impl SomeTrait<i32> for SomeStruct {\n    fn some_method(_x: i32) {\n    }\n}"
         );
-        assert_eq!(
-            impl_symbol.selection_range,
-            Range {
-                start: Position { line: 6, character: 5 },
-                end: Position { line: 6, character: 14 },
-            }
-        );
+        // For a trait impl, `selection_range` points at the trait name (not the target type).
+        assert_eq!(test_utils::text_at(src, impl_symbol.selection_range), "SomeTrait");
 
         let children = impl_symbol.children.as_ref().expect("Expected children");
         assert_eq!(children.len(), 1);
@@ -781,46 +698,23 @@ impl SomeTrait<i32> for SomeStruct {
 "#;
         let symbols = get_document_symbols(src).await;
 
+        assert_eq!(symbols.len(), 1);
+        let module = &symbols[0];
+        assert_eq!(module.name, "submodule");
+        assert_eq!(module.kind, SymbolKind::MODULE);
         assert_eq!(
-            symbols,
-            vec![
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "submodule".to_string(),
-                    detail: None,
-                    kind: SymbolKind::MODULE,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 2, character: 1 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 0, character: 4 },
-                        end: Position { line: 0, character: 13 },
-                    },
-                    children: Some(vec![
-                        #[allow(deprecated)]
-                        DocumentSymbol {
-                            name: "SOME_GLOBAL".to_string(),
-                            detail: None,
-                            kind: SymbolKind::CONSTANT,
-                            tags: None,
-                            deprecated: None,
-                            range: Range {
-                                start: Position { line: 1, character: 4 },
-                                end: Position { line: 1, character: 27 },
-                            },
-                            selection_range: Range {
-                                start: Position { line: 1, character: 11 },
-                                end: Position { line: 1, character: 22 },
-                            },
-                            children: None,
-                        },
-                    ]),
-                },
-            ]
+            test_utils::text_at(src, module.range),
+            "mod submodule {\n    global SOME_GLOBAL = 1;\n}"
         );
+        assert_eq!(test_utils::text_at(src, module.selection_range), "submodule");
+
+        let children = module.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 1);
+        let global = &children[0];
+        assert_eq!(global.name, "SOME_GLOBAL");
+        assert_eq!(global.kind, SymbolKind::CONSTANT);
+        assert_eq!(test_utils::text_at(src, global.range), "global SOME_GLOBAL = 1;");
+        assert_eq!(test_utils::text_at(src, global.selection_range), "SOME_GLOBAL");
     }
 
     #[test]
@@ -828,28 +722,13 @@ impl SomeTrait<i32> for SomeStruct {
         let src = "impl i32 {}\n";
         let symbols = get_document_symbols(src).await;
 
-        assert_eq!(
-            symbols,
-            vec![
-                #[allow(deprecated)]
-                DocumentSymbol {
-                    name: "i32".to_string(),
-                    detail: None,
-                    kind: SymbolKind::NAMESPACE,
-                    tags: None,
-                    deprecated: None,
-                    range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 0, character: 11 },
-                    },
-                    selection_range: Range {
-                        start: Position { line: 0, character: 5 },
-                        end: Position { line: 0, character: 8 },
-                    },
-                    children: Some(Vec::new()),
-                },
-            ]
-        );
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "i32");
+        assert_eq!(symbol.kind, SymbolKind::NAMESPACE);
+        assert_eq!(test_utils::text_at(src, symbol.range), "impl i32 {}");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "i32");
+        assert_eq!(symbol.children.as_deref(), Some(&[][..]));
     }
 
     #[test]
@@ -858,19 +737,9 @@ impl SomeTrait<i32> for SomeStruct {
         let mut symbols = get_document_symbols(src).await;
         assert_eq!(symbols.len(), 1);
         let symbol = symbols.remove(0);
-        assert_eq!(
-            symbol.range,
-            Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 1, character: 0 },
-            }
-        );
-        assert_eq!(
-            symbol.selection_range,
-            Range {
-                start: Position { line: 0, character: 3 },
-                end: Position { line: 0, character: 7 },
-            }
-        );
+        // Parse-recovery: the symbol's range extends from `fn` to the end of the only line
+        // (the function never gets a proper close), and its selection_range is the name.
+        assert_eq!(test_utils::text_at(src, symbol.range), "fn main(\n");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "main");
     }
 }

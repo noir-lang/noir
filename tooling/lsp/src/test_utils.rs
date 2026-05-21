@@ -95,6 +95,105 @@ pub(crate) async fn init_lsp_server_with_inline_source_and_cursor(
     (state, file_uri, position, src)
 }
 
+/// Parses a source string with `>|<` cursor and `[[...]]` target-range markers. Both
+/// markers are stripped from the returned source. Positions are in UTF-16 code units, the
+/// LSP wire format. Panics if the source does not contain exactly one of each marker pair.
+///
+/// Useful for goto-style tests where you want to show, inline in the source, both *where*
+/// the request is invoked and *what* the response should point at.
+pub(crate) fn parse_cursor_and_target_marker(src: &str) -> (String, Position, Range) {
+    let mut clean = String::new();
+    let mut line = 0u32;
+    let mut character = 0u32;
+    let mut cursor: Option<Position> = None;
+    let mut target_start: Option<Position> = None;
+    let mut target_end: Option<Position> = None;
+    let mut chars = src.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        let two = chars.peek().copied();
+        match ch {
+            '>' if two == Some('|') => {
+                // Look ahead for `>|<`
+                chars.next();
+                if chars.next() != Some('<') {
+                    panic!("Found `>|` not followed by `<` while parsing markers");
+                }
+                if cursor.is_some() {
+                    panic!("Multiple `>|<` cursors in source");
+                }
+                cursor = Some(Position { line, character });
+            }
+            '[' if two == Some('[') => {
+                chars.next();
+                if target_start.is_some() {
+                    panic!("Multiple `[[` target-start markers in source");
+                }
+                target_start = Some(Position { line, character });
+            }
+            ']' if two == Some(']') => {
+                chars.next();
+                if target_end.is_some() {
+                    panic!("Multiple `]]` target-end markers in source");
+                }
+                target_end = Some(Position { line, character });
+            }
+            '\n' => {
+                clean.push('\n');
+                line += 1;
+                character = 0;
+            }
+            ch => {
+                clean.push(ch);
+                character += ch.len_utf16() as u32;
+            }
+        }
+    }
+
+    let cursor = cursor.expect("Expected exactly one `>|<` cursor marker");
+    let start = target_start.expect("Expected `[[` to open the target range");
+    let end = target_end.expect("Expected `]]` to close the target range");
+    (clean, cursor, Range { start, end })
+}
+
+/// Returns the substring of `text` covered by `range`. Positions are interpreted in
+/// UTF-16 code units (the LSP wire format), which means ASCII source code works
+/// naturally and BMP characters like `é` still count as one column.
+///
+/// Tests use this to assert against the actual text a range covers ("`SomeStruct`")
+/// instead of bare line/column numbers, which forces the reader to count characters.
+pub(crate) fn text_at(text: &str, range: Range) -> String {
+    let mut out = String::new();
+    for (line_idx, line) in text.lines().enumerate() {
+        let line_idx = line_idx as u32;
+        if line_idx < range.start.line || line_idx > range.end.line {
+            continue;
+        }
+
+        // Map a UTF-16 column position to a byte index within `line`.
+        let to_byte_idx = |target_u16: u32| -> usize {
+            let mut u16_idx = 0u32;
+            for (byte_idx, ch) in line.char_indices() {
+                if u16_idx >= target_u16 {
+                    return byte_idx;
+                }
+                u16_idx += ch.len_utf16() as u32;
+            }
+            line.len()
+        };
+
+        let start_byte =
+            if line_idx == range.start.line { to_byte_idx(range.start.character) } else { 0 };
+        let end_byte =
+            if line_idx == range.end.line { to_byte_idx(range.end.character) } else { line.len() };
+        out.push_str(&line[start_byte..end_byte]);
+        if line_idx < range.end.line {
+            out.push('\n');
+        }
+    }
+    out
+}
+
 /// Searches for all instances of `search_string` in `text` and returns a list of their locations.
 pub(crate) fn search_in_text(text: &str, search_string: &str) -> Vec<Range> {
     text.lines()

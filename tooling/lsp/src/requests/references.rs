@@ -32,7 +32,7 @@ mod references_tests {
     use crate::notifications::workspace_from_document_uri;
     use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{
-        PartialResultParams, Position, Range, ReferenceContext, TextDocumentIdentifier,
+        PartialResultParams, Position, ReferenceContext, TextDocumentIdentifier,
         TextDocumentPositionParams, Url, WorkDoneProgressParams,
     };
     use tokio::test;
@@ -145,32 +145,18 @@ fn main() {
             (location.uri.to_file_path().unwrap(), location.range.start.line)
         });
 
+        let one_lib_src = std::fs::read_to_string(one_lib.to_file_path().unwrap()).unwrap();
+        let two_lib_src = std::fs::read_to_string(two_lib.to_file_path().unwrap()).unwrap();
+
+        // Each location should cover the identifier `function_one` in its respective file.
         assert_eq!(locations[0].uri, one_lib);
-        assert_eq!(
-            locations[0].range,
-            Range {
-                start: Position { line: 0, character: 7 },
-                end: Position { line: 0, character: 19 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&one_lib_src, locations[0].range), "function_one");
 
         assert_eq!(locations[1].uri, two_lib);
-        assert_eq!(
-            locations[1].range,
-            Range {
-                start: Position { line: 0, character: 9 },
-                end: Position { line: 0, character: 21 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&two_lib_src, locations[1].range), "function_one");
 
         assert_eq!(locations[2].uri, two_lib);
-        assert_eq!(
-            locations[2].range,
-            Range {
-                start: Position { line: 3, character: 4 },
-                end: Position { line: 3, character: 16 },
-            }
-        );
+        assert_eq!(test_utils::text_at(&two_lib_src, locations[2].range), "function_one");
     }
 
     #[test]
