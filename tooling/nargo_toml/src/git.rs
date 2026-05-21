@@ -13,8 +13,11 @@ fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
 }
 
 /// Path to the `nargo` directory under `$HOME`.
+/// Allows customization by defining a `NARGO_CRATES_ROOT` env var.
 fn nargo_crates() -> PathBuf {
-    dirs::home_dir().unwrap().join("nargo")
+    std::env::var("NARGO_CRATES_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or(dirs::home_dir().unwrap().join("nargo"))
 }
 
 /// Target directory to download dependencies into, e.g.
