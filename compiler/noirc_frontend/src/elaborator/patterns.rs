@@ -437,6 +437,7 @@ impl Elaborator<'_> {
                     field: field.clone(),
                     struct_definition: struct_type.borrow().name.clone(),
                 });
+                continue;
             }
 
             ret.push((field, resolved));
