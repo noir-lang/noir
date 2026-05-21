@@ -11,6 +11,16 @@ fn main(mut a: bool) {
     let arr: [&bool; 1] = [&a; 1];
     bar(arr);
     baz(&a);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        qux(a);
+    }
+}
+
+unconstrained fn qux(a: bool) {
+    let mut tup: (bool, &bool) = (a, &a);
+    let _x: &bool = tup.1;
+    tup.1 = &tup.0;
 }
 
 fn foo(mut a: bool) -> &bool {
