@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["WireShape"],"fn":["merged_wire_layout","msgpack_tagged_deserialize"],"struct":["ArrayProductMapAccess","Deserializer","TaggedAccessViaParent","TaggedEnumAccess","TaggedProductMapAccess","TaggedTupleStructAccess"],"type":["IntKeyedEntries","RmpError"]};

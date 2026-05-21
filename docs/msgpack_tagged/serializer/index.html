@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Tagged-map msgpack serializer that wraps `rmp_serde::Serializer`."><title>msgpack_tagged::serializer - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="msgpack_tagged" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../msgpack_tagged/index.html">msgpack_<wbr>tagged</a><span class="version">1.0.0-beta.20</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module serializer</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#known-gaps-vs-the-design-doc--macro-syntax" title="Known gaps vs. the design doc / macro syntax">Known gaps vs. the design doc / macro syntax</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate msgpack_<wbr>tagged</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">msgpack_tagged</a></div><h1>Module <span>serializer</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/msgpack_tagged/serializer.rs.html#1-1173">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Tagged-map msgpack serializer that wraps [<code>rmp_serde::Serializer</code>].</p>
+<p>Most of <code>serde::Serializer</code>’s methods are forwarded to the inner
+<code>rmp_serde</code> serializer unchanged — we only intercept the structurally
+significant calls (<code>serialize_struct</code>, the variant methods, etc.) and
+re-emit them as integer-keyed msgpack maps using the <a href="../struct.TagRegistry.html" title="struct msgpack_tagged::TagRegistry"><code>TagRegistry</code></a>.</p>
+<p>The public entry point is <a href="fn.msgpack_tagged_serialize.html" title="fn msgpack_tagged::serializer::msgpack_tagged_serialize"><code>msgpack_tagged_serialize</code></a>, which builds the
+registry up front via <code>T::register_into</code> and runs the value through the
+wrapper. The wrapper in turn writes to a <code>Vec&lt;u8&gt;</code> we hand back to the
+caller.</p>
+<p>Every aggregate shape is intercepted: named structs, multi-element tuple
+structs, sequences, fixed-length tuples, free-form maps, and all four
+variant kinds (unit / newtype / tuple / struct). Primitives, top-level
+newtype structs, and <code>Option</code> forward through to inner — recursing into
+nested values via this same wrapper so any tagged value reachable from
+the root keeps the int-keyed-map treatment.</p>
+<h3 id="known-gaps-vs-the-design-doc--macro-syntax"><a class="doc-anchor" href="#known-gaps-vs-the-design-doc--macro-syntax">§</a>Known gaps vs. the design doc / macro syntax</h3>
+<p>The wrapper isn’t final — the bits below are accepted by
+<code>#[derive(MsgpackTagged)]</code> today but aren’t reflected in the wire bytes
+we produce yet.</p>
+<ul>
+<li><strong>Tag-ascending wire order.</strong> The design promises field/element
+entries on the wire in tag-ascending order so two semantically-equal
+values encode byte-identically regardless of source-declaration
+order. We currently emit in serde’s call-order = source-declaration
+order. Tightening this requires buffering field bytes before writing.</li>
+<li><strong>Encoding strategies.</strong> Only the <strong>Tagged</strong> strategy (int-keyed
+map) is implemented. Per-type strategy overrides — <strong>Array</strong>
+(positional msgpack array, smallest wire) and <strong>Named</strong> (rmp_serde
+default, string-keyed map) — are deferred follow-ups.</li>
+<li><strong><code>assert_eq!</code> on <code>len</code> vs <code>product.fields.len()</code></strong> — already
+tightened, but only inside the four product-shaped methods. New
+shapes that join the family should add the same assert.</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Serializer.html" title="struct msgpack_tagged::serializer::Serializer">Serializer</a></dt><dd>Tagged-map msgpack serializer.</dd><dt><a class="struct" href="struct.TaggedSerializeProduct.html" title="struct msgpack_tagged::serializer::TaggedSerializeProduct">Tagged<wbr>Serialize<wbr>Product</a></dt><dd>Adapter for product shapes — both named structs and multi-element tuple
+structs go through here. The two trait impls below differ only in how
+they resolve a serde call to a wire tag: named-struct calls carry a
+field-name string, tuple-struct calls carry an implicit position counter.
+The map header is already written in the corresponding <code>serialize_*</code>
+method before this adapter is constructed; from there each
+<code>serialize_field</code> call appends a <code>(tag, value)</code> pair to the writer
+through the parent <a href="struct.Serializer.html" title="struct msgpack_tagged::serializer::Serializer"><code>Serializer</code></a>, so any nested tagged
+value in <code>value</code> recurses through the wrapper instead of falling through
+to <code>rmp_serde</code>’s default positional-array struct encoding.</dd><dt><a class="struct" href="struct.TaggedSerializeViaParent.html" title="struct msgpack_tagged::serializer::TaggedSerializeViaParent">Tagged<wbr>Serialize<wbr>ViaParent</a></dt><dd>Stateless pass-through adapter shared by every shape whose only job is
+to route element/key/value calls back through the parent
+<a href="struct.Serializer.html" title="struct msgpack_tagged::serializer::Serializer"><code>Serializer</code></a>. The msgpack header (array length or map
+length) is written upfront in the corresponding <code>serialize_*</code> method
+before the adapter is constructed; from there each entry is just one or
+two more values appended to the writer through the wrapper, so any
+tagged value nested inside still gets the int-keyed-map treatment.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.assert_field_count_matches.html" title="fn msgpack_tagged::serializer::assert_field_count_matches">assert_<wbr>field_<wbr>count_<wbr>matches</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Assert that serde’s reported field count matches the registered
+<code>Product</code>’s — both should drop the same skipped fields, so they should
+always agree. A mismatch is a real misconfiguration: the most common
+cause is a <code>PhantomData&lt;T&gt;</code> field that’s missing <code>#[serde(skip)]</code>,
+which would otherwise fail later with a confusing “field not found in
+registered Product” error from a tag lookup. The assert surfaces it
+earlier, with a more actionable message.</dd><dt><a class="fn" href="fn.begin_product_payload.html" title="fn msgpack_tagged::serializer::begin_product_payload">begin_<wbr>product_<wbr>payload</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Decide whether to buffer + flush in tag-ascending order, write the
+outer header upfront in the direct case, and return the configured
+adapter. Shared by <a href="struct.Serializer.html#method.begin_product" title="method msgpack_tagged::serializer::Serializer::begin_product"><code>Serializer::begin_product</code></a> (top-level) and
+<a href="struct.Serializer.html#method.begin_variant_payload" title="method msgpack_tagged::serializer::Serializer::begin_variant_payload"><code>Serializer::begin_variant_payload</code></a> (enum payload).</dd><dt><a class="fn" href="fn.downgrade_array_if_unsafe.html" title="fn msgpack_tagged::serializer::downgrade_array_if_unsafe">downgrade_<wbr>array_<wbr>if_<wbr>unsafe</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Auto-downgrade <code>Array</code> → <code>Tagged</code> for products where the positional
+shape can’t safely round-trip the type’s own writes.</dd><dt><a class="fn" href="fn.make_inner_rmp_serializer.html" title="fn msgpack_tagged::serializer::make_inner_rmp_serializer">make_<wbr>inner_<wbr>rmp_<wbr>serializer</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build the inner <code>rmp_serde::Serializer</code> for primitive / forwarded
+calls. Single construction point so every spawn site
+(<a href="struct.Serializer.html#method.new" title="associated function msgpack_tagged::serializer::Serializer::new"><code>Serializer::new</code></a>, <a href="struct.Serializer.html#method.sub_serializer_into" title="method msgpack_tagged::serializer::Serializer::sub_serializer_into"><code>Serializer::sub_serializer_into</code></a>) stays in
+lockstep.</dd><dt><a class="fn" href="fn.msgpack_tagged_serialize.html" title="fn msgpack_tagged::serializer::msgpack_tagged_serialize">msgpack_<wbr>tagged_<wbr>serialize</a></dt><dd>Build the tag registry from <code>T::register_into</code>, then serialize <code>value</code>
+through a <a href="struct.Serializer.html" title="struct msgpack_tagged::serializer::Serializer"><code>Serializer</code></a> into a freshly-allocated <code>Vec&lt;u8&gt;</code>. Uses the
+default <a href="../enum.EncodingStrategy.html#variant.Tagged" title="variant msgpack_tagged::EncodingStrategy::Tagged"><code>EncodingStrategy::Tagged</code></a> for all types. For strategy
+customization, build the registry and serializer directly and use the
+builder methods.</dd><dt><a class="fn" href="fn.write_array_header.html" title="fn msgpack_tagged::serializer::write_array_header">write_<wbr>array_<wbr>header</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Write a msgpack array header (<code>fixarray</code> / <code>array16</code> / <code>array32</code> depending
+on <code>len</code>) directly to the underlying writer. Used by sequences and tuples.</dd><dt><a class="fn" href="fn.write_map_header.html" title="fn msgpack_tagged::serializer::write_map_header">write_<wbr>map_<wbr>header</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Write a msgpack map header (<code>fixmap</code> / <code>map16</code> / <code>map32</code> depending on
+<code>len</code>) directly to the underlying writer. Used by structs, maps, and the
+variant shapes once those land.</dd><dt><a class="fn" href="fn.write_strategy_header.html" title="fn msgpack_tagged::serializer::write_strategy_header">write_<wbr>strategy_<wbr>header</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Write the outer Product header in the shape required by <code>strategy</code>:
+<code>Tagged</code> → int-keyed <code>fixmap</code>, <code>Array</code> → positional <code>fixarray</code>. Used
+by both top-level struct paths and variant-payload paths.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.RmpError.html" title="type msgpack_tagged::serializer::RmpError">RmpError</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd><code>rmp_serde</code>’s error type, re-exported for our <code>serde::Serializer</code> impl.</dd></dl></section></div></main></body></html>

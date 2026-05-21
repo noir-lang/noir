@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Auto-downgrade `Array` → `Tagged` for products where the positional shape can’t safely round-trip the type’s own writes."><title>downgrade_array_if_unsafe in msgpack_tagged::serializer - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="msgpack_tagged" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../msgpack_tagged/index.html">msgpack_<wbr>tagged</a><span class="version">1.0.0-beta.20</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In msgpack_<wbr>tagged::<wbr>serializer</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">msgpack_tagged</a>::<wbr><a href="index.html">serializer</a></div><h1>Function <span class="fn">downgrade_array_if_unsafe</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/msgpack_tagged/serializer.rs.html#668-686">Source</a> </span></div><pre class="rust item-decl"><code>fn downgrade_array_if_unsafe(
+    product: &amp;<a class="struct" href="../struct.Product.html" title="struct msgpack_tagged::Product">Product</a>,
+    strategy: <a class="enum" href="../enum.EncodingStrategy.html" title="enum msgpack_tagged::EncodingStrategy">EncodingStrategy</a>,
+) -&gt; <a class="enum" href="../enum.EncodingStrategy.html" title="enum msgpack_tagged::EncodingStrategy">EncodingStrategy</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Auto-downgrade <code>Array</code> → <code>Tagged</code> for products where the positional
+shape can’t safely round-trip the type’s own writes.</p>
+<p><strong>The hazard.</strong> Under <code>Array</code> the encoder only writes active fields
+(in tag-ascending order); the decoder walks a merged-sorted layout of
+<code>(active + reserved)</code> tags so it can drain reserved slots from
+<em>legacy</em> wires (V1 wrote a value at a tag that V2 has since retired).
+That works fine when reserved tags are all <em>strictly greater</em> than
+every active tag: the merged layout puts them at the tail, and the
+decoder hits <code>wire_remaining == 0</code> before visiting them. But if any
+reserved tag has an active tag <em>after</em> it in tag order, the merged
+layout interleaves a reserved slot in the middle. A round-trip of the
+type’s own write would then drain a wire byte the encoder intended
+for the next active field, corrupting the decode.</p>
+<p><strong>The fix.</strong> When that interleaving is possible, the strategy
+silently flips to <code>Tagged</code> for this product — the int-keyed-map shape
+is self-describing on the wire (each entry carries its own tag) so
+the decoder doesn’t need positional alignment. The wire is slightly
+larger but the type is now round-trip-safe.</p>
+<p><strong>Why a silent downgrade rather than an error.</strong> A bulk
+<code>with_default_strategy(Array)</code> is the common config — flipping it to
+an error per type would force callers to add a <code>with_strategy::&lt;T&gt;(Tagged)</code>
+override for every schema-evolved leaf, which is noise. The downgrade
+is local to the call and doesn’t affect other types in the same
+serializer. Documented in the crate README under the migration guide.</p>
+</div></details></section></div></main></body></html>

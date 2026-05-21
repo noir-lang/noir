@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Build the inner `rmp_serde::Serializer` for primitive / forwarded calls. Single construction point so every spawn site (`Serializer::new`, `Serializer::sub_serializer_into`) stays in lockstep."><title>make_inner_rmp_serializer in msgpack_tagged::serializer - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="msgpack_tagged" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../msgpack_tagged/index.html">msgpack_<wbr>tagged</a><span class="version">1.0.0-beta.20</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In msgpack_<wbr>tagged::<wbr>serializer</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">msgpack_tagged</a>::<wbr><a href="index.html">serializer</a></div><h1>Function <span class="fn">make_inner_rmp_serializer</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/msgpack_tagged/serializer.rs.html#627-629">Source</a> </span></div><pre class="rust item-decl"><code>fn make_inner_rmp_serializer&lt;W: <a class="trait" href="https://doc.rust-lang.org/1.89.0/std/io/trait.Write.html" title="trait std::io::Write">Write</a>&gt;(writer: W) -&gt; Serializer&lt;W&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Build the inner <code>rmp_serde::Serializer</code> for primitive / forwarded
+calls. Single construction point so every spawn site
+(<a href="struct.Serializer.html#method.new" title="associated function msgpack_tagged::serializer::Serializer::new"><code>Serializer::new</code></a>, <a href="struct.Serializer.html#method.sub_serializer_into" title="method msgpack_tagged::serializer::Serializer::sub_serializer_into"><code>Serializer::sub_serializer_into</code></a>) stays in
+lockstep.</p>
+<p><strong>Why we don’t apply <code>BytesMode::ForceIterables</code> here</strong> (despite
+the legacy <code>acir::serialization::msgpack_serialize</code> doing so):</p>
+<p><code>ForceIterables</code> makes <code>rmp_serde::Serializer::collect_seq</code> detect
+byte-shaped iterators and emit msgpack <code>bin</code> instead of a
+<code>fixarray</code> of <code>fixint</code>s — the wire shape the C++ codegen’s
+<code>std::vector&lt;uint8_t&gt;</code> adapter expects. But for that detection to
+apply, the call has to <em>reach</em> the inner’s <code>collect_seq</code>. Our
+wrapper intercepts <code>Vec&lt;T&gt;::serialize</code> via the default
+<code>collect_seq</code> → <code>Self::serialize_seq</code> path: <code>serialize_seq</code> writes
+a <code>fixarray</code> header directly and routes each element through this
+wrapper, so the inner’s <code>ForceIterables</code> is never consulted.</p>
+<p>We could override <code>collect_seq</code> to forward byte-shaped iterators
+to <code>inner.collect_seq</code> — but rmp_serde’s detection heuristic is
+purely size-based: any iterator over pointer-sized items (<code>&amp;u8</code>,
+<code>Box&lt;T&gt;</code>, <code>Rc&lt;T&gt;</code>, <code>&amp;T</code>, …) matches. For items that <em>aren’t</em>
+actually <code>u8</code>, rmp_serde’s <code>OnlyBytes</code> probe rejects, and rmp_serde
+falls back to its <strong>own</strong> <code>serialize_seq</code> — which doesn’t route
+through our wrapper. That would silently bypass <code>MsgpackTagged</code>
+interception for any tagged type wrapped in <code>Box</code>/<code>&amp;</code>/etc. inside
+a <code>Vec</code>. Hard to debug, easy to land in.</p>
+<p>Instead we keep the wrapper simple and require the load-bearing
+case (<code>FieldElement</code>’s <code>Serialize</code> impl) to call
+<code>serializer.serialize_bytes(...)</code> directly — bypassing
+<code>collect_seq</code> entirely. <code>serialize_bytes</code> is <code>rmp_serde</code>’s
+unconditional <code>write_bin</code> (independent of <code>BytesMode</code>), and our
+own <code>serialize_bytes</code> forwards it untouched, so the wire is
+reliably <code>bin</code> for that field.</p>
+<p><strong>If a future model adds another byte-shaped value type</strong>, prefer
+hooking it up via <code>serialize_bytes</code> for the same reason. Only if a
+generic byte-iter intercept becomes truly necessary should we
+override <code>collect_seq</code> here — and at that point we’d need to
+<strong>also replicate rmp_serde’s <code>OnlyBytes</code> probe</strong> so the
+reference-bypass risk above is closed.</p>
+</div></details></section></div></main></body></html>

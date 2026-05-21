@@ -1,0 +1,120 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Companion proc-macro crate for `msgpack_tagged`."><title>msgpack_tagged_derive - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="msgpack_tagged_derive" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../static.files/storage-4e99c027.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../msgpack_tagged_derive/index.html">msgpack_<wbr>tagged_<wbr>derive</a><span class="version">1.0.0-beta.20</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#derives" title="Derive Macros">Derive Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>msgpack_tagged_derive</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/msgpack_tagged_derive/lib.rs.html#1-1499">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Companion proc-macro crate for <code>msgpack_tagged</code>.</p>
+<p>Handles named-field structs, tuple structs / newtypes, and enums end-to-end:
+parses <code>#[tag(N)]</code> annotations, builds a <code>Tagged::Product</code> (struct-shaped)
+or <code>Tagged::Sum</code> (enum-shaped) wire description, and emits a <code>register_into</code>
+that registers <code>Self</code> and recurses into each field/variant payload type.
+Unit structs and unions still fall through to a stub expansion until
+subsequent steps add their handling.</p>
+<p>Per-variant struct/tuple field tagging on enum variants is the next
+incremental step — at this point every enum variant gets an <em>empty</em>
+payload <code>Product</code>, and any <code>#[tag(...)]</code> on a variant’s field is rejected.</p>
+<p>Design: <a href="https://github.com/noir-lang/noir/issues/12554">issue #12554</a>.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.TagArgs.html" title="struct msgpack_tagged_derive::TagArgs">TagArgs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Inner-args grammar for <code>#[tag(...)]</code>: a single integer tag literal
+(<code>#[tag(N)]</code>). Wire-tolerance for missing tags and field-skipping are
+expressed via serde-derive’s <code>#[serde(default)]</code> / <code>#[serde(skip)]</code>
+(the latter is auto-recognized as the canonical skip signal).</dd><dt><a class="struct" href="struct.TaggedField.html" title="struct msgpack_tagged_derive::TaggedField">Tagged<wbr>Field</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Per-tagged-field info collected during macro expansion. <code>name</code> is the
+field’s wire-name as a string — for named structs that’s the field
+identifier; for tuple structs it’s the source-position-as-string (“0”,
+“1”, …). Either way, the name lands in the <code>Product</code>’s <code>fields</code> slice
+as a <code>&amp;'static str</code> literal.</dd><dt><a class="struct" href="struct.TaggedVariant.html" title="struct msgpack_tagged_derive::TaggedVariant">Tagged<wbr>Variant</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Per-tagged-variant info collected during enum macro expansion. <code>name</code> is
+the variant’s wire-name (its Rust ident, as a string). <code>payload</code> holds
+the parsed payload-field entries — empty for unit and newtype variants,
+populated by <a href="fn.parse_named_fields.html" title="fn msgpack_tagged_derive::parse_named_fields"><code>parse_named_fields</code></a> for struct-shaped variants and
+<a href="fn.parse_tuple_fields.html" title="fn msgpack_tagged_derive::parse_tuple_fields"><code>parse_tuple_fields</code></a> for tuple-shaped variants (with two-or-more
+fields). The entries drive both the variant’s emitted payload <code>Product</code>
+and the per-field bounds (<code>MsgpackTagged</code>, <code>Default</code>) in the impl’s where
+clause.</dd><dt><a class="struct" href="struct.TypeAttrs.html" title="struct msgpack_tagged_derive::TypeAttrs">Type<wbr>Attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Type-level configuration parsed from one or more <code>#[tagged(...)]</code>
+attributes on the struct/enum. Holds every modifier the macro understands
+at the type level.</dd><dt><a class="struct" href="struct.VariantAttrs.html" title="struct msgpack_tagged_derive::VariantAttrs">Variant<wbr>Attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Variant-level configuration parsed from one or more <code>#[tagged(...)]</code>
+attributes on an enum variant. Two grammar groups apply:</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.FieldKind.html" title="enum msgpack_tagged_derive::FieldKind">Field<wbr>Kind</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>What the macro should do with a given field on the wire.</dd><dt><a class="enum" href="enum.VariantKind.html" title="enum msgpack_tagged_derive::VariantKind">Variant<wbr>Kind</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Variant shape on the wire. Mirrors <code>msgpack_tagged::VariantKind</code> and
+drives both the kind discriminator the macro emits and the payload-shape
+dispatch above.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.build_enum_where_clause.html" title="fn msgpack_tagged_derive::build_enum_where_clause">build_<wbr>enum_<wbr>where_<wbr>clause</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Where clause for an enum impl. Same shape as <code>build_where_clause</code> for
+structs — <code>T: 'static</code> per type parameter, plus a deduped
+<code>&lt;PayloadFieldType&gt;: MsgpackTagged</code> bound for every tagged field type
+appearing in any variant’s payload.</dd><dt><a class="fn" href="fn.build_passthrough_where_clause.html" title="fn msgpack_tagged_derive::build_passthrough_where_clause">build_<wbr>passthrough_<wbr>where_<wbr>clause</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Where clause for newtype structs: every type param needs <code>'static</code> (from
+the supertrait), and the inner type must be <code>MsgpackTagged</code> so the
+<code>register_into</code> call type-checks. No field-type bounds beyond that — a
+newtype contributes no fields of its own to the wire.</dd><dt><a class="fn" href="fn.build_via_where_clause.html" title="fn msgpack_tagged_derive::build_via_where_clause">build_<wbr>via_<wbr>where_<wbr>clause</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build the where clause for a <code>via</code>-delegating impl. The public type
+contributes no field-type bounds (it has no field types on the wire), but
+it does need:</dd><dt><a class="fn" href="fn.build_where_clause.html" title="fn msgpack_tagged_derive::build_where_clause">build_<wbr>where_<wbr>clause</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build a <code>where</code> clause for the generated impl. Adds three kinds of bounds:</dd><dt><a class="fn" href="fn.classify_field.html" title="fn msgpack_tagged_derive::classify_field">classify_<wbr>field</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Decide whether a field is wire-visible or skipped. Errors loudly when a
+field has no annotation and isn’t a recognized auto-skip type — the
+strict-by-default discipline. Also enforces that an active <code>#[tag(N)]</code>
+doesn’t collide with the surrounding <code>#[tagged(reserved(...))]</code> list,
+and that <code>#[tag(N)]</code> and <code>#[serde(skip)]</code> aren’t both set on the same
+field (those are contradictory — one says “on the wire”, the other
+“not on the wire”).</dd><dt><a class="fn" href="fn.empty_product_literal.html" title="fn msgpack_tagged_derive::empty_product_literal">empty_<wbr>product_<wbr>literal</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Empty <code>Tagged::Product</code> literal — used by newtypes, <code>via</code>-delegating
+types, the stub expansion, and any other shape that contributes no wire
+metadata of its own.</dd><dt><a class="fn" href="fn.expand.html" title="fn msgpack_tagged_derive::expand">expand</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.expand_enum.html" title="fn msgpack_tagged_derive::expand_enum">expand_<wbr>enum</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Enum (<code>enum E { A, B(...), C { ... } }</code>). Each variant carries an
+explicit <code>#[tag(N)]</code>; the variant tag is what goes on the wire as the
+discriminator. The expansion emits a <code>Tagged::Sum</code> listing every variant
+in tag-ascending order, and a <code>register_into</code> that registers <code>Self</code> and
+recurses into every tagged variant-payload field type so nested
+<code>MsgpackTagged</code> types are reached.</dd><dt><a class="fn" href="fn.expand_named_struct.html" title="fn msgpack_tagged_derive::expand_named_struct">expand_<wbr>named_<wbr>struct</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="fn" href="fn.expand_newtype.html" title="fn msgpack_tagged_derive::expand_newtype">expand_<wbr>newtype</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Newtype (single-element tuple struct): wire bytes are exactly the inner
+type’s bytes. The newtype itself doesn’t get a registry entry — only its
+inner type does (via the recursive <code>register_into</code>). Type-level
+<code>reserved</code>/<code>allow_unknown_tags</code> are inert and rejected for clarity.</dd><dt><a class="fn" href="fn.expand_tuple_struct.html" title="fn msgpack_tagged_derive::expand_tuple_struct">expand_<wbr>tuple_<wbr>struct</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Multi-element tuple struct (<code>struct Pair(A, B, ...)</code>). Tagging style must
+be uniform: either every field carries <code>#[tag(N)]</code> (explicit, allows
+reordering / <code>default</code>) or none do (implicit positional 0, 1, 2, …).
+Mixing is rejected.</dd><dt><a class="fn" href="fn.expand_unnamed_struct.html" title="fn msgpack_tagged_derive::expand_unnamed_struct">expand_<wbr>unnamed_<wbr>struct</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Dispatch for tuple structs (<code>struct Foo(A, B)</code>). Single-field tuple
+structs are <em>newtypes</em> and pass through to the inner type without a
+registry entry of their own; multi-field tuple structs register
+themselves with positional names (“0”, “1”, …).</dd><dt><a class="fn" href="fn.expand_via.html" title="fn msgpack_tagged_derive::expand_via">expand_<wbr>via</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Expand the <code>#[tagged(via(WireType))]</code> form: the public type delegates
+<code>register_into</code> entirely to the wire DTO and contributes no entry of its
+own. The emitted <code>TAGGED</code> is an empty <code>Tagged::Product</code> purely to
+satisfy the trait — it’s never consulted, because the public type itself
+never appears in the registry.</dd><dt><a class="fn" href="fn.has_serde_skip.html" title="fn msgpack_tagged_derive::has_serde_skip">has_<wbr>serde_<wbr>skip</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Whether a field carries <code>#[serde(skip)]</code> — recognized by the macro as an
+alias for <code>#[tag(skip)]</code>. Only the bare-ident form is honored;
+asymmetric <code>skip_serializing</code> / <code>skip_deserializing</code> and conditional
+<code>skip_serializing_if = "..."</code> are deliberately ignored, since they don’t
+have a clean encode-and-decode-symmetric mapping in this format.</dd><dt><a class="fn" href="fn.is_phantom_data.html" title="fn msgpack_tagged_derive::is_phantom_data">is_<wbr>phantom_<wbr>data</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Syntactically detect <code>PhantomData&lt;_&gt;</code> by checking the last path segment.
+Matches the conventional forms (<code>PhantomData</code>, <code>marker::PhantomData</code>,
+<code>std::marker::PhantomData</code>, <code>core::marker::PhantomData</code>). Won’t recognize
+a <code>PhantomData</code> re-imported under a different alias — that’s the standard
+trade-off for syntactic detection (serde-derive’s auto-skip works the same way).</dd><dt><a class="fn" href="fn.is_tag_ascending.html" title="fn msgpack_tagged_derive::is_tag_ascending">is_<wbr>tag_<wbr>ascending</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Whether <code>entries</code> (in source-declaration order) are already in
+tag-ascending order. Tags are unique within a Product (validated
+elsewhere) so this is equivalent to strict monotonicity.</dd><dt><a class="fn" href="fn.parse_named_fields.html" title="fn msgpack_tagged_derive::parse_named_fields">parse_<wbr>named_<wbr>fields</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Parse a list of named fields (struct fields or named-variant payload
+fields) into the per-tagged-field entries that drive <code>Product</code> emission.
+Every field needs an explicit <code>#[tag(N)]</code> or auto-skips via <code>#[tag(skip)]</code>
+/ <code>PhantomData&lt;_&gt;</code>; missing both is a compile error. The returned vec is
+already in tag-ascending order, the canonical wire order.</dd><dt><a class="fn" href="fn.parse_serde_field_rename.html" title="fn msgpack_tagged_derive::parse_serde_field_rename">parse_<wbr>serde_<wbr>field_<wbr>rename</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Field-level <code>#[serde(rename = "X")]</code> — used as the wire-name in
+<code>Product.fields</code> for that field, matching what <code>serialize_field("X", ...)</code>
+passes at runtime through the auto-derived <code>Serialize</code> impl. The
+load-bearing piece for the shadow-DTO pattern when the wire DTO renames
+individual fields (e.g., <code>index</code> → <code>i</code>).</dd><dt><a class="fn" href="fn.parse_serde_rename.html" title="fn msgpack_tagged_derive::parse_serde_rename">parse_<wbr>serde_<wbr>rename</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Type-level <code>#[serde(rename = "X")]</code> — used as the registry key for a
+type, so it matches what <code>serialize_struct(name, ...)</code> passes at runtime
+through the auto-derived <code>Serialize</code> impl.</dd><dt><a class="fn" href="fn.parse_serde_rename_in_attrs.html" title="fn msgpack_tagged_derive::parse_serde_rename_in_attrs">parse_<wbr>serde_<wbr>rename_<wbr>in_<wbr>attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Read <code>#[serde(rename = "X")]</code> off a list of attributes, if present, and
+return <code>"X"</code>. Used both at the type level (the returned name becomes the
+registry key) and at the field level (the returned name becomes the
+<code>Product.fields</code> wire-name for that field).</dd><dt><a class="fn" href="fn.parse_tagged_type_attrs.html" title="fn msgpack_tagged_derive::parse_tagged_type_attrs">parse_<wbr>tagged_<wbr>type_<wbr>attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Parse the type-level <code>#[tagged(...)]</code> attributes (if any) into a single
+<code>TypeAttrs</code>. Multiple <code>#[tagged(...)]</code> attributes are allowed and merged,
+but each named modifier may appear at most once across them.</dd><dt><a class="fn" href="fn.parse_tagged_variant_attrs.html" title="fn msgpack_tagged_derive::parse_tagged_variant_attrs">parse_<wbr>tagged_<wbr>variant_<wbr>attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Parse the variant-level <code>#[tagged(...)]</code> attributes (if any) into a
+<code>VariantAttrs</code>. Multiple <code>#[tagged(...)]</code> attributes on the same variant
+are allowed and merged, but each named modifier may appear at most once
+across them.</dd><dt><a class="fn" href="fn.parse_tuple_fields.html" title="fn msgpack_tagged_derive::parse_tuple_fields">parse_<wbr>tuple_<wbr>fields</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Parse a list of unnamed (positional) fields — top-level tuple-struct
+fields or tuple-variant payload fields. Tagging style must be uniform:
+either every field carries <code>#[tag(N)]</code> (explicit, allows reordering /
+<code>default</code>) or none do (implicit positional 0, 1, 2, …). Mixing is
+rejected. The returned vec is in tag-ascending order with names being
+the position-as-string (“0”, “1”, …).</dd><dt><a class="fn" href="fn.parse_variant_tag.html" title="fn msgpack_tagged_derive::parse_variant_tag">parse_<wbr>variant_<wbr>tag</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Parse the (required) <code>#[tag(N)]</code> attribute on an enum variant. Rejects the
+<code>skip</code> form and the <code>default</code> modifier — neither has clear semantics for a
+variant — and rejects tags that collide with the type’s reserved list.</dd><dt><a class="fn" href="fn.product_literal.html" title="fn msgpack_tagged_derive::product_literal">product_<wbr>literal</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build a <code>Tagged::Product(Product { ... })</code> literal — top-level
+struct/tuple-struct emission. Wraps <a href="fn.product_struct_literal.html" title="fn msgpack_tagged_derive::product_struct_literal"><code>product_struct_literal</code></a>.</dd><dt><a class="fn" href="fn.product_struct_literal.html" title="fn msgpack_tagged_derive::product_struct_literal">product_<wbr>struct_<wbr>literal</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build a bare <code>Product { ... }</code> struct literal from parsed field entries
+plus the reserved list and unknown-tag policy. Used both for top-level
+struct shapes (wrapped in <code>Tagged::Product(...)</code>) and for the inner
+payload of enum variants (used unwrapped).</dd><dt><a class="fn" href="fn.reject_payload_only_attrs_on_empty_variant.html" title="fn msgpack_tagged_derive::reject_payload_only_attrs_on_empty_variant">reject_<wbr>payload_<wbr>only_<wbr>attrs_<wbr>on_<wbr>empty_<wbr>variant</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Reject the variant-level payload-shape modifiers (<code>reserved(...)</code> and
+<code>allow_unknown_tags</code>) on a variant that has no payload field tag space —
+unit and newtype variants — since neither flag has anything to govern
+there. Surfaces the mistake at derive time rather than silently dropping
+the flag.</dd><dt><a class="fn" href="fn.stub.html" title="fn msgpack_tagged_derive::stub">stub</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Stub expansion: empty <code>Tagged::Product</code>, no-op <code>register_into</code>. Used for
+shapes the macro hasn’t learned to handle yet.</dd><dt><a class="fn" href="fn.sum_literal.html" title="fn msgpack_tagged_derive::sum_literal">sum_<wbr>literal</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Build a <code>Tagged::Sum</code> literal from variant entries, the enum-level
+reserved variant-tag list, and the runtime decode-policy flags. Each
+variant’s <code>payload</code> is rendered as a <code>Product</code> populated from the
+variant’s parsed tagged fields, plus its variant-level
+<code>#[tagged(reserved(...))]</code> and <code>#[tagged(allow_unknown_tags)]</code> flags.</dd><dt><a class="fn" href="fn.type_contains_ident.html" title="fn msgpack_tagged_derive::type_contains_ident">type_<wbr>contains_<wbr>ident</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Walk a type’s AST and check whether the impl’s self-type ident appears
+anywhere inside it. Used to detect self-recursive tagged fields like
+<code>children: Vec&lt;Self&gt;</code> in <code>enum Tree { ... Vec&lt;Tree&gt; ... }</code>.</dd><dt><a class="fn" href="fn.validate_no_field_tag_attrs.html" title="fn msgpack_tagged_derive::validate_no_field_tag_attrs">validate_<wbr>no_<wbr>field_<wbr>tag_<wbr>attrs</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Reject any field-level <code>#[tag(...)]</code> attribute on the input. Used when
+<code>#[tagged(via(...))]</code> is set: the public type’s fields are wire-irrelevant,
+so a <code>#[tag(...)]</code> annotation would either be a leftover from before the
+migration to <code>via</code> or a misunderstanding of where tags belong (on the
+wire DTO). Either way, loud rejection is better than silent ignore.</dd><dt><a class="fn" href="fn.variant_kind_token.html" title="fn msgpack_tagged_derive::variant_kind_token">variant_<wbr>kind_<wbr>token</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Render a <code>VariantKind</code> discriminator as the matching <code>::msgpack_tagged</code>
+path expression — used inside generated <code>Variant</code> literals.</dd></dl><h2 id="derives" class="section-header">Derive Macros<a href="#derives" class="anchor">§</a></h2><dl class="item-table"><dt><a class="derive" href="derive.MsgpackTagged.html" title="derive msgpack_tagged_derive::MsgpackTagged">Msgpack<wbr>Tagged</a></dt></dl></section></div></main></body></html>

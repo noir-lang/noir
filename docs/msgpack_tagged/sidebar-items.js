@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"derive":["MsgpackTagged"],"enum":["EncodingStrategy","Tagged","VariantKind"],"fn":["type_name_basename"],"mod":["containers","deserializer","primitives","registry","serializer"],"struct":["Entry","Product","Sum","TagRegistry","Variant"],"trait":["MsgpackTagged"],"type":["Tag"]};

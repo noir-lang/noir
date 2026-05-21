@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LEAF"],"macro":["impl_msgpack_tagged_for_tuple"]};

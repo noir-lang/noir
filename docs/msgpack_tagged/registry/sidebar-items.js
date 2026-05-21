@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Tagged","VariantKind"],"fn":["type_name_basename"],"struct":["Entry","Product","Sum","TagRegistry","Variant"]};

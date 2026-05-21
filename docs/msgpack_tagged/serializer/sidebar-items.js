@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["assert_field_count_matches","begin_product_payload","downgrade_array_if_unsafe","make_inner_rmp_serializer","msgpack_tagged_serialize","write_array_header","write_map_header","write_strategy_header"],"struct":["Serializer","TaggedSerializeProduct","TaggedSerializeViaParent"],"type":["RmpError"]};
