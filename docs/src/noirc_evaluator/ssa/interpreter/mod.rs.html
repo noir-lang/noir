@@ -1379,7 +1379,7 @@
 <a href=#1379 id=1379 data-nosnippet>1379</a>            </span>elements.iter().zip(element_types.iter().cycle()).enumerate()
 <a href=#1380 id=1380 data-nosnippet>1380</a>        {
 <a href=#1381 id=1381 data-nosnippet>1381</a>            <span class="kw">let </span>actual_type = element.get_type();
-<a href=#1382 id=1382 data-nosnippet>1382</a>            <span class="kw">if </span><span class="kw-2">&amp;</span>actual_type != expected_type {
+<a href=#1382 id=1382 data-nosnippet>1382</a>            <span class="kw">if </span>!actual_type.canonical_eq(expected_type) {
 <a href=#1383 id=1383 data-nosnippet>1383</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MakeArrayElementTypeMismatch {
 <a href=#1384 id=1384 data-nosnippet>1384</a>                    result,
 <a href=#1385 id=1385 data-nosnippet>1385</a>                    index,
